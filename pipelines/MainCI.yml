@@ -1,0 +1,184 @@
+# Trigger CI build on changes to main, which happen on PR completion
+trigger:
+  branches:
+    include:
+    - refs/heads/main
+  paths:
+    exclude:
+    - README.md
+    - CONTRIBUTING.md
+
+parameters:
+  - name: ForceCI
+    default: false
+    type: boolean
+
+variables:
+  publishDirectory: '$(Build.ArtifactStagingDirectory)/cosesigntool'
+  binaryDirectory: '$(Build.SourcesDirectory)/CoseSignTool/CoseSignTool/bin/Debug/net6.0'
+  solution: '**/*.sln'
+  buildPlatform: 'x64'
+  buildConfiguration: 'Release'
+  VersionBin: '--notset--'
+  VersionVpk: '--notset--'
+  VersionNgt: '--notset--'
+  MajorVersion: 1
+  MinorVersion: 0
+  VpkName: '$(Build.Repository.Name).$(BUILDCONFIGURATION).$(BUILDPLATFORM)'
+
+name: $(BuildDefinitionName)_$(date:yyMM).$(date:dd)$(rev:rrr)
+
+jobs:
+- job: CIBuild
+  displayName: CI Build
+  cancelTimeoutInMinutes: 1
+  pool:
+    name: Core-ES-Build-Signing-BuildPool-WS2022-PME
+  steps:
+  - checkout: self
+    persistCredentials: True
+
+  - task: CmdLine@2
+    inputs:
+      script: |
+        echo Write out current environment variables
+        set
+
+  - task: PowerShell@2
+    displayName: 'Create Version'
+    inputs:
+      targetType: 'inline'
+      script: |
+        $start = [DateTime]((Get-Item env:SYSTEM_PIPELINESTARTTIME).Value)
+        $branch = (Get-Item env:BUILD_SOURCEBRANCH).Value
+        $buildId = (Get-Item env:BUILD_BUILDID).Value
+        $vpkName = (Get-Item env:VPKNAME).Value
+        $majorVersion = (Get-Item env:MAJORVERSION).Value
+        $minorVersion = (Get-Item env:MINORVERSION).Value
+        $gitHash = & git rev-parse HEAD
+
+        $dateVer = "{0}{1:d2}" -f ($start.Year % 100), $start.Month
+        $timeVer = "{0:d2}{1:d3}"-f $start.Day, ($buildId % 1000)
+        $binVersion = "{0}.{1}.{2}.{3}" -f $majorVersion, $minorVersion, $dateVer, $timeVer
+        $vpkVersion = "{0}.{1}.{2}{3}" -f $majorVersion, $minorVersion, $dateVer, $timeVer
+        $ngtVersion = $vpkVersion
+        if ($branch -ne "refs/heads/main") 
+        {
+            $branchInject = $branch.Substring("refs/heads/".Length)
+            $branchInject = $branchInject.Replace("/", "")
+            $branchInject = $branchInject.Replace("_", "")
+            if ($branchInject.Length -gt 20)
+            {
+                $branchInject = $branchInject.Substring($branchInject.Length - 20)
+            }
+
+            $ngtVersion = "{0}.{1}.{2}{3:d2}{4:d2}-{5}" -f $majorVersion, $minorVersion, $dateVer, $start.Day, ($buildId % 1000), $branchInject
+            $vpkName = "{0}-{1}" -f $vpkName, $branchInject
+        }
+        echo "##vso[task.setvariable variable=VersionBin]$binVersion"
+        echo "##vso[task.setvariable variable=VersionVpk]$vpkVersion"
+        echo "##vso[task.setvariable variable=VersionNgt]$ngtVersion"
+        echo "##vso[task.setvariable variable=VpkName]$vpkName"
+        echo "##vso[task.setvariable variable=GIT_COMMIT]$gitHash"
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore'
+    inputs:
+      command: 'restore'
+      feedsToUse: 'config'
+      nugetConfigPath: 'CoseSignTool/NuGet.config'
+      projects: '**/*.csproj'
+
+  - task: DotNetCoreCLI@2
+    displayName: Test Release
+    inputs:
+      command: test
+      arguments: -c Release --no-restore -f net6.0
+      publishTestResults: true
+      projects: '**/CoseSignUnitTests.csproj'
+
+  - task: DotNetCoreCLI@2
+    displayName: Publish CoseSignTool
+    inputs:
+      command: publish
+      modifyOutputPath: true
+      publishWebProjects: false
+      zipAfterPublish: false
+      projects: CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      arguments: '-c Release -r win-x64 --self-contained true --no-restore -p:PublishSingleFile=true -p:PublishTrimmed=true --output $(publishDirectory) -p:BinaryDirectory=$(binaryDirectory) -p:PublishDirectory=$(publishDirectory)\CoseSignTool'
+
+  - task: PublishSymbols@2
+    displayName: PUBLISH SYMBOLS
+    condition: and(succeeded(), variables.ForceCI)
+    inputs:
+      SymbolsFolder: '$(publishDirectory)'
+      SearchPattern: '**/*.pdb'
+      SymbolServerType: TeamServices
+
+  - task: EsrpCodeSigning@1
+    displayName: ESRP CodeSigning
+    condition: and(succeeded(), variables.ForceCI)
+    inputs:
+      ConnectedServiceName: 'Build tools signing'
+      FolderPath: $(publishDirectory)
+      signConfigType: inlineSignParams
+      inlineOperation: >
+        [
+            {
+                "KeyCode" : "CP-458204",
+                "OperationCode" : "SigntoolSign",
+                "Parameters" : {
+                "OpusName" : "Windows Build Tools Internal",
+                "OpusInfo" : "http://www.microsoft.com",
+                "FileDigest" : "/fd \"SHA256\"",
+                "PageHash" : "/NPH",
+                "TimeStamp" : "/tr \"http://rfc3161.gtm.corp.microsoft.com/TSS/HttpTspServer\" /td sha256"
+            },
+                "ToolName" : "sign",
+                "ToolVersion" : "1.0"
+            },
+            {
+                "KeyCode" : "CP-458204",
+                "OperationCode" : "SigntoolVerify",
+                "Parameters" : {},
+                "ToolName" : "sign",
+                "ToolVersion" : "1.0"
+            }
+        ]
+      SessionTimeout: 20
+
+  - task: PkgESVPack@12
+    displayName: 'Create VPack'
+    inputs:
+      vPackCmd: 'push'
+      sourceDirectory: '$(publishDirectory)'
+      description: 'CoseSignTool'
+      pushPkgName: '$(VpkName)'
+      configurations: 'retail'
+      version: $(VERSIONVPK)
+      metadata: $(GIT_COMMIT)
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - task: DotNetCoreCLI@2
+    displayName: 'NuGet pack'
+    inputs:
+      command: 'pack'
+      arguments: '--configuration Release'
+      packagesToPack: '**/*.csproj;!**/*Tests.csproj'
+      packDirectory: '$(Build.ArtifactStagingDirectory)/NuGetPackages'
+      versioningScheme: byEnvVar
+      versionEnvVar: 'VERSIONNGT'
+      nobuild: true
+      includeSymbols: false
+
+  - task: DotNetCoreCLI@2
+    displayName: 'NuGet push'
+    inputs:
+      command: 'push'
+      feedsToUse: 'select'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/NuGetPackages/*.nupkg'
+      nuGetFeedType: 'internal'
+      publishVstsFeed: 'OSGTools'
+      versioningScheme: 'off'
+

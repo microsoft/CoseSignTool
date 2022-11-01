@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool", "CoseSignTool\CoseSignTool.csproj", "{8388C0AF-458F-4407-B5A9-C900D34AE6BB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignUnitTests", "CoseSignUnitTests\CoseSignUnitTests.csproj", "{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseParser", "CoseParser\CoseParser.csproj", "{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8388C0AF-458F-4407-B5A9-C900D34AE6BB}.Debug|x64.ActiveCfg = Debug|x64
+		{8388C0AF-458F-4407-B5A9-C900D34AE6BB}.Debug|x64.Build.0 = Debug|x64
+		{8388C0AF-458F-4407-B5A9-C900D34AE6BB}.Release|x64.ActiveCfg = Release|x64
+		{8388C0AF-458F-4407-B5A9-C900D34AE6BB}.Release|x64.Build.0 = Release|x64
+		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Debug|x64.ActiveCfg = Debug|x64
+		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Debug|x64.Build.0 = Debug|x64
+		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Release|x64.ActiveCfg = Release|x64
+		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Release|x64.Build.0 = Release|x64
+		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|x64.ActiveCfg = Debug|x64
+		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|x64.Build.0 = Debug|x64
+		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|x64.ActiveCfg = Release|x64
+		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7A47A7E7-CC2B-48CE-9D97-3629EF8AC140}
+	EndGlobalSection
+EndGlobal

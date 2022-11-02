@@ -27,8 +27,8 @@ jobs:
       with:
         dotnet-version: 6.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj

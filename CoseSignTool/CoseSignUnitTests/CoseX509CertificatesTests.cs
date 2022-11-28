@@ -12,16 +12,18 @@ namespace CoseSignUnitTests
     using CoseX509;
 
     [TestClass]
-    public class CoxeX509CertificatesTests
+    public class CoseX509CertificatesTests
     {
         [TestMethod]
         public void CoseX509Certificates_EncodeCertList_OneCert()
         {
-            X509Certificate2Collection expectedCerts = new();
-            expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test1"));
+            X509Certificate2Collection expectedCerts = new()
+            {
+                HelperFunctions.GenerateTestCert("cn=test1")
+            };
 
             CborWriter cborWriter = new();
-            cborWriter.WriteTextString("wohoo");
+            cborWriter.WriteTextString("woohoo");
             cborWriter.EncodeCertList(expectedCerts);
 
             CborReader cborReader = new(cborWriter.Encode());
@@ -34,12 +36,14 @@ namespace CoseSignUnitTests
         [TestMethod]
         public void CoseX509Certificates_EncodeCertList_TwoCerts()
         {
-            X509Certificate2Collection expectedCerts = new();
-            expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test1"));
-            expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test2"));
+            X509Certificate2Collection expectedCerts = new()
+            {
+                HelperFunctions.GenerateTestCert("cn=test1"),
+                HelperFunctions.GenerateTestCert("cn=test2")
+            };
 
             CborWriter cborWriter = new();
-            cborWriter.WriteTextString("wohoo");
+            cborWriter.WriteTextString("woo");
             cborWriter.EncodeCertList(expectedCerts);
 
             CborReader cborReader = new(cborWriter.Encode());

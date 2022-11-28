@@ -29,6 +29,7 @@ namespace CoseSignTool
         {
             ["-Payload"] = "Payload",
             ["-SignatureFile"] = "SignatureFile",
+            ["-X509RootFiles"] = "X509RootFiles",
             ["-StoreName"] = "StoreName",
             ["-StoreLocation"] = "StoreLocation",
             ["-p"] = "Payload",
@@ -39,12 +40,12 @@ namespace CoseSignTool
 
         #region Public properties
         /// <summary>
-        /// Path to the file whose content was or will be signed.
+        /// Gets or sets the path to the file whose content was or will be signed.
         /// </summary>
         public string Payload { get; set; }
 
         /// <summary>
-        /// A file containing a COSE X509 signature.
+        /// Specifies a file containing a COSE X509 signature.
         /// Detach signed signature files contain the hash of the original payload file to match against.
         /// Embed signed signature files include an encoded copy of the entire payload.
         /// Default filename when signing is [Payload].cose for detached or [Payload].csm for embedded.
@@ -52,7 +53,13 @@ namespace CoseSignTool
         public string SignatureFile { get; set; }
 
         /// <summary>
-        /// Optional. The name of the Windows local certificate store to look for certificates in.
+        /// Gets or sets one or more certificate files (.cer or .p7b) to attempt to chain the COSE signature to.
+        /// These certificates do not have to be trusted on the local machine.
+        /// </summary>
+        public string[] X509RootFiles { get; set; }
+
+        /// <summary>
+        /// Optional. Gets or sets the name of the Windows Certificate Store to look for certificates in.
         /// Default value is 'My'.
         /// Setting StoreName to a non-standard value will create or access a custom store.
         /// For standard values, see https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.x509certificates.storename?view=net-6.0
@@ -60,7 +67,7 @@ namespace CoseSignTool
         public string StoreName { get; set; }
 
         /// <summary>
-        /// Optional. The location of the Windows local certificate store to look for certificates in.
+        /// Optional. Gets or sets the location of the Windows Certificate Store to look for certificates in.
         /// Default value is StoreLocation.CurrentUser.
         /// </summary>
         public StoreLocation StoreLocation { get; set; }
@@ -80,6 +87,7 @@ namespace CoseSignTool
         {
             Payload = GetOptionString(provider, "Payload");
             SignatureFile = GetOptionString(provider, "SignatureFile");
+            X509RootFiles = GetOptionArray(provider, "X509RootFiles");
             StoreName = GetOptionString(provider, "StoreName", DefaultStoreName);
             StoreLocation = Enum.Parse<StoreLocation>(GetOptionString(provider, "StoreLocation", DefaultStoreLocation));
         }
@@ -95,7 +103,7 @@ namespace CoseSignTool
         {
             badArg = null;
             var mergedOptions = options.Union(BaseOptions).ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-            string[] fixedArgs = CleanArgs(args);
+            string[] fixedArgs = CleanArgs(args, mergedOptions);            
             if (fixedArgs.Length == 0 || HasInvalidArgument(fixedArgs, mergedOptions, out badArg))
             {
                 return null;
@@ -171,26 +179,60 @@ namespace CoseSignTool
             }
         }
 
-        // Resolve boolean command line options from "-argname" to "-argname true" and replace / with -.
-        private static string[] CleanArgs(string[] args)
+        // Resolve boolean command line options from "-argname" to "-argname true"
+        // replace /arg with -arg
+        // replace "-arg:" with "-arg "
+        private static string[] CleanArgs(string[] args, Dictionary<string, string> options)
         {
             var argsOut = new List<string>();
             for (int i = 0; i < args.Length; i++)
             {
-                argsOut.Add(args[i].Replace('/', '-'));
-                if (IsSwitch(args[i]))
+                string arg = args[i];
+                if (arg.StartsWith('/'))
                 {
-                    if (i + 1 == args.Length || IsSwitch(args[i + 1]))
+                    // Standardize on -arg
+                    arg = string.Concat("-", arg.AsSpan(1));
+                }
+
+                if (arg.StartsWith('-'))
+                {
+                    // arg is an option name
+                    if (arg.Contains(':'))
+                    {
+                        // Split colon-delimited arg into name/value pair, but only on first colon in case the 
+                        // value is a file path
+                        argsOut.AddRange(arg.Split(':', 2, StringSplitOptions.RemoveEmptyEntries));
+                        continue;
+                    }
+
+                    argsOut.Add(arg);
+                    // If the next arg is also an option name, or if this is the last, it must be a boolean flag.
+                    if (i + 1 == args.Length || IsSwitch(args[i + 1], options))
                     {
                         argsOut.Add("true");
                     }
+                    else
+                    {
+                        argsOut.Add(args[i+1]);
+                        i++;
+                    }
+                }
+                else
+                {
+                    // arg is a value
+                    argsOut.Add(arg);
                 }
             }
 
             return argsOut.ToArray();
         }
 
-        private static bool IsSwitch(string s) => s.StartsWith("/") || s.StartsWith("-");
+        private static bool IsSwitch(string s, Dictionary<string, string> options) 
+        {
+            // replace '/' with '-', and remove ':*' for easy dict lookup
+            return options.ContainsKey(s.Replace("/", "-").Split(":")[0]);
+        }
+
 
         // Returns true if the command line contains any unrecognized arguments and outputs the first one if found.
         private static bool HasInvalidArgument(string[] args, Dictionary<string, string> options, out string badArg)

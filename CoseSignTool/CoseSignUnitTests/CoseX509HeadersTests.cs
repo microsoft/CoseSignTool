@@ -12,15 +12,23 @@ namespace CoseSignUnitTests
     using System.Linq;
     using System.Formats.Cbor;
     using System.Security.Cryptography.X509Certificates;
+    using System.Collections.Generic;
 
     [TestClass]
     public class CoseX509HeadersTests
-    {
-        [TestMethod]
+    { 
+        [TestCategory("WindowsOnly"), TestMethod]
         [ExpectedException(typeof(CoseSigningException))]
         public void CertificateHelper_LookupUnknownCertificate()
         {
             CertificateStoreHelper.LookupCertificate("unknown");
+        }
+
+        [TestCategory("WindowsOnly"), TestMethod]
+        [ExpectedException(typeof(CoseSigningException))]
+        public void CertificateHelper_LookupUnknownCertificates()
+        {
+            CertificateStoreHelper.LookupCertificates(new List<string>() { "unknown" });
         }
 
         [TestMethod]

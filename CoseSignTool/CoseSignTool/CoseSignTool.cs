@@ -6,8 +6,10 @@
 
 namespace CoseSignTool
 {
+    using CoseX509;
     using Microsoft.Extensions.Configuration.CommandLine;
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
 
@@ -41,15 +43,15 @@ namespace CoseSignTool
             }
             catch (ArgumentNullException ex)
             {
-                return (int)Fail(ExitCode.MissingRequiredOption, ex.Message);
+                return (int)Fail(ExitCode.MissingRequiredOption, ex);
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                return (int)Fail(ExitCode.InvalidArgumentValue, ex.Message);
+                return (int)Fail(ExitCode.InvalidArgumentValue, ex);
             }
             catch (FileNotFoundException ex)
             {
-                return (int)Fail(ExitCode.FileNotFound, ex.Message);
+                return (int)Fail(ExitCode.FileNotFound, ex);
             }
         }
 
@@ -76,11 +78,21 @@ namespace CoseSignTool
         /// Write a message to STDERR and then return an error code.
         /// </summary>
         /// <param name="errorCode">An error code representing the type of error.</param>
-        /// <param name="message">The error message.</param>
+        /// <param name="ex">An Exception to surface data from.</param>
+        /// <param name="message">An optional error message. If left blank, will print ex.Message.</param>
         /// <returns>The error code.</returns>
-        public static ExitCode Fail(ExitCode errorCode, string message)
+        public static ExitCode Fail(ExitCode errorCode, Exception ex, string message = null)
         {
-            Console.Error.WriteLine(message);
+            List<string> parts = new();
+            var cosEx = ex as ICoseException;
+            parts.Add(message);
+            parts.Add(ex?.Message);
+            parts.Add(cosEx?.Status?.GetJoinedStatusString());
+            parts.Add(ex?.InnerException?.Message);
+            parts.RemoveAll(string.IsNullOrEmpty);
+
+            Console.Error.WriteLine(string.Join(": ", parts));
+
             return errorCode;
         }
 

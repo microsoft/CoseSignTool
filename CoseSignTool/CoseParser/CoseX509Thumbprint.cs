@@ -7,11 +7,11 @@
 namespace CoseX509
 {
     using System;
-    using System.Linq;
-    using System.Formats.Cbor;
-    using System.Security.Cryptography.X509Certificates;
-    using System.Security.Cryptography;
     using System.Collections.Generic;
+    using System.Formats.Cbor;
+    using System.Linq;
+    using System.Security.Cryptography;
+    using System.Security.Cryptography.X509Certificates;
 
     /// <summary>
     /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.
@@ -22,7 +22,7 @@ namespace CoseX509
         #region Properties and fields
         /// <summary>
         /// Dictionary of supported HashIds and related managed hash algorithm names used to construct HashAlgorithm objects.
-        /// These are takgen from https://www.iana.org/assignments/cose/cose.xhtml#algorithms
+        /// These are taken from https://www.iana.org/assignments/cose/cose.xhtml#algorithms
         /// </summary>
         private static readonly Dictionary<int, HashAlgorithmName> HashAlgorithmToCoseValues = new()
         {
@@ -57,8 +57,8 @@ namespace CoseX509
         /// <param name="cert">The certificate to create a thumbprint for.</param>
         public CoseX509Thumprint(X509Certificate2 cert)
         {
-            BuildHasher(getHashID(HashAlgorithmName.SHA256.Name));
-            Thumbprint = Hasher.ComputeHash(cert.RawData);
+            BuildHasher(GetHashID(HashAlgorithmName.SHA256.Name ?? "SHA256"));
+            Thumbprint = Hasher?.ComputeHash(cert.RawData);
         }
 
         /// <summary>
@@ -67,8 +67,9 @@ namespace CoseX509
         /// <param name="cert">The certificate to create a thumbprint for.</param>
         public CoseX509Thumprint(X509Certificate2 cert, HashAlgorithmName hashAlgorithm)
         {
-            BuildHasher(getHashID(hashAlgorithm.Name));
-            Thumbprint = Hasher.ComputeHash(cert.RawData);
+            BuildHasher(GetHashID(hashAlgorithm.Name
+                ?? throw new CryptographicException(nameof(hashAlgorithm), "The supplied hash algorithm name was not recognized.")));
+            Thumbprint = Hasher?.ComputeHash(cert.RawData);
         }
 
         #region Public Methods
@@ -79,7 +80,8 @@ namespace CoseX509
         /// <returns></returns>
         public bool Match(X509Certificate2 certificate)
         {
-            return Thumbprint.ToArray().SequenceEqual(Hasher.ComputeHash(certificate.RawData));
+            return Thumbprint.ToArray().SequenceEqual(Hasher?.ComputeHash(certificate.RawData)
+                ?? throw new InvalidOperationException($"The current {nameof(CoseX509Thumprint)} object is not yet initialized."));
         }
 
         /// <summary>
@@ -88,7 +90,7 @@ namespace CoseX509
         /// <param name="reader">CborReader that contains the data stream to deserialize</param>
         /// <returns>CoseX509Thumbprint object on success, else null</returns>
         /// <exception cref="CoseX509FormatException">Thrown when the data stream in the CborReader does not meet the requirements of the x5t standard</exception>
-        public static CoseX509Thumprint? Deserialize(CborReader reader)
+        public static CoseX509Thumprint Deserialize(CborReader reader)
         {
             CoseX509Thumprint result = new();
 
@@ -146,29 +148,27 @@ namespace CoseX509
         /// </summary>
         /// <param name="algorithmName">Name of hash algorithm</param>
         /// <returns>Valid supported HashId or 0</returns>
-        private int getHashID(string algorithmName)
+        private static int GetHashID(string algorithmName)
         {
             var data = HashAlgorithmToCoseValues.FirstOrDefault(t => t.Value.Name == algorithmName);
             return data.Key;
         }
 
-        /// <summary>
-        /// Builds a hasher object based on the algorithm id
-        /// </summary>
-        /// <param name="coseHashAlgorithmId">Hash Algorithm id to construct hasher for</param>
-        /// <exception cref="CoseX509FormatException">Thrown when the provide coseHashAlgorithmId is not supported</exception>
+        // Sets HashID and returns the value for Hasher.
         private void BuildHasher(int coseHashAlgorithmId)
         {
-            if (HashAlgorithmToCoseValues.TryGetValue(coseHashAlgorithmId, out var hashAlgorithmName))
+            if (HashAlgorithmToCoseValues.TryGetValue(coseHashAlgorithmId, out HashAlgorithmName algName)
+                && algName.Name is not null)
             {
                 HashId = coseHashAlgorithmId;
-                Hasher = HashAlgorithm.Create(hashAlgorithmName.Name);
+                Hasher = HashAlgorithm.Create(algName.Name) ?? throw new CoseX509FormatException($"Failed to create object representation of hash algorithm {algName}");
             }
             else
             {
                 throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm value of {coseHashAlgorithmId}");
             }
         }
+
         #endregion
     }
 }

@@ -33,3 +33,4 @@ jobs:
                 dotnet test --no-build --filter TestCategory!=WindowsOnly --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
            else
                 dotnet test --no-build --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
+           fi

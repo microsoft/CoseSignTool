@@ -29,7 +29,7 @@ Certain features using the Windows certificate store will not work in non-Window
 1. Update any documentation, user and contributor, that is impacted by your changes.
 1. Increase the version numbers in any examples and the [README.md](https://github.com/microsoft/CoseSignTool/blob/main/README.md) to the new version that this pull request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
 1. <should I add this?> Include your change description in `CHANGELOG.md` file as part of pull request.
-1. You may merge the pull request in once you have the sign-off of 2 FTE, including at least one other developer.
+1. You may merge the pull request in once you have the sign-off of at least two Microsoft full-time employees, including at least one other developer.
 
 ## License Information
 

@@ -29,8 +29,8 @@ jobs:
     - name: Build
       run: dotnet build --no-restore CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
     - name: OS Test Filter
-      if: ${{ $RUNNER_OS != "Windows" }}
       run: |
         echo "$FILTER=--filter TestCategory!=WindowsOnly"
+      if: ${{ $RUNNER_OS != "Windows" }}
     - name: Test
       run: dotnet test --no-build $FILTER --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj

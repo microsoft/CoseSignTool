@@ -19,11 +19,10 @@ namespace CoseSignTool
     public sealed class ValidateCommand : CoseCommand
     {
         /// <summary>
-        /// A map of command line options to their abbreviated alaises.
+        /// A map of command line options to their abbreviated aliases.
         /// </summary>
         public static readonly Dictionary<string, string> Options = new()
         {
-            ["-X509RootFiles"] = "X509RootFiles",
             ["-Thumbprints"] = "Thumbprints",
             ["-RevocationMode"] = "RevocationMode",
             ["-CommonName"] = "CommonName",
@@ -34,23 +33,18 @@ namespace CoseSignTool
             ["-rv"] = "RevocationMode",
             ["-cn"] = "CommonName",
             ["-sp"] = "SavePayloadTo",
+            ["-au"] = "AllowUntrusted",
         };
 
         #region Public properties
         /// <summary>
-        /// One or more public key certificate files (.cer or .p7b) to attempt to chain the COSE signature to.
-        /// These certificates do not have to be trusted on the local machine.
-        /// </summary>
-        public string[] X509RootFiles { get; set; }
-
-        /// <summary>
-        /// The thumbprints of one or more installed certificates in the Windows Certificate Store to attempt to chain the COSE signature to.
+        /// Specifies the thumbprints of one or more installed certificates in the Windows Certificate Store to attempt to chain the COSE signature to.
         /// These certificates do not have to be trusted on the local machine.
         /// </summary>
         public string[] Thumbprints { get; set; }
 
         /// <summary>
-        /// The revocation mode to use when checking for expired or revoked certificates.
+        /// Gets or sets the revocation mode to use when checking for expired or revoked certificates.
         /// Default is X509RevocationMode.Online.
         /// </summary>
         public X509RevocationMode RevocationMode { get; set; }
@@ -62,10 +56,15 @@ namespace CoseSignTool
         public string CommonName { get; set; }
 
         /// <summary>
-        /// A file path to write a copy of the original payload to.
+        /// Specifies a file path to write a copy of the original payload to.
         /// By default, no file is created.
         /// </summary>
         public string SavePayloadTo { get; set; }
+
+        /// <summary>
+        /// Allows certificates without trusted roots to pass validation.
+        /// </summary>
+        public bool AllowUntrusted { get; set; }
         #endregion
 
         /// <summary>
@@ -110,42 +109,44 @@ namespace CoseSignTool
                 ThrowIfMissing(Payload, "Could not find the external Payload file");
             }
 
-            // Load root certs from file
             var rootCerts = LoadRootCerts(X509RootFiles);
 
             // Load root certs from store
-            var storeCerts = CertificateStoreHelper.LookupCertificates(Thumbprints.ToList(), StoreName, StoreLocation);
-            rootCerts.AddRange(storeCerts);
+            if (OperatingSystem.IsWindows() && !Thumbprints.IsNullOrEmpty())
+            {
+                var storeCerts = CertificateStoreHelper.LookupCertificates(Thumbprints.ToList(), StoreName, StoreLocation);
+                rootCerts.AddRange(storeCerts);
+            }
 
             try
             {
                 if (SavePayloadTo is not null) // embed-signed and retrieving content...
                 {
-                    byte[] payloadBytes = CoseParser.GetPayload(SignatureFile, rootCerts, RevocationMode, CommonName);
+                    byte[] payloadBytes = CoseParser.GetPayload(SignatureFile, rootCerts, RevocationMode, CommonName, AllowUntrusted);
                     File.WriteAllBytes(SavePayloadTo, payloadBytes);
                 }
                 else if (embedSigned) // but not retrieving content...
                 {
-                    CoseParser.Validate(SignatureFile, rootCerts, RevocationMode, CommonName);
+                    CoseParser.Validate(SignatureFile, rootCerts, RevocationMode, CommonName, AllowUntrusted);
                 }
                 else // detach signed, so no content to retrieve.
                 {
-                    CoseParser.Validate(SignatureFile, Payload, rootCerts, RevocationMode, CommonName);
+                    CoseParser.Validate(SignatureFile, Payload, rootCerts, RevocationMode, CommonName, AllowUntrusted);
                 }
 
                 return ExitCode.Success;
             }
             catch (CryptographicException ex)
             {
-                CoseSignTool.Fail(ExitCode.CertificateLoadFailure, $"Certificate could not be loaded: {ex.Message}");
+                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex, $"Certificate could not be loaded");
             }
             catch (CoseX509FormatException ex)
             {
-                CoseSignTool.Fail(ExitCode.CertificateLoadFailure, $"Certificate chain did not meet COSE formatting requirements: {ex.Message}");
+                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex, $"Certificate chain did not meet COSE formatting requirements");
             }
             catch (CoseValidationException ex)
             {
-                CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex.Message);
+                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex);
             }
 
             return ExitCode.CertificateLoadFailure;
@@ -154,11 +155,11 @@ namespace CoseSignTool
         //<inheritdoc />
         protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)
         {
-            X509RootFiles = GetOptionArray(provider, "X509RootFiles");
             Thumbprints = GetOptionArray(provider, "Thumbprints");
             RevocationMode = Enum.Parse<X509RevocationMode>(GetOptionString(provider, "RevocationMode", "online"), true);
             CommonName = GetOptionString(provider, "CommonName");
             SavePayloadTo = GetOptionString(provider, "SavePayloadTo");
+            AllowUntrusted = GetOptionBool(provider, "AllowUntrusted");
             base.ApplyOptions(provider);
         }
 
@@ -168,7 +169,7 @@ namespace CoseSignTool
             var rootCerts = new List<X509Certificate2>();
             foreach (var rootFile in X509RootFiles)
             {
-                ThrowIfMissing(rootFile, "Could not find one of the the X509RootFiles entries");
+                ThrowIfMissing(rootFile, "Could not find one of the X509RootFiles entries");
 
                 switch (Path.GetExtension(rootFile).ToLowerInvariant())
                 {
@@ -197,7 +198,9 @@ namespace CoseSignTool
         the COSE signature to.
     --OR--
     Thumbprints / th: A comma-separated list of SHA1 thumbprints of one or more certificates in the Windows local
-        certificate store to attempt to chain the certificate on the COSE signature to." + StoreUsageString
+        certificate store to attempt to chain the certificate on the COSE signature to.
+    If no root files or thumbprints are specified, CoseSignTool will attempt to validate root trust against 
+        certificates in the local Windows Certificate Store." + StoreUsageString
             : @"
     X509RootFiles / xr: Required. A comma-separated list of public key certificate files (.cer or .p7b) to attempt
         to chain the COSE signature to.";
@@ -218,6 +221,8 @@ Validate options:
     CommonName / cn: Specifies a certificate Common Name that the signing certificate must match to pass validation.
 
     SavePayload / sp: Writes the payload of an embed-signed file to the specified file path.
-        For embedded signatures only.";
+        For embedded signatures only.
+
+    AllowUntrusted / au: Allows validation to succeed without supplying a trusted root certificate.";
     }
 }

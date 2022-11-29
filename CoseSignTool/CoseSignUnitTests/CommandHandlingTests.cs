@@ -9,65 +9,62 @@ namespace CoseSignUnitTests
     using CoseSignTool;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using System;
-    using System.IO;
     using System.Linq;
     using System.Security.Cryptography.X509Certificates;
 
     [TestClass]
     public class CommandHandlingTests
     {
+
         [TestMethod]
         public void SetAllOptionTypesDashSpace()
         {
-            string[] args = { "-StoreName", "Custom", "-Payload", @"c:\some.file", "-StoreLocation", "LocalMachine", "-EmbedPayload", "-sf", @"c:\another.file" };
+            string[] args = { "-PfxCertificate", "fake.pfx", "-Payload", @"c:\some.file", "-EmbedPayload", "-sf", @"c:\another.file" };
             var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
             Assert.IsNull(badArg, "badArg should be null.");
             var cmd1 = new SignCommand();
             cmd1.ApplyOptions(provider);
-            Assert.AreEqual("Custom", cmd1.StoreName);
+            Assert.AreEqual("fake.pfx", cmd1.PfxCertificate);
             Assert.AreEqual(@"c:\some.file", cmd1.Payload);
             Assert.AreEqual(true, cmd1.EmbedPayload);
-            Assert.AreEqual(StoreLocation.LocalMachine, cmd1.StoreLocation);
 
-            string[] args2 = { "-StoreName", "Custom", "-Payload", @"c:\some.file", "-StoreLocation", "LocalMachine", "-Thumbprints", "asd, wer, rtg, xcv, 234", "-sf", @"c:\another.file" };
+            string[] args2 = { "-Payload", @"c:\some.file", "-X509RootFiles", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", @"c:\another.file" };
             var provider2 = CoseCommand.LoadCommandLineArgs(args2, ValidateCommand.Options, out badArg);
             Assert.IsNull(badArg, "badArg should be null.");
             var cmd2 = new ValidateCommand();
             cmd2.ApplyOptions(provider2);
-            Assert.IsTrue(new string[] { "asd", "wer", "rtg", "xcv", "234" }.SequenceEqual(cmd2.Thumbprints));
+            Assert.IsTrue(new string[] { "asd.cer", "wer.cer", "rtg.cer", "xcv.cer", "234.cer" }.SequenceEqual(cmd2.X509RootFiles));
         }
 
         [TestMethod]
         public void LoadFromAliases()
         {
-            string[] args = { "-sn", "Custom", "-p", @"c:\some.file", "-th", "asd, wer, rtg, xcv, 234", "-sf", @"c:\another.file" };
+            string[] args = { "-p", @"c:\some.file", "-x5", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", @"c:\another.file" };
             var provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out string badArg);
             Assert.IsNull(badArg, "badArg should be null.");
             var cmd1 = new ValidateCommand();
             cmd1.ApplyOptions(provider);
-            Assert.AreEqual("Custom", cmd1.StoreName);
             Assert.AreEqual(@"c:\some.file", cmd1.Payload);
-            Assert.AreEqual(StoreLocation.CurrentUser, cmd1.StoreLocation);
             Assert.AreEqual(@"c:\another.file", cmd1.SignatureFile);
+            Assert.IsTrue(new string[] { "asd.cer", "wer.cer", "rtg.cer", "xcv.cer", "234.cer" }.SequenceEqual(cmd1.X509RootFiles));
         }
 
         [TestMethod]
         public void SlashAndDash()
         {
-            string[] args = { "/StoreName", "Custom", "-Payload", @"c:\some.file", "/StoreLocation", "LocalMachine", "/EmbedPayload", "-sf", @"c:\another.file" };
+            string[] args = { "/PfxCertificate", "fake.pfx", "-Payload", @"c:\some.file", "/EmbedPayload", "-sf", @"c:\another.file" };
             var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out _);
             var cmd1 = new SignCommand();
             cmd1.ApplyOptions(provider);
-            Assert.AreEqual("Custom", cmd1.StoreName);
             Assert.AreEqual(@"c:\some.file", cmd1.Payload);
             Assert.AreEqual(true, cmd1.EmbedPayload);
-            Assert.AreEqual(StoreLocation.LocalMachine, cmd1.StoreLocation);
+            Assert.AreEqual("fake.pfx", cmd1.PfxCertificate);
         }
 
         [TestMethod]
         public void LoadCommandLineArgs()
         {
-            string[] args = { "-StoreName", "Custom", "-Payload", @"c:\some.file", "-embedpayload", "-sf", @"c:\another.file" };
+            string[] args = { "-PfxCertificate", "fake.pfx", "-Payload", @"c:\some.file", "-embedpayload", "-sf", @"c:\another.file" };
             var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
             Assert.IsNull(badArg, "badArg should be null.");
             var cmd1 = new SignCommand();
@@ -75,42 +72,39 @@ namespace CoseSignUnitTests
         }
 
         [TestMethod]
-        public void FromMain()
+        public void LoadCommandLineArgsWithColons()
         {
-            // make cert files
-            var cert = HelperFunctions.GenerateTestCert();
-            var privateKeyCertFile = HelperFunctions.CreateTemporaryFile() + ".pfx";
-            File.WriteAllBytes(privateKeyCertFile, cert.Export(X509ContentType.Pkcs12));
-            var publicKeyCertFile = HelperFunctions.CreateTemporaryFile() + ".cer";
-            File.WriteAllBytes(publicKeyCertFile, cert.Export(X509ContentType.Cert));
+            string[] args = { "-PfxCertificate:fake.pfx", @"-Payload:c:\some.file", "-embedpayload", @"-sf:c:\another.file" };
+            var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
+            Assert.IsNull(badArg, "badArg should be null.");
+            var cmd1 = new SignCommand();
+            cmd1.ApplyOptions(provider);
+        }
 
-            // make payload file
-            var payload = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payload, "Payload1");
+        [TestMethod]
+        public void FromMainInvalid()
+        {
+            // no verb
+            string[] args1 = { @"/pfx", "fake.pfx", @"/p", "some.file" };
+            Assert.AreEqual((int)ExitCode.HelpRequested, CoseSignTool.Main(args1));
 
-            // sign detached
-            string[] args1 = { "sign", @"/pfx", privateKeyCertFile, @"/p", payload };
-            Assert.AreEqual(0, CoseSignTool.Main(args1), "Detach sign failed.");
+            // bad argument
+            string[] args2 = { "sign", "badArg", @"/pfx", "fake.pfx", @"/p", "some.file" };
+            Assert.AreEqual((int)ExitCode.UnknownArgument, CoseSignTool.Main(args2));
 
-            // sign embedded
-            string[] args2 = { "sign", @"/pfx", privateKeyCertFile, @"/p", payload, @"/ep" };
-            Assert.AreEqual(0, CoseSignTool.Main(args2), "Embed sign failed.");
+            // empty payload argument
+            string[] args3 = { "sign", @"/pfx", "fake.pfx", @"/p", "" };
+            Assert.AreEqual((int)ExitCode.MissingRequiredOption, CoseSignTool.Main(args3));
 
-            // validate detached
-            string sigFile = payload + ".cose";
-            string[] args3 = { "validate", @"/x5", publicKeyCertFile, @"/sf", sigFile, @"/p", payload };
-            Assert.AreEqual(0, CoseSignTool.Main(args3), "Detach validation failed.");
+            // nonexistent payload file
+            string[] args4 = { "sign", @"/pfx", "fake.pfx", @"/p", "asdfa" };
+            Assert.AreEqual((int)ExitCode.FileNotFound, CoseSignTool.Main(args4));
 
-            // validate embedded
-            sigFile = payload + ".csm";
-            string[] args4 = { "validate", @"/x5", publicKeyCertFile, @"/sf", sigFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args4), "Embed validation failed.");
-
-            // validate and retrieve content
-            string saveFile = payload + ".saved";
-            string[] args5 = { "validate", @"/x5", publicKeyCertFile, @"/sf", sigFile, "/sp", saveFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args5), "Detach validation with save failed.");
-            Assert.AreEqual(File.ReadAllText(payload), File.ReadAllText(saveFile), "Saved content did not match payload.");
+            // invalid cert container type
+            string sigFile = HelperFunctions.CreateTemporaryFile();
+            string payload = HelperFunctions.CreateTemporaryFile();
+            string[] args5 = { "validate", @"/x5", payload, @"/sf", sigFile };
+            Assert.AreEqual((int)ExitCode.InvalidArgumentValue, CoseSignTool.Main(args5));
         }
     }
 }

@@ -20,7 +20,7 @@ namespace CoseSignTool
     public sealed class SignCommand : CoseCommand
     {
         /// <summary>
-        /// A map of command line options to their abbreviated alaises.
+        /// A map of command line options to their abbreviated aliases.
         /// </summary>
         internal static readonly Dictionary<string, string> Options = new()
         {
@@ -41,13 +41,13 @@ namespace CoseSignTool
         public bool EmbedPayload { get; set; }
 
         /// <summary>
-        /// Optional. The SHA1 thumbprint of a certificate in the Windows local certificate store to sign the file with.
+        /// Optional. Gets or sets the SHA1 thumbprint of a certificate in the Windows Certificate Store to sign the file with.
         /// </summary>
         public string Thumbprint { get; set; }
 
 
         /// <summary>
-        /// Optional. A path to a private key certificate file (.pfx) to sign with.
+        /// Optional. Gets or set the path to a private key certificate file (.pfx) to sign with.
         /// </summary>
         public string PfxCertificate { get; set; }
         #endregion
@@ -74,22 +74,33 @@ namespace CoseSignTool
         /// Generates a cose signed document for the given certificate and payload
         /// </summary>
         /// <returns>An exit code indicating success or failure.</returns>
-        /// <exception cref="FileNotFoundException">The specifed payload file or certificate file could not be found.</exception>
-        /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Wondows OS.</exception>
+        /// <exception cref="FileNotFoundException">The specified payload file or certificate file could not be found.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Windows OS.</exception>
         /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
         public override ExitCode Run()
         {
             X509Certificate2 cert = LoadCert();
 
+            List<X509Certificate2> extras = null;
+            if (X509RootFiles is not null)
+            {
+                extras = new List<X509Certificate2>();
+                foreach (var certPath in X509RootFiles)
+                {
+                    ThrowIfMissing(certPath, "Could not find the certificate file");
+                    extras.Add(new X509Certificate2(certPath));
+                }
+            }
+
             // Sign the file
             try
             {
-                CoseParser.Sign(Payload, cert, EmbedPayload, SignatureFile);
+                CoseParser.Sign(Payload, cert, EmbedPayload, SignatureFile, extras);
                 return (int)ExitCode.Success;
             }
             catch (Exception ex) when (ex is CryptographicException || ex is CoseSigningException)
             {
-                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex.Message);
+                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex);
             }
         }
 
@@ -106,7 +117,7 @@ namespace CoseSignTool
         /// Tries to load the certificate to sign with.
         /// </summary>
         /// <returns>The certificate if found.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Wondows OS.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Windows OS.</exception>
         /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
         /// <exception cref="CryptographicException">The certificate was found but could not be loaded.</exception>
         internal X509Certificate2 LoadCert()
@@ -137,18 +148,23 @@ namespace CoseSignTool
         /// <summary>
         /// Usage string for certificate choices depending on operating system
         /// </summary>
-        private static string certBlock = OperatingSystem.IsWindows() ? @"
+        private static readonly string certBlock = OperatingSystem.IsWindows() ? @"
     PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
     --OR--
-    Thumbprint / th: The SHA1 thumbprint of a certificate in the Windows local certificate store to sign the file with." + StoreUsageString
+    Thumbprint / th: The SHA1 thumbprint of a certificate in the Windows local certificate store to sign the file with." + StoreUsageString + @"
+
+    X509RootFiles / ec: Optional. A comma-separated list of private key certificate files (.p7b) to attempt to chain the certificate to.
+        Do not use with store certificates."
             : @"
-    PfxCertificate / pfx: Required. A path to a private key certificate file (.pfx) to sign with.";
+    PfxCertificate / pfx: Required. A path to a private key certificate file (.pfx) to sign with.
+
+    X509RootFiles / ec: Optional. A comma-separated list of private key certificate files (.cer or .p7b) to attempt to chain the certificate to.";
 
 
         /// <summary>
         /// Command line usage specific to the Sign command.
         /// </summary>
-        public static new string UsageString = BaseUsageString + @"
+        public static readonly new string UsageString = BaseUsageString + @"
 Sign options:
     Payload / p: Path to the file whose content will be signed.
 

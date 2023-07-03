@@ -1,425 +1,348 @@
-﻿// ----------------------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // <copyright file="CoseSignValidateTests.cs" company="Microsoft">
-//      Copyright (c) Microsoft Corporation. All rights reserved.
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
-// ----------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-namespace CoseSignUnitTests
+namespace CoseSignUnitTests;
+
+[TestClass]
+public class CoseHandlerSignValidateTests
 {
-    using CoseX509;
-    using CoseSignTool;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using System;
-    using System.Collections.Generic;
-    using System.Formats.Cbor;
-    using System.IO;
-    using System.Linq;
-    using System.Security.Cryptography;
-    using System.Security.Cryptography.Cose;
-    using System.Security.Cryptography.X509Certificates;
-    using System.Text;
-    using System.Diagnostics;
+    private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
+    private const string SubjectName1 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 1";
+    private const string SubjectName2 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 2";
+    private const string TestCertStoreName = "CoseSignTestCertStore";
 
-    [TestClass]
-    public class CoseSignValidateTests
+    // Certificates and chains as objects
+    private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
+    private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 1");      // Two complete cert chains
+    private static readonly X509Certificate2Collection CertChain2= TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
+    private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains
+    private static readonly X509Certificate2 Root2Priv = CertChain2[0];
+    private static readonly X509Certificate2 Int1Priv = CertChain1[1];
+    private static readonly X509Certificate2 Leaf1Priv = CertChain1[^1];                                                                                        // Leaf node certs
+    private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
+
+    // As byte arrays
+    private static readonly byte[]? Pfx1 = CertChain1.Export(X509ContentType.Pkcs12);
+    private static readonly byte[]? Pfx2 = CertChain2.Export(X509ContentType.Pkcs12);
+    private static readonly byte[] SelfPfx = SelfSignedCert.Export(X509ContentType.Pkcs12);
+    private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);
+    private static readonly byte[] Root2Cer = Root2Priv.Export(X509ContentType.Cert);
+    private static readonly byte[] Int1Cer = Int1Priv.Export(X509ContentType.Cert);
+    private static readonly byte[] Leaf1Cer = Leaf1Priv.Export(X509ContentType.Cert);
+    private static readonly byte[] Leaf2Cer = Leaf2Priv.Export(X509ContentType.Cert);
+    private static readonly byte[] SelfCer = SelfSignedCert.Export(X509ContentType.Cert);
+
+    // As public key certs
+    private static readonly X509Certificate2 Root1Pub = new(Root1Cer);
+    private static readonly X509Certificate2 Root2Pub = new(Root2Cer);
+    private static readonly X509Certificate2 Int1Pub = new(Int1Cer);
+    private static readonly X509Certificate2 Leaf1Pub = new(Leaf1Cer);
+
+    // As lists
+    private static readonly List<X509Certificate2> ValidRootSetPriv = new() { Root1Priv, Int1Priv };                                                  // Root and intermediate only
+    private static readonly List<X509Certificate2> ValidRootSetPub = new() { Root1Pub, Int1Pub };
+    private static readonly List<X509Certificate2> BadRootSet = new() { Root2Pub, Int1Pub };                                                        // Mismatched root and intermediate
+
+    // File paths to export them to
+    private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
+    private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
+    private static string PrivateKeyRootCertFile;
+    private static string PublicKeyRootCertFile;
+    private static string PrivateKeyCertFileChained;
+    private static string PayloadFile;
+    private static string TestFolder;
+
+    private static readonly CoseSign1MessageValidator BaseValidator = new X509ChainTrustValidator(
+                ValidRootSetPriv,
+                RevMode,
+                allowUnprotected: true,
+                allowUntrusted: true);
+
+    private static readonly bool ElevatedTests = false;
+    private static readonly string SName = "My";
+    private static readonly StoreLocation SLoc = StoreLocation.CurrentUser;
+    private static readonly X509RevocationMode RevMode = X509RevocationMode.NoCheck;
+
+    public CoseHandlerSignValidateTests()
     {
-        private readonly byte[] Payload1 = Encoding.ASCII.GetBytes("Payload1!");
-        private const string SubjectName1 = "cn=FakeCert1";
-        private const string TestCertStoreName = "CoseSignTestCertStore";
-
-        private static readonly X509Certificate2 SelfSignedCert = HelperFunctions.GenerateTestCert(SubjectName1);
-        private static readonly X509Certificate2 SelfSignedRoot = HelperFunctions.GenerateTestCert(SubjectName1);
-        private static readonly X509Certificate2 ChainedCert = HelperFunctions.GenerateChainedCert(SelfSignedRoot);
-
-        private static string PrivateKeyCertFile;
-        private static string PublicKeyCertFile;
-        private static string PayloadFile;
-
-        private static bool ElevatedTests = false;
-
-        public CoseSignValidateTests()
-        {
-            // export generated certs to files
-            PrivateKeyCertFile = HelperFunctions.CreateTemporaryFile() + ".pfx";
-            File.WriteAllBytes(PrivateKeyCertFile, SelfSignedCert.Export(X509ContentType.Pkcs12));
-            PublicKeyCertFile = HelperFunctions.CreateTemporaryFile() + ".cer";
-            File.WriteAllBytes(PublicKeyCertFile, SelfSignedCert.Export(X509ContentType.Cert));
-
-            // make payload file
-            PayloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllBytes(PayloadFile, Payload1);
-
-            // Add test cert to test cert store if on Windows
-            if (OperatingSystem.IsWindows())
-            {
-                using (var certStore = new X509Store(TestCertStoreName, StoreLocation.CurrentUser))
-                {
-                    certStore.Open(OpenFlags.ReadWrite);
-                    certStore.Add(SelfSignedCert);
-                }
-            }
-        }
-
-        [TestMethod]
-        public void FromMain()
-        {
-            // sign detached
-            string[] args1 = { "sign", @"/pfx", PrivateKeyCertFile, @"/p", PayloadFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args1), "Detach sign failed.");
-
-            // sign embedded
-            string[] args2 = { "sign", @"/pfx", PrivateKeyCertFile, @"/p", PayloadFile, @"/ep" };
-            Assert.AreEqual(0, CoseSignTool.Main(args2), "Embed sign failed.");
-
-            // validate detached
-            string sigFile = PayloadFile + ".cose";
-            string[] args3 = { "validate", @"/x5", PublicKeyCertFile, @"/sf", sigFile, @"/p", PayloadFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args3), "Detach validation failed.");
-
-            // validate embedded
-            sigFile = PayloadFile + ".csm";
-            string[] args4 = { "validate", @"/x5", PublicKeyCertFile, @"/sf", sigFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args4), "Embed validation failed.");
-
-            // validate and retrieve content
-            string saveFile = PayloadFile + ".saved";
-            string[] args5 = { "validate", @"/x5", PublicKeyCertFile, @"/sf", sigFile, "/sp", saveFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args5), "Detach validation with save failed.");
-            Assert.AreEqual(File.ReadAllText(PayloadFile), File.ReadAllText(saveFile), "Saved content did not match payload.");
-        }
-
-        [TestMethod]
-        public void ValidateCoseRoundTripDetached()
-        {
-            var rsaPublicKey = SelfSignedCert.GetRSAPublicKey();
-            var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey();
-
-            byte[] encodedMsg = CoseSign1Message.Sign(Payload1, rsaPrivateKey, HashAlgorithmName.SHA256, true);
-            CoseSign1Message msg = CoseMessage.DecodeSign1(encodedMsg);
-            Assert.IsTrue(msg.Verify(rsaPublicKey, Payload1), "Validated CoseSign1Message");
-        }
-
-        [TestMethod]
-        public void ValidateCoseRoundTripCustomHeader()
-        {
-            // This test does not actually test any of our code. It just validates the Cose APIs that we're calling.
-            var rsaPublicKey = SelfSignedCert.GetRSAPublicKey();
-            var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey();
-
-            var writer = new CborWriter();
-            writer.WriteStartArray(definiteLength: 3);
-            writer.WriteInt32(42);
-            writer.WriteTextString("foo");
-            writer.WriteTextString("bar");
-            writer.WriteEndArray();
-
-            var myArrayHeader = new CoseHeaderLabel("my-array-header");
-
-            CoseHeaderMap unprotectedHeaders = new();
-            unprotectedHeaders.SetEncodedValue(myArrayHeader, writer.Encode());
-
-            // Encode but with user-defined headers.
-            byte[] encodedMsg = CoseSign1Message.Sign(Payload1, protectedHeaders: new CoseHeaderMap(), unprotectedHeaders, rsaPrivateKey, HashAlgorithmName.SHA256, isDetached: true);
-
-            CoseSign1Message msg = CoseMessage.DecodeSign1(encodedMsg);
-
-            var encodedHeader = msg.UnprotectedHeaders.GetEncodedValue(myArrayHeader);
-            CborReader reader = new(encodedHeader);
-            Assert.AreEqual(CborReaderState.StartArray, reader.PeekState(), "encoded as array");
-
-            // If the structure is wrong this will throw an exception and break the test
-            Assert.AreEqual(3, reader.ReadStartArray());
-            Assert.AreEqual(42, reader.ReadInt32());
-            Assert.AreEqual("foo", reader.ReadTextString());
-            Assert.AreEqual("bar", reader.ReadTextString());
-            reader.ReadEndArray();
-
-            Assert.IsTrue(msg.Verify(rsaPublicKey, Payload1), "Validated CoseSign1Message");
-        }
-
-        [TestMethod]
-        public void SignValidateInternalTests()
-        {
-            var signedFile = HelperFunctions.CreateTemporaryFile();
-            CoseParser.Sign(Payload1, false, SelfSignedCert, signedFile);
-
-            var signedBytes = File.ReadAllBytes(signedFile);
-
-            List<X509Certificate2> roots = new() { SelfSignedCert };
-            CoseParser.ValidateInternal(signedBytes, Payload1, roots, X509RevocationMode.NoCheck, null);
-        }
-
-        [TestMethod]
-        public void SelfSignedValidateFailIfCertNotPassedAsRoot()
-        {
-            var signedFile = HelperFunctions.CreateTemporaryFile();
-            CoseParser.Sign(Payload1, false, SelfSignedCert, signedFile);
-
-            var signedBytes = File.ReadAllBytes(signedFile);
-
-            List<X509Certificate2> roots = new();
-            Assert.ThrowsException<CoseValidationException>(
-                () => CoseParser.ValidateInternal(signedBytes, Payload1, roots, X509RevocationMode.NoCheck, null));
-        }
-
-        [TestMethod]
-        public void EmbeddedFromPayloadFile()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert, true);
-
-            string signedFile = payloadFile + ".csm";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            CoseParser.Validate(signedFile, new List<X509Certificate2>() { SelfSignedCert }, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(signedFile, new List<X509Certificate2>() { SelfSignedCert }, out Exception ex, X509RevocationMode.NoCheck));
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(CoseValidationException))]
-        public void EmbeddedBadRoot()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert, true);
-
-            string signedFile = payloadFile + ".csm";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            Assert.IsFalse(CoseParser.TryValidate(signedFile, new List<X509Certificate2>() { ChainedCert }, out Exception ex, X509RevocationMode.NoCheck));
-            CoseParser.Validate(signedFile, new List<X509Certificate2>() { ChainedCert }, X509RevocationMode.NoCheck);
-        }
-
-        [TestMethod]
-        public void DetachedWithRootFiles()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert);
-
-            string signedFile = payloadFile + ".cose";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            CoseParser.Validate(signedFile, payloadFile, new List<X509Certificate2>() { SelfSignedCert }, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(signedFile, payloadFile, new List<X509Certificate2>() { SelfSignedCert }, out Exception ex, X509RevocationMode.NoCheck));
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(CoseValidationException))]
-        public void DetachedValidateModifiedPayload()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert);
-
-            string signedFile = payloadFile + ".cose";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            File.WriteAllText(payloadFile, "modified payload");
-
-            Assert.IsFalse(CoseParser.TryValidate(signedFile, payloadFile, new List<X509Certificate2>() { SelfSignedCert }, out Exception ex, X509RevocationMode.NoCheck));
-            Assert.AreEqual(ex.GetType().ToString(), typeof(CoseValidationException).ToString());
-            CoseParser.Validate(signedFile, payloadFile, new List<X509Certificate2>() { SelfSignedCert }, X509RevocationMode.NoCheck);
-        }
-
-        [TestCategory("WindowsOnly"), TestMethod]
-        public void EmbeddedFromPayloadFileCertStore()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert, true);
-
-            string signedFile = payloadFile + ".csm";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            CoseParser.Validate(signedFile, new List<string>() { SelfSignedCert.Thumbprint }, TestCertStoreName, StoreLocation.CurrentUser);
-            Assert.IsTrue(CoseParser.TryValidate(signedFile, new List<string>() { SelfSignedCert.Thumbprint }, out Exception ex, TestCertStoreName, StoreLocation.CurrentUser));
-        }
-
-        [TestCategory("WindowsOnly"), TestMethod]
-        public void DetachedFromStoreCert()
-        {
-            string thumbprint = SelfSignedCert.Thumbprint;
-
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, thumbprint, false, null, TestCertStoreName);
-
-            string signedFile = payloadFile + ".cose";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            var storeCert = CertificateStoreHelper.LookupCertificate(thumbprint, TestCertStoreName, StoreLocation.CurrentUser);
-            Assert.AreEqual(storeCert, SelfSignedCert);
-
-            // Test that corresponding Validate() and TryValidate() methods succeed
-            CoseParser.Validate(signedFile, payloadFile, new List<string>() { thumbprint }, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(signedFile, payloadFile, new List<string>() { thumbprint }, out Exception ex, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck));
-        }
-
-        [TestCategory("WindowsOnly"), TestMethod]
-        public void TrySignDetachedFromStoreCert()
-        {
-            string thumbprint = SelfSignedCert.Thumbprint;
-
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            Assert.IsTrue(CoseParser.TrySign(payloadFile, thumbprint, out Exception ex, false, null, TestCertStoreName));
-
-            string signedFile = payloadFile + ".cose";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            var storeCert = CertificateStoreHelper.LookupCertificate(thumbprint, TestCertStoreName, StoreLocation.CurrentUser);
-            Assert.AreEqual(storeCert, SelfSignedCert);
-
-            // Test that signed file can be validated
-            CoseParser.Validate(signedFile, payloadFile, new List<string>() { thumbprint }, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(signedFile, payloadFile, new List<string>() { thumbprint }, out Exception ex1, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck));
-        }
-
-        [TestMethod]
-        public void GetEmbeddedPayload()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert, true);
-            string signedFile = payloadFile + ".csm";
-
-            List<X509Certificate2> roots = new() { SelfSignedCert };
-
-            var payloadBytes = File.ReadAllBytes(payloadFile);
-
-            // Test that corresponding GetPayload() and TryGetPayload() succeed
-            byte[] payload = CoseParser.GetPayload(signedFile, roots, X509RevocationMode.NoCheck);
-            Assert.IsTrue(payloadBytes.SequenceEqual(payload));
-
-            Assert.IsTrue(CoseParser.TryGetPayload(signedFile, roots, out byte[] payload1, out Exception ex, X509RevocationMode.NoCheck));
-            Assert.IsTrue(payloadBytes.SequenceEqual(payload1));
-        }
-
-        [TestCategory("WindowsOnly"), TestMethod]
-        public void GetEmbeddedPayloadCertStore()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            CoseParser.Sign(payloadFile, SelfSignedCert, true);
-            string signedFile = payloadFile + ".csm";
-
-            List<string> thumbprints = new() { SelfSignedCert.Thumbprint };
-
-            var payloadBytes = File.ReadAllBytes(payloadFile);
-
-            // Test that corresponding GetPayload() and TryGetPayload() succeed
-            byte[] payload = CoseParser.GetPayload(signedFile, thumbprints, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck);
-            Assert.IsTrue(payloadBytes.SequenceEqual(payload));
-
-            Assert.IsTrue(CoseParser.TryGetPayload(signedFile, thumbprints, out byte[] payload1, out Exception ex, TestCertStoreName, StoreLocation.CurrentUser, X509RevocationMode.NoCheck));
-            Assert.IsTrue(payloadBytes.SequenceEqual(payload1));
-        }
-
-        [TestMethod]
-        public void CanValidateChainedCertWithRootOrWithFlagSet()
-        {
-            // Sign the file
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-            var roots = new List<X509Certificate2>() { SelfSignedRoot };
-            CoseParser.Sign(payloadFile, ChainedCert, false, null, roots);
-
-            // Get the signature file
-            string signedFile = payloadFile + ".cose";
-            var dir = Directory.GetParent(payloadFile);
-            Assert.IsTrue(File.Exists(signedFile), $"Could not find {signedFile} in directory {dir.FullName}.");
-
-            // Validate with roots
-            CoseParser.Validate(signedFile, payloadFile, roots, X509RevocationMode.NoCheck);
-
-            // Validate without roots, flag set
-            CoseParser.Validate(signedFile, payloadFile, null, X509RevocationMode.NoCheck, null, true);
-
-            // Validate without roots, flag not set
-            Assert.ThrowsException<CoseValidationException>(() =>
-                CoseParser.Validate(signedFile, payloadFile, null, X509RevocationMode.NoCheck));
-        }
-
-        [TestMethod]
-        public void ThrowsOnSignWithMissingRoot()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            // Note that it throws the same exception regardless of whether AllowUntrusted is set or not.
-            Assert.ThrowsException<CoseSigningException>(() => CoseParser.Sign(payloadFile, ChainedCert), "Should have thrown on non-self-signed cert without root.");
-        }
-
-        [TestCleanup]
-        public void Cleanup()
-        {
-            if (OperatingSystem.IsWindows()) 
-            { 
-                using X509Store testCertStore = new(TestCertStoreName, StoreLocation.CurrentUser);
-                testCertStore.Open(OpenFlags.ReadWrite);
-                testCertStore.RemoveRange(testCertStore.Certificates);
-                testCertStore.Close();
-
-                if (ElevatedTests) {
-                    using X509Store trustedRootsCertStore = new(StoreName.Root, StoreLocation.CurrentUser);
-                    trustedRootsCertStore.Open(OpenFlags.ReadWrite);
-                    trustedRootsCertStore.Remove(SelfSignedCert);
-                    trustedRootsCertStore.Close();
-                }
-            }
-        }
-
-#if false
-        // This test requires elevated permissions because we need to install test cert to Root CA store
-        [TestCategory("WindowsOnly"), TestMethod]
-        public void ValidateFromRootCAStoreCert()
-        {
-            string payloadFile = HelperFunctions.CreateTemporaryFile();
-            File.WriteAllText(payloadFile, "Payload");
-
-            // sign detached
-            string[] args1 = { "sign", @"/pfx", PrivateKeyCertFile, @"/p", payloadFile };
-            Assert.AreEqual(0, CoseSignTool.Main(args1), "Detach sign failed.");
-            string detachedSigFile = payloadFile + ".cose";
-
-            // sign embedded
-            string[] args2 = { "sign", @"/pfx", PrivateKeyCertFile, @"/p", payloadFile, @"/ep" };
-            Assert.AreEqual(0, CoseSignTool.Main(args2), "Embed sign failed.");
-            string embedSigFile = payloadFile + ".csm";
-
-            ElevatedTests = true;
-            using (var certStore = new X509Store(StoreName.Root, StoreLocation.CurrentUser))
-            {
-                certStore.Open(OpenFlags.ReadWrite);
-                certStore.Add(SelfSignedCert);
-            }
-                
-            // validate detached
-            CoseParser.Validate(detachedSigFile, payloadFile, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(detachedSigFile, payloadFile, out Exception ex1, X509RevocationMode.NoCheck));
-
-            //validate embedded
-            CoseParser.Validate(embedSigFile, X509RevocationMode.NoCheck);
-            Assert.IsTrue(CoseParser.TryValidate(embedSigFile, out Exception ex2, X509RevocationMode.NoCheck));
-        }
-#endif
+        X509Certificate2 selfSigned = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");
+
+        // export generated certs to files
+        File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
+        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
+        PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
+        PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
+        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
+        PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
+
+        // make payload file
+        PayloadFile = Path.GetTempFileName();
+        File.WriteAllBytes(PayloadFile, Payload1Bytes);
+
+        // get the parent folder
+        TestFolder = Path.GetDirectoryName(PayloadFile) + Path.DirectorySeparatorChar;
     }
+
+    #region Valid Sign/Validate scenarios: Payload and signature options
+    /// <summary>
+    /// This is the most basic round trip scenario. Detach sign the payload from a byte array with a chained cert,
+    /// then validate the signed bytes against the chained cert and its root. No file reads, store lookups, streams,
+    /// config options, or dependence on default behaviors.
+    /// Consider these the default options for other round trip tests.
+    /// </summary>
+    [TestMethod]
+    public void Base_DetachSignBytesChainedCert_ValidateBytesRoots()
+    {
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(Base_DetachSignBytesChainedCert_ValidateBytesRoots));
+
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, false, null);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
+            .Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validates that signature from stream can validate from bytes.
+    /// </summary>
+    [TestMethod]
+    public void StreamPayloadIn()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(new MemoryStream(Payload1Bytes), Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
+            .Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validates that signature from bytes can validate from stream.
+    /// </summary>
+    [TestMethod]
+    public void StreamPayloadOut()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        var results = CoseHandler.Validate(signedBytes.ToArray(), new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
+        results.Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validates the file read/write operations for payload and signatures.
+    /// </summary>
+    [TestMethod]
+    public void PayloadFile_SignatureFile()
+    {
+        string signaturePath = $"{TestFolder}{nameof(PayloadFile_SignatureFile)}.cose";
+        FileInfo signatureFile = new (signaturePath);
+        byte[] signedBytes = CoseHandler.Sign(new FileInfo(PayloadFile), Leaf1Priv, false, signatureFile).ToArray();
+        signedBytes.Should().NotBeNull();
+        byte[] bytesFromFile = File.ReadAllBytes(signaturePath);
+        bytesFromFile.Should().Equal(signedBytes);
+
+        // Validate from bytes
+        CoseHandler.Validate(signedBytes, Payload1Bytes, ValidRootSetPriv, RevMode)
+            .Success.Should().Be(true);
+
+        // Validate from stream
+        CoseHandler.Validate(File.OpenRead(signaturePath), Payload1Bytes, ValidRootSetPriv, RevMode)
+            .Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validate the SigningKeyProvider syntax, the internal GetValidator function, and the object handling for unspecified payload and signature inputs.
+    /// </summary>
+    [TestMethod]
+    public void WithSigningKeyProviderAndChainValidator()
+    {
+        //string signatureFile = $"{TestFolder}WithSigningKeyProviderAndChainValidator.cose";
+
+        // Sign bytes, validate stream
+        ReadOnlyMemory<byte> signedBytesB = CoseHandler.Sign(Payload1Bytes, new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
+        signedBytesB.ToArray().Should().NotBeNull();
+        var result = CoseHandler.Validate(signedBytesB.ToArray(), BaseValidator, new MemoryStream(Payload1Bytes));
+        result.Success.Should().Be(true);
+
+        // Sign stream, validate bytes
+        ReadOnlyMemory<byte> signedBytesS = CoseHandler.Sign(new MemoryStream(Payload1Bytes), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
+        signedBytesS.ToArray().Should().NotBeNull();
+        result = CoseHandler.Validate(signedBytesS.ToArray(), BaseValidator, Payload1Bytes);
+        result.Success.Should().Be(true);
+    }
+    #endregion
+
+    #region Valid Sign/Validate scenarios: Other options
+    /// <summary>
+    /// Validate that embed signing works and that GetPayload gets the same content that went in.
+    /// </summary>
+    [TestMethod]
+    public void EmbedSign_Get()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, true);
+        signedBytes.ToArray().Should().NotBeNull();
+        var returnedPayload = CoseHandler.GetPayload(signedBytes.ToArray(), out _, ValidRootSetPriv, RevMode);
+        returnedPayload.Should().Be("Payload1!");
+    }
+
+    /// <summary>
+    /// Validates that a HeaderExtender is added when specified.
+    /// </summary>
+    [TestMethod]
+    public void HeaderExtender()
+    {
+        // TODO: Fill in this test -- currently a place holder
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
+            .Success.Should().Be(true);
+    }
+
+
+    [TestMethod]
+    public void FromCertStoreWithThumbs()
+    {
+        // TODO: Fill in this test -- currently a place holder. Remember -- only the Sign op can take a thumbprint.
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+    }
+
+    [TestMethod]
+    public void FromCertStoreNoThumbs()
+    {
+        // TODO: Fill in this test -- currently a place holder. This is for basically default sign -- not sure if it's something we should support or test.
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+    }
+
+    /// <summary>
+    /// Validate that signing with requiredCommonName set passes validation when and only when the cert has the correct common name.
+    /// </summary>
+    [TestMethod]
+    public void CommonName()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        string validCommonName = Leaf1Priv.Subject;
+
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: "Not the cert common name");
+        result.Success.Should().Be(false);
+
+        result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: validCommonName);
+        result.Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validates with chained cert against a blank validator.
+    /// </summary>
+    [TestMethod]
+    public void BlankValidator()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), new X509ChainTrustValidator(), Payload1Bytes)
+            .Success.Should().Be(false);
+    }
+
+    /// <summary>
+    /// Validate that signing with a self-signed cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// </summary>
+    [TestMethod]
+    public void SelfSigned()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert);
+        signedBytes.ToArray().Should().NotBeNull();
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode);
+        result.Success.Should().Be(true);
+    }
+
+    /// <summary>
+    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// </summary>
+    [TestMethod]
+    public void Untrusted()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
+            .Success.Should().Be(true);
+    }
+    #endregion
+
+    #region Error scenarios
+    [TestMethod]
+    public void DetachedValidationWithoutPayload()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        signedBytes.ToArray().Should().NotBeNull();
+        var result = CoseHandler.Validate(signedBytes.ToArray(), BaseValidator);
+
+        result.Success.Should().Be(false);
+        result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMissing));
+    }
+
+    [TestMethod]
+    [ExpectedException(typeof(ArgumentException))]
+    public void SignWithoutPayload()
+    {
+#pragma warning disable CS8600, CS8625 // Converting null literal -- deliberate null convetrsion for test purposes.
+        _ = CoseHandler.Sign((byte[]) null, Leaf1Priv);
+#pragma warning restore CS8600, CS8625 // Converting null literal or possible null value to non-nullable type.
+    }
+
+    [TestMethod]
+    public void DetachedValidateModifiedPayload()
+    {
+        // Standard setup
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+
+        // Now change one character in the payload
+        var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
+
+        // Try to validate
+        var result = CoseHandler.Validate(signedBytes.ToArray(), modifiedPayload, ValidRootSetPriv, RevMode);
+
+        result.Success.Should().Be(false);
+        result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+    }
+    #endregion
+
+    #region TryX wrappers
+
+    [TestMethod]
+    public void SignAllOverloadsAndValidate()
+    {
+        X509Certificate2CoseSigningKeyProvider keyProvider = new(null, Leaf1Priv);
+
+        var sig2 = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        var result = CoseHandler.Validate(sig2.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        var sig3 = CoseHandler.Sign(Payload1Bytes, keyProvider);
+        result = CoseHandler.Validate(sig3.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        var sig4 = CoseHandler.Sign(new MemoryStream(Payload1Bytes), keyProvider);
+        result = CoseHandler.Validate(sig4.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        var sig5 = CoseHandler.Sign(new MemoryStream(Payload1Bytes), Leaf1Priv);
+        result = CoseHandler.Validate(sig5.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        var sig6 = CoseHandler.Sign(new FileInfo(PayloadFile), keyProvider);
+        result = CoseHandler.Validate(sig6.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        var sig7 = CoseHandler.Sign(new FileInfo(PayloadFile), Leaf1Priv);
+        result = CoseHandler.Validate(sig7.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        result.Success.Should().Be(true);
+
+        // Note: Thumbprint cases area excluded to avoid cert store calls.
+    }
+    #endregion
 }

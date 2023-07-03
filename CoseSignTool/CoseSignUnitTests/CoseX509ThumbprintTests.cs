@@ -1,66 +1,56 @@
-﻿// ----------------------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // <copyright file="CoseX509ThumbprintTests.cs" company="Microsoft">
-//      Copyright (c) Microsoft Corporation. All rights reserved.
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
-// ----------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-namespace CoseSignUnitTests
+namespace CoseSignUnitTests;
+
+[TestClass]
+public class CoseX509ThumbprintTests
 {
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using System.Security.Cryptography;
-    using System.Security.Cryptography.X509Certificates;
-    using CoseX509;
-    using System.Linq;
-    using System;
-    using System.Collections.Generic;
 
-    [TestClass]
-    public class CoseX509ThumbprintTests
+    private const string SubjectName1 = $"{nameof(CoseX509ThumbprintTests)}_Cert1";
+    private const string SubjectName2 = $"{nameof(CoseX509ThumbprintTests)}_Cert2";
+    private static readonly X509Certificate2 SelfSignedCert1 = TestCertificateUtils.CreateCertificate(SubjectName1); // HelperFunctions.GenerateTestCert(SubjectName1);
+    private static readonly X509Certificate2 SelfSignedCert2 = TestCertificateUtils.CreateCertificate(SubjectName2); // HelperFunctions.GenerateTestCert(SubjectName2);
+
+    [TestMethod]
+    public void ConstructThumbprintDefaultAlgo()
     {
+        CoseX509Thumprint th = new(SelfSignedCert1);
 
-        private const string SubjectName1 = "cn=FakeCert1";
-        private const string SubjectName2 = "cn=FakeCert2";
-        private static readonly X509Certificate2 SelfSignedCert1 = HelperFunctions.GenerateTestCert(SubjectName1);
-        private static readonly X509Certificate2 SelfSignedCert2 = HelperFunctions.GenerateTestCert(SubjectName2);
+        SHA256.HashData(SelfSignedCert1.RawData).Should().BeEquivalentTo(th.Thumbprint.ToArray(), options => options.WithStrictOrdering());
+        th.Match(SelfSignedCert1).Should().BeTrue();
+        th.Match(SelfSignedCert2).Should().BeFalse();
 
-        private static readonly Dictionary<string, HashAlgorithmName> HashNameToHashAlgoName = new()
+    }
+
+    [TestMethod]
+    public void ConstructThumbprintWithAlgo()
+    {
+        var algos = new HashAlgorithm[]
         {
-            { "SHA1", HashAlgorithmName.SHA1 },
-            { "SHA256", HashAlgorithmName.SHA256 },
-            { "SHA384", HashAlgorithmName.SHA384 },
-            { "SHA512", HashAlgorithmName.SHA512 }
+            SHA1.Create(), SHA256.Create(), SHA384.Create(), SHA512.Create()
         };
 
+        foreach (var algo in algos)
+        {
+            var t = algo.GetType();
+            var algName = t.DeclaringType.Name;
+            CoseX509Thumprint th = new(SelfSignedCert1, new HashAlgorithmName(algName));
+            HashAlgorithm hashAlgorithm = algo;
 
-        [TestMethod]
-        public void ConstructThumbprintDefaultAlgo() 
-        {
-            CoseX509Thumprint th = new(SelfSignedCert1);
-            HashAlgorithm hashAlgorithm = SHA256.Create();
-            Assert.IsTrue(hashAlgorithm.ComputeHash(SelfSignedCert1.RawData).SequenceEqual(th.Thumbprint.ToArray()));
-            Assert.IsTrue(th.Match(SelfSignedCert1));
-            Assert.IsFalse(th.Match(SelfSignedCert2));
+            hashAlgorithm.ComputeHash(SelfSignedCert1.RawData).Should().BeEquivalentTo(th.Thumbprint.ToArray(), options => options.WithStrictOrdering());
+            th.Match(SelfSignedCert1).Should().BeTrue();
+            th.Match(SelfSignedCert2).Should().BeFalse();
         }
-        
-        [TestMethod]
-        [DataRow("SHA1")]
-        [DataRow("SHA256")]
-        [DataRow("SHA384")]
-        [DataRow("SHA512")]
-        public void ConstructThumbprintWithAlgo(string algo)
-        {
-            CoseX509Thumprint th = new(SelfSignedCert1, HashNameToHashAlgoName[algo]);
-            HashAlgorithm hashAlgorithm = HashAlgorithm.Create(algo);
-            Assert.IsTrue(hashAlgorithm.ComputeHash(SelfSignedCert1.RawData).SequenceEqual(th.Thumbprint.ToArray()));
-            Assert.IsTrue(th.Match(SelfSignedCert1));
-            Assert.IsFalse(th.Match(SelfSignedCert2));
-        }
+    }
 
-        [TestMethod]
-        [ExpectedException(typeof(CoseX509FormatException))]
-        public void ConstructThumbprintWithUnsupportedAlgo()
-        {
-            CoseX509Thumprint th = new(SelfSignedCert1, HashAlgorithmName.MD5);
-        }
+    [TestMethod]
+    [ExpectedException(typeof(CoseX509FormatException))]
+    public void ConstructThumbprintWithUnsupportedAlgo()
+    {
+        _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.MD5);
     }
 }

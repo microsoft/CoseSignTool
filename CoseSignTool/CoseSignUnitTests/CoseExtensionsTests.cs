@@ -1,96 +1,42 @@
-﻿// ----------------------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // <copyright file="CoseExtensionsTests.cs" company="Microsoft">
-//      Copyright (c) Microsoft Corporation. All rights reserved.
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
-// ----------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-namespace CoseSignUnitTests
+namespace CoseSignUnitTests;
+
+[TestClass]
+public class CoseExtensionsTests
 {
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using System.Security.Cryptography;
-    using System.Security.Cryptography.X509Certificates;
-    using CoseX509;
-    using System.Linq;
-    using System;
-    using System.Collections.Generic;
-    using System.Security.Cryptography.Cose;
-    using System.Text;
-    using System.IO;
+    private readonly byte[] Payload1 = Encoding.ASCII.GetBytes("Payload1!");
+    private const string SubjectName1 = $"{nameof(CoseExtensionsTests)}_TestCert";
+    private static readonly X509Certificate2Collection CertChain = TestCertificateUtils.CreateTestChain(SubjectName1);
+    private static readonly X509Certificate2 SelfSignedRoot = CertChain[0];
+    private static readonly X509Certificate2 ChainedCert = CertChain[^1];
 
-    [TestClass]
-    public class CoseExtensionsTests
+    [TestMethod]
+    public void TryGetSigningCert()
     {
-        private readonly byte[] Payload1 = Encoding.ASCII.GetBytes("Payload1!");
-        private const string SubjectName1 = "cn=FakeCert1";
+        // Create a COSE signature from a chained cert
+        string signedFile = Path.GetTempFileName();
+        X509Certificate2CoseSigningKeyProvider signer = new (ChainedCert);
+        ReadOnlyMemory<byte> sigBlock = CoseHandler.Sign(Payload1, signer, false, new FileInfo(signedFile));
 
-        private static readonly X509Certificate2 SelfSignedCert = HelperFunctions.GenerateTestCert(SubjectName1);
-        private static readonly X509Certificate2 SelfSignedRoot = HelperFunctions.GenerateTestCert(SubjectName1);
-        private static readonly X509Certificate2 ChainedCert = HelperFunctions.GenerateChainedCert(SelfSignedRoot);
+        // Make sure we can read it
+        byte[] bytesFromMemory = sigBlock.ToArray();
+        CoseSign1Message msg = CoseMessage.DecodeSign1(bytesFromMemory);
+        msg.Should().NotBeNull();
 
-        [TestMethod]
-        public void ValidateCoseSign1Message()
-        {
-            var signedFile = HelperFunctions.CreateTemporaryFile();
-            CoseParser.Sign(Payload1, false, SelfSignedCert, signedFile);
+        // Read it from the output file we created
+        byte[] bytesFromFile = File.ReadAllBytes(signedFile);
 
-            var signedBytes = File.ReadAllBytes(signedFile);
-            var policy = new X509ChainPolicy();
-            policy.CustomTrustStore.Add(SelfSignedCert);
-            policy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            CoseSign1Message msg = CoseMessage.DecodeSign1(signedBytes);
-            Assert.IsTrue(CoseExtensions.VerifyWithX509(msg, Payload1, policy));
-        }
+        // The byte arrays should match and be readable as COSE messages
+        bytesFromFile.Should().Equal(bytesFromMemory);
+        msg = CoseMessage.DecodeSign1(bytesFromMemory);
 
-        [TestMethod]
-        public void TryGetSigningCert()
-        {
-            var signedFile = HelperFunctions.CreateTemporaryFile();
-            var roots = new List<X509Certificate2>() { SelfSignedRoot };
-            CoseParser.Sign(Payload1, false, ChainedCert, signedFile, roots);
-
-            var signedBytes = File.ReadAllBytes(signedFile);
-            var policy = new X509ChainPolicy();
-            policy.CustomTrustStore.Add(SelfSignedRoot);
-            policy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            policy.RevocationMode = X509RevocationMode.NoCheck;
-            CoseSign1Message msg = CoseMessage.DecodeSign1(signedBytes);
-
-            Assert.IsTrue(CoseExtensions.TryGetSigningCertificate(msg, out X509Certificate2 signCert, out X509Certificate2Collection extras, policy));
-
-            Assert.AreEqual(signCert.Thumbprint, ChainedCert.Thumbprint);
-            Assert.AreEqual(extras[0].Thumbprint, SelfSignedRoot.Thumbprint);
-        }
-
-        [TestMethod]
-        public void TryGetSigningCertBadStatus()
-        {
-            var signedFile = HelperFunctions.CreateTemporaryFile();
-            var roots = new List<X509Certificate2>() { SelfSignedRoot };
-            CoseParser.Sign(Payload1, false, ChainedCert, signedFile, roots);
-
-            var signedBytes = File.ReadAllBytes(signedFile);
-            var policy = new X509ChainPolicy();
-            policy.CustomTrustStore.Add(SelfSignedRoot);
-            policy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            CoseSign1Message msg = CoseMessage.DecodeSign1(signedBytes);
-
-            Assert.IsFalse(CoseExtensions.TryGetSigningCertificate(msg, out X509Certificate2 signCert, out X509Certificate2Collection extras, policy));
-
-            Assert.AreEqual(signCert.Thumbprint, ChainedCert.Thumbprint);
-            Assert.AreEqual(extras[0].Thumbprint, SelfSignedRoot.Thumbprint);
-        }
-
-        [TestMethod]
-        public void ValidateCommonName()
-        {
-            CoseExtensions.ValidateCommonName(SelfSignedRoot, SelfSignedRoot.SubjectName.Name);
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(CoseValidationException))]
-        public void ValidateCommonNameFail()
-        {
-            CoseExtensions.ValidateCommonName(SelfSignedRoot, "epic fail");
-        }
+        CoseSign1MessageExtensions.TryGetSigningCertificate(msg, out X509Certificate2? signCert).Should().BeTrue();
+        signCert.Should().NotBeNull();
+        signCert?.Thumbprint.Should().Be(ChainedCert.Thumbprint);
     }
 }

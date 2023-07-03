@@ -1,111 +1,115 @@
-﻿// ----------------------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // <copyright file="CoseSignTool.cs" company="Microsoft">
-//      Copyright (c) Microsoft Corporation. All rights reserved.
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
-// ----------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-namespace CoseSignTool
+namespace CoseSignTool;
+
+/// <summary>
+/// Command line interface for COSE signing and validation operations.
+/// </summary>
+public class CoseSignTool
 {
-    using CoseX509;
-    using Microsoft.Extensions.Configuration.CommandLine;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
+    private enum Verbs
+    {
+        Sign, Validate, Get, Unknown
+    }
+
+    private static Verbs Verb = Verbs.Unknown;
+
+    #region public methods
+    /// <summary>
+    /// The entry point for the CoseSignTool application.
+    /// Captures command line input and passes it to the specified command handler.
+    /// </summary>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>An exit code indicating success or failure.</returns>
+    public static int Main(string[] args)
+    {
+        var firstArg = args[0] ?? "help";
+
+        try
+        {
+            return Enum.TryParse(firstArg, ignoreCase: true, out Verb)
+                ? (int)RunCommand(Verb, args.Skip(1).ToArray())
+                : (int)Usage(CoseCommand.UsageString);
+        }
+        catch (Exception ex)
+        {
+            ExitCode code = ex switch
+            {
+                ArgumentNullException => ExitCode.MissingRequiredOption,
+                ArgumentOutOfRangeException => ExitCode.MissingArgumentValue,
+                _ => ExitCode.UnknownError,
+            };
+
+            return (int)Fail(code, ex);
+        }
+    }
 
     /// <summary>
-    /// Command line interface for COSE signing and validation operations.
+    /// Creates a SignCommand, ValidateCommand, or GetCommand instance based on raw command line input and then runs the command.
     /// </summary>
-    class CoseSignTool
+    /// <param name="verb">The command to execute.</param>
+    /// <param name="args">The command line arguments passed after the verb is specified.</param>
+    /// <returns>An exit code indicating success or failure.</returns>
+    private static ExitCode RunCommand(Verbs verb, string[] args)
     {
-        #region public methods
-        /// <summary>
-        /// The entry point for the CoseSignTool application.
-        /// Captures command line input and passes it to the specified command handler.
-        /// </summary>
-        /// <param name="args">The command line arguments.</param>
-        /// <returns>An exit code indicating success or failure.</returns>
-        public static int Main(string[] args)
-        {
-            args = args.Length > 0 ? args : new string[] {"-?"};
-            string verb = args[0];
-            string[] argsOut = args.Skip(1).ToArray();
+        CommandLineConfigurationProvider? provider;
+        string? badArg;
 
-            try
+        try
+        {
+            switch (verb)
             {
-                return verb.ToLowerInvariant() switch
-                {
-                    null => Usage(CoseCommand.UsageString),
-                    "sign" => RunCommand(argsOut, true),
-                    "validate" => RunCommand(argsOut, false),
-                    _ => Usage(CoseCommand.UsageString)
-                };
-            }
-            catch (ArgumentNullException ex)
-            {
-                return (int)Fail(ExitCode.MissingRequiredOption, ex);
-            }
-            catch (ArgumentOutOfRangeException ex)
-            {
-                return (int)Fail(ExitCode.InvalidArgumentValue, ex);
-            }
-            catch (FileNotFoundException ex)
-            {
-                return (int)Fail(ExitCode.FileNotFound, ex);
+                case Verbs.Sign:
+                    provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out badArg);
+                    return (provider is null) ? Usage(SignCommand.UsageString, badArg) : new SignCommand(provider).Run();
+                case Verbs.Validate:
+                    provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out badArg);
+                    return (provider is null) ? Usage(ValidateCommand.UsageString, badArg) : new ValidateCommand(provider).Run();
+                case Verbs.Get:
+                    provider = CoseCommand.LoadCommandLineArgs(args, GetCommand.Options, out badArg);
+                    return (provider is null) ? Usage(GetCommand.UsageString, badArg) : new GetCommand(provider).Run();
+                default:
+                    return ExitCode.InvalidArgumentValue;
             }
         }
-
-        /// <summary>
-        /// Creates a SignCommand or CoseCommand instance based on raw command line input and then runs the command.
-        /// </summary>
-        /// <param name="args">The command line arguments after the command is specified.</param>
-        /// <returns>An exit code indicating success or failure.</returns>
-        public static int RunCommand(string[] args, bool isSign)
+        catch (FileNotFoundException ex)
         {
-            var options = isSign ? SignCommand.Options : ValidateCommand.Options;
-            CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, options, out string badArg);
-            if (provider == null)
-            {
-                string usage = isSign ? SignCommand.UsageString : ValidateCommand.UsageString;
-                return Usage(usage, badArg);
-            }
-
-            CoseCommand command = isSign ? new SignCommand(provider) : new ValidateCommand(provider);
-            return (int)command.Run();
+            return Fail(ExitCode.UserSpecifiedFileNotFound, ex);
         }
-
-        /// <summary>
-        /// Write a message to STDERR and then return an error code.
-        /// </summary>
-        /// <param name="errorCode">An error code representing the type of error.</param>
-        /// <param name="ex">An Exception to surface data from.</param>
-        /// <param name="message">An optional error message. If left blank, will print ex.Message.</param>
-        /// <returns>The error code.</returns>
-        public static ExitCode Fail(ExitCode errorCode, Exception ex, string message = null)
-        {
-            List<string> parts = new();
-            var cosEx = ex as ICoseException;
-            parts.Add(message);
-            parts.Add(ex?.Message);
-            parts.Add(cosEx?.Status?.GetJoinedStatusString());
-            parts.Add(ex?.InnerException?.Message);
-            parts.RemoveAll(string.IsNullOrEmpty);
-
-            Console.Error.WriteLine(string.Join(": ", parts));
-
-            return errorCode;
-        }
-
-        /// <summary>
-        /// Prints command line usage to the console and returns an exit code.
-        /// </summary>
-        /// <returns>An exit code indicating that help was requested.</returns>
-        public static int Usage(string content, string badArg=null)
-        {
-            string argText = badArg is null ? string.Empty : $"Error: Command line argument {badArg} was not recognized.\r\n\r\n";
-            Console.WriteLine(argText + content);
-            return (int)(badArg is null ? ExitCode.HelpRequested : ExitCode.UnknownArgument);
-        }
-        #endregion
     }
+
+    /// <summary>
+    /// Write a message to STDERR and then return an error code.
+    /// </summary>
+    /// <param name="errorCode">An error code representing the type of error.</param>
+    /// <param name="ex">An Exception to surface data from.</param>
+    /// <param name="message">An optional error message. If left blank, will print ex.Message.</param>
+    /// <returns>The error code.</returns>
+    public static ExitCode Fail(ExitCode errorCode, Exception? ex, string? message = null)
+    {
+        string text = $"COSE {Verb} failed.{Environment.NewLine}" +
+            $"{(message is not null ? $"{message}{Environment.NewLine}" : string.Empty)}" +
+            $"{(ex is not null ? $"{ex.Message}{Environment.NewLine}" : string.Empty)}" +
+            $"{(ex?.InnerException is not null ? $"{ex.InnerException.Message}{Environment.NewLine}" : string.Empty)}";
+
+        Console.Error.WriteLine(text);
+
+        return errorCode;
+    }
+
+    /// <summary>
+    /// Prints command line usage to the console and returns an exit code.
+    /// </summary>
+    /// <returns>An exit code indicating that help was requested.</returns>
+    public static ExitCode Usage(string content, string? badArg = null)
+    {
+        string argText = badArg is null ? string.Empty : $"Error: Command line argument {badArg} was not recognized.\r\n\r\n";
+        Console.WriteLine(argText + content);
+        return badArg is null ? ExitCode.HelpRequested : ExitCode.UnknownArgument;
+    }
+    #endregion
 }

@@ -25,9 +25,9 @@ jobs:
       with:
         dotnet-version: 7.0.x
     - name: Restore dependencies
-      run: dotnet restore CoseSignTool/CoseSignTool.Tests/CoseSignTool.Tests.csproj
+      run: dotnet restore CoseSignTool/**/*.Tests.csproj
     - name: Build
-      run: dotnet build --no-restore CoseSignTool/CoseSignTool.Tests/CoseSignTool.Tests.csproj
+      run: dotnet build --no-restore CoseSignTool/**/*.Tests.csproj
     - name: Test
-      run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignTool.Tests/CoseSignTool.Tests.csproj
+      run: dotnet test --no-build --verbosity normal CoseSignTool/**/*.Tests.csproj
       shell: bash

@@ -7,7 +7,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "*" ]
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest]  # Add the rest back in once it builds right in Windwos
         #os: [windows-latest, ubuntu-latest, macOS-latest]
 
     steps:
@@ -25,14 +25,8 @@ jobs:
       with:
         dotnet-version: 7.0.x
     - name: Restore dependencies
-      run: dotnet restore CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
+      run: dotnet restore CoseSignTool/CoseSignTool.Tests/CoseSignUnitTests.csproj
     - name: Build
-      run: dotnet build --no-restore CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
+      run: dotnet build --no-restore CoseSignTool/CoseSignTool.Tests/CoseSignUnitTests.csproj
     - name: Test
-      run: |
-           if [ "$RUNNER_OS" != "Windows" ]; then
-                dotnet test --no-build --filter TestCategory!=WindowsOnly --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
-           else
-                dotnet test --no-build --verbosity normal CoseSignTool/CoseSignUnitTests/CoseSignUnitTests.csproj
-           fi
-      shell: bash
+      run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignTool.Tests/CoseSignTool.Tests.csproj

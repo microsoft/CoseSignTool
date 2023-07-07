@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Platforms>x64</Platforms>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <Nullable>enable</Nullable>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Because this is a test project, don't run code coverage -->
+        <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
+    <PackageReference Include="Moq" Version="4.16.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="2.2.10" />
+    <PackageReference Include="MSTest.TestFramework" Version="2.2.10" />
+	<PackageReference Include="FluentAssertions" Version="6.10.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseParser\CoseHandler.csproj" />
+    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,283 +1,289 @@
-﻿// ----------------------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // <copyright file="CoseCommand.cs" company="Microsoft">
-//      Copyright (c) Microsoft Corporation. All rights reserved.
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
-// ----------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-namespace CoseSignTool
+namespace CoseSignTool;
+
+/// <summary>
+/// A base class for console commands that handle COSE signatures.
+/// </summary>
+public abstract partial class CoseCommand
 {
-    using Microsoft.Extensions.Configuration.CommandLine;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Security.Cryptography.X509Certificates;
+    [GeneratedRegex(":[^\\/]")]
+    private static partial Regex PatternColonNotUri();
 
     /// <summary>
-    /// A base class for console commands that handle COSE signatures.
+    /// A map of shared command line options to their abbreviated aliases.
     /// </summary>
-    public abstract class CoseCommand
+    protected internal static readonly Dictionary<string, string> Options = new()
     {
-        // Inherited default values
-        protected const string DefaultStoreName = "My";
-        protected const string DefaultStoreLocation = "CurrentUser";
+        ["-PayloadFile"] = "PayloadFile",
+        ["-payload"] = "PayloadFile",
+        ["-p"] = "PayloadFile",
+        ["-SignatureFile"] = "SignatureFile",
+        ["-sig"] = "SignatureFile",
+        ["-sf"] = "SignatureFile",
+    };
 
-        /// <summary>
-        /// A map of shared command line options to their abbreviated aliases.
-        /// </summary>
-        protected internal static Dictionary<string, string> BaseOptions = new()
+    #region Public properties
+    /// <summary>
+    /// Gets or sets the file whose content was or will be signed.
+    /// </summary>
+    public FileInfo? PayloadFile { get; set; }
+
+    /// <summary>
+    /// Specifies a file that contains or will contain a COSE X509 signature.
+    /// Detach signed signature files contain the hash of the original payload file to match against.
+    /// Embed signed signature files include an encoded copy of the entire payload.
+    /// Default filename when signing is [Payload].cose for detached or [Payload].csm for embedded.
+    /// </summary>
+    public FileInfo? SignatureFile { get; set; }
+    #endregion
+
+    /// <summary>
+    /// Runs the main logic of the derived command.
+    /// </summary>
+    /// <returns>An exit code indicating success or failure.</returns>
+    public abstract ExitCode Run();
+
+    /// <summary>
+    /// Sets properties based on command line option values.
+    /// </summary>
+    /// <param name="provider">A loaded CommandLineConfigurationProvider.</param>
+    protected internal virtual void ApplyOptions(CommandLineConfigurationProvider provider)
+    {
+        PayloadFile = GetOptionFile(provider, nameof(PayloadFile));
+        SignatureFile = GetOptionFile(provider, nameof(SignatureFile));
+    }
+
+    /// <summary>
+    /// Writes the content of a ReadOnlyMemory block of bytes to the STDOUT channel.
+    /// </summary>
+    /// <param name="content"></param>
+    protected static void WriteToStdOut(ReadOnlyMemory<byte> content)
+    {
+        Stream output = Console.OpenStandardOutput();
+        output.Write(content.Span);
+    }
+
+    #region Helper methods
+    /// <summary>
+    /// Loads a CommandLineConfigurationProvider with the command line options.
+    /// </summary>
+    /// <param name="args">The command line arguments</param>
+    /// <param name="options">A dictionary of command line options to their abbreviated aliases, not including shared options.</param>
+    /// <returns>A CommandLineConfigurationProvider with the command line arguments and aliases loaded.</returns>
+    protected internal static CommandLineConfigurationProvider? LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string? badArg)
+    {
+        badArg = null;
+
+        // We have to copy 'options' to a StringDictionary here so we can reliably do case-insensitive comparison on user inputs.
+        StringDictionary dict = new();
+        options.Keys.ToList().ForEach(k => dict[k] = options[k]);
+
+        string[] fixedArgs = CleanArgs(args, dict);
+        if (HasInvalidArgument(fixedArgs, dict, out badArg))
         {
-            ["-Payload"] = "Payload",
-            ["-SignatureFile"] = "SignatureFile",
-            ["-X509RootFiles"] = "X509RootFiles",
-            ["-StoreName"] = "StoreName",
-            ["-StoreLocation"] = "StoreLocation",
-            ["-p"] = "Payload",
-            ["-sf"] = "SignatureFile",
-            ["-sn"] = "StoreName",
-            ["-sl"] = "StoreLocation",
-        };
-
-        #region Public properties
-        /// <summary>
-        /// Gets or sets the path to the file whose content was or will be signed.
-        /// </summary>
-        public string Payload { get; set; }
-
-        /// <summary>
-        /// Specifies a file containing a COSE X509 signature.
-        /// Detach signed signature files contain the hash of the original payload file to match against.
-        /// Embed signed signature files include an encoded copy of the entire payload.
-        /// Default filename when signing is [Payload].cose for detached or [Payload].csm for embedded.
-        /// </summary>
-        public string SignatureFile { get; set; }
-
-        /// <summary>
-        /// Gets or sets one or more certificate files (.cer or .p7b) to attempt to chain the COSE signature to.
-        /// These certificates do not have to be trusted on the local machine.
-        /// </summary>
-        public string[] X509RootFiles { get; set; }
-
-        /// <summary>
-        /// Optional. Gets or sets the name of the Windows Certificate Store to look for certificates in.
-        /// Default value is 'My'.
-        /// Setting StoreName to a non-standard value will create or access a custom store.
-        /// For standard values, see https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.x509certificates.storename?view=net-6.0
-        /// </summary>
-        public string StoreName { get; set; }
-
-        /// <summary>
-        /// Optional. Gets or sets the location of the Windows Certificate Store to look for certificates in.
-        /// Default value is StoreLocation.CurrentUser.
-        /// </summary>
-        public StoreLocation StoreLocation { get; set; }
-        #endregion
-
-        /// <summary>
-        /// Runs the main logic of the derived command.
-        /// </summary>
-        /// <returns>An exit code indicating success or failure.</returns>
-        public abstract ExitCode Run();
-
-        /// <summary>
-        /// Sets properties based on command line option values.
-        /// </summary>
-        /// <param name="provider">A loaded CommandLineConfigurationProvider.</param>
-        protected internal virtual void ApplyOptions(CommandLineConfigurationProvider provider)
-        {
-            Payload = GetOptionString(provider, "Payload");
-            SignatureFile = GetOptionString(provider, "SignatureFile");
-            X509RootFiles = GetOptionArray(provider, "X509RootFiles");
-            StoreName = GetOptionString(provider, "StoreName", DefaultStoreName);
-            StoreLocation = Enum.Parse<StoreLocation>(GetOptionString(provider, "StoreLocation", DefaultStoreLocation));
+            return null;
         }
 
-        #region Helper methods
-        /// <summary>
-        /// Loads a CommandLineConfigurationProvider with the command line options.
-        /// </summary>
-        /// <param name="args">The command line arguments</param>
-        /// <param name="options">A dictionary of command line options to their abbreviated aliases, not including shared options.</param>
-        /// <returns>A CommandLineConfigurationProvider with the command line arguments and aliases loaded.</returns>
-        internal static CommandLineConfigurationProvider LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string badArg)
+        try
         {
-            badArg = null;
-            var mergedOptions = options.Union(BaseOptions).ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-            string[] fixedArgs = CleanArgs(args, mergedOptions);            
-            if (fixedArgs.Length == 0 || HasInvalidArgument(fixedArgs, mergedOptions, out badArg))
-            {
-                return null;
-            }
-
-            CommandLineConfigurationProvider provider = new(fixedArgs, mergedOptions);
+            CommandLineConfigurationProvider provider = new(fixedArgs, options);
             provider.Load();
             return provider;
         }
-
-        /// <summary>
-        /// Checks whether a boolean command line option has been set.
-        /// </summary>
-        /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
-        /// <param name="name">The name of the command line option.</param>
-        /// <returns>True if the option was set to "true" or to no value; false if the option was not set or was set to "false".</returns>
-        protected static bool GetOptionBool(CommandLineConfigurationProvider provider, string name)
+        catch (FormatException)
         {
-            if (!provider.TryGet(name, out string s))
-            {
-                return false;
-            }
-            return bool.Parse(s);
+            return null;
+        }        
+    }
+
+    /// <summary>
+    /// Checks the Standard Input stream for content, and if empty, reads from a file or throws an exception.
+    /// </summary>
+    /// <param name="file">The file to read from if the Standard Input stream is empty/</param>
+    /// <param name="optionName">The name of the command line option that specifies the file.</param>
+    /// <returns></returns>
+    protected static Stream GetStreamFromPipeOrFile(FileInfo? file, string optionName)
+    {
+        using Stream content = Console.OpenStandardInput();
+        return !content.IsNullOrEmpty()
+            ? content
+            : file is not null ? file.OpenRead() :
+            throw new ArgumentNullException($"You must either set a value for {optionName} or else pipe its content in from another program.");
+    }
+
+    /// <summary>
+    /// Checks whether a boolean command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <returns>True if the option was set to "true" or to no value; false if the option was not set or was set to "false".</returns>
+    protected static bool GetOptionBool(CommandLineConfigurationProvider provider, string name) =>
+        provider.TryGet(name, out string? s) && bool.TryParse(s, out _);
+
+    /// <summary>
+    /// Checks whether a command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
+    /// <returns>The value the option was set to on the command line, if any, or the default value otherwise.</returns>
+    [return: NotNullIfNotNull(nameof(defaultValue))]
+    protected static string? GetOptionString(CommandLineConfigurationProvider provider, string name, string? defaultValue = null)
+    {
+        bool optionFound = provider.TryGet(name, out string? s);
+        return optionFound ? s : defaultValue;
+    }
+
+    /// <summary>
+    /// Checks whether a command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
+    /// <returns>The value the option was set to on the command line, if any, or the default value otherwise.</returns>
+    [return: NotNullIfNotNull(nameof(defaultValue))]
+    protected static FileInfo? GetOptionFile(CommandLineConfigurationProvider provider, string name, string? defaultValue = null)
+    {
+        string? path = GetOptionString(provider, name, defaultValue);
+        return string.IsNullOrEmpty(path) ? null : new FileInfo(path);
+    }
+
+    /// <summary>
+    /// Checks whether an array type command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
+    /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
+    [return: NotNullIfNotNull(nameof(defaultValue))]
+    protected static string[] GetOptionArray(CommandLineConfigurationProvider provider, string name, string[]? defaultValue = null)
+    {
+        if (provider is null)
+        {
+            throw new ArgumentNullException(nameof(provider));
         }
-
-        /// <summary>
-        /// Checks whether a command line option has been set.
-        /// </summary>
-        /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
-        /// <param name="name">The name of the command line option.</param>
-        /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
-        /// <returns>The value the option was set to on the command line, if any, or the default value otherwise.</returns>
-        protected static string GetOptionString(CommandLineConfigurationProvider provider, string name, string defaultValue = null)
+        else
         {
-            if (!provider.TryGet(name, out string s))
-            {
-                return defaultValue;
-            }
-            return s;
+            _ = provider.TryGet(name, out string? text);
+            return
+                text?.Split(",").Select(x => x.Trim().Trim('"', '(', ')', '[', ']', '{', '}')).ToArray() ??
+                defaultValue ??
+                Array.Empty<string>();
         }
+    }
 
-        /// <summary>
-        /// Checks whether an array type command line option has been set.
-        /// </summary>
-        /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
-        /// <param name="name">The name of the command line option.</param>
-        /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
-        /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
-        protected static string[] GetOptionArray(CommandLineConfigurationProvider provider, string name, string[] defaultValue = null)
+    // One liner for file existence checks
+    protected static void ThrowIfMissing(string file, string message)
+    {
+        if (!File.Exists(file))
         {
-            if (!provider.TryGet(name, out string s))
-            {
-                return defaultValue ?? Array.Empty<string>();
-            }
-            return s.Split(",").Select(x => x.Trim()).ToArray();
+            throw new FileNotFoundException(message, file);
         }
+    }
 
-        // One liner for file existence checks
-        protected static void ThrowIfMissing(string file, string message)
+    // Resolve boolean command line options from "-argname" to "-argname true"
+    // replace /arg with -arg
+    // replace "-arg:" with "-arg "
+    private static string[] CleanArgs(string[] args, StringDictionary options)
+    {
+        List<string> argsOut = new();
+        for (int i = 0; i < args.Length; i++)
         {
-            if (!File.Exists(file))
+            string arg = args[i];
+            if (arg.StartsWith('/'))
             {
-                throw new FileNotFoundException(message, file);
+                // Standardize on -arg
+                arg = $"-{arg.AsSpan(1)}";
             }
-        }
 
-        // One liner for file existence checks
-        protected static void ThrowIfNullOrEmpty(string arg, string argName)
-        {
-            if (string.IsNullOrEmpty(arg))
+            if (arg.StartsWith('-'))
             {
-                throw new ArgumentNullException($"You must specify a value for {argName}");
-            }
-        }
-
-        // Resolve boolean command line options from "-argname" to "-argname true"
-        // replace /arg with -arg
-        // replace "-arg:" with "-arg "
-        private static string[] CleanArgs(string[] args, Dictionary<string, string> options)
-        {
-            var argsOut = new List<string>();
-            for (int i = 0; i < args.Length; i++)
-            {
-                string arg = args[i];
-                if (arg.StartsWith('/'))
+                // arg is an option name
+                if (PatternColonNotUri().IsMatch(arg))  // Match if arg contains a colon not followed by a \ or / character
                 {
-                    // Standardize on -arg
-                    arg = string.Concat("-", arg.AsSpan(1));
+                    // Split colon-delimited arg into name/value pair, but only on first colon in case the 
+                    // value is a file path
+                    argsOut.AddRange(arg.Split(':', 2, StringSplitOptions.RemoveEmptyEntries));
+                    continue;
                 }
 
-                if (arg.StartsWith('-'))
+                argsOut.Add(arg);
+                // If the next arg is also an option name, or if this is the last, it must be a boolean flag.
+                if (i + 1 == args.Length || IsSwitch(args[i + 1], options))
                 {
-                    // arg is an option name
-                    if (arg.Contains(':'))
-                    {
-                        // Split colon-delimited arg into name/value pair, but only on first colon in case the 
-                        // value is a file path
-                        argsOut.AddRange(arg.Split(':', 2, StringSplitOptions.RemoveEmptyEntries));
-                        continue;
-                    }
-
-                    argsOut.Add(arg);
-                    // If the next arg is also an option name, or if this is the last, it must be a boolean flag.
-                    if (i + 1 == args.Length || IsSwitch(args[i + 1], options))
-                    {
-                        argsOut.Add("true");
-                    }
-                    else
-                    {
-                        argsOut.Add(args[i+1]);
-                        i++;
-                    }
+                    argsOut.Add("true");
                 }
                 else
                 {
-                    // arg is a value
-                    argsOut.Add(arg);
+                    argsOut.Add(args[i + 1]);
+                    i++;
                 }
             }
-
-            return argsOut.ToArray();
-        }
-
-        private static bool IsSwitch(string s, Dictionary<string, string> options) 
-        {
-            // replace '/' with '-', and remove ':*' for easy dict lookup
-            return options.ContainsKey(s.Replace("/", "-").Split(":")[0]);
-        }
-
-
-        // Returns true if the command line contains any unrecognized arguments and outputs the first one if found.
-        private static bool HasInvalidArgument(string[] args, Dictionary<string, string> options, out string badArg)
-        {
-            badArg = null;
-            for (int i = 0; i < args.Length; i+=2)
+            else
             {
-                if (!options.ContainsKey(args[i]))
-                {
-                    badArg = args[i];
-                    return true;
-                }
+                // arg is a value
+                argsOut.Add(arg);
             }
-
-            return false;
         }
-        #endregion
 
-        #region Usage
-        /// <summary>
-        /// The first section of the command line usage. Content is generic to CoseSignTool.
-        /// </summary>
-        protected internal const string BaseUsageString = @$"
+        return argsOut.ToArray();
+    }
+
+    private static bool IsSwitch(string s, StringDictionary options)
+    {
+        // replace '/' with '-', and remove ':*' for easy dict lookup
+        return options.ContainsKey(s.Replace("/", "-").Split(":")[0]);
+    }
+
+
+    // Returns true if the command line contains any unrecognized arguments and outputs the first one if found.
+    private static bool HasInvalidArgument(string[] args, StringDictionary options, out string? badArg)
+    {
+        badArg = null;
+        for (int i = 0; i < args.Length; i ++)
+        {
+            if (args[i].StartsWith('-') && !options.ContainsKey(args[i]))
+            {
+                badArg = args[i];
+                return true;
+            }
+        }
+
+        return false;
+    }
+    #endregion
+
+    #region Usage
+    /// <summary>
+    /// The first section of the command line usage. Content is generic to CoseSignTool.
+    /// </summary>
+    // The usage text to display. Each line should have no more than 120 characters to avoid wrapping. Break is here:  *V*
+    protected internal const string BaseUsageString = @$"
 *** CoseSignTool ***
-A tool for signing and validating Cose signatures.
+A tool for signing, validating, and getting payload from Cose signatures.
 
 Usage:
-    CoseSignTool.exe [sign | validate] [options]
+    CoseSignTool.exe [sign | validate | get] [options]
+    -- OR --
+    [source program] | CoseSignTool.exe [sign | validate | get] [options]
+    where [source program] pipes the first required option to CoseSignTool.
+
+Sign: Signs the specified file or piped content with a detached or embedded signature.
+Validate: Validates that the specified COSE signature file or piped signature content matches the original payload and
+    is signed with a valid certificate chain.
+Get: Retrieves and decodes the original payload from a COSE embed signed file or piped signature, writes it to a file or
+    to the console, and writes any validation errors to Standard Error.
 ";
 
-        /// <summary>
-        /// The end of the usage string for when no command was specified.
-        /// </summary>
-        public static readonly string UsageString = $"{BaseUsageString}To see the options for a specific command, type 'CoseSignTool sign /?' or 'CoseSignTool Validate /?'";
-
-        /// <summary>
-        /// Usage string for referring to the local Certificate Store on Windows machines.
-        /// </summary>
-        protected internal static readonly string StoreUsageString = @"
-
-    StoreName / sn: Optional. The name of the Windows local certificate store to look for certificates in.
-        Default value is 'My'.
-
-    StoreLocation / sl: Optional. The location of the Windows local certificate store to look for certificates in.
-        Default value is 'CurrentUser'.";
-        #endregion
-    }
+    /// <summary>
+    /// The end of the usage string for when no command was specified.
+    /// </summary>
+    public static readonly string UsageString = $"{BaseUsageString}{Environment.NewLine}" +
+        $"To see the options for a specific command, type 'CoseSignTool [sign | validate | get] /?'";
+    #endregion
 }

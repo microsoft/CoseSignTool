@@ -32,7 +32,7 @@ jobs:
 
   Publish:
     name: publish-${{matrix.os}}
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest #${{ matrix.os }}
     #Run only when changes are pushed to Main, i.e., when a pull request completes.
     #if: ${{ github.event_name == 'push' }}
     steps:

@@ -24,20 +24,24 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
-    #- name: Restore dependencies
-    #  run: dotnet restore CoseSignTool/CoseSignTool.sln
-    #- name: Build
-      # run: dotnet build --no-restore CoseSignTool/CoseSignTool.sln
-      # run: dotnet build CoseSignTool/CoseSignTool.sln
-    - name: Test
-      # run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignTool.sln
+        
+    - name: Build and Test
+      # Use dotnet test to run Restore, Build, and Test, all in one sweep.
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       shell: bash
 
   Publish:
+    name: publish-${{matrix.os}}
     runs-on: ${{ matrix.os }}
-    if: ${{ github.event_name == 'push' }} #Run only when changes are pushed to Main, i.e., when a pull request completes.
+    #Run only when changes are pushed to Main, i.e., when a pull request completes.
+    #if: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/upload-artifact@v3
-      - name: publish-${{matrix.os}}
-      - run: dotnet publish --no-build --configuration Release
+      - name: Publish
+        # Publish all of the non-test projects to the default location. 
+        # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
+        run: dotnet publish --no-build --configuration Release CoseSignTool/CoseSignTool.sln
+        
+      - name: List working directory
+        run: dir /b /a /s
+        shell: cmd

@@ -32,11 +32,15 @@ jobs:
 
   Publish:
     name: publish-${{matrix.os}}
-    runs-on: windows-latest #${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]  # Restore the others once it's working on Windows
+        #os: [windows-latest, ubuntu-latest, macOS-latest]
+        
     #Run only when changes are pushed to Main, i.e., when a pull request completes.
     #if: ${{ github.event_name == 'push' }}
     steps:
-      - uses: actions/upload-artifact@v3
       - name: Publish
         # Publish all of the non-test projects to the default location. 
         # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.

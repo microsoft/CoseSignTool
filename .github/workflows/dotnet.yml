@@ -29,6 +29,10 @@ jobs:
       # Use dotnet test to run Restore, Build, and Test, all in one sweep.
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       shell: bash
+      
+    - name: List working directory
+      run: dir /b /a /s
+      shell: cmd
 
   Publish:
     name: publish-${{matrix.os}}

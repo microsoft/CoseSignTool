@@ -33,6 +33,11 @@ jobs:
     - name: List working directory
       run: dir /b /a /s
       shell: cmd
+      
+    - name: Publish
+      # Publish all of the non-test projects to the default location. 
+      # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
+      run: dotnet publish --no-build --configuration Release CoseSignTool/CoseSignTool.sln
 
   Publish:
     name: publish-${{matrix.os}}
@@ -44,12 +49,3 @@ jobs:
         
     #Run only when changes are pushed to Main, i.e., when a pull request completes.
     #if: ${{ github.event_name == 'push' }}
-    steps:
-      - name: Publish
-        # Publish all of the non-test projects to the default location. 
-        # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
-        run: dotnet publish --no-build --configuration Release CoseSignTool/CoseSignTool.sln
-        
-      - name: List working directory
-        run: dir /b /a /s
-        shell: cmd

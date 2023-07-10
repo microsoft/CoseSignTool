@@ -33,3 +33,11 @@ jobs:
       # run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignTool.sln
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       shell: bash
+
+  Publish:
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.event_name == 'push' }} #Run only when changes are pushed to Main, i.e., when a pull request completes.
+    steps:
+      - uses: actions/upload-artifact@v3
+      - name: publish-${{matrix.os}}
+      - run: dotnet publish --no-build --configuration Release

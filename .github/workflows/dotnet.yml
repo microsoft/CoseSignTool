@@ -34,18 +34,16 @@ jobs:
       run: dir /b /a /s
       shell: cmd
 
-    - name: Publish release
-      # Publish all of the non-test projects to the default location. 
-      # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
-      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-
     - name: Publish debug
       # Publish all of the non-test projects to the default location. 
       # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
       # run: dotnet publish --no-build --configuration Debug CoseSignTool/CoseSignTool.sln
-      run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      run: dotnet publish --no-build --configuration Debug -a win-x64 --output published/debug CoseSignTool/CoseSignTool/CoseSignTool.csproj
       
-
+    - name: Publish release
+      # Publish all of the non-test projects to the default location. 
+      # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
+      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
 
   #Publish:
    # name: publish-${{matrix.os}}

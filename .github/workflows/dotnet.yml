@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest] # macOS-latest is broken at the moment. Add it back in when fixed.
+        os: [windows-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
 
     steps:
     - uses: actions/checkout@v3

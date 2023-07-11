@@ -1,8 +1,7 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: build
-
+name: Pull Request and Continuous Integration Build
 on:
   push:
     branches: [ "main" ]
@@ -34,30 +33,25 @@ jobs:
       run: dir /b /a /s
       shell: cmd
 
+  # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
+  # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
+  # Another option to explore is to run them in a separate job that depands on ALL of the other jobs passing first.
+  # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
+  
     - name: Publish debug
-      # Publish all of the non-test projects to the default location. 
-      # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
-      # run: dotnet publish --no-build --configuration Debug CoseSignTool/CoseSignTool.sln
-      # run: dotnet publish --no-build --configuration Debug /p:Platform=x64 --output published/debug CoseSignTool/CoseSignTool/CoseSignTool.csproj
-      # run: dotnet publish --no-build --configuration Debug /p:Platform=x64 --output published/debug CoseSignTool/CoseSignTool.sln
+      #if: ${{ github.event_name == 'push' }}
+      # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
       run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
       
     - name: Publish release
-      # Publish all of the non-test projects to the default location. 
-      # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
+      #if: ${{ github.event_name == 'push' }}
+      # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
       run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       
-    - name: List working directory
+    - name: List published directory
+      #if: ${{ github.event_name == 'push' }}
       run: dir /b /a /s
       shell: cmd
+      working-directory: ./published
 
-  #Publish:
-   # name: publish-${{matrix.os}}
-   # runs-on: ${{ matrix.os }}
-   # strategy:
-     # matrix:
-       # os: [windows-latest]  # Restore the others once it's working on Windows
-        #os: [windows-latest, ubuntu-latest, macOS-latest]
-        
-    #Run only when changes are pushed to Main, i.e., when a pull request completes.
-    #if: ${{ github.event_name == 'push' }}
+

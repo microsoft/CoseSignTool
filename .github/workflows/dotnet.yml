@@ -39,12 +39,12 @@ jobs:
       # Test projects are filtered out in the project files with the <IsPublishable>false</IsPublishable> attribute.
       run: dotnet publish --no-build --configuration Release CoseSignTool/CoseSignTool.sln
 
-  Publish:
-    name: publish-${{matrix.os}}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]  # Restore the others once it's working on Windows
+  #Publish:
+   # name: publish-${{matrix.os}}
+   # runs-on: ${{ matrix.os }}
+   # strategy:
+     # matrix:
+       # os: [windows-latest]  # Restore the others once it's working on Windows
         #os: [windows-latest, ubuntu-latest, macOS-latest]
         
     #Run only when changes are pushed to Main, i.e., when a pull request completes.

@@ -61,9 +61,6 @@ public class CoseHandlerSignValidateTests
                 allowUnprotected: true,
                 allowUntrusted: true);
 
-    private static readonly bool ElevatedTests = false;
-    private static readonly string SName = "My";
-    private static readonly StoreLocation SLoc = StoreLocation.CurrentUser;
     private static readonly X509RevocationMode RevMode = X509RevocationMode.NoCheck;
 
     public CoseHandlerSignValidateTests()

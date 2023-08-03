@@ -12,6 +12,8 @@ jobs:
   build:
     name: build-${{matrix.os}}
     runs-on: ${{ matrix.os }}
+    #env:
+      #DirCommand: 
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
@@ -28,12 +30,16 @@ jobs:
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       shell: bash
       
-    - name: List working directory
-      # run: dir /b /a /s
-      # shell: cmd
-      run: gci -recurse | Select Name
-      shell: powershell
+    - name: List working directory Windows
+      if: runner.os == 'Windows'
+      run: dir /b /a /s
+      shell: cmd
 
+    - name: List working directory non-Windows
+      if: runner.os != 'Windows'
+      run: ls -a -R
+      shell: bash
+      
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
   # Another option to explore is to run them in a separate job that depands on ALL of the other jobs passing first.
@@ -53,6 +59,6 @@ jobs:
       #if: ${{ github.event_name == 'push' }}
       # run: dir /b /a /s
       # shell: cmd
-      run: gci -recurse | Select Name
-      shell: powershell
+      run: ls -a -R
+      shell: bash
       working-directory: ./published

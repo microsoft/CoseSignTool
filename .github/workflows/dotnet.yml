@@ -54,13 +54,13 @@ jobs:
       run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       
     - name: List published directory Windows
-      if: ${{ github.event_name == 'push' }} && runner.os == 'Windows'
+      if: ${{ github.event_name == 'push' && runner.os == 'Windows' }} 
       run: dir /b /a /s
       shell: cmd      
       working-directory: ./published
       
     - name: List published directory non-Windows
-      if: ${{ github.event_name == 'push' }} && runner.os != 'Windows'
+      if: ${{ github.event_name == 'push' && runner.os != 'Windows' }}
       run: ls -a -R
       shell: bash
       working-directory: ./published

@@ -12,8 +12,6 @@ jobs:
   build:
     name: build-${{matrix.os}}
     runs-on: ${{ matrix.os }}
-    #env:
-      #DirCommand: 
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
@@ -31,14 +29,16 @@ jobs:
       shell: bash
       
     - name: List working directory Windows
-      if: runner.os == 'Windows'
-      run: dir /b /a /s
-      shell: cmd
+      #if: runner.os == 'Windows'
+      #run: dir /b /a /s
+      #shell: cmd
+      run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
+      shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
 
-    - name: List working directory non-Windows
-      if: runner.os != 'Windows'
-      run: ls -a -R
-      shell: bash
+    #- name: List working directory non-Windows
+      #if: runner.os != 'Windows'
+      #run: ls -a -R
+      #shell: bash
       
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.

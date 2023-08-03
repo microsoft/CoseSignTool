@@ -59,6 +59,6 @@ jobs:
       #if: ${{ github.event_name == 'push' }}
       # run: dir /b /a /s
       # shell: cmd
-      run: ls -a -R
-      shell: bash
+      run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
+      shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
       working-directory: ./published

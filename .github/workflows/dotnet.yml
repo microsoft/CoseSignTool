@@ -29,8 +29,10 @@ jobs:
       shell: bash
       
     - name: List working directory
-      run: dir /b /a /s
-      shell: cmd
+      # run: dir /b /a /s
+      # shell: cmd
+      run: gci -recurse | Select Name
+      shell: powershell
 
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
@@ -49,6 +51,8 @@ jobs:
       
     - name: List published directory
       #if: ${{ github.event_name == 'push' }}
-      run: dir /b /a /s
-      shell: cmd
+      # run: dir /b /a /s
+      # shell: cmd
+      run: gci -recurse | Select Name
+      shell: powershell
       working-directory: ./published

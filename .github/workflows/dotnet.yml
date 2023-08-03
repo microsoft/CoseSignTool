@@ -29,16 +29,16 @@ jobs:
       shell: bash
       
     - name: List working directory Windows
-      #if: runner.os == 'Windows'
-      #run: dir /b /a /s
-      #shell: cmd
-      run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
-      shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
+      if: runner.os == 'Windows'
+      run: dir /b /a /s
+      shell: cmd
+      #run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
+      #shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
 
-    #- name: List working directory non-Windows
-      #if: runner.os != 'Windows'
-      #run: ls -a -R
-      #shell: bash
+    - name: List working directory non-Windows
+      if: runner.os != 'Windows'
+      run: ls -a -R
+      shell: bash
       
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
@@ -55,10 +55,18 @@ jobs:
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
       run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       
-    - name: List published directory
+    - name: List published directory Windows
       #if: ${{ github.event_name == 'push' }}
-      # run: dir /b /a /s
-      # shell: cmd
-      run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
-      shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
+      if: runner.os == 'Windows'
+      run: dir /b /a /s
+      shell: cmd      
+      #run: ${{ runner.os == 'Windows' && 'dir /b /a /s' || 'ls -a -R' }}
+      #shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
+      working-directory: ./published
+      
+    - name: List published directory non-Windows
+      #if: ${{ github.event_name == 'push' }}
+      if: runner.os != 'Windows'
+      run: ls -a -R
+      shell: bash
       working-directory: ./published

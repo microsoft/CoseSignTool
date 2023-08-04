@@ -61,7 +61,8 @@ public static class TestCertificateUtils
             // support, so it needs to be copied from the Subject Key
             // Identifier of the signing certificate and massaged slightly.
             // AuthorityKeyIdentifier is "KeyID=<subject key identifier>"
-            byte[] issuerSubjectKey = issuingCa.Extensions?["Subject Key Identifier"]?.RawData ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not a ""Subject Key Identifier"" extension present");
+            // byte[] issuerSubjectKey = issuingCa.Extensions?["Subject Key Identifier"]?.RawData ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not a ""Subject Key Identifier"" extension present");
+            byte[] issuerSubjectKey = issuingCa.Extensions.First(x => x is X509SubjectKeyIdentifierExtension)?.RawData ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not a ""Subject Key Identifier"" extension present");
             ArraySegment<byte> segment = new(issuerSubjectKey, 2, issuerSubjectKey.Length - 2);
             byte[] authorityKeyIdentifier = new byte[segment.Count + 4];
             // these bytes define the "KeyID" part of the AuthorityKeyIdentifer

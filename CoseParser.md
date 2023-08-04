@@ -1,5 +1,6 @@
 # CoseParser library
 The CoseParser library provides a static CoseParser object with a broad selection of methods to sign and validate, and to retrieve content from COSE-signed files. It also provides some supporting objects and extension methods for working with COSE signatures.
+NOTE: This document refers to a previous version of the CoseParser API, which has been replaced with CoseHandler.
 ## CoseParser class
 Provides static methods to sign, validate, and retrieve content from COSE-signed files.
 ### Sign

@@ -1,8 +1,7 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: build
-
+name: Pull Request and Continuous Integration Build
 on:
   push:
     branches: [ "main" ]
@@ -15,8 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest]  # Restore the others once it's working on Windows
-        #os: [windows-latest, ubuntu-latest, macOS-latest]
+        os: [windows-latest, ubuntu-latest, macOS-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
 
     steps:
     - uses: actions/checkout@v3
@@ -24,12 +22,45 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
-    #- name: Restore dependencies
-    #  run: dotnet restore CoseSignTool/CoseSignTool.sln
-    #- name: Build
-      # run: dotnet build --no-restore CoseSignTool/CoseSignTool.sln
-      # run: dotnet build CoseSignTool/CoseSignTool.sln
-    - name: Test
-      # run: dotnet test --no-build --verbosity normal CoseSignTool/CoseSignTool.sln
+        
+    - name: Build and Test debug
+      # Use dotnet test to run Restore, Build, and Test, all in one sweep.
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       shell: bash
+      
+    - name: List working directory Windows
+      if: runner.os == 'Windows'
+      run: dir /b /a /s
+      shell: cmd
+
+    - name: List working directory non-Windows
+      if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
+      run: ls -a -R
+      shell: bash
+      
+  # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
+  # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
+  # Another option to explore is to run them in a separate job that depands on ALL of the other jobs passing first.
+  # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
+  
+    - name: Publish debug
+      #if: ${{ github.event_name == 'push' }}
+      # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
+      run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
+      
+    - name: Publish release
+      #if: ${{ github.event_name == 'push' }}
+      # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
+      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      
+    - name: List published directory Windows
+      if: ${{ github.event_name == 'push' && runner.os == 'Windows' }} 
+      run: dir /b /a /s
+      shell: cmd      
+      working-directory: ./published
+      
+    - name: List published directory non-Windows
+      if: ${{ github.event_name == 'push' && runner.os != 'Windows' }}
+      run: ls -a -R
+      shell: bash
+      working-directory: ./published

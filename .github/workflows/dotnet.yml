@@ -7,6 +7,11 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
+  release:
+  #workflow_call:
+    # Use "Inputs" and "Secrets" to pass values from caller if needed
+    # You can then use the ${{ inputs.variable-name }} and ${{ secrets.envPAT }} syntax to access them
+    # See https://docs.github.com/en/actions/using-workflows/reusing-workflows for more info
 
 jobs:
   build:
@@ -14,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
+        os: [windows-latest, ubuntu-latest, macOS-latest]
 
     steps:
     - uses: actions/checkout@v3
@@ -44,23 +49,31 @@ jobs:
   # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
   
     - name: Publish debug
-      #if: ${{ github.event_name == 'push' }}
+      #if: ${{ github.event_name != 'pull_request' }}
       # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
       run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
       
     - name: Publish release
-      #if: ${{ github.event_name == 'push' }}
+      #if: ${{ github.event_name != 'pull_request' }}
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
       run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       
     - name: List published directory Windows
-      if: ${{ github.event_name == 'push' && runner.os == 'Windows' }} 
+      if: ${{ github.event_name != 'pull_request' && runner.os == 'Windows' }} 
       run: dir /b /a /s
       shell: cmd      
       working-directory: ./published
       
     - name: List published directory non-Windows
-      if: ${{ github.event_name == 'push' && runner.os != 'Windows' }}
+      if: ${{ github.event_name != 'pull_request' && runner.os != 'Windows' }}
       run: ls -a -R
       shell: bash
       working-directory: ./published
+
+    - name: Upload the artifacts
+      #if: ${{ github.event_name == 'release' }}  
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: 'example-*'

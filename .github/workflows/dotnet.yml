@@ -61,6 +61,14 @@ jobs:
       # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
 
+    - name: Create zip files for publication
+      # if: ${{ github.event_name == 'release' }}
+      run: |
+        zip -r CoseSignTool-debug.zip ./published/debug
+        zip -r CoseSignTool-release.zip ./published/release
+      shell: bash
+      working-directory: ./published
+
     - name: List published directory Windows
       # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
       if: ${{ (runner.os == 'Windows') }}
@@ -88,9 +96,15 @@ jobs:
       if: runner.os == 'Linux'
       #if: ${{ github.event_name == 'release' }}
       
-      uses: skx/github-action-publish-binaries@master
+      #uses: skx/github-action-publish-binaries@master
+      uses: actions/upload-release-asset@v1.01
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        ReleaseId: tag/${{ env.CurrentRelease }}
-        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
+        #ReleaseId: tag/${{ env.CurrentRelease }}
+        #args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
+        upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/tag/v0.3.1/assets?name=CoseHandler.deps.json
+        asset_path: ./published/CoseSignTool-release.zip
+        asset_name: CoseSignTool-debug.zip
+        asset_content_type: application/zip
+

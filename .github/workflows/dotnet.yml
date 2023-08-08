@@ -21,9 +21,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest]
     env:
-      # CurrentRelease: $(git describe --tags `git rev-list --tags --max-count=1`)
-      CurrentRelease: ${{ github.event.release.tag_name }}
-
+      #CurrentRelease: ${{ github.event.release.tag_name }}
+      CurrentRelease: v0.3.1
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET

@@ -82,7 +82,7 @@ jobs:
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os == 'Ubuntu'
+      if: runner.os == 'Linux'
       #if: ${{ github.event_name == 'release' }}  
       uses: skx/github-action-publish-binaries@master
       env:

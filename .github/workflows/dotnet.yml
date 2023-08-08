@@ -56,8 +56,8 @@ jobs:
     - name: Publish release # I might have to break it into steps to get the same output paths as debug
       #if: ${{ github.event_name != 'pull_request' }}
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
-      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
 
     - name: List published directory Windows
       # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
@@ -88,4 +88,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: '/Users/runner/work/CoseSignTool/CoseSignTool/CoseSignTool/*/bin*/Release/*'
+        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'

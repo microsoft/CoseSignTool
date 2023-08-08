@@ -53,29 +53,39 @@ jobs:
       # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
       run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
       
-    - name: Publish release
+    - name: Publish release # I might have to break it into steps to get the same output paths as debug
       #if: ${{ github.event_name != 'pull_request' }}
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
-      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
       # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
-      run: dotnet publish --configuration Release --output published/Release CoseSignTool/CoseSignTool.sln
 
     - name: List published directory Windows
-      if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
+      # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
+      if: ${{ (runner.os == 'Windows') }}
       run: dir /b /a /s
       shell: cmd      
       working-directory: ./published
       
     - name: List published directory non-Windows
-      if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
+      # if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
+      if: ${{ (runner.os != 'Windows') }}
       run: ls -a -R
       shell: bash
       working-directory: ./published
 
-    - name: Upload the artifacts
+    - name: Upload debug artifacts
+      if: ${{ github.event_name == 'release' }}  
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
+
+    - name: Upload release artifacts
+      if: runner.os == 'Ubuntu'
       #if: ${{ github.event_name == 'release' }}  
       uses: skx/github-action-publish-binaries@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/*'
+        args: '/Users/runner/work/CoseSignTool/CoseSignTool/CoseSignTool/*/bin*/Release/*'

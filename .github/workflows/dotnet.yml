@@ -97,7 +97,7 @@ jobs:
       #if: ${{ github.event_name == 'release' }}
       
       #uses: skx/github-action-publish-binaries@master
-      uses: actions/upload-release-asset@v1.01
+      uses: actions/upload-release-asset
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

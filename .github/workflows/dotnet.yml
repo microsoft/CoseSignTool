@@ -81,7 +81,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        ReleaseId: $CurrentRelease
+        ReleaseId: ${{ env.CurrentRelease }}
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
 
     - name: Upload release artifacts
@@ -92,5 +92,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        ReleaseId: $CurrentRelease
+        ReleaseId: ${{ env.CurrentRelease }}
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'

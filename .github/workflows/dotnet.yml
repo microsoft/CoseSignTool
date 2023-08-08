@@ -21,7 +21,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest]
     env:
-      CurrentRelease: $(git describe --tags `git rev-list --tags --max-count=1`)
+      # CurrentRelease: $(git describe --tags `git rev-list --tags --max-count=1`)
+      CurrentRelease: ${{ github.event.release.tag_name }}
 
     steps:
     - uses: actions/checkout@v3

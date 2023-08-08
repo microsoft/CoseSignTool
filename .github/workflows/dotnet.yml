@@ -20,6 +20,8 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest]
+    env:
+      CurrentRelease: $(git describe --tags `git rev-list --tags --max-count=1`)
 
     steps:
     - uses: actions/checkout@v3
@@ -79,13 +81,16 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        ReleaseId: $CurrentRelease
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
 
     - name: Upload release artifacts
       if: runner.os == 'Linux'
-      #if: ${{ github.event_name == 'release' }}  
+      #if: ${{ github.event_name == 'release' }}
+      
       uses: skx/github-action-publish-binaries@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        ReleaseId: $CurrentRelease
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'

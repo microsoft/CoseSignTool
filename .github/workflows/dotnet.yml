@@ -49,23 +49,25 @@ jobs:
   # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
   
     - name: Publish debug
-      #if: ${{ github.event_name != 'pull_request' }}
+      if: ${{ github.event_name != 'pull_request' }}
       # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
       run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
       
     - name: Publish release
-      #if: ${{ github.event_name != 'pull_request' }}
+      if: ${{ github.event_name != 'pull_request' }}
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
-      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-      
+      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
+      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+      run: dotnet publish --configuration Release --output published/Release CoseSignTool/CoseSignTool.sln
+
     - name: List published directory Windows
-      if: ${{ github.event_name != 'pull_request' && runner.os == 'Windows' }} 
+      if: ${{ github.event_name != 'pull_request'  }} && runner.os == 'Windows'
       run: dir /b /a /s
       shell: cmd      
       working-directory: ./published
       
     - name: List published directory non-Windows
-      if: ${{ github.event_name != 'pull_request' && runner.os != 'Windows' }}
+      if: ${{ github.event_name != 'pull_request' }} && runner.os != 'Windows'
       run: ls -a -R
       shell: bash
       working-directory: ./published
@@ -76,4 +78,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: 'example-*'
+        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/*'

@@ -50,22 +50,24 @@ jobs:
   # Another option to explore is to run them in a separate job that depands on ALL of the other jobs passing first.
   # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
   
-    - name: Publish debug
+    - name: Publish outputs
       #if: ${{ github.event_name != 'pull_request' }}
       # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
-      run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
-      
-    - name: Publish release # I might have to break it into steps to get the same output paths as debug
+      run: |
+        dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
+        dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+
+    #- name: Publish release # I might have to break it into steps to get the same output paths as debug
       #if: ${{ github.event_name != 'pull_request' }}
       # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
       # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+     # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
 
-    - name: Create zip files for publication
+    - name: Create zip files for release
       # if: ${{ github.event_name == 'release' }}
       run: |
-        zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug
-        zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release
+        zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
+        zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
       shell: bash
       working-directory: ./published
 
@@ -93,7 +95,7 @@ jobs:
         args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os == 'Linux'
+      #if: runner.os == 'Linux'
       #if: ${{ github.event_name == 'release' }}
       
       #uses: skx/github-action-publish-binaries@master

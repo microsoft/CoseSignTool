@@ -64,8 +64,8 @@ jobs:
     - name: Create zip files for publication
       # if: ${{ github.event_name == 'release' }}
       run: |
-        zip -r CoseSignTool-debug.zip CoseSignTool-debug -x ./published/debug
-        zip -r CoseSignTool-release.zip CoseSignTool-release -x ./published/release
+        zip -r CoseSignTool-debug.zip CoseSignTool-debug -x /home/runner/work/CoseSignTool/CoseSignTool/published/debug
+        zip -r CoseSignTool-release.zip CoseSignTool-release -x /home/runner/work/CoseSignTool/CoseSignTool/published/release
       shell: bash
       working-directory: ./published
 

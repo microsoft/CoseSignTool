@@ -68,8 +68,8 @@ jobs:
       run: |
         zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
         zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
-        #upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
-        #echo UPLOAD_URL=$upload_url >> $GITHUB_ENV
+        upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+        echo UPLOAD_URL=$upload_url #>> $GITHUB_ENV
       shell: bash
       working-directory: ./published
 
@@ -107,7 +107,7 @@ jobs:
       with:
         #ReleaseId: tag/${{ env.CurrentRelease }}
         #args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
-        upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/tag/v0.3.1/assets
+        upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets
         # upload_url: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
         asset_path: ./published/CoseSignTool-release.zip
         asset_name: CoseSignTool-release.zip

@@ -107,9 +107,9 @@ jobs:
       with:
         #ReleaseId: tag/${{ env.CurrentRelease }}
         #args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
-        # upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/tag/v0.3.1/assets?name=CoseHandler.deps.json
-        upload_url: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+        upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/tag/v0.3.1/assets
+        # upload_url: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
         asset_path: ./published/CoseSignTool-release.zip
-        asset_name: CoseSignTool-debug.zip
+        asset_name: CoseSignTool-release.zip
         asset_content_type: application/zip
 

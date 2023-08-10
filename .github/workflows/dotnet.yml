@@ -66,8 +66,10 @@ jobs:
     - name: Create zip files for release
       # if: ${{ github.event_name == 'release' }}
       run: |
-        zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
-        zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
+        # zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
+        # zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
+        zip -r CoseSignTool-debug.zip ./debug/
+        zip -r CoseSignTool-release.zip ./release/
         upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
         echo UPLOAD_URL=$upload_url #>> $GITHUB_ENV
       shell: bash
@@ -88,13 +90,14 @@ jobs:
       working-directory: ./published
 
     - name: Upload debug artifacts
-      if: ${{ github.event_name == 'release' }}  
+      if: ${{ github.event_name == 'release' }}
       uses: skx/github-action-publish-binaries@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        ReleaseId: tag/${{ env.CurrentRelease }}
-        args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
+        #ReleaseId: tag/${{ env.CurrentRelease }}
+        # args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
+        args: './published/debug/*'
 
     - name: Upload release artifacts
       if: runner.os == 'Linux'  # Need to re-test on other OS, but get linux working first
@@ -112,5 +115,5 @@ jobs:
         asset_path: ./published/CoseSignTool-release.zip
         asset_name: CoseSignTool-release.zip
         asset_content_type: application/zip
-        request_name: CoseSignTool-release.zip
+        #request_name: CoseSignTool-release.zip
 

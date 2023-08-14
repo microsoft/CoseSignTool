@@ -19,7 +19,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: mything
+            asset_name: mything-linux-amd64
+          - os: windows-latest
+            artifact_name: mything.exe
+            asset_name: mything-windows-amd64
+          - os: macos-latest
+            artifact_name: mything
+            asset_name: mything-macos-amd64
+        # os: [windows-latest, ubuntu-latest, macOS-latest]
     env:
       #CurrentRelease: ${{ github.event.release.tag_name }}
       CurrentRelease: v0.3.1
@@ -102,26 +112,26 @@ jobs:
 
     - name: Upload release artifacts
       if: runner.os == 'Linux'  # Need to re-test on other OS, but get linux working first
-      #if: ${{ github.event_name == 'release' }}
+      # if: ${{ github.event_name == 'release' }}
       # #uses: skx/github-action-publish-binaries@master
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        #LastRelease: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
-      with:
-        #upload_url: ${{ env.UPLOAD_URL }}
-        upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets/
-        asset_path: ./published/CoseSignTool-release.zip
-        asset_name: CoseSignTool-release.zip
-        asset_content_type: application/zip
-
-      #   #ReleaseId: tag/${{ env.CurrentRelease }}
-      #   #args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
-      #   #upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets/
-      #   upload_url: https://uploads.github.com/repos/actions/checkout/releases/107995616/assets{?name,label}
+      # uses: actions/upload-release-asset@v1.0.2
+      # env:
+      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   #LastRelease: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+      # with:
+      #   #upload_url: ${{ env.UPLOAD_URL }}
+      #   upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets
       #   asset_path: ./published/CoseSignTool-release.zip
       #   asset_name: CoseSignTool-release.zip
       #   asset_content_type: application/zip
-      #   #request_name: CoseSignTool-release.zip
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./published/CoseSignTool-release.zip
+        asset_name: CoseSignTool-release.zip
+        #tag: ${{ github.ref }}
+        #file_glob: true 
+
+
       
 

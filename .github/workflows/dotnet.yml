@@ -23,6 +23,7 @@ jobs:
     env:
       #CurrentRelease: ${{ github.event.release.tag_name }}
       CurrentRelease: v0.3.1
+      ReleasePath: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET
@@ -106,12 +107,13 @@ jobs:
       uses: actions/upload-release-asset@v1.0.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        LastRelease: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+        #LastRelease: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
       with:
-        upload_url: ${{ env.LastRelease }}
+        upload_url: ${{ env.ReleasePath }}
         asset_path: ./published/CoseSignTool-release.zip
         asset_name: CoseSignTool-release.zip
         asset_content_type: application/zip
+
       #   #ReleaseId: tag/${{ env.CurrentRelease }}
       #   #args: '/home/runner/work/CoseSignTool/CoseSignTool/published/release/*'
       #   #upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets/

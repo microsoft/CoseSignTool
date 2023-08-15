@@ -1,4 +1,4 @@
-# This workflow will build a .NET project
+# Build, test, publish, and upload a release of CoseSignTool
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
 name: Pull Request and Continuous Integration Build
@@ -8,10 +8,6 @@ on:
   pull_request:
     branches: [ "*" ]
   release:
-  #workflow_call:
-    # Use "Inputs" and "Secrets" to pass values from caller if needed
-    # You can then use the ${{ inputs.variable-name }} and ${{ secrets.envPAT }} syntax to access them
-    # See https://docs.github.com/en/actions/using-workflows/reusing-workflows for more info
 
 jobs:
   build:
@@ -21,21 +17,21 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            dir_command: cmd dir /b /a /s
-            zip_command_debug: powershell Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-debug.zip
-            zip_command_release: powershell Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-release.zip
+            dir_command: gci -Recurse # If I don't like the output format, switch to Shell: cmd
+            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
+            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+            command_shell: cmd
           - os: ubuntu-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-release.zip ./release/
+            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+            command_shell: bash
           - os: macos-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-release.zip ./release/
-    env:
-      #CurrentRelease: ${{ github.event.release.tag_name }}
-      CurrentRelease: v0.3.1
-      #ReleasePath: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+            command_shell: bash
+
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET
@@ -84,39 +80,20 @@ jobs:
         # zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
 
     - name: List published directory Windows
-      # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
-      # if: ${{ (runner.os == 'Windows') }}
+      # if: ${{ github.event_name != 'pull_request' }}
       run: ${{ matrix.dir_command }}
-      # shell: cmd      
       working-directory: ./published
-      
-    # - name: List published directory non-Windows
-    #   # if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
-    #   if: ${{ (runner.os != 'Windows') }}
-    #   run: ${{ matrix.dir_command }}
-    #   # shell: bash
-    #   working-directory: ./published
-
-    # - name: Upload debug artifacts
-    #   if: ${{ github.event_name == 'release' }}
-    #   uses: skx/github-action-publish-binaries@master
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   with:
-    #     #ReleaseId: tag/${{ env.CurrentRelease }}
-    #     # args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
-    #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os == 'Windows' # Need to re-test on other OS, but get linux working first
-      # if: ${{ github.event_name == 'release' }}
+      #if: runner.os == 'Windows' # Need to re-test on other OS, but get linux working first
+      #if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./published/CoseSignTool-release.zip
-        #asset_name: CoseSignTool-release.zip
+        file: ./published/CoseSignTool-*.zip
         tag: v0.3.1
-        #file_glob: true (turn this on if we want to upload all files in the directory)
+        file_glob: true #(turn this on if we want to upload all files in the directory)
+
 
 
       

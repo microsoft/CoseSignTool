@@ -35,7 +35,7 @@ jobs:
       uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
-        queries: +security-extended, +security-and-quality 
+        queries: security-extended,security-and-quality 
         # We can append additional queries with a '+' sign. See https://codeql.github.com/codeql-query-help/csharp/ for a list of available C# queries.
 
     # Use the Dotnet Build command to load dependencies and build the code.        

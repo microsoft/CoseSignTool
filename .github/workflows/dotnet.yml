@@ -1,7 +1,7 @@
 # Build, test, publish, and upload a release of CoseSignTool
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: Pull Request and Continuous Integration Build
+name: Build, Test, and Publish
 on:
   push:
     branches: [ "main" ]
@@ -65,7 +65,7 @@ jobs:
       working-directory: ./published
 
    # List the contents of the published directory to make sure all the artifacts are there.
-    - name: List published directory Windows
+    - name: List published directory
       if: ${{ github.event_name != 'pull_request' }}
       run: ${{ matrix.dir_command }}
       working-directory: ./published
@@ -77,8 +77,8 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./published/CoseSignTool-*.zip
-        #tag: v0.3.1  # Use hard-coded tags for testing. Otherwise, default to the tag of the release.
         file_glob: true
+        overwrite: true
 
 
 

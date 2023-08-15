@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            dir_command: dir /b /a -recurse
+            dir_command: cmd dir /b /a /s
             zip_command_debug: powershell Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-debug.zip
             zip_command_release: powershell Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-release.zip
           - os: ubuntu-latest

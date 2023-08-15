@@ -108,7 +108,7 @@ jobs:
     #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os == 'Windows'  # Need to re-test on other OS, but get linux working first
+      # if: runner.os == 'Windows'  # Need to re-test on other OS, but get linux working first
       # if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2
       with:

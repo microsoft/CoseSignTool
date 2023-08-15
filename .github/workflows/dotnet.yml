@@ -71,6 +71,7 @@ jobs:
       working-directory: ./published
 
    # If this is a release build, upload the zipped artifacts.
+     # TODO: This step should require successful completion of all the validation workflows, once they are all working as intended.
     - name: Upload release artifacts
       if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2

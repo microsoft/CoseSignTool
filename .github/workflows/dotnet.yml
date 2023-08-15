@@ -49,12 +49,12 @@ jobs:
       #shell: bash
       
     - name: List working directory Windows
-      if: runner.os == 'Windows'
+      # if: runner.os == 'Windows'
       run: ${{ matrix.dir_command }}
 
-    - name: List working directory non-Windows
-      if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
-      run: ${{ matrix.dir_command }}
+    # - name: List working directory non-Windows
+    #   if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
+    #   run: ${{ matrix.dir_command }}
       
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
@@ -85,17 +85,17 @@ jobs:
 
     - name: List published directory Windows
       # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
-      if: ${{ (runner.os == 'Windows') }}
+      # if: ${{ (runner.os == 'Windows') }}
       run: ${{ matrix.dir_command }}
       # shell: cmd      
       working-directory: ./published
       
-    - name: List published directory non-Windows
-      # if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
-      if: ${{ (runner.os != 'Windows') }}
-      run: ${{ matrix.dir_command }}
-      # shell: bash
-      working-directory: ./published
+    # - name: List published directory non-Windows
+    #   # if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
+    #   if: ${{ (runner.os != 'Windows') }}
+    #   run: ${{ matrix.dir_command }}
+    #   # shell: bash
+    #   working-directory: ./published
 
     # - name: Upload debug artifacts
     #   if: ${{ github.event_name == 'release' }}
@@ -108,8 +108,8 @@ jobs:
     #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      # if: runner.os == 'Windows'  # Need to re-test on other OS, but get linux working first
-      # if: ${{ github.event_name == 'release' }}
+      # if: ${{ runner.os == 'Windows' }}  # Need to re-test on other OS, but get linux working first
+      if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}

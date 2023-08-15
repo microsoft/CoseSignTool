@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            dir_command: dir /b /a /s
+            dir_command: dir /b /a -recurse
             zip_command_debug: powershell Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-debug.zip
             zip_command_release: powershell Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-release.zip
           - os: ubuntu-latest
@@ -108,8 +108,8 @@ jobs:
     #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      # if: ${{ runner.os == 'Windows' }}  # Need to re-test on other OS, but get linux working first
-      if: ${{ github.event_name == 'release' }}
+      if: runner.os == 'Windows' # Need to re-test on other OS, but get linux working first
+      # if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}

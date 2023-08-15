@@ -32,7 +32,6 @@ jobs:
             dir_command: ls -a -R
             zip_command_debug: zip -r CoseSignTool-debug.zip ./debug/
             zip_command_release: zip -r CoseSignTool-release.zip ./release/
-        # os: [windows-latest, ubuntu-latest, macOS-latest]
     env:
       #CurrentRelease: ${{ github.event.release.tag_name }}
       CurrentRelease: v0.3.1
@@ -47,17 +46,15 @@ jobs:
     - name: Build and Test debug
       # Use dotnet test to run Restore, Build, and Test, all in one sweep.
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
-      shell: bash
+      #shell: bash
       
     - name: List working directory Windows
       if: runner.os == 'Windows'
       run: ${{ matrix.dir_command }}
-      #shell: cmd
 
     - name: List working directory non-Windows
       if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
       run: ${{ matrix.dir_command }}
-      #shell: bash
       
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
@@ -78,7 +75,6 @@ jobs:
         ${{ matrix.zip_command_release }}
         # zip -r CoseSignTool-debug.zip ./debug/
         # zip -r CoseSignTool-release.zip ./release/
-      # shell: bash
       working-directory: ./published
 
       # [IO.Compression.ZipFile]::CreateFromDirectory
@@ -112,7 +108,7 @@ jobs:
     #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os != 'Linux'  # Need to re-test on other OS, but get linux working first
+      if: runner.os == 'Windows'  # Need to re-test on other OS, but get linux working first
       # if: ${{ github.event_name == 'release' }}
       uses: svenstaro/upload-release-action@v2
       with:

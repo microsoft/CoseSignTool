@@ -20,15 +20,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact_name: mything
-            asset_name: mything-linux-amd64
           - os: windows-latest
-            artifact_name: mything.exe
-            asset_name: mything-windows-amd64
+            dir_command: dir /b /a /s
+            zip_command_debug: powershell Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-debug.zip
+            zip_command_release: powershell Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-release.zip
+          - os: ubuntu-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-release.zip ./release/
           - os: macos-latest
-            artifact_name: mything
-            asset_name: mything-macos-amd64
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-release.zip ./release/
         # os: [windows-latest, ubuntu-latest, macOS-latest]
     env:
       #CurrentRelease: ${{ github.event.release.tag_name }}
@@ -48,13 +51,13 @@ jobs:
       
     - name: List working directory Windows
       if: runner.os == 'Windows'
-      run: dir /b /a /s
-      shell: cmd
+      run: ${{ matrix.dir_command }}
+      #shell: cmd
 
     - name: List working directory non-Windows
       if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
-      run: ls -a -R
-      shell: bash
+      run: ${{ matrix.dir_command }}
+      #shell: bash
       
   # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
   # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
@@ -68,69 +71,56 @@ jobs:
         dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
         dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
 
-    #- name: Publish release # I might have to break it into steps to get the same output paths as debug
-      #if: ${{ github.event_name != 'pull_request' }}
-      # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
-      # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-     # run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
-
     - name: Create zip files for release
       # if: ${{ github.event_name == 'release' }}
       run: |
-        # zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
-        # zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
-        zip -r CoseSignTool-debug.zip ./debug/
-        zip -r CoseSignTool-release.zip ./release/
-        upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
-        echo UPLOAD_URL=$upload_url >> $GITHUB_ENV
-      shell: bash
+        ${{ matrix.zip_command_debug }}
+        ${{ matrix.zip_command_release }}
+        # zip -r CoseSignTool-debug.zip ./debug/
+        # zip -r CoseSignTool-release.zip ./release/
+      # shell: bash
       working-directory: ./published
+
+      # [IO.Compression.ZipFile]::CreateFromDirectory
+              #upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
+        #echo UPLOAD_URL=$upload_url >> $GITHUB_ENV
+                # zip -r CoseSignTool-debug.zip /home/runner/work/CoseSignTool/CoseSignTool/published/debug/
+        # zip -r CoseSignTool-release.zip /home/runner/work/CoseSignTool/CoseSignTool/published/release/
 
     - name: List published directory Windows
       # if: ${{ (runner.os == 'Windows') && (github.event_name != 'pull_request')  }}
       if: ${{ (runner.os == 'Windows') }}
-      run: dir /b /a /s
-      shell: cmd      
+      run: ${{ matrix.dir_command }}
+      # shell: cmd      
       working-directory: ./published
       
     - name: List published directory non-Windows
       # if: ${{ (runner.os != 'Windows') && (github.event_name != 'pull_request') }}
       if: ${{ (runner.os != 'Windows') }}
-      run: ls -a -R
-      shell: bash
+      run: ${{ matrix.dir_command }}
+      # shell: bash
       working-directory: ./published
 
-    - name: Upload debug artifacts
-      if: ${{ github.event_name == 'release' }}
-      uses: skx/github-action-publish-binaries@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        #ReleaseId: tag/${{ env.CurrentRelease }}
-        # args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
-        args: './published/debug/*'
+    # - name: Upload debug artifacts
+    #   if: ${{ github.event_name == 'release' }}
+    #   uses: skx/github-action-publish-binaries@master
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     #ReleaseId: tag/${{ env.CurrentRelease }}
+    #     # args: '/home/runner/work/CoseSignTool/CoseSignTool/published/debug/*'
+    #     args: './published/debug/*'
 
     - name: Upload release artifacts
-      if: runner.os == 'Linux'  # Need to re-test on other OS, but get linux working first
+      #if: runner.os == 'Linux'  # Need to re-test on other OS, but get linux working first
       # if: ${{ github.event_name == 'release' }}
-      # #uses: skx/github-action-publish-binaries@master
-      # uses: actions/upload-release-asset@v1.0.2
-      # env:
-      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   #LastRelease: $(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
-      # with:
-      #   #upload_url: ${{ env.UPLOAD_URL }}
-      #   upload_url: https://uploads.github.com/repos/microsoft/CoseSignTool/releases/v0.3.1/assets
-      #   asset_path: ./published/CoseSignTool-release.zip
-      #   asset_name: CoseSignTool-release.zip
-      #   asset_content_type: application/zip
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./published/CoseSignTool-release.zip
-        asset_name: CoseSignTool-release.zip
+        #asset_name: CoseSignTool-release.zip
         tag: v0.3.1
-        #file_glob: true 
+        #file_glob: true (turn this on if we want to upload all files in the directory)
 
 
       

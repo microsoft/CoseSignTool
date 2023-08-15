@@ -1,20 +1,33 @@
-# This workflow will build a .NET project
+# Build, test, publish, and upload a release of CoseSignTool
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: Pull Request and Continuous Integration Build
+name: Build, Test, and Publish
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
-
+  release:
+    types: [created]
 jobs:
   build:
     name: build-${{matrix.os}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest] # macOS-latest and ubuntu-latest are broken at the moment. Add it back in when fixed.
+        include:
+          - os: windows-latest
+            dir_command: gci -Recurse
+            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
+            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+          - os: ubuntu-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+          - os: macos-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
 
     steps:
     - uses: actions/checkout@v3
@@ -22,45 +35,52 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
-        
-    - name: Build and Test debug
-      # Use dotnet test to run Restore, Build, and Test, all in one sweep.
-      run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
-      shell: bash
-      
-    - name: List working directory Windows
-      if: runner.os == 'Windows'
-      run: dir /b /a /s
-      shell: cmd
 
-    - name: List working directory non-Windows
-      if: runner.os != 'Windows'  # TODO: Figure out how to set this in an environment variable so we only don't need separate steps.
-      run: ls -a -R
-      shell: bash
+ #### This workflow runs on all platforms and handles three different types of builds:
+   # 1. Pull request builds: These are triggered by a pull request. They build and test the code, but do not publish or upload release artifacts.
+   # 2. Continuous integration builds: These are triggered by a push to the main branch. They build, test, and publish binaries for local use.
+   # 3. Release builds: These are triggered by a release, which is created manually. They build, test, and publish binaries, and then zip and upload them to the release.
+    
+   # Use the Dotnet Test command to load dependencies, build, and test the code.        
+    - name: Build and Test debug
+      run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
       
-  # The remaining steps run only when changes are pushed to Main, i.e., when a pull request completes.
-  # While we could run the publish steps in a parallel job, having them here forces them to wait until the unit tests pass.
-  # Another option to explore is to run them in a separate job that depands on ALL of the other jobs passing first.
-  # Eventually we might want to tweak the CodeQL job to run on what we already built above so it isn't using resources to autobuild.
+    - name: List working directory
+      run: ${{ matrix.dir_command }}
   
-    - name: Publish debug
-      #if: ${{ github.event_name == 'push' }}
-      # Publish all of the non-test projects to published/release. We have to use the solution file to get the right output paths.
-      run: dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
-      
-    - name: Publish release
-      #if: ${{ github.event_name == 'push' }}
-      # Publish CoseSignTool.exe and it's dependencies (all of the non-test projects) to published/release. 
-      run: dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool/CoseSignTool.csproj
-      
-    - name: List published directory Windows
-      if: ${{ github.event_name == 'push' && runner.os == 'Windows' }} 
-      run: dir /b /a /s
-      shell: cmd      
+   # If this is a pull request build, we're done. Otherwise, publish the binaries to ./published.
+     # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
+    - name: Publish outputs
+      if: ${{ github.event_name != 'pull_request' }}
+      run: |
+        dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
+        dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+
+   # Create zip files for release builds. Skip this step for continuous integration builds.
+    - name: Create zip files for release
+      if: ${{ github.event_name == 'release' }}
+      run: |
+        ${{ matrix.zip_command_debug }}
+        ${{ matrix.zip_command_release }}
       working-directory: ./published
-      
-    - name: List published directory non-Windows
-      if: ${{ github.event_name == 'push' && runner.os != 'Windows' }}
-      run: ls -a -R
-      shell: bash
+
+   # List the contents of the published directory to make sure all the artifacts are there.
+    - name: List published directory
+      if: ${{ github.event_name != 'pull_request' }}
+      run: ${{ matrix.dir_command }}
       working-directory: ./published
+
+   # If this is a release build, upload the zipped artifacts.
+    - name: Upload release artifacts
+      if: ${{ github.event_name == 'release' }}
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./published/CoseSignTool-*.zip
+        file_glob: true
+        overwrite: true
+
+
+
+      
+

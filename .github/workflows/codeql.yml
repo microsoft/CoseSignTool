@@ -20,7 +20,6 @@ on:
 jobs:
   analyze:
     name: Analyze
-    # needs: build-${{matrix.os}}
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
@@ -31,14 +30,15 @@ jobs:
       fail-fast: false
       matrix:
         language: [ 'csharp' ]
-        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
-        # Use only 'java' to analyze code written in Java, Kotlin or both
-        # Use only 'javascript' to analyze code written in JavaScript, TypeScript or both
-        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
-        os: [windows-latest] #, ubuntu-latest, macOS-latest]
+        os: [windows-latest, ubuntu-latest, macOS-latest]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -52,11 +52,20 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
+# TODO: Instead of autobuild, see if we can speed things up
+        # We could insert the CodeQL process into the build script so we only have to build once, but it would be synchronous and add 3.5 minutes to the build script.
+        # The build script takes about 1/2 as long to build as AutoBuild, so try using that.
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+    # - name: Autobuild
+      # uses: github/codeql-action/autobuild@v2
+
+
+
+    # Use the Dotnet Build command to load dependencies and build the code.        
+    - name: Build and Test debug
+      run: dotnet build --verbosity normal CoseSignTool/CoseSignTool.sln
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun

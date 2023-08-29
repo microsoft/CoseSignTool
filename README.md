@@ -14,7 +14,8 @@ The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provid
 'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
 
 ## Why would I use this?
-The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021 requires an SBOM for any software or firmare product in use by the US government. [See Wikipedia entry](https://en.wikipedia.org/wiki/Software_supply_chain) This also includes the libraries and tools those products are built with, so the dependency chain spreads quickly. But even in consumer software, an SBOM helps you protect your customers from supply chain attacks.
+The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021 requires an SBOM for any software or firmare product in use by the US government. [See Wikipedia entry](https://en.wikipedia.org/wiki/Software_supply_chain)
+This also includes the libraries and tools those products are built with, so the dependency chain spreads quickly. But even in consumer software, an SBOM helps you protect your customers from supply chain attacks.
 CoseSignTool and CoseHandler are the Microsoft solution for signing SBOMs and, we believe, the most powerful and convenient solution currently on the market.
 
 ## How do I get started?

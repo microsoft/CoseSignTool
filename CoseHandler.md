@@ -12,9 +12,9 @@ You must provide:
 
 You may also want to specify:
 * Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. Setting ***embedSign=true*** creates an embedded signature, meaning that the signature file includes an encrypted copy of the payload. Note that embedded signatures are only supported for payload of less than 2gb.
-* A file handle to write the signature to. Or you can leave this value as *null* and run File.WriteAllBytes on the return value and accomplish the same thing.
+* A file handle to write the signature to. Or you can leave this value as *null* and run File.WriteAllBytes on the return value to accomplish the same thing.
 * What certificate store to use. If you passed in a thumbprint instead of an X509Certificate, you can either specify a StoreName and StoreLocation or use the default values of My/CurrentUser.
-    Pro tip: Certificate store operations run faster if you use a custom store that has only the certificates you will sign with. You can create a custom store by creating a new X509Store object with your custom StoreName and then adding a certificate to it.
+>Pro tip: Certificate store operations run faster if you use a custom store that has only the certificates you will sign with. You can create a custom store by creating a new X509Store object with your custom StoreName and then adding a certificate to it.
 * A SigningKeyProvider object. This is a wrapper class that you can use instead of passing in an X509Certificate2 object directly. It allows you to specify a custom certificate chain builder and/or pass in a set of optional root certificates to be stores in the UprotectedHeaders area of the COSE signature structure. See [the Advanced Scenarios guide](Advanced.md) for details on why you might want to do this.
 
 
@@ -32,9 +32,9 @@ Which types you should use for signature and payload depends on your scenario.
 
 You may also want to specify:
 * Some **root** certificates. By default, CoseHandler will try to chain the signing certificate to whatever certificates are installed on the machine. You can pass in additional certificates to try to chain to via the **/Roots** parameter.
-    * User-specified roots will be treated as "trusted" for validation purposes.
-    * Root certificates for validation do not have to include a private key.
-    * Certificate chain validation always checks installed certificates first, so even if you pass in a copy of the same certificate, it will still use the installed version.
+  * User-specified roots will be treated as "trusted" for validation purposes.
+  * Root certificates for validation do not have to include a private key.
+  * Certificate chain validation always checks installed certificates first, so even if you pass in a copy of the same certificate, it will still use the installed version.
 
 And in some cases:
 * A **revocationMode** -- By default, CoseSignTool checks the signing certificate against an online database to see if it has been revoked. You can skip this check by using **/RevocationMode.None**, which is often a good choice for testing. RevocationMode.Offline is not yet implemented.
@@ -48,7 +48,7 @@ You will need to specify:
 * The embedded **signature** to read from. You can pass in your COSE signature structure as either a byte array or a stream. 
 
 You may also want to specify:
-* Additional **roots**, **revocationMode**, **requiredCommonName**, or a **validator**, as with the Validate method.
+* Additional **roots**, **revocationMode**, and **requiredCommonName** values, or a **validator**, as with the Validate method.
 
 ## CoseHandler.LookupCertificate
 This is a convenience method that checks the local certificate store for a certificate matching the specified thumbprint.
@@ -65,17 +65,17 @@ When you validate a COSE signature with *CoseHandler.Validate* it returns a **Va
 The ValidationResult contains:
 * **Success** -- a boolean value indicating success or failure.
 * **Errors** -- a list of **CoseValidationError** objects describing any errors you may have hit. These are top level errors that cover all of the basic validation criteria.
-  A **CoseValidationError** object has these properties:
-  * *ErrorCode* -- a ValidationFailureCode enum value
-  * *Message* -- a description of the error.
+  * A **CoseValidationError** object has these properties:
+  * **ErrorCode** -- a **ValidationFailureCode** enum value.
+  * **Message** -- a description of the error.
 * **InnerResults** -- a list of **CoseSignValidationResult** objects passed back from the internal validator. These will mostly pertain to chain trust validation unless you use a custom validator.
   A **CoseSign1ValidationResult** has these properties:
-  * *Validator* -- the *type* of validator that returned the result.
-  * *PassedValidation* -- a boolean indicating whether the signature passed against this particular validator.
-  * *ResultMessage* -- the error or warning message if any.
-  * *includes* -- an optional list of objects such as exceptions and ChainStatus objects passed back from the validator.
+  * **Validator** -- the *type* of validator that returned the result.
+  * **PassedValidation** -- a boolean indicating whether the signature passed against this particular validator.
+  * **ResultMessage** -- the error or warning message if any.
+  * **includes** -- an optional list of objects such as exceptions and ChainStatus objects passed back from the validator.
 
 A ValidationResult has these methods:
 * **ToString** -- returns a nicely formatted summary of the result.
-* **AddError** -- adds a *CoseValidationError* to the **Errors** list. You would mostly use this in a custom validator.
+* **AddError** -- adds a **CoseValidationError** to the **Errors** list. You would mostly use this in a custom validator.
 

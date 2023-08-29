@@ -56,6 +56,6 @@ You will need to specify:
 
 You may also want to specify:
 * A file to write the unencrypted payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
-* Roots, Verbosity, RevocationMode, CommonName, and AllowUntrusted, exactly as with the Validate command.
+* **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, and **/AllowUntrusted**, exactly as with the Validate command.
 
 Run *CoseSignTool get /?* for the complete command line usage.

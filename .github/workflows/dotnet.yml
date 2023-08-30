@@ -53,7 +53,6 @@ jobs:
   
   create_release:
     name: Create Release
-    needs: build
     runs-on: ubuntu-latest
     outputs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -79,7 +78,7 @@ jobs:
 
   release_assets:
     name: release-assets
-    needs: create_release
+    needs: [ build, create_release ]
     #if: ${{ github.event_name != 'pull_request' }} # Can I declare this once for the whole job?
     runs-on: ${{ matrix.os }}
     # env:    # Can I declare this once for the whole job?

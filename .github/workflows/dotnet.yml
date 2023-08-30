@@ -125,27 +125,34 @@ jobs:
       working-directory: ./published
 
    # If this is a release build, upload the zipped artifacts.   ** See if I can still do these with th svenstaro action
-    - name: Upload release artifacts
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./published/CoseSignTool-${{ matrix.os }}-release.zip
-        asset_name: CoseSignTool-${{ matrix.os }}-release.zip
-        asset_content_type: application/zip
+  #   - name: Upload release artifacts
+  #     uses: actions/upload-release-asset@v1
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     with:
+  #       upload_url: ${{ needs.create_release.outputs.upload_url }}
+  #       asset_path: ./published/CoseSignTool-${{ matrix.os }}-release.zip
+  #       asset_name: CoseSignTool-${{ matrix.os }}-release.zip
+  #       asset_content_type: application/zip
 
-   # If this is a release build, upload the zipped artifacts.
-    - name: Upload debug artifacts
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url}}
-        asset_path: ./published/CoseSignTool-${{ matrix.os }}-debug.zip
-        asset_name: CoseSignTool-${{ matrix.os }}-debug.zip
-        asset_content_type: application/zip        
+  #  # If this is a release build, upload the zipped artifacts.
+  #   - name: Upload debug artifacts
+  #     uses: actions/upload-release-asset@v1
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     with:
+  #       upload_url: ${{ needs.create_release.outputs.upload_url}}
+  #       asset_path: ./published/CoseSignTool-${{ matrix.os }}-debug.zip
+  #       asset_name: CoseSignTool-${{ matrix.os }}-debug.zip
+  #       asset_content_type: application/zip     
 
+    - name: Upload artifacts
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./published/CoseSignTool-*.zip
+        file_glob: true
+        overwrite: true
       # uses: svenstaro/upload-release-action@v2
       # with:
       #   repo_token: ${{ secrets.GITHUB_TOKEN }}

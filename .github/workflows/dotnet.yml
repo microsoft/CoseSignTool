@@ -67,7 +67,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           #tag_name: ${{ github.ref }}
-          tag_name: 'v.0.6.6'     # This will need to be changed to ${{ github.ref }} once we are creating releases automatically   
+          tag_name: 'v.0.6.7'     # This will need to be changed to ${{ github.ref }} once we are creating releases automatically   
           release_name: Release ${{ github.ref }}
           body: | # This section will need tweaking
             Changes in this Release

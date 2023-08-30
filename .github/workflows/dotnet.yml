@@ -79,7 +79,7 @@ jobs:
   release_assets:
     name: release-assets
     needs: [ build, create_release ]
-    #if: ${{ github.event_name != 'pull_request' }} # Can I declare this once for the whole job?
+    # if: ${{ github.event_name != 'pull_request' }} # Can I declare this once for the whole job?
     runs-on: ${{ matrix.os }}
     # env:    # Can I declare this once for the whole job?
     #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,9 +107,10 @@ jobs:
    # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
     - name: Publish outputs
       run: |
-        # dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln  # Once I have this working, move the debug publish and zip steps into the Build job so I don't have to build twice.
         dotnet publish --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
         dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+
+      # dotnet publish --no-build --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln  # Once I have this working, move the debug publish and zip steps into the Build job so I don't have to build twice.
 
    # Create zip files for release builds. Skip this step for continuous integration builds.
     - name: Create zip files for release

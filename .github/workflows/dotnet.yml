@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
-  release:
+  release:  # Turn this off once we are creating releases automatically
     types: [created]
 jobs:
   build:
@@ -49,7 +49,36 @@ jobs:
       run: ${{ matrix.dir_command }}
   
    # If this is a pull request build, we're done. Otherwise, publish the binaries to ./published.
-     # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
+  
+  release_assets:
+    name: release-assets
+    needs: create_release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            dir_command: gci -Recurse
+            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
+            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+          - os: ubuntu-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+          - os: macos-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+
+    steps:
+    # Not sure if we need to do these again - get this working then try without these steps here.
+    - uses: actions/checkout@v3
+    - name: Setup .NET again
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+
+   # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
     - name: Publish outputs
       if: ${{ github.event_name != 'pull_request' }}
       run: |
@@ -73,12 +102,33 @@ jobs:
    # If this is a release build, upload the zipped artifacts.
     - name: Upload release artifacts
       if: ${{ github.event_name == 'release' }}
-      uses: svenstaro/upload-release-action@v2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./published/CoseSignTool-*.zip
-        file_glob: true
-        overwrite: true
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./published/CoseSignTool-${{ matrix.os }}-release.zip
+        asset_name: CoseSignTool-${{ matrix.os }}-release.zip
+        asset_content_type: application/zip
+
+   # If this is a release build, upload the zipped artifacts.
+    - name: Upload debug artifacts
+      if: ${{ github.event_name == 'debug' }}
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./published/CoseSignTool-${{ matrix.os }}-debug.zip
+        asset_name: CoseSignTool-${{ matrix.os }}-debug.zip
+        asset_content_type: application/zip        
+
+      # uses: svenstaro/upload-release-action@v2
+      # with:
+      #   repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #   file: ./published/CoseSignTool-*.zip
+      #   file_glob: true
+      #   overwrite: true
 
 
 

@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
-  release:  # Turn this off once we are creating releases automatically
-    types: [created]
+  #release:  # Turn this off once we are creating releases automatically
+    #types: [created]
 jobs:
   build:
     name: build-${{matrix.os}}
@@ -50,6 +50,31 @@ jobs:
   
    # If this is a pull request build, we're done. Otherwise, publish the binaries to ./published.
   
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: | # This section will need tweaking
+            Changes in this Release
+            - First Change
+            - Second Change
+          draft: false
+          prerelease: false
+
   release_assets:
     name: release-assets
     needs: create_release

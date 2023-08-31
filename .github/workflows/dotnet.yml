@@ -85,7 +85,7 @@ jobs:
       uses: wakatime/semver-action@v1.6.0
       with:
         prefix: v
-        repo_dir: ./CoseSignTool
+        repo_dir: ../
 
 
     - name: Create Release

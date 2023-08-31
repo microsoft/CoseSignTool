@@ -17,7 +17,7 @@ The best way to 'shoot' trouble is to avoid it in the first place. The error mes
 * When signing it is generally more secure to keep everything in memory and not write anything to disk until the signing operation is complete. This prevents the payload from getting tampered with before it is signed. Therefore, you should use streams or byte arrays where possible. However, when working with large payloads you may run into difficulties:
     * Arrays and most stream types cannot hold more than 2gb of data. This may include the stream used used to pipe data to applications in your operating system or command shell.
     * Your system might not have enough memory to handle very large payloads efficiently.
->If you will be working with payloads of more than 2gb we recommend you first experiment to make sure that the signature produced when loading from an in-memory stream matches the signature produced when loading from a file. If not, you are probably better off loading from a file, at least for now.
+>If you work with payloads of more than 2gb we recommend you first experiment to make sure that the signature produced when loading from an in-memory stream matches the signature produced when loading from a file. If not, you are probably better off loading from a file, at least for now.
 
 ## Log an issue if...
 * You get an error involving invalid COSE headers. If you created the signature with CoseHandler or CoseSignTool and get the error, that means you found a bug. If the signature was created by a third party tool, that means you found a compatibility issue. If you were mucking about with the CoseSign1 APIs and created an invalid header, that might be a bug or it might be user error.

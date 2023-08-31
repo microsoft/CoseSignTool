@@ -2,7 +2,7 @@
 #### This workflow runs on all platforms and handles two different types of builds:
   # 1. Pull request builds: These are triggered by a pull request. They build and test the code, but do not publish or upload release artifacts.
   # 2. Continuous integration builds: These are triggered by a push to the main branch. They build, test, create a semantically versioned release, generate a changelog, and publish zipped binaries to the new release.
-# To update the major or minor version, create a new Tag with the new version number. The next time a release is created, the version number will be updated. Only the repo owners should create tags.
+# To update the Major, Minor, or Prerelease version, create a new Tag with the new version number. The next time a release is created, the version number will be updated. Only the repo owners should create tags.
 
 # TODO: Lock down the perms on tag creation so only the repo owners can do it.
 
@@ -14,6 +14,7 @@ on:
     branches: [ "*" ]
   #release:  # Turn this off once we are creating releases automatically
     #types: [created]
+
 jobs:
   build:
     name: build-${{matrix.os}}
@@ -80,7 +81,6 @@ jobs:
         TAG=$(git describe --tags --exact-match HEAD)
         echo "::set-output name=generated_tag::$TAG"
       #  echo ::set-env name=TAG::$TAG
-      #  echo Tag is $TAG
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
 
     - name: Create Release
@@ -97,7 +97,7 @@ jobs:
         body: |
           This is a new release.
         draft: false
-        prerelease: ${{ contains(steps.auto_tag.outputs.tag, '-') == false }}
+        prerelease: ${{ contains(steps.save_tag.outputs.generated_tag, '-') == false }}
 
   #  - name: Create changelog
   #     if: ${{ github.event_name != 'pull_request' }}

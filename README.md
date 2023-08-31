@@ -15,8 +15,8 @@ The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provid
 
 ## Why would I use this?
 The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021 requires an SBOM for any software or firmare product in use by the US government. [See Wikipedia entry](https://en.wikipedia.org/wiki/Software_supply_chain)
-This also includes the libraries and tools those products are built with, so the dependency chain spreads quickly. But even in consumer software, an SBOM helps you protect your customers from supply chain attacks.
-CoseSignTool and CoseHandler are the Microsoft solution for signing SBOMs and, we believe, the most powerful and convenient solution currently on the market.
+This also includes the libraries and tools those products are built with. Even in consumer software, an SBOM helps you protect your customers from supply chain attacks by enabling you to quickly check the version numbers of all the products in your software supply chain.
+CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solution for signing SBOMs and, we believe, the most powerful and convenient solution currently on the market.
 
 ## How do I get started?
 First, download the latest release from GitHub. There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.

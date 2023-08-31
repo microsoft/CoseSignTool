@@ -85,8 +85,8 @@ jobs:
       uses: wakatime/semver-action@v1.6.0
       with:
         prefix: v
-        repo_dir: ${{ github.workspace }}
-        main_branch_name: main
+        #repo_dir: ${{ github.workspace }}
+        #main_branch_name: main
         debug: true
 
     - name: Create Release

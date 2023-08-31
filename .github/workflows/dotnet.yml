@@ -64,8 +64,8 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    # - name: Checkout code again  # Probably not needed.
-    #   uses: actions/checkout@v2
+    - name: Checkout code again  # Probably not needed.
+      uses: actions/checkout@v2
 
       # Create a semantically versioned tag using lastTag-COMMIT_COUNT-COMMIT_HASH, e.g., 1.2.3-32-hashvalue unless a new tag has been created manually.
     # - name: Create SemVer tag

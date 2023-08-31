@@ -89,8 +89,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.save_tag.outputs.generated_tag}}  # If this doesn't work, use the github command.
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ steps.save_tag.outputs.generated_tag }}  # If this doesn't work, use the github command.
+        release_name: Release ${{ steps.save_tag.outputs.generated_tag }}
         # This section will need tweaking once I see what the output looks like in context.
         # Does it make sense to use body_path and point to the changelog instead?
         # Or should I use the summary from the PR?

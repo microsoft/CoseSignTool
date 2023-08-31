@@ -74,10 +74,14 @@ jobs:
       #   github_token: ${{ secrets.GITHUB_TOKEN }}
       #   prefix: 'v'
 
-    - name: Set Release Type
-      id: release_type
+    - name: Copy tag to local environment variable
+      id: save_tag
+      run: |
+        TAG=$(git describe --tags --exact-match HEAD)
+        echo "::set-output name=generated_tag::$TAG"
+      #  echo ::set-env name=TAG::$TAG
+      #  echo Tag is $TAG
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-      run: echo ::set-output name=type::${{ steps.auto_tag.outputs.type }}
 
     - name: Create Release
       id: create_release
@@ -85,7 +89,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.auto_tag.outputs.autotag}}  # If this doesn't work, use the github command.
+        tag_name: ${{ steps.save_tag.outputs.generated_tag}}  # If this doesn't work, use the github command.
         release_name: Release ${{ github.ref }}
         # This section will need tweaking once I see what the output looks like in context.
         # Does it make sense to use body_path and point to the changelog instead?
@@ -111,11 +115,11 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate changelog
-        uses: github-changelog-generator/action@v1.19.0   # Do I need to install this first?
+        uses: tj-actions/github-changelog-generator@v1.19  # Do I need to install this first?
         with:
           # user: microsoft
           # project: CoseSignTool
-          output-file: CHANGELOG.md
+          output: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
           # future-release: v1.0.0
 

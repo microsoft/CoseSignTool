@@ -87,6 +87,7 @@ jobs:
         prefix: v
         repo_dir: ${{ github.workspace }}
         main_branch_name: main
+        debug: true
 
     - name: Create Release
       id: create_release

@@ -10,7 +10,8 @@ Microsoft will release fully Authenticode-signed versions of the tool and librar
 Do not add certificates, Azure secrets, private keys (including strongname private keys), or any other private or potentially sensitive information to the repo. If a secret is added even temporarily, it will be discoverable long after deletion and must be invalidated immediately. If you need certificates for testing, use the functions in CoseSign1.Tests.Common.TestCertificateUtils to create them, or add your own functions to create custom certificates if those do not meet your needs.
 
 ### Certificate store access
-The CoseHandler class has a static LookupCertificate method to find installed certificates. If you modify this method or add other methods that access the local certifiacte store, write unit tests to ensure that your changes are compatible across Windows, Linux, and MacOS operating systems. Your tests will run on all three platforms when you create a pull request.
+The CoseHandler class has a static LookupCertificate method to find installed certificates. If you modify this method or add other methods that access the local certificate store, write unit tests to ensure that your changes are compatible across Windows, Linux, and MacOS operating systems. Your tests will run on all three platforms when you create a pull request.
+
 When writing unit tests that touch store functions, try to avoid making any changes to the certificate stores on the local machine.
 * Consider using Moq for unit tests where certificate store behaviors are not relevant to the test.
 * When certificate store behaviors are relevant but it doens't matter which certificate you use, you can check what certificates are locally installed and test store lookup functions on those.

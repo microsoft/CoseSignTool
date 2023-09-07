@@ -50,7 +50,9 @@ dotnet_diagnostic.CA1024.severity = error
 [*.cs]
 # Require file header
 dotnet_diagnostic.IDE0073.severity=error
-file_header_template = ---------------------------------------------------------------------------\n<copyright file="{fileName}" company="Microsoft">\n    Copyright (c) Microsoft Corporation. All rights reserved.\n</copyright>\n---------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+file_header_template = Copyright (c) Microsoft Corporation.\nLicensed under the MIT License.
 
 # CS7035: The specified version string does not conform to the recommended format - major.minor.build.revision
 dotnet_diagnostic.CS7035.severity = suggestion

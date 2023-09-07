@@ -141,10 +141,5 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
             $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
             ChainBuilder.ChainStatus.Cast<object>().ToList());
     }
-
-    protected override CoseSign1ValidationResult ValidateMessage(CoseSign1Message message)
-    {
-        throw new NotImplementedException();
-    }
     #endregion
 }

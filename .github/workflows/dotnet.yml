@@ -59,7 +59,7 @@ jobs:
   # Create a semantically versioned release.
   create_release:
     name: Create Release
-    #if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -73,7 +73,7 @@ jobs:
         git log -1 --pretty=format:\"%s\"
         echo "Merge message from env is ${{ github.event.head_commit.message }}"
 
-      # Create a semantically versioned tag using lastTag-COMMIT_COUNT-COMMIT_HASH, e.g., 1.2.3-32-hashvalue unless a new tag has been created manually.
+    # Create a semantically versioned tag using lastTag-COMMIT_COUNT-COMMIT_HASH, e.g., 1.2.3-32-hashvalue unless a new tag has been created manually.
     # - name: Create SemVer tag
     #   id: auto_tag
     #   uses: DanySK/semver-autotag-action@master
@@ -92,7 +92,7 @@ jobs:
       with:
         prefix: v
         #repo_dir: ${{ github.workspace }}
-        #main_branch_name: main
+        main_branch_name: main
         debug: true
 
     - name: Create Release

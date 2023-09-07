@@ -1,10 +1,10 @@
 # CoseSignTool
-CoseSignTool is a platform-independent command line application to COSE sign files, validate COSE signatures, and optionally retrieve the encrypted content from COSE embed-signed files. 
+CoseSignTool is a platform-independent command line application to COSE sign files, validate COSE signatures, and optionally retrieve the content from COSE embed-signed files. 
 It supports three commands: **Sign**, **Validate**, and **Get**.
 
 ## Concepts to know before you start
 * **Payload**: We use the term "Payload" to describe the content that is or will be signed. This might be a file or an object in memory.
-* **Detached vs. Embedded**: By default, CoseSignTool produces a detached signature, which is separate from the file or stream containing the payload. Both the signature and the original payload must be present for validation. An embedded signature is where an encrypted copy of the payload is inserted into the signature structure. An embedded signature may be validated without the orginal payload present, but is not readable in a text editor. The CoseSignTool "get" command retrieves the encrypted payload, decrypts it, and writes it to file or console.
+* **Detached vs. Embedded**: By default, CoseSignTool produces a detached signature, which is separate from the file or stream containing the payload. Both the signature and the original payload must be present for validation. An embedded signature is where a copy of the payload is inserted into the signature structure as a byte array. An embedded signature may be validated without the orginal payload present, but is not readable in a text editor. The CoseSignTool "get" command retrieves the payload and writes it to file or console.
 
 ## Sign
 The **Sign** command signs a file or stream.
@@ -14,7 +14,7 @@ You will need to specify:
 * A certificate to sign with. You can either use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate or use the **/PfxCertificate** option to point to a .pfx certificate file. The certificate must include a private key. We have plans to add a /Password option for locked certificate files very soon, but for now only unlocked files are supported.
 
 You may also want to specify:
-* Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes an encrypted copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
+* Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
 * Where to write the signature to. You have three ways to go here:
     1. Write to the Standard Output channel (STDOUT) / console by using the **/PipeOutput** option.
     1. Specify an output file with **/SignatureFile**
@@ -49,13 +49,13 @@ And in some cases:
 Run *CoseSignTool validate /?* for the complete command line usage.
 
 ## Get
-The **Get** command retrieves the encrypted payload from a COSE embed-signed file and writes the unencrypted text to cosole or to a file. It also runs the Validate command and prints out any errors on the Standard Error pipe.
+The **Get** command retrieves the payload from a COSE embed-signed file and writes the text to cosole or to a file. It also runs the Validate command and prints out any errors on the Standard Error pipe.
 
 You will need to specify:
 * What to validate. This may be an embed-signed file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool.
 
 You may also want to specify:
-* A file to write the unencrypted payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
+* A file to write the payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
 * **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, and **/AllowUntrusted**, exactly as with the Validate command.
 
 Run *CoseSignTool get /?* for the complete command line usage.

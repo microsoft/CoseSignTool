@@ -54,7 +54,8 @@ While Moq is a very popular and powerful tool, we believe in a "lean and clean" 
 For consistency, please use [FluentAssertions syntax](https://fluentassertions.com/introduction) for asserts.
 
 ## API design
-The CoseHandler project features a user-centric API, designed to make COSE signing and validation as easy as possible. The user doesn't have to know anything beyond "I need to sign X file with Y certificate" or "I need to validate this signature against this payload." It doesn't matter if their certificate is a .pfx file or a thumbprint, or if the content they want to sign is a file, stream, or byte array, it just works. And if it doesn't work, it will tell them why in a way that is easy for a lay person to understand and correct, such as "The signing certificate must include a private key."
+The CoseHandler project features a user-centric API, designed to make COSE signing and validation as easy as possible. The user doesn't have to know anything beyond "I need to sign X file with Y certificate" or "I need to validate this signature against this payload." It doesn't matter if their certificate is a .pfx file or a thumbprint, or if the content they want to sign is a file, stream, or byte array, it just works. And if it doesn't work, it will tell them why in a way that is easy to understand and correct, such as "The signing certificate must include a private key."
+
 The underlying CoseSign1._x_ projects are intended for more advanced users and can flex more to fit the needs of the functionality.
 
 ## Do not break the existing API

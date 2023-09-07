@@ -50,7 +50,7 @@ public class CoseSign1ValidationResult
     public string ResultMessage { get; set; } = string.Empty;
 
     /// <summary>
-    /// An optinal list of optional objects to pass to the caller, such as Exceptions and ChainStatus objects.
+    /// An optional list of optional objects to pass to the caller, such as Exceptions and ChainStatus objects.
     /// </summary>
     public List<object>? Includes { get; set; } = new();
 }

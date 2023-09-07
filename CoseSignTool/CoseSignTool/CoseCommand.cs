@@ -234,7 +234,6 @@ public abstract partial class CoseCommand
     private static bool IsSwitch(string s, StringDictionary options)
     {
         // replace '/' with '-', and remove ':*' for easy dict lookup
-        // return options.ContainsKey(s.Replace("/", "-").Split(":")[0]);
         return options.ContainsKey(Regex.Replace(s,"^/", "-").Split(":")[0]);
     }
 

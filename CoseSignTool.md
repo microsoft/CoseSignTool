@@ -1,71 +1,61 @@
 # CoseSignTool
-CoseSignTool is a platform-independent command line application to COSE sign file, validate COSE signatures, and optionally retrieve the unencoded content from a COSE embed-signed file. 
+CoseSignTool is a platform-independent command line application to COSE sign files, validate COSE signatures, and optionally retrieve the content from COSE embed-signed files. 
+It supports three commands: **Sign**, **Validate**, and **Get**.
 
-COSE signatures may be *detached* or *embedded*. A detached signature is separate from the source file that was signed, but it contains the hash of the source file so they can be matched in validation. 
+## Concepts to know before you start
+* **Payload**: We use the term "Payload" to describe the content that is or will be signed. This might be a file or an object in memory.
+* **Detached vs. Embedded**: By default, CoseSignTool produces a detached signature, which is separate from the file or stream containing the payload. Both the signature and the original payload must be present for validation. An embedded signature is where a copy of the payload is inserted into the signature structure as a byte array. An embedded signature may be validated without the orginal payload present, but is not readable in a text editor. The CoseSignTool "get" command retrieves the payload and writes it to file or console.
 
-An embedded signature file is the same as a detached signature file, except that instead of the hash, it contains an encoded copy of the file’s content. An embed-signed file can therefore be validated without the original file present, but it requires a COSE-aware application, such as CoseSignTool, to read.
-## Usage
-```
-CoseSignTool.exe [sign | validate] [options]
-```
+## Sign
+The **Sign** command signs a file or stream.
 
-### ***sign*** options
-```
-CoseSignTool.exe sign [options]
+You will need to specify:
+* The payload content to sign. This may be a file specified with the **/Payload** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
+* A certificate to sign with. You can either use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate or use the **/PfxCertificate** option to point to a .pfx certificate file. The certificate must include a private key. We have plans to add a /Password option for locked certificate files very soon, but for now only unlocked files are supported.
 
-    Payload / p: Path to the file whose content will be signed.
+You may also want to specify:
+* Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
+* Where to write the signature to. You have three ways to go here:
+    1. Write to the Standard Output channel (STDOUT) / console by using the **/PipeOutput** option.
+    1. Specify an output file with **/SignatureFile**
+    1. Let CoseSignTool decide. It will write to *payload-file*.cose for detached or *payload-file*.csm for embedded signatures. But if you don't specify a payload file at all, it will exit with an error.
+* What certificate store to use. If you passed in a thumbprint instead of a .pfx certificate, CoseSignTool will assume that certificate is in the default store (My/CurrentUser on Windows) unless you tell it otherwise. Use the **/StoreName** and **/StoreLocation** options to specify a store.
+>Pro tip: Certificate store operations run faster if you use a custom store containing only the certificates you will sign with. You can create a custom store by adding a certificate to a store with a unique Store Name and pre-defined Store Location. For example, in Powershell: 
+~~~
+Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUser\MyNewStore'
+~~~
 
-    SignatureFile / sf: Optional. The file path to write the Cose signature to. Default value is
-             For detached: [payload file].cose, or
-             For embedded: [payload file].csm
+Run *CoseSignTool sign /?* for the complete command line usage.
 
-    EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the in Cose signature file.
-        Default behavior is 'detached signing', where the signature is in a separate file from the payload.
-        Note that embed-signed files are not readable by standard text editors.
+## Validate
+The **Validate** command validates that a COSE signature is properly constructed, matches the signed payload, and roots to a valid certificate chain.
 
-    PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
-    --OR--
-    Thumbprint / th: The SHA1 thumbprint of a certificate in the Windows local certificate store to sign the file with.
+You will need to specify:
+* What to validate. This may be a file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length may be truncated, depending on what operating system and command shell you use.
+* (For detached signatures only) the **/Payload** that was signed. If validating an embedded signature, skip this part.
 
-    StoreName / sn: Optional. The name of the Windows local certificate store to look for certificates in.
-        Default value is 'My'.
+You may also want to specify:
+* Some root certificates. By default, CoseSignTool will try to chain the signing certificate to whatever certificates are installed on the machine. If you want to chain to certificates that are not installed, use the **/Roots** option.
+    * User-specified roots will be treated as "trusted" for purposes of validation.
+    * Root certificates for validation do not have to include a private key, so .cer files are acceptable.
+    * To supply multiple root certificates, separate the file paths with commas.
+* Verbosity. You can use the */Verbose** option to get more detailed output on validation failures.
 
-    StoreLocation / sl: Optional. The location of the Windows local certificate store to look for certificates in.
-        Default value is 'CurrentUser'.
+And in some cases:
+* **/RevocationMode** -- By default, CoseSignTool checks the signing certificate against an online database to see if it has been revoked. You can skip this check by setting **/RevocationMode** to **none**. RevocationMode.Offline is not yet implemented.
+* **/CommonName** -- Forces validation to require that the signing certificate match a specific Common Name value.
+* **/AllowUntrusted** -- Prevents CoseSignTool from failing validation when the certificate chain has an untrusted root. This is intended for test purposes and should not generally be used for production.
 
-    X509RootFiles / xr: A comma-separated list of public key certificate files (.cer or .p7b) to attempt to chain 
-        the certificate to if not using the Windows Certificate Store.
-```
+Run *CoseSignTool validate /?* for the complete command line usage.
 
-### ***validate*** options
-```
-CoseSignTool.exe validate [options]
+## Get
+The **Get** command retrieves the payload from a COSE embed-signed file and writes the text to cosole or to a file. It also runs the Validate command and prints out any errors on the Standard Error pipe.
 
-    SignatureFile / sf: Required. The file containing the COSE signature.
-        If embedded, this file also includes the encoded payload.
+You will need to specify:
+* What to validate. This may be an embed-signed file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool.
 
-    Payload / p: Path to the original source file that was detach-signed. Do not use for embedded signatures.
+You may also want to specify:
+* A file to write the payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
+* **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, and **/AllowUntrusted**, exactly as with the Validate command.
 
-    X509RootFiles / xr: A comma-separated list of public key certificate files (.cer or .p7b) to attempt to chain
-        the COSE signature to.
-    --OR--
-    Thumbprints / th: A comma-separated list of SHA1 thumbprints of one or more certificates in the Windows local
-        certificate store to attempt to chain the certificate on the COSE signature to.
-
-    StoreName / sn: Optional. The name of the Windows local certificate store to look for certificates in.
-        Default value is 'My'.
-
-    StoreLocation / sl: Optional. The location of the Windows local certificate store to look for certificates in.
-        Default value is 'CurrentUser'.
-
-    RevocationMode / rm: The method to check for certificate revocation.
-        Valid values: Online, Offline, NoCheck
-        Default value: Online
-
-    CommonName / cn: Specifies a certificate Common Name that the signing certificate must match to pass validation.
-
-    SavePayload / sp: Writes the payload of an embed-signed file to the specified file path.
-        For embedded signatures only.
-
-    AllowUntrusted / au: Allows validation to pass without supplying a trusted root certificate.
-```
+Run *CoseSignTool get /?* for the complete command line usage.

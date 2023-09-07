@@ -69,9 +69,7 @@ jobs:
 
     - name: Get merge message
       run: |
-        echo "MERGE_MESSAGE=$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha }})" >> $GITHUB_ENV
-        echo "MERGE_MESSAGE=$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha }})"
-        echo "Or maybe...${{ github.event.head_commit.message }}"
+        echo "Merge message is ${{ github.event.head_commit.message }}"
 
       # Create a semantically versioned tag using lastTag-COMMIT_COUNT-COMMIT_HASH, e.g., 1.2.3-32-hashvalue unless a new tag has been created manually.
     # - name: Create SemVer tag

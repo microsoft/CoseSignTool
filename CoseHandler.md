@@ -11,7 +11,7 @@ You must provide:
   * An *X509Certificate* object must include a private key to be used for signing.
 
 You may also want to specify:
-* Detached or embedded: By default, CoseHandler creates a detached signature, which contains a hash of the original payoad. Setting ***embedSign=true*** creates an embedded signature, meaning that the signature file includes an encrypted copy of the payload. Note that embedded signatures are only supported for payload of less than 2gb.
+* Detached or embedded: By default, CoseHandler creates a detached signature, which contains a hash of the original payoad. Setting ***embedSign=true*** creates an embedded signature, meaning that the signature file includes a copy of the payload as a byte array. Note that embedded signatures are only supported for payload of less than 2gb.
 * A *FileInfo* object to write the signature to. Or you can leave this value as *null* and run File.WriteAllBytes on the return value to accomplish the same thing.
 * What certificate store to use. If you passed in a thumbprint instead of an *X509Certificate2* object, you can either specify a *StoreName* and *StoreLocation* or use the default values of *My/CurrentUser*.
 >Pro tip: Certificate store operations run faster if you use a custom store that has only the certificates you will sign with. You can create a custom store by creating a new *X509Store* object with a custom *StoreName* and then adding a certificate to it.
@@ -26,7 +26,7 @@ You will need to specify:
 * The **payload** that was signed (for detached signatures only.) Again, you can pass it in as a byte array, a stream, or a *FileInfo*. 
 Which types you should use for signature and payload depends on your scenario.
   * Arrays and most stream types are limited to 2gb or less, so if you anticipate large payloads, either use *FileInfo*, *FileStream*, or a custom stream type that doesn't have a backing array.
-  * Payloads may be more than 2gb but signatures will not, because embedded signatures use backing arrays to store the encrypted payload.
+  * Payloads may be more than 2gb but signatures will not, because embedded signatures use byte arrays to store the payload.
   * If you choose *FileInfo* for one you have to use it for both. Or, read the file into a stream with *File.ReadAllBytes*.
   * Leave the **payload** field blank for embedded signatures.
 
@@ -42,7 +42,7 @@ And in some cases:
 * A **validator** -- You can optionally pass in a *CoseSign1MessageValidator* object instead of **roots**, **revocationMode** and **requiredCommonName.** CoseHandler uses an *X509ChainTrustValidator* internally, but if you create a custom CoseSign1MessageValidator type you can specify different sets of criteria to validate on. See [the Advanced Scenarios guide](Advanced.md) for details.
 
 ## CoseHandler.Getpayload
-The **GetPayload** method retrieves the encrypted payload from an embedded COSE signature structure, and if possible, returns it as a string. It also validates the signature structure and provides the validation result as an *out* parameter. 
+The **GetPayload** method retrieves the payload from an embedded COSE signature structure, and if possible, returns it as a string. It also validates the signature structure and provides the validation result as an *out* parameter. 
 
 You will need to specify:
 * The embedded **signature** to read from. You can pass in your COSE signature structure as either a byte array or a stream. 

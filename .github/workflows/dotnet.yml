@@ -18,6 +18,7 @@ on:
 jobs:
   build:
     name: build-${{matrix.os}}
+    needs: [ create_changelog ]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -119,8 +120,8 @@ jobs:
   #       git config --local user.email "
   
   create_changelog:
-    #if: ${{ github.event_name != 'pull_request' }}
-    needs: [ create_release ]
+    if: ${{ github.event_name == 'pull_request' }}   # This probably has to happen before build so the changelog is included in the release.
+    #needs: [ create_release ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

@@ -140,9 +140,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git checkout main
           git add CHANGELOG.md
           git commit -m "Update changelog for release"
-          git push origin HEAD:main
+          git push origin main
 
       - name: Push changes  # Or can I just use a 'git push' here?
         uses: ad-m/github-push-action@master  # Master or Main? I think it's Master becuase it's talking about the action, not the target repo.

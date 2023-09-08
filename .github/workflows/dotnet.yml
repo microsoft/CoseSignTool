@@ -9,7 +9,7 @@
 name: Build, Test, and Publish
 on:
   push:
-    branches: [ "main", "user/lemccomb/license2" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
   #release:  # Turn this off once we are creating releases automatically

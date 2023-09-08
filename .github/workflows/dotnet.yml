@@ -127,6 +127,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Sync branch
+        run: |
+          git pull
+
       - name: Generate changelog
         uses: tj-actions/github-changelog-generator@v1.19
         with:

@@ -1,9 +1,5 @@
-// ---------------------------------------------------------------------------
-// <copyright file="CoseSign1MessageBuilder.cs" company="Microsoft">
-//     Copyright (c) Microsoft Corporation. All rights reserved.
-// </copyright>
-// ---------------------------------------------------------------------------
-
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace CoseSign1;
 

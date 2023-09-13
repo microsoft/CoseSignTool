@@ -140,11 +140,11 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          echo "PR Branch is ${{ github.event.pull_request.head.ref }}"
           echo "Current branch is $GITHUB_HEAD_REF"
+          git checkout $GITHUB_HEAD_REF
           git add CHANGELOG.md
           git commit -m "Update changelog for release"
-          git push origin $GITHUB_HEAD_REF
+          git push
           
         #git push origin main
 

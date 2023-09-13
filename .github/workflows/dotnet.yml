@@ -50,12 +50,36 @@ jobs:
     - name: List working directory
       run: ${{ matrix.dir_command }}
   
+  # Create a changelog that includes all the PRs merged since the last release.
+  # This has to happen in the PR build and not the release build so it can be committed to the current branch before it merges to Main.
+  create_changelog:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Generate changelog
+        uses: tj-actions/github-changelog-generator@v1.19
+        with:
+          output: CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit changelog
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git fetch
+          git checkout $GITHUB_HEAD_REF
+          git add CHANGELOG.md
+          git commit -m "Update changelog for release"
+          git push
+
     # If this is a pull request build, we're done. Otherwise:
     #  1. Create a release.
-    #  2. Generate a changelog.
-    #  3. Publish the binaries to ./published.
-    #  4. Zip the binaries.
-    #  5. Upload the zipped binaries to the release.
+    #  2. Publish the binaries to ./published.
+    #  3. Zip the binaries.
+    #  4. Upload the zipped binaries to the release.
 
   # Create a semantically versioned release.
   create_release:
@@ -107,58 +131,16 @@ jobs:
         # This section will need tweaking once I see what the output looks like in context.
         # Does it make sense to use body_path and point to the changelog instead?
         # Or should I use the summary from the PR?
-        body: |
-          This is a new release.
+        # body: |
+        #   This is a new release.
+        body_path: ./CHANGELOG.md
         draft: false
         prerelease: ${{ steps.semver-tag.outputs.is_prerelease }}
 
-  #  - name: Create changelog
-  #     if: ${{ github.event_name != 'pull_request' }}
-  #     run: |
-  #       dotnet tool install -g github-changelog-generator
-  #       github_changelog_generator -u microsoft -p CoseSignTool -t ${{ secrets.GITHUB_TOKEN }} --future-release v1.0.0
-  #       git config --local user.email "
-  
-  create_changelog:
-    if: ${{ github.event_name == 'pull_request' }}   # This probably has to happen before build so the changelog is included in the release.
-    #needs: [ create_release ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Generate changelog
-        uses: tj-actions/github-changelog-generator@v1.19
-        with:
-          # user: microsoft
-          # project: CoseSignTool
-          output: CHANGELOG.md
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # future-release: v1.0.0
-
-      - name: Commit changelog  # Try instead gettting the branch from $GITHUB_HEAD_REF and checking the change into there
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          echo "Current branch is $GITHUB_HEAD_REF"
-          git fetch
-          git checkout $GITHUB_HEAD_REF
-          git add CHANGELOG.md
-          git commit -m "Update changelog for release"
-          git push
-          
-        #git push origin main
-
-      # - name: Push changes  # Or can I just use a 'git push' here?
-      #   uses: ad-m/github-push-action@master  # Master or Main? I think it's Master becuase it's talking about the action, not the target repo.
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-
-
   release_assets:
     name: release-assets
-    needs: [ build, create_changelog ]
-    # if: ${{ github.event_name != 'pull_request' }}
+    needs: [ build ]
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.os }}
     # env:    # Can I declare this once for the whole job?
     #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -203,28 +185,7 @@ jobs:
       run: ${{ matrix.dir_command }}
       working-directory: ./published
 
-   # If this is a release build, upload the zipped artifacts.   ** See if I can still do these with th svenstaro action
-  #   - name: Upload release artifacts
-  #     uses: actions/upload-release-asset@v1
-  #     env:
-  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #     with:
-  #       upload_url: ${{ needs.create_release.outputs.upload_url }}
-  #       asset_path: ./published/CoseSignTool-${{ matrix.os }}-release.zip
-  #       asset_name: CoseSignTool-${{ matrix.os }}-release.zip
-  #       asset_content_type: application/zip
-
-  #  # If this is a release build, upload the zipped artifacts.
-  #   - name: Upload debug artifacts
-  #     uses: actions/upload-release-asset@v1
-  #     env:
-  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #     with:
-  #       upload_url: ${{ needs.create_release.outputs.upload_url}}
-  #       asset_path: ./published/CoseSignTool-${{ matrix.os }}-debug.zip
-  #       asset_name: CoseSignTool-${{ matrix.os }}-debug.zip
-  #       asset_content_type: application/zip     
-
+    # Upload the zipped assets to the release.
     - name: Upload artifacts
       uses: svenstaro/upload-release-action@v2
       with:
@@ -232,12 +193,7 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
-      # uses: svenstaro/upload-release-action@v2
-      # with:
-      #   repo_token: ${{ secrets.GITHUB_TOKEN }}
-      #   file: ./published/CoseSignTool-*.zip
-      #   file_glob: true
-      #   overwrite: true
+
 
 
 

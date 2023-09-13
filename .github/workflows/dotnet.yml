@@ -141,6 +141,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           echo "Current branch is $GITHUB_HEAD_REF"
+          git fetch
           git checkout $GITHUB_HEAD_REF
           git add CHANGELOG.md
           git commit -m "Update changelog for release"

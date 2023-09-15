@@ -102,7 +102,7 @@ jobs:
       run: |
         echo "Try gettting the merge message from git log."
         git log -1 --pretty=format:\"%s\"
-        echo "Merge message from env is ${{ github.event.head_commit.message }}"
+      # echo "Merge message from env is ${{ github.event.head_commit.message }}"
 
     # Create a semantically versioned tag using lastTag-COMMIT_COUNT-COMMIT_HASH, e.g., 1.2.3-32-hashvalue unless a new tag has been created manually.
     # - name: Create SemVer tag
@@ -121,9 +121,9 @@ jobs:
       id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
       uses: wakatime/semver-action@v1.6.0
       with:
-        prefix: v
+        prefix: "v"
         #repo_dir: ${{ github.workspace }}
-        main_branch_name: main
+        main_branch_name: "main"
         debug: true
 
     - name: Create Release

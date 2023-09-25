@@ -45,11 +45,10 @@ jobs:
       run: |
         echo "Add github/workspace to safe.directory."
         git config --global --add safe.directory /github/workspace
-        echo "fetch"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         git fetch
-        echo "list available branches"
-        git branch --list
-        echo "get current branch"
+        git checkout $GITHUB_HEAD_REF
         git branch --show-current
         echo "list tags"
         git tag

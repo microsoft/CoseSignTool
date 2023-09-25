@@ -121,9 +121,10 @@ jobs:
       id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
       uses: wakatime/semver-action@v1.6.0
       with:
-        prefix: "v"
+        #prefix: "v"
         #repo_dir: ${{ github.workspace }}
         main_branch_name: "main"
+        bump: "patch"
         debug: true
 
     - name: Create Release

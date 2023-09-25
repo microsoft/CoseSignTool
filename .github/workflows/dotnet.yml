@@ -40,22 +40,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Create SemVer tag via Git
-      id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}
-      run: |
-        echo "Add github/workspace to safe.directory."
-        git config --global --add safe.directory /github/workspace
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git fetch
-        git checkout $GITHUB_HEAD_REF
-        git branch --show-current
-        echo "list tags"
-        git tag
-        echo "Get the latest tag."
-        git tag --merged HEAD --sort=-creatordate | head -n 1
-      #git describe --tags --abbrev=0
-      #git describe --tags --abbrev=0 --match v[0-9]* --exclude main
+    # - name: Create SemVer tag via Git
+    #   id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+    #   run: |
+    #     echo "Add github/workspace to safe.directory."
+    #     git config --global --add safe.directory /github/workspace
+    #     git config --local user.email "action@github.com"
+    #     git config --local user.name "GitHub Action"
+    #     git fetch
+    #     git checkout $GITHUB_HEAD_REF
+    #     git branch --show-current
+    #     echo "list tags"
+    #     git tag
+    #     echo "Get the latest tag."
+    #     git tag --merged HEAD --sort=-creatordate | head -n 1
+    #   #git describe --tags --abbrev=0
+    #   #git describe --tags --abbrev=0 --match v[0-9]* --exclude main
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -135,16 +135,24 @@ jobs:
     #     echo "::set-output name=generated_tag::$TAG"
       #  echo ::set-env name=TAG::$TAG
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
+      
+    # Note: The semver-action doesn't work with the checkout action. It needs to be run in a separate step.  
+    - name: Fetch and checkout
+      run:
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git fetch
+        git checkout $GITHUB_HEAD_REF
 
-    # - name: Create SemVer tag # Maybe it will work now?
-    #   id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
-    #   uses: wakatime/semver-action@v1.6.0
-    #   with:
-    #     #prefix: "v"
-    #     #repo_dir: ${{ github.workspace }}
-    #     main_branch_name: "main"
-    #     bump: "patch"
-    #     debug: true
+    - name: Create SemVer tag # Maybe it will work now?
+      id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+      uses: wakatime/semver-action@v1.6.0
+      with:
+        #prefix: "v"
+        #repo_dir: ${{ github.workspace }}
+        main_branch_name: "main"
+        bump: "patch"
+        debug: true
 
     # - name: Create SemVer tag via Git
     #   id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}

@@ -43,9 +43,13 @@ jobs:
     - name: Create SemVer tag via Git
       id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}
       run: |
+        echo "Add github/workspace to safe.directory."
         git config --global --add safe.directory /github/workspace
+        echo "Check if we are in a git repo."
         git rev-parse --is-inside-work-tree
-        git describe --tags --abbrev=0 --match v[0-9]* --exclude main
+        echo "Get the latest tag."
+        git describe --tags --abbrev=0
+      #git describe --tags --abbrev=0 --match v[0-9]* --exclude main
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3

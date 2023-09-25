@@ -39,10 +39,19 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
+    - name: Create SemVer tag via Git
+      id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+      run: |
+        git config --global --add safe.directory /github/workspace
+        git rev-parse --is-inside-work-tree
+        git describe --tags --abbrev=0 --match v[0-9]* --exclude main
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 7.0.x           
+        dotnet-version: 7.0.x
+
    # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
@@ -117,15 +126,22 @@ jobs:
       #  echo ::set-env name=TAG::$TAG
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
 
-    - name: Create SemVer tag # Maybe it will work now?
-      id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
-      uses: wakatime/semver-action@v1.6.0
-      with:
-        #prefix: "v"
-        #repo_dir: ${{ github.workspace }}
-        main_branch_name: "main"
-        bump: "patch"
-        debug: true
+    # - name: Create SemVer tag # Maybe it will work now?
+    #   id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+    #   uses: wakatime/semver-action@v1.6.0
+    #   with:
+    #     #prefix: "v"
+    #     #repo_dir: ${{ github.workspace }}
+    #     main_branch_name: "main"
+    #     bump: "patch"
+    #     debug: true
+
+    # - name: Create SemVer tag via Git
+    #   id: semver-tag   # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+    #   run: |
+    #     git config --global --add safe.directory /github/workspace
+    #     git rev-parse --is-inside-work-tree
+    #     git describe --tags --abbrev=0 --match v[0-9]* --exclude main
 
     - name: Create Release
       id: create_release

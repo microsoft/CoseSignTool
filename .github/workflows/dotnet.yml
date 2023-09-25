@@ -48,7 +48,7 @@ jobs:
         echo "Check if we are in a git repo."
         git rev-parse --is-inside-work-tree
         echo "Get the latest tag."
-        git tag -l --sort=committerdate
+        git tag --merged main
       #git describe --tags --abbrev=0
       #git describe --tags --abbrev=0 --match v[0-9]* --exclude main
 

@@ -80,10 +80,13 @@ jobs:
       
       - name: Fetch and checkout
         run: |
+          echo "Fetch from repository."
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git fetch
+          echo "Undo any out-of-sync changes to CHANGELOG.md so git checkout doesn't complain."
           git reset -- CHANGELOG.md
+          echo "Checkout the working branch."
           git checkout $GITHUB_HEAD_REF
 
       - name: Generate changelog

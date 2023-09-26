@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.0.2-pre.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.2-pre.1) (2023-09-26)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.2...v0.0.2-pre.1)
+
+**Merged pull requests:**
+
+- checkout from main instead of current branch to get semver [\#24](https://github.com/microsoft/CoseSignTool/pull/24) ([lemccomb](https://github.com/lemccomb))
+
 ## [v0.0.2](https://github.com/microsoft/CoseSignTool/tree/v0.0.2) (2023-09-26)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.1...v0.0.2)

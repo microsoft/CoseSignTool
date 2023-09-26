@@ -1,37 +1,17 @@
 # Changelog
 
-## [v0.0.2-pre.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.2-pre.1) (2023-09-26)
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.2...v0.0.2-pre.1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1...HEAD)
 
 **Merged pull requests:**
 
+- Enable official releases [\#25](https://github.com/microsoft/CoseSignTool/pull/25) ([lemccomb](https://github.com/lemccomb))
 - checkout from main instead of current branch to get semver [\#24](https://github.com/microsoft/CoseSignTool/pull/24) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.0.2](https://github.com/microsoft/CoseSignTool/tree/v0.0.2) (2023-09-26)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.1...v0.0.2)
-
-**Merged pull requests:**
-
 - Update dotnet.yml with missing pipe [\#23](https://github.com/microsoft/CoseSignTool/pull/23) ([lemccomb](https://github.com/lemccomb))
 - Test semver creation via git commands [\#22](https://github.com/microsoft/CoseSignTool/pull/22) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.0.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.1) (2023-09-25)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.0-pre.1...v0.0.1)
-
-**Merged pull requests:**
-
 - Attempt to get semver step working again [\#21](https://github.com/microsoft/CoseSignTool/pull/21) ([lemccomb](https://github.com/lemccomb))
 - move create\_changelog to before build [\#20](https://github.com/microsoft/CoseSignTool/pull/20) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.0.0-pre.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.0-pre.1) (2023-09-08)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1...v0.0.0-pre.1)
-
-**Merged pull requests:**
-
 - Try release [\#19](https://github.com/microsoft/CoseSignTool/pull/19) ([lemccomb](https://github.com/lemccomb))
 - try release [\#18](https://github.com/microsoft/CoseSignTool/pull/18) ([lemccomb](https://github.com/lemccomb))
 - Add license text to code files [\#17](https://github.com/microsoft/CoseSignTool/pull/17) ([lemccomb](https://github.com/lemccomb))

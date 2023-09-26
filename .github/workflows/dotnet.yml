@@ -101,7 +101,7 @@ jobs:
             git push
           fi
       # git commit -m "Update changelog for release"
-      # git push
+
 
     # If this is a pull request build, we're done. Otherwise:
     #  1. Create a release.

@@ -76,7 +76,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2 # I should look into using the v3 version of this action AND configuring it to replace the "fetch and checkout" steps below.
+      
+      - name: Fetch and checkout
+        run: |
+          echo "Fetch from repository."
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git fetch
+          echo "Undo any out-of-sync changes to CHANGELOG.md so git checkout doesn't complain."
+          git reset -- CHANGELOG.md
+          echo "Checkout the working branch."
+          git checkout $GITHUB_HEAD_REF
 
       - name: Generate changelog
         uses: tj-actions/github-changelog-generator@v1.19
@@ -86,10 +97,6 @@ jobs:
 
       - name: Commit changelog
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git fetch
-          git checkout $GITHUB_HEAD_REF
           git add CHANGELOG.md
           if git diff-index --quiet HEAD; then
             echo "No changes were logged."
@@ -98,7 +105,7 @@ jobs:
             git push
           fi
       # git commit -m "Update changelog for release"
-      # git push
+
 
     # If this is a pull request build, we're done. Otherwise:
     #  1. Create a release.
@@ -137,12 +144,13 @@ jobs:
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
       
     # Note: The semver-action doesn't work with the checkout action. It needs to be run in a separate step.  
-    - name: Fetch and checkout
+    - name: Fetch and checkout main
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git fetch
-        git checkout $GITHUB_HEAD_REF
+        git checkout main
+      #git checkout $GITHUB_HEAD_REF
 
     - name: Create SemVer tag # Maybe it will work now?
       id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
@@ -151,7 +159,7 @@ jobs:
         #prefix: "v"
         #repo_dir: ${{ github.workspace }}
         main_branch_name: "main"
-        bump: "patch"
+        #bump: "patch"
         debug: true
 
     # - name: Create SemVer tag via Git

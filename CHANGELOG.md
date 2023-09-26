@@ -1,11 +1,12 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v0.0.2](https://github.com/microsoft/CoseSignTool/tree/v0.0.2) (2023-09-26)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.1...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.1...v0.0.2)
 
 **Merged pull requests:**
 
+- Update dotnet.yml with missing pipe [\#23](https://github.com/microsoft/CoseSignTool/pull/23) ([lemccomb](https://github.com/lemccomb))
 - Test semver creation via git commands [\#22](https://github.com/microsoft/CoseSignTool/pull/22) ([lemccomb](https://github.com/lemccomb))
 
 ## [v0.0.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.1) (2023-09-25)

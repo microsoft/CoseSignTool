@@ -9,11 +9,11 @@
 name: Build, Test, and Publish
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ]  # Trigger on pushes to the main branch.
     tags:
-      - '!*pre*'  # Don't trigger on prerelease tags.
+      - '!*pre*'          # Trigger on the creation of non-prerelease tags.
   pull_request:
-    branches: [ "*" ]
+    branches: [ "*" ]     # Trigger on all branches for pull requests.
 
 jobs:
   # If this is a pull request, create a changelog that includes all the PRs merged since the last release.
@@ -106,16 +106,18 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - name: Checkout code again  # TODO: See if I can configure this step, or v3, to replace the Fetch and checkout step below.
+    - name: Checkout code  # TODO: See if I can configure this step, or v3, to replace the Fetch and checkout step below.
       uses: actions/checkout@v3
+      with:
+        ref: main
 
-    # Checkout the main branch so we can see the correct tag set.
-    - name: Fetch and checkout main
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git fetch
-        git checkout main
+    # # Checkout the main branch so we can see the correct tag set.
+    # - name: Fetch and checkout main
+    #   run: |
+    #     git config --local user.email "action@github.com"
+    #     git config --local user.name "GitHub Action"
+    #     git fetch
+    #     git checkout main
 
     # Create a semantically versioned tag that increments the last release.
     - name: Create SemVer tag
@@ -213,9 +215,3 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
-
-
-
-
-      
-

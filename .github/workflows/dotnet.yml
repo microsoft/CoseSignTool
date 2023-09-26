@@ -83,6 +83,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git fetch
+          git reset -- CHANGELOG.md
           git checkout $GITHUB_HEAD_REF
 
       - name: Generate changelog

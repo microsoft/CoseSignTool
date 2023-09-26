@@ -76,7 +76,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2 # I should look into using the v3 version of this action AND configuring it to replace the "fetch and checkout" steps below.
+      
+      - name: Fetch and checkout
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git fetch
+          git checkout $GITHUB_HEAD_REF
 
       - name: Generate changelog
         uses: tj-actions/github-changelog-generator@v1.19
@@ -86,10 +93,6 @@ jobs:
 
       - name: Commit changelog
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git fetch
-          git checkout $GITHUB_HEAD_REF
           git add CHANGELOG.md
           if git diff-index --quiet HEAD; then
             echo "No changes were logged."

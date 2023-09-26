@@ -159,7 +159,7 @@ jobs:
         #prefix: "v"
         #repo_dir: ${{ github.workspace }}
         main_branch_name: "main"
-        bump: "patch"
+        #bump: "patch"
         debug: true
 
     # - name: Create SemVer tag via Git

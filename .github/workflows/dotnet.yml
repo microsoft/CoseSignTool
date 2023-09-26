@@ -137,12 +137,13 @@ jobs:
       # Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files. For more information see: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
       
     # Note: The semver-action doesn't work with the checkout action. It needs to be run in a separate step.  
-    - name: Fetch and checkout
+    - name: Fetch and checkout main
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git fetch
-        git checkout $GITHUB_HEAD_REF
+        git checkout main
+      #git checkout $GITHUB_HEAD_REF
 
     - name: Create SemVer tag # Maybe it will work now?
       id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}

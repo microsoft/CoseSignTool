@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.1...HEAD)
+
+**Merged pull requests:**
+
+- Test semver creation via git commands [\#22](https://github.com/microsoft/CoseSignTool/pull/22) ([lemccomb](https://github.com/lemccomb))
+
 ## [v0.0.1](https://github.com/microsoft/CoseSignTool/tree/v0.0.1) (2023-09-25)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.0.0-pre.1...v0.0.1)

@@ -1,0 +1,27 @@
+name: Manual Release
+on:
+    release:
+        types: [published]
+
+jobs:
+    get_release_type:
+        runs-on: ubuntu-latest
+        outputs:
+          release_type: ${{ steps.get_release_type.outputs.release_type }}
+        steps:
+            - uses: actions/checkout@v2
+            - name: Get Release Type
+              id: get_release_type
+              run: |
+                if [[ ${{ github.event.release.prerelease }} == true ]]; then
+                    echo "This is an automated release. Skipping..."
+                    echo "::set-output name=is_official_release::false"
+                else
+                    echo "This is an official release. Uploading assets..."
+                    echo "::set-output name=is_official_release::true"
+                fi
+
+            # Upload the release artifacts but only if it's an official release
+            - name: Call Upload Assets action
+              if: steps.get_release_type.outputs.is_official_release
+              uses: ./.github/workflows/UploadAssets.yml

@@ -6,6 +6,8 @@
 
 **Merged pull requests:**
 
+- Add workflow for manually created releases [\#27](https://github.com/microsoft/CoseSignTool/pull/27) ([lemccomb](https://github.com/lemccomb))
+- Test publish [\#26](https://github.com/microsoft/CoseSignTool/pull/26) ([lemccomb](https://github.com/lemccomb))
 - Enable official releases [\#25](https://github.com/microsoft/CoseSignTool/pull/25) ([lemccomb](https://github.com/lemccomb))
 - checkout from main instead of current branch to get semver [\#24](https://github.com/microsoft/CoseSignTool/pull/24) ([lemccomb](https://github.com/lemccomb))
 - Update dotnet.yml with missing pipe [\#23](https://github.com/microsoft/CoseSignTool/pull/23) ([lemccomb](https://github.com/lemccomb))

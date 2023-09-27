@@ -1,11 +1,13 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v0.3.1-pre.1](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.1) (2023-09-27)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1...v0.3.1-pre.1)
 
 **Merged pull requests:**
 
+- Add workflow for manually created releases [\#27](https://github.com/microsoft/CoseSignTool/pull/27) ([lemccomb](https://github.com/lemccomb))
+- Test publish [\#26](https://github.com/microsoft/CoseSignTool/pull/26) ([lemccomb](https://github.com/lemccomb))
 - Enable official releases [\#25](https://github.com/microsoft/CoseSignTool/pull/25) ([lemccomb](https://github.com/lemccomb))
 - checkout from main instead of current branch to get semver [\#24](https://github.com/microsoft/CoseSignTool/pull/24) ([lemccomb](https://github.com/lemccomb))
 - Update dotnet.yml with missing pipe [\#23](https://github.com/microsoft/CoseSignTool/pull/23) ([lemccomb](https://github.com/lemccomb))

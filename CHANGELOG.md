@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.3.1-pre.3](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.3) (2023-09-27)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.3)
+
+## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-27)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.2...v0.3.2)
+
+**Merged pull requests:**
+
+- Move upload\_assets to happen on release [\#29](https://github.com/microsoft/CoseSignTool/pull/29) ([lemccomb](https://github.com/lemccomb))
+
 ## [v0.3.1-pre.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.2) (2023-09-27)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.1...v0.3.1-pre.2)

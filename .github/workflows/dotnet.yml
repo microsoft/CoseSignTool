@@ -1,17 +1,21 @@
-#### Build, Test, and Publish CoseSignTool ####
-#### This workflow runs on all platforms and handles two different types of builds:
-  # 1. Pull request builds: These are triggered by a pull request. They build and test the code, but do not publish or upload release artifacts.
-  # 2. Continuous integration builds: These are triggered by a push to the main branch. They build, test, create a semantically versioned release, generate a changelog, and publish zipped binaries to the new release.
-# To update the Major, Minor, or Prerelease version, create a new Tag with the new version number. The next time a release is created, the version number will be updated. Only the repo owners should create tags.
-
-# TODO: Lock down the perms on tag creation so only the repo owners can do it.
-
+#### Build, Test, and Publish ####
+# This is the main workflow for the CoseSignTool project. It handles the following events:
+#   - Pull requests: When a user submits a pull request, or pushes a commit to an existing pull request, this workflow 
+#       - generates a changelog and commits it to the working branch, and then 
+#       - builds and tests the code.
+#   - Pushes to the main branch: When a user pushes a commit to the main branch, this workflow
+#       - creates a semantically versioned tag,
+#       - creates a release with the new tag, and then
+#       - triggers the release portion of the workflow.
+#   - Releases: When a user creates a release, or a release is created in response to a push event, this workflow
+#       - builds, publishes, and zips the outputs, and then
+#       - uploads the zipped assets to the release.
 name: Build, Test, and Publish
 on:
-  push:
-    branches: [ "main" ]  # Trigger on pushes to the main branch.
   pull_request:
     branches: [ "*" ]     # Trigger on all branches for pull requests.
+  push:
+    branches: [ "main" ]  # Trigger on pushes to the main branch.
   release:
     types: [ created ]    # Trigger on new releases.
 
@@ -24,11 +28,12 @@ jobs:
   create_changelog:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the working branch.
       - name: Checkout code
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v2 # TODO: See if I can get rid of this step here.
+        uses: actions/checkout@v2
       
-      # Checkout the working branch and sync the changelog version.
+      # Sync the changelog version.
       - name: Fetch and checkout
         if: ${{ github.event_name == 'pull_request' }}
         run: |
@@ -41,7 +46,7 @@ jobs:
           echo "Checkout the working branch."
           git checkout $GITHUB_HEAD_REF
 
-      # Generate the changelog.
+      # Generate the new changelog.
       - name: Generate changelog
         if: ${{ github.event_name == 'pull_request' }}
         uses: tj-actions/github-changelog-generator@v1.19
@@ -66,11 +71,10 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: echo "Changelog is already up to date."
 
-#### SHARED PULL REQUEST AND PUSH EVENTS ####
-
   # Build and test the code.
   build:
     name: build-${{matrix.os}}
+    if: ${{ github.event_name != 'release' }}
     needs: [ create_changelog ]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -102,30 +106,36 @@ jobs:
   #### PUSH EVENTS ####
 
   # Create a semantically versioned release.
-  # A prerelease is created for every push to the main branch.
-  # Official releases are created manually on GitHub.
+  #   A prerelease is created for every push to the main branch.
+  #   Official releases are created manually on GitHub.
+  #   We include the release event as a no-op because release_assets requires it to run.
   create_release:
     name: Create Release
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
     - name: Checkout code  # TODO: See if I can configure this step, or v3, to replace the Fetch and checkout step below.
+      if: ${{ github.event_name == 'push' }}
       uses: actions/checkout@v3
-      # with:
-      #   ref: main
+      with:
+        ref: main
+        fetch-depth: 0
 
-    # Checkout the main branch so we can see the correct tag set.
-    - name: Fetch and checkout main
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git fetch
-        git checkout main
+
+    # # Checkout the main branch so we can see the correct tag set.
+    # - name: Fetch and checkout main
+    #   if: ${{ github.event_name == 'push' }}
+    #   run: |
+    #     git config --local user.email "action@github.com"
+    #     git config --local user.name "GitHub Action"
+    #     git fetch
+    #     git checkout main
 
     # Create a semantically versioned tag that increments the last release.
     - name: Create SemVer tag
+      if: ${{ github.event_name == 'push' }}
       id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
       uses: wakatime/semver-action@v1.6.0
       with:
@@ -134,6 +144,7 @@ jobs:
 
     # Create the release. This should generate a release event, which will trigger the release_assets job.
     - name: Create Release
+      if: ${{ github.event_name == 'push' }}
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -149,12 +160,20 @@ jobs:
         # Always use prerelease for automated releases. Official releases are created manually.
         prerelease: true
 
+    # Handle the release case.
+    - name: Handle release
+      if: ${{ github.event_name == 'release' }}
+      run: echo "A release was manually created. No action is needed."
+
   #### RELEASE EVENTS ####
 
-  # Publish and zip the binaries and upload them to the release.      
+  # Build, publish, and zip the outputs, and then upload them to the release.
+  #   We include the push event and the dependency on create_release to support automatic releases, because
+  #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
+    needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -183,8 +202,6 @@ jobs:
       run: |
         dotnet publish --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
         dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
-
-      # TODO: See if I can get these to run with --no-build.
 
     # Create zip files for release.
     - name: Create zip files for the release

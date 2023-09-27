@@ -24,4 +24,4 @@ jobs:
             # Upload the release artifacts but only if it's an official release
             - name: Call Upload Assets action
               if: steps.get_release_type.outputs.is_official_release
-              uses: ./.github/workflows/UploadAssets.yml
+              uses: ./.github/workflows/UploadAssets.yml@main

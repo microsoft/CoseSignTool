@@ -157,4 +157,4 @@ jobs:
 
     # Upload the release artifacts.
     - name: Call Upload Assets action
-      uses: ./.github/workflows/UploadAssets.yml
+      uses: ./.github/workflows/UploadAssets.yml@main

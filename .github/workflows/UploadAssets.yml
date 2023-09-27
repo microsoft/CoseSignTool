@@ -1,0 +1,58 @@
+name: Upload Assets
+on: 
+    workflow_call: 
+
+jobs:
+  # Publish and zip the binaries and upload them to the release.      
+  release_assets:
+    name: release-assets
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            dir_command: gci -Recurse
+            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
+            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+          - os: ubuntu-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+          - os: macos-latest
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+
+    steps:
+    # Checkout the branch.
+    - name: Checkout code again
+      uses: actions/checkout@v3
+
+    # Build and publish the binaries to ./published.
+    # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
+    - name: Publish outputs
+      run: |
+        dotnet publish --configuration Debug --output published/debug CoseSignTool/CoseSignTool.sln
+        dotnet publish --configuration Release --output published/release CoseSignTool/CoseSignTool.sln
+
+    # Create zip files for release.
+    - name: Create zip files for the release
+      run: |
+        ${{ matrix.zip_command_debug }}
+        ${{ matrix.zip_command_release }}
+      working-directory: ./published
+
+    # List the contents of the published directory to make sure all the artifacts are there.
+    - name: List published directory
+      run: ${{ matrix.dir_command }}
+      working-directory: ./published
+
+    # Upload the zipped assets to the release.
+    - name: Upload artifacts
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./published/CoseSignTool-*.zip
+        file_glob: true
+        overwrite: true

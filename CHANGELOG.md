@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.1-pre.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.2) (2023-09-27)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.1...v0.3.1-pre.2)
+
+**Merged pull requests:**
+
+- adjust fiel paths [\#28](https://github.com/microsoft/CoseSignTool/pull/28) ([lemccomb](https://github.com/lemccomb))
+
 ## [v0.3.1-pre.1](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.1) (2023-09-27)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1...v0.3.1-pre.1)

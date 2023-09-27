@@ -28,11 +28,12 @@ jobs:
   create_changelog:
     runs-on: ubuntu-latest
     steps:
-      # - name: Checkout code
-      #   if: ${{ github.event_name == 'pull_request' }}
-      #   uses: actions/checkout@v2 # TODO: See if I can get rid of this step here.
+      # Checkout the working branch.
+      - name: Checkout code
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v2
       
-      # Checkout the working branch and sync the changelog version.
+      # Sync the changelog version.
       - name: Fetch and checkout
         if: ${{ github.event_name == 'pull_request' }}
         run: |
@@ -45,7 +46,7 @@ jobs:
           echo "Checkout the working branch."
           git checkout $GITHUB_HEAD_REF
 
-      # Generate the changelog.
+      # Generate the new changelog.
       - name: Generate changelog
         if: ${{ github.event_name == 'pull_request' }}
         uses: tj-actions/github-changelog-generator@v1.19
@@ -118,17 +119,19 @@ jobs:
     - name: Checkout code  # TODO: See if I can configure this step, or v3, to replace the Fetch and checkout step below.
       if: ${{ github.event_name == 'push' }}
       uses: actions/checkout@v3
-      # with:
-      #   ref: main
+      with:
+        ref: main
+        fetch-depth: 0
 
-    # Checkout the main branch so we can see the correct tag set.
-    - name: Fetch and checkout main
-      if: ${{ github.event_name == 'push' }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git fetch
-        git checkout main
+
+    # # Checkout the main branch so we can see the correct tag set.
+    # - name: Fetch and checkout main
+    #   if: ${{ github.event_name == 'push' }}
+    #   run: |
+    #     git config --local user.email "action@github.com"
+    #     git config --local user.name "GitHub Action"
+    #     git fetch
+    #     git checkout main
 
     # Create a semantically versioned tag that increments the last release.
     - name: Create SemVer tag

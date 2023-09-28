@@ -115,9 +115,6 @@ jobs:
   # Create a semantically versioned release.
   #   A prerelease is created for every push to the main branch.
   #   Official releases are created manually on GitHub.
-  #   We include the release event as a no-op because release_assets requires it to run.
-  #
-  #  Test: Will this complete if I force merge? No. It checks out head/main instead of main, which causes it to not catch the current tag set.
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}

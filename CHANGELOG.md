@@ -1,5 +1,17 @@
 # Changelog
 
+## [main](https://github.com/microsoft/CoseSignTool/tree/main) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...main)
+
+## [v0.3.1-pre.8](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.8) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.7...v0.3.1-pre.8)
+
+**Merged pull requests:**
+
+- don't specify tag to upload-release-action [\#42](https://github.com/microsoft/CoseSignTool/pull/42) ([lemccomb](https://github.com/lemccomb))
+
 ## [v0.3.1-pre.7](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.7) (2023-09-28)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.6...v0.3.1-pre.7)

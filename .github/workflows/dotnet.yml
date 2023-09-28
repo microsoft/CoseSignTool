@@ -109,6 +109,8 @@ jobs:
   #   A prerelease is created for every push to the main branch.
   #   Official releases are created manually on GitHub.
   #   We include the release event as a no-op because release_assets requires it to run.
+  #
+  #   Note: The Create Semver Tag step will FAIL if the pull request is completed before the Push portion of the workflow finishes.
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
@@ -124,6 +126,7 @@ jobs:
 
     # Checkout the main branch so we can see the correct tag set.
     - name: Fetch and checkout main
+      if: ${{ github.event_name == 'push' }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"

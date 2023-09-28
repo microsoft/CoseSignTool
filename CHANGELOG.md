@@ -1,11 +1,16 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [main](https://github.com/microsoft/CoseSignTool/tree/main) (2023-09-28)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.4...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.5...main)
+
+## [v0.3.1-pre.5](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.5) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.4...v0.3.1-pre.5)
 
 **Merged pull requests:**
 
+- release tests [\#36](https://github.com/microsoft/CoseSignTool/pull/36) ([lemccomb](https://github.com/lemccomb))
 - Testing release job [\#35](https://github.com/microsoft/CoseSignTool/pull/35) ([lemccomb](https://github.com/lemccomb))
 - Update dotnet.yml [\#34](https://github.com/microsoft/CoseSignTool/pull/34) ([lemccomb](https://github.com/lemccomb))
 - restore missing checkout step [\#33](https://github.com/microsoft/CoseSignTool/pull/33) ([lemccomb](https://github.com/lemccomb))

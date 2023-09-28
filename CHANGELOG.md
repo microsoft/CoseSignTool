@@ -2,16 +2,13 @@
 
 ## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/main...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.5...HEAD)
 
 **Merged pull requests:**
 
+- another release test [\#39](https://github.com/microsoft/CoseSignTool/pull/39) ([lemccomb](https://github.com/lemccomb))
 - build and test only on PR [\#38](https://github.com/microsoft/CoseSignTool/pull/38) ([lemccomb](https://github.com/lemccomb))
 - another release test [\#37](https://github.com/microsoft/CoseSignTool/pull/37) ([lemccomb](https://github.com/lemccomb))
-
-## [main](https://github.com/microsoft/CoseSignTool/tree/main) (2023-09-28)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.5...main)
 
 ## [v0.3.1-pre.5](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.5) (2023-09-28)
 

@@ -110,8 +110,7 @@ jobs:
   #   Official releases are created manually on GitHub.
   #   We include the release event as a no-op because release_assets requires it to run.
   #
-  #   Note: The Create Semver Tag failed but it wasn't because of a push event not completing. The command "git rev-parse --abbrev-ref HEAD --quiet" returned heads/main when it should have just returned main.
-  #   Maybe this was because of a bad merge state in the working branch? Docker failure. Try again.
+  #  Test: Will this complete if I force merge?
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}

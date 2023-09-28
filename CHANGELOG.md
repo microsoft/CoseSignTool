@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- restore missing checkout step [\#33](https://github.com/microsoft/CoseSignTool/pull/33) ([lemccomb](https://github.com/lemccomb))
 - User/lemccomb/tidy2 [\#32](https://github.com/microsoft/CoseSignTool/pull/32) ([lemccomb](https://github.com/lemccomb))
 - Update docs [\#31](https://github.com/microsoft/CoseSignTool/pull/31) ([lemccomb](https://github.com/lemccomb))
 

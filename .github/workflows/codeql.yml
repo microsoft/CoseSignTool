@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         #language: [ 'csharp' ]
-        os: [windows-latest, ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest]
 
     steps:
     - name: Checkout repository

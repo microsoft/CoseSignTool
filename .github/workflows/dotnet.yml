@@ -26,7 +26,7 @@ jobs:
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
   #
-  # TODO: Look into why this seems to be re-triggering the workflow. Maybe the build job need to filter on the commit author?
+  # TODO: Look into why the pull request page often loses track of the workflows once this completes. Maybe the build job need to filter on the commit author?
   # Is there a way to force this job to not trigger a second pull request event?
   # Tried making build only trigger on PR - maybe that will work?
   # Maybe I need to use the pull_request_target event instead of pull_request?

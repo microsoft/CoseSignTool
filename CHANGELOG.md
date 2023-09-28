@@ -1,11 +1,20 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v0.3.1-pre.7](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.7) (2023-09-28)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.5...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.6...v0.3.1-pre.7)
 
 **Merged pull requests:**
 
+- Git rid of the generated "main" tag [\#41](https://github.com/microsoft/CoseSignTool/pull/41) ([lemccomb](https://github.com/lemccomb))
+
+## [v0.3.1-pre.6](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.6) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.5...v0.3.1-pre.6)
+
+**Merged pull requests:**
+
+- see if commit from web is more reliable [\#40](https://github.com/microsoft/CoseSignTool/pull/40) ([lemccomb](https://github.com/lemccomb))
 - another release test [\#39](https://github.com/microsoft/CoseSignTool/pull/39) ([lemccomb](https://github.com/lemccomb))
 - build and test only on PR [\#38](https://github.com/microsoft/CoseSignTool/pull/38) ([lemccomb](https://github.com/lemccomb))
 - another release test [\#37](https://github.com/microsoft/CoseSignTool/pull/37) ([lemccomb](https://github.com/lemccomb))

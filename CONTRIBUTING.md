@@ -16,21 +16,21 @@ See [Stye.md](./STYLE.md) for details.
 All unit tests in the repo must pass in Windows, Linux, and MacOS environments to ensure compatitility.
 
 ## Releases
-Releases are created automatically on completion of a pull request into main, and have the pre-release flag set. Official releases are created manually by the repo owners and do net use the pre-release flag.
+Releases are created automatically on completion of a pull request into main, and have the pre-release flag set. Official releases are created manually by the repo owners and do not use the pre-release flag.
 In both cases, the built binaries and other assets for the release are made available in .zip files.
 
 ### Creating a Manual Release (repo owners)
 1. From the [Releases page](https://github.com/microsoft/CoseSignTool/releases), click _Draft a new release_
-1. Click _Choose a tag_ and create a new, semantically versioned tag in the format v_Major.Minor.Patch_, such as v0.3.2. In general, a Patch release representsa new feature or a group of important bug fixes. A Minor release represents a coherent set of features, and a Major release is either a significant overhaul of the product or a stabilization point in the code after a significant number of Minor releases.
+1. Click _Choose a tag_ and create a new, semantically versioned tag in the format v[Major.Minor.Patch], such as v0.3.2. In general, a Patch release represents a new feature or a group of important bug fixes. A Minor release represents a coherent set of features, and a Major release is either a significant overhaul of the product or a stabilization point in the code after a significant number of Minor releases.
 1. Set _Release title_ to "Release _tag_"
 1. Click _Generate release notes_
-1. Edit the generated release notes to include a brief summary at the top, in user fucosed language, of what features were added and any important bugs that were fixed.
+1. Edit the generated release notes to include a brief summary at the top, in user focused language, of what features were added and any important bugs that were fixed.
 1. Make sure the _Set as a pre-release_ box is _not_ checked.
-1. Click _Publish release.
+1. Click _Publish release_.
 
 ## Pull Request Process
 1. Clone the [repo](https://github.com/microsoft/CoseSignTool).
-1. Create a user or feature branch off of main. Do not use the keyword "hotfix" or "develop" in your branch names as these will trigger incorrect release behavior.
+1. Create a user or feature branch off of main. Do not use the keyword "hotfix" or "develope" in your branch names as these will trigger incorrect release behavior.
 1. Submit pull requests into main from your branch.
 1. Ensure builds are still successful and tests, including any added or updated tests, pass locally prior to submitting the pull request. The pull request automation will re-run the unit tests in Windows, MacOS, and Linux environments.
 1. Update any documentation, user and contributor, that is impacted by your changes. See [CoseSignTool.md](./CoseSignTool.md) for the CoseSignTool project, [CoseHandler.md](./CoseHandler.md) for the CoseHandler project, and [Advanced.md](./Advanced.md) for the CoseSign1 projects.

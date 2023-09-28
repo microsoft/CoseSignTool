@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- build and test only on PR [\#38](https://github.com/microsoft/CoseSignTool/pull/38) ([lemccomb](https://github.com/lemccomb))
 - another release test [\#37](https://github.com/microsoft/CoseSignTool/pull/37) ([lemccomb](https://github.com/lemccomb))
 
 ## [main](https://github.com/microsoft/CoseSignTool/tree/main) (2023-09-28)

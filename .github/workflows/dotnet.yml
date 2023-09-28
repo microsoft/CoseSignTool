@@ -167,6 +167,13 @@ jobs:
         # Always use prerelease for automated releases. Official releases are created manually.
         prerelease: true
 
+    # Delete the "main" tag if there is one. This is a hack until we figure out what is causing a "main" tag to be created.
+    - name: Delete main tag
+      if: ${{ github.event_name == 'push' }}
+      run: |
+        git tag -d main || true
+      #git push origin :main
+
     # Handle the release case.
     - name: Handle release
       if: ${{ github.event_name == 'release' }}
@@ -230,3 +237,4 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
+        tag: ${{ needs.create_release.outputs.outputs.semver_tag }}

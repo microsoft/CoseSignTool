@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- Testing release job [\#35](https://github.com/microsoft/CoseSignTool/pull/35) ([lemccomb](https://github.com/lemccomb))
 - Update dotnet.yml [\#34](https://github.com/microsoft/CoseSignTool/pull/34) ([lemccomb](https://github.com/lemccomb))
 - restore missing checkout step [\#33](https://github.com/microsoft/CoseSignTool/pull/33) ([lemccomb](https://github.com/lemccomb))
 - User/lemccomb/tidy2 [\#32](https://github.com/microsoft/CoseSignTool/pull/32) ([lemccomb](https://github.com/lemccomb))

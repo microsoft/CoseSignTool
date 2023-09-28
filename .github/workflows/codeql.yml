@@ -1,49 +1,49 @@
-# Run CodeQL Analysis on the repository.
-# https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/codeql-code-scanning-for-compiled-languages
-name: "CodeQL"
+# # Run CodeQL Analysis on the repository.
+# # https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/codeql-code-scanning-for-compiled-languages
+# name: "CodeQL"
 
-on:
-  pull_request:
-    branches: [ "*" ]
+# on:
+#   pull_request:
+#     branches: [ "*" ]
 
-jobs:
-  analyze:
-    name: Analyze
-    runs-on: ${{ matrix.os }}
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
+# jobs:
+#   analyze:
+#     name: Analyze
+#     runs-on: ${{ matrix.os }}
+#     permissions:
+#       actions: read
+#       contents: read
+#       security-events: write
 
-    strategy:
-      fail-fast: false
-      matrix:
-        #language: [ 'csharp' ]
-        os: [ubuntu-latest]
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         #language: [ 'csharp' ]
+#         os: [ubuntu-latest]
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+#     steps:
+#     - name: Checkout repository
+#       uses: actions/checkout@v3
     
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
+#     - name: Setup .NET
+#       uses: actions/setup-dotnet@v3
+#       with:
+#         dotnet-version: 7.0.x
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: 'csharp'
-        queries: security-extended,security-and-quality 
-        # See https://codeql.github.com/codeql-query-help/csharp/ for a list of available C# queries.
+#     # Initializes the CodeQL tools for scanning.
+#     - name: Initialize CodeQL
+#       uses: github/codeql-action/init@v2
+#       with:
+#         languages: 'csharp'
+#         queries: security-extended,security-and-quality 
+#         # See https://codeql.github.com/codeql-query-help/csharp/ for a list of available C# queries.
 
-    # Use the Dotnet Build command to load dependencies and build the code.        
-    - name: Build debug
-      run: dotnet build --verbosity normal CoseSignTool/CoseSignTool.sln
+#     # Use the Dotnet Build command to load dependencies and build the code.        
+#     - name: Build debug
+#       run: dotnet build --verbosity normal CoseSignTool/CoseSignTool.sln
 
-    # Do the analysis
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
-      with:
-        category: "/language:csharp"
+#     # Do the analysis
+#     - name: Perform CodeQL Analysis
+#       uses: github/codeql-action/analyze@v2
+#       with:
+#         category: "/language:csharp"

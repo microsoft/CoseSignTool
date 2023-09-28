@@ -237,4 +237,4 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
-        tag: ${{ needs.create_release.outputs.outputs.semver_tag }}
+        #tag: ${{ needs.create_release.outputs.outputs.semver_tag }}

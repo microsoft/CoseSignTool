@@ -31,7 +31,7 @@ First [check to make sure the work isn't already planned](#state-of-the-project)
 * If you would like to contribute actual code to the repo or comment on the pull requests of others, read our [contributor guidelines](./CONTRIBUTING.md) and [style guidelines](./STYLE.md), and then make your contribution.
 
 ## State of the project
-This is an alpha pre-release, so there are some planned features that are not yet in the product, and you may encounter some bugs. If you do, please [report them here.](https://github.com/microsoft/CoseSignTool/issues)
+This is an alpha release, so there are some planned features that are not yet in the product, and you may encounter some bugs. If you do, please [report them here.](https://github.com/microsoft/CoseSignTool/issues)
 
 The planned work is currently tracked only in an internal Microsoft ADO instance but will be moved to Github Issues soon. In the meantime, here is some of the work currently planned.
 

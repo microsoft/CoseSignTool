@@ -31,6 +31,7 @@ jobs:
   # Tried making build only trigger on PR - maybe that will work?
   # Maybe I need to use the pull_request_target event instead of pull_request?
   # Maybe I need to not set the user name and email?
+  # Looks like it's working for the time being.
   create_changelog:
     runs-on: ubuntu-latest
     steps:

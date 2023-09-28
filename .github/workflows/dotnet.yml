@@ -124,6 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.output_tag_name.outputs.tag_name }}
     steps:
 
     # Checkout the main branch and fetch tags.
@@ -167,17 +168,17 @@ jobs:
         # Always use prerelease for automated releases. Official releases are created manually.
         prerelease: true
 
-    # Delete the "main" tag if there is one. This is a hack until we figure out what is causing a "main" tag to be created.
-    - name: Delete main tag
-      if: ${{ github.event_name == 'push' }}
+    # Output the semver tag if it's a push event, or the most recent tag if it's a release event.
+    - name: Output tag name
+      id: output_tag_name
       run: |
-        git tag -d main || true
-      #git push origin :main
-
-    # Handle the release case.
-    - name: Handle release
-      if: ${{ github.event_name == 'release' }}
-      run: echo "A release was manually created. No action is needed."
+        if [ "${{ github.event_name }}" == "push" ]; then
+          echo "::set-output name=tag_name::${{ steps.semver-tag.outputs.semver_tag }}"
+          echo "Generated semver tag is ${{ steps.semver-tag.outputs.semver_tag }}."
+        else
+          echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
+          echo "Current release tag is ${{ github.event.release.tag_name }}."
+        fi
 
   #### RELEASE EVENTS ####
 
@@ -237,4 +238,4 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
-        #tag: ${{ needs.create_release.outputs.outputs.semver_tag }}
+        tag: ${{ needs.create_release.outputs.tag_name }}

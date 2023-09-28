@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/main...HEAD)
+
+**Merged pull requests:**
+
+- User/lemccomb/tidy2 [\#32](https://github.com/microsoft/CoseSignTool/pull/32) ([lemccomb](https://github.com/lemccomb))
+- Update docs [\#31](https://github.com/microsoft/CoseSignTool/pull/31) ([lemccomb](https://github.com/lemccomb))
+
 ## [main](https://github.com/microsoft/CoseSignTool/tree/main) (2023-09-27)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.4...main)

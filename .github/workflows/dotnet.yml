@@ -121,9 +121,14 @@ jobs:
     - name: Checkout code
       if: ${{ github.event_name == 'push' }}
       uses: actions/checkout@v3
-      with:
-        ref: main
-        fetch-depth: 0
+
+    # Checkout the main branch so we can see the correct tag set.
+    - name: Fetch and checkout main
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git fetch
+        git checkout main
 
     # Create a semantically versioned tag that increments the last release.
     - name: Create SemVer tag

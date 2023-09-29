@@ -1,0 +1,165 @@
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace CoseSign1.Tests;
+
+/// <summary>
+/// Class for Testing Methods of <see cref="DetachedSignatureFactory"/>
+/// </summary>
+public class DetachedSignatureFactoryTests
+{
+    [SetUp]
+    public void Setup()
+    {
+    }
+
+    [Test]
+    public void TestConstructors()
+    {
+        Mock<ICoseSign1MessageFactory> mockFactory = new Mock<ICoseSign1MessageFactory>(MockBehavior.Strict);
+        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory2 = new DetachedSignatureFactory(HashAlgorithmName.SHA384);
+        DetachedSignatureFactory factory3 = new DetachedSignatureFactory(HashAlgorithmName.SHA512, mockFactory.Object);
+
+        factory.HashAlgorithm.Should().BeAssignableTo<SHA256>();
+        factory.HashAlgorithmName.Should().Be(HashAlgorithmName.SHA256);
+        factory.MessageFactory.Should().BeOfType<CoseSign1MessageFactory>();
+
+        factory2.HashAlgorithm.Should().BeAssignableTo<SHA384>();
+        factory2.HashAlgorithmName.Should().Be(HashAlgorithmName.SHA384);
+        factory2.MessageFactory.Should().BeOfType<CoseSign1MessageFactory>();
+
+        factory3.HashAlgorithm.Should().BeAssignableTo<SHA512>();
+        factory3.HashAlgorithmName.Should().Be(HashAlgorithmName.SHA512);
+        factory3.MessageFactory.Should().Be(mockFactory.Object);
+    }
+
+    [Test]
+    public async Task TestCreateDetachedSignatureAsync()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAsync));
+        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        MemoryStream memStream = new MemoryStream(randomBytes);
+
+        // test the sync method
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(memStream, coseSigningKeyProvider, string.Empty));
+        memStream.Seek(0, SeekOrigin.Begin);
+        CoseSign1Message detachedSignature2 = factory.CreateDetachedSignature(memStream, coseSigningKeyProvider, "application/test.payload");
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        memStream.Seek(0, SeekOrigin.Begin);
+
+        // test the async methods
+        Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateDetachedSignatureAsync(randomBytes, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature3 = await factory.CreateDetachedSignatureAsync(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        detachedSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature3.SignatureMatches(randomBytes).Should().BeTrue();
+
+        Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateDetachedSignatureAsync(memStream, coseSigningKeyProvider, string.Empty));
+        memStream.Seek(0, SeekOrigin.Begin);
+        CoseSign1Message detachedSignature4 = await factory.CreateDetachedSignatureAsync(memStream, coseSigningKeyProvider, "application/test.payload");
+        detachedSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature4.SignatureMatches(randomBytes).Should().BeTrue();
+        memStream.Seek(0, SeekOrigin.Begin);
+    }
+
+    [Test]
+    public async Task TestCreateDetachedSignatureBytesAsync()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureBytesAsync));
+        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        MemoryStream memStream = new MemoryStream(randomBytes);
+
+        // test the sync method
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature = CoseMessage.DecodeSign1(factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignatureBytes(memStream, coseSigningKeyProvider, string.Empty));
+        memStream.Seek(0, SeekOrigin.Begin);
+        CoseSign1Message detachedSignature2 = CoseMessage.DecodeSign1(factory.CreateDetachedSignatureBytes(memStream, coseSigningKeyProvider, "application/test.payload").ToArray());
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        memStream.Seek(0, SeekOrigin.Begin);
+
+        // test the async methods
+        Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateDetachedSignatureBytesAsync(randomBytes, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature3 = CoseMessage.DecodeSign1((await factory.CreateDetachedSignatureBytesAsync(randomBytes, coseSigningKeyProvider, "application/test.payload")).ToArray());
+        detachedSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature3.SignatureMatches(randomBytes).Should().BeTrue();
+
+        Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateDetachedSignatureBytesAsync(memStream, coseSigningKeyProvider, string.Empty));
+        memStream.Seek(0, SeekOrigin.Begin);
+        CoseSign1Message detachedSignature4 = CoseMessage.DecodeSign1((await factory.CreateDetachedSignatureBytesAsync(memStream, coseSigningKeyProvider, "application/test.payload")).ToArray());
+        detachedSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        memStream.Seek(0, SeekOrigin.Begin);
+        detachedSignature4.SignatureMatches(memStream).Should().BeTrue();
+    }
+
+    [Test]
+    public void TestCreateDetachedSignatureMd5()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureMd5));
+        DetachedSignatureFactory factory = new DetachedSignatureFactory(HashAlgorithmName.MD5);
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+
+        // test the sync method
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature = CoseMessage.DecodeSign1(factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-md5");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+    }
+
+    [Test]
+    public void TestCreateDetachedSignatureAlreadyProvided()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAlreadyProvided));
+        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        HashAlgorithm hasher = SHA256.Create();
+        ReadOnlyMemory<byte> hash = hasher.ComputeHash(randomBytes);
+
+        // test the sync method
+        Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(hash, coseSigningKeyProvider, string.Empty));
+        CoseSign1Message detachedSignature = CoseMessage.DecodeSign1(factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload+hash-sha256").ToArray());
+        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+    }
+
+    private ICoseSigningKeyProvider SetupMockSigningKeyProvider(string testName)
+    {
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(testName);
+
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
+        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
+        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
+
+        return mockedSignerKeyProvider.Object;
+    }
+}

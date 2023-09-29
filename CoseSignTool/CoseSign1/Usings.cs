@@ -2,11 +2,15 @@
 // Licensed under the MIT License.
 
 global using System;
+global using System.Collections.Concurrent;
+global using System.Collections.Generic;
+global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
 global using System.Runtime.Serialization;
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
+global using System.Text.RegularExpressions;
 global using System.Threading.Tasks;
 global using CoseSign1.Abstractions.Exceptions;
 global using CoseSign1.Abstractions.Interfaces;

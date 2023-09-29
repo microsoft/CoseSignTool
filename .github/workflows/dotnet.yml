@@ -26,12 +26,7 @@ jobs:
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
   #
-  # TODO: Look into why the pull request page often loses track of the workflows once this completes. Maybe the build job need to filter on the commit author?
-  # Is there a way to force this job to not trigger a second pull request event?
-  # Tried making build only trigger on PR - maybe that will work?
-  # Maybe I need to use the pull_request_target event instead of pull_request?
-  # Maybe I need to not set the user name and email?
-  # Looks like it's working for the time being.
+  # TODO: Look into why the pull request page often loses track of the workflows once this completes.
   create_changelog:
     runs-on: ubuntu-latest
     steps:
@@ -39,7 +34,7 @@ jobs:
       - name: Checkout code
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v2
-      
+
       # Sync the changelog version.
       - name: Fetch and checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -72,7 +67,7 @@ jobs:
             git commit --allow-empty -m "Update changelog for release"
             git push
           fi
-      
+
       # Print default message if changelog is not updated.
       - name: Print exit message when changelog is not updated
         if: ${{ github.event_name != 'pull_request' }}
@@ -105,7 +100,7 @@ jobs:
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
-    
+
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}

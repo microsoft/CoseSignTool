@@ -19,7 +19,7 @@ public static class CoseSign1MessageExtensions
     /// <exception cref="CoseX509FormatException">The certificates could not be read from the header.</exception>
     public static bool TryGetSigningCertificate(
         this CoseSign1Message msg,
-        [NotNullWhen(returnValue: true)] out X509Certificate2? signingCert,
+        out X509Certificate2? signingCert,
         bool allowUnprotected = false)
     {
         signingCert = null;
@@ -45,11 +45,11 @@ public static class CoseSign1MessageExtensions
                 ? msg.ProtectedHeaders.Union(msg.UnprotectedHeaders)
                 : msg.ProtectedHeaders;
 
-            foreach ((CoseHeaderLabel label, CoseHeaderValue value) in searchableHeaders)
+            foreach (KeyValuePair<CoseHeaderLabel, CoseHeaderValue> kvp in searchableHeaders)
             {
-                reader = new CborReader(value.EncodedValue);
+                reader = new CborReader(kvp.Value.EncodedValue);
 
-                if (label == CertificateCoseHeaderLabels.X5T)
+                if (kvp.Key == CertificateCoseHeaderLabels.X5T)
                 {
                     thumbprint = CoseX509Thumprint.Deserialize(reader);
                     break;
@@ -84,7 +84,7 @@ public static class CoseSign1MessageExtensions
     /// <returns>True if the header was found and extracted, False if the header was not found, or the contents were not a proper cert list.</returns>
     public static bool TryGetCertificateChain(
         this CoseSign1Message msg,
-        [NotNullWhen(returnValue: true)] out List<X509Certificate2>? certChain,
+        out List<X509Certificate2>? certChain,
         bool allowUnprotected = false,
         ICoseSigningKeyProvider? keyProvider = null) =>
             msg.TryGetCertificateList(CertificateCoseHeaderLabels.X5Chain, out certChain, allowUnprotected);
@@ -98,7 +98,7 @@ public static class CoseSign1MessageExtensions
     /// <returns>True if the header was found and extracted, False if the header was not found, or the contents were not a proper cert list.</returns>
     public static bool TryGetExtraCertificates(
         this CoseSign1Message msg,
-        [NotNullWhen(returnValue: true)] out List<X509Certificate2>? certChain,
+        out List<X509Certificate2>? certChain,
         bool allowUnprotected = false) =>
             msg.TryGetCertificateList(CertificateCoseHeaderLabels.X5Bag, out certChain, allowUnprotected);
 
@@ -113,7 +113,7 @@ public static class CoseSign1MessageExtensions
     private static bool TryGetCertificateList(
         this CoseSign1Message msg,
         CoseHeaderLabel labelForCertList,
-        [NotNullWhen(returnValue: true)] out List<X509Certificate2>? certList,
+        out List<X509Certificate2>? certList,
         bool allowUnprotected = false)
     {
         certList = null;
@@ -133,11 +133,11 @@ public static class CoseSign1MessageExtensions
                 : msg.ProtectedHeaders;
 
             DateTimeOffset expiry = DateTimeOffset.UtcNow.AddMinutes(5);
-            foreach ((CoseHeaderLabel label, CoseHeaderValue value) in searchableHeaders)
+            foreach (KeyValuePair<CoseHeaderLabel, CoseHeaderValue> kvp in searchableHeaders)
             {
-                reader = new CborReader(value.EncodedValue);
+                reader = new CborReader(kvp.Value.EncodedValue);
 
-                if (label == labelForCertList)
+                if (kvp.Key == labelForCertList)
                 {
                     certList = new List<X509Certificate2>();
                     bool certificatesRead = reader.TryReadCertificateSet(ref certList, out _);

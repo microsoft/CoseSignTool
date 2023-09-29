@@ -25,6 +25,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Tests.Common", "C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool.tests", "CoseSignTool.tests\CoseSignTool.tests.csproj", "{FA48F9DF-CB88-48BC-8594-EC496E193659}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuSpec", "NuSpec", "{CFF2CCBD-F459-46AB-8DB9-ADD03AAF1B44}"
+	ProjectSection(SolutionItems) = preProject
+		CoseSign1.Nuspec\CoseSign1.Abstractions.nuspec = CoseSign1.Nuspec\CoseSign1.Abstractions.nuspec
+		CoseSign1.Nuspec\CoseSign1.Certificates.nuspec = CoseSign1.Nuspec\CoseSign1.Certificates.nuspec
+		CoseSign1.Nuspec\CoseSign1.nuspec = CoseSign1.Nuspec\CoseSign1.nuspec
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -116,6 +123,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{CFF2CCBD-F459-46AB-8DB9-ADD03AAF1B44} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A47A7E7-CC2B-48CE-9D97-3629EF8AC140}

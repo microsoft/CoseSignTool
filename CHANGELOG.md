@@ -34,7 +34,6 @@
 
 **Merged pull requests:**
 
-
 - see if commit from web is more reliable [\#40](https://github.com/microsoft/CoseSignTool/pull/40) ([lemccomb](https://github.com/lemccomb))
 - another release test [\#39](https://github.com/microsoft/CoseSignTool/pull/39) ([lemccomb](https://github.com/lemccomb))
 - build and test only on PR [\#38](https://github.com/microsoft/CoseSignTool/pull/38) ([lemccomb](https://github.com/lemccomb))

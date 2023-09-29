@@ -3,6 +3,25 @@
 
 namespace CoseX509;
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using CoseSign1;
+using CoseSign1.Abstractions;
+using CoseSign1.Abstractions.Interfaces;
+using CoseSign1.Certificates.Exceptions;
+using CoseSign1.Certificates.Extensions;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates.Local.Validators;
+using CoseSign1.Extensions;
+using CoseSign1.Interfaces;
+
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
 /// </summary>
@@ -647,7 +666,7 @@ public static class CoseHandler
         try
         {
             // Open the cert store
-            using X509Store certStore = new(storeName, storeLocation, OpenFlags.ReadOnly);
+            using X509Store certStore = new(storeName, storeLocation);
             certStore.Open(OpenFlags.ReadOnly);
 
             // Return the first certificate that matches the thumbprint, if any
@@ -685,10 +704,12 @@ public static class CoseHandler
         // If validating CommonName, we'll do that first, and set it to call for chain trust validation when it finishes.
         if (!string.IsNullOrWhiteSpace(requiredCommonName))
         {
+#pragma warning disable CS8604 // Possible null reference argument. This should not be thrown because we're checking for null or whitespace above.
             X509CommonNameValidator commonNameValidator = new(requiredCommonName, allowUnprotected: true)
             {
                 NextElement = chainTrustValidator
             };
+#pragma warning restore CS8604 // Possible null reference argument.
 
             return commonNameValidator;
         }

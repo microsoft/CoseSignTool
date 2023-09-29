@@ -46,11 +46,11 @@ public class CoseHandlerSignValidateTests
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
-    private static string PrivateKeyRootCertFile;
-    private static string PublicKeyRootCertFile;
-    private static string PrivateKeyCertFileChained;
-    private static string PayloadFile;
-    private static string TestFolder;
+    private static string? PrivateKeyRootCertFile;
+    private static string? PublicKeyRootCertFile;
+    private static string? PrivateKeyCertFileChained;
+    private static string? PayloadFile;
+    private static string? TestFolder;
 
     private static readonly CoseSign1MessageValidator BaseValidator = new X509ChainTrustValidator(
                 ValidRootSetPriv,

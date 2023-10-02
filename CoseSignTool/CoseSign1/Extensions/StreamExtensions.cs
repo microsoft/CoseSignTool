@@ -28,26 +28,41 @@ public static class StreamExtensions
 
     private static async Task<bool> HasContent(Stream stream)
     {
-        byte[] buffer = new byte[8];
-
-        // If the stream is STDIN, it will otherwise wait indefinitely for input, so we need a timeout task.
-        Task timeout = Task.Delay(TimeSpan.FromMilliseconds(100));
-        Task<int> readStdin = stream.ReadAsync(buffer, 0, 8);
-
-        // Go for 100 ms or until we read 8 bytes or reach end of stream, whichever happen first.
-        Task finishedFirst = await Task.WhenAny(timeout, readStdin).ConfigureAwait(false);
-
-        await stream.FlushAsync();
-
-        if (finishedFirst == timeout || readStdin.Result == 0)
+        if (stream.CanSeek)
         {
-            // Timeout means there's probably nothing on STDIN. Result == 0 means end of stream. Either way, we're done.
-            return false;
+            byte[] buffer = new byte[8];
+
+            // If the stream is STDIN, it will otherwise wait indefinitely for input, so we need a timeout task.
+            Task timeout = Task.Delay(TimeSpan.FromMilliseconds(100));
+            Task<int> readStdin = stream.ReadAsync(buffer, 0, 8);
+
+            // Go for 100 ms or until we read 8 bytes or reach end of stream, whichever happen first.
+            Task finishedFirst = await Task.WhenAny(timeout, readStdin).ConfigureAwait(false);
+
+            await stream.FlushAsync();
+
+            if (finishedFirst == timeout || readStdin.Result == 0)
+            {
+                // Timeout means there's probably nothing on STDIN. Result == 0 means end of stream. Either way, we're done.
+                return false;
+            }
+
+            // Reset pointer to the beginning of the stream and return.
+            _ = stream.Seek(0, SeekOrigin.Begin);
+            return true;
         }
 
-        // Reset pointer to the beginning of the stream and return.
-        _ = stream.Seek(0, SeekOrigin.Begin);
-        return true;
+        try
+        {
+            // Stream is not able to seek so we cannot check if it has content, just ensure the stream length is > 0.
+            // In some cases non-seekable streams can return an exception when accessing content related fields because
+            // the data can only be read or written as it arrives or is processed sequentially. 
+            return stream.Length > 0;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

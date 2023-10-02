@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CoseParser\CoseHandler.csproj" />
+    <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
     <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
     <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
     <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />

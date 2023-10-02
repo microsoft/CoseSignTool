@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace CoseSign1.Interfaces;
@@ -8,11 +8,6 @@ namespace CoseSign1.Interfaces;
 /// </summary>
 public interface ICoseSign1MessageFactory
 {
-    /// <summary>
-    /// The mime type added to Protected Headers when ContentType is not specified.
-    /// </summary>
-    public const string DEFAULT_CONTENT_TYPE = "application/cose";
-
     /// <summary>
     /// Creates a CoseSign1Message object that represents a COSE signature.
     /// </summary>
@@ -30,7 +25,7 @@ public interface ICoseSign1MessageFactory
            ReadOnlyMemory<byte> payload,
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
-           string contentType = DEFAULT_CONTENT_TYPE,
+           string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null
            );
 
@@ -52,7 +47,7 @@ public interface ICoseSign1MessageFactory
            Stream payload,
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
-           string contentType = DEFAULT_CONTENT_TYPE,
+           string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null
            );
 
@@ -74,7 +69,7 @@ public interface ICoseSign1MessageFactory
            ReadOnlyMemory<byte> payload,
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
-           string contentType = DEFAULT_CONTENT_TYPE,
+           string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null
            );
 
@@ -96,7 +91,7 @@ public interface ICoseSign1MessageFactory
            Stream payload,
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
-           string contentType = DEFAULT_CONTENT_TYPE,
+           string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null
            );
 }

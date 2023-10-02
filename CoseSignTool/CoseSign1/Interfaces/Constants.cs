@@ -13,3 +13,4 @@ public static class Constants
     /// </summary>
     public const string DEFAULT_CONTENT_TYPE = "application/cose";
 }
+

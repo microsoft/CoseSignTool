@@ -4,7 +4,7 @@
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.10)
 
-## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+**Merged pull requests:**
 
 - Port CoseHandler to .NET Standard 2.0 [\#48](https://github.com/microsoft/CoseSignTool/pull/48) ([lemccomb](https://github.com/lemccomb))
 

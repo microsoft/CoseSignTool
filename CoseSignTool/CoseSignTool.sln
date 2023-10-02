@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool", "CoseSignToo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler.Tests", "CoseSignUnitTests\CoseHandler.Tests.csproj", "{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler", "CoseParser\CoseHandler.csproj", "{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Abstractions", "CoseSign1.Abstractions\CoseSign1.Abstractions.csproj", "{4E7E48ED-ED6E-4CD1-8052-36FD91EED999}"
@@ -25,12 +23,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Tests.Common", "C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool.tests", "CoseSignTool.tests\CoseSignTool.tests.csproj", "{FA48F9DF-CB88-48BC-8594-EC496E193659}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuSpec", "NuSpec", "{CFF2CCBD-F459-46AB-8DB9-ADD03AAF1B44}"
-	ProjectSection(SolutionItems) = preProject
-		CoseSign1.Nuspec\CoseSign1.Abstractions.nuspec = CoseSign1.Nuspec\CoseSign1.Abstractions.nuspec
-		CoseSign1.Nuspec\CoseSign1.Certificates.nuspec = CoseSign1.Nuspec\CoseSign1.Certificates.nuspec
-		CoseSign1.Nuspec\CoseSign1.nuspec = CoseSign1.Nuspec\CoseSign1.nuspec
-	EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseHandler", "CoseHandler\CoseHandler.csproj", "{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,14 +49,6 @@ Global
 		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Release|Any CPU.Build.0 = Release|x64
 		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Release|x64.ActiveCfg = Release|x64
 		{A0E2186D-1D88-4FD8-9A19-0D655D6C0815}.Release|x64.Build.0 = Release|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|Any CPU.Build.0 = Debug|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|x64.ActiveCfg = Debug|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Debug|x64.Build.0 = Debug|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|Any CPU.ActiveCfg = Release|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|Any CPU.Build.0 = Release|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|x64.ActiveCfg = Release|x64
-		{F0B4F5DD-D4CC-47BD-B7C1-2B4F0953751F}.Release|x64.Build.0 = Release|x64
 		{4E7E48ED-ED6E-4CD1-8052-36FD91EED999}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4E7E48ED-ED6E-4CD1-8052-36FD91EED999}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E7E48ED-ED6E-4CD1-8052-36FD91EED999}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -120,12 +105,17 @@ Global
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Release|x64.ActiveCfg = Release|Any CPU
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Release|x64.Build.0 = Release|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Debug|x64.Build.0 = Debug|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Release|x64.ActiveCfg = Release|Any CPU
+		{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{CFF2CCBD-F459-46AB-8DB9-ADD03AAF1B44} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A47A7E7-CC2B-48CE-9D97-3629EF8AC140}

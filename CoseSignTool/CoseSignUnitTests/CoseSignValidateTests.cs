@@ -46,11 +46,11 @@ public class CoseHandlerSignValidateTests
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
-    private static string PrivateKeyRootCertFile;
-    private static string PublicKeyRootCertFile;
-    private static string PrivateKeyCertFileChained;
-    private static string PayloadFile;
-    private static string TestFolder;
+    private static string? PrivateKeyRootCertFile;
+    private static string? PublicKeyRootCertFile;
+    private static string? PrivateKeyCertFileChained;
+    private static string? PayloadFile;
+    private static string? TestFolder;
 
     private static readonly CoseSign1MessageValidator BaseValidator = new X509ChainTrustValidator(
                 ValidRootSetPriv,
@@ -240,6 +240,19 @@ public class CoseHandlerSignValidateTests
         signedBytes.ToArray().Should().NotBeNull();
         CoseHandler.Validate(signedBytes.ToArray(), new X509ChainTrustValidator(), Payload1Bytes)
             .Success.Should().Be(false);
+    }
+
+    /// <summary>
+    /// Validates that passed in roots are considered "trusted"
+    /// </summary>
+    [TestMethod]
+    public void TrustProvidedRoots()
+    {
+        // Sign, then validate with a custom validator that does not allow untrusted chains
+        X509ChainTrustValidator chainValidator = new(ValidRootSetPub);
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, false);
+        CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes)
+            .Success.Should().Be(true);
     }
 
     /// <summary>

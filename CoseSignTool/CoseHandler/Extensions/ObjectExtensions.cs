@@ -3,6 +3,8 @@
 
 namespace CoseX509;
 
+using System.Collections.Generic;
+
 /// <summary>
 /// Extension methods for <see cref="object"/>.
 /// </summary>
@@ -13,7 +15,7 @@ public static class ObjectExtensions
     /// </summary>
     /// <param name="a">The current array of objects.</param>
     /// <returns>True if the array is null or empty; false otherwise.</returns>
-    public static bool IsNullOrEmpty<T>([NotNullWhen(false)] this T[]? a) =>
+    public static bool IsNullOrEmpty<T>(this T[]? a) =>
         a is null || a.Length == 0;
 
     /// <summary>
@@ -21,6 +23,6 @@ public static class ObjectExtensions
     /// </summary>
     /// <param name="a">The current array of objects.</param>
     /// <returns>True if the array is null or empty; false otherwise.</returns>
-    public static bool IsNullOrEmpty<T>([NotNullWhen(false)] this List<T> a) =>
+    public static bool IsNullOrEmpty<T>(this List<T> a) =>
         a is null || a.Count == 0;
 }

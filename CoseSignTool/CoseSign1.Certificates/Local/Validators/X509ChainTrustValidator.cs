@@ -118,9 +118,13 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
         // Chain build failed, but if the only failure is Untrusted Root we may still pass.
         if (ChainBuilder.ChainStatus.All(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot) || st.Status.HasFlag(X509ChainStatusFlags.NoError)))
         {
-            // We can't specify an alternative root in .netstandard 2.1, so our work-around is to consider any user-supplied roots trusted.
+            // We can't specify an alternative root in .netstandard 2.0, so our work-around is to consider any user-supplied roots trusted.
             // This logic should be replaced once the library updates to a .NET Standard version that supports assigning arbitrary root trust like .NET 7 does.
-            if (hasRoots && TrustUserRoots && Roots.Any(r => r.Thumbprint == ChainBuilder.ChainElements.First().Thumbprint))
+            string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
+            if (hasRoots 
+                && TrustUserRoots
+                && !string.IsNullOrEmpty(chainRootThumb)
+                && Roots.Any(r => r.Thumbprint == chainRootThumb))
             {
                 // The root of the chain is one of the user-supplied roots, so return success.
                 return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");

@@ -116,7 +116,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
         DetachedSignatureFactory factory = new DetachedSignatureFactory();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        MemoryStream stream = new MemoryStream(randomBytes);
+        using MemoryStream stream = new MemoryStream(randomBytes);
 
         CoseSign1Message detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeTrue();
@@ -136,15 +136,18 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
         // test mismatched signature
         CoseSign1Message? detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
+        stream.Dispose();
         stream = new MemoryStream(randomBytes);
 
         // test invalid hash extension case
         detachedSignature = factory.MessageFactory.CreateCoseSign1Message(randomBytes, coseSigningKeyProvider, embedPayload: true, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
+        stream.Seek(stream.Length, SeekOrigin.Begin);
 
         // test null object case
         detachedSignature = null;
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
+        stream.Dispose();
     }
 
     [Test]

@@ -17,9 +17,9 @@ public class DetachedSignatureFactoryTests
     public void TestConstructors()
     {
         Mock<ICoseSign1MessageFactory> mockFactory = new Mock<ICoseSign1MessageFactory>(MockBehavior.Strict);
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
-        DetachedSignatureFactory factory2 = new DetachedSignatureFactory(HashAlgorithmName.SHA384);
-        DetachedSignatureFactory factory3 = new DetachedSignatureFactory(HashAlgorithmName.SHA512, mockFactory.Object);
+        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory2 = new DetachedSignatureFactory(HashAlgorithmName.SHA384);
+        using DetachedSignatureFactory factory3 = new DetachedSignatureFactory(HashAlgorithmName.SHA512, mockFactory.Object);
 
         factory.HashAlgorithm.Should().BeAssignableTo<SHA256>();
         factory.HashAlgorithmName.Should().Be(HashAlgorithmName.SHA256);
@@ -38,10 +38,10 @@ public class DetachedSignatureFactoryTests
     public async Task TestCreateDetachedSignatureAsync()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAsync));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        MemoryStream memStream = new MemoryStream(randomBytes);
+        using MemoryStream memStream = new MemoryStream(randomBytes);
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, string.Empty));
@@ -53,9 +53,9 @@ public class DetachedSignatureFactoryTests
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
         CoseSign1Message detachedSignature2 = factory.CreateDetachedSignature(memStream, coseSigningKeyProvider, "application/test.payload");
-        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
-        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
-        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        detachedSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature2.SignatureMatches(randomBytes).Should().BeTrue();
         memStream.Seek(0, SeekOrigin.Begin);
 
         // test the async methods
@@ -78,10 +78,10 @@ public class DetachedSignatureFactoryTests
     public async Task TestCreateDetachedSignatureBytesAsync()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureBytesAsync));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        MemoryStream memStream = new MemoryStream(randomBytes);
+        using MemoryStream memStream = new MemoryStream(randomBytes);
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, string.Empty));
@@ -93,9 +93,9 @@ public class DetachedSignatureFactoryTests
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignatureBytes(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
         CoseSign1Message detachedSignature2 = CoseMessage.DecodeSign1(factory.CreateDetachedSignatureBytes(memStream, coseSigningKeyProvider, "application/test.payload").ToArray());
-        detachedSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
-        detachedSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
-        detachedSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        detachedSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
+        detachedSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+hash-sha256");
+        detachedSignature2.SignatureMatches(randomBytes).Should().BeTrue();
         memStream.Seek(0, SeekOrigin.Begin);
 
         // test the async methods
@@ -118,7 +118,7 @@ public class DetachedSignatureFactoryTests
     public void TestCreateDetachedSignatureMd5()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureMd5));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory(HashAlgorithmName.MD5);
+        using DetachedSignatureFactory factory = new DetachedSignatureFactory(HashAlgorithmName.MD5);
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -134,10 +134,10 @@ public class DetachedSignatureFactoryTests
     public void TestCreateDetachedSignatureAlreadyProvided()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAlreadyProvided));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        HashAlgorithm hasher = SHA256.Create();
+        using HashAlgorithm hasher = SHA256.Create();
         ReadOnlyMemory<byte> hash = hasher.ComputeHash(randomBytes);
 
         // test the sync method

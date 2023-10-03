@@ -141,13 +141,13 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test invalid hash extension case
         detachedSignature = factory.MessageFactory.CreateCoseSign1Message(randomBytes, coseSigningKeyProvider, embedPayload: true, "application/test.payload");
-        detachedSignature.SignatureMatches(stream).Should().BeFalse();
-        stream2.Seek(stream.Length, SeekOrigin.Begin);
+        detachedSignature.SignatureMatches(stream2).Should().BeFalse();
+        stream2.Seek(stream2.Length, SeekOrigin.Begin);
 
         // test null object case
         detachedSignature = null;
 #pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
-        detachedSignature.SignatureMatches(stream).Should().BeFalse();
+        detachedSignature.SignatureMatches(stream2).Should().BeFalse();
 #pragma warning restore CS8604 // Possible null reference argument.
     }
 

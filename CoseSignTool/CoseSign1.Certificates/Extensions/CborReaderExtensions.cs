@@ -18,7 +18,7 @@ public static class CborReaderExtensions
     public static bool TryReadCertificateSet(
         this CborReader reader,
         ref List<X509Certificate2> certificates,
-        [NotNullWhen(returnValue: false)] out CoseX509FormatException? ex)
+        out CoseX509FormatException? ex)
     {
         ex = null;
         try

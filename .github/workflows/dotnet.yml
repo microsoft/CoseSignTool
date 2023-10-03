@@ -25,6 +25,8 @@ jobs:
 
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
+  #
+  # TODO: Look into why the pull request page often loses track of the workflows once this completes.
   create_changelog:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +34,7 @@ jobs:
       - name: Checkout code
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v2
-      
+
       # Sync the changelog version.
       - name: Fetch and checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -65,7 +67,7 @@ jobs:
             git commit --allow-empty -m "Update changelog for release"
             git push
           fi
-      
+
       # Print default message if changelog is not updated.
       - name: Print exit message when changelog is not updated
         if: ${{ github.event_name != 'pull_request' }}
@@ -74,7 +76,7 @@ jobs:
   # Build and test the code.
   build:
     name: build-${{matrix.os}}
-    if: ${{ github.event_name != 'release' }}
+    if: ${{ github.event_name == 'pull_request' }}
     needs: [ create_changelog ]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -98,7 +100,7 @@ jobs:
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug
       run: dotnet test --verbosity normal CoseSignTool/CoseSignTool.sln
-    
+
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}
@@ -108,13 +110,13 @@ jobs:
   # Create a semantically versioned release.
   #   A prerelease is created for every push to the main branch.
   #   Official releases are created manually on GitHub.
-  #   We include the release event as a no-op because release_assets requires it to run.
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.output_tag_name.outputs.tag_name }}
     steps:
 
     # Checkout the main branch and fetch tags.
@@ -124,6 +126,7 @@ jobs:
 
     # Checkout the main branch so we can see the correct tag set.
     - name: Fetch and checkout main
+      if: ${{ github.event_name == 'push' }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -157,10 +160,17 @@ jobs:
         # Always use prerelease for automated releases. Official releases are created manually.
         prerelease: true
 
-    # Handle the release case.
-    - name: Handle release
-      if: ${{ github.event_name == 'release' }}
-      run: echo "A release was manually created. No action is needed."
+    # Output the semver tag if it's a push event, or the most recent tag if it's a release event.
+    - name: Output tag name
+      id: output_tag_name
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          echo "::set-output name=tag_name::${{ steps.semver-tag.outputs.semver_tag }}"
+          echo "Generated semver tag is ${{ steps.semver-tag.outputs.semver_tag }}."
+        else
+          echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
+          echo "Current release tag is ${{ github.event.release.tag_name }}."
+        fi
 
   #### RELEASE EVENTS ####
 
@@ -220,3 +230,4 @@ jobs:
         file: ./published/CoseSignTool-*.zip
         file_glob: true
         overwrite: true
+        tag: ${{ needs.create_release.outputs.tag_name }}

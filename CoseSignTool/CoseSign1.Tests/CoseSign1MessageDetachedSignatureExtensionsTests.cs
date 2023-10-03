@@ -19,7 +19,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestTryGetDetachedSignatureAlgorithmSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -60,7 +60,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
         });
         emptyContentTypeHeaderExtender.Setup(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns<CoseHeaderMap>((input) => input);
 
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -89,7 +89,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestIsDetachedSignatureSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -101,7 +101,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestIsDetachedSignatureFailure()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -113,10 +113,10 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestSignatureMatchesStreamSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        using MemoryStream stream = new MemoryStream(randomBytes);
+        using MemoryStream stream = new(randomBytes);
 
         CoseSign1Message detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeTrue();
@@ -126,35 +126,36 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestSignatureMatchesStreamFailure()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
         new Random().NextBytes(randomBytes);
         new Random().NextBytes(randomBytes2);
-        MemoryStream stream = new MemoryStream(randomBytes2);
+        using MemoryStream stream = new(randomBytes2);
 
         // test mismatched signature
         CoseSign1Message? detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
         stream.Dispose();
-        stream = new MemoryStream(randomBytes);
+        using MemoryStream stream2 = new(randomBytes);
 
         // test invalid hash extension case
         detachedSignature = factory.MessageFactory.CreateCoseSign1Message(randomBytes, coseSigningKeyProvider, embedPayload: true, "application/test.payload");
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
-        stream.Seek(stream.Length, SeekOrigin.Begin);
+        stream2.Seek(stream.Length, SeekOrigin.Begin);
 
         // test null object case
         detachedSignature = null;
+#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
         detachedSignature.SignatureMatches(stream).Should().BeFalse();
-        stream.Dispose();
+#pragma warning restore CS8604 // Possible null reference argument.
     }
 
     [Test]
     public void TestSignatureMatchesBytesSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -166,7 +167,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestSignatureMatchesBytesFailure()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -182,19 +183,21 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test null object case
         detachedSignature = null;
+#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
         detachedSignature.SignatureMatches(randomBytes).Should().BeFalse();
+#pragma warning restore CS8604 // Possible null reference argument.
     }
 
     [Test]
     public void TestTryGetHashAlgorithmSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
         CoseSign1Message detachedSignature = factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
-        detachedSignature.TryGetHashAlgorithm(out HashAlgorithm hashAlgorithm).Should().BeTrue();
+        detachedSignature.TryGetHashAlgorithm(out HashAlgorithm? hashAlgorithm).Should().BeTrue();
         hashAlgorithm.Should().NotBeNull();
         hashAlgorithm.Should().BeAssignableTo<SHA256>();
     }
@@ -203,7 +206,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
     public void TestTryGetHashAlgorithmFailure()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestTryGetDetachedSignatureAlgorithmSuccess));
-        DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -211,7 +214,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // Fail to extract a hash algorithm name
         CoseSign1Message? detachedSignature = factory.MessageFactory.CreateCoseSign1Message(randomBytes, coseSigningKeyProvider, embedPayload: true, "application/test.payload");
-        detachedSignature.TryGetHashAlgorithm(out HashAlgorithm hashAlgorithm).Should().BeFalse();
+        detachedSignature.TryGetHashAlgorithm(out HashAlgorithm? hashAlgorithm).Should().BeFalse();
         hashAlgorithm.Should().BeNull();
 
         // COSE Sign1 Detached signature case with other things being valid
@@ -227,7 +230,9 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test null object case
         detachedSignature = null;
+#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
         detachedSignature.TryGetHashAlgorithm(out hashAlgorithm).Should().BeFalse();
+#pragma warning restore CS8604 // Possible null reference argument.
         hashAlgorithm.Should().BeNull();
     }
 

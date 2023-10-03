@@ -61,7 +61,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="hashAlgorithmName">The name of the intended HashAlgorithm to create.  See Derived Types from https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.hashalgorithm?view=netstandard-2.0
     /// for examples names.  I.E. SHA1|SHA256|SHA512|SHA3_256</param>
     /// <returns>A HashAlgorithm which is created from the specified HashAlgorithmName or Null if none matched.</returns>
-    internal static HashAlgorithm? CreateHashAlgorithmFromName(HashAlgorithmName hashAlgorithmName)
+    public static HashAlgorithm? CreateHashAlgorithmFromName(HashAlgorithmName hashAlgorithmName)
     {
         if (!HashAlgorithmLookup.Value.TryGetValue(hashAlgorithmName.Name.ToUpperInvariant(), out Type hashAlgorithmType))
         {
@@ -155,7 +155,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
 
         ReadOnlyMemory<byte> artifactHash = artifactBytes.HasValue
                                             ? hasher!.ComputeHash(artifactBytes.Value.ToArray())
-                                            : hasher!.ComputeHash(artifactStream);
+                                            : hasher!.ComputeHash(artifactStream!);
 
         bool equals = @this!.Content.Value.Span.SequenceEqual(artifactHash.Span);
         Debug.WriteLine($"{nameof(SignatureMatches)} compared the two hashes with lengths ({artifactHash.Length},{@this!.Content.Value.Length}) for equality and returned {equals}");

@@ -222,9 +222,15 @@ public sealed class DetachedSignatureFactory : IDisposable
             throw new ArgumentNullException(nameof(contentType), "A content type must be specified");
         }
 
-        ReadOnlyMemory<byte> hash = streamPayload == null
-                                    ? InternalHashAlgorithm.ComputeHash(bytePayload.Value.ToArray())
-                                    : InternalHashAlgorithm.ComputeHash(streamPayload);
+        if(streamPayload == null && !bytePayload.HasValue || // both are empty
+           streamPayload != null && bytePayload.HasValue)    // both are specified
+        {
+            throw new ArgumentNullException("payload", "Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null");
+        }
+
+        ReadOnlyMemory<byte> hash = streamPayload != null
+                                    ? InternalHashAlgorithm.ComputeHash(streamPayload)
+                                    : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
         return returnBytes
                ? InternalMessageFactory.CreateCoseSign1MessageBytes(
                     hash,

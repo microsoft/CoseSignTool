@@ -16,10 +16,10 @@ public class DetachedSignatureFactoryTests
     [Test]
     public void TestConstructors()
     {
-        Mock<ICoseSign1MessageFactory> mockFactory = new Mock<ICoseSign1MessageFactory>(MockBehavior.Strict);
-        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
-        using DetachedSignatureFactory factory2 = new DetachedSignatureFactory(HashAlgorithmName.SHA384);
-        using DetachedSignatureFactory factory3 = new DetachedSignatureFactory(HashAlgorithmName.SHA512, mockFactory.Object);
+        Mock<ICoseSign1MessageFactory> mockFactory = new(MockBehavior.Strict);
+        using DetachedSignatureFactory factory = new();
+        using DetachedSignatureFactory factory2 = new(HashAlgorithmName.SHA384);
+        using DetachedSignatureFactory factory3 = new(HashAlgorithmName.SHA512, mockFactory.Object);
 
         factory.HashAlgorithm.Should().BeAssignableTo<SHA256>();
         factory.HashAlgorithmName.Should().Be(HashAlgorithmName.SHA256);
@@ -38,10 +38,10 @@ public class DetachedSignatureFactoryTests
     public async Task TestCreateDetachedSignatureAsync()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAsync));
-        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        using MemoryStream memStream = new MemoryStream(randomBytes);
+        using MemoryStream memStream = new(randomBytes);
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(randomBytes, coseSigningKeyProvider, string.Empty));
@@ -78,10 +78,10 @@ public class DetachedSignatureFactoryTests
     public async Task TestCreateDetachedSignatureBytesAsync()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureBytesAsync));
-        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        using MemoryStream memStream = new MemoryStream(randomBytes);
+        using MemoryStream memStream = new(randomBytes);
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignatureBytes(randomBytes, coseSigningKeyProvider, string.Empty));
@@ -118,7 +118,7 @@ public class DetachedSignatureFactoryTests
     public void TestCreateDetachedSignatureMd5()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureMd5));
-        using DetachedSignatureFactory factory = new DetachedSignatureFactory(HashAlgorithmName.MD5);
+        using DetachedSignatureFactory factory = new(HashAlgorithmName.MD5);
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
@@ -134,11 +134,12 @@ public class DetachedSignatureFactoryTests
     public void TestCreateDetachedSignatureAlreadyProvided()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateDetachedSignatureAlreadyProvided));
-        using DetachedSignatureFactory factory = new DetachedSignatureFactory();
+        using DetachedSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        using HashAlgorithm hasher = SHA256.Create();
-        ReadOnlyMemory<byte> hash = hasher.ComputeHash(randomBytes);
+        using HashAlgorithm hasher = CoseSign1MessageDetachedSignatureExtensions.CreateHashAlgorithmFromName(factory.HashAlgorithmName)
+                                     ?? throw new Exception($"Failed to get hash algorithm from {nameof(CoseSign1MessageDetachedSignatureExtensions.CreateHashAlgorithmFromName)}");
+        ReadOnlyMemory<byte> hash = hasher!.ComputeHash(randomBytes);
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateDetachedSignature(hash, coseSigningKeyProvider, string.Empty));

@@ -68,7 +68,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
             return null;
         }
 
-        MethodInfo? methodInfo = hashAlgorithmType.GetMethod("Create", 0, Array.Empty<Type>());
+        MethodInfo? methodInfo = hashAlgorithmType.GetMethod("Create", Array.Empty<Type>());
         return methodInfo != null
                ? (HashAlgorithm)methodInfo.Invoke(null, null)
                : null;

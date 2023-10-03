@@ -1,16 +1,32 @@
 # Changelog
 
-## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+## [v0.3.1-pre.12](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.12) (2023-10-02)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.11...v0.3.1-pre.12)
+
+**Merged pull requests:**
+
+- Re-enable CodeQL [\#45](https://github.com/microsoft/CoseSignTool/pull/45) ([lemccomb](https://github.com/lemccomb))
+
+## [v0.3.1-pre.11](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.11) (2023-10-02)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v0.3.1-pre.11)
+
+**Merged pull requests:**
+
+- Port changes from ADO repo to GitHub repo [\#46](https://github.com/microsoft/CoseSignTool/pull/46) ([lemccomb](https://github.com/lemccomb))
 
 ## [v0.3.1-pre.10](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.10) (2023-10-02)
 
-- Port CoseHandler to .NET Standard 2.0 [\#48](https://github.com/microsoft/CoseSignTool/pull/48) ([lemccomb](https://github.com/lemccomb))
-
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.10)
 
-## [v0.3.1-pre.9](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.9) (2023-09-28)
+**Merged pull requests:**
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.9)
+- Port CoseHandler to .NET Standard 2.0 [\#48](https://github.com/microsoft/CoseSignTool/pull/48) ([lemccomb](https://github.com/lemccomb))
+
+## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.2)
 
 ## [v0.3.1-pre.9](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.9) (2023-09-28)
 

@@ -11,6 +11,7 @@ global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
 global using System.Text;
 global using System.Threading;
+global using System.Threading.Tasks;
 global using CoseSign1.Abstractions.Exceptions;
 global using CoseSign1.Abstractions.Interfaces;
 global using CoseSign1.Certificates.Interfaces;

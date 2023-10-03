@@ -80,7 +80,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="this">The CoseSign1Message to evaluate</param>
     /// <param name="name">The discovered Hash Algorithm Name from the Content Type Protected Header value of the CoseSign1Message.</param>
     /// <returns>True if successful in extracting a HashAlgorithmName from the Content Type Protected Header; False otherwise.</returns>
-    public static bool TryGetDetachedSignatureAlgorithm(this CoseSign1Message @this, out HashAlgorithmName name)
+    public static bool TryGetDetachedSignatureAlgorithm(this CoseSign1Message? @this, out HashAlgorithmName name)
     {
         if(@this == null)
         {
@@ -118,7 +118,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// </summary>
     /// <param name="this">The CoseSign1Message to evaluate.</param>
     /// <returns>True if the CoseSign1Message is a encoded detached signature; False otherwise.</returns>
-    public static bool IsDetachedSignature(this CoseSign1Message @this) => @this.TryGetDetachedSignatureAlgorithm(out _);
+    public static bool IsDetachedSignature(this CoseSign1Message? @this) => @this.TryGetDetachedSignatureAlgorithm(out _);
 
     /// <summary>
     /// Computes if the encoded detached signature within the CoseSign1Message object matches the given artifact stream.
@@ -126,7 +126,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="this">The CoseSign1Message to evaluate.</param>
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
     /// <returns>True if the detached signature in the CoseSign1Message matches the signature of the artifact stream; False otherwise.</returns>
-    public static bool SignatureMatches(this CoseSign1Message @this, Stream artifactStream)
+    public static bool SignatureMatches(this CoseSign1Message? @this, Stream artifactStream)
         => SignatureMatchesInternal(@this, artifactStream: artifactStream);
 
     /// <summary>
@@ -135,7 +135,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="this">The CoseSign1Message to evaluate.</param>
     /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
     /// <returns>True if the detached signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
-    public static bool SignatureMatches(this CoseSign1Message @this, ReadOnlyMemory<byte> artifactBytes)
+    public static bool SignatureMatches(this CoseSign1Message? @this, ReadOnlyMemory<byte> artifactBytes)
         => SignatureMatchesInternal(@this, artifactBytes: artifactBytes);
 
     /// <summary>
@@ -145,9 +145,9 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
     /// <returns>True if the detached signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
-    private static bool SignatureMatchesInternal(this CoseSign1Message @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
+    private static bool SignatureMatchesInternal(this CoseSign1Message? @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
     {
-        if (!@this.TryGetHashAlgorithm(out HashAlgorithm hasher))
+        if (!@this.TryGetHashAlgorithm(out HashAlgorithm? hasher))
         {
             Trace.TraceError($"{nameof(SignatureMatches)} failed to extract a valid HashAlgorithm from the provided CoseSign1Message[{@this?.GetHashCode()}]");
             return false;
@@ -168,11 +168,11 @@ public static class CoseSign1MessageDetachedSignatureExtensions
     /// <param name="this">The CoseSign1Message to evaluate.</param>
     /// <param name="hasher">Set to a valid HashAlgorithm if return value is True, null otherwise.</param>
     /// <returns>True if a valid HashAlgorithm was returned from the Content Type Protected Header; False otherwise.</returns>
-    public static bool TryGetHashAlgorithm(this CoseSign1Message @this, out HashAlgorithm? hasher)
+    public static bool TryGetHashAlgorithm(this CoseSign1Message? @this, out HashAlgorithm? hasher)
     {
         hasher = null;
 
-        if (!@this.TryGetDetachedSignatureAlgorithm(out HashAlgorithmName algorithmName))
+        if (!TryGetDetachedSignatureAlgorithm(@this, out HashAlgorithmName algorithmName))
         {
             Trace.TraceError($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message[{@this?.GetHashCode()}] object which did not have a valid hashing algorithm defined");
             return false;

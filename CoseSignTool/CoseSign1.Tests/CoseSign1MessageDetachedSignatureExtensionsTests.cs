@@ -146,9 +146,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test null object case
         detachedSignature = null;
-#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
-        detachedSignature.SignatureMatches(stream2).Should().BeFalse();
-#pragma warning restore CS8604 // Possible null reference argument.
+        CoseSign1MessageDetachedSignatureExtensions.SignatureMatches(detachedSignature, stream2).Should().BeFalse();
     }
 
     [Test]
@@ -183,9 +181,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test null object case
         detachedSignature = null;
-#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
-        detachedSignature.SignatureMatches(randomBytes).Should().BeFalse();
-#pragma warning restore CS8604 // Possible null reference argument.
+        CoseSign1MessageDetachedSignatureExtensions.SignatureMatches(detachedSignature, randomBytes).Should().BeFalse();
     }
 
     [Test]
@@ -230,9 +226,7 @@ public class CoseSign1MessageDetachedSignatureExtensionsTests
 
         // test null object case
         detachedSignature = null;
-#pragma warning disable CS8604 // Possible null reference argument.  Explicit test case for null via C# extension method
-        detachedSignature.TryGetHashAlgorithm(out hashAlgorithm).Should().BeFalse();
-#pragma warning restore CS8604 // Possible null reference argument.
+        CoseSign1MessageDetachedSignatureExtensions.TryGetHashAlgorithm(detachedSignature, out hashAlgorithm).Should().BeFalse();
         hashAlgorithm.Should().BeNull();
     }
 

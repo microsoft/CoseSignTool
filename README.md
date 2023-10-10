@@ -8,7 +8,7 @@ CoseSignTool and CoseHandler support three commands/methods:
 2. Validate: Validates that a COSE signature is properly formed, has a valid certificate chain, and matches the source payload or its hash.
 3. Get: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
 
-The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./Advanced.md)
+The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
 
 ## What is COSE?
 'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
@@ -20,15 +20,15 @@ CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solutio
 ## How do I get started?
 First, download the latest release from GitHub. There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.
 
-If you have the option of calling it from a .NET application, go to [CoseHandler.md](./CoseHandler.md)
+If you have the option of calling it from a .NET application, go to [CoseHandler.md](./docs/CoseHandler.md)
 
-Otherwise, go to [CoseSignTool.md](./CoseSignTool.md)
+Otherwise, go to [CoseSignTool.md](./docs/CoseSignTool.md)
 
 ## How do I make this better?
 You would like to help? Great!
 First [check to make sure the work isn't already planned](#state-of-the-project), then...
 * If you find a bug or have a feature reccomendation, [log an issue.](https://github.com/microsoft/CoseSignTool/issues)
-* If you would like to contribute actual code to the repo or comment on the pull requests of others, read our [contributor guidelines](./CONTRIBUTING.md) and [style guidelines](./STYLE.md), and then make your contribution.
+* If you would like to contribute actual code to the repo or comment on the pull requests of others, read our [contributor guidelines](./docs/CONTRIBUTING.md) and [style guidelines](./docs/STYLE.md), and then make your contribution.
 
 ## State of the project
 This is an alpha release, so there are some planned features that are not yet in the product, and you may encounter some bugs. If you do, please [report them here.](https://github.com/microsoft/CoseSignTool/issues)

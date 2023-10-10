@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.12...HEAD)
+
+**Merged pull requests:**
+
+- implement detached signature factory, tests and helper extension methods. [\#47](https://github.com/microsoft/CoseSignTool/pull/47) ([JeromySt](https://github.com/JeromySt))
+
 ## [v0.3.1-pre.12](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.12) (2023-10-02)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.11...v0.3.1-pre.12)

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>CoseSign1.Abstractions</id>
+    <version>$VersionNgt$</version>
+    <authors>Microsoft</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+Abstractions required to extend or enhance Create CoseSign1 functionality.
+    </description>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="System.Security.Cryptography.Cose" version="7.0.0" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\CoseSign1.Abstractions.dll" target="lib\netstandard2.0" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\CoseSign1.Abstractions.pdb" target="Build\symbols" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.cat" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\bsi.json" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />
+</files>
+</package>

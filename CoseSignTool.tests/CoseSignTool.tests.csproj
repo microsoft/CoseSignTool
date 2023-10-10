@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<Platforms>x64</Platforms>
+		<IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
+		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+		<PlatformTarget>x64</PlatformTarget>
+		<SignAssembly>True</SignAssembly>
+		<PublicSign>True</PublicSign>
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- other property settings -->
+		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Because this is a test project, don't run code coverage -->
+		<AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="coverlet.collector" Version="3.2.0">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
+		<PackageReference Include="Moq" Version="4.20.69" />
+		<PackageReference Include="MSTest.TestAdapter" Version="2.2.10" />
+		<PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+		<PackageReference Include="FluentAssertions" Version="6.12.0" />
+	</ItemGroup>
+
+    <ItemGroup>
+	    <ProjectReference Include="..\CoseHandler.Tests\CoseHandler.Tests.csproj" />
+	    <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
+	    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+	    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+	    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+    </ItemGroup>
+</Project>

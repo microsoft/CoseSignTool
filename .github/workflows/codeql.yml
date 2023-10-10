@@ -44,7 +44,7 @@ jobs:
 
     # Use the Dotnet Build command to load dependencies and build the code.        
     - name: Build debug
-      run: dotnet build --verbosity normal CoseSignTool/CoseSignTool.sln
+      run: dotnet build --verbosity normal CoseSignTool.sln
 
     # Do the analysis
     - name: Perform CodeQL Analysis

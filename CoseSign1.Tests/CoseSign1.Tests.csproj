@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <LangVersion>latest</LangVersion>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Because this is a test project, don't run code coverage -->
+        <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Moq" Version="4.20.69" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.3.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="3.5.0" />
+    <PackageReference Include="coverlet.collector" Version="3.2.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+    <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
+  </ItemGroup>
+
+</Project>

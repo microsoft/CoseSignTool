@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+	<Nullable>enable</Nullable>
+	<LangVersion>latest</LangVersion>
+	<SignAssembly>True</SignAssembly>
+	<DelaySign>True</DelaySign>
+	<AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+	<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	<EnableNETAnalyzers>true</EnableNETAnalyzers>
+	<AnalysisLevel>latest</AnalysisLevel>
+	<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
+  </ItemGroup>
+
+</Project>

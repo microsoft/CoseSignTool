@@ -22,13 +22,12 @@ public class MainTests
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName()    + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
-    private static string PrivateKeyRootCertFile;
-    private static string PublicKeyIntermediateCertFile;
-    private static string PublicKeyRootCertFile;
-    private static string PrivateKeyCertFileChained;
-    private static string PrivateKeyCertFileChainedWithPassword;
+    private static readonly string PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
+    private static readonly string PublicKeyIntermediateCertFile = Path.GetTempFileName() + ".cer";
+    private static readonly string PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
+    private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+    private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static string PayloadFile;
-
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
 
     public MainTests()
@@ -40,15 +39,10 @@ public class MainTests
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
-        PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
         File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
-        PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
         File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
-        PublicKeyIntermediateCertFile = Path.GetTempFileName() + ".cer";
-        File.WriteAllBytes(PublicKeyIntermediateCertFile, Int1Priv.Export(X509ContentType.Cert));
-        PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PublicKeyIntermediateCertFile, Int1Priv.Export(X509ContentType.Cert));        
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
-        PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
         File.WriteAllBytes(PrivateKeyCertFileChainedWithPassword, Leaf1Priv.Export(X509ContentType.Pkcs12, "password"));
     }
 

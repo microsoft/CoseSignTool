@@ -36,10 +36,9 @@ This is an alpha release, so there are some planned features that are not yet in
 The planned work is currently tracked only in an internal Microsoft ADO instance but will be moved to Github Issues soon. In the meantime, here is some of the work currently planned.
 
 #### New features
-* Add /Password option for signing with locked .pfx certificate files
 * Investigate adding suport for RFC3161 timestamp counter signatures
 * Enable specifying a mandatory cert chain root for validation
-* Implement digest signing
+* Simplify digest signing scenario
 * Support batch operations in CoseSignTool to reduce file and cert store reads
 * Publish single file version of CoseSignTool
 
@@ -50,8 +49,6 @@ The planned work is currently tracked only in an internal Microsoft ADO instance
 * Expand code coverage in unit and integration tests
 
 #### Other
-* Downgrade the CoseSign1 libraries from .NET Standard 2.1 to 2.0 (Compatibility)
-* Convert CoseHandler from .NET 7 to .NET Standard 2.0 to match other libs
 * Move work item tracking to public Github repo
 * Re-organize the CoseSignTool unit tests for better readability
 

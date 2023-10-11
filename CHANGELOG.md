@@ -1,44 +1,28 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v1.1.0](https://github.com/microsoft/CoseSignTool/tree/v1.1.0) (2023-10-10)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.12...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v1.1.0)
 
-**Merged pull requests:**
+## [v0.3.1-pre.10](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.10) (2023-10-10)
 
-- implement detached signature factory, tests and helper extension methods. [\#47](https://github.com/microsoft/CoseSignTool/pull/47) ([JeromySt](https://github.com/JeromySt))
-
-## [v0.3.1-pre.12](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.12) (2023-10-02)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.11...v0.3.1-pre.12)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.1-pre.10)
 
 **Merged pull requests:**
 
-- Re-enable CodeQL [\#45](https://github.com/microsoft/CoseSignTool/pull/45) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.3.1-pre.11](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.11) (2023-10-02)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v0.3.1-pre.11)
-
-**Merged pull requests:**
-
-- Port changes from ADO repo to GitHub repo [\#46](https://github.com/microsoft/CoseSignTool/pull/46) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.3.1-pre.10](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.10) (2023-10-02)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.10)
-
-**Merged pull requests:**
-
+- Correct folder mapping, update Nuget packages, fix for ADO compatibility [\#51](https://github.com/microsoft/CoseSignTool/pull/51) ([lemccomb](https://github.com/lemccomb))
 - Port CoseHandler to .NET Standard 2.0 [\#48](https://github.com/microsoft/CoseSignTool/pull/48) ([lemccomb](https://github.com/lemccomb))
-
-## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.2)
+- implement detached signature factory, tests and helper extension methods. [\#47](https://github.com/microsoft/CoseSignTool/pull/47) ([JeromySt](https://github.com/JeromySt))
+- Port changes from ADO repo to GitHub repo [\#46](https://github.com/microsoft/CoseSignTool/pull/46) ([lemccomb](https://github.com/lemccomb))
+- Re-enable CodeQL [\#45](https://github.com/microsoft/CoseSignTool/pull/45) ([lemccomb](https://github.com/lemccomb))
 
 ## [v0.3.1-pre.9](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.9) (2023-09-28)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.1-pre.9)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.9)
+
+## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.2)
 
 **Merged pull requests:**
 

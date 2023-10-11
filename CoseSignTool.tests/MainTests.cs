@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 namespace CoseSignUnitTests;
+
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using CST = CoseSignTool.CoseSignTool;
@@ -27,6 +29,9 @@ public class MainTests
     private static readonly string PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
     private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
+    private static readonly string CertPassword = Guid.NewGuid().ToString();
+
+
     private static string PayloadFile;
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
 
@@ -80,7 +85,7 @@ public class MainTests
     public void SignWithPasswordProtectedCertSuccess()
     {
         // sign detached with password protected cert
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "password" };
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert failed.");
     }
 

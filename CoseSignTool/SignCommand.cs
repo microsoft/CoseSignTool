@@ -18,6 +18,16 @@ public sealed class SignCommand : CoseCommand
         ["-PipeOutput"] = "PipeOutput",
         ["-po"] = "PipeOutput",
         ["-PfxCertificate"] = "PfxCertificate",
+        ["-Password"] = "Password",
+        ["-pw"] = "Password",
+        ["-Thumbprint"] = "Thumbprint",
+        ["-th"] = "Thumbprint",
+        ["-StoreName"] = "StoreName",
+        ["-sn"] = "StoreName",
+        ["-StoreLocation"] = "StoreLocation",
+        ["-sl"] = "StoreLocation",
+        ["-ContentType"] = "ContentType",
+        ["-cty"] = "ContentType",
         ["-pfx"] = "PfxCertificate",
         ["-Thumbprint"] = "Thumbprint",
         ["-th"] = "Thumbprint",
@@ -51,9 +61,14 @@ public sealed class SignCommand : CoseCommand
     public bool PipeOutput { get; set; }
 
     /// <summary>
-    /// Optional. Gets or set the path to a .pfx file containing the private key certificate to sign with.
+    /// Optional. Gets or sets the path to a .pfx file containing the private key certificate to sign with.
     /// </summary>
     public string? PfxCertificate { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the password for the .pfx file if it requires one.
+    /// </summary>
+    public string? Password { get; set; }
 
     /// <summary>
     /// Optional. Gets or sets the SHA1 thumbprint of a certificate in the Certificate Store to sign the file with.
@@ -111,7 +126,7 @@ public sealed class SignCommand : CoseCommand
         {
             cert = LoadCert();
         }
-        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException)
+        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
         {
             ExitCode exitCode = ex is CoseSign1CertificateException ? ExitCode.StoreCertificateNotFound : ExitCode.CertificateLoadFailure;
             return CoseSignTool.Fail(exitCode, ex);
@@ -166,6 +181,7 @@ public sealed class SignCommand : CoseCommand
         PipeOutput = GetOptionBool(provider, nameof (PipeOutput));
         Thumbprint = GetOptionString(provider, nameof(Thumbprint));
         PfxCertificate = GetOptionString(provider, nameof(PfxCertificate));
+        Password = GetOptionString(provider, nameof(Password));
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
@@ -179,15 +195,17 @@ public sealed class SignCommand : CoseCommand
     /// <returns>The certificate if found.</returns>
     /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Windows OS.</exception>
     /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
-    /// <exception cref="CryptographicException">The certificate was found but could not be loaded.</exception>
+    /// <exception cref="CryptographicException">The certificate was found but could not be loaded
+    /// -- OR --
+    /// The certificate required a password and the user did not supply one, or the user-supplied password was wrong.</exception>
     internal X509Certificate2 LoadCert()
     {
         X509Certificate2 cert;
         if (PfxCertificate is not null)
         {
-            // Load the PFX certificate.
+            // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
-            cert = new X509Certificate2(PfxCertificate);
+            cert = new X509Certificate2(PfxCertificate, Password);
         }
         else
         {
@@ -217,20 +235,26 @@ Options:
         Default value is [payload file].cose for detached signatures or [payload file].csm for embedded.
         Required if neither PayloadFile or PipeOutput are set.
 
+    A signing certificate as either:
+
+        PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
+
+        Password / pw: Optional. The password for the .pfx file if it has one.
+
+        --OR--
+
+        Thumbprint / th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
+            Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching
+            certificate.
+
+        StoreName / sn: Optional. The name of the local certificate store to find the signing certificate in.
+            Default value is 'My'.
+
+        StoreLocation / sl: Optional. The location of the local certificate store to find the signing certificate in.
+            Default value is 'CurrentUser'.
+
     PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
         to file.
-
-    PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
-    --OR--
-    Thumbprint / th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
-        Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching
-        certificate.
-
-    StoreName / sn: Optional. The name of the local certificate store to find the signing certificate in.
-        Default value is 'My'.
-
-    StoreLocation / sl: Optional. The location of the local certificate store to find the signing certificate in.
-        Default value is 'CurrentUser'.
 
     EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the in COSE signature file.
         Default behavior is 'detached signing', where the signature is in a separate file from the payload.

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 namespace CoseSignUnitTests;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using CST = CoseSignTool.CoseSignTool;
 
@@ -25,6 +26,7 @@ public class MainTests
     private static string PublicKeyIntermediateCertFile;
     private static string PublicKeyRootCertFile;
     private static string PrivateKeyCertFileChained;
+    private static string PrivateKeyCertFileChainedWithPassword;
     private static string PayloadFile;
 
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
@@ -46,6 +48,8 @@ public class MainTests
         File.WriteAllBytes(PublicKeyIntermediateCertFile, Int1Priv.Export(X509ContentType.Cert));
         PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
+        PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PrivateKeyCertFileChainedWithPassword, Leaf1Priv.Export(X509ContentType.Pkcs12, "password"));
     }
 
     [TestMethod]
@@ -55,27 +59,51 @@ public class MainTests
 
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChained };
-        CST.Main(args1).Should().Be(0, "Detach sign failed.");
+        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
 
         // sign embedded
         string[] args2 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", PayloadFile, @"/ep" };
-        CST.Main(args2).Should().Be(0, "Embed sign failed.");
+        CST.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign failed.");
 
         // validate detached
         string sigFile = PayloadFile + ".cose";
         string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", PayloadFile, "/rm", "NoCheck" };
-        CST.Main(args3).Should().Be(0, "Detach validation failed.");
+        CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
 
         // validate embedded
         sigFile = PayloadFile + ".csm";
         string[] args4 = { "validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck" };
-        CST.Main(args4).Should().Be(0, "Embed validation failed.");
+        CST.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation failed.");
 
         // get content
         string saveFile = PayloadFile + ".saved";
         string[] args5 = { "get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck" };
         CST.Main(args5).Should().Be(0, "Detach validation with save failed.");
         File.ReadAllText(PayloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
+    }
+
+    [TestMethod]
+    public void SignWithPasswordProtectedCertSuccess()
+    {
+        // sign detached with password protected cert
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "password" };
+        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert failed.");
+    }
+
+    [TestMethod]
+    public void SignWithPasswordProtectedCertNoPassword()
+    {
+        // sign detached with password protected cert
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword };
+        CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
+    }
+
+    [TestMethod]
+    public void SignWithPasswordProtectedCertWrongPassword()
+    {
+        // sign detached with password protected cert
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword" };
+        CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
     }
 
     [TestMethod]

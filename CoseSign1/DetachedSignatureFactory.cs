@@ -71,13 +71,29 @@ public sealed class DetachedSignatureFactory : IDisposable
     public CoseSign1Message CreateDetachedSignature(
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+        string contentType) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
                                             returnBytes: false,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
-                                            bytePayload: payload,
-                                            payloadHashed: payloadHashed);
+                                            bytePayload: payload);
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public CoseSign1Message CreateDetachedSignatureFromHash(
+        ReadOnlyMemory<byte> rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: false,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            bytePayload: rawHash,
+                                            payloadHashed: true);
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -90,14 +106,31 @@ public sealed class DetachedSignatureFactory : IDisposable
     public Task<CoseSign1Message> CreateDetachedSignatureAsync(
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => Task.FromResult(
-                                            (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
-                                                returnBytes: false,
-                                                signingKeyProvider: signingKeyProvider,
-                                                contentType: contentType,
-                                                bytePayload: payload,
-                                                payloadHashed: payloadHashed));
+        string contentType) => Task.FromResult(
+                                        (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: false,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            bytePayload: payload));
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public Task<CoseSign1Message> CreateDetachedSignatureFromHashAsync(
+        ReadOnlyMemory<byte> rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => Task.FromResult(
+                                        (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: false,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            bytePayload: rawHash,
+                                            payloadHashed: true));
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -110,13 +143,29 @@ public sealed class DetachedSignatureFactory : IDisposable
     public CoseSign1Message CreateDetachedSignature(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+        string contentType) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
                                             returnBytes: false,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
-                                            streamPayload: payload,
-                                            payloadHashed: payloadHashed);
+                                            streamPayload: payload);
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public CoseSign1Message CreateDetachedSignatureFromHash(
+        Stream rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: false,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            streamPayload: rawHash,
+                                            payloadHashed: true);
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -129,14 +178,31 @@ public sealed class DetachedSignatureFactory : IDisposable
     public Task<CoseSign1Message> CreateDetachedSignatureAsync(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => Task.FromResult(
-                                            (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
-                                                returnBytes: false,
-                                                signingKeyProvider: signingKeyProvider,
-                                                contentType: contentType,
-                                                streamPayload: payload,
-                                                payloadHashed: payloadHashed));
+        string contentType) => Task.FromResult(
+                                    (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                        returnBytes: false,
+                                        signingKeyProvider: signingKeyProvider,
+                                        contentType: contentType,
+                                        streamPayload: payload));
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public Task<CoseSign1Message> CreateDetachedSignatureFromHashAsync(
+        Stream rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => Task.FromResult(
+                                    (CoseSign1Message)CreateDetachedSignatureWithChecksInternal(
+                                        returnBytes: false,
+                                        signingKeyProvider: signingKeyProvider,
+                                        contentType: contentType,
+                                        streamPayload: rawHash,
+                                        payloadHashed: true));
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -149,13 +215,29 @@ public sealed class DetachedSignatureFactory : IDisposable
     public ReadOnlyMemory<byte> CreateDetachedSignatureBytes(
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+        string contentType) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
                                             returnBytes: true,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
-                                            bytePayload: payload,
-                                            payloadHashed: payloadHashed);
+                                            bytePayload: payload);
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public ReadOnlyMemory<byte> CreateDetachedSignatureBytesFromHash(
+        ReadOnlyMemory<byte> rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: true,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            bytePayload: rawHash,
+                                            payloadHashed: true);
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -168,14 +250,31 @@ public sealed class DetachedSignatureFactory : IDisposable
     public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesAsync(
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => Task.FromResult(
+        string contentType) => Task.FromResult(
                                             (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
                                                 returnBytes: true,
                                                 signingKeyProvider: signingKeyProvider,
                                                 contentType: contentType,
-                                                bytePayload: payload,
-                                                payloadHashed: payloadHashed));
+                                                bytePayload: payload));
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesFromHashAsync(
+        ReadOnlyMemory<byte> rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => Task.FromResult(
+                                            (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+                                                returnBytes: true,
+                                                signingKeyProvider: signingKeyProvider,
+                                                contentType: contentType,
+                                                bytePayload: rawHash,
+                                                payloadHashed: true));
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -188,13 +287,29 @@ public sealed class DetachedSignatureFactory : IDisposable
     public ReadOnlyMemory<byte> CreateDetachedSignatureBytes(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+        string contentType) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
                                             returnBytes: true,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
-                                            streamPayload: payload,
-                                            payloadHashed: payloadHashed);
+                                            streamPayload: payload);
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public ReadOnlyMemory<byte> CreateDetachedSignatureBytesFromHash(
+        Stream rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+                                            returnBytes: true,
+                                            signingKeyProvider: signingKeyProvider,
+                                            contentType: contentType,
+                                            streamPayload: rawHash,
+                                            payloadHashed: true);
 
     /// <summary>
     /// Creates a detached signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -207,14 +322,31 @@ public sealed class DetachedSignatureFactory : IDisposable
     public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesAsync(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool payloadHashed = false) => Task.FromResult(
-                                            (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
-                                                returnBytes: true,
-                                                signingKeyProvider: signingKeyProvider,
-                                                contentType: contentType,
-                                                streamPayload: payload,
-                                                payloadHashed: payloadHashed));
+        string contentType) => Task.FromResult(
+                                    (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+                                        returnBytes: true,
+                                        signingKeyProvider: signingKeyProvider,
+                                        contentType: contentType,
+                                        streamPayload: payload));
+
+    /// <summary>
+    /// Creates a detached signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
+    /// </summary>
+    /// <param name="rawHash">The raw hash of the payload</param>
+    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
+    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
+    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesFromHashAsync(
+        Stream rawHash,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType) => Task.FromResult(
+                                    (ReadOnlyMemory<byte>)CreateDetachedSignatureWithChecksInternal(
+                                        returnBytes: true,
+                                        signingKeyProvider: signingKeyProvider,
+                                        contentType: contentType,
+                                        streamPayload: rawHash,
+                                        payloadHashed: true));
 
     /// <summary>
     /// Does the heavy lifting for this class in computing the hash and creating the correct representation of the CoseSign1Message base on input.

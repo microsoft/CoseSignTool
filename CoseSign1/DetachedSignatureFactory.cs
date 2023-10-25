@@ -367,6 +367,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
     /// <exception cref="ArgumentException">payloadHashed is set, but hash size does not correspond to any known hash algorithms</exception>
     private object CreateDetachedSignatureWithChecksInternal(
         bool returnBytes,

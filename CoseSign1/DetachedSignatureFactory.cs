@@ -455,7 +455,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// Method which produces a mime type extension based on the given content type and hash algorithm name.
     /// </summary>
     /// <param name="contentType">The content type to append the hash value to if not already appended.</param>
-    /// <returns></returns>
+    /// <returns>A string representing the content type with an appended hash algorithm</returns>
     private string ExtendContentType(string contentType) => ExtendContentType(contentType, InternalHashAlgorithmName);
 
     /// <summary>

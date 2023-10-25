@@ -85,6 +85,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public CoseSign1Message CreateDetachedSignatureFromHash(
         ReadOnlyMemory<byte> rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -121,6 +122,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public Task<CoseSign1Message> CreateDetachedSignatureFromHashAsync(
         ReadOnlyMemory<byte> rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -157,6 +159,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public CoseSign1Message CreateDetachedSignatureFromHash(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -193,6 +196,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public Task<CoseSign1Message> CreateDetachedSignatureFromHashAsync(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -229,6 +233,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public ReadOnlyMemory<byte> CreateDetachedSignatureBytesFromHash(
         ReadOnlyMemory<byte> rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -265,6 +270,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesFromHashAsync(
         ReadOnlyMemory<byte> rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -301,6 +307,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public ReadOnlyMemory<byte> CreateDetachedSignatureBytesFromHash(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -337,6 +344,7 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a detached signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
     public Task<ReadOnlyMemory<byte>> CreateDetachedSignatureBytesFromHashAsync(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
@@ -356,8 +364,10 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// <param name="contentType">The user specified content type.</param>
     /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
     /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
+    /// <param name="payloadHashed">True if the payload represents the raw hash</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentException">payloadHashed is set, but hash size does not correspond to any known hash algorithms</exception>
     private object CreateDetachedSignatureWithChecksInternal(
         bool returnBytes,
         ICoseSigningKeyProvider signingKeyProvider,

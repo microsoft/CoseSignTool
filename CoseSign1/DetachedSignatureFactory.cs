@@ -392,7 +392,7 @@ public sealed class DetachedSignatureFactory : IDisposable
                                  : bytePayload!.Value.ToArray();
             try
             {
-                HashAlgorithmName algoName = SizeToAlgorithm[hash.Length];
+                HashAlgorithmName algoName = SizeInBytesToAlgorithm[hash.Length];
                 extendedContentType = ExtendContentType(contentType, algoName);
             }
             catch (KeyNotFoundException e)
@@ -416,9 +416,9 @@ public sealed class DetachedSignatureFactory : IDisposable
     }
 
     /// <summary>
-    /// quick lookup of algorithm name based on hash size
+    /// quick lookup of algorithm name based on size of raw hash in bytes
     /// </summary>
-    private static readonly ConcurrentDictionary<int, HashAlgorithmName> SizeToAlgorithm = new(
+    private static readonly ConcurrentDictionary<int, HashAlgorithmName> SizeInBytesToAlgorithm = new(
         new Dictionary<int, HashAlgorithmName>()
         {
             { 16, HashAlgorithmName.MD5 },
@@ -451,8 +451,9 @@ public sealed class DetachedSignatureFactory : IDisposable
     /// Method which produces a mime type extension based on the given content type and hash algorithm name.
     /// </summary>
     /// <param name="contentType">The content type to append the hash value to if not already appended.</param>
-    /// <returns></returns>
-    private string ExtendContentType(string contentType, HashAlgorithmName algorithmName)
+    /// <param name="algorithmName">The "HashAlgorithmName" to append if not already appended.</param>
+    /// <returns>A string representing the content type with an appended hash algorithm</returns>
+    private static string ExtendContentType(string contentType, HashAlgorithmName algorithmName)
     {
         // extract from the string cache to keep string allocations down.
         string extensionMapping = MimeExtensionMap.GetOrAdd(algorithmName.Name, (name) => $"+hash-{name.ToLowerInvariant()}");

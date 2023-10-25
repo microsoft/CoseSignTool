@@ -427,6 +427,7 @@ public sealed class DetachedSignatureFactory : IDisposable
 
     /// <summary>
     /// quick lookup of algorithm name based on size of raw hash in bytes
+    /// References: https://csrc.nist.gov/projects/hash-functions, https://en.wikipedia.org/wiki/Secure_Hash_Algorithms
     /// </summary>
     private static readonly ConcurrentDictionary<int, HashAlgorithmName> SizeInBytesToAlgorithm = new(
         new Dictionary<int, HashAlgorithmName>()

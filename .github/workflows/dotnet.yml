@@ -147,7 +147,7 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
-        CURRENT_TAG=${{ github.ref_name }}
+        CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
         echo "Current tag is $CURRENT_TAG"
         if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
           BASE_VERSION=${BASH_REMATCH[1]}

@@ -148,6 +148,7 @@ jobs:
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
         CURRENT_TAG=${{ github.ref_name }}
+        echo "Current tag is $CURRENT_TAG"
         if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
           BASE_VERSION=${BASH_REMATCH[1]}
           PRE_VERSION=${BASH_REMATCH[3]}

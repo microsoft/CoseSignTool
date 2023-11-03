@@ -25,8 +25,6 @@ jobs:
 
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
-  #
-  # TODO: Look into why the pull request page often loses track of the workflows once this completes.
   create_changelog:
     runs-on: ubuntu-latest
     steps:
@@ -134,15 +132,8 @@ jobs:
         git checkout main
 
     # Create a semantically versioned tag that increments the last release.
-    # - name: Create SemVer tag
-    #   if: ${{ github.event_name == 'push' }}
-    #   id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
-    #   uses: wakatime/semver-action@v1.6.0
-    #   with:
-    #     main_branch_name: "main"
-    #     debug: true
-
-    # Create a semantically versioned tag that increments the last release with github commands.
+    #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
+    #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
     - name: Increment pre-release tag
       if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
@@ -193,9 +184,6 @@ jobs:
           echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
           echo "Current release tag is ${{ github.event.release.tag_name }}."
         fi
-      # previous version
-          #echo "::set-output name=tag_name::${{ steps.semver-tag.outputs.semver_tag }}"
-          #echo "Generated semver tag is ${{ steps.semver-tag.outputs.semver_tag }}."
 
   #### RELEASE EVENTS ####
 

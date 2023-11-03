@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v0.3.1-pre.12](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.12) (2023-10-25)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0...HEAD)
 

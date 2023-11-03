@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.1-pre.12](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.12) (2023-10-25)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.11...v0.3.1-pre.12)
+
+**Merged pull requests:**
+
+- DetachedSignatureFactory accepts pre-hashed content as payload [\#53](https://github.com/microsoft/CoseSignTool/pull/53) ([elantiguamsft](https://github.com/elantiguamsft))
+
 ## [v0.3.1-pre.11](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.11) (2023-10-11)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0...v0.3.1-pre.11)

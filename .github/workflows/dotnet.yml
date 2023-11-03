@@ -134,13 +134,35 @@ jobs:
         git checkout main
 
     # Create a semantically versioned tag that increments the last release.
-    - name: Create SemVer tag
+    # - name: Create SemVer tag
+    #   if: ${{ github.event_name == 'push' }}
+    #   id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
+    #   uses: wakatime/semver-action@v1.6.0
+    #   with:
+    #     main_branch_name: "main"
+    #     debug: true
+
+    # Create a semantically versioned tag that increments the last release with github commands.
+    - name: Increment pre-release tag
       if: ${{ github.event_name == 'push' }}
-      id: semver-tag    # Output: ${{ steps.semver-tag.outputs.semver_tag }}
-      uses: wakatime/semver-action@v1.6.0
-      with:
-        main_branch_name: "main"
-        debug: true
+      id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
+      run: |
+        CURRENT_TAG=${{ github.ref_name }}
+        echo "Current tag is $CURRENT_TAG"
+        if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
+          BASE_VERSION=${BASH_REMATCH[1]}
+          PRE_VERSION=${BASH_REMATCH[3]}
+          if [ -z "$PRE_VERSION" ]; then
+            NEW_TAG="v$BASE_VERSION-pre1"
+          else
+            NEW_TAG="v$BASE_VERSION-pre$((PRE_VERSION + 1))"
+          fi
+          echo "New tag is $NEW_TAG"
+          echo "::set-output name=newtag::$NEW_TAG"
+        else
+          echo "Invalid tag format"
+          exit 1
+        fi
 
     # Create the release. This should generate a release event, which will trigger the release_assets job.
     - name: Create Release
@@ -151,8 +173,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         # Get the tag name and release name from the previous step.
-        tag_name: ${{ steps.semver-tag.outputs.semver_tag }}
-        release_name: Release ${{ steps.semver-tag.outputs.semver_tag }}
+        tag_name: ${{ steps.new-tag.outputs.newtag }}
+        release_name: Release ${{ steps.new-tag.outputs.newtag }}
 
         # Generate release text from changelog.
         body_path: ./CHANGELOG.md
@@ -165,12 +187,15 @@ jobs:
       id: output_tag_name
       run: |
         if [ "${{ github.event_name }}" == "push" ]; then
-          echo "::set-output name=tag_name::${{ steps.semver-tag.outputs.semver_tag }}"
-          echo "Generated semver tag is ${{ steps.semver-tag.outputs.semver_tag }}."
+          echo "::set-output name=tag_name::${{ steps.new-tag.outputs.newtag }}"
+          echo "Generated semver tag is ${{ steps.new-tag.outputs.newtag }}."
         else
           echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
           echo "Current release tag is ${{ github.event.release.tag_name }}."
         fi
+      # previous version
+          #echo "::set-output name=tag_name::${{ steps.semver-tag.outputs.semver_tag }}"
+          #echo "Generated semver tag is ${{ steps.semver-tag.outputs.semver_tag }}."
 
   #### RELEASE EVENTS ####
 

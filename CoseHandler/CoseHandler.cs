@@ -585,20 +585,41 @@ public static class CoseHandler
         bool messageVerified = false;
         try
         {
-            if (!payloadBytes.IsNullOrEmpty())
-            {
-                // Detached payload received as byte array
-                messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
-            }
-            else if (payloadStream is not null)
-            {
-                // Detached payload received as a stream
-                messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+            // If there is nothing in the content header, this should be treated as a detached signature 
+            if (msg.Content is null) {
+                if (!payloadBytes.IsNullOrEmpty())
+                {
+                    // Detached payload received as byte array
+                    messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
+                }
+                else if (payloadStream is not null)
+                {
+                    // Detached payload received as a stream
+                    messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                }
             }
             else
             {
                 // Embedded payload
                 messageVerified = msg.VerifyEmbedded(publicKey);
+
+                // If the embedded content represents the hash of the file (i.e. IsDetachedSignature() is true),
+                // then we also need to make sure that the actual payload hash matches the content in the embedded message
+                if (messageVerified && msg.IsDetachedSignature())
+                {
+                    if (!payloadBytes.IsNullOrEmpty())
+                    {
+                        messageVerified = msg.SignatureMatches(payloadBytes);
+                    }
+                    else if (payloadStream is not null)
+                    {
+                        messageVerified = msg.SignatureMatches(payloadStream);
+                    }
+                    else
+                    {
+                        messageVerified = false;
+                    }
+                }
             }
 
             if (!messageVerified)

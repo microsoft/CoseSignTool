@@ -4,19 +4,19 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	<LangVersion>latest</LangVersion>
+    <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
-	<IsPublishable>false</IsPublishable>
+    <IsPublishable>false</IsPublishable>
     <IsTestProject>true</IsTestProject>
-	<SignAssembly>True</SignAssembly>
-	<DelaySign>True</DelaySign>
-	<Nullable>enable</Nullable>
-	<AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <Nullable>enable</Nullable>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
     <ItemGroup>
-	    <!-- Because this is a test project, don't run code coverage -->
-	    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+        <!-- Because this is a test project, don't run code coverage -->
+        <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
     </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>CoseDetachedSignature</id>
+    <version>$VersionNgt$</version>
+    <authors>Microsoft</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+Abstractions and classes required to manage detached signatures via COSE Sign1 message envelopes in a way that is compatible with Azure Code Transparency Services.
+    </description>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="CoseSign1" version="$VersionNgt$" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\CoseDetachedSignature.dll" target="lib\netstandard2.0" />
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\CoseDetachedSignature.pdb" target="Build\symbols" />
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.cat" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\bsi.json" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseDetachedSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />
+  </files>
+</package>

@@ -34,7 +34,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		CHANGELOG.md = CHANGELOG.md
 		docs\CODE_OF_CONDUCT.md = docs\CODE_OF_CONDUCT.md
 		docs\CONTRIBUTING.md = docs\CONTRIBUTING.md
+		CoseDetachedSignature.md = CoseDetachedSignature.md
 		docs\CoseHandler.md = docs\CoseHandler.md
+		CoseSign1.Abstractions.md = CoseSign1.Abstractions.md
+		CoseSign1.Certificates.md = CoseSign1.Certificates.md
+		CoseSign1.md = CoseSign1.md
 		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\SECURITY.md = docs\SECURITY.md
 		docs\STYLE.md = docs\STYLE.md
@@ -55,6 +59,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AF
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseDetachedSignature.Tests", "CoseDetachedSIgnature.Tests\CoseDetachedSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{2E02B2A3-69D1-4460-9329-91540D7B56B5}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\codeql.yml = .github\workflows\codeql.yml
+		.github\workflows\dependency-review.yml = .github\workflows\dependency-review.yml
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		.github\workflows\OpenPR.yml = .github\workflows\OpenPR.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -167,6 +179,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{36BAA2CE-AE8E-4E29-9234-8EB1953802CD} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 		{97AFB857-361D-4B32-856A-6190A6D1066C} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
+		{2E02B2A3-69D1-4460-9329-91540D7B56B5} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A47A7E7-CC2B-48CE-9D97-3629EF8AC140}

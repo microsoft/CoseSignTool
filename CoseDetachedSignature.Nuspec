@@ -6,7 +6,7 @@
     <authors>Microsoft</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-Abstractions and classes required to manage detached signatures via COSE Sign1 message envelopes in a way that is compatible with Azure Code Transparency Services.
+Abstractions and classes required to manage detached signatures via COSE Sign1 message envelopes in a way that is compatible with Supply Chain Integrity Transparency and Trust (SCITT).
     </description>
     <dependencies>
       <group targetFramework=".NETStandard2.0">

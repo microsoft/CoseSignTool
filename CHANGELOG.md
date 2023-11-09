@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0...HEAD)
+
+**Merged pull requests:**
+
+- Update dotnet.yml [\#55](https://github.com/microsoft/CoseSignTool/pull/55) ([lemccomb](https://github.com/lemccomb))
+- Replace semver action with manual steps [\#54](https://github.com/microsoft/CoseSignTool/pull/54) ([lemccomb](https://github.com/lemccomb))
+- DetachedSignatureFactory accepts pre-hashed content as payload [\#53](https://github.com/microsoft/CoseSignTool/pull/53) ([elantiguamsft](https://github.com/elantiguamsft))
+- Add password support for certificate files [\#52](https://github.com/microsoft/CoseSignTool/pull/52) ([lemccomb](https://github.com/lemccomb))
+
 ## [v1.1.0](https://github.com/microsoft/CoseSignTool/tree/v1.1.0) (2023-10-10)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v1.1.0)

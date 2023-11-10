@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <NuspecFile>../CoseSign1.Nuspec/CoseSign1.Abstractions.nuspec</NuspecFile>
+    <NuspecFile>../Nuspec/CoseSign1.Abstractions.nuspec</NuspecFile>
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>

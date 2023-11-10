@@ -34,7 +34,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		CHANGELOG.md = CHANGELOG.md
 		docs\CODE_OF_CONDUCT.md = docs\CODE_OF_CONDUCT.md
 		docs\CONTRIBUTING.md = docs\CONTRIBUTING.md
+		CoseDetachedSignature.md = CoseDetachedSignature.md
 		docs\CoseHandler.md = docs\CoseHandler.md
+		CoseSign1.Abstractions.md = CoseSign1.Abstractions.md
+		CoseSign1.Certificates.md = CoseSign1.Certificates.md
+		CoseSign1.md = CoseSign1.md
 		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\SECURITY.md = docs\SECURITY.md
 		docs\STYLE.md = docs\STYLE.md
@@ -42,7 +46,27 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		docs\Troubleshooting.md = docs\Troubleshooting.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseHandler.Tests", "CoseHandler.Tests\CoseHandler.Tests.csproj", "{DD155201-7EDA-4979-9E6D-768EB655C8A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler.Tests", "CoseHandler.Tests\CoseHandler.Tests.csproj", "{DD155201-7EDA-4979-9E6D-768EB655C8A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseDetachedSignature", "CoseDetachedSignature\CoseDetachedSignature.csproj", "{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
+	ProjectSection(SolutionItems) = preProject
+		CoseDetachedSignature.Nuspec = CoseDetachedSignature.Nuspec
+		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
+		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
+		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseDetachedSignature.Tests", "CoseDetachedSIgnature.Tests\CoseDetachedSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{2E02B2A3-69D1-4460-9329-91540D7B56B5}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\codeql.yml = .github\workflows\codeql.yml
+		.github\workflows\dependency-review.yml = .github\workflows\dependency-review.yml
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		.github\workflows\OpenPR.yml = .github\workflows\OpenPR.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -132,12 +156,30 @@ Global
 		{DD155201-7EDA-4979-9E6D-768EB655C8A8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DD155201-7EDA-4979-9E6D-768EB655C8A8}.Release|x64.ActiveCfg = Release|Any CPU
 		{DD155201-7EDA-4979-9E6D-768EB655C8A8}.Release|x64.Build.0 = Release|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Debug|x64.Build.0 = Debug|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Release|x64.ActiveCfg = Release|Any CPU
+		{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}.Release|x64.Build.0 = Release|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Debug|x64.Build.0 = Debug|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|x64.ActiveCfg = Release|Any CPU
+		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{36BAA2CE-AE8E-4E29-9234-8EB1953802CD} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
+		{97AFB857-361D-4B32-856A-6190A6D1066C} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
+		{2E02B2A3-69D1-4460-9329-91540D7B56B5} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A47A7E7-CC2B-48CE-9D97-3629EF8AC140}

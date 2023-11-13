@@ -48,17 +48,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler.Tests", "CoseHandler.Tests\CoseHandler.Tests.csproj", "{DD155201-7EDA-4979-9E6D-768EB655C8A8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseDetachedSignature", "CoseDetachedSignature\CoseDetachedSignature.csproj", "{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseDetachedSignature", "CoseDetachedSignature\CoseDetachedSignature.csproj", "{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
 	ProjectSection(SolutionItems) = preProject
-		CoseDetachedSignature.Nuspec = CoseDetachedSignature.Nuspec
+		Nuspec\CoseDetachedSignature.nuspec = Nuspec\CoseDetachedSignature.nuspec
 		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
 		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
 		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseDetachedSignature.Tests", "CoseDetachedSIgnature.Tests\CoseDetachedSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseDetachedSignature.Tests", "CoseDetachedSIgnature.Tests\CoseDetachedSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{2E02B2A3-69D1-4460-9329-91540D7B56B5}"
 	ProjectSection(SolutionItems) = preProject

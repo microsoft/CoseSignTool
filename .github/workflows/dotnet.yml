@@ -134,8 +134,9 @@ jobs:
           fi
           echo "New tag is $NEW_TAG"
           echo "Let's make sure this tag doesn't already exist..."
-          while i < 5; do
-            i=0
+          i=0
+          
+          while $i -lt 5 ; do
             RESPONSE=$(curl -sl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
             echo "$RESPONSE" | jq -r '.message'
             if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then
@@ -145,7 +146,7 @@ jobs:
               echo "Oops! That tag_TAG already exists!"
               NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
               echo "Let's try $NEW_TAG"
-              i++
+              ((i++))
             fi
           done
 
@@ -158,6 +159,8 @@ jobs:
           echo "Invalid tag format"
           exit 1
         fi
+
+# while [ $i -lt 5 ] && [ "$(echo "$RESPONSE" | jq -r '.message')" != "Not Found" ]; ; do
 
   #### PUSH EVENTS ####
 

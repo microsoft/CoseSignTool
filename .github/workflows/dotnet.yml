@@ -149,6 +149,23 @@ jobs:
             NEW_TAG="v$BASE_VERSION-pre$((PRE_VERSION + 1))"
           fi
           echo "New tag is $NEW_TAG"
+          echo "Let's make sure this tag doesn't already exist..."
+          while true; do
+            RESPONSE=$(curl -sl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
+            if [[ $RESPONSE == *"Not Found"* ]]; then
+              echo "Tag not found. We're good to go."
+              break
+            else
+              echo "Oops! That tag_TAG already exists!"
+              NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
+              echo "Let's try $NEW_TAG"
+            fi
+          done
+
+          # if git rev-parse $NEW_TAG >/dev/null 2>&1; then
+          #   echo "Tag already exists. Exiting."
+          #   exit 1
+          # fi
           echo "::set-output name=newtag::$NEW_TAG"
         else
           echo "Invalid tag format"

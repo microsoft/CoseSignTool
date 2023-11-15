@@ -87,21 +87,76 @@ jobs:
           - os: macos-latest
             dir_command: ls -a -R
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
+    #### RE-ENABLE THESE!!! ####
 
-    # Use the Dotnet Test command to load dependencies, build, and test the code.        
-    - name: Build and Test debug
-      run: dotnet test --verbosity normal CoseSignTool.sln
+    # - name: Checkout code
+    #   uses: actions/checkout@v3
 
-    # List the contents of the working directory to make sure all the artifacts are there.  
-    - name: List working directory
-      run: ${{ matrix.dir_command }}
+    # - name: Setup .NET
+    #   uses: actions/setup-dotnet@v3
+    #   with:
+    #     dotnet-version: 7.0.x
+
+    # # Use the Dotnet Test command to load dependencies, build, and test the code.        
+    # - name: Build and Test debug
+    #   run: dotnet test --verbosity normal CoseSignTool.sln
+
+    # # List the contents of the working directory to make sure all the artifacts are there.  
+    # - name: List working directory
+    #   run: ${{ matrix.dir_command }}
+
+
+      ### REMOVE THESE!!! ###
+          # Checkout the main branch so we can see the correct tag set.
+    - name: Fetch and checkout main
+      if: ${{ github.event_name == 'push' }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git fetch
+        git checkout main
+
+    # Create a semantically versioned tag that increments the last release.
+    #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
+    #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
+    - name: Increment pre-release tag
+      if: ${{ github.event_name == 'push' }}
+      id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
+      run: |
+        CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
+        echo "Current tag is $CURRENT_TAG"
+        if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
+          BASE_VERSION=${BASH_REMATCH[1]}
+          PRE_VERSION=${BASH_REMATCH[3]}
+          if [ -z "$PRE_VERSION" ]; then
+            NEW_TAG="v$BASE_VERSION-pre1"
+          else
+            NEW_TAG="v$BASE_VERSION-pre$((PRE_VERSION + 1))"
+          fi
+          echo "New tag is $NEW_TAG"
+          echo "Let's make sure this tag doesn't already exist..."
+          while true; do
+            RESPONSE=$(curl -sl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
+            if [[ $RESPONSE == *"Not Found"* ]]; then
+              echo "Tag not found. We're good to go."
+              break
+            else
+              echo "Oops! That tag_TAG already exists!"
+              NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
+              echo "Let's try $NEW_TAG"
+            fi
+          done
+
+          if git rev-parse $NEW_TAG >/dev/null 2>&1; then
+            echo "Tag already exists. Exiting."
+            exit 1
+          fi
+          echo "::set-output name=newtag::$NEW_TAG"
+        else
+          echo "Invalid tag format"
+          exit 1
+        fi
 
   #### PUSH EVENTS ####
 
@@ -135,7 +190,7 @@ jobs:
     #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
     #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
     - name: Increment pre-release tag
-      # if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
         CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)

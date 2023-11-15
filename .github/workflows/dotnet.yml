@@ -155,7 +155,7 @@ jobs:
               echo "Oops! That tag already exists!"
               NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
               echo "Let's try $NEW_TAG"
-              ((tries++))
+              tries=$((tries+1))
             fi
           done
 

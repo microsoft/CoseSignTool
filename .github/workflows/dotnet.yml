@@ -110,7 +110,6 @@ jobs:
       ### REMOVE THESE!!! ###
           # Checkout the main branch so we can see the correct tag set.
     - name: Fetch and checkout main
-      if: ${{ github.event_name == 'push' }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -121,7 +120,6 @@ jobs:
     #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
     #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
     - name: Increment pre-release tag
-      if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
         CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)

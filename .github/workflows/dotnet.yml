@@ -149,6 +149,28 @@ jobs:
             NEW_TAG="v$BASE_VERSION-pre$((PRE_VERSION + 1))"
           fi
           echo "New tag is $NEW_TAG"
+
+          echo "Let's make sure this tag doesn't already exist..."
+          tries=0
+          maxTries=5
+          while true; do
+            echo "This is try $tries"
+            RESPONSE=$(curl -sl https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
+            if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then
+              echo "Tag not found. We're good to go."
+              break
+            else
+              if [ $tries -ge $maxTries ]; then
+                echo "Max tries reached. Exiting."
+                exit 1
+              fi
+              echo "Oops! That tag already exists!"
+              NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
+              echo "Let's try $NEW_TAG"
+              tries=$((tries+1))
+            fi
+          done
+
           echo "::set-output name=newtag::$NEW_TAG"
         else
           echo "Invalid tag format"

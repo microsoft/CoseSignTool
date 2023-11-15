@@ -90,8 +90,8 @@ jobs:
 
     #### RE-ENABLE THESE!!! ####
 
-    # - name: Checkout code
-    #   uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     # - name: Setup .NET
     #   uses: actions/setup-dotnet@v3

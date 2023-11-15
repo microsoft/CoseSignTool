@@ -138,7 +138,7 @@ jobs:
           NEW_TAG="v1.1.0-pre1"
           i=0
 
-          while i -lt 5 ; do
+          while [$i -lt 5] ; do
             echo "i is $i"
             RESPONSE=$(curl -sl https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
             echo "$RESPONSE" | jq -r '.message'
@@ -149,14 +149,10 @@ jobs:
               echo "Oops! That tag_TAG already exists!"
               NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
               echo "Let's try $NEW_TAG"
-              i=$((i+1))
+              ((i++))
             fi
           done
 
-          if git rev-parse $NEW_TAG >/dev/null 2>&1; then
-            echo "Tag already exists. Exiting."
-            exit 1
-          fi
           echo "::set-output name=newtag::$NEW_TAG"
         else
           echo "Invalid tag format"

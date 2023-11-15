@@ -1,11 +1,12 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v1.1.0-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre3) (2023-11-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre2...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre2...v1.1.0-pre3)
 
 **Merged pull requests:**
 
+- Make sure new version number not already in use [\#60](https://github.com/microsoft/CoseSignTool/pull/60) ([lemccomb](https://github.com/lemccomb))
 - fix nuspec location [\#59](https://github.com/microsoft/CoseSignTool/pull/59) ([JeromySt](https://github.com/JeromySt))
 
 ## [v1.1.0-pre2](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre2) (2023-11-10)

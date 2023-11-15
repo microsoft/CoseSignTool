@@ -135,7 +135,7 @@ jobs:
     #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
     #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
     - name: Increment pre-release tag
-      if: ${{ github.event_name == 'push' }}
+      # if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
         CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
@@ -162,10 +162,10 @@ jobs:
             fi
           done
 
-          # if git rev-parse $NEW_TAG >/dev/null 2>&1; then
-          #   echo "Tag already exists. Exiting."
-          #   exit 1
-          # fi
+          if git rev-parse $NEW_TAG >/dev/null 2>&1; then
+            echo "Tag already exists. Exiting."
+            exit 1
+          fi
           echo "::set-output name=newtag::$NEW_TAG"
         else
           echo "Invalid tag format"

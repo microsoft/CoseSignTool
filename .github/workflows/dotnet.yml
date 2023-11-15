@@ -140,7 +140,7 @@ jobs:
           maxTries=5
 
           while true ; do
-            echo "i is $i"
+            echo "This is try $tries"
             RESPONSE=$(curl -sl https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
             echo "$RESPONSE" | jq -r '.message'
             if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then

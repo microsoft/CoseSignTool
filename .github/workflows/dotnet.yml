@@ -137,8 +137,8 @@ jobs:
           while i < 5; do
             i=0
             RESPONSE=$(curl -sl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
-            echo "RESPONSE: $RESPONSE"
-            if [[ $RESPONSE == *"Not Found"* ]]; then
+            echo "$RESPONSE" | jq -r '.message'
+            if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then
               echo "Tag not found. We're good to go."
               break
             else

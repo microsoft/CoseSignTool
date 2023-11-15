@@ -124,7 +124,7 @@ jobs:
       run: |
         CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
         echo "Current tag is $CURRENT_TAG"
-        if ([[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]); then
+        if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
           BASE_VERSION=${BASH_REMATCH[1]}
           PRE_VERSION=${BASH_REMATCH[3]}
           if [ -z "$PRE_VERSION" ]; then
@@ -134,9 +134,8 @@ jobs:
           fi
           echo "New tag is $NEW_TAG"
           echo "Let's make sure this tag doesn't already exist..."
-          i=0
           
-          while $i -lt 5 ; do
+          while true ; do
             RESPONSE=$(curl -sl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
             echo "$RESPONSE" | jq -r '.message'
             if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then
@@ -146,7 +145,6 @@ jobs:
               echo "Oops! That tag_TAG already exists!"
               NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
               echo "Let's try $NEW_TAG"
-              ((i++))
             fi
           done
 

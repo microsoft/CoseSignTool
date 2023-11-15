@@ -135,7 +135,7 @@ jobs:
           echo "New tag is $NEW_TAG"
           echo "Let's make sure this tag doesn't already exist..."
           
-          NEW_TAG="v1.1.0-pre1""
+          NEW_TAG="v1.1.0-pre1"
           i=0
 
           while i -lt 5 ; do

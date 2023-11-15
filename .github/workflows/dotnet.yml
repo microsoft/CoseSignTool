@@ -136,9 +136,10 @@ jobs:
           echo "Let's make sure this tag doesn't already exist..."
           
           NEW_TAG="v1.1.0-pre1"
-          i=0
+          tries=0
+          maxTries=5
 
-          while [$i -lt 5] ; do
+          while true ; do
             echo "i is $i"
             RESPONSE=$(curl -sl https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
             echo "$RESPONSE" | jq -r '.message'
@@ -146,10 +147,13 @@ jobs:
               echo "Tag not found. We're good to go."
               break
             else
+              if [ $tries -ge $maxTries ]; then
+                echo "Max tries reached. Exiting."
+                exit 1
+              fi
               echo "Oops! That tag_TAG already exists!"
               NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
               echo "Let's try $NEW_TAG"
-              ((i++))
             fi
           done
 

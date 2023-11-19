@@ -11,7 +11,5 @@ permissions:
 jobs:
   assign-author:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/dotnet/sdk:8.0
     steps:
       - uses: toshimaru/auto-author-assign@v1.6.2

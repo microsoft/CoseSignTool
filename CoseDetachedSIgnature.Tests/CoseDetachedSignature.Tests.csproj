@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsPublishable>false</IsPublishable>
@@ -22,7 +22,7 @@
   <ItemGroup>
       <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
       <PackageReference Include="FluentAssertions" Version="6.12.0" />
-      <PackageReference Include="Moq" Version="[4.18.4]"/>
+      <PackageReference Include="Moq" Version="[4.18.4]" />
       <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
       <PackageReference Include="NUnit" Version="3.13.3" />
       <PackageReference Include="NUnit3TestAdapter" Version="4.3.0" />

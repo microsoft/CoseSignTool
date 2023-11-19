@@ -3,11 +3,10 @@
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
     <IsTestProject>true</IsTestProject>
     <TargetFramework>net7.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <IsPublishable>false</IsPublishable>
     <LangVersion>latest</LangVersion>
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>

@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsPublishable>false</IsPublishable>
+		<IsTestProject>true</IsTestProject>
         <LangVersion>latest</LangVersion>
         <SignAssembly>True</SignAssembly>
         <DelaySign>True</DelaySign>

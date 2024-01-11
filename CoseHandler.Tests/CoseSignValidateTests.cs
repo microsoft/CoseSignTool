@@ -268,13 +268,26 @@ public class CoseHandlerSignValidateTests
     }
 
     /// <summary>
-    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// Validate that signing with an untrusted cert causes validation to fail
     /// </summary>
     [TestMethod]
     public void Untrusted()
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
+        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
+            .Success.Should().Be(false);
+    }
+
+    /// <summary>
+    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// </summary>
+    [TestMethod]
+    public void UntrustedAllowed()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        signedBytes.ToArray().Should().NotBeNull();
+        X509ChainTrustValidator chainValidator = new(allowUntrusted: true);
         CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
             .Success.Should().Be(false);
     }

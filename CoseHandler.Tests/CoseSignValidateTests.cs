@@ -287,9 +287,9 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
-        X509ChainTrustValidator chainValidator = new(allowUntrusted: true);
-        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
-            .Success.Should().Be(false);
+        X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
+        CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes)
+            .Success.Should().Be(true);
     }
     #endregion
 

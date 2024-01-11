@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.1.0-pre4](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre4) (2023-11-15)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre3...v1.1.0-pre4)
+
+**Merged pull requests:**
+
+- update moq dependency to 4.18.4 [\#61](https://github.com/microsoft/CoseSignTool/pull/61) ([JeromySt](https://github.com/JeromySt))
+
 ## [v1.1.0-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre3) (2023-11-15)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre2...v1.1.0-pre3)
@@ -35,7 +43,7 @@
 
 ## [v0.3.1-pre.10](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.10) (2023-10-10)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.10)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.1-pre.10)
 
 **Merged pull requests:**
 
@@ -45,13 +53,13 @@
 - Port changes from ADO repo to GitHub repo [\#46](https://github.com/microsoft/CoseSignTool/pull/46) ([lemccomb](https://github.com/lemccomb))
 - Re-enable CodeQL [\#45](https://github.com/microsoft/CoseSignTool/pull/45) ([lemccomb](https://github.com/lemccomb))
 
-## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.2)
-
 ## [v0.3.1-pre.9](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.9) (2023-09-28)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.1-pre.9)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.9)
+
+## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.2)
 
 **Merged pull requests:**
 

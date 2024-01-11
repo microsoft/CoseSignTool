@@ -133,7 +133,7 @@ public class ValidateCommand : CoseCommand
             Console.Error.WriteLine(result.ToString());
 
             return result.Success ? ExitCode.Success
-                : result.Errors?.Count > 0 ? ErrorMap[result.Errors.FirstOrDefault().ErrorCode]
+                : result.Errors?.Count > 0 || result.Errors is not null ? ErrorMap[result.Errors.FirstOrDefault().ErrorCode]
                 : ExitCode.UnknownError;
         }
         catch (ArgumentException ex)

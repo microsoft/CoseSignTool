@@ -263,7 +263,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert);
         signedBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode);
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, new List<X509Certificate2> { SelfSignedCert }, RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -276,7 +276,7 @@ public class CoseHandlerSignValidateTests
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
         CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
-            .Success.Should().Be(true);
+            .Success.Should().Be(false);
     }
     #endregion
 

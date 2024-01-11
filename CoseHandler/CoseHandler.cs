@@ -561,7 +561,8 @@ public static class CoseHandler
         // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
         if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
         {
-            return new ValidationResult(false, null, certValidationResults);
+            errorCodes.Add(ValidationFailureCode.CertificateChainInvalid);
+            return new ValidationResult(false, errorCodes, certValidationResults);
         }
 
         // Get the signing certificate
@@ -699,7 +700,7 @@ public static class CoseHandler
                 roots,
                 revocationMode,
                 allowUnprotected: true,
-                allowUntrusted: true);
+                allowUntrusted: false);
 
         // If validating CommonName, we'll do that first, and set it to call for chain trust validation when it finishes.
         if (!string.IsNullOrWhiteSpace(requiredCommonName))

@@ -46,5 +46,6 @@ public readonly struct CoseValidationError
         { ValidationFailureCode.PayloadUnreadable, "The payload content could not be read."},
         { ValidationFailureCode.RedundantPayload, "The embedded signature was not validated because external payload was also specified."},
         { ValidationFailureCode.CoseHeadersInvalid, "The COSE headers in the signature could not be read." },
+        { ValidationFailureCode.Unknown, "An unknown error was thrown." }
     };
 }

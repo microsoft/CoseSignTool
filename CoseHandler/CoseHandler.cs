@@ -692,15 +692,15 @@ public static class CoseHandler
     internal static CoseSign1MessageValidator GetValidator(
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null
-        )
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
     {
         // Create a validator for the certificate trust chain.
         CoseSign1MessageValidator chainTrustValidator = new X509ChainTrustValidator(
                 roots,
                 revocationMode,
                 allowUnprotected: true,
-                allowUntrusted: false);
+                allowUntrusted: allowUntrusted);
 
         // If validating CommonName, we'll do that first, and set it to call for chain trust validation when it finishes.
         if (!string.IsNullOrWhiteSpace(requiredCommonName))

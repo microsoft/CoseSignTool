@@ -288,8 +288,13 @@ public class CoseHandlerSignValidateTests
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
         X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
-        CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes)
-            .Success.Should().Be(true);
+        var result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
+        result.Success.Should().Be(true);
+        result.InnerResults.Count.Should().Be(1);
+        result.InnerResults[0].PassedValidation.Should().BeTrue();
+        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
+
+        Console.WriteLine(result);
     }
     #endregion
 

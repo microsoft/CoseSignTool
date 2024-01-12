@@ -83,11 +83,11 @@ public class ValidateCommandTests
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        string coseFile = PayloadFile + ".cose";
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open), new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
+        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
@@ -102,11 +102,11 @@ public class ValidateCommandTests
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        string coseFile = PayloadFile + ".cose";
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open), new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
+        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
         result.Success.Should().BeTrue();
         result.InnerResults.Should().ContainSingle();
         result.InnerResults[0].PassedValidation.Should().BeTrue();

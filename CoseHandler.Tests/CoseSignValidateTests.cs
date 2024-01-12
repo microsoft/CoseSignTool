@@ -293,8 +293,6 @@ public class CoseHandlerSignValidateTests
         result.InnerResults.Count.Should().Be(1);
         result.InnerResults[0].PassedValidation.Should().BeTrue();
         result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
-
-        Console.WriteLine(result);
     }
     #endregion
 

@@ -4,6 +4,7 @@
 namespace CoseSignUnitTests;
 
 using System;
+using CoseX509;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using CST = CoseSignTool.CoseSignTool;
@@ -51,16 +52,64 @@ public class ValidateCommandTests
         File.WriteAllBytes(PrivateKeyCertFileChainedWithPassword, Leaf1Priv.Export(X509ContentType.Pkcs12, CertPassword));
     }
 
-    // Validates that signatures made from untrusted chains are rejected
+    /// <summary>
+    /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
+    /// </summary>
     [TestMethod]
-    public void ValidateTrustTest()
+    public void ValidateSucceedsWithRootPassedIn()
     {
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChained };
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string coseFile = PayloadFile + ".cose";
 
-        // validate without the root cert installed or passed in
-        string[] args2 = { "validate", @"/payload", PayloadFile, @"/sf", PayloadFile + ".cose" };
-        CST.Main(args2).Should().Be((int)ExitCode.CertificateChainValidationFailure);
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open),
+                                                     new FileInfo(PayloadFile),
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Validates that signatures made from untrusted chains are rejected
+    /// </summary>
+    [TestMethod]
+    public void ValidateFailsWithUntrustedRoot()
+    {
+        // sign detached
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string coseFile = PayloadFile + ".cose";
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open), new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle();
+        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.CertificateChainInvalid);
+    }
+
+    /// <summary>
+    /// Validates that signatures made from untrusted chains are accepted when AllowUntrusted is set
+    /// </summary>
+    [TestMethod]
+    public void ValidateSucceedsWithAllowUntrustedRoot()
+    {
+        // sign detached
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string coseFile = PayloadFile + ".cose";
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open), new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
+        result.Success.Should().BeTrue();
+        result.InnerResults.Should().ContainSingle();
+        result.InnerResults[0].PassedValidation.Should().BeTrue();
+        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
     }
 }

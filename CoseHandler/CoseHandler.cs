@@ -323,8 +323,9 @@ public static class CoseHandler
         byte[]? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -339,8 +340,9 @@ public static class CoseHandler
         Stream payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -355,8 +357,9 @@ public static class CoseHandler
         byte[]? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a COSE signature file.
@@ -371,10 +374,11 @@ public static class CoseHandler
         FileInfo? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
         => Validate(
             File.ReadAllBytes(signature.FullName),
-            GetValidator(roots, revocationMode, requiredCommonName),
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted),
             payload?.OpenRead());
 
     /// <summary>
@@ -390,8 +394,9 @@ public static class CoseHandler
         Stream? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in  memory.

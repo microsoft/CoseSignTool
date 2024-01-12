@@ -323,8 +323,9 @@ public static class CoseHandler
         byte[]? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -339,8 +340,9 @@ public static class CoseHandler
         Stream payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -355,8 +357,9 @@ public static class CoseHandler
         byte[]? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a COSE signature file.
@@ -371,10 +374,11 @@ public static class CoseHandler
         FileInfo? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
         => Validate(
             File.ReadAllBytes(signature.FullName),
-            GetValidator(roots, revocationMode, requiredCommonName),
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted),
             payload?.OpenRead());
 
     /// <summary>
@@ -390,8 +394,9 @@ public static class CoseHandler
         Stream? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName), payload);
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in  memory.
@@ -561,7 +566,8 @@ public static class CoseHandler
         // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
         if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
         {
-            return new ValidationResult(false, null, certValidationResults);
+            errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
+            return new ValidationResult(false, errorCodes, certValidationResults);
         }
 
         // Get the signing certificate
@@ -691,15 +697,15 @@ public static class CoseHandler
     internal static CoseSign1MessageValidator GetValidator(
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null
-        )
+        string? requiredCommonName = null,
+        bool allowUntrusted = false)
     {
         // Create a validator for the certificate trust chain.
         CoseSign1MessageValidator chainTrustValidator = new X509ChainTrustValidator(
                 roots,
                 revocationMode,
                 allowUnprotected: true,
-                allowUntrusted: true);
+                allowUntrusted: allowUntrusted);
 
         // If validating CommonName, we'll do that first, and set it to call for chain trust validation when it finishes.
         if (!string.IsNullOrWhiteSpace(requiredCommonName))

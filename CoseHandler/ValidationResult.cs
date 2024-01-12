@@ -88,7 +88,7 @@ public struct ValidationResult
         if (!verbose)
         {
             // Print just the header and the top level error messages.
-            return $"{header}{errorBlock}";
+            return $"{header}{errorBlock}{footer}";
         }
 
         // We're in Verbose mode, so get all the Includes from the internal validators.

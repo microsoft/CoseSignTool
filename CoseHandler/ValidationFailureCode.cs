@@ -39,6 +39,11 @@ public enum ValidationFailureCode
     CertificateChainInvalid,
 
     /// <summary>
+    /// The signature failed to validate against the trust validator.
+    /// </summary>
+    TrustValidationFailed,
+
+    /// <summary>
     /// The supplied or embedded payload does not match the hash of the original payload.
     /// </summary>
     PayloadMismatch,

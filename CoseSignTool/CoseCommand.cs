@@ -3,6 +3,9 @@
 
 namespace CoseSignTool;
 
+using System;
+using System.Text.RegularExpressions;
+
 /// <summary>
 /// A base class for console commands that handle COSE signatures.
 /// </summary>
@@ -256,11 +259,18 @@ public abstract partial class CoseCommand
     #endregion
 
     #region Usage
+
+    /// <summary>
+    /// Gets the help text for the command and merges it with the general help text for CoseSignTool.
+    /// </summary>
+    /// <returns>The merged help text.</returns>
+    public static string Usage => $"{BaseUsageString}{UsageString}";
+
     /// <summary>
     /// The first section of the command line usage. Content is generic to CoseSignTool.
+    /// Each line should have no more than 120 characters to avoid wrapping. Break is here:                            *V*
     /// </summary>
-    // The usage text to display. Each line should have no more than 120 characters to avoid wrapping. Break is here:  *V*
-    protected internal const string BaseUsageString = @$"
+    protected const string BaseUsageString = @$"
 *** CoseSignTool ***
 A tool for signing, validating, and getting payload from Cose signatures.
 
@@ -269,18 +279,18 @@ Usage:
     -- OR --
     [source program] | CoseSignTool.exe [sign | validate | get] [options]
     where [source program] pipes the first required option to CoseSignTool.
-
-Sign: Signs the specified file or piped content with a detached or embedded signature.
-Validate: Validates that the specified COSE signature file or piped signature content matches the original payload and
-    is signed with a valid certificate chain.
-Get: Retrieves and decodes the original payload from a COSE embed signed file or piped signature, writes it to a file or
-    to the console, and writes any validation errors to Standard Error.
 ";
 
     /// <summary>
     /// The end of the usage string for when no command was specified.
     /// </summary>
-    public static readonly string UsageString = $"{BaseUsageString}{Environment.NewLine}" +
-        $"To see the options for a specific command, type 'CoseSignTool [sign | validate | get] /?'";
+    protected const string UsageString = @"
+Sign: Signs the specified file or piped content with a detached or embedded signature.
+Validate: Validates that the specified COSE signature file or piped signature content matches the original payload and
+    is signed with a valid certificate chain.
+Get: Retrieves and decodes the original payload from a COSE embed signed file or piped signature, writes it to a file or
+    to the console, and writes any validation errors to Standard Error.
+
+To see the options for a specific command, type 'CoseSignTool [sign | validate | get] /?'";
     #endregion
 }

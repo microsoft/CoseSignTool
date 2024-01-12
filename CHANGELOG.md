@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre5...HEAD)
+
+**Closed issues:**
+
+- CoseSignTool.exe `validate` incorrectly passes validation [\#66](https://github.com/microsoft/CoseSignTool/issues/66)
+
+## [v1.1.0-pre5](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre5) (2024-01-12)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre4...v1.1.0-pre5)
+
+**Merged pull requests:**
+
+- Fixing Command Line False Positives  [\#67](https://github.com/microsoft/CoseSignTool/pull/67) ([elantiguamsft](https://github.com/elantiguamsft))
+
 ## [v1.1.0-pre4](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre4) (2023-11-15)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre3...v1.1.0-pre4)

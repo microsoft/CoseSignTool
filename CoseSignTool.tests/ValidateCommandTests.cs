@@ -61,11 +61,11 @@ public class ValidateCommandTests
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        string coseFile = PayloadFile + ".cose";
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open),
+        var result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(PayloadFile),
                                                      new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
                                                      X509RevocationMode.Online,

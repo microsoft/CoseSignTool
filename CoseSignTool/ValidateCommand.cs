@@ -38,6 +38,7 @@ public class ValidateCommand : CoseCommand
         { ValidationFailureCode.RedundantPayload, ExitCode.PayloadValidationError },
         { ValidationFailureCode.SigningCertificateUnreadable, ExitCode.CertificateLoadFailure },
         { ValidationFailureCode.CertificateChainInvalid, ExitCode.CertificateChainValidationFailure },
+        { ValidationFailureCode.TrustValidationFailed, ExitCode.TrustValidationFailure },
         { ValidationFailureCode.Unknown, ExitCode.UnknownError },
     };
 

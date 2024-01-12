@@ -90,7 +90,7 @@ public class ValidateCommandTests
         var result = validator.RunCoseHandlerCommand(new FileStream(coseFile, FileMode.Open), new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.CertificateChainInvalid);
+        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
     }
 
     /// <summary>

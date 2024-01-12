@@ -566,7 +566,7 @@ public static class CoseHandler
         // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
         if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
         {
-            errorCodes.Add(ValidationFailureCode.CertificateChainInvalid);
+            errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
             return new ValidationResult(false, errorCodes, certValidationResults);
         }
 

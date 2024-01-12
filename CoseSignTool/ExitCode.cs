@@ -51,6 +51,11 @@ public enum ExitCode
     StoreCertificateNotFound = 1889,
 
     /// <summary>
+    /// The signature failed to validate against the trust validator.
+    /// </summary>
+    TrustValidationFailure = 1890,
+
+    /// <summary>
     /// The certificate chain failed validation.
     /// </summary>
     CertificateChainValidationFailure = 1891,

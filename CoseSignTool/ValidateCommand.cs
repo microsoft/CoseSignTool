@@ -38,6 +38,7 @@ public class ValidateCommand : CoseCommand
         { ValidationFailureCode.RedundantPayload, ExitCode.PayloadValidationError },
         { ValidationFailureCode.SigningCertificateUnreadable, ExitCode.CertificateLoadFailure },
         { ValidationFailureCode.CertificateChainInvalid, ExitCode.CertificateChainValidationFailure },
+        { ValidationFailureCode.TrustValidationFailed, ExitCode.TrustValidationFailure },
         { ValidationFailureCode.Unknown, ExitCode.UnknownError },
     };
 
@@ -127,7 +128,8 @@ public class ValidateCommand : CoseCommand
                 PayloadFile,
                 rootCerts,
                 RevocationMode,
-                CommonName);
+                CommonName,
+                AllowUntrusted);
 
             // Write the result to console on STDERR
             Console.Error.WriteLine(result.ToString());
@@ -154,16 +156,20 @@ public class ValidateCommand : CoseCommand
     }
 
     // A pass-through method to let derived classes modify the command and otherwise re-use the surrounding code.
-    protected virtual ValidationResult RunCoseHandlerCommand(
+    protected internal virtual ValidationResult RunCoseHandlerCommand(
         Stream signature,
         FileInfo? payload,
         List<X509Certificate2>? rootCerts,
         X509RevocationMode revocationMode,
-        string? commonName)
+        string? commonName,
+        bool allowUntrusted)
         => CoseHandler.Validate(
             signature,
             payload?.OpenRead(),
-            rootCerts, revocationMode, commonName);
+            rootCerts,
+            revocationMode,
+            commonName,
+            allowUntrusted);
 
     //<inheritdoc />
     protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)

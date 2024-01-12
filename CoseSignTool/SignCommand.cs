@@ -6,7 +6,7 @@ namespace CoseSignTool;
 /// <summary>
 /// Signs a file with a COSE signature based on passed in command line arguments.
 /// </summary>
-public sealed class SignCommand : CoseCommand
+public class SignCommand : CoseCommand
 {
     /// <summary>
     /// A map of command line options to their abbreviated aliases.
@@ -219,11 +219,14 @@ public sealed class SignCommand : CoseCommand
         return cert;
     }
 
+    /// <inheritdoc/>
+    public static new string Usage => $"{BaseUsageString}{UsageString}";
+
     /// <summary>
     /// Command line usage specific to the SignInternal command.
+    /// Each line should have no more than 120 characters to avoid wrapping. Break is here:                            *V*
     /// </summary>
-    // The usage text to display. Each line should have no more than 120 characters to avoid wrapping. Break is here:  *V*
-    public static new readonly string UsageString = @"
+    protected new const string UsageString = @"
 Sign command: Signs the specified file or piped content with a detached or embedded signature.
     A detached signature resides in a separate file and validates against the original content by hash match.
     An embedded signature contains an encoded copy of the original payload. Not supported for payload of >2gb in size.
@@ -239,9 +242,9 @@ Options:
 
         PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
 
-        Password / pw: Optional. The password for the .pfx file if it has one.
+        Password / pw: Optional. The password for the .pfx file if it has one. (Strongly recommended!)
 
-        --OR--
+    --OR--
 
         Thumbprint / th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
             Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching

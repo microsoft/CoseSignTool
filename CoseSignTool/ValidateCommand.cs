@@ -208,8 +208,11 @@ public class ValidateCommand : CoseCommand
         return rootCerts;
     }
 
+    /// <inheritdoc/>
+    public static new string Usage => $"{BaseUsageString}{UsageString}{SharedOptionsText}";
+
     // The usage text to display. Each line should have no more than 120 characters to avoid wrapping. Break is here:  *V*
-    internal static new string UsageString = $@"
+    protected new const string UsageString = @"
 Validate command: Validates that the specified COSE signature file or piped signature content matches the original
     payload and is signed with a valid certificate chain.
 
@@ -219,12 +222,11 @@ Options:
 
     PayloadFile / payload / p: Required for detached signatures. The original source file that was signed.
         Do not use for embedded signatures.
+";
 
-{OptionalsBlock}";
-
-    protected static readonly string OptionalsBlock = $@"
-    Roots / rt: Optional. A comma-separated list of public key certificate files (.cer or .p7b), enclosed in quote marks,
-        to try to chain the signing certificate to.
+    protected const string SharedOptionsText = $@"
+    Roots / rt: Optional. A comma-separated list of public key certificate files (.cer or .p7b), enclosed in quote
+        marks, to try to chain the signing certificate to.
         CoseSignTool will try to chain to installed roots first, then user-supplied roots.
         If the COSE signature is signed with a self-signed certificate, that certificate must either be installed on and
         trusted by the machine or supplied as a root to pass validation.

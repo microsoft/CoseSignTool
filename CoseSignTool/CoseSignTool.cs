@@ -2,9 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool;
-
-using System.Net.NetworkInformation;
-
 /// <summary>
 /// Command line interface for COSE signing and validation operations.
 /// </summary>

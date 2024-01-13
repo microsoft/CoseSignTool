@@ -263,12 +263,12 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert);
         signedBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode);
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, new List<X509Certificate2> { SelfSignedCert }, RevMode);
         result.Success.Should().Be(true);
     }
 
     /// <summary>
-    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// Validate that signing with an untrusted cert causes validation to fail
     /// </summary>
     [TestMethod]
     public void Untrusted()
@@ -276,7 +276,23 @@ public class CoseHandlerSignValidateTests
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
         CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
-            .Success.Should().Be(true);
+            .Success.Should().Be(false);
+    }
+
+    /// <summary>
+    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// </summary>
+    [TestMethod]
+    public void UntrustedAllowed()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        signedBytes.ToArray().Should().NotBeNull();
+        X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
+        var result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
+        result.Success.Should().Be(true);
+        result.InnerResults.Count.Should().Be(1);
+        result.InnerResults[0].PassedValidation.Should().BeTrue();
+        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
     }
     #endregion
 

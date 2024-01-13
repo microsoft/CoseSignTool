@@ -36,7 +36,7 @@ public class GetCommand : ValidateCommand
     }
 
     // This is consumed by ValidateCommand.Run, which uses it in place of the call to CoseParser.Validate.
-    protected override ValidationResult RunCoseHandlerCommand(Stream signature, FileInfo? payloadFile, List<X509Certificate2>? rootCerts, X509RevocationMode revocationMode, string? commonName)
+    protected internal override ValidationResult RunCoseHandlerCommand(Stream signature, FileInfo? payloadFile, List<X509Certificate2>? rootCerts, X509RevocationMode revocationMode, string? commonName, bool allowUntrusted)
     {
         // Get the embedded payload content.
         string? content = CoseHandler.GetPayload(signature, out ValidationResult result, rootCerts, revocationMode, commonName);
@@ -66,8 +66,12 @@ public class GetCommand : ValidateCommand
         return result;
     }
 
+    /// <inheritdoc/>
+    public static new string Usage => $"{BaseUsageString}{UsageString}{SharedOptionsText}";
+
     // The usage text to display. Each line should have no more than 120 characters to avoid wrapping. Break is here:  *V*
-    internal static new string UsageString = $@"
+    // Shared options are inherited from ValidateCommand.
+    protected new const string UsageString = @"
 Get command: Retrieves and decodes the original payload from a COSE embed signed file or piped signature, writes it to a
     file or to the console, and writes any validation errors to Standard Error.
 
@@ -77,6 +81,5 @@ Options:
 
     SaveTo /sa: Specifies a file path to write the decoded payload content to.
         If no path is specified, output will be written to console.
-
-{OptionalsBlock}";
+";
 }

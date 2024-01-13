@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool;
-
 /// <summary>
 /// Command line interface for COSE signing and validation operations.
 /// </summary>
@@ -24,13 +23,27 @@ public class CoseSignTool
     /// <returns>An exit code indicating success or failure.</returns>
     public static int Main(string[] args)
     {
-        var firstArg = args[0] ?? "help";
+        // Make sure we have a verb and at least one argument, and that neither of the first two arguments are help requests.
+        if (args.Length == 0 || IsNullOrHelp(args[0]) || !Enum.TryParse(args[0], ignoreCase: true, out Verb))
+        {
+            return (int)Usage(CoseCommand.Usage);
+        }
+        else if (args.Length == 1 || IsNullOrHelp(args[1]))
+        {
+            string usageString = Verb switch
+            {
+                Verbs.Sign => SignCommand.Usage,
+                Verbs.Validate => ValidateCommand.Usage,
+                Verbs.Get => GetCommand.Usage,
+                _ => CoseCommand.Usage,
+            };
+
+            return (int)Usage(usageString);
+        }
 
         try
         {
-            return Enum.TryParse(firstArg, ignoreCase: true, out Verb)
-                ? (int)RunCommand(Verb, args.Skip(1).ToArray())
-                : (int)Usage(CoseCommand.UsageString);
+            return (int)RunCommand(Verb, args.Skip(1).ToArray());
         }
         catch (Exception ex)
         {
@@ -44,6 +57,8 @@ public class CoseSignTool
             return (int)Fail(code, ex);
         }
     }
+
+    private static bool IsNullOrHelp(string arg) => arg is null || arg.EndsWith('?') || arg.EndsWith("help", StringComparison.OrdinalIgnoreCase); 
 
     /// <summary>
     /// Creates a SignCommand, ValidateCommand, or GetCommand instance based on raw command line input and then runs the command.
@@ -62,13 +77,13 @@ public class CoseSignTool
             {
                 case Verbs.Sign:
                     provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out badArg);
-                    return (provider is null) ? Usage(SignCommand.UsageString, badArg) : new SignCommand(provider).Run();
+                    return (provider is null) ? Usage(SignCommand.Usage, badArg) : new SignCommand(provider).Run();
                 case Verbs.Validate:
                     provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out badArg);
-                    return (provider is null) ? Usage(ValidateCommand.UsageString, badArg) : new ValidateCommand(provider).Run();
+                    return (provider is null) ? Usage(ValidateCommand.Usage, badArg) : new ValidateCommand(provider).Run();
                 case Verbs.Get:
                     provider = CoseCommand.LoadCommandLineArgs(args, GetCommand.Options, out badArg);
-                    return (provider is null) ? Usage(GetCommand.UsageString, badArg) : new GetCommand(provider).Run();
+                    return (provider is null) ? Usage(GetCommand.Usage, badArg) : new GetCommand(provider).Run();
                 default:
                     return ExitCode.InvalidArgumentValue;
             }

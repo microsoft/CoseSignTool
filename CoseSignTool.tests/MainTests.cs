@@ -4,6 +4,7 @@
 namespace CoseSignUnitTests;
 
 using System;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using CST = CoseSignTool.CoseSignTool;
@@ -129,5 +130,19 @@ public class MainTests
         string payload = Path.GetTempFileName();
         string[] args5 = { "validate", @"/rt", payload, @"/sf", sigFile, @"/rt", "cert.wacky" };
         CST.Main(args5).Should().Be((int)ExitCode.CertificateLoadFailure);
+    }
+
+    [TestMethod]
+    public void ReturnsHelpRequestedWhenVerbMissing()
+    {
+        string[] args = Array.Empty<string>();
+        CST.Main(args).Should().Be((int)ExitCode.HelpRequested);
+    }
+
+    [TestMethod]
+    public void ReturnsHelpRequestedWhenNoOptionsAfterVerb()
+    {
+        string[] args = Array.Empty<string>();
+        CST.Main(args).Should().Be((int)ExitCode.HelpRequested);
     }
 }

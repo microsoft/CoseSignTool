@@ -22,10 +22,42 @@ on:
 jobs:
 
   #### PULL REQUEST EVENTS ####
+  
+  # Build and test the code.
+  build:
+    name: build-${{matrix.os}}
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            dir_command: gci -Recurse
+          - os: ubuntu-latest
+            dir_command: ls -a -R
+          - os: macos-latest
+            dir_command: ls -a -R
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+
+    # Use the Dotnet Test command to load dependencies, build, and test the code.        
+    - name: Build and Test debug
+      run: dotnet test --verbosity normal CoseSignTool.sln
+
+    # List the contents of the working directory to make sure all the artifacts are there.  
+    - name: List working directory
+      run: ${{ matrix.dir_command }}
 
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
   create_changelog:
+    needs: [ build ]  # Wait here so we don't create any race conditions.
     runs-on: ubuntu-latest
     steps:
       # Checkout the working branch.
@@ -55,7 +87,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Commit the changelog.
-      - name: Commit changelog
+      - name: Commit changelog  # TODO: Add the changelog to .gitignore so we don't create merge conflicts every time we update it. This might require an edit to the commit command.
         if: ${{ github.event_name == 'pull_request' }}
         run: |
           git add CHANGELOG.md
@@ -70,38 +102,6 @@ jobs:
       - name: Print exit message when changelog is not updated
         if: ${{ github.event_name != 'pull_request' }}
         run: echo "Changelog is already up to date."
-
-  # Build and test the code.
-  build:
-    name: build-${{matrix.os}}
-    if: ${{ github.event_name == 'pull_request' }}
-    needs: [ create_changelog ]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            dir_command: gci -Recurse
-          - os: ubuntu-latest
-            dir_command: ls -a -R
-          - os: macos-latest
-            dir_command: ls -a -R
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
-
-    # Use the Dotnet Test command to load dependencies, build, and test the code.        
-    - name: Build and Test debug
-      run: dotnet test --verbosity normal CoseSignTool.sln
-
-    # List the contents of the working directory to make sure all the artifacts are there.  
-    - name: List working directory
-      run: ${{ matrix.dir_command }}
 
   #### PUSH EVENTS ####
 

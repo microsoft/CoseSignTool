@@ -87,7 +87,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Commit the changelog.
-      - name: Commit changelog  # TODO: Add the changelog to .gitignore so we don't create merge conflicts every time we update it. This might require an edit to the commit command.
+      - name: Commit changelog
         if: ${{ github.event_name == 'pull_request' }}
         run: |
           git add CHANGELOG.md

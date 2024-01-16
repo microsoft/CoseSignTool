@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Pipeline-generated changelog
+CHANGELOG.md
+
 # User-specific files
 *.rsuser
 *.suo

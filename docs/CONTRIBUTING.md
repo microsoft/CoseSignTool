@@ -16,7 +16,7 @@ See [Stye.md](./STYLE.md) for details.
 All unit tests in the repo must pass in Windows, Linux, and MacOS environments to ensure compatitility.
 
 ## Pull Request Process
-_Note: There is a bug in the pull request process which causes Github to lose track of running workflows when the CreateChangelog job completes. The work around is to close and re-open the pull request on the pull request page <span>(https<nolink>://github.com/microsoft/CoseSignTool/pull/[pull-request-number])</span>_
+_Note: There was a bug in the pull request process which caused Github to lose track of running workflows when the CreateChangelog job completes. The work around is to close and re-open the pull request on the pull request page <span>(https<nolink>://github.com/microsoft/CoseSignTool/pull/[pull-request-number])</span> We beleive this is fixed as of version 1.1.1-pre1 so please log an issue if it reappears._
 1. Clone the [repo](https://github.com/microsoft/CoseSignTool).
 1. Create a user or feature branch off of main. Do not use the keyword "hotfix" or "develope" in your branch names as these will trigger incorrect release behavior.
 1. Make your changes, including adding or updating unit tests to ensure your changes work as intended.

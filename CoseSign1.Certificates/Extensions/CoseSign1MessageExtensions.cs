@@ -183,14 +183,10 @@ public static class CoseSign1MessageExtensions
                         }
                         else
                         {
-                            Trace.TraceWarning($"Failed to read certificate set from header: {labelForCertList} in message: {msgHashCode}, returning false.");
+                            Trace.TraceWarning($"Failed to read certificate set in message: {msgHashCode}, returning false.");
                         }
 
                         return certificatesRead;
-                    }
-                    else
-                    {
-                        Debug.WriteLine($"Skipping header with label: {kvp.Key} as it does not match {labelForCertList}.");
                     }
                 }
             }

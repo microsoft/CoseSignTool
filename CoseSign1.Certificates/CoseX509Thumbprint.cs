@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates;
 
+using System.Buffers.Text;
+
 /// <summary>
 /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.
 /// This is different from an X509 certificate thumbprint, which is the SHA1 hash of the certificate.
@@ -63,6 +65,10 @@ public class CoseX509Thumprint
     }
 
     #region Public Methods
+    private string? ToStringCache = null;
+    /// <inheritdoc />
+    public override string ToString() => ToStringCache ??= Convert.ToBase64String(Thumbprint.ToArray());
+
     /// <summary>
     /// Checks if a certificate matches this thumbprint
     /// </summary>

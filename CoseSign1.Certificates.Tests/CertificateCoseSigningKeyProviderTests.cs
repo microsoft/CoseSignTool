@@ -112,10 +112,10 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetProtectedHeadersSuccess()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestGetProtectedHeadersSuccess));
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(TestGetProtectedHeadersSuccess));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(TestGetProtectedHeadersSuccess), leafFirst: true);
+        X509Certificate2 testCert = testChain[0];
 
-        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        Mock <CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
         {
             CallBase = true
         };

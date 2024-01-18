@@ -83,6 +83,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     }
 
     /// <inheritdoc/>
+    /// <exception cref="CoseSign1CertificateException">Thrown if the signing certificate thumbprint does not match the first element in the certificate chain returned by <see cref="GetCertificateChain(X509ChainSortOrder)"/>.</exception>
     public CoseHeaderMap GetProtectedHeaders()
     {
         CoseHeaderMap protectedHeaders = new();
@@ -101,6 +102,12 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
 
         //X509ChainSortOrder is based on x5Chain elements order suggested here <see cref="https://datatracker.ietf.org/doc/rfc9360/"/>.
         IEnumerable<X509Certificate2> chain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+
+        // ensure the first chain element thumbprint matches the signing certificate otherwise this message will not be processable.
+        if (!signingCertificate.Thumbprint.Equals(chain.FirstOrDefault()?.Thumbprint ?? string.Empty))
+        {
+            throw new CoseSign1CertificateException($"The signing certificate thumprint: \"{signingCertificate.Thumbprint}\" must match the first item in the signing certificate chain list, which is found to be: \"{chain.FirstOrDefault()?.Thumbprint}\".");
+        }
 
         // Encode signing cert chain
         cborWriter.EncodeCertList(chain);

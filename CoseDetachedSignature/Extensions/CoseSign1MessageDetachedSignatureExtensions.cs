@@ -90,21 +90,21 @@ public static class CoseSign1MessageDetachedSignatureExtensions
 
         if (!@this.ProtectedHeaders.TryGetValue(CoseHeaderLabel.ContentType, out CoseHeaderValue contentTypeValue))
         {
-            Trace.TraceError($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header present.");
+            Trace.TraceWarning($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header present.");
             return false;
         }
 
         string contentType = contentTypeValue.GetValueAsString();
         if (string.IsNullOrEmpty(contentType))
         {
-            Trace.TraceError($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header being a string value.");
+            Trace.TraceWarning($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header being a string value.");
             return false;
         }
 
         Match mimeMatch = HashMimeTypeExtension.Match(contentType);
         if (!mimeMatch.Success)
         {
-            Trace.TraceError($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) with the ContentType protected header being \"{contentType}\" however it did not match the regex pattern \"{HashMimeTypeExtension}\".");
+            Trace.TraceWarning($"{nameof(TryGetDetachedSignatureAlgorithm)} was called on a CoseSign1Message object({@this.GetHashCode()}) with the ContentType protected header being \"{contentType}\" however it did not match the regex pattern \"{HashMimeTypeExtension}\".");
             return false;
         }
 
@@ -174,13 +174,13 @@ public static class CoseSign1MessageDetachedSignatureExtensions
 
         if (!@this.TryGetDetachedSignatureAlgorithm(out HashAlgorithmName algorithmName))
         {
-            Trace.TraceError($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message[{@this?.GetHashCode()}] object which did not have a valid hashing algorithm defined");
+            Trace.TraceWarning($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message[{@this?.GetHashCode()}] object which did not have a valid hashing algorithm defined");
             return false;
         }
 
         if (!@this!.Content.HasValue)
         {
-            Trace.TraceError($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message object which did not have a content value, unable to compute signature match.");
+            Trace.TraceWarning($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message object which did not have a content value, unable to compute signature match.");
             return false;
         }
 
@@ -188,7 +188,7 @@ public static class CoseSign1MessageDetachedSignatureExtensions
         hasher = CreateHashAlgorithmFromName(algorithmName);
         if (hasher == null)
         {
-            Trace.TraceError($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message object which did not have a hashing algorithm ({algorithmName.Name}) which could be instantiated.");
+            Trace.TraceWarning($"{nameof(TryGetHashAlgorithm)} was called on a CoseSign1Message object which did not have a hashing algorithm ({algorithmName.Name}) which could be instantiated.");
             return false;
         }
         Debug.WriteLine($"{nameof(TryGetHashAlgorithm)} created a HashAlgorithm from Hash Algorithm Name: {algorithmName.Name}");

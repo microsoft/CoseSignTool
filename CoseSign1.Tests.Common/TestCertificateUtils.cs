@@ -139,7 +139,8 @@ public static class TestCertificateUtils
     public static X509Certificate2Collection CreateTestChain(
         string? testName = "none",
         bool useEcc = false,
-        int? keySize = null)
+        int? keySize = null,
+        bool leafFirst = false)
     {
         X509Certificate2 testRoot = CreateCertificate($"Test Root: {testName}", useEcc: useEcc, keySize: keySize);
         X509Certificate2 issuer = CreateCertificate($"Test Issuer: {testName}", testRoot, useEcc: useEcc, keySize: keySize);
@@ -147,9 +148,9 @@ public static class TestCertificateUtils
 
         X509Certificate2Collection returnValue = new()
         {
-            testRoot,
+            leafFirst ? leaf : testRoot,
             issuer,
-            leaf
+            leafFirst ? testRoot : leaf
         };
         return returnValue;
     }

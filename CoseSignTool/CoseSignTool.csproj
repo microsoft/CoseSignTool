@@ -11,7 +11,7 @@
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<SignAssembly>True</SignAssembly>
 		<PublicSign>True</PublicSign>
-		<AssemblyOriginatorKeyFile>..\StrongNameKeys\272MSSharedLibSN2048.snk</AssemblyOriginatorKeyFile>
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
 		<AnalysisLevel>latest</AnalysisLevel>

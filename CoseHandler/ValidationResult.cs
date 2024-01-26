@@ -78,16 +78,15 @@ public struct ValidationResult
         string certDetails = string.Empty;
         if (showCertDetails && CertificateChain is not null && CertificateChain.Count > 0)
         {
-            certDetails += $"Certificate chain details:{newline}{newline}";
+            certDetails += $"Certificate chain details:{newline}";
             foreach (var cert in CertificateChain)
             {
-                certDetails += $"{cert.Subject}{newline}" +
-                               $"{cert.Thumbprint}{newline}" +
-                               $"{cert.SerialNumber}{newline}" +
-                               $"{cert.Issuer}{newline}" +
-                               $"{cert.NotBefore}{newline}" +
-                               $"{cert.NotAfter}{newline}" +
-                               $"{cert.Extensions}{newline}{newline}";
+                certDetails += $"Subject Distinguished Name: {cert.Subject}{newline}" +
+                               $"Thumbprint: {cert.Thumbprint}{newline}" +
+                               $"Serial Number: {cert.SerialNumber}{newline}" +
+                               $"Issuer: {cert.Issuer}{newline}" +
+                               $"Not Before: {cert.NotBefore}{newline}" +
+                               $"Not After: {cert.NotAfter}{newline}";
             }
         }
 

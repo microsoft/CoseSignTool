@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 
@@ -78,16 +79,18 @@ public struct ValidationResult
         string certDetails = string.Empty;
         if (showCertDetails && CertificateChain is not null && CertificateChain.Count > 0)
         {
-            certDetails += $"Certificate chain details:{newline}";
+            StringBuilder certDetailsBuilder = new($"Certificate chain details:{newline}");
             foreach (var cert in CertificateChain)
             {
-                certDetails += $"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
-                               $"Thumbprint: {cert.Thumbprint}{newline}" +
-                               $"Serial Number: {cert.SerialNumber}{newline}" +
-                               $"Issuer: {cert.Issuer}{newline}" +
-                               $"Not Before: {cert.NotBefore}{newline}" +
-                               $"Not After: {cert.NotAfter}{newline}";
+                certDetailsBuilder.Append($"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
+                                          $"Thumbprint: {cert.Thumbprint}{newline}" +
+                                          $"Serial Number: {cert.SerialNumber}{newline}" +
+                                          $"Issuer: {cert.Issuer}{newline}" +
+                                          $"Not Before: {cert.NotBefore}{newline}" +
+                                          $"Not After: {cert.NotAfter}{newline}");
             }
+
+            certDetails = certDetailsBuilder.ToString();
         }
 
         if (Success)

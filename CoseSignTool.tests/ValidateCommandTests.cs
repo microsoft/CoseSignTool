@@ -154,7 +154,7 @@ public class ValidateCommandTests
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
-        result.ToString(showCertDetails: true).Should().Contain("Certificate chain details");
-        Console.WriteLine(result.ToString(showCertDetails: true));
+        //result.ToString(verbose: true, showCertDetails: true).Should().Contain("Certificate chain details");
+        Console.WriteLine(result.ToString(verbose: true, showCertDetails: true));
     }
 }

@@ -81,7 +81,7 @@ public struct ValidationResult
             certDetails += $"Certificate chain details:{newline}";
             foreach (var cert in CertificateChain)
             {
-                certDetails += $"Subject Distinguished Name: {cert.Subject}{newline}" +
+                certDetails += $"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
                                $"Thumbprint: {cert.Thumbprint}{newline}" +
                                $"Serial Number: {cert.SerialNumber}{newline}" +
                                $"Issuer: {cert.Issuer}{newline}" +
@@ -90,15 +90,11 @@ public struct ValidationResult
             }
         }
 
-        string resultMessage;
-
         if (Success)
         {
             // Print success. If verbose, include any chain validation messages.
-            resultMessage = (verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
-                $"Validation succeeded.";
-
-            return resultMessage + newline + certDetails;
+            return ((verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
+                $"Validation succeeded.") + $"{newline}{certDetails}";
         }
 
         // Validation failed, so build the error text.
@@ -127,13 +123,13 @@ public struct ValidationResult
                 .Distinct();
 
         // Now filter them down to just chain status errors.
-        var certChainErrors = allIncludes?.Cast<X509ChainStatus>().Where(f => f.Status != X509ChainStatusFlags.NoError).ToList();
+        var certChainErrors = allIncludes?.Where(s => s.GetType() == typeof(X509ChainStatus)).Cast<X509ChainStatus>().Where(f => f.Status != X509ChainStatusFlags.NoError).ToList();
         string certChainBlock =
             certChainErrors?.Count > 0 ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation))}" :
             string.Empty;
 
         // Do the same for exceptions.
-        List<Exception>? innerExceptions = allIncludes?.Cast<Exception>().ToList();
+        List<Exception>? innerExceptions = allIncludes?.Where(e => e.GetType() == typeof(Exception)).Cast<Exception>().ToList();
         string exceptionBlock =
             innerExceptions?.Count > 0 ? $"Exceptions:{newline}{string.Join(newline + tab, innerExceptions.Select(e => $"{e.GetType()}: {e.Message}"))}" :
             string.Empty;

@@ -72,7 +72,7 @@ public class MainTests
 
         // validate embedded
         sigFile = PayloadFile + ".csm";
-        string[] args4 = { "validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck" };
+        string[] args4 = { "validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd" };
         CST.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation failed.");
 
         // get content

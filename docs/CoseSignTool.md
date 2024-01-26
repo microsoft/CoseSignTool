@@ -39,6 +39,7 @@ You may also want to specify:
     * User-specified roots will be treated as "trusted" for purposes of validation.
     * Root certificates for validation do not have to include a private key, so .cer files are acceptable.
     * To supply multiple root certificates, separate the file paths with commas.
+* Certificate Details. You can use the */ShowCertificateDetails** option to print out the details of the signing certificate chain.
 * Verbosity. You can use the */Verbose** option to get more detailed output on validation failures.
 
 And in some cases:

@@ -560,6 +560,13 @@ public static class CoseHandler
             return new ValidationResult(false, errorCodes);
         }
 
+        if (!msg.TryGetCertificateChain(out List<X509Certificate2>? chain, true))
+        {
+            errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable);
+            content = null;
+            return new ValidationResult(false, errorCodes);
+        }
+
         // Populate the output parameter
         content = getPayload ? msg.Content : null;
 
@@ -567,14 +574,14 @@ public static class CoseHandler
         if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
         {
             errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
-            return new ValidationResult(false, errorCodes, certValidationResults);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain);
         }
 
         // Get the signing certificate
         if (!msg.TryGetSigningCertificate(out X509Certificate2? signingCertificate, true) || signingCertificate is null)
         {
             errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable); // Is this always correct? Can there be certs found with none of them being the signing cert?
-            return new ValidationResult(false, errorCodes, certValidationResults);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain);
         }
 
         // Get the public key
@@ -584,7 +591,7 @@ public static class CoseHandler
         if (publicKey is null)
         {
             errorCodes.Add(ValidationFailureCode.NoPublicKey);
-            return new ValidationResult(false, errorCodes, certValidationResults);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain);
         }
 
         // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
@@ -625,7 +632,7 @@ public static class CoseHandler
                 ValidationFailureCode.RedundantPayload);
         }
         
-        return new ValidationResult(messageVerified, errorCodes, certValidationResults);
+        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain);
     }
 
     /// <summary>

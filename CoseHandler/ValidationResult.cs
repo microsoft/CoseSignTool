@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 
@@ -20,11 +21,16 @@ public struct ValidationResult
     /// </summary>
     /// <param name="errors">A list of CoseValidationError values representing individual errors, if any.</param>
     /// <param name="internalResults">A list of CoseSign1ValidationResult objects from internal validators, if any.</param>
-    public ValidationResult(bool success, List<ValidationFailureCode>? errors, List<CoseSign1ValidationResult>? internalResults = null)
+    /// <param name="internalResults">A list of X509Certificate2 objects from the COSE message, if any.</param>
+    public ValidationResult(bool success,
+                            List<ValidationFailureCode>? errors,
+                            List<CoseSign1ValidationResult>? internalResults = null,
+                            List<X509Certificate2>? certChain = null)
     {
         Success = success;
         Errors = ExpandErrors(errors);
         InnerResults = internalResults;
+        CertificateChain = certChain;
     }
 
     /// <summary>
@@ -36,6 +42,11 @@ public struct ValidationResult
     /// The set of errors that caused validation to fail, if any.
     /// </summary>
     public List<CoseValidationError>? Errors { get; set; }
+
+    /// <summary>
+    /// The certificate chain used to validate the signature, if any.
+    /// </summary>
+    public List<X509Certificate2>? CertificateChain = null;
 
     /// <summary>
     /// The set of specific errors passed from the internal validator, if any.
@@ -60,17 +71,33 @@ public struct ValidationResult
     /// </summary>
     /// <param name="verbose">True to include chain trust validation and exception messages in the error output.</param>
     /// <returns>A text summary of the validation result.</returns>
-    public readonly string ToString(bool verbose = false)
+    public readonly string ToString(bool verbose = false, bool showCertDetails = false)
     {
         string newline = Environment.NewLine;
         string tab = "    ";
 
+        string certDetails = string.Empty;
+        if (showCertDetails && CertificateChain is not null && CertificateChain.Count > 0)
+        {
+            StringBuilder certDetailsBuilder = new($"Certificate chain details:{newline}");
+            foreach (var cert in CertificateChain)
+            {
+                certDetailsBuilder.Append($"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
+                                          $"Thumbprint: {cert.Thumbprint}{newline}" +
+                                          $"Serial Number: {cert.SerialNumber}{newline}" +
+                                          $"Issuer: {cert.Issuer}{newline}" +
+                                          $"Not Before: {cert.NotBefore}{newline}" +
+                                          $"Not After: {cert.NotAfter}{newline}");
+            }
+
+            certDetails = certDetailsBuilder.ToString();
+        }
+
         if (Success)
         {
             // Print success. If verbose, include any chain validation messages.
-            return
-                (verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
-                $"Validation succeeded.";
+            return ((verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
+                $"Validation succeeded.") + $"{newline}{certDetails}";
         }
 
         // Validation failed, so build the error text.
@@ -88,7 +115,7 @@ public struct ValidationResult
         if (!verbose)
         {
             // Print just the header and the top level error messages.
-            return $"{header}{errorBlock}{footer}";
+            return $"{header}{errorBlock}{footer}{newline}{certDetails}";
         }
 
         // We're in Verbose mode, so get all the Includes from the internal validators.
@@ -99,18 +126,18 @@ public struct ValidationResult
                 .Distinct();
 
         // Now filter them down to just chain status errors.
-        var certChainErrors = allIncludes?.Cast<X509ChainStatus>().Where(f => f.Status != X509ChainStatusFlags.NoError).ToList();
+        var certChainErrors = allIncludes?.Where(s => s.GetType() == typeof(X509ChainStatus)).Cast<X509ChainStatus>().Where(f => f.Status != X509ChainStatusFlags.NoError).ToList();
         string certChainBlock =
             certChainErrors?.Count > 0 ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation))}" :
             string.Empty;
 
         // Do the same for exceptions.
-        List<Exception>? innerExceptions = allIncludes?.Cast<Exception>().ToList();
+        List<Exception>? innerExceptions = allIncludes?.Where(e => e.GetType() == typeof(Exception)).Cast<Exception>().ToList();
         string exceptionBlock =
             innerExceptions?.Count > 0 ? $"Exceptions:{newline}{string.Join(newline + tab, innerExceptions.Select(e => $"{e.GetType()}: {e.Message}"))}" :
             string.Empty;
 
         // Return error messages, then cert chain errors, then exception messages.
-        return $"{header}{errorBlock}{newline}{certChainBlock}{newline}{exceptionBlock}";
+        return $"{header}{errorBlock}{newline}{certChainBlock}{newline}{certDetails}{exceptionBlock}";
     }
 }

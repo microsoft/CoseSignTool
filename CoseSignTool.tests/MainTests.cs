@@ -86,8 +86,8 @@ public class MainTests
     public void FromMainValidationStdOut()
     {
         // caprture stdout and stderr
-        StringWriter redirectedOut = new();
-        StringWriter redirectedErr = new();
+        using StringWriter redirectedOut = new();
+        using StringWriter redirectedErr = new();
         Console.SetOut(redirectedOut);
         Console.SetError(redirectedErr);
 

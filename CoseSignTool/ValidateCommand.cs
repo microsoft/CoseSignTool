@@ -135,8 +135,8 @@ public class ValidateCommand : CoseCommand
                 CommonName,
                 AllowUntrusted);
 
-            // Write the result to console on STDERR
-            Console.Error.WriteLine(result.ToString(Verbose, ShowCertificateDetails));
+            // Write the result to console on STDOUT
+            Console.WriteLine(result.ToString(Verbose, ShowCertificateDetails));
 
             return result.Success ? ExitCode.Success
                 : result.Errors?.Count > 0 ? ErrorMap[result.Errors.FirstOrDefault().ErrorCode]

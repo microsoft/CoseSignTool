@@ -23,7 +23,7 @@ public class MainTests
     private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // File paths to export them to
-    private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName()    + "_SelfSigned.pfx";
+    private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
     private static readonly string PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
     private static readonly string PublicKeyIntermediateCertFile = Path.GetTempFileName() + ".cer";
@@ -47,7 +47,7 @@ public class MainTests
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
         File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
-        File.WriteAllBytes(PublicKeyIntermediateCertFile, Int1Priv.Export(X509ContentType.Cert));        
+        File.WriteAllBytes(PublicKeyIntermediateCertFile, Int1Priv.Export(X509ContentType.Cert));
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PrivateKeyCertFileChainedWithPassword, Leaf1Priv.Export(X509ContentType.Pkcs12, CertPassword));
     }
@@ -80,6 +80,30 @@ public class MainTests
         string[] args5 = { "get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck" };
         CST.Main(args5).Should().Be(0, "Detach validation with save failed.");
         File.ReadAllText(PayloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
+    }
+
+    [TestMethod]
+    public void FromMainValidationStdOut()
+    {
+        // caprture stdout and stderr
+        StringWriter redirectedOut = new();
+        StringWriter redirectedErr = new();
+        Console.SetOut(redirectedOut);
+        Console.SetError(redirectedErr);
+
+        string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
+
+        // sign detached
+        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChained };
+        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+
+        // validate detached
+        string sigFile = PayloadFile + ".cose";
+        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", PayloadFile, "/rm", "NoCheck" };
+        CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
+
+        redirectedErr.ToString().Should().BeEmpty("There should be no errors.");
+        redirectedOut.ToString().Should().Contain("Validation succeeded.", "Validation should succeed.");
     }
 
     [TestMethod]

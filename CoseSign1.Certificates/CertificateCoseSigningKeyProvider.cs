@@ -102,11 +102,12 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
 
         //X509ChainSortOrder is based on x5Chain elements order suggested here <see cref="https://datatracker.ietf.org/doc/rfc9360/"/>.
         IEnumerable<X509Certificate2> chain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+        X509Certificate2? firstCert = chain.FirstOrDefault();
 
         // ensure the first chain element thumbprint matches the signing certificate otherwise this message will not be processable.
-        if (!signingCertificate.Thumbprint.Equals(chain.FirstOrDefault()?.Thumbprint ?? string.Empty))
+        if (!signingCertificate.Thumbprint.Equals(firstCert?.Thumbprint ?? string.Empty))
         {
-            throw new CoseSign1CertificateException($"The signing certificate thumprint: \"{signingCertificate.Thumbprint}\" must match the first item in the signing certificate chain list, which is found to be: \"{chain.FirstOrDefault()?.Thumbprint}\".");
+            throw new CoseSign1CertificateException($"The signing certificate thumprint: \"{signingCertificate.Thumbprint}\" must match the first item in the signing certificate chain list, which is found to be: \"{firstCert?.Thumbprint}\".");
         }
 
         // Encode signing cert chain

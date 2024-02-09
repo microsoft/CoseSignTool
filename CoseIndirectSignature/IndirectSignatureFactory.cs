@@ -658,11 +658,11 @@ public sealed class IndirectSignatureFactory : IDisposable
     private static string ExtendContentType(string contentType)
     {
         // only add the extension mapping, if it's not already present within the contentType
-        bool alreadyPresent = contentType.IndexOf("+cose_hash_v", StringComparison.InvariantCultureIgnoreCase) != -1;
+        bool alreadyPresent = contentType.IndexOf("+cose-hash-v", StringComparison.InvariantCultureIgnoreCase) != -1;
 
         return alreadyPresent
             ? contentType
-            : $"{contentType}+cose_hash_v";
+            : $"{contentType}+cose-hash-v";
     }
 
     private bool DisposedValue;

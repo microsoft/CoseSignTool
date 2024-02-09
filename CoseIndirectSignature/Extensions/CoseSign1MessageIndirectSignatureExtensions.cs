@@ -17,7 +17,7 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     // Regex looks for "+hash-sha256" and will parse it out as a named group of "extension" with value "+hash-sha256" an the algorithm group name of "sha256"
     // Will also work with "+hash-sha3_256"
     private static readonly Regex HashMimeTypeExtension = new(@$"(?<extension>\+hash-(?<{AlgorithmGroupName}>[\w_]+))", RegexOptions.Compiled);
-    private static readonly Regex CoseHashVMimeTypeExtension = new(@$"\+cose_hash_v", RegexOptions.Compiled);
+    private static readonly Regex CoseHashVMimeTypeExtension = new(@$"\+cose-hash-v", RegexOptions.Compiled);
 
     /// <summary>
     /// Lazy populate all known hash algorithms from System.Security.Cryptography into a runtime cache
@@ -78,10 +78,10 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     }
 
     /// <summary>
-    /// Checks to see if a COSE Sign1 Message has the Content Type Protected Header set to include +cose_hash_v
+    /// Checks to see if a COSE Sign1 Message has the Content Type Protected Header set to include +cose-hash-v
     /// </summary>
     /// <param name="this">The CoseSign1Message to evaluate</param>
-    /// <returns>True if +cose_hash_v is found, False otherwise.</returns>
+    /// <returns>True if +cose-hash-v is found, False otherwise.</returns>
     public static bool TryGetIsCoseHashVContentType(this CoseSign1Message? @this)
     {
         if (@this == null)

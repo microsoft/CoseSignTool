@@ -18,10 +18,38 @@ public record CoseHashV
     /// </summary>
     public CoseHashAlgorithm Algorithm { get; set; }
 
+    private byte[]? InternalHashValue;
     /// <summary>
     /// The actual value from the hashing function
     /// </summary>
-    public byte[] HashValue { get; set; } = Array.Empty<byte>();
+    public byte[] HashValue
+    {
+        get
+        {
+            return InternalHashValue ?? Array.Empty<byte>();
+        }
+        set
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+            if (value.Length == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "The hash value cannot be empty.");
+            }
+            if (Algorithm == CoseHashAlgorithm.Reserved)
+            {
+                throw new ArgumentException("The algorithm must be set before the hash can be stored.", nameof(value));
+            }
+            HashAlgorithm algo = GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
+            if (value.Length != (algo.HashSize / 8))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), @$"The hash value length of {value.Length} did not match the CoseHashAlgorithm {Algorithm} required length of {algo.HashSize / 8}");
+            }
+            InternalHashValue = value;
+        }
+    }
 
     /// <summary>
     /// Location of object that was hashed

@@ -3,6 +3,8 @@
 
 namespace CoseIndirectSignature;
 
+using System.ComponentModel;
+
 /// <summary>
 /// COSE HashAlgorithm values from the IANA COSE Algorithms registry found at https://www.iana.org/assignments/cose/cose.xhtml#algorithms
 /// </summary>
@@ -11,7 +13,7 @@ public enum CoseHashAlgorithm : long
     /// <summary>
     /// Reserved
     /// </summary>
-    [Obsolete("Reserved value, do not use")]
+    [Browsable(false)]
     Reserved = 0,
     /// <summary>
     /// SHA-1 Hash Algorithm

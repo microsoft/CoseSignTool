@@ -4,6 +4,7 @@
 namespace CoseIndirectSignature.Tests;
 
 using System.Formats.Cbor;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 /// <summary>
 /// Class for Testing Methods of <see cref="CoseHashV"/>
@@ -241,5 +242,43 @@ public class CoseHashVTests
         newObj.HashValue.Should().BeEquivalentTo(testObj.HashValue);
         newObj.Location.Should().Be(testObj.Location);
         newObj.Any.Should().BeEquivalentTo(testObj.Any);
+    }
+
+    [Test]
+    public void TestMismatchedHashAlgoAndHashSize()
+    {
+        // arrange
+        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        using SHA512 sha = SHA512.Create();
+
+        byte[] hash  = sha.ComputeHash(testData);
+        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, hash);
+        Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = hash);
+    }
+
+    [Test]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    public void TestSetHashWithoutAlgorithm(int testCase)
+    {
+        // arrange
+        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        using SHA256 sha = SHA256.Create();
+
+        byte[] hash = sha.ComputeHash(testData);
+        CoseHashV testObj = new CoseHashV();
+        switch (testCase)
+        {
+            case 1:
+                Assert.ThrowsException<ArgumentException>(() => testObj.HashValue = hash);
+                break;
+            case 2:
+                Assert.ThrowsException<ArgumentNullException>(() => testObj.HashValue = null);
+                break;
+            case 3:
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = new byte[0]);
+                break;
+        }
     }
 }

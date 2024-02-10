@@ -21,6 +21,7 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Local.Validators;
 using CoseSign1.Extensions;
 using CoseSign1.Interfaces;
+using CoseDetachedSignature.Extensions;
 
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
@@ -596,17 +597,34 @@ public static class CoseHandler
 
         // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
         bool messageVerified = false;
+        bool indirectSignature = msg.IsDetachedSignature();
         try
         {
             if (!payloadBytes.IsNullOrEmpty())
             {
-                // Detached payload received as byte array
-                messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
+                if (indirectSignature)
+                {
+                    // Embedded payload
+                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes));
+                }
+                else
+                {
+                    // Detached payload received as byte array
+                    messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
+                }
             }
             else if (payloadStream is not null)
             {
-                // Detached payload received as a stream
-                messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                if (indirectSignature)
+                {
+                    // Embedded payload
+                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes));
+                }
+                else
+                {
+                    // Detached payload received as a stream
+                    messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                }
             }
             else
             {

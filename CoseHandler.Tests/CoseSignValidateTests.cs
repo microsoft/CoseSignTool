@@ -3,6 +3,10 @@
 
 namespace CoseSignUnitTests;
 
+using CoseDetachedSignature;
+using System.Net.Mime;
+using System.Runtime.ConstrainedExecution;
+
 [TestClass]
 public class CoseHandlerSignValidateTests
 {
@@ -322,6 +326,40 @@ public class CoseHandlerSignValidateTests
     {
         // Standard setup
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+
+        // Now change one character in the payload
+        var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
+
+        // Try to validate
+        var result = CoseHandler.Validate(signedBytes.ToArray(), modifiedPayload, ValidRootSetPriv, RevMode);
+
+        result.Success.Should().Be(false);
+        result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+    }
+
+    [TestMethod]
+    public void IndirectSignatureValidation()
+    {
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
+
+        // Try to validate
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+
+        result.Success.Should().Be(true);
+    }
+
+    [TestMethod]
+    public void IndirectSignatureModifiedPayload()
+    {
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
 
         // Now change one character in the payload
         var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");

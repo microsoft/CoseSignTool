@@ -618,7 +618,7 @@ public static class CoseHandler
                 if (indirectSignature)
                 {
                     // Embedded payload
-                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes));
+                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream));
                 }
                 else
                 {

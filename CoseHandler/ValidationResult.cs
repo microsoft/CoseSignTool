@@ -52,7 +52,7 @@ public struct ValidationResult
     public List<X509Certificate2>? CertificateChain = null;
 
     /// <summary>
-    /// Indicates which signature validation format was used.
+    /// Indicates which payload validation format was used.
     /// </summary>
     public ContentValidationType ContentValidationType { get; set; } = default;
 
@@ -101,20 +101,13 @@ public struct ValidationResult
             certDetails = certDetailsBuilder.ToString();
         }
 
-        string contentValidationTypeMsg = "Payload validation type: " + ContentValidationType switch
-        {
-            ContentValidationType.Detached => "Detached",
-            ContentValidationType.Embedded => "Embedded",
-            ContentValidationType.IndirectSignature => "Indirect Signature",
-            ContentValidationType.ContentValidationNotPerformed => "Not Performed",
-            _ => "Unknown"
-        };
+        string contentValidationTypeMsg = "Payload validation type: " + ContentValidationType.ToString();
 
         if (Success)
         {
             // Print success. If verbose, include any chain validation messages.
             return ((verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
-                $"Validation succeeded.") + $"{newline}{certDetails}{newline}{contentValidationTypeMsg}";
+                $"Validation succeeded.") + $"{newline}{certDetails}{newline}{contentValidationTypeMsg}{newline}";
         }
 
         // Validation failed, so build the error text.
@@ -155,6 +148,6 @@ public struct ValidationResult
             string.Empty;
 
         // Return error messages, then cert chain errors, then exception messages.
-        return $"{header}{errorBlock}{newline}{certChainBlock}{newline}{certDetails}{exceptionBlock}";
+        return $"{header}{errorBlock}{newline}{certChainBlock}{newline}{certDetails}{newline}{contentValidationTypeMsg}{newline}{exceptionBlock}";
     }
 }

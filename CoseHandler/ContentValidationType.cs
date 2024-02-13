@@ -28,5 +28,5 @@ public enum ContentValidationType
     /// Indicates validation using an indirect payload. The payload is hashed using the algorithm in the COSE message
     /// and then the payload hash is compared to the embedded content.
     /// </summary>
-    IndirectSignature = 3
+    Indirect = 3
 }

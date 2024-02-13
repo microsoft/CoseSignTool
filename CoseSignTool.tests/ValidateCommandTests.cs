@@ -75,25 +75,8 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeTrue();
-    }
-
-    /// <summary>
-    /// Validates that signatures made from untrusted chains are rejected
-    /// </summary>
-    [TestMethod]
-    public void ValidateFailsWithUntrustedRoot()
-    {
-        // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
-
-        // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
-        result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
@@ -119,6 +102,8 @@ public class ValidateCommandTests
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
@@ -139,36 +124,17 @@ public class ValidateCommandTests
         result.InnerResults.Should().ContainSingle();
         result.InnerResults[0].PassedValidation.Should().BeTrue();
         result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
-    }
-
-    /// <summary>
-    /// Validates that the ShowCertificateDetails flag works on validation result
-    /// </summary>
-    [TestMethod]
-    public void ValidateSucceedsWithCertDetails()
-    {
-        // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
-
-        // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
-        result.Success.Should().BeTrue();
-        result.InnerResults.Should().ContainSingle();
-        result.InnerResults[0].PassedValidation.Should().BeTrue();
-        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
 
         result.ToString(showCertDetails: true).Should().Contain("Certificate chain details");
-        Console.WriteLine(result.ToString(showCertDetails: true));
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
     /// Validates that signatures made from untrusted chains are rejected
     /// </summary>
     [TestMethod]
-    public void ValidateFailsWithCertDetails()
+    public void ValidateUntrustedFails()
     {
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
@@ -182,7 +148,13 @@ public class ValidateCommandTests
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
-        result.ToString(verbose: true, showCertDetails: true).Should().Contain("Certificate chain details");
+        string resString = result.ToString(verbose: true, showCertDetails: true);
+        resString.Should().Contain("Certificate chain details");
+
+        // Content validation type should be set to not performed because we shouldn't try to process untrusted content
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        resString.Should().Contain("NotPerformed");
+        Console.WriteLine(resString);
     }
 
     /// <summary>
@@ -211,6 +183,8 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeTrue();
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
     }
 
     /// <summary>
@@ -241,6 +215,8 @@ public class ValidateCommandTests
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
     }
 
     /// <summary>
@@ -271,5 +247,9 @@ public class ValidateCommandTests
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+
+        // Content validation type should be set to not performed because we shouldn't try to process untrusted content
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        result.ToString(true).Should().Contain("NotPerformed");
     }
 }

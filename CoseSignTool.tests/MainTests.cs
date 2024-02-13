@@ -104,6 +104,7 @@ public class MainTests
 
         redirectedErr.ToString().Should().BeEmpty("There should be no errors.");
         redirectedOut.ToString().Should().Contain("Validation succeeded.", "Validation should succeed.");
+        redirectedOut.ToString().Should().Contain("validation type: Detached", "Validation type should be detached.");
     }
 
     [TestMethod]

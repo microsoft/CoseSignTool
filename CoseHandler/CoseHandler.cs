@@ -597,14 +597,18 @@ public static class CoseHandler
 
         // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
         bool messageVerified = false;
+
+        // Checks for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
+        // If this is the case, we need to make sure the external payload hash matches the hash stored in the cose message content.
         bool indirectSignature = msg.IsDetachedSignature();
         try
         {
+
             if (!payloadBytes.IsNullOrEmpty())
             {
                 if (indirectSignature)
                 {
-                    // Embedded payload
+                    // Indirect signature, hash embedded in the COSE message
                     messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes));
                 }
                 else
@@ -617,7 +621,7 @@ public static class CoseHandler
             {
                 if (indirectSignature)
                 {
-                    // Embedded payload
+                    // Indirect signature, hash embedded in the COSE message
                     messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream));
                 }
                 else

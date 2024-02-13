@@ -5,6 +5,7 @@ namespace CoseX509;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.SymbolStore;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -25,12 +26,14 @@ public struct ValidationResult
     public ValidationResult(bool success,
                             List<ValidationFailureCode>? errors,
                             List<CoseSign1ValidationResult>? internalResults = null,
-                            List<X509Certificate2>? certChain = null)
+                            List<X509Certificate2>? certChain = null,
+                            ContentValidationType validationType = default)
     {
         Success = success;
         Errors = ExpandErrors(errors);
         InnerResults = internalResults;
         CertificateChain = certChain;
+        ContentValidationType = validationType;
     }
 
     /// <summary>
@@ -47,6 +50,11 @@ public struct ValidationResult
     /// The certificate chain used to validate the signature, if any.
     /// </summary>
     public List<X509Certificate2>? CertificateChain = null;
+
+    /// <summary>
+    /// Indicates which signature validation format was used.
+    /// </summary>
+    public ContentValidationType ContentValidationType { get; set; } = default;
 
     /// <summary>
     /// The set of specific errors passed from the internal validator, if any.
@@ -93,11 +101,20 @@ public struct ValidationResult
             certDetails = certDetailsBuilder.ToString();
         }
 
+        string contentValidationTypeMsg = "Payload validation type: " + ContentValidationType switch
+        {
+            ContentValidationType.Detached => "Detached",
+            ContentValidationType.Embedded => "Embedded",
+            ContentValidationType.IndirectSignature => "Indirect Signature",
+            ContentValidationType.ContentValidationNotPerformed => "Not Performed",
+            _ => "Unknown"
+        };
+
         if (Success)
         {
             // Print success. If verbose, include any chain validation messages.
             return ((verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
-                $"Validation succeeded.") + $"{newline}{certDetails}";
+                $"Validation succeeded.") + $"{newline}{certDetails}{newline}{contentValidationTypeMsg}";
         }
 
         // Validation failed, so build the error text.

@@ -598,48 +598,40 @@ public static class CoseHandler
         // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
         bool messageVerified = false;
 
-        // Checks for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
-        // If this is the case, we need to make sure the external payload hash matches the hash stored in the cose message content.
+        // check for external payload
+        bool hasBytes = !payloadBytes.IsNullOrEmpty();
+        bool hasStream = payloadStream is not null;
+
+        // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
+        // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
         bool indirectSignature = msg.IsDetachedSignature();
-        ContentValidationType validationType = ContentValidationType.ContentValidationNotPerformed;
+
+        // Determine the type of content validation to perform.
+        ContentValidationType cvt = (indirectSignature && (hasBytes || hasStream)) ? ContentValidationType.Indirect :
+            hasBytes || hasStream ? ContentValidationType.Detached : ContentValidationType.Embedded;
 
         try
         {
-            if (!payloadBytes.IsNullOrEmpty())
+            switch (cvt)
             {
-                if (indirectSignature)
-                {
-                    // Indirect signature, hash embedded in the COSE message
-                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes));
-                    validationType = ContentValidationType.Indirect;
-                }
-                else
-                {
-                    // Detached payload received as byte array
-                    messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
-                    validationType = ContentValidationType.Detached;
-                }
-            }
-            else if (payloadStream is not null)
-            {
-                if (indirectSignature)
-                {
-                    // Indirect signature, hash embedded in the COSE message
-                    messageVerified = (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream));
-                    validationType = ContentValidationType.Indirect;
-                }
-                else
-                {
-                    // Detached payload received as a stream
-                    messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
-                    validationType = ContentValidationType.Detached;
-                }
-            }
-            else
-            {
-                // Embedded payload
-                messageVerified = msg.VerifyEmbedded(publicKey);
-                validationType = ContentValidationType.Embedded;
+                // Indirect signature validation. Validate external payload hash against embedded hash + Embedded signature validation.
+                case ContentValidationType.Indirect:
+                    messageVerified = hasBytes ?
+                        (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
+                        (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream));
+                    break;
+
+                // Detached signature validation. Validate external payload against the signature.
+                case ContentValidationType.Detached:
+                    messageVerified = hasBytes ?
+                        msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
+                        Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                    break;
+
+                // Embedded signature validation. Validate the embedded content against the signature.
+                case ContentValidationType.Embedded:
+                    messageVerified = msg.VerifyEmbedded(publicKey);
+                    break;
             }
 
             if (!messageVerified)
@@ -660,7 +652,7 @@ public static class CoseHandler
                 ValidationFailureCode.RedundantPayload);
         }
         
-        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, validationType);
+        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);
     }
 
     /// <summary>

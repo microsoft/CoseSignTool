@@ -602,13 +602,11 @@ public static class CoseHandler
         bool hasBytes = !payloadBytes.IsNullOrEmpty();
         bool hasStream = payloadStream is not null;
 
+        // Determine the type of content validation to perform.
         // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
         // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
-        bool indirectSignature = msg.IsDetachedSignature();
-
-        // Determine the type of content validation to perform.
-        ContentValidationType cvt = (indirectSignature && (hasBytes || hasStream)) ? ContentValidationType.Indirect :
-            hasBytes || hasStream ? ContentValidationType.Detached : ContentValidationType.Embedded;
+        ContentValidationType cvt = msg.IsDetachedSignature() ? ContentValidationType.Indirect :
+            (hasBytes || hasStream) ? ContentValidationType.Detached : ContentValidationType.Embedded;
 
         try
         {
@@ -618,7 +616,9 @@ public static class CoseHandler
                 case ContentValidationType.Indirect:
                     messageVerified = hasBytes ?
                         (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
-                        (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream));
+                        hasStream ?
+                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream)) :
+                            throw new InvalidOperationException();
                     break;
 
                 // Detached signature validation. Validate external payload against the signature.
@@ -650,6 +650,8 @@ public static class CoseHandler
             errorCodes.Add(
                 payloadBytes is null && payloadStream is null ? ValidationFailureCode.PayloadMissing :
                 ValidationFailureCode.RedundantPayload);
+
+            messageVerified = false;
         }
         
         return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);

@@ -4,6 +4,7 @@
 namespace CoseSignUnitTests;
 
 using System;
+using System.Linq;
 using CoseDetachedSignature;
 using CoseSign1.Certificates.Local;
 using CoseX509;
@@ -185,6 +186,38 @@ public class ValidateCommandTests
         result.Success.Should().BeTrue();
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
+    }
+
+    /// <summary>
+    /// Validates that indirect signature validation faills when no payload is passed in
+    /// </summary>
+    [TestMethod]
+    public void ValidateIndirectFailsWithoutPayloadPassedIn()
+    {
+        // sign indirectly
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: File.ReadAllBytes(PayloadFile),
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
+
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        coseFile.Write(signedBytes);
+        coseFile.Seek(0, SeekOrigin.Begin);
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     null,
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeFalse();
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
+        result.Errors.Should().ContainSingle();
+        result.Errors.FirstOrDefault().ErrorCode.Should().Be(ValidationFailureCode.PayloadMissing);
     }
 
     /// <summary>

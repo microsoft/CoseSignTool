@@ -54,7 +54,7 @@ public enum ValidationFailureCode
     PayloadUnreadable,
 
     /// <summary>
-    /// Required payload was not supplied for detached signature.
+    /// Required payload was not supplied for a detached or indirect signature.
     /// </summary>
     PayloadMissing,
 

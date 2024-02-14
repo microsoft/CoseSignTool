@@ -43,7 +43,7 @@ public readonly struct CoseValidationError
         { ValidationFailureCode.CertificateChainInvalid, "Certificate chain validation failed." },
         { ValidationFailureCode.TrustValidationFailed, "The signature failed to validate against the trust validator." },
         { ValidationFailureCode.PayloadMismatch, "The supplied or embedded payload does not match the hash of the payload that was signed." },
-        { ValidationFailureCode.PayloadMissing, "The detached signature could not be validated because the original payload was not supplied."},
+        { ValidationFailureCode.PayloadMissing, "The detached or indirect signature could not be validated because the external payload was not supplied."},
         { ValidationFailureCode.PayloadUnreadable, "The payload content could not be read."},
         { ValidationFailureCode.RedundantPayload, "The embedded signature was not validated because external payload was also specified."},
         { ValidationFailureCode.CoseHeadersInvalid, "The COSE headers in the signature could not be read." },

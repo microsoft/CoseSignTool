@@ -21,6 +21,7 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Local.Validators;
 using CoseSign1.Extensions;
 using CoseSign1.Interfaces;
+using CoseDetachedSignature.Extensions;
 
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
@@ -557,14 +558,14 @@ public static class CoseHandler
         {
             errorCodes.Add(ValidationFailureCode.SigningCertificateUnreadable);
             content = null;
-            return new ValidationResult(false, errorCodes);
+            return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
         }
 
         if (!msg.TryGetCertificateChain(out List<X509Certificate2>? chain, true))
         {
             errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable);
             content = null;
-            return new ValidationResult(false, errorCodes);
+            return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
         }
 
         // Populate the output parameter
@@ -574,14 +575,14 @@ public static class CoseHandler
         if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
         {
             errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
-            return new ValidationResult(false, errorCodes, certValidationResults, chain);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
         }
 
         // Get the signing certificate
         if (!msg.TryGetSigningCertificate(out X509Certificate2? signingCertificate, true) || signingCertificate is null)
         {
             errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable); // Is this always correct? Can there be certs found with none of them being the signing cert?
-            return new ValidationResult(false, errorCodes, certValidationResults, chain);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
         }
 
         // Get the public key
@@ -591,27 +592,46 @@ public static class CoseHandler
         if (publicKey is null)
         {
             errorCodes.Add(ValidationFailureCode.NoPublicKey);
-            return new ValidationResult(false, errorCodes, certValidationResults, chain);
+            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
         }
 
         // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
         bool messageVerified = false;
+
+        // check for external payload
+        bool hasBytes = !payloadBytes.IsNullOrEmpty();
+        bool hasStream = payloadStream is not null;
+
+        // Determine the type of content validation to perform.
+        // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
+        // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
+        ContentValidationType cvt = msg.IsDetachedSignature() ? ContentValidationType.Indirect :
+            (hasBytes || hasStream) ? ContentValidationType.Detached : ContentValidationType.Embedded;
+
         try
         {
-            if (!payloadBytes.IsNullOrEmpty())
+            switch (cvt)
             {
-                // Detached payload received as byte array
-                messageVerified = msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes));
-            }
-            else if (payloadStream is not null)
-            {
-                // Detached payload received as a stream
-                messageVerified = Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
-            }
-            else
-            {
-                // Embedded payload
-                messageVerified = msg.VerifyEmbedded(publicKey);
+                // Indirect signature validation. Validate external payload hash against embedded hash + Embedded signature validation.
+                case ContentValidationType.Indirect:
+                    messageVerified = hasBytes ?
+                        (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
+                        hasStream ?
+                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream)) :
+                            throw new InvalidOperationException();
+                    break;
+
+                // Detached signature validation. Validate external payload against the signature.
+                case ContentValidationType.Detached:
+                    messageVerified = hasBytes ?
+                        msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
+                        Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                    break;
+
+                // Embedded signature validation. Validate the embedded content against the signature.
+                case ContentValidationType.Embedded:
+                    messageVerified = msg.VerifyEmbedded(publicKey);
+                    break;
             }
 
             if (!messageVerified)
@@ -630,9 +650,11 @@ public static class CoseHandler
             errorCodes.Add(
                 payloadBytes is null && payloadStream is null ? ValidationFailureCode.PayloadMissing :
                 ValidationFailureCode.RedundantPayload);
+
+            messageVerified = false;
         }
         
-        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain);
+        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);
     }
 
     /// <summary>

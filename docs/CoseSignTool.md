@@ -32,7 +32,7 @@ The **Validate** command validates that a COSE signature is properly constructed
 
 You will need to specify:
 * What to validate. This may be a file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length may be truncated, depending on what operating system and command shell you use.
-* (For detached signatures only) the **/Payload** that was signed. If validating an embedded signature, skip this part.
+* (For detached and indirect signatures only) the **/Payload** that was signed. If validating an embedded signature, skip this part.
 
 You may also want to specify:
 * Some root certificates. By default, CoseSignTool will try to chain the signing certificate to whatever certificates are installed on the machine. If you want to chain to certificates that are not installed, use the **/Roots** option.

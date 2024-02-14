@@ -23,7 +23,7 @@ The **Validate** method validates that a COSE signature is properly constructed,
 
 You will need to specify:
 * The **signature** to validate. You can pass in your COSE signature structure as either a byte array, a stream, or a *FileInfo* object. 
-* The **payload** that was signed (for detached signatures only.) Again, you can pass it in as a byte array, a stream, or a *FileInfo*. 
+* The **payload** that was signed (for detached and indirect signatures only.) Again, you can pass it in as a byte array, a stream, or a *FileInfo*. 
 Which types you should use for signature and payload depends on your scenario.
   * Arrays and most stream types are limited to 2gb or less, so if you anticipate large payloads, either use *FileInfo*, *FileStream*, or a custom stream type that doesn't have a backing array.
   * Payloads may be more than 2gb but signatures will not, because embedded signatures use byte arrays to store the payload.

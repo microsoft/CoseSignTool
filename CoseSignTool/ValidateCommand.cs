@@ -231,7 +231,7 @@ Options:
 
     SignatureFile / sigfile / sf: Required, pipeable. The file or piped stream containing the COSE signature.
 
-    PayloadFile / payload / p: Required for detached signatures. The original source file that was signed.
+    PayloadFile / payload / p: Required for detached and indirect signatures. The original source file that was signed.
         Do not use for embedded signatures.
 ";
 

@@ -101,7 +101,7 @@ public struct ValidationResult
             certDetails = certDetailsBuilder.ToString();
         }
 
-        string contentValidationTypeMsg = "Payload validation type: " + ContentValidationType.ToString();
+        string contentValidationTypeMsg = "Payload validation type: " + ContentValidationType;
 
         if (Success)
         {

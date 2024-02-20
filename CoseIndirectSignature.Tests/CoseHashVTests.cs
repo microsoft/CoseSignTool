@@ -21,7 +21,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        MemoryStream stream = new MemoryStream(testData);
+        using MemoryStream stream = new MemoryStream(testData);
         ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
         CoseHashV testObj = new CoseHashV();
         testObj.Algorithm.Should().Be(CoseHashAlgorithm.Reserved);
@@ -94,7 +94,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        MemoryStream stream = new MemoryStream(testData);
+        using MemoryStream stream = new MemoryStream(testData);
         ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
 
         // act and assert
@@ -139,7 +139,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        MemoryStream stream = new MemoryStream(testData);
+        using MemoryStream stream = new MemoryStream(testData);
         ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
         CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, testData);
 
@@ -159,7 +159,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        MemoryStream stream = new MemoryStream(testData);
+        using MemoryStream stream = new MemoryStream(testData);
         ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
         CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, testData);
 

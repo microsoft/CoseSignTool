@@ -241,21 +241,6 @@ public record CoseHashV
     {
         CborWriter writer = new(CborConformanceMode.Strict, allowMultipleRootLevelValues: true);
 
-        // start out presuming all properties are being written.
-        int properties = 4;
-
-        // if Location is null, then we need to decrement the properties count in the cbor object.
-        if(Location == null)
-        {
-            properties--;
-        }
-
-        // if Any is null, then we need to decrement the properties count in the cbor object.
-        if(Any == null)
-        {
-            properties--;
-        }
-
         writer.Reset();
         writer.WriteInt64((long)Algorithm);
         writer.WriteByteString(HashValue);

@@ -54,6 +54,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AF
 	ProjectSection(SolutionItems) = preProject
 		Nuspec\CoseDetachedSignature.nuspec = Nuspec\CoseDetachedSignature.nuspec
 		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
+		Nuspec\CoseSign1.AzureCodeSigning.nuspec = Nuspec\CoseSign1.AzureCodeSigning.nuspec
 		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
 		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
 	EndProjectSection
@@ -67,6 +68,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 		.github\workflows\OpenPR.yml = .github\workflows\OpenPR.yml
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.AzureCodeSigning", "CoseSign1.AzureCodeSigning\CoseSign1.AzureCodeSigning.csproj", "{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -172,6 +175,14 @@ Global
 		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|x64.ActiveCfg = Release|Any CPU
 		{58984C00-6EA6-47ED-AF9D-717B187A168B}.Release|x64.Build.0 = Release|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Debug|x64.Build.0 = Debug|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Release|x64.ActiveCfg = Release|Any CPU
+		{7C5A25EF-EC5D-4BB4-93A4-0EAF5EC61E84}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

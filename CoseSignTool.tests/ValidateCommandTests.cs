@@ -4,6 +4,9 @@
 namespace CoseSignUnitTests;
 
 using System;
+using System.Linq;
+using CoseDetachedSignature;
+using CoseSign1.Certificates.Local;
 using CoseX509;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -36,7 +39,8 @@ public class ValidateCommandTests
     private static string PayloadFile;
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
 
-    public ValidateCommandTests()
+    [AssemblyInitialize]
+    public static void TestClassInit(TestContext context)
     {
         // make payload file
         PayloadFile = Path.GetTempFileName();
@@ -72,13 +76,15 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeTrue();
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
-    /// Validates that signatures made from untrusted chains are rejected
+    /// Validates that modified payloads are rejected
     /// </summary>
     [TestMethod]
-    public void ValidateFailsWithUntrustedRoot()
+    public void ValidateFailsWithModifiedPayload()
     {
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
@@ -87,10 +93,18 @@ public class ValidateCommandTests
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     new FileInfo(PublicKeyRootCertFile),
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
@@ -111,36 +125,17 @@ public class ValidateCommandTests
         result.InnerResults.Should().ContainSingle();
         result.InnerResults[0].PassedValidation.Should().BeTrue();
         result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
-    }
-
-    /// <summary>
-    /// Validates that the ShowCertificateDetails flag works on validation result
-    /// </summary>
-    [TestMethod]
-    public void ValidateSucceedsWithCertDetails()
-    {
-        // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
-
-        // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
-        result.Success.Should().BeTrue();
-        result.InnerResults.Should().ContainSingle();
-        result.InnerResults[0].PassedValidation.Should().BeTrue();
-        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
 
         result.ToString(showCertDetails: true).Should().Contain("Certificate chain details");
-        Console.WriteLine(result.ToString(showCertDetails: true));
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached);
+        result.ToString(true).Should().Contain("Detached");
     }
 
     /// <summary>
     /// Validates that signatures made from untrusted chains are rejected
     /// </summary>
     [TestMethod]
-    public void ValidateFailsWithCertDetails()
+    public void ValidateUntrustedFails()
     {
         // sign detached
         string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
@@ -154,7 +149,140 @@ public class ValidateCommandTests
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
-        //result.ToString(verbose: true, showCertDetails: true).Should().Contain("Certificate chain details");
-        Console.WriteLine(result.ToString(verbose: true, showCertDetails: true));
+        string resString = result.ToString(verbose: true, showCertDetails: true);
+        resString.Should().Contain("Certificate chain details");
+
+        // Content validation type should be set to not performed because we shouldn't try to process untrusted content
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        resString.Should().Contain("NotPerformed");
+        Console.WriteLine(resString);
+    }
+
+    /// <summary>
+    /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
+    /// </summary>
+    [TestMethod]
+    public void ValidateIndirectSucceedsWithRootPassedIn()
+    {
+        // sign indirectly
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: File.ReadAllBytes(PayloadFile),
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
+
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        coseFile.Write(signedBytes);
+        coseFile.Seek(0, SeekOrigin.Begin);
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     new FileInfo(PayloadFile),
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeTrue();
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
+    }
+
+    /// <summary>
+    /// Validates that indirect signature validation faills when no payload is passed in
+    /// </summary>
+    [TestMethod]
+    public void ValidateIndirectFailsWithoutPayloadPassedIn()
+    {
+        // sign indirectly
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: File.ReadAllBytes(PayloadFile),
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
+
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        coseFile.Write(signedBytes);
+        coseFile.Seek(0, SeekOrigin.Begin);
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     null,
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeFalse();
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
+        result.Errors.Should().ContainSingle();
+        result.Errors.FirstOrDefault().ErrorCode.Should().Be(ValidationFailureCode.PayloadMissing);
+    }
+
+    /// <summary>
+    /// Validates that modified indirect payloads are rejected
+    /// </summary>
+    public void ValidateIndirectFailsWithModifiedPayload()
+    {
+        // sign indirectly
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: File.ReadAllBytes(PayloadFile),
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
+
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        coseFile.Write(signedBytes);
+        coseFile.Seek(0, SeekOrigin.Begin);
+
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     new FileInfo(PublicKeyRootCertFile),
+                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle();
+        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
+    }
+
+    /// <summary>
+    /// Validates that signatures made from untrusted chains are rejected
+    /// </summary>
+    [TestMethod]
+    public void ValidateIndirectFailsWithUntrustedRoot()
+    {
+        // sign indirectly
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: File.ReadAllBytes(PayloadFile),
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
+
+        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        coseFile.Write(signedBytes);
+        coseFile.Seek(0, SeekOrigin.Begin);
+
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(coseFile,
+                                                     new FileInfo(PayloadFile),
+                                                     null,
+                                                     X509RevocationMode.Online,
+                                                     null,
+                                                     false);
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle();
+        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+
+        // Content validation type should be set to not performed because we shouldn't try to process untrusted content
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        result.ToString(true).Should().Contain("NotPerformed");
     }
 }

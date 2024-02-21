@@ -3,6 +3,10 @@
 
 namespace CoseSignUnitTests;
 
+using CoseDetachedSignature;
+using System.Net.Mime;
+using System.Runtime.ConstrainedExecution;
+
 [TestClass]
 public class CoseHandlerSignValidateTests
 {
@@ -331,6 +335,67 @@ public class CoseHandlerSignValidateTests
 
         result.Success.Should().Be(false);
         result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+    }
+
+    [TestMethod]
+    public void IndirectSignatureValidation()
+    {
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
+
+        // Try to validate byte[]
+        var result = CoseHandler.Validate(signedBytes, Payload1Bytes, ValidRootSetPriv, RevMode);
+        result.Success.Should().Be(true);
+
+        // Try to validate stream
+        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
+        result2.Success.Should().Be(true);
+    }
+
+    [TestMethod]
+    public void IndirectSignatureModifiedPayload()
+    {
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
+
+        // Now change one character in the payload
+        var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
+
+        // Try to validate byte[]
+        var result = CoseHandler.Validate(signedBytes, modifiedPayload, ValidRootSetPriv, RevMode);
+        result.Success.Should().Be(false);
+        result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+
+        // Try to validate stream
+        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(modifiedPayload), ValidRootSetPriv, RevMode);
+        result2.Success.Should().Be(false);
+        result2.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+    }
+
+    [TestMethod]
+    public void IndirectSignatureUntrustedSignature()
+    {
+        var msgFac = new DetachedSignatureFactory();
+        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
+
+        // Try to validate byte[]
+        var result = CoseHandler.Validate(signedBytes, Payload1Bytes, null, RevMode);
+        result.Success.Should().Be(false);
+        result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.TrustValidationFailed));
+
+        // Try to validate stream
+        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), null, RevMode);
+        result2.Success.Should().Be(false);
+        result2.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.TrustValidationFailed));
     }
     #endregion
 

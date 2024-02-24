@@ -253,22 +253,18 @@ public record CoseHashV
             propertyCount++;
         }
 
-        writer.WriteStartMap(propertyCount);
-        writer.WriteTextString("hashAlg");
+        writer.WriteStartArray(propertyCount);
         writer.WriteInt64((long)Algorithm);
-        writer.WriteTextString("hashValue");
         writer.WriteByteString(HashValue);
         if (Location != null)
         {
-            writer.WriteTextString("location");
             writer.WriteTextString(Location);
         }
         if (Any != null)
         {
-            writer.WriteTextString("any");
             writer.WriteByteString(Any);
         }
-        writer.WriteEndMap();
+        writer.WriteEndArray();
 
         return writer.Encode();
     }
@@ -296,49 +292,56 @@ public record CoseHashV
         }
         CoseHashV returnValue = new CoseHashV();
 
-        if (reader.PeekState() != CborReaderState.StartMap)
+        if (reader.PeekState() != CborReaderState.StartArray)
         {
-            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.StartMap)} but got {reader.PeekState()} instead.");
+            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.StartArray)} but got {reader.PeekState()} instead.");
         }
-        reader.ReadStartMap();
+        reader.ReadStartArray();
 
-        while(!(reader.PeekState() == CborReaderState.EndMap))
+        // read the hash algorithm
+        CborReaderState state = reader.PeekState();
+        if (state != CborReaderState.UnsignedInteger &&
+            state != CborReaderState.NegativeInteger &&
+            state != CborReaderState.TextString)
         {
-            // read the key
-            string key = reader.ReadTextString();
-            switch (key.ToLowerInvariant())
-            {
-                case "hashalg":
-                    CborReaderState state = reader.PeekState();
-                    if (state != CborReaderState.UnsignedInteger &&
-                        state != CborReaderState.NegativeInteger &&
-                        state != CborReaderState.TextString)
-                    {
-                        throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.UnsignedInteger)} or {nameof(CborReaderState.NegativeInteger)} or {nameof(CborReaderState.TextString)} but got {state} instead for \"hashAlg\" property.");
-                    }
-                    if (state == CborReaderState.TextString)
-                    {
-                        returnValue.Algorithm = (CoseHashAlgorithm)Enum.Parse(typeof(CoseHashAlgorithm), reader.ReadTextString(), true);
-                    }
-                    else
-                    {
-                        returnValue.Algorithm = (CoseHashAlgorithm)reader.ReadInt64();
-                    }
-                    break;
-                case "hashvalue":
-                    returnValue.HashValue = reader.ReadByteString();
-                    break;
-                case "location":
-                    returnValue.Location = reader.ReadTextString();
-                    break;
-                case "any":
-                    returnValue.Any = reader.ReadByteString();
-                    break;
-                default:
-                    throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, unexpected key {key} found.");
-            }
+            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.UnsignedInteger)} or {nameof(CborReaderState.NegativeInteger)} or {nameof(CborReaderState.TextString)} but got {state} instead for \"hashAlg\" property.");
         }
-        reader.ReadEndMap();
+        if (state == CborReaderState.TextString)
+        {
+            returnValue.Algorithm = (CoseHashAlgorithm)Enum.Parse(typeof(CoseHashAlgorithm), reader.ReadTextString(), true);
+        }
+        else
+        {
+            returnValue.Algorithm = (CoseHashAlgorithm)reader.ReadInt64();
+        }
+
+        state = reader.PeekState();
+        if (state != CborReaderState.ByteString)
+        {
+            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.ByteString)} but got {state} instead for \"hashValue\" property.");
+        }
+        returnValue.HashValue = reader.ReadByteString();
+
+        // check for and read location as a text string.
+        state = reader.PeekState();
+        if (state == CborReaderState.TextString)
+        {
+            returnValue.Location = reader.ReadTextString();
+        }
+
+        // check for and read additional adata as a byte string
+        state = reader.PeekState();
+        if (state == CborReaderState.ByteString)
+        {
+            returnValue.Any = reader.ReadByteString();
+        }
+
+        state = reader.PeekState();
+        if (state != CborReaderState.EndArray)
+        {
+            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.EndArray)} but got {state} instead.");
+        }
+        reader.ReadEndArray();
         return returnValue;
     }
 

@@ -383,7 +383,8 @@ public record CoseHashV
         {
             returnValue.HashValue = reader.ReadByteString();
         }
-        catch(ArgumentOutOfRangeException ex)
+        catch(Exception ex) when (ex is ArgumentException ||
+                                  ex is NotSupportedException)
         {
             throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, the hash value provided threw an exception: {ex.Message}", ex);
         }

@@ -325,17 +325,19 @@ public class CoseHashVTests
     }
 
     [Test]
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(3)]
-    [TestCase(4)]
-    [TestCase(5)]
-    [TestCase(6)]
-    [TestCase(7)]
-    [TestCase(8)]
-    [TestCase(9)]
-    [TestCase(10)]
-    [TestCase(11)]
+    [TestCase(1, Description = "Too few properties.")]
+    [TestCase(2, Description = "Too many properties.")]
+    [TestCase(3, Description = "Correct properties, but wrong type.")]
+    [TestCase(4, Description = "Correct algorithm and hash, but wrong location type.")]
+    [TestCase(5, Description = "Correct algorithm and hash, but wrong additionalData type.")]
+    [TestCase(6, Description = "Correct algorithm, but hash length does not match algorithm.")]
+    [TestCase(7, Description = "Not starting with start array")]
+    [TestCase(8, Description = "Null Cbor reader")]
+    [TestCase(9, Description = "Null byte array")]
+    [TestCase(10, Description = "Invalid tstr encoding")]
+    [TestCase(11, Description = "Valid tstr encoding")]
+    [TestCase(12, Description ="Invalid algorithm integer - negative.")]
+    [TestCase(13, Description = "Invalid algorithm integer - positive.")]
     public void TestObjectManualSerializationPaths(int testCase)
     {
         CborWriter? writer;
@@ -447,6 +449,7 @@ public class CoseHashVTests
                 cborEcoding = writer.Encode();
                 Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
                 break;
+            // handle a valid tstr endcoding of algorithm
             case 11:
                 writer = new(CborConformanceMode.Strict);
                 propertyCount = 2;
@@ -461,6 +464,30 @@ public class CoseHashVTests
                 properDeserialization.HashValue.Should().BeEquivalentTo(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
                 properDeserialization.Location.Should().BeNull();
                 properDeserialization.AdditionalData.Should().BeNull();
+                break;
+            // handle an invalid algorithm integer negative.
+            case 12:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64(-100);
+                writer.WriteByteString(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle an invalid algorithm integer positive.
+            case 13:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64(9999);
+                writer.WriteByteString(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
                 break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");

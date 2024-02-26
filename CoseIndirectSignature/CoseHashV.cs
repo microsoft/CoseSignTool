@@ -89,7 +89,7 @@ public record CoseHashV
         Location = other.Location;
 
         // deep copy the additional data over if present.
-        if (AdditionalData != null)
+        if (other.AdditionalData != null)
         {
             AdditionalData = new byte[other.AdditionalData.Length];
             other.AdditionalData.CopyTo(AdditionalData, 0);

@@ -117,6 +117,7 @@ public class CoseHashVTests
                 testObj.AdditionalData.Should().BeEquivalentTo(testData);
                 break;
             case 10:
+                testObj.AdditionalData = [0x03, 0x02, 0x01];
                 CoseHashV other = new CoseHashV(testObj);
                 other.Algorithm.Should().Be(testObj.Algorithm);
                 other.HashValue.Should().BeEquivalentTo(testObj.HashValue);
@@ -471,7 +472,7 @@ public class CoseHashVTests
                 cborEcoding = writer.Encode();
                 Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
                 break;
-            // handle a valid tstr endcoding of algorithm
+            // handle a valid tstr encoding of algorithm
             case 11:
                 writer = new(CborConformanceMode.Strict);
                 propertyCount = 2;
@@ -525,7 +526,7 @@ public class CoseHashVTests
                 testObject14.Algorithm.Should().Be((CoseHashAlgorithm)(-123));
                 testObject14.HashValue.Should().BeEquivalentTo([0x1, 0x2, 0x3, 0x4]);
                 break;
-            // handle an valie algorithm integer positive, a random hash and pass the ignore validation flag.
+            // handle an valid algorithm integer positive, a random hash and pass the ignore validation flag.
             case 15:
                 writer = new(CborConformanceMode.Strict);
                 propertyCount = 2;

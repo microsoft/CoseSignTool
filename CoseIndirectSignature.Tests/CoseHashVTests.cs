@@ -34,6 +34,8 @@ public class CoseHashVTests
     [TestCase(8)]
     [TestCase(9)]
     [TestCase(10)]
+    [TestCase(11, Description = "Bypass hash validation for explicit construction")]
+    [TestCase(12, Description = "Bypass hash validation for explicit construction with a bogus algorithm, should serialize")]
     public void TestCoseHashVConstructorSuccess(int testCase)
     {
         // arrange
@@ -123,24 +125,36 @@ public class CoseHashVTests
                 other.Location.Should().Be(testObj.Location);
                 other.AdditionalData.Should().BeEquivalentTo(testObj.AdditionalData);
                 break;
+            case 11:
+                CoseHashV testObject11 = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: [0x1, 0x2, 0x3], disableHashValidation: true);
+                testObject11.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
+                testObject11.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
+                break;
+            case 12:
+                CoseHashV testObject12 = new CoseHashV((CoseHashAlgorithm)(-100), hashValue: [0x1, 0x2, 0x3], disableHashValidation: true);
+                testObject12.Algorithm.Should().Be((CoseHashAlgorithm)(-100));
+                testObject12.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
+                break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestCoseHashVConstructorSuccess)}");
         }
     }
 
     [Test]
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(3)]
-    [TestCase(4)]
-    [TestCase(5)]
-    [TestCase(6)]
-    [TestCase(7)]
-    [TestCase(8)]
-    [TestCase(9)]
-    [TestCase(10)]
-    [TestCase(11)]
-    [TestCase(12)]
+    [TestCase(1, Description = "Reserved algorithm case for byte ctor.")]
+    [TestCase(2, Description = "Hash value that is not the size of the expected hash algorithm.")]
+    [TestCase(3, Description = "Reserved algorithm case for stream ctor.")]
+    [TestCase(4, Description = "Reserved algorithm case for byte ctor. and location")]
+    [TestCase(5, Description = "Reserved algorithm case for byte ctor. and location and additionalData")]
+    [TestCase(6, Description = "Reserved algorithm case for stream ctor. and location")]
+    [TestCase(7, Description = "Reserved algorithm case for stream ctor. and location and additionalData")]
+    [TestCase(8, Description = "SHA256Trunc64 algorithm for readonly memory byte array, and location")]
+    [TestCase(9, Description = "SHAKE128 algorithm for readonly memory byte array and location and additionalData")]
+    [TestCase(10, Description = "Null stream.")]
+    [TestCase(11, Description = "Null byte data.")]
+    [TestCase(12, Description = "Null read only data.")]
+    [TestCase(13, Description = "Null hashValue")]
+    [TestCase(14, Description = "0 length hashValue")]
     public void TestCoseHashVConstructorFailure(int testCase)
     {
         // arrange
@@ -156,7 +170,7 @@ public class CoseHashVTests
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 2:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, testData);
+                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: testData);
                 act.Should().Throw<ArgumentException>();
                 break;
             case 3:
@@ -207,6 +221,14 @@ public class CoseHashVTests
                 break;
             case 12:
                 act = () => new CoseHashV(CoseHashAlgorithm.SHA256, readonlyData: null);
+                act.Should().Throw<ArgumentOutOfRangeException>();
+                break;
+            case 13:
+                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: null);
+                act.Should().Throw<ArgumentNullException>();
+                break;
+            case 14:
+                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: []);
                 act.Should().Throw<ArgumentOutOfRangeException>();
                 break;
             default:

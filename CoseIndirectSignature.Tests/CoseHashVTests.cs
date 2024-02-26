@@ -6,10 +6,8 @@
 namespace CoseIndirectSignature.Tests;
 
 using System.Formats.Cbor;
-using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
 using CoseIndirectSignature.Exceptions;
-using CoseSign1.Abstractions.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NUnit.Framework.Internal;
 
@@ -24,16 +22,16 @@ public class CoseHashVTests
     }
 
     [Test]
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(3)]
-    [TestCase(4)]
-    [TestCase(5)]
-    [TestCase(6)]
-    [TestCase(7)]
-    [TestCase(8)]
-    [TestCase(9)]
-    [TestCase(10)]
+    [TestCase(1, Description = "Default constructor.")]
+    [TestCase(2, Description = "Sha256 with valid byte data.")]
+    [TestCase(3, Description = "Sha256 with valid stream data.")]
+    [TestCase(4, Description = "Sha256 with valid byte data, and a location.")]
+    [TestCase(5, Description = "Sha256 with valid byte data, a location, and additionalData.")]
+    [TestCase(6, Description = "Sha256 with valid stream, and a location.")]
+    [TestCase(7, Description = "Sha256 with a valid stream, a location, and additionalData.")]
+    [TestCase(8, Description = "Sha256 with a valid readonly memory.")]
+    [TestCase(9, Description = "Sha256 with a valid readonly memory, and a location.")]
+    [TestCase(10, Description = "Copy constructor.")]
     [TestCase(11, Description = "Bypass hash validation for explicit construction")]
     [TestCase(12, Description = "Bypass hash validation for explicit construction with a bogus algorithm, should serialize")]
     public void TestCoseHashVConstructorSuccess(int testCase)
@@ -559,9 +557,9 @@ public class CoseHashVTests
     }
 
     [Test]
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(3)]
+    [TestCase(1, Description = "Set invalid hash length through setter.")]
+    [TestCase(2, Description = "Set null through setter.")]
+    [TestCase(3, Description = "Set 0-length array through setter.")]
     public void TestSetHashWithoutAlgorithm(int testCase)
     {
         // arrange

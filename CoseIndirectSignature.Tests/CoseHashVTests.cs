@@ -6,6 +6,7 @@
 namespace CoseIndirectSignature.Tests;
 
 using System.Formats.Cbor;
+using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
 using CoseIndirectSignature.Exceptions;
 using CoseSign1.Abstractions.Exceptions;
@@ -386,7 +387,7 @@ public class CoseHashVTests
                 writer.Reset();
                 writer.WriteStartArray(propertyCount);
                 writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
-                writer.WriteByteString(SHA256.Create().ComputeHash([0x01, 0x02, 0x03, 0x04]));
+                writer.WriteByteString(SHA256.HashData([0x01, 0x02, 0x03, 0x04]));
                 writer.WriteBoolean(true);
                 writer.WriteEndArray();
                 cborEcoding = writer.Encode();
@@ -399,7 +400,7 @@ public class CoseHashVTests
                 writer.Reset();
                 writer.WriteStartArray(propertyCount);
                 writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
-                writer.WriteByteString(SHA256.Create().ComputeHash([0x01, 0x02, 0x03, 0x04]));
+                writer.WriteByteString(SHA256.HashData([0x01, 0x02, 0x03, 0x04]));
                 writer.WriteTextString("location");
                 writer.WriteBoolean(false);
                 writer.WriteEndArray();
@@ -441,7 +442,7 @@ public class CoseHashVTests
                 writer.Reset();
                 writer.WriteStartArray(propertyCount);
                 writer.WriteTextString("broken");
-                writer.WriteByteString(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteByteString(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
                 writer.WriteEndArray();
                 cborEcoding = writer.Encode();
                 Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
@@ -452,12 +453,12 @@ public class CoseHashVTests
                 writer.Reset();
                 writer.WriteStartArray(propertyCount);
                 writer.WriteTextString(CoseHashAlgorithm.SHA256.ToString());
-                writer.WriteByteString(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteByteString(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
                 writer.WriteEndArray();
                 cborEcoding = writer.Encode();
                 CoseHashV properDeserialization = CoseHashV.Deserialize(cborEcoding);
                 properDeserialization.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
-                properDeserialization.HashValue.Should().BeEquivalentTo(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                properDeserialization.HashValue.Should().BeEquivalentTo(SHA256.HashData([0x1, 0x2, 0x3, 0x4]));
                 properDeserialization.Location.Should().BeNull();
                 properDeserialization.AdditionalData.Should().BeNull();
                 break;

@@ -101,11 +101,11 @@ public record CoseHashV
     /// </summary>
     /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
     /// <param name="hashValue">The hash value to be present.</param>
-    /// <param name="disableHashValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
+    /// <param name="disableValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
     public CoseHashV(
         CoseHashAlgorithm algorithm,
         byte[] hashValue,
-        bool disableHashValidation = false)
+        bool disableValidation = false)
         : this(algorithm, null, null)
     {
         _ = hashValue ?? throw new ArgumentNullException(nameof(hashValue));
@@ -114,7 +114,7 @@ public record CoseHashV
             throw new ArgumentOutOfRangeException(nameof(hashValue), "Hash value provided must contain > 0 elements.");
         }
 
-        if (disableHashValidation)
+        if (disableValidation)
         {
             // bypass the property setter to avoid validation against the algorithm.
             InternalHashValue = hashValue;
@@ -331,20 +331,20 @@ public record CoseHashV
     /// Reads a COSE_Hash_V structure from the <see cref="CborReader"/>.
     /// </summary>
     /// <param name="data">A byte[] which represents a CoseHashV object.</param>
-    /// <param name="disableHashValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
+    /// <param name="disableValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
     /// <returns>A proper COSE_Hash_V structure if read from the reader.</returns>
     /// <exception cref="InvalidCoseDataException">Thrown if an invalid object state or format is detected.</exception>
-    public static CoseHashV Deserialize(byte[] data, bool disableHashValidation = false) => Deserialize(new CborReader(data ?? throw new ArgumentNullException(nameof(data), "Cannot deserialize null bytes into a CoseHashV")), disableHashValidation);
+    public static CoseHashV Deserialize(byte[] data, bool disableValidation = false) => Deserialize(new CborReader(data ?? throw new ArgumentNullException(nameof(data), "Cannot deserialize null bytes into a CoseHashV")), disableValidation);
 
     /// <summary>
     /// Reads a COSE_Hash_V structure from the <see cref="CborReader"/>.
     /// </summary>
     /// <param name="reader">The CBOR reader to be read from, it must have allowMultipleRootLevelValues set to true.</param>
-    /// <param name="disableHashValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
+    /// <param name="disableValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
     /// <returns>A proper COSE_Hash_V structure if read from the reader.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="reader"/> is null.</exception>
     /// <exception cref="InvalidCoseDataException">Thrown if an invalid object state or format is detected.</exception>
-    public static CoseHashV Deserialize(CborReader reader, bool disableHashValidation = false)
+    public static CoseHashV Deserialize(CborReader reader, bool disableValidation = false)
     {
         if (reader == null)
         {
@@ -399,7 +399,7 @@ public record CoseHashV
         }
         try
         {
-            if (disableHashValidation)
+            if (disableValidation)
             {
                 // directly assign to the internal hash value to bypass the property setter.
                 returnValue.InternalHashValue = reader.ReadByteString();

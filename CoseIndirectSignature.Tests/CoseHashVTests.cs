@@ -126,12 +126,12 @@ public class CoseHashVTests
                 other.AdditionalData.Should().BeEquivalentTo(testObj.AdditionalData);
                 break;
             case 11:
-                CoseHashV testObject11 = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: [0x1, 0x2, 0x3], disableHashValidation: true);
+                CoseHashV testObject11 = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: [0x1, 0x2, 0x3], disableValidation: true);
                 testObject11.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
                 testObject11.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
                 break;
             case 12:
-                CoseHashV testObject12 = new CoseHashV((CoseHashAlgorithm)(-100), hashValue: [0x1, 0x2, 0x3], disableHashValidation: true);
+                CoseHashV testObject12 = new CoseHashV((CoseHashAlgorithm)(-100), hashValue: [0x1, 0x2, 0x3], disableValidation: true);
                 testObject12.Algorithm.Should().Be((CoseHashAlgorithm)(-100));
                 testObject12.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
                 break;
@@ -360,6 +360,8 @@ public class CoseHashVTests
     [TestCase(11, Description = "Valid tstr encoding")]
     [TestCase(12, Description ="Invalid algorithm integer - negative.")]
     [TestCase(13, Description = "Invalid algorithm integer - positive.")]
+    [TestCase(14, Description = "Invalid algorithm integer, random hash, should deserialize with flag.")]
+    [TestCase(15, Description = "Valid algorithm integer, random hash, should deserialize with flag.")]
     public void TestObjectManualSerializationPaths(int testCase)
     {
         CborWriter? writer;
@@ -510,6 +512,34 @@ public class CoseHashVTests
                 writer.WriteEndArray();
                 cborEcoding = writer.Encode();
                 Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle an invalid algorithm integer positive, a random hash and pass the ignore validation flag.
+            case 14:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64(-123);
+                writer.WriteByteString([0x1, 0x2, 0x3, 0x4]);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                CoseHashV testObject14 = CoseHashV.Deserialize(cborEcoding, disableValidation: true);
+                testObject14.Algorithm.Should().Be((CoseHashAlgorithm)(-123));
+                testObject14.HashValue.Should().BeEquivalentTo([0x1, 0x2, 0x3, 0x4]);
+                break;
+            // handle an valie algorithm integer positive, a random hash and pass the ignore validation flag.
+            case 15:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                writer.WriteByteString([0x1, 0x2, 0x3, 0x4]);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                CoseHashV testObject15 = CoseHashV.Deserialize(cborEcoding, disableValidation: true);
+                testObject15.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
+                testObject15.HashValue.Should().BeEquivalentTo([0x1, 0x2, 0x3, 0x4]);
                 break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");

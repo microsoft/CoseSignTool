@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Ignore Spelling: Cose
+
 namespace CoseIndirectSignature;
 
 using System.ComponentModel;

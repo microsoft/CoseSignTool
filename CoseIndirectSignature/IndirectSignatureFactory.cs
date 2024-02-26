@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Ignore Spelling: cose
+
 namespace CoseIndirectSignature;
 
 /// <summary>

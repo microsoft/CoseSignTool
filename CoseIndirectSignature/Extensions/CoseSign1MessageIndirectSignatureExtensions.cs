@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseIndirectSignature.Extensions;
+// Ignore Spelling: Cose
 
-using System.Net.NetworkInformation;
+namespace CoseIndirectSignature.Extensions;
 
 /// <summary>
 /// Class which extends <see cref="CoseSign1Message"/> for indirect signature use cases.

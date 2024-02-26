@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Ignore Spelling: Cose Deserialize
+
 namespace CoseIndirectSignature;
 using System;
 using System.Formats.Cbor;
@@ -30,6 +32,7 @@ public record CoseHashV
         }
         set
         {
+            // validate the input
             if (value == null)
             {
                 throw new ArgumentNullException(nameof(value));
@@ -42,6 +45,8 @@ public record CoseHashV
             {
                 throw new ArgumentException("The algorithm must be set before the hash can be stored.", nameof(value));
             }
+
+            // sanity check the length of the hash against the specified algorithm to be sure we're not allowing a mismatch.
             HashAlgorithm algo = GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
             if (value.Length != (algo.HashSize / 8))
             {
@@ -57,9 +62,9 @@ public record CoseHashV
     public string? Location { get; set; }
 
     /// <summary>
-    /// Object containing other details and things
+    /// Object containing other details meaningful to the calling application.
     /// </summary>
-    public byte[]? Any { get; set; }
+    public byte[]? AdditionalData { get; set; }
 
     /// <summary>
     /// Default constructor for the CoseHashV class.
@@ -69,19 +74,39 @@ public record CoseHashV
     }
 
     /// <summary>
-    /// Private constructor to share and consolidate initialization code.
+    /// Copy constructor for the CoseHashV class.
     /// </summary>
-    /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
-    /// <param name="location">The optional location of the content represented by this hash.</param>
-    /// <param name="any">The optional additional information.</param>
-    private CoseHashV(
-        CoseHashAlgorithm algorithm,
-        string? location = null,
-        byte[]? any = null)
+    /// <param name="other">The other <see cref="CoseHashV"/> to copy.</param>
+    public CoseHashV(CoseHashV other)
     {
-        Algorithm = algorithm;
-        Location = location;
-        Any = any;
+        Algorithm = other.Algorithm;
+        // deep copy the hash value over
+        InternalHashValue = new byte[other.HashValue.Length];
+        other.HashValue.CopyTo(InternalHashValue, 0);
+
+        // copy the location string
+        Location = other.Location;
+
+        // deep copy the additional data over if present.
+        if (AdditionalData != null)
+        {
+            AdditionalData = new byte[other.AdditionalData.Length];
+            other.AdditionalData.CopyTo(AdditionalData, 0);
+        }
+    }
+
+    /// <summary>
+    /// Constructor for the CoseHashV class which takes a hash algorithm and a hash value.
+    /// </summary>
+    /// <param name="algorithm"></param>
+    /// <param name="hashValue"></param>
+    public CoseHashV(
+        CoseHashAlgorithm algorithm,
+        byte[] hashValue)
+        : this(algorithm, null, null)
+    {
+        // use the property setter to validate the hash value against the algorithm verses directly assigning InternalHashValue.
+        HashValue = hashValue;
     }
 
     /// <summary>
@@ -90,17 +115,22 @@ public record CoseHashV
     /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
     /// <param name="byteData">The data to be hashed.</param>
     /// <param name="location">The optional location of the content represented by this hash.</param>
-    /// <param name="any">The optional additional information.</param>
+    /// <param name="additionalData">The optional additional information.</param>
     public CoseHashV(
         CoseHashAlgorithm algorithm,
         byte[] byteData,
         string? location = null,
-        byte[]? any = null)
-        : this(algorithm, location, any)
+        byte[]? additionalData = null)
+        : this(algorithm, location, additionalData)
     {
         _= byteData ?? throw new ArgumentNullException(nameof(byteData));
+        if(byteData.Length == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(byteData), "The data to be hashed cannot be empty.");
+        }
         using HashAlgorithm hashAlgorightm = GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
-        HashValue = hashAlgorightm.ComputeHash(byteData);
+        // bypass the property setter since we are computing the hash value based on the algorithm directly.
+        InternalHashValue = hashAlgorightm.ComputeHash(byteData);
     }
 
     /// <summary>
@@ -109,20 +139,14 @@ public record CoseHashV
     /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
     /// <param name="readonlyData">The data to be hashed.</param>
     /// <param name="location">The optional location of the content represented by this hash.</param>
-    /// <param name="any">The optional additional information.</param>
+    /// <param name="additionalData">The optional additional information.</param>
     public CoseHashV(
         CoseHashAlgorithm algorithm,
         ReadOnlyMemory<byte> readonlyData,
         string? location = null,
-        ReadOnlyMemory<byte>? any = null)
-        : this(algorithm, location, any?.ToArray())
+        ReadOnlyMemory<byte>? additionalData = null)
+        : this(algorithm, byteData: readonlyData.ToArray(), location, additionalData?.ToArray())
     {
-        if(readonlyData.Length == 0)
-        {
-            throw new ArgumentNullException(nameof(readonlyData));
-        }
-        using HashAlgorithm hashAlgorightm = GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
-        HashValue = hashAlgorightm.ComputeHash(readonlyData.ToArray());
     }
 
     /// <summary>
@@ -131,18 +155,35 @@ public record CoseHashV
     /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
     /// <param name="streamData">The data to be hashed.</param>
     /// <param name="location">The optional location of the content represented by this hash.</param>
-    /// <param name="any">The optional additional information.</param>
+    /// <param name="additionalData">The optional additional information.</param>
     public CoseHashV(
         CoseHashAlgorithm algorithm,
         Stream streamData,
         string? location = null,
-        byte[]? any = null)
-        : this(algorithm, location, any)
+        byte[]? additionalData = null)
+        : this(algorithm, location, additionalData)
     {
         _= streamData ?? throw new ArgumentNullException(nameof(streamData));
 
         using HashAlgorithm hashAlgorightm = GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
-        HashValue = hashAlgorightm.ComputeHash(streamData);
+        // bypass the property setter since we are computing the hash value based on the algorithm directly.
+        InternalHashValue = hashAlgorightm.ComputeHash(streamData);
+    }
+
+    /// <summary>
+    /// Private constructor to share and consolidate initialization code.
+    /// </summary>
+    /// <param name="algorithm">The CoseHashAlgorithm to be used for CoseHashV.</param>
+    /// <param name="location">The optional location of the content represented by this hash.</param>
+    /// <param name="additionalData">The optional additional information.</param>
+    private CoseHashV(
+        CoseHashAlgorithm algorithm,
+        string? location = null,
+        byte[]? additionalData = null)
+    {
+        Algorithm = algorithm;
+        Location = location;
+        AdditionalData = additionalData;
     }
 
     /// <summary>
@@ -243,12 +284,12 @@ public record CoseHashV
 
         int propertyCount = 2;
 
-        if(Any != null)
+        if (Location != null)
         {
             propertyCount++;
         }
 
-        if(Location != null)
+        if (AdditionalData != null)
         {
             propertyCount++;
         }
@@ -260,9 +301,9 @@ public record CoseHashV
         {
             writer.WriteTextString(Location);
         }
-        if (Any != null)
+        if (AdditionalData != null)
         {
-            writer.WriteByteString(Any);
+            writer.WriteByteString(AdditionalData);
         }
         writer.WriteEndArray();
 
@@ -292,6 +333,9 @@ public record CoseHashV
         }
         CoseHashV returnValue = new CoseHashV();
 
+        // tracking state for error purposes.
+        uint propertiesRead = 0;
+
         if (reader.PeekState() != CborReaderState.StartArray)
         {
             throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.StartArray)} but got {reader.PeekState()} instead.");
@@ -314,6 +358,7 @@ public record CoseHashV
         {
             returnValue.Algorithm = (CoseHashAlgorithm)reader.ReadInt64();
         }
+        ++propertiesRead;
 
         state = reader.PeekState();
         if (state != CborReaderState.ByteString)
@@ -321,25 +366,29 @@ public record CoseHashV
             throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.ByteString)} but got {state} instead for \"hashValue\" property.");
         }
         returnValue.HashValue = reader.ReadByteString();
+        ++propertiesRead;
 
         // check for and read location as a text string.
         state = reader.PeekState();
         if (state == CborReaderState.TextString)
         {
             returnValue.Location = reader.ReadTextString();
+            ++propertiesRead;
         }
 
-        // check for and read additional adata as a byte string
+        // check for and read additional data as a byte string
         state = reader.PeekState();
         if (state == CborReaderState.ByteString)
         {
-            returnValue.Any = reader.ReadByteString();
+            returnValue.AdditionalData = reader.ReadByteString();
+            ++propertiesRead;
         }
 
+        // validate the end of the structure is present.
         state = reader.PeekState();
         if (state != CborReaderState.EndArray)
         {
-            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.EndArray)} but got {state} instead.");
+            throw new CoseSign1Exception($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.EndArray)} but got {state} instead after reading {propertiesRead} properties.");
         }
         reader.ReadEndArray();
         return returnValue;

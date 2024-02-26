@@ -1,11 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-// Ignore Spelling: Cose
+// Ignore Spelling: Cose Deserialization
 
 namespace CoseIndirectSignature.Tests;
 
 using System.Formats.Cbor;
+using System.Security.Cryptography;
+using CoseIndirectSignature.Exceptions;
+using CoseSign1.Abstractions.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NUnit.Framework.Internal;
 
@@ -318,6 +321,149 @@ public class CoseHashVTests
         newObj.HashValue.Should().BeEquivalentTo(testObj.HashValue);
         newObj.Location.Should().Be(testObj.Location);
         newObj.AdditionalData.Should().BeEquivalentTo(testObj.AdditionalData);
+    }
+
+    [Test]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(4)]
+    [TestCase(5)]
+    [TestCase(6)]
+    [TestCase(7)]
+    [TestCase(8)]
+    [TestCase(9)]
+    [TestCase(10)]
+    [TestCase(11)]
+    public void TestObjectManualSerializationPaths(int testCase)
+    {
+        CborWriter? writer;
+        int propertyCount = 1;
+        byte[]? cborEcoding;
+        switch (testCase)
+        {
+            // handle too few properties
+            case 1:
+                writer = new(CborConformanceMode.Strict);
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)2);
+                writer.WriteEndArray();
+
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle too many properties
+            case 2:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 5;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                writer.WriteByteString(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+                writer.WriteTextString("location");
+                writer.WriteByteString(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+                writer.WriteBoolean(true);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle the correct amount, but the wrong types
+            case 3:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteBoolean(true);
+                writer.WriteBoolean(false);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle the correct algorithm and hash, but wrong type for location
+            case 4:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 3;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                writer.WriteByteString(SHA256.Create().ComputeHash([0x01, 0x02, 0x03, 0x04]));
+                writer.WriteBoolean(true);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle the correct algorithm, hash and location, but wrong type for additional data
+            case 5:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 4;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                writer.WriteByteString(SHA256.Create().ComputeHash([0x01, 0x02, 0x03, 0x04]));
+                writer.WriteTextString("location");
+                writer.WriteBoolean(false);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle the correct algorithm but mismatched hash length.
+            case 6:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                writer.WriteByteString([0x01, 0x02, 0x03, 0x04]);
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle not starting with start array.
+            case 7:
+                writer = new(CborConformanceMode.Strict);
+                writer.Reset();
+                writer.WriteInt64((long)CoseHashAlgorithm.SHA256);
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            // handle null reader
+            case 8:
+                Assert.ThrowsException<ArgumentNullException>(() => CoseHashV.Deserialize(reader: null));
+                break;
+            // handle null data
+            case 9:
+                Assert.ThrowsException<ArgumentNullException>(() => CoseHashV.Deserialize(data: null));
+                break;
+            // handle invalid tstr encoding of algorithm
+            case 10:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteTextString("broken");
+                writer.WriteByteString(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                Assert.ThrowsException<InvalidCoseDataException>(() => CoseHashV.Deserialize(cborEcoding));
+                break;
+            case 11:
+                writer = new(CborConformanceMode.Strict);
+                propertyCount = 2;
+                writer.Reset();
+                writer.WriteStartArray(propertyCount);
+                writer.WriteTextString(CoseHashAlgorithm.SHA256.ToString());
+                writer.WriteByteString(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                writer.WriteEndArray();
+                cborEcoding = writer.Encode();
+                CoseHashV properDeserialization = CoseHashV.Deserialize(cborEcoding);
+                properDeserialization.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
+                properDeserialization.HashValue.Should().BeEquivalentTo(SHA256.Create().ComputeHash([0x1, 0x2, 0x3, 0x4]));
+                properDeserialization.Location.Should().BeNull();
+                properDeserialization.AdditionalData.Should().BeNull();
+                break;
+            default:
+                throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");
+        }
     }
 
     [Test]

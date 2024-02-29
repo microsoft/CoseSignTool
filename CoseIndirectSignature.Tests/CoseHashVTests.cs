@@ -361,6 +361,7 @@ public class CoseHashVTests
     [TestCase(13, Description = "Invalid algorithm integer - positive.")]
     [TestCase(14, Description = "Invalid algorithm integer, random hash, should deserialize with flag.")]
     [TestCase(15, Description = "Valid algorithm integer, random hash, should deserialize with flag.")]
+    [TestCase(16, Description = "0 bytes to ReadOnlySpan<byte>")]
     public void TestObjectManualSerializationPaths(int testCase)
     {
         CborWriter? writer;
@@ -539,6 +540,10 @@ public class CoseHashVTests
                 CoseHashV testObject15 = CoseHashV.Deserialize(cborEcoding, disableValidation: true);
                 testObject15.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
                 testObject15.HashValue.Should().BeEquivalentTo([0x1, 0x2, 0x3, 0x4]);
+                break;
+            case 16:
+                Action test16 = () => _ = CoseHashV.Deserialize((ReadOnlySpan<byte>)[]);
+                test16.Should().Throw<InvalidCoseDataException>();
                 break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");

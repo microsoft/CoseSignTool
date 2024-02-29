@@ -362,6 +362,7 @@ public class CoseHashVTests
     [TestCase(14, Description = "Invalid algorithm integer, random hash, should deserialize with flag.")]
     [TestCase(15, Description = "Valid algorithm integer, random hash, should deserialize with flag.")]
     [TestCase(16, Description = "0 bytes to ReadOnlySpan<byte>")]
+    [TestCase(17, Description = "Fuzz overflow")]
     public void TestObjectManualSerializationPaths(int testCase)
     {
         CborWriter? writer;
@@ -544,6 +545,11 @@ public class CoseHashVTests
             case 16:
                 Action test16 = () => _ = CoseHashV.Deserialize((ReadOnlySpan<byte>)[]);
                 test16.Should().Throw<InvalidCoseDataException>();
+                break;
+            case 17:
+                byte[] fuzzData = Convert.FromBase64String("gjv//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==");
+                Action test17 = () => _ = CoseHashV.Deserialize(fuzzData);
+                test17.Should().Throw<InvalidCoseDataException>();
                 break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");

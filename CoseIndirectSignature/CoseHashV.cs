@@ -381,19 +381,28 @@ public record CoseHashV
 
         try
         {
-            if (reader.PeekState() != CborReaderState.StartArray)
+            if (PeekStateWithExceptionHandling(reader) != CborReaderState.StartArray)
             {
                 throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.StartArray)} but got {reader.PeekState()} instead.");
             }
 
-            int? propertiesToRead = reader.ReadStartArray();
+            int? propertiesToRead;
+            try
+            {
+                propertiesToRead = reader.ReadStartArray();
+            }
+            catch (Exception ex) when (ex is CborContentException)
+            {
+                throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the state of the reader threw an exception: {ex.Message}", ex);
+            }
             if (propertiesToRead < 2 || propertiesToRead > 4)
             {
                 throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, expected 2 to 4 properties but got {propertiesToRead} instead.");
             }
 
             // read the hash algorithm
-            CborReaderState state = reader.PeekState();
+            CborReaderState state = PeekStateWithExceptionHandling(reader);
+
             if (state != CborReaderState.UnsignedInteger &&
                 state != CborReaderState.NegativeInteger &&
                 state != CborReaderState.TextString)
@@ -402,7 +411,16 @@ public record CoseHashV
             }
             if (state == CborReaderState.TextString)
             {
-                string? algorithmString = reader.ReadTextString();
+                string? algorithmString;
+                try
+                {
+                    algorithmString = reader.ReadTextString();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is CborContentException)
+                {
+                    throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, the hash algorithm provided threw an exception: {ex.Message}", ex);
+                }
+
                 try
                 {
                     returnValue.Algorithm = (CoseHashAlgorithm)Enum.Parse(typeof(CoseHashAlgorithm), algorithmString, true);
@@ -414,26 +432,42 @@ public record CoseHashV
             }
             else
             {
-                returnValue.Algorithm = (CoseHashAlgorithm)reader.ReadInt64();
+                try
+                {
+                    returnValue.Algorithm = (CoseHashAlgorithm)reader.ReadInt64();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is OverflowException || ex is CborContentException)
+                {
+                    throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, the hash algorithm provided threw an exception: {ex.Message}", ex);
+                }
             }
             ++propertiesRead;
 
-            state = reader.PeekState();
+            state = PeekStateWithExceptionHandling(reader);
             if (state != CborReaderState.ByteString)
             {
                 throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.ByteString)} but got {state} instead for \"hashValue\" property.");
             }
             try
             {
+                byte[]? value;
+                try
+                {
+                    value = reader.ReadByteString();
+                }
+                catch(Exception ex) when (ex is InvalidOperationException || ex is CborContentException)
+                {
+                    throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the hash value provided threw an exception: {ex.Message}", ex);
+                }
                 if (disableValidation)
                 {
                     // directly assign to the internal hash value to bypass the property setter.
-                    returnValue.InternalHashValue = reader.ReadByteString();
+                    returnValue.InternalHashValue = value;
                 }
                 else
                 {
                     // use the property setter to validate the hash value against the algorithm.
-                    returnValue.HashValue = reader.ReadByteString();
+                    returnValue.HashValue = value;
                 }
             }
             catch (Exception ex) when (ex is ArgumentException ||
@@ -444,34 +478,67 @@ public record CoseHashV
             ++propertiesRead;
 
             // check for and read location as a text string.
-            state = reader.PeekState();
+            state = PeekStateWithExceptionHandling(reader);
             if (state == CborReaderState.TextString)
             {
-                returnValue.Location = reader.ReadTextString();
+                try
+                {
+                    returnValue.Location = reader.ReadTextString();
+                }
+                catch(Exception ex) when (ex is InvalidOperationException || ex is CborContentException)
+                {
+                    throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the location provided threw an exception: {ex.Message}", ex);
+                }
                 ++propertiesRead;
             }
 
             // check for and read additional data as a byte string
-            state = reader.PeekState();
+            state = PeekStateWithExceptionHandling(reader);
             if (state == CborReaderState.ByteString)
             {
-                returnValue.AdditionalData = reader.ReadByteString();
+                try
+                {
+                    returnValue.AdditionalData = reader.ReadByteString();
+                }
+                catch(Exception ex) when (ex is InvalidOperationException || ex is CborContentException)
+                {
+                    throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the additional data provided threw an exception: {ex.Message}", ex);
+                }
                 ++propertiesRead;
             }
 
             // validate the end of the structure is present.
-            state = reader.PeekState();
+            state = PeekStateWithExceptionHandling(reader);
             if (state != CborReaderState.EndArray)
             {
                 throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, expected {nameof(CborReaderState.EndArray)} but got {state} instead after reading {propertiesRead} elements of {propertiesToRead} detected elements.");
             }
-            reader.ReadEndArray();
+            try
+            {
+                reader.ReadEndArray();
+            }
+            catch(Exception ex) when (ex is InvalidOperationException || ex is CborContentException)
+            {
+                throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the end of the array threw an exception: {ex.Message}", ex);
+            }
         }
         catch(CborContentException ex)
         {
             throw new InvalidCoseDataException($"While processing content, a CborContentException was encountered: \"{ex.Message}\"", ex);
         }
         return returnValue;
+    }
+
+    private static CborReaderState PeekStateWithExceptionHandling(CborReader reader)
+    {
+        try
+        {
+            return reader.PeekState();
+        }
+        catch(Exception ex) when (ex is CborContentException)
+        {
+            throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the state of the reader threw an exception: {ex.Message}", ex);
+        }
     }
 
     /// <summary>

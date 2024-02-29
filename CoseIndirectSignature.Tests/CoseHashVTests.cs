@@ -555,9 +555,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using SHA512 sha = SHA512.Create();
-
-        byte[] hash  = sha.ComputeHash(testData);
+        byte[] hash  = SHA512.HashData(testData);
         CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: hash);
         Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = hash);
     }
@@ -570,9 +568,7 @@ public class CoseHashVTests
     {
         // arrange
         byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using SHA256 sha = SHA256.Create();
-
-        byte[] hash = sha.ComputeHash(testData);
+        byte[] hash = SHA256.HashData(testData);
         CoseHashV testObj = new CoseHashV();
         switch (testCase)
         {

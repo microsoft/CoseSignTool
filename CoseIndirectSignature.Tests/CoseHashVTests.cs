@@ -363,6 +363,7 @@ public class CoseHashVTests
     [TestCase(15, Description = "Valid algorithm integer, random hash, should deserialize with flag.")]
     [TestCase(16, Description = "0 bytes to ReadOnlySpan<byte>")]
     [TestCase(17, Description = "Fuzz overflow")]
+    [TestCase(18, Description = "Fuzz enum overflow")]
     public void TestObjectManualSerializationPaths(int testCase)
     {
         CborWriter? writer;
@@ -542,15 +543,24 @@ public class CoseHashVTests
                 testObject15.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
                 testObject15.HashValue.Should().BeEquivalentTo([0x1, 0x2, 0x3, 0x4]);
                 break;
+            // handle 0 bytes to ReadOnlySpan<byte>
             case 16:
                 Action test16 = () => _ = CoseHashV.Deserialize((ReadOnlySpan<byte>)[]);
                 test16.Should().Throw<InvalidCoseDataException>();
                 break;
+            // handle fuzz overflow
             case 17:
-                byte[] fuzzData = Convert.FromBase64String("gjv//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==");
-                Action test17 = () => _ = CoseHashV.Deserialize(fuzzData);
+                byte[] fuzzData17 = Convert.FromBase64String("gjv//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==");
+                Action test17 = () => _ = CoseHashV.Deserialize(fuzzData17);
                 test17.Should().Throw<InvalidCoseDataException>();
                 break;
+            // handle fuzz enum overflow
+            case 18:
+                byte[] fuzzData18 = Convert.FromBase64String("hHc0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0Cg==");
+                Action test18 = () => _ = CoseHashV.Deserialize(fuzzData18);
+                test18.Should().Throw<InvalidCoseDataException>();
+                break;
+
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestObjectManualSerializationPaths)}");
         }

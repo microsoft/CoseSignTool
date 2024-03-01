@@ -423,7 +423,9 @@ public record CoseHashV
 
                 try
                 {
-                    returnValue.Algorithm = (CoseHashAlgorithm)Enum.Parse(typeof(CoseHashAlgorithm), algorithmString, true);
+                    returnValue.Algorithm = Enum.TryParse(algorithmString, ignoreCase: true, out CoseHashAlgorithm algorithm)
+                        ? algorithm
+                        : throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, the hash algorithm provided \"{algorithmString}\" could not be parsed into a valid {nameof(CoseHashAlgorithm)}.");
                 }
                 catch (ArgumentException ex)
                 {

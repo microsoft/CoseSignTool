@@ -4,8 +4,8 @@
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
-global using CoseDetachedSignature;
-global using CoseDetachedSignature.Extensions;
+global using CoseIndirectSignature;
+global using CoseIndirectSignature.Extensions;
 global using CoseSign1;
 global using CoseSign1.Abstractions.Interfaces;
 global using CoseSign1.Interfaces;

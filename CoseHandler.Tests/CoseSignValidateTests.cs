@@ -3,7 +3,7 @@
 
 namespace CoseSignUnitTests;
 
-using CoseDetachedSignature;
+using CoseIndirectSignature;
 using System.Net.Mime;
 using System.Runtime.ConstrainedExecution;
 
@@ -340,8 +340,8 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void IndirectSignatureValidation()
     {
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
@@ -358,8 +358,8 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void IndirectSignatureModifiedPayload()
     {
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
@@ -381,8 +381,8 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void IndirectSignatureUntrustedSignature()
     {
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();

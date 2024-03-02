@@ -5,7 +5,7 @@ namespace CoseSignUnitTests;
 
 using System;
 using System.Linq;
-using CoseDetachedSignature;
+using CoseIndirectSignature;
 using CoseSign1.Certificates.Local;
 using CoseX509;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -165,8 +165,8 @@ public class ValidateCommandTests
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
         // sign indirectly
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(PayloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
@@ -195,8 +195,8 @@ public class ValidateCommandTests
     public void ValidateIndirectFailsWithoutPayloadPassedIn()
     {
         // sign indirectly
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(PayloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
@@ -226,8 +226,8 @@ public class ValidateCommandTests
     public void ValidateIndirectFailsWithModifiedPayload()
     {
         // sign indirectly
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(PayloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
@@ -259,8 +259,8 @@ public class ValidateCommandTests
     public void ValidateIndirectFailsWithUntrustedRoot()
     {
         // sign indirectly
-        var msgFac = new DetachedSignatureFactory();
-        byte[] signedBytes = msgFac.CreateDetachedSignatureBytes(
+        var msgFac = new IndirectSignatureFactory();
+        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(PayloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();

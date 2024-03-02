@@ -21,7 +21,7 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Local.Validators;
 using CoseSign1.Extensions;
 using CoseSign1.Interfaces;
-using CoseDetachedSignature.Extensions;
+using CoseIndirectSignature.Extensions;
 
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
@@ -605,7 +605,7 @@ public static class CoseHandler
         // Determine the type of content validation to perform.
         // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
         // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
-        ContentValidationType cvt = msg.IsDetachedSignature() ? ContentValidationType.Indirect :
+        ContentValidationType cvt = msg.IsIndirectSignature() ? ContentValidationType.Indirect :
             (hasBytes || hasStream) ? ContentValidationType.Detached : ContentValidationType.Embedded;
 
         try

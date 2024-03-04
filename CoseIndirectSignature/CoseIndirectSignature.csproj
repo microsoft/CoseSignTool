@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <NuspecFile>../Nuspec/CoseDetachedSignature.nuspec</NuspecFile>
+    <NuspecFile>../Nuspec/CoseIndirectSignature.nuspec</NuspecFile>
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>

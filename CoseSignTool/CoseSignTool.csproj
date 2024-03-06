@@ -5,9 +5,19 @@
 		<TargetFramework>net7.0</TargetFramework>
 		<RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
 		<Platforms>x64</Platforms>
-	</PropertyGroup>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+    </PropertyGroup>
 
-	<PropertyGroup>
+    <ItemGroup>
+        <!-- Include the .exe file as content -->
+        <Content Include="$(ExeDir)\$(ProjectName).exe" copyToOutput="true">
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <PropertyGroup>
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<SignAssembly>True</SignAssembly>
 		<PublicSign>True</PublicSign>

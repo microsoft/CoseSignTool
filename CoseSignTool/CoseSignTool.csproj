@@ -10,8 +10,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- Include the .exe file as content -->
-        <Content Include="$(ExeDir)\$(ProjectName).exe" copyToOutput="true">
+        <!-- Include the self contained executable as content -->
+        <Content Include="$(PublishDir)$(ProjectName).exe" copyToOutput="true">
             <PackageCopyToOutput>true</PackageCopyToOutput>
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Content>

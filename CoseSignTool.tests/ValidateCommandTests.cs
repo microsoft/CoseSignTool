@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using CoseIndirectSignature;
 using CoseSign1.Certificates.Local;
+using CoseSignTool.tests;
 using CoseX509;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -35,17 +36,9 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
 
-
-    private static string PayloadFile;
-    private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
-
     [AssemblyInitialize]
     public static void TestClassInit(TestContext context)
     {
-        // make payload file
-        PayloadFile = Path.GetTempFileName();
-        File.WriteAllBytes(PayloadFile, Payload1Bytes);
-
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
@@ -62,15 +55,17 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateSucceedsWithRootPassedIn()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
-                                                     new FileInfo(PayloadFile),
+                                                     new FileInfo(payloadFile),
                                                      new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
                                                      X509RevocationMode.Online,
                                                      null,
@@ -86,10 +81,12 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateFailsWithModifiedPayload()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
@@ -113,14 +110,16 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateSucceedsWithAllowUntrustedRoot()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
+        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
         result.Success.Should().BeTrue();
         result.InnerResults.Should().ContainSingle();
         result.InnerResults[0].PassedValidation.Should().BeTrue();
@@ -137,14 +136,16 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateUntrustedFails()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Open);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(PayloadFile), null, X509RevocationMode.Online, null, false);
+        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
@@ -164,21 +165,23 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-        payload: File.ReadAllBytes(PayloadFile),
+        payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
 
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
         coseFile.Write(signedBytes);
         coseFile.Seek(0, SeekOrigin.Begin);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
-                                                     new FileInfo(PayloadFile),
+                                                     new FileInfo(payloadFile),
                                                      new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
                                                      X509RevocationMode.Online,
                                                      null,
@@ -194,14 +197,16 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectFailsWithoutPayloadPassedIn()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-        payload: File.ReadAllBytes(PayloadFile),
+        payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
 
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
         coseFile.Write(signedBytes);
         coseFile.Seek(0, SeekOrigin.Begin);
 
@@ -225,14 +230,16 @@ public class ValidateCommandTests
     /// </summary>
     public void ValidateIndirectFailsWithModifiedPayload()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-        payload: File.ReadAllBytes(PayloadFile),
+        payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
 
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
         coseFile.Write(signedBytes);
         coseFile.Seek(0, SeekOrigin.Begin);
 
@@ -258,21 +265,23 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectFailsWithUntrustedRoot()
     {
+        string payloadFile = Utils.GetPayloadFile();
+
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-        payload: File.ReadAllBytes(PayloadFile),
+        payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert)).ToArray();
 
-        using FileStream coseFile = new(PayloadFile + ".cose", FileMode.Create);
+        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
         coseFile.Write(signedBytes);
         coseFile.Seek(0, SeekOrigin.Begin);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
-                                                     new FileInfo(PayloadFile),
+                                                     new FileInfo(payloadFile),
                                                      null,
                                                      X509RevocationMode.Online,
                                                      null,

@@ -76,6 +76,19 @@ public enum ExitCode
     SignatureLoadError = 1894,
 
     /// <summary>
+    /// The payload or signature file that was read had no content.
+    /// </summary>
+    EmptySourceFile = 1895,
+
+    /// <summary>
+    /// A user specified file was found but could not be read.
+    /// </summary>
+    FileUnreadable = 1896,
+
+
+
+
+    /// <summary>
     /// CoseSignTool exited with an unknown error.
     /// </summary>
     UnknownError = 1950

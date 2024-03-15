@@ -101,14 +101,18 @@ public class ValidateCommand : CoseCommand
     /// <returns>An exit code indicating success or failure.</returns>
     public override ExitCode Run()
     {
-        // Get the signature, either piped in or from file.
-        Stream signatureStream = GetStreamFromPipeOrFile(SignatureFile, nameof(SignatureFile));
+        // Get the signature as a stream, either piped in or from file.
+        ExitCode exitCode = TryGetStreamFromPipeOrFile(SignatureFile, nameof(SignatureFile), out Stream? signatureStream);
+        if (exitCode != ExitCode.Success || signatureStream is null)
+        {
+            return exitCode;
+        }
 
         // Make sure the external payload file is present if specified.
         if (PayloadFile is not null && !PayloadFile.Exists)
         {
             return CoseSignTool.Fail(
-                ExitCode.PayloadReadError,
+                ExitCode.UserSpecifiedFileNotFound,
                 new FileNotFoundException(nameof(PayloadFile)),
                 $"Could not find the external Payload file at {PayloadFile}.");
         }

@@ -4,7 +4,7 @@
 namespace CoseSignUnitTests;
 
 using System;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
+using CoseSignTool.tests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using CST = CoseSignTool.CoseSignTool;
@@ -32,16 +32,8 @@ public class MainTests
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
 
-
-    private static string PayloadFile;
-    private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
-
     public MainTests()
     {
-        // make payload file
-        PayloadFile = Path.GetTempFileName();
-        File.WriteAllBytes(PayloadFile, Payload1Bytes);
-
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
@@ -56,30 +48,31 @@ public class MainTests
     public void FromMainValid()
     {
         string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
+        string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChained };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
 
         // sign embedded
-        string[] args2 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", PayloadFile, @"/ep" };
+        string[] args2 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep" };
         CST.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign failed.");
 
         // validate detached
-        string sigFile = PayloadFile + ".cose";
-        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", PayloadFile, "/rm", "NoCheck" };
+        string sigFile = payloadFile + ".cose";
+        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck" };
         CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
 
         // validate embedded
-        sigFile = PayloadFile + ".csm";
+        sigFile = payloadFile + ".csm";
         string[] args4 = { "validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd" };
         CST.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation failed.");
 
         // get content
-        string saveFile = PayloadFile + ".saved";
+        string saveFile = payloadFile + ".saved";
         string[] args5 = { "get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck" };
         CST.Main(args5).Should().Be(0, "Detach validation with save failed.");
-        File.ReadAllText(PayloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
+        File.ReadAllText(payloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
     }
 
     [TestMethod]
@@ -92,14 +85,15 @@ public class MainTests
         Console.SetError(redirectedErr);
 
         string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
+        string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChained };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
 
         // validate detached
-        string sigFile = PayloadFile + ".cose";
-        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", PayloadFile, "/rm", "NoCheck" };
+        string sigFile = payloadFile + ".cose";
+        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck" };
         CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
 
         redirectedErr.ToString().Should().BeEmpty("There should be no errors.");
@@ -110,8 +104,9 @@ public class MainTests
     [TestMethod]
     public void SignWithPasswordProtectedCertSuccess()
     {
+        string payloadFile = Utils.GetPayloadFile();
         // sign detached with password protected cert
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword };
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword };
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert failed.");
     }
 
@@ -119,7 +114,8 @@ public class MainTests
     public void SignWithPasswordProtectedCertNoPassword()
     {
         // sign detached with password protected cert
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword };
+        string payloadFile = Utils.GetPayloadFile();
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword };
         CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
     }
 
@@ -127,7 +123,8 @@ public class MainTests
     public void SignWithPasswordProtectedCertWrongPassword()
     {
         // sign detached with password protected cert
-        string[] args1 = { "sign", @"/p", PayloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword" };
+        string payloadFile = Utils.GetPayloadFile();
+        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword" };
         CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
     }
 
@@ -145,16 +142,47 @@ public class MainTests
         // empty payload argument
         string[] args3 = { "sign", @"/pfx", "fake.pfx", @"/p", "" };
         CST.Main(args3).Should().Be((int)ExitCode.MissingRequiredOption);
+    }
 
-        // nonexistent payload file
-        string[] args4 = { "sign", @"/pfx", "fake.pfx", @"/p", "asdfa" };
-        CST.Main(args4).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+    [TestMethod]
+    public void FileNotFound()
+    {
+        string payloadFile = Utils.GetPayloadFile();
+        string missingFile = @"c:\NoFileHere.nothing";
+        string sigFile = $"{payloadFile}.cose";
+        CST.Main(new string[] { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile });
+
+        // missing payload file - sign
+        string[] args1 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile };
+        CST.Main(args1).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+
+        // missing payload file - validate
+        string[] args2 = { "validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile };
+        CST.Main(args2).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+
+        // missing signature file
+        string[] args3 = { "validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile };
+        CST.Main(args3).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
         // missing cert
-        string sigFile = Path.GetTempFileName();
-        string payload = Path.GetTempFileName();
-        string[] args5 = { "validate", @"/rt", payload, @"/sf", sigFile, @"/rt", "cert.wacky" };
-        CST.Main(args5).Should().Be((int)ExitCode.CertificateLoadFailure);
+        string[] args6 = { "validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile };
+        CST.Main(args6).Should().Be((int)ExitCode.CertificateLoadFailure);
+    }
+
+    [TestMethod]
+    public void EmptySourceFile()
+    {
+        string payloadFile = Utils.GetPayloadFile();
+        string emptyFile = Path.GetTempFileName();
+        File.WriteAllBytes(payloadFile, Array.Empty<byte>());
+
+        // empty payload file
+        string[] args1 = { "sign", @"/pfx", "fake.pfx", @"/p", emptyFile };
+        CST.Main(args1).Should().Be((int)ExitCode.EmptySourceFile);
+
+        // empty signature file
+        string[] args2 = { "validate", @"/rt", PublicKeyRootCertFile, @"/sf", emptyFile, "/rm", "NoCheck", "/scd" };
+        CST.Main(args2).Should().Be((int)ExitCode.EmptySourceFile);
     }
 
     [TestMethod]

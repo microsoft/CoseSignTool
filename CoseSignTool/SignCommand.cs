@@ -117,8 +117,12 @@ public class SignCommand : CoseCommand
     /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
     public override ExitCode Run()
     {
-        // Get the payload, either piped in or from file.
-        Stream payloadStream = GetStreamFromPipeOrFile(PayloadFile, nameof(PayloadFile));
+        // Get the payload as a Stream, either piped in or from file.
+        ExitCode exitCode = TryGetStreamFromPipeOrFile(PayloadFile, nameof(PayloadFile), out Stream? payloadStream);
+        if (exitCode != ExitCode.Success || payloadStream is null)
+        {
+            return exitCode;
+        }
 
         // Get the signing certificate.
         X509Certificate2 cert;
@@ -128,7 +132,7 @@ public class SignCommand : CoseCommand
         }
         catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
         {
-            ExitCode exitCode = ex is CoseSign1CertificateException ? ExitCode.StoreCertificateNotFound : ExitCode.CertificateLoadFailure;
+            exitCode = ex is CoseSign1CertificateException ? ExitCode.StoreCertificateNotFound : ExitCode.CertificateLoadFailure;
             return CoseSignTool.Fail(exitCode, ex);
         }
 
@@ -164,7 +168,6 @@ public class SignCommand : CoseCommand
         }
         catch (ArgumentException ex)
         {
-            // No payload was provided.
             return CoseSignTool.Fail(ExitCode.PayloadReadError, ex);
         }
         catch (Exception ex) when (ex is CryptographicException or CoseSign1CertificateException)

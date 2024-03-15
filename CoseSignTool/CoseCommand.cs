@@ -105,15 +105,42 @@ public abstract partial class CoseCommand
     /// Checks the Standard Input stream for content, and if empty, reads from a file or throws an exception.
     /// </summary>
     /// <param name="file">The file to read from if the Standard Input stream is empty/</param>
-    /// <param name="optionName">The name of the command line option that specifies the file.</param>
-    /// <returns></returns>
-    protected static Stream GetStreamFromPipeOrFile(FileInfo? file, string optionName)
+    /// <param name="optionName">The name of the command line option that specifies a file to read from.</param>
+    /// <param name="content">The content of the file or input stream if any.</param>
+    /// <returns>An ExitCode indocating success or failure type.</returns>
+    protected static ExitCode TryGetStreamFromPipeOrFile(FileInfo? file, string optionName, out Stream? content)
     {
-        using Stream content = Console.OpenStandardInput();
-        return !content.IsNullOrEmpty()
-            ? content
-            : file is not null ? file.OpenRead() :
-            throw new ArgumentNullException($"You must either set a value for {optionName} or else pipe its content in from another program.");
+        content = null;
+        if (file is not null)
+        {
+            if (!file.Exists)
+            {
+                return CoseSignTool.Fail(
+                    ExitCode.UserSpecifiedFileNotFound, null, $"The file specified in /{optionName} was not found: {file.FullName}");
+            }
+
+            try
+            {
+                content = file.OpenRead();
+                return content.IsNullOrEmpty()
+                    ? CoseSignTool.Fail(
+                    ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
+                    : ExitCode.Success;
+            }
+            catch (Exception ex)
+            {
+                return CoseSignTool.Fail(
+                    ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
+            }
+        }
+
+        content = Console.OpenStandardInput();
+        string errorText =
+            optionName == nameof(PayloadFile) ? "You must either specify a payload file or pass the payload in as a Stream."
+            : "You must either specify a signature file to validate or pass the signature content in as a Stream.";
+        return content.IsNullOrEmpty()
+            ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null, errorText)
+            : ExitCode.Success;
     }
 
     /// <summary>

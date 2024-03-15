@@ -44,4 +44,8 @@
 	    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
 	    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="TestContent\" />
+    </ItemGroup>
 </Project>

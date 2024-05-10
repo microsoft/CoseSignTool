@@ -8,7 +8,6 @@
 	<PropertyGroup>
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
-		<PlatformTarget>x64</PlatformTarget>
 		<SignAssembly>True</SignAssembly>
 		<PublicSign>True</PublicSign>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>

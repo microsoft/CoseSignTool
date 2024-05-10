@@ -405,6 +405,33 @@ public class X509ChainTrustValidatorTests
         validationResults[0].PassedValidation.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Validates the retry logic when revocation status is unknown
+    /// </summary>
+    [Test]
+    public void ValidateCertificateRetriesOnRevocationStatusUnknown()
+    {
+        // Arrange
+        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
+        X509Certificate2Collection certChain =
+            TestCertificateUtils.CreateTestChain(nameof(ValidateCertificateRetriesOnRevocationStatusUnknown));
+        X509Certificate2 signingCert = certChain[0];
+        mockBuilder.SetupSequence(x => x.Build(It.IsAny<X509Certificate2>()))
+            .Returns(false)
+            .Returns(false)
+            .Returns(true);
+        X509ChainStatus[] revUnknown = [new X509ChainStatus() { Status = X509ChainStatusFlags.RevocationStatusUnknown }];
+        X509ChainStatus[] weakSig = [new X509ChainStatus() { Status = X509ChainStatusFlags.HasWeakSignature }];
+        mockBuilder.Setup(x => x.ChainStatus).Returns(revUnknown);
+
+        // Act
+        X509ChainTrustValidator validator = new(mockBuilder.Object);
+
+        // Assert
+        validator.TryValidate(CreateCoseSign1MessageWithChainedCert(), out List<CoseSign1ValidationResult> results).Should().BeTrue();
+        mockBuilder.Verify(mockBuilder => mockBuilder.Build(signingCert), Times.Exactly(3));
+    }
+
     private static CoseSign1Message CreateCoseSign1MessageWithChainedCert()
     {
         ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();

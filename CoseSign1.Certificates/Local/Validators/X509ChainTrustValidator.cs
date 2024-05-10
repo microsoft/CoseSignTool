@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
+using System.Threading;
+
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
@@ -113,6 +115,23 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
         if (ChainBuilder.Build(signingCertificate))
         {
             return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
+        }
+
+        // If we fail because chain build failed to reach the revocation server, retry in case the server is down.
+        if (ChainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
+        {
+            int maxAttempts = 3;
+            for (int i = 0;
+                i < maxAttempts && ChainBuilder.ChainStatus.Any(s => (s.Status & X509ChainStatusFlags.RevocationStatusUnknown) != 0);
+                i++)
+            {
+                if (ChainBuilder.Build(signingCertificate))
+                {
+                    return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
+                }
+
+                Thread.Sleep(1000);
+            }
         }
 
         // Chain build failed, but if the only failure is Untrusted Root we may still pass.

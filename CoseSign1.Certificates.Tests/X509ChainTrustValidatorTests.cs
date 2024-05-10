@@ -421,7 +421,6 @@ public class X509ChainTrustValidatorTests
             .Returns(false)
             .Returns(true);
         X509ChainStatus[] revUnknown = [new X509ChainStatus() { Status = X509ChainStatusFlags.RevocationStatusUnknown }];
-        X509ChainStatus[] weakSig = [new X509ChainStatus() { Status = X509ChainStatusFlags.HasWeakSignature }];
         mockBuilder.Setup(x => x.ChainStatus).Returns(revUnknown);
 
         // Act

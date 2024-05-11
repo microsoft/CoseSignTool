@@ -422,6 +422,7 @@ public class X509ChainTrustValidatorTests
             .Returns(true);
         X509ChainStatus[] revUnknown = [new X509ChainStatus() { Status = X509ChainStatusFlags.RevocationStatusUnknown }];
         mockBuilder.Setup(x => x.ChainStatus).Returns(revUnknown);
+        mockBuilder.Setup(x => x.ChainPolicy).Returns(new X509ChainPolicy());
 
         // Act
         X509ChainTrustValidator validator = new(mockBuilder.Object);

@@ -3,9 +3,6 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<IsPackable>false</IsPackable>
         <IsPublishable>false</IsPublishable>
-	</PropertyGroup>
-
-	<PropertyGroup>
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 		<SignAssembly>True</SignAssembly>

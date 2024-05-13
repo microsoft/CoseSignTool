@@ -22,16 +22,16 @@ public class X509Certificate2SigningKeyProviderTests
     {
         // arrange
         Mock<ICertificateChainBuilder> testChainBuilder = new(MockBehavior.Strict);
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestConstructorsSuccess));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
-        List<Action> constructorTests = new()
-        {
+        List<Action> constructorTests =
+        [
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, testCert)),
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert)),
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA256)),
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA512)),
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA1)),
-        };
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -49,14 +49,14 @@ public class X509Certificate2SigningKeyProviderTests
     {
         // arrange
         Mock<ICertificateChainBuilder> testChainBuilder = new();
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestConstructorsFailure));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
 
-        List<Action> constructorTests = new()
-        {
+        List<Action> constructorTests =
+        [
             new Action(() => new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, null)),
             new Action(() => new X509Certificate2CoseSigningKeyProvider(null, HashAlgorithmName.SHA512)),
-        };
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -73,8 +73,8 @@ public class X509Certificate2SigningKeyProviderTests
     public void GetKeyProvidersShouldReturnProperProviders()
     {
         // arrange
-        X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate(nameof(GetKeyProvidersShouldReturnProperProviders));
-        X509Certificate2 testCertEcc = TestCertificateUtils.CreateCertificate(nameof(GetKeyProvidersShouldReturnProperProviders), useEcc: true);
+        X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate();
+        X509Certificate2 testCertEcc = TestCertificateUtils.CreateCertificate(useEcc: true);
 
         // test
         X509Certificate2CoseSigningKeyProvider testObjRsa = new(testCertRsa);
@@ -95,7 +95,7 @@ public class X509Certificate2SigningKeyProviderTests
     public void GetSigningCertificateShouldReturnCertificate()
     {
         // setup
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(GetSigningCertificateShouldReturnCertificate));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
         TestX509Certificate2SigningKeyProvider testObj = new(testCert);
 
         // test and verify
@@ -110,10 +110,10 @@ public class X509Certificate2SigningKeyProviderTests
     public void GetCertificateChainShouldReturnProperSortOrder()
     {
         // setup
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(GetCertificateChainShouldReturnProperSortOrder));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(m => m.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(m => m.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(m => m.ChainElements).Returns([.. testChain]);
         TestX509Certificate2SigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
 
         // test
@@ -144,13 +144,13 @@ public class X509Certificate2SigningKeyProviderTests
     public void GetCertificateChainShouldReturnException()
     {
         // Setup
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(GetCertificateChainShouldReturnException));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         X509ChainPolicy policy = new();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(m => m.Build(It.IsAny<X509Certificate2>())).Returns(false);
-        mockBuilder.Setup(m => m.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(m => m.ChainElements).Returns([.. testChain]);
         mockBuilder.Setup(m => m.ChainPolicy).Returns(policy);
-        mockBuilder.Setup(m => m.ChainStatus).Returns(new X509ChainStatus[] { new X509ChainStatus() });
+        mockBuilder.Setup(m => m.ChainStatus).Returns([new X509ChainStatus()]);
         TestX509Certificate2SigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
 
         // Test

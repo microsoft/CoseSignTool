@@ -23,10 +23,10 @@ public class CoseSign1MessageValidatorTests
     public void TestChainingValidators()
     {
 
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(TestChainingValidators));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
         ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
 
@@ -40,7 +40,7 @@ public class CoseSign1MessageValidatorTests
             CallBase = true
         };
 
-        List<CoseSign1ValidationResult> list1 = new();
+        List<CoseSign1ValidationResult> list1 = [];
         mockValidator.Protected()
             .Setup<CoseSign1ValidationResult>(
                 "ValidateMessage",
@@ -59,7 +59,7 @@ public class CoseSign1MessageValidatorTests
         mockValidator2.Setup(m => m.Validate(It.IsAny<CoseSign1Message>())).CallBase();
         mockValidator2.Setup(m => m.NextElement).CallBase();
 
-        byte[] testArray = new byte[] { 1, 2, 3, 4 };
+        byte[] testArray = [1, 2, 3, 4];
         CoseSign1Message message = factory.CreateCoseSign1Message(testArray, keyProvider, embedPayload: true, ContentTypeConstants.Cose);
 
         mockValidator.Object.NextElement = mockValidator2.Object;
@@ -74,10 +74,10 @@ public class CoseSign1MessageValidatorTests
     public void TestChainingValidatorsThatWouldCauseLoop()
     {
 
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(TestChainingValidators));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
         ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
 
@@ -86,7 +86,7 @@ public class CoseSign1MessageValidatorTests
             CallBase = true
         };
 
-        List<CoseSign1ValidationResult> list1 = new();
+        List<CoseSign1ValidationResult> list1 = [];
         mockValidator.Protected()
             .Setup<CoseSign1ValidationResult>(
                 "ValidateMessage",

@@ -4,6 +4,8 @@
 
 namespace CoseSign1.Tests.Common;
 
+using System.Runtime.CompilerServices;
+
 /// <summary>
 /// Class used to create in-memory certificates and certificate chains used for UnitTesting.
 /// </summary>
@@ -19,7 +21,7 @@ public static class TestCertificateUtils
     /// <returns>An <see cref="X509Certificate2"/> object for use in testing.</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     public static X509Certificate2 CreateCertificate(
-        string subjectName,
+        [CallerMemberName] string subjectName = "none",
         X509Certificate2? issuingCa = null,
         bool useEcc = false,
         int? keySize = null)
@@ -85,10 +87,10 @@ public static class TestCertificateUtils
         // Enhanced key usages
         request.CertificateExtensions.Add(
             new X509EnhancedKeyUsageExtension(
-                new OidCollection {
+                [
                         new Oid("1.3.6.1.5.5.7.3.2"), // TLS Client auth
                         new Oid("1.3.6.1.5.5.7.3.1")  // TLS Server auth
-                },
+                ],
                 false));
 
         // add this subject key identifier
@@ -137,7 +139,7 @@ public static class TestCertificateUtils
     /// <param name="keySize">The optional key size to request for the certificate, defaults to 256 for ECC and 2048 for RSA.</param>
     /// <returns>An <see cref="X509Certificate2Collection"/> containing a root, intermediate, and leaf node certificate.</returns>
     public static X509Certificate2Collection CreateTestChain(
-        string? testName = "none",
+        [CallerMemberName] string? testName = "none",
         bool useEcc = false,
         int? keySize = null,
         bool leafFirst = false)
@@ -146,12 +148,12 @@ public static class TestCertificateUtils
         X509Certificate2 issuer = CreateCertificate($"Test Issuer: {testName}", testRoot, useEcc: useEcc, keySize: keySize);
         X509Certificate2 leaf = CreateCertificate($"Test Leaf: {testName}", issuer, useEcc: useEcc, keySize: keySize);
 
-        X509Certificate2Collection returnValue = new()
-        {
+        X509Certificate2Collection returnValue =
+        [
             leafFirst ? leaf : testRoot,
             issuer,
             leafFirst ? testRoot : leaf
-        };
+        ];
         return returnValue;
     }
 

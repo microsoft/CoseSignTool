@@ -42,7 +42,7 @@ public class X509CommonNameValidator : X509Certificate2MessageValidator
         catch (CoseValidationException ex)
         {
             returnResult.ResultMessage = ex.ToString();
-            returnResult.Includes ??= new List<object>();
+            returnResult.Includes ??= [];
             returnResult.Includes.Add(ex);
             return returnResult;
         }

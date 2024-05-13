@@ -51,26 +51,26 @@ public class MainTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained };
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
 
         // sign embedded
-        string[] args2 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep" };
+        string[] args2 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep"];
         CST.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign failed.");
 
         // validate detached
         string sigFile = payloadFile + ".cose";
-        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck" };
+        string[] args3 = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
         CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
 
         // validate embedded
         sigFile = payloadFile + ".csm";
-        string[] args4 = { "validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd" };
+        string[] args4 = ["validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd"];
         CST.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation failed.");
 
         // get content
         string saveFile = payloadFile + ".saved";
-        string[] args5 = { "get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck" };
+        string[] args5 = ["get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck"];
         CST.Main(args5).Should().Be(0, "Detach validation with save failed.");
         File.ReadAllText(payloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
     }
@@ -88,12 +88,12 @@ public class MainTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained };
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
 
         // validate detached
         string sigFile = payloadFile + ".cose";
-        string[] args3 = { "validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck" };
+        string[] args3 = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
         CST.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
 
         redirectedErr.ToString().Should().BeEmpty("There should be no errors.");
@@ -106,7 +106,7 @@ public class MainTests
     {
         string payloadFile = Utils.GetPayloadFile();
         // sign detached with password protected cert
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword };
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword];
         CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert failed.");
     }
 
@@ -115,7 +115,7 @@ public class MainTests
     {
         // sign detached with password protected cert
         string payloadFile = Utils.GetPayloadFile();
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword };
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword];
         CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
     }
 
@@ -124,7 +124,7 @@ public class MainTests
     {
         // sign detached with password protected cert
         string payloadFile = Utils.GetPayloadFile();
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword" };
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword"];
         CST.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
     }
 
@@ -132,15 +132,15 @@ public class MainTests
     public void FromMainInvalid()
     {
         // no verb
-        string[] args1 = { @"/pfx", "fake.pfx", @"/p", "some.file" };
+        string[] args1 = [@"/pfx", "fake.pfx", @"/p", "some.file"];
         CST.Main(args1).Should().Be((int)ExitCode.HelpRequested);
 
         // bad argument
-        string[] args2 = { "sign", "/badArg", @"/pfx", "fake.pfx", @"/p", "some.file" };
+        string[] args2 = ["sign", "/badArg", @"/pfx", "fake.pfx", @"/p", "some.file"];
         CST.Main(args2).Should().Be((int)ExitCode.UnknownArgument);
 
         // empty payload argument
-        string[] args3 = { "sign", @"/pfx", "fake.pfx", @"/p", "" };
+        string[] args3 = ["sign", @"/pfx", "fake.pfx", @"/p", ""];
         CST.Main(args3).Should().Be((int)ExitCode.MissingRequiredOption);
     }
 
@@ -150,22 +150,22 @@ public class MainTests
         string payloadFile = Utils.GetPayloadFile();
         string missingFile = @"c:\NoFileHere.nothing";
         string sigFile = $"{payloadFile}.cose";
-        CST.Main(new string[] { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile });
+        CST.Main(["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile]);
 
         // missing payload file - sign
-        string[] args1 = { "sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile };
+        string[] args1 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile];
         CST.Main(args1).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
         // missing payload file - validate
-        string[] args2 = { "validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile };
+        string[] args2 = ["validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile];
         CST.Main(args2).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
         // missing signature file
-        string[] args3 = { "validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile };
+        string[] args3 = ["validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile];
         CST.Main(args3).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
         // missing cert
-        string[] args6 = { "validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile };
+        string[] args6 = ["validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile];
         CST.Main(args6).Should().Be((int)ExitCode.CertificateLoadFailure);
     }
 
@@ -174,28 +174,28 @@ public class MainTests
     {
         string payloadFile = Utils.GetPayloadFile();
         string emptyFile = Path.GetTempFileName();
-        File.WriteAllBytes(payloadFile, Array.Empty<byte>());
+        File.WriteAllBytes(payloadFile, []);
 
         // empty payload file
-        string[] args1 = { "sign", @"/pfx", "fake.pfx", @"/p", emptyFile };
+        string[] args1 = ["sign", @"/pfx", "fake.pfx", @"/p", emptyFile];
         CST.Main(args1).Should().Be((int)ExitCode.EmptySourceFile);
 
         // empty signature file
-        string[] args2 = { "validate", @"/rt", PublicKeyRootCertFile, @"/sf", emptyFile, "/rm", "NoCheck", "/scd" };
+        string[] args2 = ["validate", @"/rt", PublicKeyRootCertFile, @"/sf", emptyFile, "/rm", "NoCheck", "/scd"];
         CST.Main(args2).Should().Be((int)ExitCode.EmptySourceFile);
     }
 
     [TestMethod]
     public void ReturnsHelpRequestedWhenVerbMissing()
     {
-        string[] args = Array.Empty<string>();
+        string[] args = [];
         CST.Main(args).Should().Be((int)ExitCode.HelpRequested);
     }
 
     [TestMethod]
     public void ReturnsHelpRequestedWhenNoOptionsAfterVerb()
     {
-        string[] args = Array.Empty<string>();
+        string[] args = [];
         CST.Main(args).Should().Be((int)ExitCode.HelpRequested);
     }
 }

@@ -200,7 +200,7 @@ public class ValidateCommand : CoseCommand
             return null;
         }
 
-        List<X509Certificate2> rootCerts = new();
+        List<X509Certificate2> rootCerts = [];
         foreach (string rootFile in X509RootFiles)
         {
             ThrowIfMissing(rootFile, $"Could not find root certificate at {rootFile}");
@@ -208,7 +208,7 @@ public class ValidateCommand : CoseCommand
             switch (Path.GetExtension(rootFile).ToLowerInvariant())
             {
                 case ".p7b":
-                    X509Certificate2Collection certCollection = new();
+                    X509Certificate2Collection certCollection = [];
                     certCollection.Import(rootFile);
                     rootCerts.AddRange(certCollection);
                     break;

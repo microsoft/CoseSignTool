@@ -14,8 +14,8 @@ public class CoseParserSignWithKeyProviderTests
     {
 
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignSuccess));
-        var testChain = TestCertificateUtils.CreateTestChain(nameof(TestSignSuccess));
+        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate();
+        var testChain = TestCertificateUtils.CreateTestChain();
 
         string signedFile = Path.GetTempFileName();
         Mock<ICertificateChainBuilder> testChainBuilder = new();
@@ -34,7 +34,7 @@ public class CoseParserSignWithKeyProviderTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
 
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignWithNoSigningKey));
+        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
 
         var signedFile = Path.GetTempFileName();
 
@@ -57,7 +57,7 @@ public class CoseParserSignWithKeyProviderTests
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignWithEmptyPayload));
+        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
         var signedFile = Path.GetTempFileName();

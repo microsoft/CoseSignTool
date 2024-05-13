@@ -25,10 +25,7 @@ public abstract class X509Certificate2MessageValidator : CoseSign1MessageValidat
     /// <summary>
     /// Mock .ctor
     /// </summary>
-    protected X509Certificate2MessageValidator() : base()
-    {
-
-    }
+    protected X509Certificate2MessageValidator() : base() { }
 
     /// <inheritdoc/>
     protected override CoseSign1ValidationResult ValidateMessage(CoseSign1Message message)
@@ -48,7 +45,7 @@ public abstract class X509Certificate2MessageValidator : CoseSign1MessageValidat
         // grab the X5Bag elements
         _ = message.TryGetExtraCertificates(out List<X509Certificate2>? extraCertificates, AllowUnprotected);
 
-        return ValidateCertificate(signingCert, certChain, extraCertificates);
+        return ValidateCertificate(signingCert!, certChain, extraCertificates);
     }
 
     /// <summary>

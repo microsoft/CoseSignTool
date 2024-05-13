@@ -38,7 +38,7 @@ public abstract class CoseSign1MessageValidator
     /// <returns>True when validation succeeds, false otherwise.</returns>
     public virtual bool TryValidate(CoseSign1Message message, out List<CoseSign1ValidationResult> validationResults)
     {
-        validationResults = new List<CoseSign1ValidationResult>();
+        validationResults = [];
 
         try
         {
@@ -66,11 +66,11 @@ public abstract class CoseSign1MessageValidator
     /// <returns>Returns a list of all <see cref="List{CoseSign1ValidationResult}"/> validation results for this validation chain.</returns>
     public virtual List<CoseSign1ValidationResult> Validate(CoseSign1Message message)
     {
-        List<CoseSign1ValidationResult> returnValue = new()
-        {
+        List<CoseSign1ValidationResult> returnValue =
+        [
             // validate the message
             ValidateMessage(message)
-        };
+        ];
 
         // Send the message down the chain.
         // TODO: This should probably be "while" instead of "if" -- test with a second validator in chain
@@ -113,7 +113,7 @@ public abstract class CoseSign1MessageValidator
         /// </summary>
         /// <param name="message">Any CoseSign1Message object.</param>
         /// <returns>An empty result list.</returns>
-        public override List<CoseSign1ValidationResult> Validate(CoseSign1Message message) => new();
+        public override List<CoseSign1ValidationResult> Validate(CoseSign1Message message) => [];
 
         /// <summary>
         /// Does not validate anything.
@@ -123,7 +123,7 @@ public abstract class CoseSign1MessageValidator
         /// <returns>True in all cases.</returns>
         public override bool TryValidate(CoseSign1Message message, out List<CoseSign1ValidationResult> validationResults)
         {
-            validationResults = new();
+            validationResults = [];
             return true;
         }
 

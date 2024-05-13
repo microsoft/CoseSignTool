@@ -32,7 +32,7 @@ public class CoseCommandTests
     [TestMethod]
     public void SetAllOptionTypesDashSpace()
     {
-        string[] args = { "-PfxCertificate", "fake.pfx", "-Payload", FilePath1, "-EmbedPayload", "-sf", FilePath2 };
+        string[] args = ["-PfxCertificate", "fake.pfx", "-Payload", FilePath1, "-EmbedPayload", "-sf", FilePath2];
 
         var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
         badArg.Should().BeNull("badArg should be null.");
@@ -45,7 +45,7 @@ public class CoseCommandTests
         cmd1.EmbedPayload.Should().BeTrue();
 
 
-        string[] args2 = { "-Payload", FilePath1, "-roots", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2 };
+        string[] args2 = ["-Payload", FilePath1, "-roots", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2];
         var provider2 = CoseCommand.LoadCommandLineArgs(args2, ValidateCommand.Options, out badArg);
         badArg.Should().BeNull("badArg should be null.");
 
@@ -57,7 +57,7 @@ public class CoseCommandTests
     [TestMethod]
     public void LoadFromAliases()
     {
-        string[] args = { "-p", FilePath1, "-rt", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2 };
+        string[] args = ["-p", FilePath1, "-rt", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2];
 
         var provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out string badArg);
         badArg.Should().BeNull("badArg should be null.");
@@ -74,7 +74,7 @@ public class CoseCommandTests
     [TestMethod]
     public void SlashAndDash()
     {
-        string[] args = { "/PfxCertificate", "fake.pfx", "-Payload", FilePath1, "/EmbedPayload", "-sf", FilePath2 };
+        string[] args = ["/PfxCertificate", "fake.pfx", "-Payload", FilePath1, "/EmbedPayload", "-sf", FilePath2];
         var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out _);
         var cmd1 = new SignCommand();
 
@@ -88,7 +88,7 @@ public class CoseCommandTests
     [TestMethod]
     public void LoadCommandLineArgs()
     {
-        string[] args = { "-PfxCertificate", "fake.pfx", "-Payload", FilePath1 , "-embedpayload", "-sf", FilePath2 };
+        string[] args = ["-PfxCertificate", "fake.pfx", "-Payload", FilePath1 , "-embedpayload", "-sf", FilePath2];
 
         var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
 
@@ -101,7 +101,7 @@ public class CoseCommandTests
     [TestMethod]
     public void LoadCommandLineArgsWithColons()
     {
-        string[] args = { "-PfxCertificate:fake.pfx", @"-Payload:c:\some.file", "-embedpayload", @"-sf:c:\another.file" };
+        string[] args = ["-PfxCertificate:fake.pfx", @"-Payload:c:\some.file", "-embedpayload", @"-sf:c:\another.file"];
         var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string badArg);
         badArg.Should().BeNull("badArg should be null.");
         var cmd1 = new SignCommand();

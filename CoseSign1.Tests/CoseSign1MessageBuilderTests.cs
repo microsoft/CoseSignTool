@@ -25,13 +25,13 @@ public class CoseSign1MessageBuilderTests
         // arrange
         Mock<ICoseSigningKeyProvider> keyProvider = new(MockBehavior.Strict);
         Mock<ICoseSign1MessageFactory> factoryObj = new();
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestConstructorsSuccess));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
-        List<Action> constructorTests = new()
-        {
+        List<Action> constructorTests =
+        [
             new Action(() => new CoseSign1MessageBuilder(keyProvider.Object, factoryObj.Object)),
             new Action(() => new CoseSign1MessageBuilder(keyProvider.Object))
-        };
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -53,11 +53,11 @@ public class CoseSign1MessageBuilderTests
         Mock<ICoseSign1MessageFactory> factoryObj = new();
         Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
 
-        List<Action> constructorTests = new()
-        {
+        List<Action> constructorTests =
+        [
             new Action(() => _ = new CoseSign1MessageBuilder(null, factoryObj.Object)),
             new Action(() => _ = new CoseSign1MessageBuilder(null)),
-        };
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -75,7 +75,7 @@ public class CoseSign1MessageBuilderTests
     public void TestSettersWithFactoryObject()
     {
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestSettersWithFactoryObject));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
         Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
         Mock<ICoseSign1MessageFactory> mockedCoseSignFactoryObject = new();
 
@@ -107,15 +107,15 @@ public class CoseSign1MessageBuilderTests
     {
         //arrange
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestSettingHeaderExtender));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
         Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
         Mock<ICoseHeaderExtender> mockedHeaderExtender = new(MockBehavior.Strict);
 
         CoseSign1MessageBuilder testCoseSign1Builder = new(mockedSigningKeyPovider.Object);
 
-        mockedSigningKeyPovider.Setup(x => x.GetProtectedHeaders()).Returns(new CoseHeaderMap());
-        mockedSigningKeyPovider.Setup(x => x.GetUnProtectedHeaders()).Returns(new CoseHeaderMap());
+        mockedSigningKeyPovider.Setup(x => x.GetProtectedHeaders()).Returns([]);
+        mockedSigningKeyPovider.Setup(x => x.GetUnProtectedHeaders()).Returns([]);
         mockedSigningKeyPovider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
         mockedSigningKeyPovider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSigningKeyPovider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCert.GetRSAPrivateKey());

@@ -19,7 +19,7 @@ internal class TestHeaderExtender : ICoseHeaderExtender
     /// <returns>CoseHeaderMap with extended protectedHeaders</returns>
     public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap? protectedHeaders)
     {
-        protectedHeaders ??= new CoseHeaderMap();
+        protectedHeaders ??= [];
 
         CoseHeaderLabel testHeaderLabel = new("test-header-label");
         protectedHeaders.Add(testHeaderLabel, "test-header-value");
@@ -36,7 +36,7 @@ internal class TestHeaderExtender : ICoseHeaderExtender
     /// <returns>CoseHeaderMap with extended unprotectedHeaders</returns>
     public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
     {
-        unProtectedHeaders ??= new CoseHeaderMap();
+        unProtectedHeaders ??= [];
 
         CoseHeaderLabel testHeaderLabel = new("test-header-label1");
         unProtectedHeaders.Add(testHeaderLabel, "test-header-value1");

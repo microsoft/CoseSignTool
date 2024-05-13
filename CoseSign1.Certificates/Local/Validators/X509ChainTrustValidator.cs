@@ -8,18 +8,28 @@ using System.Threading;
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
-public class X509ChainTrustValidator : X509Certificate2MessageValidator
+/// <remarks>
+/// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy
+/// against the default set of roots on the machine.
+/// </remarks>
+/// <param name="chainBuilder">The <see cref="ICertificateChainBuilder"/> used to build a chain.</param>
+/// <param name="allowUnprotected">True if the UnprotectedHeaders is allowed, False otherwise.</param>
+/// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+public class X509ChainTrustValidator(
+    ICertificateChainBuilder chainBuilder,
+    bool allowUnprotected = false,
+    bool allowUntrusted = false) : X509Certificate2MessageValidator(allowUnprotected)
 {
     #region Public Properties
     /// <summary>
     /// True to allow untrusted certificates to pass validation. This does not apply to self-signed certificates, which trust themselves.
     /// </summary>
-    public bool AllowUntrusted { get; set; }
+    public bool AllowUntrusted { get; set; } = allowUntrusted;
 
     /// <summary>
     /// The certificate chain builder used to perform chain build operations.
     /// </summary>
-    public ICertificateChainBuilder ChainBuilder { get; set; }
+    public ICertificateChainBuilder ChainBuilder { get; set; } = chainBuilder;
 
     /// <summary>
     /// An optional list of user specified roots to trust. If unspecified, the default roots on the machine will be used instead.
@@ -35,24 +45,9 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
     /// Assumes that user-supplied roots are trusted. True by default.
     /// </summary>
     public bool TrustUserRoots { get; set; } = true;
-    #endregion
 
+    #endregion
     #region Constructors
-    /// <summary>
-    /// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy
-    /// against the default set of roots on the machine.
-    /// </summary>
-    /// <param name="chainBuilder">The <see cref="ICertificateChainBuilder"/> used to build a chain.</param>
-    /// <param name="allowUnprotected">True if the UnprotectedHeaders is allowed, False otherwise.</param>
-    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
-    public X509ChainTrustValidator(
-        ICertificateChainBuilder chainBuilder,
-        bool allowUnprotected = false,
-        bool allowUntrusted = false) : base(allowUnprotected)
-    {
-        ChainBuilder = chainBuilder;
-        AllowUntrusted = allowUntrusted;
-    }
 
     /// <summary>
     /// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy

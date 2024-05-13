@@ -3,6 +3,8 @@
 
 namespace CoseIndirectSignature.Tests;
 
+using System.Runtime.CompilerServices;
+
 /// <summary>
 /// Class for Testing Methods of <see cref="IndirectSignatureFactory"/>
 /// </summary>
@@ -37,7 +39,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureAsync));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -77,7 +79,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureHashProvidedAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureHashProvidedAsync));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -120,7 +122,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureBytesAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureBytesAsync));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -160,7 +162,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureBytesHashProvidedAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureBytesHashProvidedAsync));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -203,7 +205,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void TestCreateIndirectSignatureMd5Failure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureMd5Failure));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         Action act = () => { IndirectSignatureFactory factory = new(HashAlgorithmName.MD5); };
         act.Should().Throw<ArgumentException>();
     }
@@ -211,7 +213,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void TestCreateIndirectSignatureMd5HashProvidedFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureMd5HashProvidedFailure));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -227,7 +229,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void TestCreateIndirectSignatureAlreadyProvided()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider(nameof(TestCreateIndirectSignatureAlreadyProvided));
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -243,7 +245,7 @@ public class IndirectSignatureFactoryTests
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
     }
 
-    private ICoseSigningKeyProvider SetupMockSigningKeyProvider(string testName)
+    private ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none")
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(testName);

@@ -80,7 +80,7 @@ public abstract partial class CoseCommand
         badArg = null;
 
         // We have to copy 'options' to a StringDictionary here so we can reliably do case-insensitive comparison on user inputs.
-        StringDictionary dict = new();
+        StringDictionary dict = [];
         options.Keys.ToList().ForEach(k => dict[k] = options[k]);
 
         string[] fixedArgs = CleanArgs(args, dict);
@@ -200,7 +200,7 @@ public abstract partial class CoseCommand
             return
                 text?.Split(",").Select(x => x.Trim().Trim('"', '(', ')', '[', ']', '{', '}')).ToArray() ??
                 defaultValue ??
-                Array.Empty<string>();
+                [];
         }
     }
 
@@ -218,7 +218,7 @@ public abstract partial class CoseCommand
     // replace "-arg:" with "-arg "
     private static string[] CleanArgs(string[] args, StringDictionary options)
     {
-        List<string> argsOut = new();
+        List<string> argsOut = [];
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -258,7 +258,7 @@ public abstract partial class CoseCommand
             }
         }
 
-        return argsOut.ToArray();
+        return [.. argsOut];
     }
 
     private static bool IsSwitch(string s, StringDictionary options)

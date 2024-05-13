@@ -94,7 +94,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 
         // Set the Content Type in the protected header.
         // This is a mandatory protected header value in a CoseSign1Message.
-        protectedHeaders ??= new CoseHeaderMap();
+        protectedHeaders ??= [];
         protectedHeaders.Add(CoseHeaderLabel.ContentType, contentType);
 
         // Extend the headers if a Header Extender was specified.

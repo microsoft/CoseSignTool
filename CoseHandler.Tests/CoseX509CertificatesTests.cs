@@ -9,11 +9,11 @@ public class CoseX509CertificatesTests
     [TestMethod]
     public void CoseX509Certificates_EncodeCertList_OneCert()
     {
-        List<X509Certificate2> expectedCerts = new()
-        {
+        List<X509Certificate2> expectedCerts =
+        [
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Certificates_EncodeCertList_OneCert)}_TestCert")
 
-        };
+        ];
 
         CborWriter cborWriter = new();
         cborWriter.WriteTextString("woohoo");
@@ -30,11 +30,11 @@ public class CoseX509CertificatesTests
     [TestMethod]
     public void CoseX509Certificates_EncodeCertList_TwoCerts()
     {
-        X509Certificate2Collection expectedCerts = new()
-        {
+        X509Certificate2Collection expectedCerts =
+        [
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Certificates_EncodeCertList_TwoCerts)}_Cert1"),
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Certificates_EncodeCertList_OneCert)}_Cert2")
-        };
+        ];
 
         CborWriter cborWriter = new();
         cborWriter.WriteTextString("woo");

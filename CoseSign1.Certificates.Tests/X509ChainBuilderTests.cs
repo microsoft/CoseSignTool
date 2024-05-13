@@ -23,7 +23,7 @@ public class X509ChainBuilderTests
     public void TestX509ChainBuilderBuilds()
     {
         // setup
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate(nameof(TestX509ChainBuilderBuilds));
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
         X509ChainBuilder chainBuilder = new();
         X509ChainPolicy policy = new()
         {

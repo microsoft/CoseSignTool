@@ -52,5 +52,5 @@ public class CoseSign1ValidationResult
     /// <summary>
     /// An optional list of optional objects to pass to the caller, such as Exceptions and ChainStatus objects.
     /// </summary>
-    public List<object>? Includes { get; set; } = new();
+    public List<object>? Includes { get; set; } = [];
 }

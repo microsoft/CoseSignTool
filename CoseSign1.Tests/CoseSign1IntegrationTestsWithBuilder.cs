@@ -16,11 +16,11 @@ public class CoseSign1IntegrationTestsWithBuilder
     public void TestBuildSuccess()
     {
         // Genreate test cert and test testPayload
-        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate(nameof(TestBuildSuccess));
+        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("Payload1!");
 
         // Custom Test Class for implementing ICertificateChainBuilder
-        ICertificateChainBuilder testChainBuilder = new TestChainBuilder(nameof(TestBuildSuccess));
+        ICertificateChainBuilder testChainBuilder = new TestChainBuilder();
 
         // Create coseSignKeyProvider with local cert
         ICoseSigningKeyProvider testSigningKeyProvider = new X509Certificate2CoseSigningKeyProvider(testChainBuilder, testSigningCert);
@@ -53,11 +53,11 @@ public class CoseSign1IntegrationTestsWithBuilder
     public void TestBuildSuccessWithCustomHeaderExtender()
     {
         // Provide the test cert and test testPayload
-        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate(nameof(TestBuildSuccessWithCustomHeaderExtender));
+        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("Payload1!");
 
         // Custom Test Class for implementing ICertificateChainBuilder
-        ICertificateChainBuilder testChainBuilder = new TestChainBuilder(nameof(TestBuildSuccessWithCustomHeaderExtender));
+        ICertificateChainBuilder testChainBuilder = new TestChainBuilder();
 
         // Create coseSignKeyProvider with local cert
         ICoseSigningKeyProvider testSigningKeyProvider = new X509Certificate2CoseSigningKeyProvider(testChainBuilder, testSigningCert);
@@ -95,7 +95,7 @@ public class CoseSign1IntegrationTestsWithBuilder
     public void TestArgumentOutOfRangeExceptionForBuilder()
     {
         // Provide test cert and test testPayload.
-        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate(nameof(TestArgumentOutOfRangeExceptionForBuilder));
+        X509Certificate2 testSigningCert = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
         // Create coseSignKeyProvider with local cert

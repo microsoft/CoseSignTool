@@ -7,7 +7,7 @@ namespace CoseSignUnitTests;
 /// Class to test for SignInternal <see cref="CoseHandler"/> with SigningKeyProvider <see cref="ICoseSigningKeyProvider"/>
 /// </summary>
 [TestClass]
-public class CoseParserSignWithKeyProviderTests
+public class SignWithKeyProviderTests
 {
     [TestMethod]
     public void TestSignSuccess()
@@ -31,13 +31,10 @@ public class CoseParserSignWithKeyProviderTests
     [TestMethod]
     public void TestSignWithNoSigningKey()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
-
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
-
         var signedFile = Path.GetTempFileName();
 
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);

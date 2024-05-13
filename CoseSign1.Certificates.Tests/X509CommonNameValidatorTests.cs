@@ -79,13 +79,11 @@ public class X509CommonNameValidatorTests
     [Test]
     public void X509CommonNameValidatorValidates()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
         X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
-        // X509Certificate2 testCert = null;
-        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
-        X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
+        CoseSign1MessageFactory factory = new();
         byte[] testArray = [1, 2, 3, 4];
+        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
+        X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
 
         // test
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
@@ -106,10 +104,9 @@ public class X509CommonNameValidatorTests
     [Test]
     public void X509CommonNameValidatorValidatesErrorPath()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
         X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
         byte[] testArray = [1, 2, 3, 4];
 

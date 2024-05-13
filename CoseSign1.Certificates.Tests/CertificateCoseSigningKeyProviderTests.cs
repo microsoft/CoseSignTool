@@ -16,8 +16,8 @@ public class CertificateCoseSigningKeyProviderTests
     {
         List<Action> constructorTests =
         [
-            new Action(() => new TestCertificateCoseSigningKeyProvider()),
-            new Action(() => new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512))
+            new Action(() => _= new TestCertificateCoseSigningKeyProvider()),
+            new Action(() => _= new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512))
         ];
 
         // test validate

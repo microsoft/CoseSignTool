@@ -25,7 +25,6 @@ public class CoseSign1MessageBuilderTests
         // arrange
         Mock<ICoseSigningKeyProvider> keyProvider = new(MockBehavior.Strict);
         Mock<ICoseSign1MessageFactory> factoryObj = new();
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
         List<Action> constructorTests =
         [

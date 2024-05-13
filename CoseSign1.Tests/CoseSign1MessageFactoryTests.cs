@@ -170,7 +170,6 @@ public class CoseSign1MessageFactoryTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
 
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
@@ -218,7 +217,6 @@ public class CoseSign1MessageFactoryTests
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);

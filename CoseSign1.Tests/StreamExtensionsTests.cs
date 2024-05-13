@@ -35,7 +35,7 @@ public class StreamExtensionsTests
     public void IsNullOrEmpty_NonSeekableStream()
     {
         // Create a stream with content that cannot seek and ensure that is returns IsNullOrEmpty = false
-        MemoryStream memory = new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        using MemoryStream memory = new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         Mock<Stream> mockStream = new(MockBehavior.Strict);
         mockStream.Setup(s => s.CanSeek).Returns(false);
         mockStream.Setup(s => s.Position).Returns(memory.Position);
@@ -50,7 +50,7 @@ public class StreamExtensionsTests
     public void IsNullOrEmpty_NonSeekableStreamNoLength()
     {
         // Create a stream without content that cannot seek and ensure that is returns IsNullOrEmpty = true
-        MemoryStream memory = new();
+        using MemoryStream memory = new();
         Mock<Stream> mockStream = new(MockBehavior.Strict);
         mockStream.Setup(s => s.CanSeek).Returns(false);
         mockStream.Setup(s => s.Position).Returns(memory.Position);

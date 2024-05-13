@@ -27,7 +27,7 @@ public class CoseSign1MessageValidatorTests
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
         mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
 
         Mock<CoseSign1MessageValidator> mockValidator = new()

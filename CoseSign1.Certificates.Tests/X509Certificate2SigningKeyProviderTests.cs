@@ -49,21 +49,10 @@ public class X509Certificate2SigningKeyProviderTests
     {
         // arrange
         Mock<ICertificateChainBuilder> testChainBuilder = new();
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
-
-        List<Action> constructorTests =
-        [
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, null)),
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(null, HashAlgorithmName.SHA512)),
-        ];
-
-        // test validate
-        foreach (Action test in constructorTests)
-        {
-            // Actions should not throw.
-            Assert.Throws<ArgumentNullException>(() => test());
-        }
+        // assert
+        Assert.Throws<ArgumentNullException>(() => new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, null));
+        Assert.Throws<ArgumentNullException>(() => new X509Certificate2CoseSigningKeyProvider(null, HashAlgorithmName.SHA512));
     }
 
     /// <summary>

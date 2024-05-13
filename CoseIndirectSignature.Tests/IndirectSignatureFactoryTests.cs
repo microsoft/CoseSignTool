@@ -205,7 +205,6 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void TestCreateIndirectSignatureMd5Failure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
         Action act = () => { IndirectSignatureFactory factory = new(HashAlgorithmName.MD5); };
         act.Should().Throw<ArgumentException>();
     }
@@ -245,7 +244,7 @@ public class IndirectSignatureFactoryTests
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
     }
 
-    private ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none")
+    private static ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none")
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(testName);

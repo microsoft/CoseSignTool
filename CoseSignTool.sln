@@ -35,8 +35,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		docs\CODE_OF_CONDUCT.md = docs\CODE_OF_CONDUCT.md
 		docs\CONTRIBUTING.md = docs\CONTRIBUTING.md
 		docs\CoseHandler.md = docs\CoseHandler.md
-		CoseSign1.Abstractions.md = CoseSign1.Abstractions.md
 		CoseIndirectSignature.md = CoseIndirectSignature.md
+		CoseSign1.Abstractions.md = CoseSign1.Abstractions.md
 		CoseSign1.Certificates.md = CoseSign1.Certificates.md
 		CoseSign1.md = CoseSign1.md
 		docs\CoseSignTool.md = docs\CoseSignTool.md
@@ -52,8 +52,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseIndirectSignature", "Co
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
 	ProjectSection(SolutionItems) = preProject
-		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
 		Nuspec\CoseIndirectSignature.nuspec = Nuspec\CoseIndirectSignature.nuspec
+		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
 		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
 		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
 	EndProjectSection
@@ -132,8 +132,8 @@ Global
 		{86692A26-A05C-4E85-B90D-F41346F463C3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{86692A26-A05C-4E85-B90D-F41346F463C3}.Release|x64.ActiveCfg = Release|Any CPU
 		{86692A26-A05C-4E85-B90D-F41346F463C3}.Release|x64.Build.0 = Release|Any CPU
-		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|Any CPU.Build.0 = Debug|x64
+		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|x64.ActiveCfg = Debug|x64
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Debug|x64.Build.0 = Debug|x64
 		{FA48F9DF-CB88-48BC-8594-EC496E193659}.Release|Any CPU.ActiveCfg = Release|x64

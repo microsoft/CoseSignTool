@@ -36,6 +36,7 @@
 	</ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
     <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
   </ItemGroup>
 

@@ -59,7 +59,7 @@ public class X509Certificate2MessageValidatorTests
             CallBase = true
         };
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
         byte[] testArray = [1, 2, 3, 4];
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);

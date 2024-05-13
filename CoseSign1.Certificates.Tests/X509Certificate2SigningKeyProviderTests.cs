@@ -26,11 +26,11 @@ public class X509Certificate2SigningKeyProviderTests
 
         List<Action> constructorTests =
         [
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, testCert)),
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert)),
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA256)),
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA512)),
-            new Action(() => new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA1)),
+            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, testCert)),
+            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert)),
+            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA256)),
+            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA512)),
+            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA1)),
         ];
 
         // test validate

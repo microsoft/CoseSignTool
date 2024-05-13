@@ -28,7 +28,7 @@ public class CoseSign1IntegrationTestsWithFactory
         //if no chainbuilder is specified, it will default to X509ChainBuilder, but that can't be used for integration tests
         ICoseSigningKeyProvider testSigningKeyProvider = new X509Certificate2CoseSigningKeyProvider(testChainBuilder, testSigningCert);
 
-        ICoseSign1MessageFactory Factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory Factory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
         var responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider);
@@ -67,7 +67,7 @@ public class CoseSign1IntegrationTestsWithFactory
         ICoseHeaderExtender testHeaderExtender = new TestHeaderExtender();
 
         //create factory class object.
-        ICoseSign1MessageFactory Factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory Factory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
         var responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
@@ -122,7 +122,7 @@ public class CoseSign1IntegrationTestsWithFactory
         ICoseSigningKeyProvider testSigningKeyProvider = new X509Certificate2CoseSigningKeyProvider(testSigningCert);
 
         //create factory class object.
-        ICoseSign1MessageFactory testFactory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory testFactory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
         var exceptionText = Assert.Throws<ArgumentOutOfRangeException>(() => testFactory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider));
@@ -149,7 +149,7 @@ public class CoseSign1IntegrationTestsWithFactory
         ICoseHeaderExtender testHeaderExtender = new TestHeaderExtender();
 
         // Create factory and call it's CreateCoseSign1MessageBytes method.
-        ICoseSign1MessageFactory Factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory Factory = new();
         _ = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
     }
 }

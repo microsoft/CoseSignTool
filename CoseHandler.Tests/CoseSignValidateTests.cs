@@ -4,16 +4,11 @@
 namespace CoseSignUnitTests;
 
 using CoseIndirectSignature;
-using System.Net.Mime;
-using System.Runtime.ConstrainedExecution;
 
 [TestClass]
 public class CoseHandlerSignValidateTests
 {
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
-    private const string SubjectName1 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 1";
-    private const string SubjectName2 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 2";
-    private const string TestCertStoreName = "CoseSignTestCertStore";
 
     // Certificates and chains as objects
     private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
@@ -26,35 +21,27 @@ public class CoseHandlerSignValidateTests
     private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // As byte arrays
-    private static readonly byte[]? Pfx1 = CertChain1.Export(X509ContentType.Pkcs12);
-    private static readonly byte[]? Pfx2 = CertChain2.Export(X509ContentType.Pkcs12);
-    private static readonly byte[] SelfPfx = SelfSignedCert.Export(X509ContentType.Pkcs12);
+    private static readonly byte[] Pfx1 = CertChain1.Export(X509ContentType.Pkcs12)!;
     private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);
     private static readonly byte[] Root2Cer = Root2Priv.Export(X509ContentType.Cert);
     private static readonly byte[] Int1Cer = Int1Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] Leaf1Cer = Leaf1Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] Leaf2Cer = Leaf2Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] SelfCer = SelfSignedCert.Export(X509ContentType.Cert);
 
     // As public key certs
     private static readonly X509Certificate2 Root1Pub = new(Root1Cer);
-    private static readonly X509Certificate2 Root2Pub = new(Root2Cer);
     private static readonly X509Certificate2 Int1Pub = new(Int1Cer);
-    private static readonly X509Certificate2 Leaf1Pub = new(Leaf1Cer);
 
     // As lists
     private static readonly List<X509Certificate2> ValidRootSetPriv = [Root1Priv, Int1Priv];                                                  // Root and intermediate only
     private static readonly List<X509Certificate2> ValidRootSetPub = [Root1Pub, Int1Pub];
-    private static readonly List<X509Certificate2> BadRootSet = [Root2Pub, Int1Pub];                                                        // Mismatched root and intermediate
 
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
-    private static string PrivateKeyRootCertFile;
-    private static string PublicKeyRootCertFile;
-    private static string PrivateKeyCertFileChained;
-    private static string PayloadFile;
-    private static string TestFolder;
+    private static readonly string PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
+    private static readonly string PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
+    private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+    private readonly string PayloadFile = Path.GetTempFileName();
+    private readonly string TestFolder;
 
     private static readonly CoseSign1MessageValidator BaseValidator = new X509ChainTrustValidator(
                 ValidRootSetPriv,
@@ -66,21 +53,17 @@ public class CoseHandlerSignValidateTests
 
     public CoseHandlerSignValidateTests()
     {
-        X509Certificate2 selfSigned = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");
+        // set paths
+        TestFolder = Path.GetDirectoryName(PayloadFile) + Path.DirectorySeparatorChar;
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
-        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
-        PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
-        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
-        PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
-        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
-        PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));        
+        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));        
+        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));        
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
 
         // write payload file
-        PayloadFile = Path.GetTempFileName();
-        TestFolder = Path.GetDirectoryName(PayloadFile) + Path.DirectorySeparatorChar;
         File.WriteAllBytes(PayloadFile, Payload1Bytes);
     }
 

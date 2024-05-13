@@ -28,8 +28,8 @@ public class CoseSign1MessageBuilderTests
 
         List<Action> constructorTests =
         [
-            new Action(() => new CoseSign1MessageBuilder(keyProvider.Object, factoryObj.Object)),
-            new Action(() => new CoseSign1MessageBuilder(keyProvider.Object))
+            new Action(() => _= new CoseSign1MessageBuilder(keyProvider.Object, factoryObj.Object)),
+            new Action(() => _= new CoseSign1MessageBuilder(keyProvider.Object))
         ];
 
         // test validate

@@ -311,7 +311,7 @@ public class X509ChainTrustValidatorTests
     {
         // Build a COSE embed-signed file with a self-signed certificate
         var cert = TestCertificateUtils.CreateCertificate();
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, cert);
         var message = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
 
@@ -433,7 +433,7 @@ public class X509ChainTrustValidatorTests
 
     private static CoseSign1Message CreateCoseSign1MessageWithChainedCert()
     {
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, DefaultTestChain.Last(), [.. DefaultTestChain]);
         return factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
     }

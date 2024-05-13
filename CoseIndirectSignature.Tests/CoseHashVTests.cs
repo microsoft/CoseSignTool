@@ -162,72 +162,72 @@ public class CoseHashVTests
         ReadOnlyMemory<byte> rom = new(testData);
 
         // act and assert
-        Action act = () => new CoseHashV(CoseHashAlgorithm.Reserved, byteData: testData);
+        Action act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, byteData: testData);
         switch (testCase)
         {
             case 1:
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 2:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: testData);
                 act.Should().Throw<ArgumentException>();
                 break;
             case 3:
-                act = () => new CoseHashV(CoseHashAlgorithm.Reserved, stream);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, stream);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 4:
-                act = () => new CoseHashV(CoseHashAlgorithm.Reserved, testData, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, testData, "location");
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 5:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHAKE256, testData, "location", testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHAKE256, testData, "location", testData);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 6:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA1, stream, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA1, stream, "location");
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 7:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA512Truc256, stream, "location", testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA512Truc256, stream, "location", testData);
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 8:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256Trunc64, rom, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256Trunc64, rom, "location");
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 9:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHAKE128, rom, "location", rom);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHAKE128, rom, "location", rom);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 10:
 #nullable disable
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, streamData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, streamData: null);
                 act.Should().Throw<ArgumentNullException>();
 #nullable restore
                 break;
             case 11:
 #nullable disable
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, byteData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, byteData: null);
                 act.Should().Throw<ArgumentNullException>();
 #nullable restore
                 break;
             case 12:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, readonlyData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, readonlyData: null);
                 act.Should().Throw<ArgumentOutOfRangeException>();
                 break;
             case 13:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: null);
+                act = () => _ = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: null);
                 act.Should().Throw<ArgumentNullException>();
                 break;
             case 14:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: []);
+                act = () =>_=  new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: []);
                 act.Should().Throw<ArgumentOutOfRangeException>();
                 break;
             default:

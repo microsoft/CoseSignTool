@@ -13,9 +13,9 @@ using CST = CoseSignTool.CoseSignTool;
 public class MainTests
 {
     // Certificates
-    private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
-    private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 1");      // Two complete cert chains
-    private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
+    private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(MainTests) + " self signed");    // A self-signed cert
+    private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(MainTests) + " set 1");      // Two complete cert chains
+    private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(MainTests) + " set 2");
     private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains       
     private static readonly X509Certificate2 Root2Priv = CertChain2[0];
     private static readonly X509Certificate2 Int1Priv = CertChain1[1];

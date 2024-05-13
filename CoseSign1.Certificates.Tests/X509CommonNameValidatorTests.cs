@@ -62,8 +62,8 @@ public class X509CommonNameValidatorTests
     {
         List<Action> constructorTests =
         [
-            new Action(() => new X509CommonNameValidator("")),
-            new Action(() => new X509CommonNameValidator(" ")),
+            new Action(() => _= new X509CommonNameValidator("")),
+            new Action(() => _= new X509CommonNameValidator(" ")),
         ];
 
         // test validate

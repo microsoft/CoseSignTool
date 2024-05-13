@@ -9,7 +9,7 @@
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 		<SignAssembly>True</SignAssembly>
-		<PublicSign>True</PublicSign>
+		<DelaySign>True</DelaySign>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
 	</PropertyGroup>
 
@@ -35,13 +35,9 @@
 		<PackageReference Include="FluentAssertions" Version="6.12.0" />
 	</ItemGroup>
 
-    <ItemGroup>
-	    <ProjectReference Include="..\CoseHandler.Tests\CoseHandler.Tests.csproj" />
-	    <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
-	    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
-	    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
-	    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+  </ItemGroup>
 
     <ItemGroup>
       <Folder Include="TestContent\" />

@@ -84,7 +84,7 @@ public class ValidateCommand : CoseCommand
     /// <summary>
     /// For test use only.
     /// </summary>
-    internal ValidateCommand() { }
+    public ValidateCommand() { }
 
     /// <summary>
     /// Creates a ValidateCommand instance and sets its properties with a CommandLineConfigurationProvider.
@@ -164,7 +164,7 @@ public class ValidateCommand : CoseCommand
     }
 
     // A pass-through method to let derived classes modify the command and otherwise re-use the surrounding code.
-    protected internal virtual ValidationResult RunCoseHandlerCommand(
+    public virtual ValidationResult RunCoseHandlerCommand(
         Stream signature,
         FileInfo? payload,
         List<X509Certificate2>? rootCerts,

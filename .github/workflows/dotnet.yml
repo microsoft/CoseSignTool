@@ -56,6 +56,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         arch -x86_64 /bin/bash -c "brew update; brew install --cask dotnet-sdk" || true
+        echo "DOTNET_ROOT_X64=$(brew --prefix dotnet)" >> $GITHUB_ENV
 
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug

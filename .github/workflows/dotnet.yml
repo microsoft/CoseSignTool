@@ -52,10 +52,11 @@ jobs:
 
     # If running on a Mac, install the x64 runtime.
     - name: Install x64 runtime
-      if: matrix.os == 'macos-latest'
       run: |
-        brew update
-        brew install --cask dotnet-sdk
+        if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          brew update
+          brew install --cask dotnet-sdk
+        fi
 
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory

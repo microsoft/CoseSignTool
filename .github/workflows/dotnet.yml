@@ -50,6 +50,13 @@ jobs:
     - name: Build and Test debug
       run: dotnet test --verbosity normal CoseSignTool.sln
 
+    # If running on a Mac, install the x64 runtime.
+    - name: Install x64 runtime
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew update
+        brew install --cask dotnet-sdk
+
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}

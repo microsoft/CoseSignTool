@@ -11,7 +11,6 @@ public class SignCommand : CoseCommand
     /// <summary>
     /// A map of command line options to their abbreviated aliases.
     /// </summary>
-    [SuppressMessage("Usage", "CA2244:Do not duplicate indexed element initializations", Justification = "Abreviated aliases for better user experience")]
     private static readonly Dictionary<string, string> PrivateOptions = new()
     {
         ["-EmbedPayload"] = "EmbedPayload",
@@ -97,7 +96,7 @@ public class SignCommand : CoseCommand
     /// <summary>
     /// For test use only.
     /// </summary>
-    public SignCommand() { }
+    internal SignCommand() { }
 
     /// <summary>
     /// Creates a SignCommand instance and sets its properties with a CommandLineConfigurationProvider.
@@ -179,7 +178,7 @@ public class SignCommand : CoseCommand
     }
 
     //<inheritdoc />
-    public override void ApplyOptions(CommandLineConfigurationProvider provider)
+    protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)
     {
         EmbedPayload = GetOptionBool(provider, nameof(EmbedPayload));
         PipeOutput = GetOptionBool(provider, nameof (PipeOutput));

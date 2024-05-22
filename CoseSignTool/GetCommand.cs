@@ -29,7 +29,7 @@ public class GetCommand : ValidateCommand
     }
 
     //<inheritdoc />
-    public override void ApplyOptions(CommandLineConfigurationProvider provider)
+    protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)
     {
         SaveTo = GetOptionString(provider, nameof(SaveTo));
         base.ApplyOptions(provider);

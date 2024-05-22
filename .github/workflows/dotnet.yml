@@ -46,6 +46,13 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    # Install and update the x64 runtime if MacOS
+    - name: Install x64 runtime
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew update
+        brew install --cask dotnet-sdk
+
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug
       run: dotnet test --verbosity normal CoseSignTool.sln

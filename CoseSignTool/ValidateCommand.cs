@@ -180,7 +180,7 @@ public class ValidateCommand : CoseCommand
             allowUntrusted);
 
     //<inheritdoc />
-    protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)
+    public override void ApplyOptions(CommandLineConfigurationProvider provider)
     {
         Roots = GetOptionArray(provider, nameof(Roots));
         string revModeString = GetOptionString(provider, nameof(RevocationMode), "online");

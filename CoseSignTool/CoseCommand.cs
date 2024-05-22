@@ -12,7 +12,10 @@ using System.Text.RegularExpressions;
 public abstract partial class CoseCommand
 {
     [GeneratedRegex(":[^\\/]")]
-    private static partial Regex PatternColonNotUri();
+    private static partial Regex ColonNotUri();
+
+    [GeneratedRegex("^/")]
+    private static partial Regex LeadingSlash();
 
     /// <summary>
     /// A map of shared command line options to their abbreviated aliases.
@@ -52,7 +55,7 @@ public abstract partial class CoseCommand
     /// Sets properties based on command line option values.
     /// </summary>
     /// <param name="provider">A loaded CommandLineConfigurationProvider.</param>
-    protected internal virtual void ApplyOptions(CommandLineConfigurationProvider provider)
+    public virtual void ApplyOptions(CommandLineConfigurationProvider provider)
     {
         PayloadFile = GetOptionFile(provider, nameof(PayloadFile));
         SignatureFile = GetOptionFile(provider, nameof(SignatureFile));
@@ -75,7 +78,7 @@ public abstract partial class CoseCommand
     /// <param name="args">The command line arguments</param>
     /// <param name="options">A dictionary of command line options to their abbreviated aliases, not including shared options.</param>
     /// <returns>A CommandLineConfigurationProvider with the command line arguments and aliases loaded.</returns>
-    protected internal static CommandLineConfigurationProvider? LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string? badArg)
+    public static CommandLineConfigurationProvider? LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string? badArg)
     {
         badArg = null;
 
@@ -231,7 +234,7 @@ public abstract partial class CoseCommand
             if (arg.StartsWith('-'))
             {
                 // arg is an option name
-                if (PatternColonNotUri().IsMatch(arg))  // Match if arg contains a colon not followed by a \ or / character
+                if (ColonNotUri().IsMatch(arg))  // Match if arg contains a colon not followed by a \ or / character
                 {
                     // Split colon-delimited arg into name/value pair, but only on first colon in case the 
                     // value is a file path
@@ -264,7 +267,7 @@ public abstract partial class CoseCommand
     private static bool IsSwitch(string s, StringDictionary options)
     {
         // replace '/' with '-', and remove ':*' for easy dict lookup
-        return options.ContainsKey(Regex.Replace(s,"^/", "-").Split(":")[0]);
+        return options.ContainsKey(LeadingSlash().Replace(s, "-").Split(":")[0]);
     }
 
 

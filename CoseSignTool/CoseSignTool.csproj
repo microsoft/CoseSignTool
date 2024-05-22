@@ -5,6 +5,9 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
 		<Platforms>x64</Platforms>
+	</PropertyGroup>
+
+	<PropertyGroup>
 		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<SignAssembly>True</SignAssembly>
 		<PublicSign>True</PublicSign>
@@ -14,8 +17,6 @@
 		<AnalysisLevel>latest</AnalysisLevel>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 		<Nullable>enable</Nullable>
-		<NuspecFile>../Nuspec/CoseSignTool.nuspec</NuspecFile>
-		<NuspecProperties>VersionNgt=$(VersionNgt)</NuspecProperties>
 	</PropertyGroup>
 
 	<ItemGroup>

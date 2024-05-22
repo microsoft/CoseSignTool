@@ -55,8 +55,17 @@ jobs:
     - name: Install .NET Core x64
       if: matrix.os == 'macos-latest'
       run: |
-        arch -x86_64 /bin/bash -c "brew update; brew install --cask dotnet-sdk" || true
+        arch -x86_64 /bin/bash -c "brew update >/dev/null; brew install --cask dotnet-sdk" || true
         echo "DOTNET_ROOT_X64=$(brew --prefix dotnet)" >> $GITHUB_ENV
+
+    # Show path info for macos
+    - name: Show path info
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "DOTNET_ROOT_X64=$DOTNET_ROOT_X64"
+        echo "PATH=$PATH"
+        echo "DOTNET_ROOT=$DOTNET_ROOT"
+        ls -a -R
 
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug

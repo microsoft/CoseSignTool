@@ -47,26 +47,15 @@ jobs:
         softwareupdate --install-rosetta --agree-to-license
 
     - name: Setup .NET
-      if: matrix.os == 'macos-latest'
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 8.0.x
-        runtime: osx-x64
-
-    - name: Setup .NET
-      if: matrix.os != 'macos-latest'
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.0.x
 
     # If running on a Mac, install the x64 runtime.
-    # - name: Install x64 runtime
-    #   if: matrix.os == 'macos-latest'
-    #   run: |
-    #     brew update
-    #     brew install --cask dotnet-sdk
-
-
+    - name: Install .NET Core x64
+      if: matrix.os == 'macos-latest'
+      run: |
+        arch -x86_64 /bin/bash -c "brew update; brew install --cask dotnet-sdk"
 
     # Use the Dotnet Test command to load dependencies, build, and test the code.        
     - name: Build and Test debug

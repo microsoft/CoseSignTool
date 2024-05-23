@@ -1,18 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignUnitTests;
-
-using System;
-using System.Linq;
-using CoseIndirectSignature;
-using CoseSign1.Certificates.Local;
-using CoseSign1.Tests.Common;
-using CoseSignTool.tests;
-using CoseX509;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using CST = CoseSignTool.CoseSignTool;
+namespace CoseSignTool.Tests;
 
 [TestClass]
 public class ValidateCommandTests
@@ -60,7 +49,7 @@ public class ValidateCommandTests
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
@@ -86,7 +75,7 @@ public class ValidateCommandTests
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
@@ -115,7 +104,7 @@ public class ValidateCommandTests
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
@@ -141,7 +130,7 @@ public class ValidateCommandTests
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator

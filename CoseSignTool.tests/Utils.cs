@@ -1,8 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.tests;
-using System.Text;
+namespace CoseSignTool.Tests;
 
 internal static class Utils
 {

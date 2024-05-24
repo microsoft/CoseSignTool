@@ -75,7 +75,7 @@ jobs:
     - name: Build and Test debug
       run: |
           dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
-          dotnet test CoseSign1.Certificates.Tests/CoseSign2.Certificates.Tests.csproj
+          dotnet test CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
           dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
           dotnet test --verbosity detailed --arch ${{ matrix.build_arch }} CoseSignTool.sln

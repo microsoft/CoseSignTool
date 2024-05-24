@@ -75,11 +75,12 @@ jobs:
     - name: Build and Test debug
       run: |
           dotnet build --configuration Debug CoseSignTool.sln
-          dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
-          dotnet test CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
-          dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
-          dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
+          dotnet test --verbosity detailed CoseSignTool.sln
+          # dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
+          # dotnet test CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          # dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          # dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
+          # dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
           # dotnet test --verbosity detailed --arch ${{ matrix.build_arch }} CoseSignTool.sln
 
     # List the contents of the working directory to make sure all the artifacts are there.  

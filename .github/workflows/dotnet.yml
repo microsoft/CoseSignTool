@@ -39,7 +39,7 @@ jobs:
             build_arch: x64
           - os: macos-latest
             dir_command: ls -a -R
-            build_arch: arm64
+            build_arch: x64
     steps:
     - name: Checkout code
       uses: actions/checkout@v3

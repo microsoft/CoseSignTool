@@ -88,7 +88,7 @@ public class ValidateCommandTests
                                                      false);
 
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
+        result.Errors?.Should().ContainSingle();
         result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
         result.ContentValidationType.Should().Be(ContentValidationType.Detached);
         result.ToString(true).Should().Contain("Detached");

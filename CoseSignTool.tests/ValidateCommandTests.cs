@@ -111,7 +111,7 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
         result.Success.Should().BeTrue();
-        result.InnerResults.Should().ContainSingle();
+        result.InnerResults?.Should().ContainSingle();
         result.InnerResults?[0].PassedValidation.Should().BeTrue();
         result.InnerResults?[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
 
@@ -137,7 +137,7 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
+        result.Errors?.Should().ContainSingle();
         result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
         string resString = result.ToString(verbose: true, showCertDetails: true);
@@ -211,7 +211,7 @@ public class ValidateCommandTests
         result.Success.Should().BeFalse();
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
-        result.Errors.Should().ContainSingle();
+        result.Errors?.Should().ContainSingle();
         result.Errors?.FirstOrDefault().ErrorCode.Should().Be(ValidationFailureCode.PayloadMissing);
     }
 
@@ -243,7 +243,7 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
+        result.Errors?.Should().ContainSingle();
         result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
@@ -277,7 +277,7 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
+        result.Errors?.Should().ContainSingle();
         result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
         // Content validation type should be set to not performed because we shouldn't try to process untrusted content

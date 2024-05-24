@@ -1,0 +1,36 @@
+﻿<Project Sdk="MSTest.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Platforms>x64;arm64</Platforms> <!-- must match the platform set from CoseSignTool	-->
+		<Nullable>enable</Nullable>
+        <IsPublishable>false</IsPublishable>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
+		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+		<SignAssembly>True</SignAssembly>
+		<PublicSign>True</PublicSign>
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- other property settings -->
+		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Because this is a test project, don't run code coverage -->
+		<AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FluentAssertions" Version="6.12.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CoseHandler.Tests\CoseHandler.Tests.csproj" />
+		<ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+	</ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="TestContent\" />
+    </ItemGroup>
+</Project>

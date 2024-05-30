@@ -232,7 +232,7 @@ public class CoseHandlerSignValidateTests
     public void TrustProvidedRoots()
     {
         // Sign, then validate with a custom validator that does not allow untrusted chains
-        X509ChainTrustValidator chainValidator = new(ValidRootSetPub);
+        X509ChainTrustValidator chainValidator = new(ValidRootSetPub, RevMode);
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, false);
         CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes)
             .Success.Should().Be(true);
@@ -266,9 +266,10 @@ public class CoseHandlerSignValidateTests
     /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
     /// </summary>
     [TestMethod]
-    public void UntrustedAllowed()
+    public void UntrustedAllowedSelfSigned()
     {
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        // Self signed cert should pass when AllowUntrusted is true.
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileSelfSigned));
         signedBytes.ToArray().Should().NotBeNull();
         X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
         ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
@@ -276,6 +277,23 @@ public class CoseHandlerSignValidateTests
         result.InnerResults?.Count.Should().Be(1);
         result.InnerResults?[0]?.PassedValidation.Should().BeTrue();
         result.InnerResults?[0]?.ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
+    }
+
+    /// <summary>
+    /// Test that validation with AllowUntrusted will still fail if required roots are not found.
+    /// </summary>
+    [TestMethod]
+    public void UntrustedAllowedChainedCert()
+    {
+        // Chained cert should fail even when AllowUntrusted is true because it doesn't chain to any root, trusted or otherwise.
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        signedBytes.ToArray().Should().NotBeNull();
+        X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
+        result.Success.Should().Be(false);
+        result.InnerResults?.Count.Should().Be(1);
+        result.InnerResults?[0]?.PassedValidation.Should().BeFalse();
+        result.InnerResults?[0]?.ResultMessage.Should().Be("[A certificate chain could not be built to a trusted root authority.]");
     }
     #endregion
 

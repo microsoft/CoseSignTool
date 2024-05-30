@@ -130,7 +130,7 @@ public class X509ChainTrustValidator(
         }
 
         // Chain build failed, but if the only failure is Untrusted Root we may still pass.
-        if (ChainBuilder.ChainStatus.All(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot) || st.Status.HasFlag(X509ChainStatusFlags.NoError)))
+        if (ChainBuilder.ChainStatus.All(st => (st.Status &~ (X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.NoError)) == 0)) // use &~ to mask out UntrustedRoot and NoError
         {
             // We can't specify an alternative root in .netstandard 2.0, so our work-around is to consider any user-supplied roots trusted.
             // This logic should be replaced once the library updates to a .NET Standard version that supports assigning arbitrary root trust like .NET 7 does.

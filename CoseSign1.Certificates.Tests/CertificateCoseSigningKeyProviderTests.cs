@@ -14,11 +14,11 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestConstructorsSuccess()
     {
-        List<Action> constructorTests = new()
-        {
-            new Action(() => new TestCertificateCoseSigningKeyProvider()),
-            new Action(() => new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512))
-        };
+        List<Action> constructorTests =
+        [
+            new Action(() => _= new TestCertificateCoseSigningKeyProvider()),
+            new Action(() => _= new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512))
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -55,7 +55,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetRSAKeyMethodWhenRSAExists()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestGetRSAKeyMethodWhenRSAExists));
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
         Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
         {
             CallBase = true
@@ -92,7 +92,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetECDsaSigningKeyMethod()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(TestGetECDsaSigningKeyMethod), useEcc: true);
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(useEcc: true);
         Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
         {
             CallBase = true
@@ -112,7 +112,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetProtectedHeadersSuccess()
     {
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(TestGetProtectedHeadersSuccess), leafFirst: true);
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(leafFirst: true);
         X509Certificate2 testCert = testChain[0];
 
         Mock <CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)

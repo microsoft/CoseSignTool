@@ -12,6 +12,7 @@ using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using CoseIndirectSignature.Extensions;
 using CoseSign1;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Interfaces;
@@ -20,8 +21,6 @@ using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Local.Validators;
 using CoseSign1.Extensions;
-using CoseSign1.Interfaces;
-using CoseIndirectSignature.Extensions;
 
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
@@ -32,7 +31,7 @@ public static class CoseHandler
     private const string DefaultStoreName = "My";
 
     // static instance of the factory for creating new CoseSign1Messages
-    private static readonly ICoseSign1MessageFactory Factory = new CoseSign1MessageFactory();
+    private static readonly CoseSign1MessageFactory Factory = new();
 
     #region Sign Overloads
     /// <summary>
@@ -546,7 +545,7 @@ public static class CoseHandler
         }
 
         // List for collecting any validation errors we hit.
-        List<ValidationFailureCode> errorCodes = new();
+        List<ValidationFailureCode> errorCodes = [];
 
         // Load the signature content into a CoseSign1Message object.
         CoseSign1Message? msg = null;
@@ -617,7 +616,7 @@ public static class CoseHandler
                     messageVerified = hasBytes ?
                         (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
                         hasStream ?
-                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream)) :
+                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream!)) :
                             throw new InvalidOperationException();
                     break;
 
@@ -625,7 +624,7 @@ public static class CoseHandler
                 case ContentValidationType.Detached:
                     messageVerified = hasBytes ?
                         msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
-                        Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream)).GetAwaiter().GetResult();
+                        Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream!)).GetAwaiter().GetResult();
                     break;
 
                 // Embedded signature validation. Validate the embedded content against the signature.

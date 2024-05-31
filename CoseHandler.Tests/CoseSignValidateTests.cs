@@ -4,16 +4,11 @@
 namespace CoseSignUnitTests;
 
 using CoseIndirectSignature;
-using System.Net.Mime;
-using System.Runtime.ConstrainedExecution;
 
 [TestClass]
 public class CoseHandlerSignValidateTests
 {
     private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
-    private const string SubjectName1 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 1";
-    private const string SubjectName2 = $"Test Root: {nameof(CoseHandlerSignValidateTests)} set 2";
-    private const string TestCertStoreName = "CoseSignTestCertStore";
 
     // Certificates and chains as objects
     private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
@@ -26,35 +21,27 @@ public class CoseHandlerSignValidateTests
     private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // As byte arrays
-    private static readonly byte[]? Pfx1 = CertChain1.Export(X509ContentType.Pkcs12);
-    private static readonly byte[]? Pfx2 = CertChain2.Export(X509ContentType.Pkcs12);
-    private static readonly byte[] SelfPfx = SelfSignedCert.Export(X509ContentType.Pkcs12);
+    private static readonly byte[] Pfx1 = CertChain1.Export(X509ContentType.Pkcs12)!;
     private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);
     private static readonly byte[] Root2Cer = Root2Priv.Export(X509ContentType.Cert);
     private static readonly byte[] Int1Cer = Int1Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] Leaf1Cer = Leaf1Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] Leaf2Cer = Leaf2Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] SelfCer = SelfSignedCert.Export(X509ContentType.Cert);
 
     // As public key certs
     private static readonly X509Certificate2 Root1Pub = new(Root1Cer);
-    private static readonly X509Certificate2 Root2Pub = new(Root2Cer);
     private static readonly X509Certificate2 Int1Pub = new(Int1Cer);
-    private static readonly X509Certificate2 Leaf1Pub = new(Leaf1Cer);
 
     // As lists
-    private static readonly List<X509Certificate2> ValidRootSetPriv = new() { Root1Priv, Int1Priv };                                                  // Root and intermediate only
-    private static readonly List<X509Certificate2> ValidRootSetPub = new() { Root1Pub, Int1Pub };
-    private static readonly List<X509Certificate2> BadRootSet = new() { Root2Pub, Int1Pub };                                                        // Mismatched root and intermediate
+    private static readonly List<X509Certificate2> ValidRootSetPriv = [Root1Priv, Int1Priv];                                                  // Root and intermediate only
+    private static readonly List<X509Certificate2> ValidRootSetPub = [Root1Pub, Int1Pub];
 
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";
     private static readonly string PublicKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.cer";
-    private static string? PrivateKeyRootCertFile;
-    private static string? PublicKeyRootCertFile;
-    private static string? PrivateKeyCertFileChained;
-    private static string? PayloadFile;
-    private static string? TestFolder;
+    private static readonly string PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
+    private static readonly string PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
+    private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+    private readonly string PayloadFile = Path.GetTempFileName();
+    private readonly string TestFolder;
 
     private static readonly CoseSign1MessageValidator BaseValidator = new X509ChainTrustValidator(
                 ValidRootSetPriv,
@@ -66,24 +53,18 @@ public class CoseHandlerSignValidateTests
 
     public CoseHandlerSignValidateTests()
     {
-        X509Certificate2 selfSigned = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");
+        // set paths
+        TestFolder = Path.GetDirectoryName(PayloadFile) + Path.DirectorySeparatorChar;
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
-        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
-        PrivateKeyRootCertFile = Path.GetTempFileName() + ".pfx";
-        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
-        PublicKeyRootCertFile = Path.GetTempFileName() + ".cer";
-        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
-        PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
+        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));        
+        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));        
+        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));        
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
 
-        // make payload file
-        PayloadFile = Path.GetTempFileName();
+        // write payload file
         File.WriteAllBytes(PayloadFile, Payload1Bytes);
-
-        // get the parent folder
-        TestFolder = Path.GetDirectoryName(PayloadFile) + Path.DirectorySeparatorChar;
     }
 
     #region Valid Sign/Validate scenarios: Payload and signature options
@@ -96,8 +77,6 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void Base_DetachSignBytesChainedCert_ValidateBytesRoots()
     {
-        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(Base_DetachSignBytesChainedCert_ValidateBytesRoots));
-
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, false, null);
         signedBytes.ToArray().Should().NotBeNull();
         CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
@@ -253,7 +232,7 @@ public class CoseHandlerSignValidateTests
     public void TrustProvidedRoots()
     {
         // Sign, then validate with a custom validator that does not allow untrusted chains
-        X509ChainTrustValidator chainValidator = new(ValidRootSetPub);
+        X509ChainTrustValidator chainValidator = new(ValidRootSetPub, RevMode);
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, false);
         CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes)
             .Success.Should().Be(true);
@@ -267,7 +246,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert);
         signedBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, new List<X509Certificate2> { SelfSignedCert }, RevMode);
+        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, [SelfSignedCert], RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -287,16 +266,33 @@ public class CoseHandlerSignValidateTests
     /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
     /// </summary>
     [TestMethod]
-    public void UntrustedAllowed()
+    public void UntrustedAllowedSelfSigned()
     {
+        // Self signed cert should pass when AllowUntrusted is true.
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileSelfSigned));
+        signedBytes.ToArray().Should().NotBeNull();
+        X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
+        result.Success.Should().Be(true);
+        result.InnerResults?.Count.Should().Be(1);
+        result.InnerResults?[0]?.PassedValidation.Should().BeTrue();
+        result.InnerResults?[0]?.ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
+    }
+
+    /// <summary>
+    /// Test that validation with AllowUntrusted will still fail if required roots are not found.
+    /// </summary>
+    [TestMethod]
+    public void UntrustedAllowedChainedCert()
+    {
+        // Chained cert should fail even when AllowUntrusted is true because it doesn't chain to any root, trusted or otherwise.
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
         signedBytes.ToArray().Should().NotBeNull();
         X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
-        var result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
-        result.Success.Should().Be(true);
-        result.InnerResults.Count.Should().Be(1);
-        result.InnerResults[0].PassedValidation.Should().BeTrue();
-        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
+        result.Success.Should().Be(false);
+        result.InnerResults?.Count.Should().Be(1);
+        result.InnerResults?[0]?.PassedValidation.Should().BeFalse();
     }
     #endregion
 

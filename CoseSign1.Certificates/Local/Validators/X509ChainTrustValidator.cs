@@ -3,21 +3,33 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
+using System.Threading;
+
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
-public class X509ChainTrustValidator : X509Certificate2MessageValidator
+/// <remarks>
+/// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy
+/// against the default set of roots on the machine.
+/// </remarks>
+/// <param name="chainBuilder">The <see cref="ICertificateChainBuilder"/> used to build a chain.</param>
+/// <param name="allowUnprotected">True if the UnprotectedHeaders is allowed, False otherwise.</param>
+/// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+public class X509ChainTrustValidator(
+    ICertificateChainBuilder chainBuilder,
+    bool allowUnprotected = false,
+    bool allowUntrusted = false) : X509Certificate2MessageValidator(allowUnprotected)
 {
     #region Public Properties
     /// <summary>
     /// True to allow untrusted certificates to pass validation. This does not apply to self-signed certificates, which trust themselves.
     /// </summary>
-    public bool AllowUntrusted { get; set; }
+    public bool AllowUntrusted { get; set; } = allowUntrusted;
 
     /// <summary>
     /// The certificate chain builder used to perform chain build operations.
     /// </summary>
-    public ICertificateChainBuilder ChainBuilder { get; set; }
+    public ICertificateChainBuilder ChainBuilder { get; set; } = chainBuilder;
 
     /// <summary>
     /// An optional list of user specified roots to trust. If unspecified, the default roots on the machine will be used instead.
@@ -33,24 +45,9 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
     /// Assumes that user-supplied roots are trusted. True by default.
     /// </summary>
     public bool TrustUserRoots { get; set; } = true;
-    #endregion
 
+    #endregion
     #region Constructors
-    /// <summary>
-    /// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy
-    /// against the default set of roots on the machine.
-    /// </summary>
-    /// <param name="chainBuilder">The <see cref="ICertificateChainBuilder"/> used to build a chain.</param>
-    /// <param name="allowUnprotected">True if the UnprotectedHeaders is allowed, False otherwise.</param>
-    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
-    public X509ChainTrustValidator(
-        ICertificateChainBuilder chainBuilder,
-        bool allowUnprotected = false,
-        bool allowUntrusted = false) : base(allowUnprotected)
-    {
-        ChainBuilder = chainBuilder;
-        AllowUntrusted = allowUntrusted;
-    }
 
     /// <summary>
     /// Creates a new <see cref="X509ChainTrustValidator"/> for validating a given <see cref="CoseSign1Message"/> signing certificate to be trustworthy
@@ -115,8 +112,25 @@ public class X509ChainTrustValidator : X509Certificate2MessageValidator
             return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
         }
 
+        // If we fail because chain build failed to reach the revocation server, retry in case the server is down.
+        if (ChainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
+        {
+            int maxAttempts = 3;
+            for (int i = 0;
+                i < maxAttempts && ChainBuilder.ChainStatus.Any(s => (s.Status & X509ChainStatusFlags.RevocationStatusUnknown) != 0);
+                i++)
+            {
+                if (ChainBuilder.Build(signingCertificate))
+                {
+                    return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
+                }
+
+                Thread.Sleep(1000);
+            }
+        }
+
         // Chain build failed, but if the only failure is Untrusted Root we may still pass.
-        if (ChainBuilder.ChainStatus.All(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot) || st.Status.HasFlag(X509ChainStatusFlags.NoError)))
+        if (ChainBuilder.ChainStatus.All(st => (st.Status &~ (X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.NoError)) == 0)) // use &~ to mask out UntrustedRoot and NoError
         {
             // We can't specify an alternative root in .netstandard 2.0, so our work-around is to consider any user-supplied roots trusted.
             // This logic should be replaced once the library updates to a .NET Standard version that supports assigning arbitrary root trust like .NET 7 does.

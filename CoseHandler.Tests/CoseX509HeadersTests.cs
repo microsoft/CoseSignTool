@@ -19,7 +19,7 @@ public class CoseX509HeadersTests
         CborWriter writer = new(CborConformanceMode.Strict);
         writer.WriteByteString(Array.Empty<byte>());
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
 
@@ -30,16 +30,16 @@ public class CoseX509HeadersTests
     [TestMethod]
     public void CoseX509Header_ParseCertBagOfOne()
     {
-        X509Certificate2Collection expectedCerts = new()
-        {
+        X509Certificate2Collection expectedCerts =
+        [
             // expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test1"));
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Header_ParseCertBagOfOne)}_TestCert")
-        };
+        ];
 
         CborWriter writer = new(CborConformanceMode.Strict);
         writer.WriteByteString(expectedCerts[0].RawData);
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
 
@@ -51,13 +51,13 @@ public class CoseX509HeadersTests
     [TestMethod]
     public void CoseX509Header_ParseCertBagOfTwo()
     {
-        X509Certificate2Collection expectedCerts = new()
-        {
+        X509Certificate2Collection expectedCerts =
+        [
             //expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test1"));
             //expectedCerts.Add(HelperFunctions.GenerateTestCert("cn=test2"));
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Header_ParseCertBagOfTwo)}_Cert1"),
             TestCertificateUtils.CreateCertificate($"{nameof(CoseX509Header_ParseCertBagOfTwo)}_Cert2")
-        };
+        ];
 
         CborWriter writer = new(CborConformanceMode.Strict);
         writer.WriteStartArray(expectedCerts.Count);
@@ -67,7 +67,7 @@ public class CoseX509HeadersTests
         }
         writer.WriteEndArray();
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
 
@@ -83,7 +83,7 @@ public class CoseX509HeadersTests
         CborWriter writer = new(CborConformanceMode.Strict);
         writer.WriteInt32(42);
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
     }
@@ -97,7 +97,7 @@ public class CoseX509HeadersTests
         writer.WriteInt32(42);
         writer.WriteEndArray();
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
     }
@@ -112,7 +112,7 @@ public class CoseX509HeadersTests
         writer.WriteInt32(42);
         writer.WriteEndArray();
         CborReader reader = new(writer.Encode());
-        List<X509Certificate2> certs = new();
+        List<X509Certificate2> certs = [];
 
         reader.ReadCertificateSet(ref certs);
     }

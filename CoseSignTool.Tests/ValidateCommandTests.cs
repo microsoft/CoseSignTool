@@ -1,25 +1,15 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignUnitTests;
-
-using System;
-using System.Linq;
-using CoseIndirectSignature;
-using CoseSign1.Certificates.Local;
-using CoseSignTool.tests;
-using CoseX509;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using CST = CoseSignTool.CoseSignTool;
+namespace CoseSignTool.Tests;
 
 [TestClass]
 public class ValidateCommandTests
 {
     // Certificates
-    private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
-    private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 1");      // Two complete cert chains
-    private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
+    private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(ValidateCommandTests) + " self signed");    // A self-signed cert
+    private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " set 1");      // Two complete cert chains
+    private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " set 2");
     private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains       
     private static readonly X509Certificate2 Root2Priv = CertChain2[0];
     private static readonly X509Certificate2 Int1Priv = CertChain1[1];
@@ -58,15 +48,15 @@ public class ValidateCommandTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(payloadFile),
-                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
                                                      false);
@@ -84,22 +74,22 @@ public class ValidateCommandTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(PublicKeyRootCertFile),
-                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
                                                      false);
 
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.Errors?.Should().ContainSingle();
+        result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
         result.ContentValidationType.Should().Be(ContentValidationType.Detached);
         result.ToString(true).Should().Contain("Detached");
     }
@@ -113,17 +103,17 @@ public class ValidateCommandTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
         result.Success.Should().BeTrue();
-        result.InnerResults.Should().ContainSingle();
-        result.InnerResults[0].PassedValidation.Should().BeTrue();
-        result.InnerResults[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
+        result.InnerResults?.Should().ContainSingle();
+        result.InnerResults?[0].PassedValidation.Should().BeTrue();
+        result.InnerResults?[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
 
         result.ToString(showCertDetails: true).Should().Contain("Certificate chain details");
         result.ContentValidationType.Should().Be(ContentValidationType.Detached);
@@ -139,16 +129,16 @@ public class ValidateCommandTests
         string payloadFile = Utils.GetPayloadFile();
 
         // sign detached
-        string[] args1 = { "sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned };
-        CST.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+        result.Errors?.Should().ContainSingle();
+        result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
         string resString = result.ToString(verbose: true, showCertDetails: true);
         resString.Should().Contain("Certificate chain details");
@@ -182,7 +172,7 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(payloadFile),
-                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
                                                      false);
@@ -214,21 +204,21 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
                                                      null,
-                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
                                                      false);
         result.Success.Should().BeFalse();
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
-        result.Errors.Should().ContainSingle();
-        result.Errors.FirstOrDefault().ErrorCode.Should().Be(ValidationFailureCode.PayloadMissing);
+        result.Errors?.Should().ContainSingle();
+        result.Errors?.FirstOrDefault().ErrorCode.Should().Be(ValidationFailureCode.PayloadMissing);
     }
 
     /// <summary>
     /// Validates that modified indirect payloads are rejected
     /// </summary>
-    public void ValidateIndirectFailsWithModifiedPayload()
+    public static void ValidateIndirectFailsWithModifiedPayload()
     {
         string payloadFile = Utils.GetPayloadFile();
 
@@ -248,13 +238,13 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(PublicKeyRootCertFile),
-                                                     new System.Collections.Generic.List<X509Certificate2> { SelfSignedCert },
+                                                     [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
                                                      false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
+        result.Errors?.Should().ContainSingle();
+        result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.PayloadMismatch);
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
     }
@@ -287,8 +277,8 @@ public class ValidateCommandTests
                                                      null,
                                                      false);
         result.Success.Should().BeFalse();
-        result.Errors.Should().ContainSingle();
-        result.Errors[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
+        result.Errors?.Should().ContainSingle();
+        result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
 
         // Content validation type should be set to not performed because we shouldn't try to process untrusted content
         result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);

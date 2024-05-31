@@ -25,9 +25,9 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     /// Lazy populate all known hash algorithms from System.Security.Cryptography into a runtime cache
     /// </summary>
     /// <remarks>This was done as <see cref="HashAlgorithm.Create"/> is obsolete and instead it's recommended to call the Create method on each type directly.</remarks>
-    internal static readonly Lazy<Dictionary<string, Type>> HashAlgorithmLookup = new Lazy<Dictionary<string, Type>>(() =>
+    internal static readonly Lazy<Dictionary<string, Type>> HashAlgorithmLookup = new(() =>
     {
-        Dictionary<string, Type> hashLookup = new();
+        Dictionary<string, Type> hashLookup = [];
 
         foreach (Type hashAlgorithm in FindAllDerivedHashAlgorithms())
         {
@@ -73,7 +73,7 @@ public static class CoseSign1MessageIndirectSignatureExtensions
             return null;
         }
 
-        MethodInfo? methodInfo = hashAlgorithmType.GetMethod("Create", Array.Empty<Type>());
+        MethodInfo? methodInfo = hashAlgorithmType.GetMethod("Create", []);
         return methodInfo != null
                ? (HashAlgorithm)methodInfo.Invoke(null, null)
                : null;

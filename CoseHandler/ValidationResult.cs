@@ -70,7 +70,7 @@ public struct ValidationResult
     /// <param name="code"></param>
     public void AddError(ValidationFailureCode code)
     {
-        Errors ??= new List<CoseValidationError>();
+        Errors ??= [];
         Errors.Add(new CoseValidationError(code));
     }
 
@@ -132,7 +132,7 @@ public struct ValidationResult
         IEnumerable<object>? allIncludes =
             InnerResults?
                 .Where(r => r.Includes?.Count > 0 is true)?
-                .SelectMany(r => r.Includes ?? new List<object>())
+                .SelectMany(r => r.Includes ?? [])
                 .Distinct();
 
         // Now filter them down to just chain status errors.

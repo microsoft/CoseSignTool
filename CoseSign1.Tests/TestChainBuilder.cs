@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Tests;
 
+using System.Runtime.CompilerServices;
+
 /// <summary>
 /// Custom Chain Builder Class Created For Integration Tests Purpose
 /// </summary>
@@ -21,7 +23,7 @@ internal class TestChainBuilder : ICertificateChainBuilder, IDisposable
     /// Added this just for the purpose of tests
     /// </summary>
     /// <param name="testName">his would be used as the testName while creating the test chain in ChainElements()</param>
-    public TestChainBuilder(string testName)
+    public TestChainBuilder([CallerMemberName] string testName = "none")
     {
         DefaultChainBuilder = new X509Chain();
         TestName = testName;

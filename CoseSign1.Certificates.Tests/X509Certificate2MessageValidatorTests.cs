@@ -16,13 +16,11 @@ public class X509Certificate2MessageValidatorTests
     {
     }
 
-    private class TestX509Certificate2MessageValidator : X509Certificate2MessageValidator
+    private class TestX509Certificate2MessageValidator(bool allowUnprotected = false)
+        : X509Certificate2MessageValidator(allowUnprotected)
     {
-        public TestX509Certificate2MessageValidator(bool allowUnprotected = false) : base(allowUnprotected)
-        {
-        }
-
-        protected override CoseSign1ValidationResult ValidateCertificate(X509Certificate2 signingCertificate, List<X509Certificate2>? certChain, List<X509Certificate2>? extraCertificates)
+        protected override CoseSign1ValidationResult ValidateCertificate(
+            X509Certificate2 signingCertificate, List<X509Certificate2>? certChain, List<X509Certificate2>? extraCertificates)
         {
             throw new NotImplementedException();
         }
@@ -34,12 +32,12 @@ public class X509Certificate2MessageValidatorTests
     [Test]
     public void X509Certificate2MessageValidatorCtors()
     {
-        List<Tuple<Func<X509Certificate2MessageValidator>, bool>> ctorTests = new()
-        {
+        List<Tuple<Func<X509Certificate2MessageValidator>, bool>> ctorTests =
+        [
             Tuple.Create<Func<X509Certificate2MessageValidator>,bool>(() => new TestX509Certificate2MessageValidator(), false ),
             Tuple.Create<Func<X509Certificate2MessageValidator>,bool>(() => new TestX509Certificate2MessageValidator(false), false),
             Tuple.Create<Func<X509Certificate2MessageValidator>, bool>(() => new TestX509Certificate2MessageValidator(true), true)
-        };
+        ];
         foreach (Tuple<Func<X509Certificate2MessageValidator>, bool> ctor in ctorTests)
         {
             X509Certificate2MessageValidator testItem = null;
@@ -55,17 +53,17 @@ public class X509Certificate2MessageValidatorTests
     public void X509Certificate2MessageValidatorValidates()
     {
         // setup
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(X509Certificate2MessageValidatorValidates));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<X509Certificate2MessageValidator> mockValidator = new(MockBehavior.Strict)
         {
             CallBase = true
         };
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
-        byte[] testArray = new byte[] { 1, 2, 3, 4 };
+        byte[] testArray = [1, 2, 3, 4];
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
         X509Certificate2? invokedCert = null;
         List<X509Certificate2>? invokedCertChain = null;
         List<X509Certificate2>? invokedExtraCerts = null;

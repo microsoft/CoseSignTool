@@ -21,5 +21,22 @@ Abstractions required to extend or enhance Create CoseSign1 functionality.
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\bsi.json" target="Build\sbom\spdx_2.2" />
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json" target="Build\sbom\spdx_2.2" />
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />
-</files>
+	<file src="..\docs\CoseSignTool.md" target="Docs" />
+	<file src="..\docs\CoseHandler.md" target="Docs" />
+	<file src="..\docs\Advanced.md" target="Docs" />
+	<file src="..\docs\CODE_OF_CONDUCT.md" target="Docs" />
+	<file src="..\docs\CONTRIBUTING.md" target="Docs" />
+	<file src="..\docs\SECURITY.md" target="Docs" />
+	<file src="..\docs\Advanced.md" target="Docs" />
+	<file src="..\docs\Advanced.md" target="Docs" />
+	<file src="..\docs\STYLE.md" target="Docs" />
+	<file src="..\docs\SUPPORT.md" target="Docs" />
+	<file src="..\docs\Troubleshooting.md" target="Docs" />
+	<file src="..\ReadMe.md" target="." />
+	<file src="..\LICENSE.md" target="." />
+	<file src="..\CHANGELOG.md" target="." />
+	<file src="..\CoseIndirectSignature.md" target="." />
+	<file src="..\CoseSign1.Abstractions.md" target="." />
+	<file src="..\CoseSign1.Certificates.md" target="." />
+  </files>
 </package>

@@ -29,7 +29,7 @@ public record CoseHashV
     {
         get
         {
-            return InternalHashValue ?? Array.Empty<byte>();
+            return InternalHashValue ?? [];
         }
         set
         {
@@ -374,7 +374,7 @@ public record CoseHashV
         {
             throw new ArgumentNullException(nameof(reader));
         }
-        CoseHashV returnValue = new CoseHashV();
+        CoseHashV returnValue = new();
 
         // tracking state for error purposes.
         uint propertiesRead = 0;

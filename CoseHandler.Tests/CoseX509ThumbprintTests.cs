@@ -31,10 +31,10 @@ public class CoseX509ThumbprintTests
             SHA1.Create(), SHA256.Create(), SHA384.Create(), SHA512.Create()
         };
 
-        foreach (var algo in algos)
+        foreach (HashAlgorithm algo in algos)
         {
             var t = algo.GetType();
-            var algName = t.DeclaringType.Name;
+            var algName = t.DeclaringType!.Name;
             CoseX509Thumprint th = new(SelfSignedCert1, new HashAlgorithmName(algName));
             HashAlgorithm hashAlgorithm = algo;
 

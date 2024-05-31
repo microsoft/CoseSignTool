@@ -8,9 +8,9 @@ namespace CoseSign1.Certificates.Tests;
 /// </summary>
 public class X509ChainTrustValidatorTests
 {
-    private static readonly X509Certificate2Collection DefaultTestChain = TestCertificateUtils.CreateTestChain(nameof(X509ChainTrustValidatorTests));
-    private static readonly List<X509Certificate2> DefaultRoots = DefaultTestChain.ToList();
-    private static readonly byte[] DefaultTestArray = new byte[] { 1, 2, 3, 4 };
+    private static readonly X509Certificate2Collection DefaultTestChain = TestCertificateUtils.CreateTestChain();
+    private static readonly List<X509Certificate2> DefaultRoots = [.. DefaultTestChain];
+    private static readonly byte[] DefaultTestArray = [1, 2, 3, 4];
 
     /// <summary>
     /// Setup method
@@ -23,7 +23,7 @@ public class X509ChainTrustValidatorTests
     private static IEnumerable<Tuple<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>> X509ChainTrustValidatorCtorsTestData()
     {
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain(nameof(X509ChainTrustValidatorCtorsTestData));
+        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain();
 
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(),
@@ -122,7 +122,7 @@ public class X509ChainTrustValidatorTests
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
-                roots: certChain.ToList()),
+                roots: [.. certChain]),
             (trustValidator) =>
             {
                 trustValidator.AllowUntrusted.Should().BeFalse();
@@ -135,7 +135,7 @@ public class X509ChainTrustValidatorTests
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
-                roots: certChain.ToList(),
+                roots: [.. certChain],
                 revocationMode: X509RevocationMode.NoCheck),
             (trustValidator) =>
             {
@@ -149,7 +149,7 @@ public class X509ChainTrustValidatorTests
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
-                roots: certChain.ToList(),
+                roots: [.. certChain],
                 revocationMode: X509RevocationMode.NoCheck,
                 allowUnprotected: true,
                 allowUntrusted: true),
@@ -165,7 +165,7 @@ public class X509ChainTrustValidatorTests
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
-                roots: certChain.ToList(),
+                roots: [.. certChain],
                 revocationMode: X509RevocationMode.NoCheck,
                 allowUnprotected: false,
                 allowUntrusted: true),
@@ -181,7 +181,7 @@ public class X509ChainTrustValidatorTests
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
-                roots: certChain.ToList(),
+                roots: [.. certChain],
                 revocationMode: X509RevocationMode.NoCheck,
                 allowUnprotected: true,
                 allowUntrusted: false),
@@ -223,7 +223,7 @@ public class X509ChainTrustValidatorTests
         // Mock the ChainBuilder to always return success
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(DefaultTestChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. DefaultTestChain]);
 
         // Validate
         X509ChainTrustValidator Validator = new(mockBuilder.Object);
@@ -310,8 +310,8 @@ public class X509ChainTrustValidatorTests
     public void X509TrustValidatorSelfSigned()
     {
         // Build a COSE embed-signed file with a self-signed certificate
-        var cert = TestCertificateUtils.CreateCertificate(nameof(X509TrustValidatorSelfSigned));
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        var cert = TestCertificateUtils.CreateCertificate();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, cert);
         var message = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
 
@@ -349,7 +349,7 @@ public class X509ChainTrustValidatorTests
     {
         // Mismatched roots case //
         CoseSign1Message message = CreateCoseSign1MessageWithChainedCert();
-        List<X509Certificate2> mismatchedRoots = TestCertificateUtils.CreateTestChain("Mismatched root set").ToList();
+        List<X509Certificate2> mismatchedRoots = [.. TestCertificateUtils.CreateTestChain("Mismatched root set")];
         X509ChainTrustValidator Validator = new(mismatchedRoots, X509RevocationMode.NoCheck);
         Validator.TryValidate(message, out List<CoseSign1ValidationResult> results).Should().BeFalse();
         results.Count.Should().Be(1);
@@ -362,8 +362,8 @@ public class X509ChainTrustValidatorTests
         // Revoked cert case //
         Mock<ICertificateChainBuilder> builder = new();
         builder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(false);
-        builder.Setup(x => x.ChainElements).Returns(DefaultTestChain.ToList());
-        builder.Setup(x => x.ChainStatus).Returns(new X509ChainStatus[] { new X509ChainStatus() { Status = X509ChainStatusFlags.Revoked } });
+        builder.Setup(x => x.ChainElements).Returns([.. DefaultTestChain]);
+        builder.Setup(x => x.ChainStatus).Returns([new X509ChainStatus() { Status = X509ChainStatusFlags.Revoked }]);
         builder.Setup(x => x.ChainPolicy).Returns(new X509ChainPolicy());
         Validator.ChainBuilder = builder.Object;
         Validator.TryValidate(message, out results).Should().BeFalse();
@@ -384,7 +384,7 @@ public class X509ChainTrustValidatorTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate(nameof(X509TrustValidatorValidatesNullCertificate));
+        X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate();
 
         var protectedHeaders = new CoseHeaderMap();
         var unProtectedHeaders = new CoseHeaderMap();
@@ -405,10 +405,36 @@ public class X509ChainTrustValidatorTests
         validationResults[0].PassedValidation.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Validates the retry logic when revocation status is unknown
+    /// </summary>
+    [Test]
+    public void ValidateCertificateRetriesOnRevocationStatusUnknown()
+    {
+        // Arrange
+        X509ChainStatus[] revUnknown = [new X509ChainStatus() { Status = X509ChainStatusFlags.RevocationStatusUnknown }];
+        X509ChainPolicy policy = new();
+
+        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
+        mockBuilder.Setup(x => x.ChainStatus).Returns(revUnknown);
+        mockBuilder.Setup(x => x.ChainPolicy).Returns(policy);
+        mockBuilder.SetupSequence(x => x.Build(It.IsAny<X509Certificate2>()))
+            .Returns(false)
+            .Returns(false)
+            .Returns(true);
+
+        // Act
+        X509ChainTrustValidator validator = new(mockBuilder.Object);
+
+        // Assert
+        validator.TryValidate(CreateCoseSign1MessageWithChainedCert(), out List<CoseSign1ValidationResult> results).Should().BeTrue();
+        mockBuilder.Verify(b => b.Build(It.IsAny<X509Certificate2>()), Times.Exactly(3));
+    }
+
     private static CoseSign1Message CreateCoseSign1MessageWithChainedCert()
     {
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
-        X509Certificate2CoseSigningKeyProvider keyProvider = new(null, DefaultTestChain.Last(), DefaultTestChain.ToList());
+        CoseSign1MessageFactory factory = new();
+        X509Certificate2CoseSigningKeyProvider keyProvider = new(null, DefaultTestChain.Last(), [.. DefaultTestChain]);
         return factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
     }
 }

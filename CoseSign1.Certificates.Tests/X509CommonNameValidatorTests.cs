@@ -29,14 +29,14 @@ public class X509CommonNameValidatorTests
     [Test]
     public void ValidateCommonName()
     {
-        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate("ValidateCommonName");
+        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();
         X509CommonNameValidator.ValidateCommonName(selfSignedRoot, selfSignedRoot.SubjectName.Name);
     }
 
     [Test]
     public void ValidateCommonNameFail()
     {
-        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate("ValidateCommonNameFail");
+        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();
         Assert.Throws<CoseValidationException>(() => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "epic fail"));
     }
 
@@ -60,11 +60,11 @@ public class X509CommonNameValidatorTests
     [Test]
     public void X509CommonNameValidatorCtorsException()
     {
-        List<Action> constructorTests = new()
-        {
-            new Action(() => new X509CommonNameValidator("")),
-            new Action(() => new X509CommonNameValidator(" ")),
-        };
+        List<Action> constructorTests =
+        [
+            new Action(() => _= new X509CommonNameValidator("")),
+            new Action(() => _= new X509CommonNameValidator(" ")),
+        ];
 
         // test validate
         foreach (Action test in constructorTests)
@@ -79,17 +79,15 @@ public class X509CommonNameValidatorTests
     [Test]
     public void X509CommonNameValidatorValidates()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(X509CommonNameValidatorValidates));
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(X509CommonNameValidatorValidates));
-        // X509Certificate2 testCert = null;
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        CoseSign1MessageFactory factory = new();
+        byte[] testArray = [1, 2, 3, 4];
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
-        byte[] testArray = new byte[] { 1, 2, 3, 4 };
 
         // test
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
 
         X509CommonNameValidator testNameValidator = new(testChain.Last().Subject);
         CoseSign1Message message = factory.CreateCoseSign1Message(testArray, keyProvider, embedPayload: true, ContentTypeConstants.Cose);
@@ -106,16 +104,15 @@ public class X509CommonNameValidatorTests
     [Test]
     public void X509CommonNameValidatorValidatesErrorPath()
     {
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(nameof(X509CommonNameValidatorValidatesErrorPath));
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(nameof(X509CommonNameValidatorValidatesErrorPath));
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        ICoseSign1MessageFactory factory = new CoseSign1MessageFactory();
+        CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(mockBuilder.Object, testChain.Last());
-        byte[] testArray = new byte[] { 1, 2, 3, 4 };
+        byte[] testArray = [1, 2, 3, 4];
 
         // test
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
-        mockBuilder.Setup(x => x.ChainElements).Returns(testChain.ToList());
+        mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
 
         X509CommonNameValidator testNameValidator = new("testCertName");
 
@@ -136,10 +133,10 @@ public class X509CommonNameValidatorTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate(nameof(X509TrustValidatorValidatesNullCertificate));
+        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate();
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns(new CoseHeaderMap());
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns(new CoseHeaderMap());
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns([]);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns([]);
         mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
         mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCertRSA.GetRSAPrivateKey());

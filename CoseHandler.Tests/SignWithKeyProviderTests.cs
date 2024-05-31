@@ -7,15 +7,15 @@ namespace CoseSignUnitTests;
 /// Class to test for SignInternal <see cref="CoseHandler"/> with SigningKeyProvider <see cref="ICoseSigningKeyProvider"/>
 /// </summary>
 [TestClass]
-public class CoseParserSignWithKeyProviderTests
+public class SignWithKeyProviderTests
 {
     [TestMethod]
     public void TestSignSuccess()
     {
 
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignSuccess));
-        var testChain = TestCertificateUtils.CreateTestChain(nameof(TestSignSuccess));
+        X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate();
+        var testChain = TestCertificateUtils.CreateTestChain();
 
         string signedFile = Path.GetTempFileName();
         Mock<ICertificateChainBuilder> testChainBuilder = new();
@@ -31,13 +31,10 @@ public class CoseParserSignWithKeyProviderTests
     [TestMethod]
     public void TestSignWithNoSigningKey()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
-
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignWithNoSigningKey));
-
         var signedFile = Path.GetTempFileName();
 
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
@@ -57,7 +54,7 @@ public class CoseParserSignWithKeyProviderTests
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate(nameof(TestSignWithEmptyPayload));
+        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
         var signedFile = Path.GetTempFileName();

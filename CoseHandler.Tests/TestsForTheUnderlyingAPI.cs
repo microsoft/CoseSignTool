@@ -15,8 +15,8 @@ internal class TestsForTheUnderlyingAPI
     [TestMethod]
     public void ValidateCoseRoundTripDetached()
     {
-        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey();
-        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey();
+        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
+        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
 
         var signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
         byte[] encodedMsg = CoseSign1Message.SignDetached(Payload1, signer);
@@ -32,8 +32,8 @@ internal class TestsForTheUnderlyingAPI
     [TestMethod]
     public void ValidateCoseRoundTripCustomHeader()
     {
-        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey();
-        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey();
+        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
+        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
 
         var writer = new CborWriter();
         writer.WriteStartArray(definiteLength: 3);
@@ -50,7 +50,7 @@ internal class TestsForTheUnderlyingAPI
             };
 
         // Encode but with user-defined headers.
-        var signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, new CoseHeaderMap(), unprotectedHeaders);
+        var signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, [], unprotectedHeaders);
         byte[] encodedMsg = CoseSign1Message.SignDetached(Payload1, signer);
 
         CoseSign1Message msg = CoseMessage.DecodeSign1(encodedMsg);

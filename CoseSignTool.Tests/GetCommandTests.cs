@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.tests;
+namespace CoseSignTool.Tests;
 
 internal class GetCommandTests
 {

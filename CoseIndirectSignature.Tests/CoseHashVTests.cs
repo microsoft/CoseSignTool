@@ -37,10 +37,10 @@ public class CoseHashVTests
     public void TestCoseHashVConstructorSuccess(int testCase)
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using MemoryStream stream = new MemoryStream(testData);
-        ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
-        CoseHashV testObj = new CoseHashV();
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        using MemoryStream stream = new(testData);
+        ReadOnlyMemory<byte> rom = new(testData);
+        CoseHashV testObj = new();
         switch (testCase)
         {
             case 1:
@@ -118,19 +118,19 @@ public class CoseHashVTests
                 break;
             case 10:
                 testObj.AdditionalData = [0x03, 0x02, 0x01];
-                CoseHashV other = new CoseHashV(testObj);
+                CoseHashV other = new(testObj);
                 other.Algorithm.Should().Be(testObj.Algorithm);
                 other.HashValue.Should().BeEquivalentTo(testObj.HashValue);
                 other.Location.Should().Be(testObj.Location);
                 other.AdditionalData.Should().BeEquivalentTo(testObj.AdditionalData);
                 break;
             case 11:
-                CoseHashV testObject11 = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: [0x1, 0x2, 0x3], disableValidation: true);
+                CoseHashV testObject11 = new(CoseHashAlgorithm.SHA256, hashValue: [0x1, 0x2, 0x3], disableValidation: true);
                 testObject11.Algorithm.Should().Be(CoseHashAlgorithm.SHA256);
                 testObject11.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
                 break;
             case 12:
-                CoseHashV testObject12 = new CoseHashV((CoseHashAlgorithm)(-100), hashValue: [0x1, 0x2, 0x3], disableValidation: true);
+                CoseHashV testObject12 = new((CoseHashAlgorithm)(-100), hashValue: [0x1, 0x2, 0x3], disableValidation: true);
                 testObject12.Algorithm.Should().Be((CoseHashAlgorithm)(-100));
                 testObject12.HashValue.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3 });
                 break;
@@ -157,77 +157,77 @@ public class CoseHashVTests
     public void TestCoseHashVConstructorFailure(int testCase)
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using MemoryStream stream = new MemoryStream(testData);
-        ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        using MemoryStream stream = new(testData);
+        ReadOnlyMemory<byte> rom = new(testData);
 
         // act and assert
-        Action act = () => new CoseHashV(CoseHashAlgorithm.Reserved, byteData: testData);
+        Action act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, byteData: testData);
         switch (testCase)
         {
             case 1:
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 2:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: testData);
                 act.Should().Throw<ArgumentException>();
                 break;
             case 3:
-                act = () => new CoseHashV(CoseHashAlgorithm.Reserved, stream);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, stream);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 4:
-                act = () => new CoseHashV(CoseHashAlgorithm.Reserved, testData, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.Reserved, testData, "location");
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 5:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHAKE256, testData, "location", testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHAKE256, testData, "location", testData);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 6:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA1, stream, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA1, stream, "location");
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 7:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA512Truc256, stream, "location", testData);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA512Truc256, stream, "location", testData);
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 8:
 #pragma warning disable CS0618
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256Trunc64, rom, "location");
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256Trunc64, rom, "location");
                 act.Should().Throw<NotSupportedException>();
 #pragma warning restore CS0618
                 break;
             case 9:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHAKE128, rom, "location", rom);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHAKE128, rom, "location", rom);
                 act.Should().Throw<NotSupportedException>();
                 break;
             case 10:
 #nullable disable
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, streamData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, streamData: null);
                 act.Should().Throw<ArgumentNullException>();
 #nullable restore
                 break;
             case 11:
 #nullable disable
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, byteData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, byteData: null);
                 act.Should().Throw<ArgumentNullException>();
 #nullable restore
                 break;
             case 12:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, readonlyData: null);
+                act = () => _= new CoseHashV(CoseHashAlgorithm.SHA256, readonlyData: null);
                 act.Should().Throw<ArgumentOutOfRangeException>();
                 break;
             case 13:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: null);
+                act = () => _ = new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: null);
                 act.Should().Throw<ArgumentNullException>();
                 break;
             case 14:
-                act = () => new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: []);
+                act = () =>_=  new CoseHashV(CoseHashAlgorithm.SHA256, hashValue: []);
                 act.Should().Throw<ArgumentOutOfRangeException>();
                 break;
             default:
@@ -239,10 +239,10 @@ public class CoseHashVTests
     public void CoseHashVContentStreamMatchesTests()
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using MemoryStream stream = new MemoryStream(testData);
-        ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: testData);
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        using MemoryStream stream = new(testData);
+        ReadOnlyMemory<byte> rom = new(testData);
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, byteData: testData);
 
         // act
         bool result = testObj.ContentMatches(testData);
@@ -259,10 +259,10 @@ public class CoseHashVTests
     public void CoseHashVContentStreamMatchesAsyncTests()
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        using MemoryStream stream = new MemoryStream(testData);
-        ReadOnlyMemory<byte> rom = new ReadOnlyMemory<byte>(testData);
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: testData);
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        using MemoryStream stream = new(testData);
+        ReadOnlyMemory<byte> rom = new(testData);
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, byteData: testData);
 
         // act
         bool result = testObj.ContentMatchesAsync(testData).Result;
@@ -279,7 +279,7 @@ public class CoseHashVTests
     public void ContentMatchesNullDataFailureTests()
     {
         // arrange
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, byteData: [0x01, 0x02, 0x03, 0x04]);
 
         // act and assert
 #nullable disable
@@ -295,8 +295,8 @@ public class CoseHashVTests
     public void TestSerialization()
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: testData);
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, byteData: testData);
 
         // act
         byte[] encoding = testObj.Serialize();
@@ -315,8 +315,8 @@ public class CoseHashVTests
     public void TestSerializationWithOptionalFields()
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, testData, location: "this is the location");
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, testData, location: "this is the location");
 
         // act
         byte[] encoding = testObj.Serialize();
@@ -570,9 +570,9 @@ public class CoseHashVTests
     public void TestMismatchedHashAlgorithmAndHashSize()
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
         byte[] hash  = SHA512.HashData(testData);
-        CoseHashV testObj = new CoseHashV(CoseHashAlgorithm.SHA256, byteData: hash);
+        CoseHashV testObj = new(CoseHashAlgorithm.SHA256, byteData: hash);
         Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = hash);
     }
 
@@ -583,9 +583,9 @@ public class CoseHashVTests
     public void TestSetHashWithoutAlgorithm(int testCase)
     {
         // arrange
-        byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        byte[] testData = [0x01, 0x02, 0x03, 0x04];
         byte[] hash = SHA256.HashData(testData);
-        CoseHashV testObj = new CoseHashV();
+        CoseHashV testObj = new();
         switch (testCase)
         {
             case 1:
@@ -595,7 +595,7 @@ public class CoseHashVTests
                 Assert.ThrowsException<ArgumentNullException>(() => testObj.HashValue = null);
                 break;
             case 3:
-                Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = new byte[0]);
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => testObj.HashValue = []);
                 break;
             default:
                 throw new InvalidDataException($"Test case {testCase} is not defined in {nameof(TestSetHashWithoutAlgorithm)}");

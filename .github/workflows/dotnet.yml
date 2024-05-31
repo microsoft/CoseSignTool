@@ -44,11 +44,18 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 7.0.x
+        dotnet-version: 8.0.x
 
-    # Use the Dotnet Test command to load dependencies, build, and test the code.        
+    # Use the Dotnet Test command to load dependencies, build, and test the code.
+    # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
-      run: dotnet test --verbosity normal CoseSignTool.sln
+      run: |
+          dotnet build --configuration Debug CoseSignTool.sln
+          dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
+          dotnet test CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
+          dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
 
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
@@ -268,6 +275,18 @@ jobs:
       run: |
         dotnet publish --configuration Debug --output published/debug CoseSignTool.sln
         dotnet publish --configuration Release --output published/release CoseSignTool.sln
+
+    # Copy the docs, license, and markdown files to the release folders.
+    - name: Copy docs to release folders
+      run: |
+        mkdir -p published/debug/docs
+        cp -r docs/* published/debug/docs/
+        mkdir -p published/release/docs
+        cp -r docs/* published/release/docs/
+        cp -r LICENSE published/debug/
+        cp -r LICENSE published/release/
+        cp -r *.md published/debug/
+        cp -r *.md published/release/
 
     # Create zip files for release.
     - name: Create zip files for the release

@@ -174,7 +174,7 @@ public static class CoseSign1MessageExtensions
 
                     if (kvp.Key == labelForCertList)
                     {
-                        certList = new List<X509Certificate2>();
+                        certList = [];
                         bool certificatesRead = reader.TryReadCertificateSet(ref certList, out _);
                         if (certificatesRead)
                         {

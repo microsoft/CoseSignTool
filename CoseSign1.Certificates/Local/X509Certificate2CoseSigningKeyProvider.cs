@@ -85,7 +85,7 @@ public class X509Certificate2CoseSigningKeyProvider : CertificateCoseSigningKeyP
             if (ChainBuilder.Build(SigningCertificate))
             {
                 // Build was successful. Return the sorted chain.
-                X509Certificate2Collection certificateChain = new(ChainBuilder.ChainElements?.ToArray() ?? Array.Empty<X509Certificate2>());
+                X509Certificate2Collection certificateChain = new(ChainBuilder.ChainElements?.ToArray() ?? []);
                 return EnsureSortedProperty(certificateChain, sortOrder);
             }
             else

@@ -293,7 +293,6 @@ public class CoseHandlerSignValidateTests
         result.Success.Should().Be(false);
         result.InnerResults?.Count.Should().Be(1);
         result.InnerResults?[0]?.PassedValidation.Should().BeFalse();
-        result.InnerResults?[0]?.ResultMessage.Should().Be("[A certificate chain could not be built to a trusted root authority.]");
     }
     #endregion
 

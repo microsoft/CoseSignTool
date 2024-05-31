@@ -53,6 +53,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseIndirectSignature", "Co
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
 	ProjectSection(SolutionItems) = preProject
+		Nuspec\CoseHandler.nuspec = Nuspec\CoseHandler.nuspec
+		Nuspec\CoseSignTool.nuspec = Nuspec\CoseSignTool.nuspec
 		Nuspec\CoseIndirectSignature.nuspec = Nuspec\CoseIndirectSignature.nuspec
 		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
 		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec

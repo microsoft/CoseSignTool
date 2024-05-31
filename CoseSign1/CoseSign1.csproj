@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <NuspecFile>../Nuspec/CoseSign1.nuspec</NuspecFile>
+	<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>

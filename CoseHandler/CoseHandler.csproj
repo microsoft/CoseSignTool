@@ -11,6 +11,8 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	<NuspecFile>../Nuspec/CoseHandler.nuspec</NuspecFile>
+	<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
   </PropertyGroup>
 
   <ItemGroup>

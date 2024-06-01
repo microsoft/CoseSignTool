@@ -13,6 +13,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 	<NuspecFile>../Nuspec/CoseHandler.nuspec</NuspecFile>
 	<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+	<NuspecProperties>version=$(Version)</NuspecProperties>
   </PropertyGroup>
 
   <ItemGroup>

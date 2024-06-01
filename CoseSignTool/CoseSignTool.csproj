@@ -18,6 +18,7 @@
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 		<Nullable>enable</Nullable>
 		<NuspecFile>../Nuspec/CoseSignTool.nuspec</NuspecFile>
+		<NuspecProperties>version=$(Version)</NuspecProperties>
 		<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
 	</PropertyGroup>
 

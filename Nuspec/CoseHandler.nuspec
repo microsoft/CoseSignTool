@@ -36,7 +36,7 @@
 	<file src="..\docs\SUPPORT.md" target="Docs" />
 	<file src="..\docs\Troubleshooting.md" target="Docs" />
 	<file src="..\ReadMe.md" target="." />
-	<file src="..\LICENSE.md" target="." />
+	<file src="..\LICENSE" target="." />
 	<file src="..\CHANGELOG.md" target="." />
 	<file src="..\CoseIndirectSignature.md" target="." />
 	<file src="..\CoseSign1.Abstractions.md" target="." />

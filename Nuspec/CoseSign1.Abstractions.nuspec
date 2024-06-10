@@ -4,6 +4,7 @@
     <id>CoseSign1.Abstractions</id>
     <version>$VersionNgt$</version>
     <authors>Microsoft</authors>
+	<owners>Microsoft</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
 Abstractions required to extend or enhance Create CoseSign1 functionality.
@@ -17,18 +18,16 @@ Abstractions required to extend or enhance Create CoseSign1 functionality.
   <files>
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\CoseSign1.Abstractions.dll" target="lib\netstandard2.0" />
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\CoseSign1.Abstractions.pdb" target="Build\symbols" />
-    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.cat" target="Build\sbom\spdx_2.2" />
+    <!--<file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.cat" target="Build\sbom\spdx_2.2" />
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\bsi.json" target="Build\sbom\spdx_2.2" />
     <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json" target="Build\sbom\spdx_2.2" />
-    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />
+    <file src="..\CoseSign1.Abstractions\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />-->
 	<file src="..\docs\CoseSignTool.md" target="Docs" />
 	<file src="..\docs\CoseHandler.md" target="Docs" />
 	<file src="..\docs\Advanced.md" target="Docs" />
 	<file src="..\docs\CODE_OF_CONDUCT.md" target="Docs" />
 	<file src="..\docs\CONTRIBUTING.md" target="Docs" />
 	<file src="..\docs\SECURITY.md" target="Docs" />
-	<file src="..\docs\Advanced.md" target="Docs" />
-	<file src="..\docs\Advanced.md" target="Docs" />
 	<file src="..\docs\STYLE.md" target="Docs" />
 	<file src="..\docs\SUPPORT.md" target="Docs" />
 	<file src="..\docs\Troubleshooting.md" target="Docs" />

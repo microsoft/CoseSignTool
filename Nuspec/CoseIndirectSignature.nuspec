@@ -27,8 +27,6 @@ Abstractions and classes required to manage indirect signatures via COSE Sign1 m
 	<file src="..\docs\CODE_OF_CONDUCT.md" target="Docs" />
 	<file src="..\docs\CONTRIBUTING.md" target="Docs" />
 	<file src="..\docs\SECURITY.md" target="Docs" />
-	<file src="..\docs\Advanced.md" target="Docs" />
-	<file src="..\docs\Advanced.md" target="Docs" />
 	<file src="..\docs\STYLE.md" target="Docs" />
 	<file src="..\docs\SUPPORT.md" target="Docs" />
 	<file src="..\docs\Troubleshooting.md" target="Docs" />

@@ -17,10 +17,10 @@ Command line tool to sign files using COSE Sign1 message envelopes in a way that
 	<license type="file">LICENSE</license>
   </metadata>
   <files>
-	<file src="..\CoseSignTool\bin\x64\Release\net8.0\CoseSignTool.exe" target="lib\net8.0" />
-	<file src="..\CoseSignTool\bin\x64\Release\net8.0\CoseSignTool.dll" target="lib\net8.0" />
-	<file src="..\CoseSignTool\bin\x64\Release\net8.0\CoseSignTool.pdb" target="Build\symbols" />
-	<file src="..\CoseSignTool\bin\x64\Release\net8.0\_manifest\spdx_2.2\*.*" target="Build\sbom\spdx_2.2" />
+	<file src="..\CoseSignTool\bin\Release\net8.0\CoseSignTool.exe" target="lib\net8.0" />
+	<file src="..\CoseSignTool\bin\Release\net8.0\CoseSignTool.dll" target="lib\net8.0" />
+	<file src="..\CoseSignTool\bin\Release\net8.0\CoseSignTool.pdb" target="Build\symbols" />
+	<file src="..\CoseSignTool\bin\Release\net8.0\_manifest\spdx_2.2\*.*" target="Build\sbom\spdx_2.2" />
 	<file src="..\docs\*.md" target="Docs" />
 	<file src="..\*.md" target="." />
 	<file src="..\LICENSE*" target="." />

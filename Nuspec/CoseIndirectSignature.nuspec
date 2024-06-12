@@ -13,28 +13,15 @@ Abstractions and classes required to manage indirect signatures via COSE Sign1 m
         <dependency id="CoseSign1" version="$VersionNgt$" />
       </group>
     </dependencies>
+	<readme>ReadMe.md</readme>
+	<license type="file">LICENSE</license>
   </metadata>
   <files>
     <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\CoseIndirectSignature.dll" target="lib\netstandard2.0" />
     <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\CoseIndirectSignature.pdb" target="Build\symbols" />
-    <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.cat" target="Build\sbom\spdx_2.2" />
-    <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\bsi.json" target="Build\sbom\spdx_2.2" />
-    <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json" target="Build\sbom\spdx_2.2" />
-    <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\manifest.spdx.json.sha256" target="Build\sbom\spdx_2.2" />
-	<file src="..\docs\CoseSignTool.md" target="Docs" />
-	<file src="..\docs\CoseHandler.md" target="Docs" />
-	<file src="..\docs\Advanced.md" target="Docs" />
-	<file src="..\docs\CODE_OF_CONDUCT.md" target="Docs" />
-	<file src="..\docs\CONTRIBUTING.md" target="Docs" />
-	<file src="..\docs\SECURITY.md" target="Docs" />
-	<file src="..\docs\STYLE.md" target="Docs" />
-	<file src="..\docs\SUPPORT.md" target="Docs" />
-	<file src="..\docs\Troubleshooting.md" target="Docs" />
-	<file src="..\ReadMe.md" target="." />
-	<file src="..\LICENSE" target="." />
-	<file src="..\CHANGELOG.md" target="." />
-	<file src="..\CoseIndirectSignature.md" target="." />
-	<file src="..\CoseSign1.Abstractions.md" target="." />
-	<file src="..\CoseSign1.Certificates.md" target="." />
+    <file src="..\CoseIndirectSignature\bin\Release\netstandard2.0\_manifest\spdx_2.2\*.*" target="Build\sbom\spdx_2.2" />
+	<file src="..\docs\*.md" target="Docs" />
+	<file src="..\*.md" target="." />
+	<file src="..\LICENSE*" target="." />
   </files>
 </package>

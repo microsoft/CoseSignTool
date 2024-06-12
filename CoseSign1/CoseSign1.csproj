@@ -1,29 +1,52 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <NuspecFile>../Nuspec/CoseSign1.nuspec</NuspecFile>
-	<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
-	<NuspecProperties>version=$(Version)</NuspecProperties>
-    <SignAssembly>True</SignAssembly>
-    <DelaySign>True</DelaySign>
-    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
-    <NuspecProperties>VersionNgt=$(VersionNgt)</NuspecProperties>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
+	<!--Build configuration-->
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
-    <PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
-  </ItemGroup>
+	<!--Code style and static analysis-->
+	<PropertyGroup>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
+		<Nullable>enable</Nullable>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+		<AnalysisLevel>latest</AnalysisLevel>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
-  </ItemGroup>
+	<!--Strong name signing-->
+	<PropertyGroup>
+		<SignAssembly>True</SignAssembly>
+		<PublicSign>True</PublicSign>
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
 
+	<!--NuGet package configuration-->
+	<PropertyGroup>
+		<NuspecFile>../Nuspec/CoseSign1.nuspec</NuspecFile>
+		<NuspecProperties>version=$(VersionNgt)</NuspecProperties>
+		<NuspecProperties>VersionNgt=$(VersionNgt)</NuspecProperties>
+		<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageReadmeFile>readme.md</PackageReadmeFile>
+	</PropertyGroup>
+
+	<!--Package references-->
+	<ItemGroup>
+		<PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
+		<PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
+	</ItemGroup>
+
+	<!--Project references-->
+	<ItemGroup>
+		<ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+	</ItemGroup>
+
+	<!--Files to include in the package-->
+	<ItemGroup>
+		<None Include="LICENSE" Pack="true" PackagePath=""/>
+		<None Include="readme.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
 </Project>

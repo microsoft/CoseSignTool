@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		LICENSE = LICENSE
 		Nuget.config = Nuget.config
 		README.md = README.md
+		SharedProperties.targets = SharedProperties.targets
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Abstractions", "CoseSign1.Abstractions\CoseSign1.Abstractions.csproj", "{4E7E48ED-ED6E-4CD1-8052-36FD91EED999}"
@@ -54,11 +55,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
 	ProjectSection(SolutionItems) = preProject
 		Nuspec\CoseHandler.nuspec = Nuspec\CoseHandler.nuspec
-		Nuspec\CoseSignTool.nuspec = Nuspec\CoseSignTool.nuspec
 		Nuspec\CoseIndirectSignature.nuspec = Nuspec\CoseIndirectSignature.nuspec
 		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
 		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
 		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
+		Nuspec\CoseSignTool.nuspec = Nuspec\CoseSignTool.nuspec
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseIndirectSignature.Tests", "CoseIndirectSignature.Tests\CoseIndirectSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"

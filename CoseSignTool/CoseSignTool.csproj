@@ -26,12 +26,14 @@
 
 	<!--NuGet package configuration-->
 	<PropertyGroup>
-		<NuspecFile>../Nuspec/CoseSignTool.nuspec</NuspecFile>
-		<NuspecProperties>version=$(VersionNgt)</NuspecProperties>
-		<NuspecProperties>VersionNgt=$(VersionNgt)</NuspecProperties>
-		<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+		<PackageId>$(MsBuildProjectName)</PackageId>
+		<PackageVersion>$(VersionNgt)</PackageVersion>
+		<Company>Microsoft</Company>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
-		<PackageReadmeFile>readme.md</PackageReadmeFile>		
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+		<PackageReadmeFile>readme.md</PackageReadmeFile>
+		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+		<Description>Command line tool to sign files using COSE Sign1 message envelopes in a way that is compatible with Supply Chain Integrity Transparency and Trust (SCITT).</Description>
 	</PropertyGroup>
 
 	<!--Internals for testing-->
@@ -54,7 +56,10 @@
 
 	<!--Files to include in the package-->
 	<ItemGroup>
-		<None Include="LICENSE" Pack="true" PackagePath="" />
-		<None Include="readme.md" Pack="true" PackagePath="\" />
+		<None Include="..\LICENSE" Pack="true" PackagePath="\" />
+		<None Include="..\readme.md" Pack="true" PackagePath="\" />
+		<None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
+		<None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
+		<None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
 	</ItemGroup>
 </Project>

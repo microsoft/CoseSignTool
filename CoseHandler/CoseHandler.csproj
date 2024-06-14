@@ -19,7 +19,7 @@
 	<!--Strong name signing-->
 	<PropertyGroup>
 		<SignAssembly>True</SignAssembly>
-		<PublicSign>True</PublicSign>
+		<DelaySign>True</DelaySign>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
 	</PropertyGroup>
 

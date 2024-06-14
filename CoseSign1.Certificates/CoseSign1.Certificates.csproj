@@ -19,18 +19,20 @@
 	<!--Strong name signing-->
 	<PropertyGroup>
 		<SignAssembly>True</SignAssembly>
-		<PublicSign>True</PublicSign>
+		<DelaySign>True</DelaySign>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
 	</PropertyGroup>
 
 	<!--NuGet package configuration-->
 	<PropertyGroup>
-		<NuspecFile>../Nuspec/CoseSign1.Certificates.nuspec</NuspecFile>
-		<NuspecProperties>version=$(VersionNgt)</NuspecProperties>
-		<NuspecProperties>VersionNgt=$(VersionNgt)</NuspecProperties>
-		<NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+		<PackageId>$(MsBuildProjectName)</PackageId>
+		<PackageVersion>$(VersionNgt)</PackageVersion>
+		<Company>Microsoft</Company>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<PackageReadmeFile>readme.md</PackageReadmeFile>
+		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+		<Description>Abstractions and classes required to extend or enhance Microsoft.CoseSign1.Abstractions for all certificate based signing.</Description>
 	</PropertyGroup>
 	
 	<!--Package references-->
@@ -47,7 +49,10 @@
 
 	<!--Files to include in the package-->
 	<ItemGroup>
-		<None Include="LICENSE" Pack="true" PackagePath=""/>
-		<None Include="readme.md" Pack="true" PackagePath="\" />
+		<None Include="..\LICENSE" Pack="true" PackagePath="\" />
+		<None Include="..\readme.md" Pack="true" PackagePath="\" />
+		<None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
+		<None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
+		<None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
 	</ItemGroup>
 </Project>

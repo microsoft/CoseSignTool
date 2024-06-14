@@ -52,16 +52,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler.Tests", "CoseHa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseIndirectSignature", "CoseIndirectSignature\CoseIndirectSignature.csproj", "{74F706B4-ED89-490D-8CD2-DE8E60D9CE31}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuspecs", "Nuspecs", "{97AFB857-361D-4B32-856A-6190A6D1066C}"
-	ProjectSection(SolutionItems) = preProject
-		Nuspec\CoseHandler.nuspec = Nuspec\CoseHandler.nuspec
-		Nuspec\CoseIndirectSignature.nuspec = Nuspec\CoseIndirectSignature.nuspec
-		Nuspec\CoseSign1.Abstractions.nuspec = Nuspec\CoseSign1.Abstractions.nuspec
-		Nuspec\CoseSign1.Certificates.nuspec = Nuspec\CoseSign1.Certificates.nuspec
-		Nuspec\CoseSign1.nuspec = Nuspec\CoseSign1.nuspec
-		Nuspec\CoseSignTool.nuspec = Nuspec\CoseSignTool.nuspec
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseIndirectSignature.Tests", "CoseIndirectSignature.Tests\CoseIndirectSignature.Tests.csproj", "{58984C00-6EA6-47ED-AF9D-717B187A168B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{2E02B2A3-69D1-4460-9329-91540D7B56B5}"
@@ -232,7 +222,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{36BAA2CE-AE8E-4E29-9234-8EB1953802CD} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
-		{97AFB857-361D-4B32-856A-6190A6D1066C} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 		{2E02B2A3-69D1-4460-9329-91540D7B56B5} = {0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution

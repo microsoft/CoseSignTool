@@ -173,7 +173,7 @@ public class ValidateCommand : CoseCommand
         bool allowUntrusted)
         => CoseHandler.Validate(
             signature,
-            payload?.OpenRead(),
+            payload?.GetStreamResilient(),
             rootCerts,
             revocationMode,
             commonName,

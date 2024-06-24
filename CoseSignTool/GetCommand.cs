@@ -8,9 +8,9 @@ public class GetCommand : ValidateCommand
     //<inheritdoc />
     public static new readonly Dictionary<string, string> Options =
         // Use the same options as the Validate command but remove Payload and add SaveTo.
-        ValidateCommand.Options
+        new Dictionary<string, string> { ["-SaveTo"] = "SaveTo", ["-sa"] = "SaveTo" }
+        .Concat(ValidateCommand.Options)
             .Where(k => !k.Value.Equals(nameof(PayloadFile), StringComparison.OrdinalIgnoreCase))
-            .Concat(new Dictionary<string, string> { ["-SaveTo"] = "SaveTo", ["-sa"] = "SaveTo" })
             .ToDictionary(k => k.Key, k => k.Value, StringComparer.InvariantCultureIgnoreCase);
 
     /// <summary>

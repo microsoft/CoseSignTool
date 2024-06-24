@@ -28,15 +28,6 @@ public class SignCommand : CoseCommand
         ["-sl"] = "StoreLocation",
         ["-ContentType"] = "ContentType",
         ["-cty"] = "ContentType",
-        ["-pfx"] = "PfxCertificate",
-        ["-Thumbprint"] = "Thumbprint",
-        ["-th"] = "Thumbprint",
-        ["-StoreName"] = "StoreName",
-        ["-sn"] = "StoreName",
-        ["-StoreLocation"] = "StoreLocation",
-        ["-sl"] = "StoreLocation",
-        ["-ContentType"] = "ContentType",
-        ["-cty"] = "ContentType",
     };
 
     // Inherited default values
@@ -213,10 +204,8 @@ public class SignCommand : CoseCommand
         else
         {
             // Load certificate from thumbprint.
-#pragma warning disable CS8604 // StoreName was incorrectly flagged as a possible Null Reference Argument but it has a default value in the called method.
-            cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName, StoreLocation) :
+            cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName!, StoreLocation) :
                 throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
-#pragma warning restore CS8604 // Possible null reference argument.
         }
 
         return cert;

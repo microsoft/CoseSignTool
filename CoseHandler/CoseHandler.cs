@@ -265,7 +265,7 @@ public static class CoseHandler
         ICoseHeaderExtender? headerExtender = null)
         => SignInternal(
             payloadBytes: null,
-            payloadStream: payload.OpenRead(),
+            payloadStream: payload.GetStreamResilient(),
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
 
     /// <summary>
@@ -377,9 +377,9 @@ public static class CoseHandler
         string? requiredCommonName = null,
         bool allowUntrusted = false)
         => Validate(
-            File.ReadAllBytes(signature.FullName),
+            signature.GetBytesResilient(),
             GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted),
-            payload?.OpenRead());
+            payload?.GetStreamResilient());
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -498,7 +498,7 @@ public static class CoseHandler
     /// <param name="result">The results of signature validation.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
-    byte[] signature,
+        byte[] signature,
         CoseSign1MessageValidator validator,
         out ValidationResult result)
         => GetPayloadInternal(signature, validator, out result);
@@ -750,6 +750,5 @@ public static class CoseHandler
 
         return chainTrustValidator;
     }
-
     #endregion
 }

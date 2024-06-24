@@ -4,6 +4,7 @@
 namespace CoseSignUnitTests;
 
 using CoseIndirectSignature;
+using CoseX509;
 
 [TestClass]
 public class CoseHandlerSignValidateTests
@@ -125,7 +126,8 @@ public class CoseHandlerSignValidateTests
             .Success.Should().Be(true);
 
         // Validate from stream
-        CoseHandler.Validate(File.OpenRead(signaturePath), Payload1Bytes, ValidRootSetPriv, RevMode)
+        FileInfo sigFile = new (signaturePath);
+        CoseHandler.Validate(sigFile.GetStreamResilient(), Payload1Bytes, ValidRootSetPriv, RevMode)
             .Success.Should().Be(true);
     }
 

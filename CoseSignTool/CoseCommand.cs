@@ -14,6 +14,9 @@ public abstract partial class CoseCommand
     [GeneratedRegex(":[^\\/]")]
     private static partial Regex PatternColonNotUri();
 
+    [GeneratedRegex("^/")]
+    private static partial Regex PatternStartingSlash();
+
     /// <summary>
     /// A map of shared command line options to their abbreviated aliases.
     /// </summary>
@@ -113,33 +116,31 @@ public abstract partial class CoseCommand
         content = null;
         if (file is not null)
         {
-            if (!file.Exists)
-            {
-                return CoseSignTool.Fail(
-                    ExitCode.UserSpecifiedFileNotFound, null, $"The file specified in /{optionName} was not found: {file.FullName}");
-            }
-
             try
             {
-                content = file.OpenRead();
-                return content.IsNullOrEmpty()
-                    ? CoseSignTool.Fail(
-                    ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
+                content = file.GetStreamResilient();
+                return
+                    content.IsNullOrEmpty() ?
+                        CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
                     : ExitCode.Success;
             }
             catch (Exception ex)
             {
+                string failReason = ex switch
+                {
+                    FileNotFoundException => "was not found.",
+                    _ => "could not be read.",
+                };
                 return CoseSignTool.Fail(
-                    ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
+                    ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} {failReason}: {file.FullName}");
             }
         }
 
         content = Console.OpenStandardInput();
-        string errorText =
-            optionName == nameof(PayloadFile) ? "You must either specify a payload file or pass the payload in as a Stream."
-            : "You must either specify a signature file to validate or pass the signature content in as a Stream.";
-        return content.IsNullOrEmpty()
-            ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null, errorText)
+        string inputName = optionName == nameof(PayloadFile) ? "payload" : "signature";
+        return
+            content.IsNullOrEmpty() ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
+                $"You must either specify a {inputName} file or pass the {inputName} content in as a Stream.")                    
             : ExitCode.Success;
     }
 
@@ -264,7 +265,7 @@ public abstract partial class CoseCommand
     private static bool IsSwitch(string s, StringDictionary options)
     {
         // replace '/' with '-', and remove ':*' for easy dict lookup
-        return options.ContainsKey(Regex.Replace(s,"^/", "-").Split(":")[0]);
+        return options.ContainsKey(PatternStartingSlash().Replace(s, "-").Split(":")[0]);
     }
 
 

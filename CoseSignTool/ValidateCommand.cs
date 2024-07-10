@@ -101,36 +101,38 @@ public class ValidateCommand : CoseCommand
     /// <returns>An exit code indicating success or failure.</returns>
     public override ExitCode Run()
     {
-        // Get the signature as a stream, either piped in or from file.
-        ExitCode exitCode = TryGetStreamFromPipeOrFile(SignatureFile, nameof(SignatureFile), out Stream? signatureStream);
-        if (exitCode != ExitCode.Success || signatureStream is null)
-        {
-            return exitCode;
-        }
-
-        // Make sure the external payload file is present if specified.
-        if (PayloadFile is not null && !PayloadFile.Exists)
-        {
-            return CoseSignTool.Fail(
-                ExitCode.UserSpecifiedFileNotFound,
-                new FileNotFoundException(nameof(PayloadFile)),
-                $"Could not find the external Payload file at {PayloadFile}.");
-        }
-
-        // Get the root certs from file if any.
-        List<X509Certificate2>? rootCerts;
-        try
-        {
-            rootCerts = LoadRootCerts(Roots);
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or ArgumentOutOfRangeException or CryptographicException)
-        {
-            return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex, "Could not load root certificates");
-        }
-
         // Run the validation and catch any expected exceptions.
+        Stream? signatureStream = null;
         try
         {
+            // Get the signature as a stream, either piped in or from file.
+            ExitCode exitCode = TryGetStreamFromPipeOrFile(SignatureFile, nameof(SignatureFile), out signatureStream);
+            if (exitCode != ExitCode.Success || signatureStream is null)
+            {
+                return exitCode;
+            }
+
+            // Make sure the external payload file is present if specified.
+            if (PayloadFile is not null && !PayloadFile.Exists)
+            {
+                return CoseSignTool.Fail(
+                    ExitCode.UserSpecifiedFileNotFound,
+                    new FileNotFoundException(nameof(PayloadFile)),
+                    $"Could not find the external Payload file at {PayloadFile}.");
+            }
+
+            // Get the root certs from file if any.
+            List<X509Certificate2>? rootCerts;
+            try
+            {
+                rootCerts = LoadRootCerts(Roots);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or ArgumentOutOfRangeException or CryptographicException)
+            {
+                return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex, "Could not load root certificates");
+            }
+
+
             ValidationResult result = RunCoseHandlerCommand(
                 signatureStream,
                 PayloadFile,
@@ -160,6 +162,11 @@ public class ValidateCommand : CoseCommand
         {
             // There is an error in the COSE headers.
             return CoseSignTool.Fail(ExitCode.SignatureLoadError, ex);
+        }
+        finally
+        {
+            signatureStream.HardDispose(SignatureFile);
+            //PayloadFile?.Refresh();
         }
     }
 

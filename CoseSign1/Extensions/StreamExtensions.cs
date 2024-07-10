@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Extensions;
 
+using System.Runtime.InteropServices;
+
 /// <summary>
 /// A class that defines extension methods for the <see cref="Stream"/> class.
 /// </summary>
@@ -84,5 +86,44 @@ public static class StreamExtensions
         using MemoryStream msNew = new();
         stream.CopyTo(msNew);
         return msNew.ToArray();
+    }
+
+    /// <summary>
+    /// Forces a FileStream to unlock all file handles, without waiting for garbage collection, before disposing.
+    /// For other types of streams, it just disposes them.
+    /// </summary>
+    /// <param name="stream">The stream to dispose.</param>
+    /// <param name="sourceFile">The file that the stream reads from and/or writes to, if any.</param>
+    public static void HardDispose(this Stream? stream, FileInfo? sourceFile = null)
+    {
+        sourceFile?.Refresh();
+        if (stream is FileStream fs)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                stream.Close();
+                stream.Dispose();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+            else
+            {
+                try
+                {
+                    fs.Unlock(0, stream.Length);
+                }
+                catch (IOException) { } // This just means it's already unlocked, which is fine.
+                try
+                {
+                    stream.Close();
+                    stream.Dispose();
+                }
+                catch (ObjectDisposedException) { } // This just means it's already disposed, which is fine.
+            }
+        }
+        else
+        {
+            stream?.Dispose();
+        }
     }
 }

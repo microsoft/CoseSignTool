@@ -124,15 +124,20 @@ public abstract partial class CoseCommand
                         CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
                     : ExitCode.Success;
             }
+            catch (FileNotFoundException ex)
+            {
+                return CoseSignTool.Fail(ExitCode.UserSpecifiedFileNotFound, ex, $"The file specified in /{optionName} was not found: {file.FullName}");
+            }
+            catch (IOException ex)
+            {
+                return
+                    ex.Message.Contains("is empty") ? CoseSignTool.Fail(ExitCode.EmptySourceFile, ex, $"The file specified in /{optionName} was empty: {file.FullName}") :
+                    ex.Message.Contains("another process") ? CoseSignTool.Fail(ExitCode.FileLocked, ex, $"The file specified in /{optionName} was in use by another process: {file.FullName}") :
+                    CoseSignTool.Fail(ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
+            }
             catch (Exception ex)
             {
-                string failReason = ex switch
-                {
-                    FileNotFoundException => "was not found.",
-                    _ => "could not be read.",
-                };
-                return CoseSignTool.Fail(
-                    ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} {failReason}: {file.FullName}");
+                return CoseSignTool.Fail(ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
             }
         }
 

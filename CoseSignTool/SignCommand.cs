@@ -18,6 +18,7 @@ public class SignCommand : CoseCommand
         ["-PipeOutput"] = "PipeOutput",
         ["-po"] = "PipeOutput",
         ["-PfxCertificate"] = "PfxCertificate",
+        ["-pfx"] = "PfxCertificate",
         ["-Password"] = "Password",
         ["-pw"] = "Password",
         ["-Thumbprint"] = "Thumbprint",
@@ -137,7 +138,8 @@ public class SignCommand : CoseCommand
                     "CoseSignTool could not determine a path to write the signature file to.");
             }
 
-            SignatureFile = new FileInfo(PayloadFile.FullName + (EmbedPayload ? ".csm" : ".cose"));
+            string extension = EmbedPayload ? "csm" : "cose";
+            SignatureFile = new FileInfo($"{PayloadFile.FullName}.{extension}");
         }
 
         try
@@ -150,9 +152,9 @@ public class SignCommand : CoseCommand
             {
                 WriteToStdOut(signedBytes);
             }
-            else if (SignatureFile is not null)
+            else
             {
-                File.WriteAllBytes(SignatureFile.FullName, signedBytes.ToArray());
+                File.WriteAllBytes(SignatureFile!.FullName, signedBytes.ToArray());
             }
 
             return ExitCode.Success;           

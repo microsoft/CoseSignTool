@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool.Tests;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class MainTests
@@ -42,31 +43,31 @@ public class MainTests
     public void FromMainValid()
     {
         string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign should have succeeded.");
 
         // sign embedded
         string[] args2 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep"];
-        CoseSignTool.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign failed.");
+        CoseSignTool.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign should have succeeded.");
 
         // validate detached
         string sigFile = payloadFile + ".cose";
         string[] args3 = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
-        CoseSignTool.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
+        CoseSignTool.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation should have succeeded.");
 
         // validate embedded
         sigFile = payloadFile + ".csm";
         string[] args4 = ["validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd"];
-        CoseSignTool.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation failed.");
+        CoseSignTool.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation should have succeeded.");
 
         // get content
         string saveFile = payloadFile + ".saved";
         string[] args5 = ["get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck"];
-        CoseSignTool.Main(args5).Should().Be(0, "Detach validation with save failed.");
-        File.ReadAllText(payloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content did not match payload.");
+        CoseSignTool.Main(args5).Should().Be(0, "Detach validation with save should have suceeded.");
+        File.ReadAllText(payloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content should have matched payload.");
     }
 
     [TestMethod]
@@ -79,16 +80,16 @@ public class MainTests
         Console.SetError(redirectedErr);
 
         string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign should have succeeded.");
 
         // validate detached
         string sigFile = payloadFile + ".cose";
         string[] args3 = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
-        CoseSignTool.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation failed.");
+        CoseSignTool.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation should have succeeded.");
 
         redirectedErr.ToString().Should().BeEmpty("There should be no errors.");
         redirectedOut.ToString().Should().Contain("Validation succeeded.", "Validation should succeed.");
@@ -98,28 +99,28 @@ public class MainTests
     [TestMethod]
     public void SignWithPasswordProtectedCertSuccess()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
         // sign detached with password protected cert
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign with password protected cert should have succeeded.");
     }
 
     [TestMethod]
     public void SignWithPasswordProtectedCertNoPassword()
     {
         // sign detached with password protected cert
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign should have failed with CertificateLoadFailure.");
     }
 
     [TestMethod]
     public void SignWithPasswordProtectedCertWrongPassword()
     {
         // sign detached with password protected cert
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", "NotThePassword"];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign did not fail in the expected way.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.CertificateLoadFailure, "Detach sign should have failed with CertificateLoadFailure.");
     }
 
     [TestMethod]
@@ -141,32 +142,56 @@ public class MainTests
     [TestMethod]
     public void FileNotFound()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string missingFile = @"c:\NoFileHere.nothing";
         string sigFile = $"{payloadFile}.cose";
         CoseSignTool.Main(["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile]);
 
         // missing payload file - sign
-        string[] args1 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
-
-        // missing payload file - validate
-        string[] args2 = ["validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile];
-        CoseSignTool.Main(args2).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
-
-        // missing signature file
-        string[] args3 = ["validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile];
-        CoseSignTool.Main(args3).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+        string[] argsMissingPayloadFileSign = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile];
+        CoseSignTool.Main(argsMissingPayloadFileSign).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
         // missing cert
-        string[] args6 = ["validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile];
-        CoseSignTool.Main(args6).Should().Be((int)ExitCode.CertificateLoadFailure);
+        string[] argsMissingCert = ["validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile];
+        CoseSignTool.Main(argsMissingCert).Should().Be((int)ExitCode.CertificateLoadFailure);
+
+        // missing payload file - validate
+        string[] argsMissingPayloadFileValidate = ["validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile];
+        CoseSignTool.Main(argsMissingPayloadFileValidate).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+
+        // missing signature file
+        string[] argsMissingSigFile = ["validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile];
+        CoseSignTool.Main(argsMissingSigFile).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
+
+
+    }
+
+    [TestMethod]
+    public void ValidateSameFileMultipleTimesMain()
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string sigFile = $"{payloadFile}.cose";
+        string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
+
+        // sign detached
+        string[] signArgs = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
+        CoseSignTool.Main(signArgs).Should().Be((int)ExitCode.Success, "Detach sign should have succeeded.");
+
+        // validate detached
+        string[] validateArgs = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
+        CoseSignTool.Main(validateArgs).Should().Be((int)ExitCode.Success, "Validation should have succeeded the first time.");
+
+        // validate detached again
+        CoseSignTool.Main(validateArgs).Should().Be((int)ExitCode.Success, "Validation should have succeeded the second time");
+
+        // validate detached a third time
+        CoseSignTool.Main(validateArgs).Should().Be((int)ExitCode.Success, "Validation should have succeeded the third time");
     }
 
     [TestMethod]
     public void EmptySourceFile()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string emptyFile = Path.GetTempFileName();
         File.WriteAllBytes(payloadFile, []);
 

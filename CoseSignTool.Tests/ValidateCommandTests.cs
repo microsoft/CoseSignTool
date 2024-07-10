@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool.Tests;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class ValidateCommandTests
@@ -45,17 +46,19 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateSucceedsWithRootPassedIn()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFilePath = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
-        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        string[] args1 = ["sign", @"/p", payloadFilePath, @"/pfx", PrivateKeyCertFileSelfSigned];
         CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
-        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
+        string sigFilePath = $"{payloadFilePath}.cose";
+        using FileStream sigStream = new(sigFilePath, FileMode.Open);
+        FileInfo payloadFile = new(payloadFilePath);
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile,
-                                                     new FileInfo(payloadFile),
+        var result = validator.RunCoseHandlerCommand(sigStream,
+                                                     payloadFile,
                                                      [SelfSignedCert],
                                                      X509RevocationMode.Online,
                                                      null,
@@ -71,7 +74,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateFailsWithModifiedPayload()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
@@ -100,7 +103,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateSucceedsWithAllowUntrustedRoot()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
@@ -126,11 +129,11 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateUntrustedFails()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign detached
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign should succeed.");
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
@@ -155,7 +158,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
@@ -181,13 +184,53 @@ public class ValidateCommandTests
         result.ToString(true).Should().Contain("Indirect");
     }
 
+
+    [TestMethod]
+    public void ValidateSameFileMultipleTimesCommand()
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string sigFile = $"{payloadFile}.cose";
+
+        // sign detached
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign should succeed.");
+
+        // setup validators
+        ValidateCommand val1 = new()
+        {
+            PayloadFile = new FileInfo(payloadFile),
+            SignatureFile = new FileInfo(sigFile),
+            //Roots = [PrivateKeyCertFileSelfSigned],
+            RevocationMode = X509RevocationMode.NoCheck,
+            AllowUntrusted = true
+        };
+
+        ValidateCommand val2 = new()
+        {
+            PayloadFile = new FileInfo(payloadFile),
+            SignatureFile = new FileInfo(sigFile),
+            //Roots = [PrivateKeyCertFileSelfSigned],
+            RevocationMode = X509RevocationMode.NoCheck,
+            AllowUntrusted = true
+        };
+
+        // run first validator instance
+        val1.Run().Should().Be(ExitCode.Success, "this is the first run and the Sign operation should have unlocked the files.");
+
+        // run same validator instance again
+        val1.Run().Should().Be(ExitCode.Success, "this is the second run with the same validator instance and Validate should have unlocked the files.");
+
+        // run second validator instance
+        val2.Run().Should().Be(ExitCode.Success, "this is the third run, using a different validator instance, and the previous Validate should have unlocked the files.");
+    }
+
     /// <summary>
     /// Validates that indirect signature validation faills when no payload is passed in
     /// </summary>
     [TestMethod]
     public void ValidateIndirectFailsWithoutPayloadPassedIn()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
@@ -220,7 +263,7 @@ public class ValidateCommandTests
     /// </summary>
     public static void ValidateIndirectFailsWithModifiedPayload()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();
@@ -255,7 +298,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectFailsWithUntrustedRoot()
     {
-        string payloadFile = Utils.GetPayloadFile();
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
         var msgFac = new IndirectSignatureFactory();

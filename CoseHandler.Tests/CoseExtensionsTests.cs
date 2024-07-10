@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 namespace CoseSignUnitTests;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static System.Net.Mime.MediaTypeNames;
 
 [TestClass]
 public class CoseExtensionsTests
@@ -35,5 +37,68 @@ public class CoseExtensionsTests
         CoseSign1MessageExtensions.TryGetSigningCertificate(msg, out X509Certificate2? signCert).Should().BeTrue();
         signCert.Should().NotBeNull();
         signCert?.Thumbprint.Should().Be(ChainedCert.Thumbprint);
+    }
+
+    [TestMethod]
+    public void FileLoadPartialWriteShort()
+    {
+        // Arrange
+        string text = "This is some text being written slowly."; // 39 chars
+        string outPath1 = Path.GetTempFileName();
+        string outPath2 = Path.GetTempFileName();
+        FileInfo f1 = new(outPath1);
+        FileInfo f2 = new(outPath2);
+
+        // Act
+        // Start the file writes then start the loading tasks before the writes complete.
+        // Both tasks should wait for the writes to complete before loading the content.
+        Task t1 = Task.Run(() => WriteTextFileSlowly(outPath1, text));
+        byte[] bytes = f1.GetBytesResilient();
+        bytes.Length.Should().BeGreaterThan(38);
+
+        var t2 = Task.Run(() => WriteTextFileSlowly(outPath2, text));
+        var stream = f2.GetStreamResilient();
+        stream!.Length.Should().BeGreaterThan(38);
+    }
+
+    [TestMethod]
+    public async Task FileLoadEmptyFileDelayWrite()
+    {
+        // Arrange
+        string text = "This is some text that will be written to a file eventually.";
+        string outPath = Path.GetTempFileName();
+        FileInfo f = new(outPath);
+        var getBytesTask = Task.Run(f.GetBytesResilient);
+
+        // Act
+        // Start the file write. The loading task should time out before the first character is written.
+        var writeTask1 = Task.Run(() => WriteTextFileWithDelay(outPath, text, 10));
+        try
+        {
+            _ = await getBytesTask;
+        }
+        catch (Exception ex)
+        {
+            // Assert
+            ex.Should().BeOfType<IOException>("The file was still empty.");
+        }
+    }
+
+    private static async Task WriteTextFileSlowly(string path, string text)
+    {
+        using StreamWriter writer = new(path);
+        foreach (char c in text)
+        {
+            await writer.WriteAsync(c);
+            await Task.Delay(100);
+        }
+    }
+
+    private static async Task WriteTextFileWithDelay(string path, string text, int secondsToWait)
+    {
+        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        using StreamWriter writer = new(stream);
+        Thread.Sleep(secondsToWait * 1000);
+        await writer.WriteAsync(text);
     }
 }

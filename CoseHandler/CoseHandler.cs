@@ -51,7 +51,7 @@ public static class CoseHandler
         X509Certificate2 certificate,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
         => Sign(
             payload,
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(null, certificate),
@@ -74,7 +74,7 @@ public static class CoseHandler
         X509Certificate2 certificate,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
         => Sign(
             payload,
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(null, certificate),
@@ -101,9 +101,9 @@ public static class CoseHandler
         X509Certificate2 certificate,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
-        => Sign(
-            payload,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        => SignInternal(
+            payloadBytes: null, payloadStream: null, payloadFile: payload,
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(null, certificate),
             embedSign, signatureFile, contentType);
 
@@ -128,7 +128,7 @@ public static class CoseHandler
         FileInfo? signatureFile = null,
         string storeName = "My",
         StoreLocation storeLocation = StoreLocation.CurrentUser,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
         => Sign(
             payload,
             certificate: LookupCertificate(thumbprint, storeName, storeLocation),
@@ -155,7 +155,7 @@ public static class CoseHandler
         FileInfo? signatureFile = null,
         string storeName = "My",
         StoreLocation storeLocation = StoreLocation.CurrentUser,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
         => Sign(
             payload,
             certificate: LookupCertificate(thumbprint, storeName, storeLocation),
@@ -185,10 +185,11 @@ public static class CoseHandler
         FileInfo? signatureFile = null,
         string storeName = "My",
         StoreLocation storeLocation = StoreLocation.CurrentUser,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
-        => Sign(
-            payload,
-            certificate: LookupCertificate(thumbprint, storeName, storeLocation),
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE)
+        => SignInternal(
+            payloadBytes: null, payloadStream: null, payloadFile: payload,
+            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(null,
+                LookupCertificate(thumbprint, storeName, storeLocation)),
             embedSign, signatureFile, contentType);
 
     /// <summary>
@@ -209,11 +210,10 @@ public static class CoseHandler
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
         => SignInternal(
-            payloadBytes: payload,
-            payloadStream: null,
+            payloadBytes: payload, payloadStream: null, payloadFile: null,
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
 
     /// <summary>
@@ -234,11 +234,10 @@ public static class CoseHandler
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
         => SignInternal(
-            payloadBytes: null,
-            payloadStream: payload,
+            payloadBytes: null, payloadStream: payload, payloadFile: null,
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
 
     /// <summary>
@@ -261,11 +260,10 @@ public static class CoseHandler
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedSign = false,
         FileInfo? signatureFile = null,
-        string? contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
         => SignInternal(
-            payloadBytes: null,
-            payloadStream: payload.GetStreamResilient(),
+            payloadBytes: null, payloadStream: null, payloadFile: payload,
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
 
     /// <summary>
@@ -281,32 +279,52 @@ public static class CoseHandler
     internal static ReadOnlyMemory<byte> SignInternal(
         byte[]? payloadBytes,
         Stream? payloadStream,
+        FileInfo? payloadFile,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedSign,
         FileInfo? signatureFile,
-        string? contentType,
-        ICoseHeaderExtender ? headerExtender = null)
+        string contentType,
+        ICoseHeaderExtender? headerExtender = null)
     {
-        // Sign the payload.
-#pragma warning disable CS8604 // Possible null reference argument: False positive on contentType param which has a default value.
-        ReadOnlyMemory<byte> signedBytes =
-            !payloadBytes.IsNullOrEmpty() ?
-                Factory.CreateCoseSign1MessageBytes(payloadBytes, signingKeyProvider, embedSign, contentType, headerExtender) :
-            payloadStream is not null ?
-                Factory.CreateCoseSign1MessageBytes(payloadStream, signingKeyProvider, embedSign, contentType, headerExtender) :
-                throw new ArgumentException("Payload not provided.");
-#pragma warning restore CS8604 // Possible null reference argument.
-
-        // Write to file if requested.
-        if (signatureFile is not null)
+        // Validate that we have exactly one form of payload input.
+        int payloadCount = payloadBytes is not null ? 1 : 0;
+        payloadCount += payloadStream is not null ? 1 : 0;
+        payloadCount += payloadFile is not null ? 1 : 0;
+        if (payloadCount != 1)
         {
-            // Use the static method here because signatureFile.OpenWrite().Write() was sometimes truncating the last byte from signedBytes.
-            File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray());
+            throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
         }
 
-        return signedBytes;
+        try
+        {
+            // Read payload file to stream if provided.
+            payloadStream ??= payloadFile?.GetStreamResilient();
+
+            // Sign the payload.
+            //#pragma warning disable CS8604 // Possible null reference argument: False positive on contentType param which has a default value.
+            ReadOnlyMemory<byte> signedBytes =
+                !payloadBytes.IsNullOrEmpty() ?
+                    Factory.CreateCoseSign1MessageBytes(payloadBytes, signingKeyProvider, embedSign, contentType, headerExtender) :
+                payloadStream is not null ?
+                    Factory.CreateCoseSign1MessageBytes(payloadStream, signingKeyProvider, embedSign, contentType, headerExtender) :
+                    throw new ArgumentException("Payload not provided.");
+            //#pragma warning restore CS8604 // Possible null reference argument.
+
+            // Write to file if requested.
+            if (signatureFile is not null)
+            {
+                // Use the static method here because signatureFile.OpenWrite().Write() was sometimes truncating the last byte from signedBytes.
+                File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray());
+            }
+
+            return signedBytes;
+        }
+        finally
+        {
+            payloadStream?.HardDispose(payloadFile);
+        }
     }
-#endregion
+    #endregion
 
     #region Validate Overloads
     /// <summary>
@@ -325,7 +343,9 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+            payloadBytes: payload, payloadStream: null, payloadFile: null, out _,
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -342,7 +362,10 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+            payloadBytes: null, payloadStream: payload, payloadFile: null, out _,
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -359,7 +382,10 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+            payloadBytes: payload, payloadStream: null, payloadFile: null, out _,
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a COSE signature file.
@@ -376,10 +402,10 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => Validate(
-            signature.GetBytesResilient(),
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted),
-            payload?.GetStreamResilient());
+        => ValidateInternal(signatureBytes: null, signatureStream: null, signatureFile: signature,
+            payloadBytes: null, payloadStream: null, payloadFile: payload, out _,
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+    //=> Validate(signature.GetBytesResilient(), GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -396,7 +422,10 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+            payloadBytes: null, payloadStream: payload, payloadFile: null, out _,
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in  memory.
@@ -410,7 +439,9 @@ public static class CoseHandler
         byte[] signature,
         CoseSign1MessageValidator validator,
         byte[]? payload = null)
-        => ValidateInternal(signature, payload, payloadStream: null, content: out _, validator);
+        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+            payloadBytes: payload, payloadStream: null, payloadFile: null,
+            out _, validator);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -424,7 +455,9 @@ public static class CoseHandler
         Stream signature,
         CoseSign1MessageValidator validator,
         byte[]? payload = null)
-        => ValidateInternal(signature.GetBytes(), payload, payloadStream: null, out _, validator);
+        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+            payloadBytes: payload, payloadStream: null, payloadFile: null,
+            out _, validator);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -438,7 +471,9 @@ public static class CoseHandler
         byte[] signature,
         CoseSign1MessageValidator validator,
         Stream? payload)
-        => ValidateInternal(signature, payloadBytes: null, payload, content: out _, validator);
+        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+            payloadBytes: null, payloadStream: payload, payloadFile: null,
+            out _, validator);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -452,7 +487,9 @@ public static class CoseHandler
         Stream signature,
         CoseSign1MessageValidator validator,
         Stream? payload)
-        => ValidateInternal(signature.GetBytes(), payloadBytes: null, payload, content: out _, validator);
+        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+            payloadBytes: null, payloadStream: payload, payloadFile: null,
+            out _, validator);
     #endregion
 
     #region GetPayload Overloads
@@ -471,7 +508,9 @@ public static class CoseHandler
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null)
-        => GetPayload(signature, GetValidator(roots, revocationMode, requiredCommonName), out result);
+        => GetPayloadInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+            GetValidator(roots, revocationMode, requiredCommonName),
+            out result);
 
     /// <summary>
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
@@ -488,7 +527,28 @@ public static class CoseHandler
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null)
-        => GetPayload(signature, GetValidator(roots, revocationMode, requiredCommonName), out result);
+        => GetPayloadInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+            GetValidator(roots, revocationMode, requiredCommonName),
+            out result);
+
+    /// <summary>
+    /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
+    /// </summary>
+    /// <param name="signature">A file containing a COSE signature structure with embedded payload.</param>
+    /// <param name="result">The results of signature validation.</param>
+    /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to during validation, in addition to the certificates installed on the host machine.</param>
+    /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
+    /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <returns>The decoded payload as a string.</returns>
+    public static string? GetPayload(
+    FileInfo signature,
+        out ValidationResult result,
+        List<X509Certificate2>? roots = null,
+        X509RevocationMode revocationMode = X509RevocationMode.Online,
+        string? requiredCommonName = null)
+        => GetPayloadInternal(signatureBytes: null, signatureStream: null, signatureFile: signature,
+            GetValidator(roots, revocationMode, requiredCommonName),
+            out result);
 
     /// <summary>
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
@@ -501,7 +561,7 @@ public static class CoseHandler
         byte[] signature,
         CoseSign1MessageValidator validator,
         out ValidationResult result)
-        => GetPayloadInternal(signature, validator, out result);
+        => GetPayloadInternal(signatureBytes: signature, signatureStream: null, signatureFile: null, validator, out result);
 
     /// <summary>
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
@@ -514,7 +574,7 @@ public static class CoseHandler
         Stream signature,
         CoseSign1MessageValidator validator,
         out ValidationResult result)
-        => GetPayloadInternal(signature.GetBytes(), validator, out result);
+        => GetPayloadInternal(signatureBytes: null, signatureStream: signature, signatureFile: null, validator, out result);
     #endregion
 
     #region Internal Validation
@@ -523,7 +583,7 @@ public static class CoseHandler
     /// For detached signatures, include the payload in <paramref name="payloadBytes"/> or <paramref name="payloadStream"/> but not both.
     /// For embedded signatures, leave both payload fields <code>null</code>.
     /// </summary>
-    /// <param name="signature">The COSE signature block.</param>
+    /// <param name="signatureBytes">The COSE signature block.</param>
     /// <param name="payloadBytes">Optional. The original payload that was detach signed as a byte array.</param>
     /// <param name="payloadStream">Optional. The original payload that was detach signed as a Stream.</param>
     /// <param name="content">The unencrypted payload that was embed-signed if <paramref name="getPayload"/> is set; null otherwise.</param>
@@ -531,147 +591,181 @@ public static class CoseHandler
     /// <param name="getPayload">If set to true, retrieves the payload from an embedded signature structure.</param>
     /// <returns>A <seealso cref="ValidationResult"/> indicating success or failure.</returns>
     internal static ValidationResult ValidateInternal(
-        ReadOnlyMemory<byte> signature,
+        ReadOnlyMemory<byte>? signatureBytes,
+        Stream? signatureStream,
+        FileInfo? signatureFile,
         byte[]? payloadBytes,
         Stream? payloadStream,
+        FileInfo? payloadFile,
         out ReadOnlyMemory<byte>? content,
         CoseSign1MessageValidator validator,
         bool getPayload = false)
     {
-        // make sure we don't have conflicting payloads.
-        if (payloadBytes is not null && payloadStream is not null)
+        // Validate count of signature inputs.
+        int signatureCount = signatureBytes is null ? 0 : 1;
+        signatureCount += signatureStream is null ? 0 : 1;
+        signatureCount += signatureFile is null ? 0 : 1;
+        if (signatureCount != 1)
         {
-            throw new ArgumentException("Payload defined in two places.");
+            throw new ArgumentException("Signature must be provided in exactly one form: Byte[], Stream, or FileInfo.");
         }
 
-        // List for collecting any validation errors we hit.
-        List<ValidationFailureCode> errorCodes = [];
+        // Validate count of payload inputs.
+        int payloadCount = payloadBytes is null ? 0 : 1;
+        payloadCount += payloadStream is null ? 0 : 1;
+        payloadCount += payloadFile is null ? 0 : 1;
+        if (payloadCount > 1)
+        {
+            throw new ArgumentException("Payload may only be provided in one form: Byte[], Stream, or FileInfo.");
+        }
 
-        // Load the signature content into a CoseSign1Message object.
-        CoseSign1Message? msg = null;
+        // Wrap the streams in a Try/Finally to ensure they are disposed.
         try
         {
-            msg = CoseMessage.DecodeSign1(signature.ToArray());
-        }
-        catch (CryptographicException)
-        {
-            errorCodes.Add(ValidationFailureCode.SigningCertificateUnreadable);
-            content = null;
-            return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
-        }
+            // Load file content if provided.
+            signatureStream ??= signatureFile?.GetStreamResilient();
+            signatureBytes ??= signatureStream!.GetBytes().AsMemory();
+            payloadStream ??= payloadFile?.GetStreamResilient();
 
-        if (!msg.TryGetCertificateChain(out List<X509Certificate2>? chain, true))
-        {
-            errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable);
-            content = null;
-            return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
-        }
+            // List for collecting any validation errors we hit.
+            List<ValidationFailureCode> errorCodes = [];
 
-        // Populate the output parameter
-        content = getPayload ? msg.Content : null;
-
-        // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
-        if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
-        {
-            errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
-            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
-        }
-
-        // Get the signing certificate
-        if (!msg.TryGetSigningCertificate(out X509Certificate2? signingCertificate, true) || signingCertificate is null)
-        {
-            errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable); // Is this always correct? Can there be certs found with none of them being the signing cert?
-            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
-        }
-
-        // Get the public key
-        AsymmetricAlgorithm? publicKey = ((AsymmetricAlgorithm?)signingCertificate.GetRSAPublicKey()
-            ?? signingCertificate.GetECDsaPublicKey());
-
-        if (publicKey is null)
-        {
-            errorCodes.Add(ValidationFailureCode.NoPublicKey);
-            return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
-        }
-
-        // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
-        bool messageVerified = false;
-
-        // check for external payload
-        bool hasBytes = !payloadBytes.IsNullOrEmpty();
-        bool hasStream = payloadStream is not null;
-
-        // Determine the type of content validation to perform.
-        // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
-        // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
-        ContentValidationType cvt = msg.IsIndirectSignature() ? ContentValidationType.Indirect :
-            (hasBytes || hasStream) ? ContentValidationType.Detached : ContentValidationType.Embedded;
-
-        try
-        {
-            switch (cvt)
+            // Load the signature content into a CoseSign1Message object.
+            CoseSign1Message? msg = null;
+            try
             {
-                // Indirect signature validation. Validate external payload hash against embedded hash + Embedded signature validation.
-                case ContentValidationType.Indirect:
-                    messageVerified = hasBytes ?
-                        (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
-                        hasStream ?
-                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream!)) :
-                            throw new InvalidOperationException();
-                    break;
-
-                // Detached signature validation. Validate external payload against the signature.
-                case ContentValidationType.Detached:
-                    messageVerified = hasBytes ?
-                        msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
-                        Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream!)).GetAwaiter().GetResult();
-                    break;
-
-                // Embedded signature validation. Validate the embedded content against the signature.
-                case ContentValidationType.Embedded:
-                    messageVerified = msg.VerifyEmbedded(publicKey);
-                    break;
+                msg = CoseMessage.DecodeSign1(signatureBytes.Value.ToArray());
+            }
+            catch (CryptographicException)
+            {
+                errorCodes.Add(ValidationFailureCode.SigningCertificateUnreadable);
+                content = null;
+                return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
             }
 
-            if (!messageVerified)
+            if (!msg.TryGetCertificateChain(out List<X509Certificate2>? chain, true))
             {
-                errorCodes.Add(ValidationFailureCode.PayloadMismatch);
+                errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable);
+                content = null;
+                return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
             }
-        }
 
-        // There are other exceptions that could be thrown here but the earlier validation steps should have caught them.
-        catch (CryptographicException)
-        {
-            errorCodes.Add(ValidationFailureCode.CoseHeadersInvalid);
-        }
-        catch (InvalidOperationException)
-        {
-            errorCodes.Add(
-                payloadBytes is null && payloadStream is null ? ValidationFailureCode.PayloadMissing :
-                ValidationFailureCode.RedundantPayload);
+            // Populate the output parameter
+            content = getPayload ? msg.Content : null;
 
-            messageVerified = false;
+            // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
+            if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
+            {
+                errorCodes.Add(ValidationFailureCode.TrustValidationFailed);
+                return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
+            }
+
+            // Get the signing certificate
+            if (!msg.TryGetSigningCertificate(out X509Certificate2? signingCertificate, true) || signingCertificate is null)
+            {
+                errorCodes.Add(ValidationFailureCode.CertificateChainUnreadable); // Is this always correct? Can there be certs found with none of them being the signing cert?
+                return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
+            }
+
+            // Get the public key
+            AsymmetricAlgorithm? publicKey = ((AsymmetricAlgorithm?)signingCertificate.GetRSAPublicKey()
+                ?? signingCertificate.GetECDsaPublicKey());
+
+            if (publicKey is null)
+            {
+                errorCodes.Add(ValidationFailureCode.NoPublicKey);
+                return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
+            }
+
+            // Validate that the COSE header is formatted correctly and that the payload and hash are consistent.
+            bool messageVerified = false;
+
+            // check for external payload
+            bool hasBytes = !payloadBytes.IsNullOrEmpty();
+            bool hasStream = payloadStream is not null;
+
+            // Determine the type of content validation to perform.
+            // Check for an indirect signature, where the content header contains the hash of the payload, and the algorithm is stored in the message.
+            // If this is the case and external content is provided, we can validate an external payload hash against the hash stored in the cose message content.
+            ContentValidationType cvt = msg.IsIndirectSignature() ? ContentValidationType.Indirect :
+                (hasBytes || hasStream) ? ContentValidationType.Detached : ContentValidationType.Embedded;
+
+            try
+            {
+                switch (cvt)
+                {
+                    // Indirect signature validation. Validate external payload hash against embedded hash + Embedded signature validation.
+                    case ContentValidationType.Indirect:
+                        messageVerified = hasBytes ?
+                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
+                            hasStream ?
+                                (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream!)) :
+                                throw new InvalidOperationException();
+                        break;
+
+                    // Detached signature validation. Validate external payload against the signature.
+                    case ContentValidationType.Detached:
+                        messageVerified = hasBytes ?
+                            msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
+                            Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream!)).GetAwaiter().GetResult();
+                        break;
+
+                    // Embedded signature validation. Validate the embedded content against the signature.
+                    case ContentValidationType.Embedded:
+                        messageVerified = msg.VerifyEmbedded(publicKey);
+                        break;
+                }
+
+                if (!messageVerified)
+                {
+                    errorCodes.Add(ValidationFailureCode.PayloadMismatch);
+                }
+            }
+
+            // There are other exceptions that could be thrown here but the earlier validation steps should have caught them.
+            catch (CryptographicException)
+            {
+                errorCodes.Add(ValidationFailureCode.CoseHeadersInvalid);
+            }
+            catch (InvalidOperationException)
+            {
+                errorCodes.Add(
+                    payloadBytes is null && payloadStream is null ? ValidationFailureCode.PayloadMissing :
+                    ValidationFailureCode.RedundantPayload);
+
+                messageVerified = false;
+            }
+
+            return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);
         }
-        
-        return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);
+        finally
+        {
+            signatureStream?.HardDispose(signatureFile);
+            payloadStream?.HardDispose(payloadFile);
+        }
     }
 
     /// <summary>
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
     /// </summary>
-    /// <param name="signature">A COSE signature structure with embedded payload.</param>
+    /// <param name="signatureBytes">A COSE signature structure with embedded payload.</param>
     /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
     /// <param name="result">The results of signature validation.</param>
     /// <returns>The decoded payload as a string.</returns>
     internal static string? GetPayloadInternal(
-        ReadOnlyMemory<byte> signature,
+        ReadOnlyMemory<byte>? signatureBytes,
+        Stream? signatureStream,
+        FileInfo? signatureFile,
         CoseSign1MessageValidator validator,
         out ValidationResult result)
     {
         result = ValidateInternal(
-            signature, payloadBytes: null, payloadStream: null, out ReadOnlyMemory<byte>? payloadBytes,
-            validator, getPayload: true);
+            signatureBytes, signatureStream, signatureFile,
+            payloadBytes: null, payloadStream: null, payloadFile: null,
+            out ReadOnlyMemory<byte>? payloadBytes, validator, getPayload: true);
         string? content = null;
+
+        // payloadBytes gets populated by from the embedded signature by ValidateInternal.
         if (payloadBytes is null)
         {
             result.AddError(ValidationFailureCode.PayloadUnreadable);

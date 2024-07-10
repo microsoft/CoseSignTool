@@ -3,14 +3,16 @@
 
 namespace CoseSignTool.Tests;
 
+using System.Runtime.CompilerServices;
+
 internal static class Utils
 {
-    private static readonly byte[] Payload1Bytes = Encoding.ASCII.GetBytes("Payload1!");
-
-    internal static string GetPayloadFile()
+    internal static string GeneratePayloadFile([CallerMemberName] string caller = "", string? content = null)
     {
-        string payloadFile = Path.GetTempFileName();
-        File.WriteAllBytes(payloadFile, Payload1Bytes);
-        return payloadFile;
+        string fileName = Path.GetTempFileName().Replace(".tmp", $"-{caller}.spdx.json");
+        content ??= "Payload1!";
+        byte[] bytes = Encoding.ASCII.GetBytes(content);
+        File.WriteAllBytes(fileName, bytes);
+        return new(fileName);
     }
 }

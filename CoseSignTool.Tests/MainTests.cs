@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool.Tests;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class MainTests
@@ -151,23 +150,21 @@ public class MainTests
         string[] argsMissingPayloadFileSign = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", missingFile];
         CoseSignTool.Main(argsMissingPayloadFileSign).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
-        // missing cert
-        string[] argsMissingCert = ["validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile];
-        CoseSignTool.Main(argsMissingCert).Should().Be((int)ExitCode.CertificateLoadFailure);
-
         // missing payload file - validate
         string[] argsMissingPayloadFileValidate = ["validate", @"/sf", sigFile, @"/p", missingFile, @"/rt", PublicKeyRootCertFile];
         CoseSignTool.Main(argsMissingPayloadFileValidate).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
 
+        // missing cert
+        string[] argsMissingCert = ["validate", @"/sf", sigFile, @"/p", payloadFile, @"/rt", missingFile];
+        CoseSignTool.Main(argsMissingCert).Should().Be((int)ExitCode.CertificateLoadFailure);
+
         // missing signature file
         string[] argsMissingSigFile = ["validate", @"/sf", missingFile, @"/p", payloadFile, @"/rt", PublicKeyRootCertFile];
         CoseSignTool.Main(argsMissingSigFile).Should().Be((int)ExitCode.UserSpecifiedFileNotFound);
-
-
     }
 
     [TestMethod]
-    public void ValidateSameFileMultipleTimesMain()
+    public void ValidateSameFileMultipleTimesMain() // This is to make sure file handles are getting released when they should
     {
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string sigFile = $"{payloadFile}.cose";
@@ -214,7 +211,7 @@ public class MainTests
     [TestMethod]
     public void ReturnsHelpRequestedWhenNoOptionsAfterVerb()
     {
-        string[] args = [];
+        string[] args = [ "sign" ];
         CoseSignTool.Main(args).Should().Be((int)ExitCode.HelpRequested);
     }
 }

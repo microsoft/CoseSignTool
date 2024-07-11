@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 namespace CoseX509;
-
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -287,13 +287,8 @@ public static class CoseHandler
         ICoseHeaderExtender? headerExtender = null)
     {
         // Validate that we have exactly one form of payload input.
-        int payloadCount = payloadBytes is not null ? 1 : 0;
-        payloadCount += payloadStream is not null ? 1 : 0;
-        payloadCount += payloadFile is not null ? 1 : 0;
-        if (payloadCount != 1)
-        {
-            throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
-        }
+        _ = CountOfDefined(payloadBytes, payloadStream, payloadFile) == 1 ? true
+            : throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
 
         try
         {
@@ -343,9 +338,7 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
-            payloadBytes: payload, payloadStream: null, payloadFile: null, out _,
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -362,10 +355,7 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => ValidateInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
-            payloadBytes: null, payloadStream: payload, payloadFile: null, out _,
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
-    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -382,10 +372,7 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
-            payloadBytes: payload, payloadStream: null, payloadFile: null, out _,
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
-    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a COSE signature file.
@@ -405,7 +392,6 @@ public static class CoseHandler
         => ValidateInternal(signatureBytes: null, signatureStream: null, signatureFile: signature,
             payloadBytes: null, payloadStream: null, payloadFile: payload, out _,
             GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
-    //=> Validate(signature.GetBytesResilient(), GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -422,10 +408,7 @@ public static class CoseHandler
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
         bool allowUntrusted = false)
-        => ValidateInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
-            payloadBytes: null, payloadStream: payload, payloadFile: null, out _,
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
-    //=> Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in  memory.
@@ -508,7 +491,7 @@ public static class CoseHandler
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null)
-        => GetPayloadInternal(signatureBytes: signature, signatureStream: null, signatureFile: null,
+        => GetPayload(signature,
             GetValidator(roots, revocationMode, requiredCommonName),
             out result);
 
@@ -522,12 +505,12 @@ public static class CoseHandler
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
-    Stream signature,
+        Stream signature,
         out ValidationResult result,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null)
-        => GetPayloadInternal(signatureBytes: null, signatureStream: signature, signatureFile: null,
+        => GetPayload(signature,
             GetValidator(roots, revocationMode, requiredCommonName),
             out result);
 
@@ -541,7 +524,7 @@ public static class CoseHandler
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
-    FileInfo signature,
+        FileInfo signature,
         out ValidationResult result,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
@@ -601,31 +584,20 @@ public static class CoseHandler
         CoseSign1MessageValidator validator,
         bool getPayload = false)
     {
-        // Validate count of signature inputs.
-        int signatureCount = signatureBytes is null ? 0 : 1;
-        signatureCount += signatureStream is null ? 0 : 1;
-        signatureCount += signatureFile is null ? 0 : 1;
-        if (signatureCount != 1)
-        {
-            throw new ArgumentException("Signature must be provided in exactly one form: Byte[], Stream, or FileInfo.");
-        }
+        // Validate count of signature and payload inputs.
+        _ = CountOfDefined(signatureBytes, signatureStream, signatureFile) == 1 ? true
+            : throw new ArgumentException("Signature must be provided in exactly one form: Byte[], Stream, or FileInfo.");
 
-        // Validate count of payload inputs.
-        int payloadCount = payloadBytes is null ? 0 : 1;
-        payloadCount += payloadStream is null ? 0 : 1;
-        payloadCount += payloadFile is null ? 0 : 1;
-        if (payloadCount > 1)
-        {
-            throw new ArgumentException("Payload may only be provided in one form: Byte[], Stream, or FileInfo.");
-        }
+        _ = CountOfDefined(payloadBytes, payloadStream, payloadFile) < 2 ? true
+            : throw new ArgumentException("Payload must be provided in exactly one form: Byte[], Stream, or FileInfo.");
 
         // Wrap the streams in a Try/Finally to ensure they are disposed.
         try
         {
             // Load file content if provided.
+            payloadStream ??= payloadFile?.GetStreamResilient();
             signatureStream ??= signatureFile?.GetStreamResilient();
             signatureBytes ??= signatureStream!.GetBytes().AsMemory();
-            payloadStream ??= payloadFile?.GetStreamResilient();
 
             // List for collecting any validation errors we hit.
             List<ValidationFailureCode> errorCodes = [];
@@ -844,5 +816,7 @@ public static class CoseHandler
 
         return chainTrustValidator;
     }
+
+    private static int CountOfDefined(params object?[] args) => args.Where(arg => arg is not null).Count();
     #endregion
 }

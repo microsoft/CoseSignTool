@@ -3,9 +3,6 @@
 
 namespace CoseSignTool;
 
-using System;
-using System.Text.RegularExpressions;
-
 /// <summary>
 /// A base class for console commands that handle COSE signatures.
 /// </summary>
@@ -77,6 +74,7 @@ public abstract partial class CoseCommand
     /// </summary>
     /// <param name="args">The command line arguments</param>
     /// <param name="options">A dictionary of command line options to their abbreviated aliases, not including shared options.</param>
+    /// <param name="badArg">The first unrecognized argument, if any.</param>
     /// <returns>A CommandLineConfigurationProvider with the command line arguments and aliases loaded.</returns>
     protected internal static CommandLineConfigurationProvider? LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string? badArg)
     {

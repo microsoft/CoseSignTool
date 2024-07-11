@@ -48,7 +48,7 @@ public class SignCommand : CoseCommand
     public bool EmbedPayload { get; set; }
 
     /// <summary>
-    /// If true, writes signature output to the STDOUT channel so it can be piped to another program instead of writing to file.
+    /// Optional. If true, writes signature output to the STDOUT channel so it can be piped to another program instead of writing to file.
     /// </summary>
     public bool PipeOutput { get; set; }
 
@@ -167,6 +167,10 @@ public class SignCommand : CoseCommand
         {
             // The certificate was not valid for COSE signing.
             return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex);
+        }
+        finally
+        {
+            payloadStream.HardDispose();
         }
     }
 

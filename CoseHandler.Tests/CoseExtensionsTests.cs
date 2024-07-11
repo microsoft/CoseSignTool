@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignUnitTests;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using static System.Net.Mime.MediaTypeNames;
 
 [TestClass]
 public class CoseExtensionsTests
@@ -68,7 +66,7 @@ public class CoseExtensionsTests
         string text = "This is some text that will be written to a file eventually.";
         string outPath = Path.GetTempFileName();
         FileInfo f = new(outPath);
-        var getBytesTask = Task.Run(f.GetBytesResilient);
+        var getBytesTask = Task.Run(() => f.GetBytesResilient(writeTo: OutputTarget.StdOut));
 
         // Act
         // Start the file write. The loading task should time out before the first character is written.

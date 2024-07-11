@@ -89,14 +89,14 @@ public static class StreamExtensions
     }
 
     /// <summary>
-    /// Forces a FileStream to unlock all file handles, without waiting for garbage collection, before disposing.
+    /// Forces a FileStream to unlock all file handles and other resources without waiting for garbage collection.
     /// For other types of streams, it just disposes them.
     /// </summary>
     /// <param name="stream">The stream to dispose.</param>
     /// <param name="sourceFile">The file that the stream reads from and/or writes to, if any.</param>
     public static void HardDispose(this Stream? stream, FileInfo? sourceFile = null)
     {
-        sourceFile?.Refresh();
+        sourceFile?.Refresh();  // Update the in-memory file info to reflect the current state of the file on disk.
         if (stream is FileStream fs)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -110,13 +110,18 @@ public static class StreamExtensions
             {
                 try
                 {
-                    fs.Unlock(0, stream.Length);
+                    if (fs.CanRead || fs.CanWrite)  // If the file is not already closed, unlock it.
+                    {
+                        fs.Unlock(0, stream.Length);
+                    }
                 }
                 catch (IOException) { } // This just means it's already unlocked, which is fine.
                 try
                 {
                     stream.Close();
+                    Console.WriteLine("Stream closed");
                     stream.Dispose();
+                    Console.WriteLine("Stream disposed");
                 }
                 catch (ObjectDisposedException) { } // This just means it's already disposed, which is fine.
             }

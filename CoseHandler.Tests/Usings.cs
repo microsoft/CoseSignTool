@@ -6,6 +6,7 @@ global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
 global using System.Text;
+global using CoseIndirectSignature;
 global using CoseSign1;
 global using CoseSign1.Abstractions;
 global using CoseSign1.Abstractions.Exceptions;

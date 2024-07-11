@@ -132,7 +132,6 @@ public class ValidateCommand : CoseCommand
                 return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex, "Could not load root certificates");
             }
 
-
             ValidationResult result = RunCoseHandlerCommand(
                 signatureStream,
                 PayloadFile,
@@ -166,7 +165,6 @@ public class ValidateCommand : CoseCommand
         finally
         {
             signatureStream.HardDispose(SignatureFile);
-            //PayloadFile?.Refresh();
         }
     }
 
@@ -176,8 +174,8 @@ public class ValidateCommand : CoseCommand
         FileInfo? payload,
         List<X509Certificate2>? rootCerts,
         X509RevocationMode revocationMode,
-        string? commonName,
-        bool allowUntrusted)
+        string? commonName = null,
+        bool allowUntrusted = false)
         => CoseHandler.Validate(
             signature,
             payload?.GetStreamResilient(),

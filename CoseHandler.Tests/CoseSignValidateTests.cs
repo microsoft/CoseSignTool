@@ -3,10 +3,6 @@
 
 namespace CoseSignUnitTests;
 
-using System.Runtime.CompilerServices;
-using CoseIndirectSignature;
-using CoseX509;
-
 [TestClass]
 public class CoseHandlerSignValidateTests
 {
@@ -23,9 +19,7 @@ public class CoseHandlerSignValidateTests
     private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // As byte arrays
-    private static readonly byte[] Pfx1 = CertChain1.Export(X509ContentType.Pkcs12)!;
     private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);
-    private static readonly byte[] Root2Cer = Root2Priv.Export(X509ContentType.Cert);
     private static readonly byte[] Int1Cer = Int1Priv.Export(X509ContentType.Cert);
 
     // As public key certs
@@ -134,18 +128,16 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void WithSigningKeyProviderAndChainValidator()
     {
-        //string signatureFile = $"{TestFolder}WithSigningKeyProviderAndChainValidator.cose";
-
         // Sign bytes, validate stream
-        ReadOnlyMemory<byte> signedBytesB = CoseHandler.Sign(Payload1Bytes, new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
-        signedBytesB.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytesB.ToArray(), BaseValidator, new MemoryStream(Payload1Bytes));
+        ReadOnlyMemory<byte> signedBytesFromBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
+        signedBytesFromBytes.ToArray().Should().NotBeNull();
+        var result = CoseHandler.Validate(signedBytesFromBytes.ToArray(), BaseValidator, new MemoryStream(Payload1Bytes));
         result.Success.Should().Be(true);
 
         // Sign stream, validate bytes
-        ReadOnlyMemory<byte> signedBytesS = CoseHandler.Sign(new MemoryStream(Payload1Bytes), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
-        signedBytesS.ToArray().Should().NotBeNull();
-        result = CoseHandler.Validate(signedBytesS.ToArray(), BaseValidator, Payload1Bytes);
+        ReadOnlyMemory<byte> signedBytesFromStream = CoseHandler.Sign(new MemoryStream(Payload1Bytes), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
+        signedBytesFromStream.ToArray().Should().NotBeNull();
+        result = CoseHandler.Validate(signedBytesFromStream.ToArray(), BaseValidator, Payload1Bytes);
         result.Success.Should().Be(true);
     }
     #endregion
@@ -170,10 +162,11 @@ public class CoseHandlerSignValidateTests
     public void HeaderExtender()
     {
         // TODO: Fill in this test -- currently a place holder
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
-        signedBytes.ToArray().Should().NotBeNull();
-        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
-            .Success.Should().Be(true);
+        //ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        //signedBytes.ToArray().Should().NotBeNull();
+        //CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode)
+        //    .Success.Should().Be(true);
+        Assert.Inconclusive("This test is not yet implemented.");
     }
 
 
@@ -181,18 +174,20 @@ public class CoseHandlerSignValidateTests
     public void FromCertStoreWithThumbs()
     {
         // TODO: Fill in this test -- currently a place holder. Remember -- only the Sign op can take a thumbprint.
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
-        signedBytes.ToArray().Should().NotBeNull();
-        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+        //ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        //signedBytes.ToArray().Should().NotBeNull();
+        //CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+        Assert.Inconclusive("This test is not yet implemented.");
     }
 
     [TestMethod]
     public void FromCertStoreNoThumbs()
     {
         // TODO: Fill in this test -- currently a place holder. This is for basically default sign -- not sure if it's something we should support or test.
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
-        signedBytes.ToArray().Should().NotBeNull();
-        CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+        //ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        //signedBytes.ToArray().Should().NotBeNull();
+        //CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode);
+        Assert.Inconclusive("This test is not yet implemented.");
     }
 
     /// <summary>
@@ -250,7 +245,7 @@ public class CoseHandlerSignValidateTests
     }
 
     /// <summary>
-    /// Validate that signing with an untrusted cert causes validation to fail
+    /// Validate that signing with an untrusted cert causes validation to fail if AllowUntrusted not set
     /// </summary>
     [TestMethod]
     public void Untrusted()
@@ -262,7 +257,7 @@ public class CoseHandlerSignValidateTests
     }
 
     /// <summary>
-    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted
+    /// Validate that signing with an untrusted cert causes validation to return ValidationResultTypes.ValidUntrusted if AllowUntrusted
     /// </summary>
     [TestMethod]
     public void UntrustedAllowedSelfSigned()

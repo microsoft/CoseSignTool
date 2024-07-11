@@ -6,26 +6,31 @@ namespace CoseX509;
 using System;
 using System.IO;
 using System.Threading;
+using CoseSign1;
 
 public static class FileInfoExtensions
 {
-    public static byte[] GetBytesResilient(this FileInfo f) => GetBytesOrStream(f, false).Item1!;
+    /// <summary>
+    /// Loads the content of a file into a byte array after making sure the file exists, is not empty, and is not locked by another process.
+    /// </summary>
+    /// <param name="f">The file to read from.</param>
+    /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
+    /// <returns>The file content.</returns>
+    public static byte[] GetBytesResilient(this FileInfo f, OutputTarget? writeTo = null) => GetBytesOrStream(f, false, writeTo).Item1!;
 
-    // Wait up to X seconds if the file does not exist or is 0 - length
-    // If Read still fails(and not an access-related exception) check for write in progress by polling every ¼ second or so until 3 consecutive polls return the same file length.
-    // That, and maybe make the output messages more granular -file not found vs.file empty vs.file unreadable.
+    /// <summary>
+    /// Loads the content of a file into a <see cref="FileStream"/> after making sure the file exists, is not empty, and is not locked by another process.
+    /// </summary>
+    /// <param name="f">The file to read.</param>
+    /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
+    /// <returns>The file content.</returns>
+    public static FileStream? GetStreamResilient(this FileInfo f, OutputTarget? writeTo = null) => GetBytesOrStream(f, true, writeTo).Item2;
 
-    // This or File.OpenRead is called twice in CoseHandler,
-    // once in ValidateCommand to call CoseHandler, once in CoseCommand to read a payload stream from file.
-    public static FileStream? GetStreamResilient(this FileInfo f) => GetBytesOrStream(f, true).Item2;
-
-    private static (byte[]?, FileStream?) GetBytesOrStream(FileInfo f, bool isStream)
+    private static (byte[]?, FileStream?) GetBytesOrStream(FileInfo f, bool isStream, OutputTarget? writer)
     {
-        // FileInfo constructor throws if the file doesn't exist, so I don't need to check for that here. Caller should wait for file existence.
-
-        //// Make sure the file exists, allowing retries in case it hasn't hit the disk yet.
+        // Make sure the file exists, allowing retries in case it hasn't hit the disk yet.
         DateTime startTime = DateTime.Now;
-        while (f is null)
+        while (f is null || !f.Exists)
         {
             Thread.Sleep(100);
             if (OutOfTime(startTime, 5))
@@ -35,7 +40,7 @@ public static class FileInfoExtensions
         }
 
         // Make sure the file is not empty before trying to read it.
-        // This check is necessary because there is a point where the file exists but is still empty before it is locked for writing.
+        // This check catches the point in time after a file is first created but before it is locked for writing.
         startTime = DateTime.Now;
         while (f.Length == 0)
         {
@@ -50,22 +55,35 @@ public static class FileInfoExtensions
 
         // Make sure the file isn't locked by another process trying to write to it.
         startTime = DateTime.Now;
+        writer ??= OutputTarget.StdOut;
+        bool waitMessageStarted = false;
+        byte ticks = 0;
         while (IsFileLocked(f))
         {
-            Thread.Sleep(100);
-            if (OutOfTime(startTime, 15))
+            long lastLength = f.Length;
+            Thread.Sleep(250);
+            if (OutOfTime(startTime, 5) && lastLength == f.Length)
             {
-                throw new IOException($"The file '{f.FullName}' is still in use by another process.");
+                if (f.Length > lastLength)
+                {
+                    ticks++;
+                    if (!waitMessageStarted)
+                    {
+                        waitMessageStarted = true;
+                        writer.WriteLine($"Waiting for write of file '{f.FullName}' to complete.");
+                    }
+                    else if (ticks % 4 == 0)
+                    {
+                        writer.Write(".");
+                    }
+                }
+                else
+                {
+                    throw new IOException($"The file '{f.FullName}' is locked by another process.");
+                }
             }
         }
 
-        // File is not empty, but watch the length to make sure it's done being written
-        //while (f.Length > lastLength)
-        //{
-        //    Thread.Sleep(250);
-        //    f.Refresh();
-        //    lastLength = f.Length;
-        //}
         startTime = DateTime.Now;
         Exception? ex = null;
         while (!OutOfTime(startTime, 5))
@@ -77,7 +95,7 @@ public static class FileInfoExtensions
                 byte[]? bytes = isStream ? null : File.ReadAllBytes(f.FullName);
                 return (bytes, fs);
             }
-            catch (IOException e)     // TODO: I should only catch the types of exceptions that might be fixed over time, such as could come from an incomplete file write
+            catch (IOException e)
             {
                 ex = e;
                 Thread.Sleep(250); // Wait for 250 milliseconds before checking again

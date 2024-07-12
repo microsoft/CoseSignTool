@@ -50,11 +50,11 @@ public class CoseExtensionsTests
         // Act
         // Start the file writes then start the loading tasks before the writes complete.
         // Both tasks should wait for the writes to complete before loading the content.
-        Task t1 = Task.Run(() => WriteTextFileSlowly(outPath1, text));
+        _ = Task.Run(() => WriteTextFileSlowly(outPath1, text));
         byte[] bytes = f1.GetBytesResilient();
         bytes.Length.Should().BeGreaterThan(38);
 
-        var t2 = Task.Run(() => WriteTextFileSlowly(outPath2, text));
+        _ = Task.Run(() => WriteTextFileSlowly(outPath2, text));
         var stream = f2.GetStreamResilient();
         stream!.Length.Should().BeGreaterThan(38);
     }
@@ -70,16 +70,15 @@ public class CoseExtensionsTests
 
         // Act
         // Start the file write. The loading task should time out before the first character is written.
-        var writeTask1 = Task.Run(() => WriteTextFileWithDelay(outPath, text, 10));
+        _ = Task.Run(() => WriteTextFileWithDelay(outPath, text, 10));
         try
         {
             _ = await getBytesTask;
-        }
-        catch (Exception ex)
-        {
+
             // Assert
-            ex.Should().BeOfType<IOException>("The file was still empty.");
+            Assert.Fail("The file should have thrown an IOException because it was still empty.");
         }
+        catch (IOException) { }
     }
 
     private static async Task WriteTextFileSlowly(string path, string text)

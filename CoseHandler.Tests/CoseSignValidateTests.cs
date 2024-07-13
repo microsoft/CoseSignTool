@@ -108,7 +108,7 @@ public class CoseHandlerSignValidateTests
 
         signedBytes.Should().NotBeNull();
 
-        byte[] bytesFromFile = File.ReadAllBytes(signaturePath);
+        byte[] bytesFromFile = signatureFile.GetBytesResilient();
         bytesFromFile.Should().Equal(signedBytes);
 
         // Validate from bytes

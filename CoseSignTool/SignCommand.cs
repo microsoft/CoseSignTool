@@ -154,6 +154,7 @@ public class SignCommand : CoseCommand
             }
             else
             {
+                // SignatureFile?.WriteAllBytesResilient(signedBytes.ToArray());
                 File.WriteAllBytes(SignatureFile!.FullName, signedBytes.ToArray());
             }
 

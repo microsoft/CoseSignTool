@@ -119,9 +119,7 @@ public static class StreamExtensions
                 try
                 {
                     stream.Close();
-                    Console.WriteLine("Stream closed");
                     stream.Dispose();
-                    Console.WriteLine("Stream disposed");
                 }
                 catch (ObjectDisposedException) { } // This just means it's already disposed, which is fine.
             }

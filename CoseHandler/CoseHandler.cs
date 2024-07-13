@@ -309,6 +309,7 @@ public static class CoseHandler
             if (signatureFile is not null)
             {
                 // Use the static method here because signatureFile.OpenWrite().Write() was sometimes truncating the last byte from signedBytes.
+                //signatureFile.WriteAllBytesResilient(signedBytes.ToArray());
                 File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray());
             }
 

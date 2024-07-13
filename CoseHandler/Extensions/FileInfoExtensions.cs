@@ -5,8 +5,11 @@ namespace CoseX509;
 
 using System;
 using System.IO;
+using System.IO.Pipes;
 using System.Threading;
+using System.Threading.Tasks;
 using CoseSign1;
+using CoseSign1.Extensions;
 
 public static class FileInfoExtensions
 {
@@ -104,6 +107,55 @@ public static class FileInfoExtensions
 
         throw ex!;
     }
+
+    /// <summary>
+    /// Writes a byte array to a file, flushing periodically to clear the buffer.
+    /// </summary>
+    /// <param name="targetFile">The file to write to.</param>
+    /// <param name="bytes">The content to write.</param>
+    /// <param name="bufferSize">The number of bytes to write in each batch before clearing the buffer and writing more.</param>
+    public static void WriteAllBytesResilient(this FileInfo targetFile, byte[] bytes, int bufferSize = 4096)
+        => Task.Run(async () => await targetFile.WriteAllBytesResilientAsync(bytes, bufferSize));
+
+    /// <summary>
+    /// Writes a byte array to a file, flushing periodically to clear the buffer.
+    /// </summary>
+    /// <param name="targetFile">The file to write to.</param>
+    /// <param name="bytes">The content to write.</param>
+    /// <param name="bufferSize">The number of bytes to write in each batch before clearing the buffer and writing more.</param>
+    /// <returns>A Task representing the write operation.</returns>
+    public static async Task WriteAllBytesResilientAsync(this FileInfo targetFile, byte[] bytes, int bufferSize = 4096)
+        => await WriteAllBytesDelayedAsync(targetFile, bytes, bufferSize, 0);
+
+    /// <summary>
+    /// Writes a byte array to a file, flushing periodically to clear the buffer after a time delay. For test use only.
+    /// </summary>
+    /// <param name="targetFile">The file to write to.</param>
+    /// <param name="bytes">The content to write.</param>
+    /// <param name="bufferSize">The number of bytes to write in each batch before clearing the buffer and writing more.</param>
+    /// <param name="delay">The number of milliseconds to wait before writing the next batch of bytes.</param>
+    /// <returns>A Task representing the write operation.</returns>
+    public static async Task WriteAllBytesDelayedAsync(this FileInfo targetFile, byte[] bytes, int bufferSize, int delay)
+    {
+        using FileStream fs = targetFile.OpenWrite();
+
+        for (int offset = 0; offset < bytes.Length; offset += bufferSize)
+        {
+            int remainingBytes = bytes.Length - offset;
+            int bytesToWrite = Math.Min(bufferSize, remainingBytes);
+
+            if (delay > 0)
+            {
+                Task.Delay(delay).Wait();
+            }
+
+            await fs.WriteAsync(bytes, offset, bytesToWrite);
+            fs.Flush();
+        }
+
+        fs.HardDispose();
+    }
+
 
     private static bool IsFileLocked(FileInfo f)
     {

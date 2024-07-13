@@ -42,6 +42,7 @@ public class CoseExtensionsTests
     {
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
+        byte[] textBytes = Encoding.UTF8.GetBytes(text);
         string outPath1 = Path.GetTempFileName();
         string outPath2 = Path.GetTempFileName();
         FileInfo f1 = new(outPath1);
@@ -51,10 +52,12 @@ public class CoseExtensionsTests
         // Start the file writes then start the loading tasks before the writes complete.
         // Both tasks should wait for the writes to complete before loading the content.
         _ = Task.Run(() => WriteTextFileSlowly(outPath1, text));
-        byte[] bytes = f1.GetBytesResilient();
-        bytes.Length.Should().BeGreaterThan(38);
+        //_ = Task.Run(() => f1.WriteAllBytesDelayedAsync(textBytes, 1, 100));
+        byte[] f1Bytes = f1.GetBytesResilient();
+        f1Bytes.Length.Should().BeGreaterThan(38);
 
         _ = Task.Run(() => WriteTextFileSlowly(outPath2, text));
+        //_ = Task.Run(() => f2.WriteAllBytesDelayedAsync(textBytes, 1, 100));
         var stream = f2.GetStreamResilient();
         stream!.Length.Should().BeGreaterThan(38);
     }
@@ -87,6 +90,7 @@ public class CoseExtensionsTests
         foreach (char c in text)
         {
             await writer.WriteAsync(c);
+            await writer.FlushAsync();
             await Task.Delay(100);
         }
     }

@@ -8,28 +8,22 @@ using System.Collections.Generic;
 /// <summary>
 /// Holds information about an error in COSE validation.
 /// </summary>
-public readonly struct CoseValidationError
+/// <remarks>
+/// Creates a new CoseValidationError instance.
+/// </remarks>
+/// <param name="errorCode">A ValidationFailureCode value that represents the error type.</param>
+/// <param name="message">A text description of the error.</param>
+public readonly struct CoseValidationError(ValidationFailureCode errorCode)
 {
-    /// <summary>
-    /// Creates a new CoseValidationError instance.
-    /// </summary>
-    /// <param name="errorCode">A ValidationFailureCode value that represents the error type.</param>
-    /// <param name="message">A text description of the error.</param>
-    public CoseValidationError(ValidationFailureCode errorCode)
-    {
-        ErrorCode = errorCode;
-        Message = ErrorMessages[errorCode];
-    }
-
     /// <summary>
     /// Gets or sets a ValidationFailureCode value that represents the error type.
     /// </summary>
-    public ValidationFailureCode ErrorCode { get; }
+    public ValidationFailureCode ErrorCode { get; } = errorCode;
 
     /// <summary>
     /// Gets or sets a text description of the error.
     /// </summary>
-    public string Message { get; }
+    public string Message { get; } = ErrorMessages[errorCode];
 
     /// <summary>
     /// A dictionary that maps error messages to error codes.

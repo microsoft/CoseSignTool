@@ -5,7 +5,6 @@ namespace CoseX509;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.SymbolStore;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -15,51 +14,40 @@ using CoseSign1.Certificates.Extensions;
 /// <summary>
 /// Defines the result of a COSE signature validation attempt.
 /// </summary>
-public struct ValidationResult
+/// <param name="errors">A list of CoseValidationError values representing individual errors, if any.</param>
+/// <param name="internalResults">A list of CoseSign1ValidationResult objects from internal validators, if any.</param>
+/// <param name="internalResults">A list of X509Certificate2 objects from the COSE message, if any.</param>
+public struct ValidationResult(
+    bool success,
+    List<ValidationFailureCode>? errors,
+    List<CoseSign1ValidationResult>? internalResults = null,
+    List<X509Certificate2>? certChain = null,
+    ContentValidationType validationType = default)
 {
-    /// <summary>
-    /// Creates a new ValidationResult object.
-    /// </summary>
-    /// <param name="errors">A list of CoseValidationError values representing individual errors, if any.</param>
-    /// <param name="internalResults">A list of CoseSign1ValidationResult objects from internal validators, if any.</param>
-    /// <param name="internalResults">A list of X509Certificate2 objects from the COSE message, if any.</param>
-    public ValidationResult(bool success,
-                            List<ValidationFailureCode>? errors,
-                            List<CoseSign1ValidationResult>? internalResults = null,
-                            List<X509Certificate2>? certChain = null,
-                            ContentValidationType validationType = default)
-    {
-        Success = success;
-        Errors = ExpandErrors(errors);
-        InnerResults = internalResults;
-        CertificateChain = certChain;
-        ContentValidationType = validationType;
-    }
-
     /// <summary>
     /// Indicates whether validation succeeded or not.
     /// </summary>
-    public bool Success { get; set; }
+    public bool Success { get; set; } = success;
 
     /// <summary>
     /// The set of errors that caused validation to fail, if any.
     /// </summary>
-    public List<CoseValidationError>? Errors { get; set; }
+    public List<CoseValidationError>? Errors { get; set; } = ExpandErrors(errors);
 
     /// <summary>
     /// The certificate chain used to validate the signature, if any.
     /// </summary>
-    public List<X509Certificate2>? CertificateChain = null;
+    public List<X509Certificate2>? CertificateChain = certChain;
 
     /// <summary>
     /// Indicates which payload validation format was used.
     /// </summary>
-    public ContentValidationType ContentValidationType { get; set; } = default;
+    public ContentValidationType ContentValidationType { get; set; } = validationType;
 
     /// <summary>
     /// The set of specific errors passed from the internal validator, if any.
     /// </summary>
-    public List<CoseSign1ValidationResult>? InnerResults { get; set; }
+    public List<CoseSign1ValidationResult>? InnerResults { get; set; } = internalResults;
 
     internal static List<CoseValidationError>? ExpandErrors(List<ValidationFailureCode>? errors)
     => errors?.Select(c => new CoseValidationError(c)).ToList();
@@ -90,12 +78,13 @@ public struct ValidationResult
             StringBuilder certDetailsBuilder = new($"Certificate chain details:{newline}");
             foreach (var cert in CertificateChain)
             {
-                certDetailsBuilder.Append($"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
-                                          $"Thumbprint: {cert.Thumbprint}{newline}" +
-                                          $"Serial Number: {cert.SerialNumber}{newline}" +
-                                          $"Issuer: {cert.Issuer}{newline}" +
-                                          $"Not Before: {cert.NotBefore}{newline}" +
-                                          $"Not After: {cert.NotAfter}{newline}");
+                certDetailsBuilder.Append(
+                    $"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
+                    $"Thumbprint: {cert.Thumbprint}{newline}" +
+                    $"Serial Number: {cert.SerialNumber}{newline}" +
+                    $"Issuer: {cert.Issuer}{newline}" +
+                    $"Not Before: {cert.NotBefore}{newline}" +
+                    $"Not After: {cert.NotAfter}{newline}");
             }
 
             certDetails = certDetailsBuilder.ToString();
@@ -106,8 +95,9 @@ public struct ValidationResult
         if (Success)
         {
             // Print success. If verbose, include any chain validation messages.
-            return ((verbose && InnerResults != null) ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}" :
-                $"Validation succeeded.") + $"{newline}{certDetails}{newline}{contentValidationTypeMsg}{newline}";
+            return ((verbose && InnerResults != null)
+                ? $"Validation succeeded.{newline}{string.Join(newline, InnerResults.Select(r => r.ResultMessage))}"
+                : $"Validation succeeded.") + $"{newline}{certDetails}{newline}{contentValidationTypeMsg}{newline}";
         }
 
         // Validation failed, so build the error text.
@@ -136,16 +126,22 @@ public struct ValidationResult
                 .Distinct();
 
         // Now filter them down to just chain status errors.
-        var certChainErrors = allIncludes?.Where(s => s.GetType() == typeof(X509ChainStatus)).Cast<X509ChainStatus>().Where(f => f.Status != X509ChainStatusFlags.NoError).ToList();
+        var certChainErrors = allIncludes?
+            .Where(s => s.GetType() == typeof(X509ChainStatus))
+            .Cast<X509ChainStatus>()
+            .Where(f => f.Status != X509ChainStatusFlags.NoError)
+            .ToList();
         string certChainBlock =
-            certChainErrors?.Count > 0 ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation))}" :
-            string.Empty;
+            certChainErrors?.Count > 0
+                ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation))}"
+                : string.Empty;
 
         // Do the same for exceptions.
         List<Exception>? innerExceptions = allIncludes?.Where(e => e.GetType() == typeof(Exception)).Cast<Exception>().ToList();
         string exceptionBlock =
-            innerExceptions?.Count > 0 ? $"Exceptions:{newline}{string.Join(newline + tab, innerExceptions.Select(e => $"{e.GetType()}: {e.Message}"))}" :
-            string.Empty;
+            innerExceptions?.Count > 0
+                ? $"Exceptions:{newline}{string.Join(newline + tab, innerExceptions.Select(e => $"{e.GetType()}: {e.Message}"))}"
+                : string.Empty;
 
         // Return error messages, then cert chain errors, then exception messages.
         return $"{header}{errorBlock}{newline}{certChainBlock}{newline}{certDetails}{newline}{contentValidationTypeMsg}{newline}{exceptionBlock}";

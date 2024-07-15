@@ -3,9 +3,6 @@
 
 namespace CoseSignTool;
 
-using System;
-using System.Text.RegularExpressions;
-
 /// <summary>
 /// A base class for console commands that handle COSE signatures.
 /// </summary>
@@ -13,6 +10,9 @@ public abstract partial class CoseCommand
 {
     [GeneratedRegex(":[^\\/]")]
     private static partial Regex PatternColonNotUri();
+
+    [GeneratedRegex("^/")]
+    private static partial Regex PatternStartingSlash();
 
     /// <summary>
     /// A map of shared command line options to their abbreviated aliases.
@@ -74,6 +74,7 @@ public abstract partial class CoseCommand
     /// </summary>
     /// <param name="args">The command line arguments</param>
     /// <param name="options">A dictionary of command line options to their abbreviated aliases, not including shared options.</param>
+    /// <param name="badArg">The first unrecognized argument, if any.</param>
     /// <returns>A CommandLineConfigurationProvider with the command line arguments and aliases loaded.</returns>
     protected internal static CommandLineConfigurationProvider? LoadCommandLineArgs(string[] args, Dictionary<string, string> options, out string? badArg)
     {
@@ -113,33 +114,36 @@ public abstract partial class CoseCommand
         content = null;
         if (file is not null)
         {
-            if (!file.Exists)
-            {
-                return CoseSignTool.Fail(
-                    ExitCode.UserSpecifiedFileNotFound, null, $"The file specified in /{optionName} was not found: {file.FullName}");
-            }
-
             try
             {
-                content = file.OpenRead();
-                return content.IsNullOrEmpty()
-                    ? CoseSignTool.Fail(
-                    ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
+                content = file.GetStreamResilient();
+                return
+                    content.IsNullOrEmpty() ?
+                        CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
                     : ExitCode.Success;
+            }
+            catch (FileNotFoundException ex)
+            {
+                return CoseSignTool.Fail(ExitCode.UserSpecifiedFileNotFound, ex, $"The file specified in /{optionName} was not found: {file.FullName}");
+            }
+            catch (IOException ex)
+            {
+                return
+                    ex.Message.Contains("is empty") ? CoseSignTool.Fail(ExitCode.EmptySourceFile, ex, $"The file specified in /{optionName} was empty: {file.FullName}") :
+                    ex.Message.Contains("another process") ? CoseSignTool.Fail(ExitCode.FileLocked, ex, $"The file specified in /{optionName} was in use by another process: {file.FullName}") :
+                    CoseSignTool.Fail(ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
             }
             catch (Exception ex)
             {
-                return CoseSignTool.Fail(
-                    ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
+                return CoseSignTool.Fail(ExitCode.FileUnreadable, ex, $"The file specified in /{optionName} could not be read: {file.FullName}");
             }
         }
 
         content = Console.OpenStandardInput();
-        string errorText =
-            optionName == nameof(PayloadFile) ? "You must either specify a payload file or pass the payload in as a Stream."
-            : "You must either specify a signature file to validate or pass the signature content in as a Stream.";
-        return content.IsNullOrEmpty()
-            ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null, errorText)
+        string inputName = optionName == nameof(PayloadFile) ? "payload" : "signature";
+        return
+            content.IsNullOrEmpty() ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
+                $"You must either specify a {inputName} file or pass the {inputName} content in as a Stream.")                    
             : ExitCode.Success;
     }
 
@@ -264,7 +268,7 @@ public abstract partial class CoseCommand
     private static bool IsSwitch(string s, StringDictionary options)
     {
         // replace '/' with '-', and remove ':*' for easy dict lookup
-        return options.ContainsKey(Regex.Replace(s,"^/", "-").Split(":")[0]);
+        return options.ContainsKey(PatternStartingSlash().Replace(s, "-").Split(":")[0]);
     }
 
 

@@ -18,17 +18,9 @@ public class SignCommand : CoseCommand
         ["-PipeOutput"] = "PipeOutput",
         ["-po"] = "PipeOutput",
         ["-PfxCertificate"] = "PfxCertificate",
+        ["-pfx"] = "PfxCertificate",
         ["-Password"] = "Password",
         ["-pw"] = "Password",
-        ["-Thumbprint"] = "Thumbprint",
-        ["-th"] = "Thumbprint",
-        ["-StoreName"] = "StoreName",
-        ["-sn"] = "StoreName",
-        ["-StoreLocation"] = "StoreLocation",
-        ["-sl"] = "StoreLocation",
-        ["-ContentType"] = "ContentType",
-        ["-cty"] = "ContentType",
-        ["-pfx"] = "PfxCertificate",
         ["-Thumbprint"] = "Thumbprint",
         ["-th"] = "Thumbprint",
         ["-StoreName"] = "StoreName",
@@ -56,7 +48,7 @@ public class SignCommand : CoseCommand
     public bool EmbedPayload { get; set; }
 
     /// <summary>
-    /// If true, writes signature output to the STDOUT channel so it can be piped to another program instead of writing to file.
+    /// Optional. If true, writes signature output to the STDOUT channel so it can be piped to another program instead of writing to file.
     /// </summary>
     public bool PipeOutput { get; set; }
 
@@ -146,22 +138,24 @@ public class SignCommand : CoseCommand
                     "CoseSignTool could not determine a path to write the signature file to.");
             }
 
-            SignatureFile = new FileInfo(PayloadFile.FullName + (EmbedPayload ? ".csm" : ".cose"));
+            string extension = EmbedPayload ? "csm" : "cose";
+            SignatureFile = new FileInfo($"{PayloadFile.FullName}.{extension}");
         }
 
         try
         { 
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
 
             // Write the signature to stream or file.
             if (PipeOutput)
             {
                 WriteToStdOut(signedBytes);
             }
-            else if (SignatureFile is not null)
+            else
             {
-                File.WriteAllBytes(SignatureFile.FullName, signedBytes.ToArray());
+                // SignatureFile?.WriteAllBytesResilient(signedBytes.ToArray());
+                File.WriteAllBytes(SignatureFile!.FullName, signedBytes.ToArray());
             }
 
             return ExitCode.Success;           
@@ -174,6 +168,10 @@ public class SignCommand : CoseCommand
         {
             // The certificate was not valid for COSE signing.
             return CoseSignTool.Fail(ExitCode.CertificateLoadFailure, ex);
+        }
+        finally
+        {
+            payloadStream.HardDispose();
         }
     }
 
@@ -213,10 +211,8 @@ public class SignCommand : CoseCommand
         else
         {
             // Load certificate from thumbprint.
-#pragma warning disable CS8604 // StoreName was incorrectly flagged as a possible Null Reference Argument but it has a default value in the called method.
-            cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName, StoreLocation) :
+            cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName!, StoreLocation) :
                 throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
-#pragma warning restore CS8604 // Possible null reference argument.
         }
 
         return cert;

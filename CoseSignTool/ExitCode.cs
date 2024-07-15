@@ -85,8 +85,10 @@ public enum ExitCode
     /// </summary>
     FileUnreadable = 1896,
 
-
-
+    /// <summary>
+    /// The file was in use by another process.
+    /// </summary>
+    FileLocked = 1897,
 
     /// <summary>
     /// CoseSignTool exited with an unknown error.

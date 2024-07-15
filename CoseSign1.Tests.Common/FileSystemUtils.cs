@@ -3,6 +3,9 @@
 
 namespace CoseSign1.Tests.Common;
 
+using System.Runtime.CompilerServices;
+using System.Text;
+
 public static class FileSystemUtils
 {
     /// <summary>
@@ -24,5 +27,20 @@ public static class FileSystemUtils
         }
 
         return fileName;
+    }
+
+    /// <summary>
+    /// Creates a randomly generated payload file on disk for signature testing.
+    /// </summary>
+    /// <param name="caller">The name of the calling method (set by default).</param>
+    /// <param name="content">The content of the file. By default, the string "Payload1!" is used.</param>
+    /// <returns>The path to the new file.</returns>
+    public static string GeneratePayloadFile([CallerMemberName] string caller = "", string? content = null)
+    {
+        string fileName = Path.GetTempFileName().Replace(".tmp", $"-{caller}.spdx.json");
+        content ??= "Payload1!";
+        byte[] bytes = Encoding.ASCII.GetBytes(content);
+        File.WriteAllBytes(fileName, bytes);
+        return new(fileName);
     }
 }

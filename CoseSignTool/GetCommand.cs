@@ -8,9 +8,9 @@ public class GetCommand : ValidateCommand
     //<inheritdoc />
     public static new readonly Dictionary<string, string> Options =
         // Use the same options as the Validate command but remove Payload and add SaveTo.
-        ValidateCommand.Options
+        new Dictionary<string, string> { ["-SaveTo"] = "SaveTo", ["-sa"] = "SaveTo" }
+        .Concat(ValidateCommand.Options)
             .Where(k => !k.Value.Equals(nameof(PayloadFile), StringComparison.OrdinalIgnoreCase))
-            .Concat(new Dictionary<string, string> { ["-SaveTo"] = "SaveTo", ["-sa"] = "SaveTo" })
             .ToDictionary(k => k.Key, k => k.Value, StringComparer.InvariantCultureIgnoreCase);
 
     /// <summary>
@@ -36,7 +36,9 @@ public class GetCommand : ValidateCommand
     }
 
     // This is consumed by ValidateCommand.Run, which uses it in place of the call to CoseParser.Validate.
-    protected internal override ValidationResult RunCoseHandlerCommand(Stream signature, FileInfo? payloadFile, List<X509Certificate2>? rootCerts, X509RevocationMode revocationMode, string? commonName, bool allowUntrusted)
+    protected internal override ValidationResult RunCoseHandlerCommand(
+        Stream signature, FileInfo? payloadFile, List<X509Certificate2>? rootCerts,
+        X509RevocationMode revocationMode, string? commonName, bool allowUntrusted)
     {
         // Get the embedded payload content.
         string? content = CoseHandler.GetPayload(signature, out ValidationResult result, rootCerts, revocationMode, commonName);

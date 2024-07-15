@@ -36,4 +36,72 @@ public class CoseExtensionsTests
         signCert.Should().NotBeNull();
         signCert?.Thumbprint.Should().Be(ChainedCert.Thumbprint);
     }
+
+    [TestMethod]
+    public void FileLoadPartialWriteBytes()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Assert.Inconclusive("Functionality not supported on MacOS.");
+            return;
+        }
+
+        // Arrange
+        string text = "This is some text being written slowly."; // 39 chars
+        FileInfo f = new(Path.GetTempFileName());
+
+        // Act
+        // Start the file write then start the loading task before the write completes.
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+        byte[] bytes = f.GetBytesResilient(writeTo: OutputTarget.StdOut);
+
+        // Assert
+        bytes.Length.Should().BeGreaterThan(38, "GetBytesResilient should keep reading until the write is complete.");
+    }
+
+    [TestMethod]
+    public void FileLoadPartialWriteStream()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Assert.Inconclusive("Functionality not supported on MacOS.");
+            return;
+        }
+
+        // Arrange
+        string text = "This is some text being written slowly."; // 39 chars
+        FileInfo f = new(Path.GetTempFileName());
+
+        // Act
+        // Start the file write then start the loading task before the write completes.
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+        FileStream? stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut);
+
+        // Assert
+        stream!.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
+    }
+
+    [TestMethod]
+    public void FileLoadEmptyFileDelayWrite()
+    {
+        // Arrange
+        byte[] bytes = Encoding.UTF8.GetBytes("This is some text that will be written to a file eventually.");
+        FileInfo f = new(Path.GetTempFileName());
+        f.Refresh();
+        using CancellationTokenSource cts = new();
+        CancellationToken token = cts.Token;
+        Action getBytesAction = () => f.GetBytesResilient(writeTo: OutputTarget.StdOut);
+
+        // Act
+        // Start the getBytesTask, then wait 30 seconds before writing to file.
+        _ = Task.Run(getBytesAction);
+        _ = Task.Run(async () => {
+            await Task.Delay(10000);
+            await f.WriteAllBytesResilientAsync(bytes);
+        }, token);
+
+        // Assert
+        getBytesAction.Should().Throw<IOException>("GetBytesResilient should time out before the first character is written");
+        cts.Cancel();
+    }
 }

@@ -3,8 +3,6 @@
 
 namespace CoseSignUnitTests;
 
-using System.Numerics;
-
 [TestClass]
 public class CoseExtensionsTests
 {

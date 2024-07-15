@@ -42,6 +42,8 @@ public class CoseExtensionsTests
     [TestMethod]
     public void FileLoadPartialWriteBytes()
     {
+        SkipIfMac();
+
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
         byte[] textBytes = Encoding.UTF8.GetBytes(text);
@@ -116,5 +118,13 @@ public class CoseExtensionsTests
         using StreamWriter writer = new(stream);
         Thread.Sleep(secondsToWait * 1000);
         await writer.WriteAsync(text);
+    }
+
+    private static void SkipIfMac()
+    {
+        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+        {
+            Assert.Inconclusive("Functionality not supported on MacOS.");
+        }
     }
 }

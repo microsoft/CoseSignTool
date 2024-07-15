@@ -115,12 +115,12 @@ public static class StreamExtensions
                         if (Environment.OSVersion.Platform == PlatformID.MacOSX)
                         {
                             // MacOS doesn't support the Unlock command so we have to use chflags
-                            Process p = Process.Start("chflags", $"nouchg {sourceFile}");
+                            Process p = Process.Start("chflags", $"nouchg {fs.Name}");
                             p.WaitForExit();
                         }
                         else
                         {
-                            fs.Unlock(0, stream.Length);
+                            fs.Unlock(0, fs.Length);
                         }
                     }
                 }

@@ -38,7 +38,7 @@ public static class FileInfoExtensions
             Thread.Sleep(100);
             if (OutOfTime(startTime, 5))
             {
-                throw new FileNotFoundException();
+                throw new FileNotFoundException($"File not found after {SecondsSince(startTime)} seconds.", f?.FullName);
             }
         }
 
@@ -52,7 +52,7 @@ public static class FileInfoExtensions
 
             if (OutOfTime(startTime, 5))
             {
-                throw new IOException("File is empty.");
+                throw new IOException($"File is empty after {SecondsSince(startTime)} seconds.");
             }
         }
 
@@ -82,7 +82,7 @@ public static class FileInfoExtensions
                 }
                 else
                 {
-                    throw new IOException($"The file '{f.FullName}' is locked by another process.");
+                    throw new IOException($"The file '{f.FullName}' is still locked by another process after {SecondsSince(startTime)} seconds.");
                 }
             }
         }
@@ -172,4 +172,7 @@ public static class FileInfoExtensions
 
     private static bool OutOfTime(DateTime startTime, int maxWaitTimeInSeconds) =>
         (DateTime.Now - startTime).TotalSeconds >= maxWaitTimeInSeconds;
+
+    private static double SecondsSince(DateTime startTime)
+        => Math.Round((double)(DateTime.Now - startTime).TotalSeconds, 2);
 }

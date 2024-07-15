@@ -42,7 +42,7 @@ public class CoseExtensionsTests
     [TestMethod]
     public void FileLoadPartialWriteBytes()
     {
-        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             Assert.Inconclusive("Functionality not supported on MacOS.");
             return;
@@ -66,7 +66,7 @@ public class CoseExtensionsTests
     [TestMethod]
     public void FileLoadPartialWriteStream()
     {
-        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             Assert.Inconclusive("Functionality not supported on MacOS.");
             return;

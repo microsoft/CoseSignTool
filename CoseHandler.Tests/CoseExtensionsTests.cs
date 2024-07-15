@@ -3,6 +3,8 @@
 
 namespace CoseSignUnitTests;
 
+using System.Numerics;
+
 [TestClass]
 public class CoseExtensionsTests
 {
@@ -38,28 +40,41 @@ public class CoseExtensionsTests
     }
 
     [TestMethod]
-    public void FileLoadPartialWriteShort()
+    public void FileLoadPartialWriteBytes()
     {
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
         byte[] textBytes = Encoding.UTF8.GetBytes(text);
-        string outPath1 = Path.GetTempFileName();
-        string outPath2 = Path.GetTempFileName();
-        FileInfo f1 = new(outPath1);
-        FileInfo f2 = new(outPath2);
+        string outPath = Path.GetTempFileName();
+        FileInfo f = new(outPath);
 
         // Act
-        // Start the file writes then start the loading tasks before the writes complete.
-        // Both tasks should wait for the writes to complete before loading the content.
-        _ = Task.Run(() => WriteTextFileSlowly(outPath1, text));
-        //_ = Task.Run(() => f1.WriteAllBytesDelayedAsync(textBytes, 1, 100));
-        byte[] f1Bytes = f1.GetBytesResilient();
-        f1Bytes.Length.Should().BeGreaterThan(38);
+        // Start the file write then start the loading task before the write completes.
+        //_ = Task.Run(() => WriteTextFileSlowly(outPath, text));
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
+        byte[] bytes = f.GetBytesResilient();
 
-        _ = Task.Run(() => WriteTextFileSlowly(outPath2, text));
-        //_ = Task.Run(() => f2.WriteAllBytesDelayedAsync(textBytes, 1, 100));
-        var stream = f2.GetStreamResilient();
-        stream!.Length.Should().BeGreaterThan(38);
+        // Assert
+        bytes.Length.Should().BeGreaterThan(38, "GetBytesResilient should keep reading until the write is complete.");
+    }
+
+    [TestMethod]
+    public void FileLoadPartialWriteStream()
+    {
+        // Arrange
+        string text = "This is some text being written slowly."; // 39 chars
+        byte[] textBytes = Encoding.UTF8.GetBytes(text);
+        string outPath = Path.GetTempFileName();
+        FileInfo f = new(outPath);
+
+        // Act
+        // Start the file write then start the loading task before the write completes.
+        //_ = Task.Run(() => WriteTextFileSlowly(outPath, text));
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
+        var stream = f.GetStreamResilient();
+
+        // Assert
+        stream!.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
     }
 
     [TestMethod]

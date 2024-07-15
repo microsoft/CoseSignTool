@@ -42,7 +42,10 @@ public class CoseExtensionsTests
     [TestMethod]
     public void FileLoadPartialWriteBytes()
     {
-        SkipIfMac();
+        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+        {
+            Assert.Inconclusive("Functionality not supported on MacOS.");
+        }
 
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
@@ -63,6 +66,11 @@ public class CoseExtensionsTests
     [TestMethod]
     public void FileLoadPartialWriteStream()
     {
+        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+        {
+            Assert.Inconclusive("Functionality not supported on MacOS.");
+        }
+
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
         byte[] textBytes = Encoding.UTF8.GetBytes(text);

@@ -48,14 +48,12 @@ public class CoseExtensionsTests
 
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
-        byte[] textBytes = Encoding.UTF8.GetBytes(text);
-        string outPath = Path.GetTempFileName();
-        FileInfo f = new(outPath);
+        FileInfo f = new(Path.GetTempFileName());
 
         // Act
         // Start the file write then start the loading task before the write completes.
-        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
-        byte[] bytes = f.GetBytesResilient();
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+        byte[] bytes = f.GetBytesResilient(writeTo: OutputTarget.StdOut);
 
         // Assert
         bytes.Length.Should().BeGreaterThan(38, "GetBytesResilient should keep reading until the write is complete.");
@@ -72,14 +70,12 @@ public class CoseExtensionsTests
 
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
-        byte[] textBytes = Encoding.UTF8.GetBytes(text);
-        string outPath = Path.GetTempFileName();
-        FileInfo f = new(outPath);
+        FileInfo f = new(Path.GetTempFileName());
 
         // Act
         // Start the file write then start the loading task before the write completes.
-        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
-        var stream = f.GetStreamResilient();
+        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+        var stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut);
 
         // Assert
         stream!.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
@@ -92,8 +88,8 @@ public class CoseExtensionsTests
         byte[] bytes = Encoding.UTF8.GetBytes("This is some text that will be written to a file eventually.");
         FileInfo f = new(Path.GetTempFileName());
         f.Refresh();
-        var cts = new CancellationTokenSource();
-        var token = cts.Token;
+        using CancellationTokenSource cts = new();
+        CancellationToken token = cts.Token;
         Action getBytesAction = () => f.GetBytesResilient(writeTo: OutputTarget.StdOut);
 
         // Act

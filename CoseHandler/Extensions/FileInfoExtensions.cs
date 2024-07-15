@@ -5,7 +5,6 @@ namespace CoseX509;
 
 using System;
 using System.IO;
-using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using CoseSign1;
@@ -18,25 +17,27 @@ public static class FileInfoExtensions
     /// </summary>
     /// <param name="f">The file to read from.</param>
     /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
+    /// <param name="maxWaitTime">The maximum number of seconds to wait for file availability. This value is used up to four times.</param>
     /// <returns>The file content.</returns>
-    public static byte[] GetBytesResilient(this FileInfo f, OutputTarget? writeTo = null) => GetBytesOrStream(f, false, writeTo).Item1!;
+    public static byte[] GetBytesResilient(this FileInfo f, OutputTarget? writeTo = null, int maxWaitTime = 5) => GetBytesOrStream(f, false, writeTo, maxWaitTime).Item1!;
 
     /// <summary>
     /// Loads the content of a file into a <see cref="FileStream"/> after making sure the file exists, is not empty, and is not locked by another process.
     /// </summary>
     /// <param name="f">The file to read.</param>
     /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
+    /// <param name="maxWaitTime">The maximum number of seconds to wait for file availability. This value is used up to four times.</param>
     /// <returns>The file content.</returns>
-    public static FileStream? GetStreamResilient(this FileInfo f, OutputTarget? writeTo = null) => GetBytesOrStream(f, true, writeTo).Item2;
+    public static FileStream? GetStreamResilient(this FileInfo f, OutputTarget? writeTo = null, int maxWaitTime = 5) => GetBytesOrStream(f, true, writeTo, maxWaitTime).Item2;
 
-    private static (byte[]?, FileStream?) GetBytesOrStream(FileInfo f, bool isStream, OutputTarget? writer)
+    private static (byte[]?, FileStream?) GetBytesOrStream(FileInfo f, bool isStream, OutputTarget? writer, int maxWaitTime)
     {
         // Make sure the file exists, allowing retries in case it hasn't hit the disk yet.
         DateTime startTime = DateTime.Now;
         while (f is null || !f.Exists)
         {
             Thread.Sleep(100);
-            if (OutOfTime(startTime, 5))
+            if (OutOfTime(startTime, maxWaitTime))
             {
                 throw new FileNotFoundException($"File not found after {SecondsSince(startTime)} seconds.", f?.FullName);
             }
@@ -50,7 +51,7 @@ public static class FileInfoExtensions
             Thread.Sleep(100);
             f.Refresh();
 
-            if (OutOfTime(startTime, 5))
+            if (OutOfTime(startTime, maxWaitTime))
             {
                 throw new IOException($"File is empty after {SecondsSince(startTime)} seconds.");
             }
@@ -58,14 +59,14 @@ public static class FileInfoExtensions
 
         // Make sure the file isn't locked by another process trying to write to it.
         startTime = DateTime.Now;
-        writer ??= OutputTarget.StdOut;
+        writer ??= OutputTarget.StdErr;
         bool waitMessageStarted = false;
         byte ticks = 0;
         while (IsFileLocked(f))
         {
             long lastLength = f.Length;
             Thread.Sleep(250);
-            if (OutOfTime(startTime, 5) && lastLength == f.Length)
+            if (OutOfTime(startTime, maxWaitTime) && lastLength == f.Length)
             {
                 if (f.Length > lastLength)
                 {
@@ -89,7 +90,7 @@ public static class FileInfoExtensions
 
         startTime = DateTime.Now;
         Exception? ex = null;
-        while (!OutOfTime(startTime, 5))
+        while (!OutOfTime(startTime, maxWaitTime))
         {
             // Try loading the file content. If it fails, the exception will be caught and we'll try again.
             try
@@ -174,5 +175,5 @@ public static class FileInfoExtensions
         (DateTime.Now - startTime).TotalSeconds >= maxWaitTimeInSeconds;
 
     private static double SecondsSince(DateTime startTime)
-        => Math.Round((double)(DateTime.Now - startTime).TotalSeconds, 2);
+        => Math.Round((DateTime.Now - startTime).TotalSeconds, 2);
 }

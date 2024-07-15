@@ -45,6 +45,7 @@ public class CoseExtensionsTests
         if (Environment.OSVersion.Platform == PlatformID.MacOSX)
         {
             Assert.Inconclusive("Functionality not supported on MacOS.");
+            return;
         }
 
         // Arrange
@@ -55,7 +56,6 @@ public class CoseExtensionsTests
 
         // Act
         // Start the file write then start the loading task before the write completes.
-        //_ = Task.Run(() => WriteTextFileSlowly(outPath, text));
         _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
         byte[] bytes = f.GetBytesResilient();
 
@@ -69,6 +69,7 @@ public class CoseExtensionsTests
         if (Environment.OSVersion.Platform == PlatformID.MacOSX)
         {
             Assert.Inconclusive("Functionality not supported on MacOS.");
+            return;
         }
 
         // Arrange
@@ -79,7 +80,6 @@ public class CoseExtensionsTests
 
         // Act
         // Start the file write then start the loading task before the write completes.
-        //_ = Task.Run(() => WriteTextFileSlowly(outPath, text));
         _ = Task.Run(() => f.WriteAllBytesDelayedAsync(textBytes, 1, 100));
         var stream = f.GetStreamResilient();
 
@@ -88,51 +88,26 @@ public class CoseExtensionsTests
     }
 
     [TestMethod]
-    public async Task FileLoadEmptyFileDelayWrite()
+    public void FileLoadEmptyFileDelayWrite()
     {
         // Arrange
-        string text = "This is some text that will be written to a file eventually.";
-        string outPath = Path.GetTempFileName();
-        FileInfo f = new(outPath);
-        var getBytesTask = Task.Run(() => f.GetBytesResilient(writeTo: OutputTarget.StdOut));
+        byte[] bytes = Encoding.UTF8.GetBytes("This is some text that will be written to a file eventually.");
+        FileInfo f = new(Path.GetTempFileName());
+        f.Refresh();
+        var cts = new CancellationTokenSource();
+        var token = cts.Token;
+        Action getBytesAction = () => f.GetBytesResilient(writeTo: OutputTarget.StdOut);
 
         // Act
-        // Start the file write. The loading task should time out before the first character is written.
-        _ = Task.Run(() => WriteTextFileWithDelay(outPath, text, 10));
-        try
-        {
-            _ = await getBytesTask;
+        // Start the getBytesTask, then wait 30 seconds before writing to file.
+        _ = Task.Run(getBytesAction);
+        _ = Task.Run(async () => {
+            await Task.Delay(30000);
+            await f.WriteAllBytesResilientAsync(bytes);
+        }, token);
 
-            // Assert
-            Assert.Fail("The file should have thrown an IOException because it was still empty.");
-        }
-        catch (IOException) { }
-    }
-
-    private static async Task WriteTextFileSlowly(string path, string text)
-    {
-        using StreamWriter writer = new(path);
-        foreach (char c in text)
-        {
-            await writer.WriteAsync(c);
-            await writer.FlushAsync();
-            await Task.Delay(100);
-        }
-    }
-
-    private static async Task WriteTextFileWithDelay(string path, string text, int secondsToWait)
-    {
-        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.None);
-        using StreamWriter writer = new(stream);
-        Thread.Sleep(secondsToWait * 1000);
-        await writer.WriteAsync(text);
-    }
-
-    private static void SkipIfMac()
-    {
-        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
-        {
-            Assert.Inconclusive("Functionality not supported on MacOS.");
-        }
+        // Assert
+        getBytesAction.Should().Throw<IOException>("GetBytesResilient should time out before the first character is written");
+        cts.Cancel();
     }
 }

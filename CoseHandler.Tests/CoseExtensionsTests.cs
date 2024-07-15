@@ -75,7 +75,7 @@ public class CoseExtensionsTests
         // Act
         // Start the file write then start the loading task before the write completes.
         _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
-        var stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut);
+        FileStream? stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut);
 
         // Assert
         stream!.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
@@ -96,7 +96,7 @@ public class CoseExtensionsTests
         // Start the getBytesTask, then wait 30 seconds before writing to file.
         _ = Task.Run(getBytesAction);
         _ = Task.Run(async () => {
-            await Task.Delay(30000);
+            await Task.Delay(10000);
             await f.WriteAllBytesResilientAsync(bytes);
         }, token);
 

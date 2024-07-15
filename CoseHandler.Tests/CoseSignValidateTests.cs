@@ -118,7 +118,7 @@ public class CoseHandlerSignValidateTests
         // Validate from stream
         FileInfo sigFile = new (signaturePath);
         sigFile.Should().NotBeNull();
-        CoseHandler.Validate(sigFile!.GetStreamResilient(), Payload1Bytes, ValidRootSetPriv, RevMode)
+        CoseHandler.Validate(sigFile.GetStreamResilient()!, Payload1Bytes, ValidRootSetPriv, RevMode)
             .Success.Should().Be(true);
     }
 

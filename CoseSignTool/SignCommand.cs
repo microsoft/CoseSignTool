@@ -145,7 +145,7 @@ public class SignCommand : CoseCommand
         try
         { 
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
 
             // Write the signature to stream or file.
             if (PipeOutput)

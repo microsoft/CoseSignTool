@@ -112,7 +112,16 @@ public static class StreamExtensions
                 {
                     if (fs.CanRead || fs.CanWrite)  // If the file is not already closed, unlock it.
                     {
-                        fs.Unlock(0, stream.Length);
+                        if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+                        {
+                            // MacOS doesn't support the Unlock command so we have to use chflags
+                            Process p = Process.Start("chflags", $"nouchg {sourceFile}");
+                            p.WaitForExit();
+                        }
+                        else
+                        {
+                            fs.Unlock(0, stream.Length);
+                        }
                     }
                 }
                 catch (IOException) { } // This just means it's already unlocked, which is fine.

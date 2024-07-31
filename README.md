@@ -11,7 +11,7 @@ CoseSignTool and CoseHandler support three commands/methods:
 The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
 
 ## What is COSE?
-'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
+'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
 
 ## Why would I use this?
 [The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021](https://en.wikipedia.org/wiki/Software_supply_chain) requires an SBOM for any software or firmare product in use by the US government. This also includes the libraries and tools those products are built with. Even in consumer software, an SBOM helps you protect your customers from supply chain attacks by enabling you to quickly check the version numbers of all the products in your software supply chain.
@@ -44,7 +44,7 @@ The planned work is currently tracked only in an internal Microsoft ADO instance
 
 #### Security, performance, and reliability improvements
 * Cache certificate store reads for faster performance
-* Ensure type saftey on cert store and file reads
+* Ensure type safety on cert store and file reads
 * Investigate specific compilation by platform for possible performance gains
 * Expand code coverage in unit and integration tests
 

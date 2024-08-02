@@ -3,8 +3,6 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
-using System.Threading;
-
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
@@ -22,6 +20,8 @@ public class X509ChainTrustValidator(
     bool allowUntrusted = false,
     bool allowOutdated = false) : X509Certificate2MessageValidator(allowUnprotected)
 {
+    private const string LifetimeEkuOidValue = "1.3.6.1.4.1.311.10.3.13";
+
     #region Public Properties
     /// <summary>
     /// True to allow untrusted certificates to pass validation. This does not apply to self-signed certificates, which trust themselves.
@@ -142,13 +142,17 @@ public class X509ChainTrustValidator(
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.
         X509ChainStatusFlags flagsToIgnore = X509ChainStatusFlags.NoError;
-        flagsToIgnore |= allowOutdated ? X509ChainStatusFlags.NotTimeValid : 0;
         flagsToIgnore |= AllowUntrusted ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)
         string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
         bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots.Any(r => r.Thumbprint == chainRootThumb);
         flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
+
+        // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.
+        List<X509Certificate2>? outdatedCerts = ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList();
+        bool expired = outdatedCerts?.Any(c => c.Extensions.OfType<X509Extension>().Any(e => e.Oid?.Value == LifetimeEkuOidValue)) ?? false;
+        flagsToIgnore |= allowOutdated && !expired ? X509ChainStatusFlags.NotTimeValid : 0;
 
         // If we only have the allowed chain status messages, return success.
         if (ChainBuilder.ChainStatus.All(st => (st.Status &~ flagsToIgnore) == 0)) // use &~ to mask out UntrustedRoot and NoError

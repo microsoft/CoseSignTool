@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Tests;
 
+using System.Threading;
+
 /// <summary>
 /// Test class for <see cref="X509ChainTrustValidator"/>
 /// </summary>
@@ -341,6 +343,29 @@ public class X509ChainTrustValidatorTests
         results[0].Includes?.Count.Should().Be(1);
         X509ChainStatus? status = results[0].Includes?.Cast<X509ChainStatus>().FirstOrDefault();
         status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
+
+        // Validate with AllowUntrusted AND AllowOutdated and an expired certificate
+        var cert2 = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired", null, false, null, TimeSpan.FromSeconds(1));
+        Thread.Sleep(1000);
+        X509Certificate2CoseSigningKeyProvider keyProvider2 = new(null, cert2);
+        var message2 = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider2, embedPayload: true);
+        Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: true);
+        Validator.TryValidate(message2, out List<CoseSign1ValidationResult> results2).Should().BeTrue();
+        results2.Count.Should().Be(1);
+        results2[0].PassedValidation.Should().BeTrue();
+        results2[0].ResultMessage.Should().Contain("AllowOutdated and AllowUntrusted");
+        results2[0].Includes.Should().BeNull();
+
+        // Validate with AllowOutdated OFF and an expired certificate
+        Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true);
+        Validator.TryValidate(message2, out results2).Should().BeFalse();
+        results2.Count.Should().Be(1);
+        results2[0].PassedValidation.Should().BeFalse();
+        results2[0].Includes.Should().NotBeNull();
+        results2[0].Includes?.Count.Should().Be(2);
+        status = results2[0].Includes?.Cast<X509ChainStatus>()
+            .FirstOrDefault(s => s.Status == X509ChainStatusFlags.NotTimeValid);
+        status.Should().NotBeNull();
     }
 
     // Check outputs for miscellaneous error cases.

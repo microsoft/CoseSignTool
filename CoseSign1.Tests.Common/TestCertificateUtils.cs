@@ -18,19 +18,17 @@ public static class TestCertificateUtils
     /// <param name="issuingCa">(Optional) The issuing CA if present to sign this certificate, self-signed otherwise.</param>
     /// <param name="useEcc">(Optional) True for ECC certificates, false (default) for RSA certificates.</param>
     /// <param name="keySize">(Optional) The optional key size for the cert being created.</param>
+    /// <param name="lifetime">(Optional) How long the certificate should be valid for after it is created. Default value is one year.</param>
     /// <returns>An <see cref="X509Certificate2"/> object for use in testing.</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     public static X509Certificate2 CreateCertificate(
         [CallerMemberName] string subjectName = "none",
         X509Certificate2? issuingCa = null,
         bool useEcc = false,
-        int? keySize = null)
+        int? keySize = null,
+        TimeSpan? lifetime = null)
     {
-        using AsymmetricAlgorithm? algo = useEcc ? ECDsa.Create() : RSA.Create();
-        if (algo == null)
-        {
-            throw new ArgumentOutOfRangeException(nameof(algo), "algo was null after creation");
-        }
+        using AsymmetricAlgorithm algo = useEcc ? ECDsa.Create() : RSA.Create();
         algo.KeySize = keySize ?? (useEcc ? 256 : 2048);
 
         CertificateRequest request = useEcc
@@ -105,7 +103,9 @@ public static class TestCertificateUtils
         {
             notbefore = new DateTimeOffset(issuingCa.NotBefore);
         }
-        DateTimeOffset notafter = DateTimeOffset.UtcNow.AddDays(365);
+        DateTimeOffset notafter =
+            lifetime is not null ? DateTimeOffset.UtcNow.Add(lifetime.Value) :
+            DateTimeOffset.UtcNow.AddDays(365);
         if (issuingCa != null && notafter > issuingCa.NotAfter)
         {
             notafter = new DateTimeOffset(issuingCa.NotAfter);

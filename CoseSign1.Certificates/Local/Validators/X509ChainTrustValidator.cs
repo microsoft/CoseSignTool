@@ -146,7 +146,7 @@ public class X509ChainTrustValidator(
 
         // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)
         string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
-        bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots.Any(r => r.Thumbprint == chainRootThumb);
+        bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots!.Any(r => r.Thumbprint == chainRootThumb);
         flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.

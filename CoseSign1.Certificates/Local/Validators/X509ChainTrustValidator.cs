@@ -3,8 +3,6 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
-using System.Threading;
-
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
@@ -15,11 +13,15 @@ using System.Threading;
 /// <param name="chainBuilder">The <see cref="ICertificateChainBuilder"/> used to build a chain.</param>
 /// <param name="allowUnprotected">True if the UnprotectedHeaders is allowed, False otherwise.</param>
 /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+/// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
 public class X509ChainTrustValidator(
     ICertificateChainBuilder chainBuilder,
     bool allowUnprotected = false,
-    bool allowUntrusted = false) : X509Certificate2MessageValidator(allowUnprotected)
+    bool allowUntrusted = false,
+    bool allowOutdated = false) : X509Certificate2MessageValidator(allowUnprotected)
 {
+    private const string LifetimeEkuOidValue = "1.3.6.1.4.1.311.10.3.13";
+
     #region Public Properties
     /// <summary>
     /// True to allow untrusted certificates to pass validation. This does not apply to self-signed certificates, which trust themselves.
@@ -45,7 +47,6 @@ public class X509ChainTrustValidator(
     /// Assumes that user-supplied roots are trusted. True by default.
     /// </summary>
     public bool TrustUserRoots { get; set; } = true;
-
     #endregion
     #region Constructors
 
@@ -59,11 +60,13 @@ public class X509ChainTrustValidator(
     public X509ChainTrustValidator(
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         bool allowUnprotected = false,
-        bool allowUntrusted = false) :
+        bool allowUntrusted = false,
+        bool allowOutdated = false):
         this(
             new X509ChainBuilder() { ChainPolicy = new X509ChainPolicy() { RevocationMode = revocationMode } },
             allowUnprotected,
-            allowUntrusted)
+            allowUntrusted,
+            allowOutdated)
     {
     }
 
@@ -79,11 +82,13 @@ public class X509ChainTrustValidator(
         List<X509Certificate2>? roots,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         bool allowUnprotected = false,
-        bool allowUntrusted = false) :
+        bool allowUntrusted = false,
+        bool allowOutdated = false) :
         this(
             new X509ChainBuilder() { ChainPolicy = new X509ChainPolicy() { RevocationMode = revocationMode } },
             allowUnprotected,
-            allowUntrusted)
+            allowUntrusted,
+            allowOutdated)
     {
         Roots = roots;
     }
@@ -129,32 +134,54 @@ public class X509ChainTrustValidator(
             }
         }
 
-        // Chain build failed, but if the only failure is Untrusted Root we may still pass.
-        if (ChainBuilder.ChainStatus.All(st => (st.Status &~ (X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.NoError)) == 0)) // use &~ to mask out UntrustedRoot and NoError
-        {
-            // We can't specify an alternative root in .netstandard 2.0, so our work-around is to consider any user-supplied roots trusted.
-            // This logic should be replaced once the library updates to a .NET Standard version that supports assigning arbitrary root trust like .NET 7 does.
-            string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
-            if (hasRoots 
-                && TrustUserRoots
-                && !string.IsNullOrEmpty(chainRootThumb)
-                && Roots.Any(r => r.Thumbprint == chainRootThumb))
-            {
-                // The root of the chain is one of the user-supplied roots, so return success.
-                return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
-            }
+        // If we're here, chain build failed.
+        // This is the result of building the certificate chain.
+        CoseSign1ValidationResult baseResult = new (GetType(), false,
+            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
+            ChainBuilder.ChainStatus.Cast<object>().ToList());
 
-            if (AllowUntrusted)
+        // Ignore failures from untrusted roots or expired certificates if the user tells us to.
+        X509ChainStatusFlags flagsToIgnore = X509ChainStatusFlags.NoError;
+        flagsToIgnore |= AllowUntrusted ? X509ChainStatusFlags.UntrustedRoot : 0;
+
+        // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)
+        string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
+        bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots!.Any(r => r.Thumbprint == chainRootThumb);
+        flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
+
+        // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.
+        List<X509Certificate2>? outdatedCerts = ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList();
+        if (allowOutdated && outdatedCerts is not null && outdatedCerts.Count > 0)
+        {
+            bool chainHasLifetimeEku = outdatedCerts
+                .Any(cert => cert.Extensions.OfType<X509EnhancedKeyUsageExtension>()
+                    .Any(extension => extension.EnhancedKeyUsages.OfType<Oid>()
+                        .Any(ekuOid => ekuOid.Value == LifetimeEkuOidValue)));
+
+            if (!chainHasLifetimeEku)
             {
-                // The root was untrusted but the user allowed it.
-                return new CoseSign1ValidationResult(GetType(), true, "Certificate was allowed because AllowUntrusted was specified.");
+                flagsToIgnore |= X509ChainStatusFlags.NotTimeValid;
             }
         }
 
+        // If we only have the allowed chain status messages, return success.
+        if (ChainBuilder.ChainStatus.All(st => (st.Status &~ flagsToIgnore) == 0)) // use &~ to mask out UntrustedRoot and NoError
+        {
+            bool resultUntrusted = ChainBuilder.ChainStatus.Any(s => s.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot));
+            bool untrustedAndAllowed = resultUntrusted && AllowUntrusted && !trustUserRoot;
+            bool outdatedAndAllowed = ChainBuilder.ChainStatus.Any(s => s.Status.HasFlag(X509ChainStatusFlags.NotTimeValid)) && allowOutdated;
+
+            string message =
+                outdatedAndAllowed && untrustedAndAllowed ? "Certificate was allowed because AllowOutdated and AllowUntrusted were both specified." :
+                outdatedAndAllowed ? "Certificate was allowed because AllowOutdated was specified." :
+                resultUntrusted && trustUserRoot ? "Certificate was Trusted." :
+                "Certificate was allowed because AllowUntrusted was specified." ;
+
+            return new CoseSign1ValidationResult(GetType(), true, message);
+        }
+
         // Validation failed.
-        return new CoseSign1ValidationResult(GetType(), false,
-            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
-            ChainBuilder.ChainStatus.Cast<object>().ToList());
+        return baseResult;
     }
     #endregion
 }

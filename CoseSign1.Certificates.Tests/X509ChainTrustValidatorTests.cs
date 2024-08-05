@@ -370,9 +370,6 @@ public class X509ChainTrustValidatorTests
         // Validate with AllowOutdated ON and an expired certificate with a lifetime EKU
         var expiredCertWithLifetimeEku = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired",
             null, false, null, TimeSpan.FromSeconds(1), addLifetimeEku: true);
-        //Oid LifetimeEkuOid = new("1.3.6.1.4.1.311.10.3.13");
-        //X509EnhancedKeyUsageExtension LifetimeEkuExt = new([LifetimeEkuOid], false);
-        //expiredCertWithLifetimeEku.Extensions.Add(LifetimeEkuExt);
         Thread.Sleep(1000);
         X509Certificate2CoseSigningKeyProvider keyProviderLifetimeEku = new(null, expiredCertWithLifetimeEku);
         var messageLifetimeEku = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderLifetimeEku, embedPayload: true);

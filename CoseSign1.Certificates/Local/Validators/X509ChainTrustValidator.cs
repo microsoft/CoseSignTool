@@ -146,13 +146,23 @@ public class X509ChainTrustValidator(
 
         // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)
         string chainRootThumb = ChainBuilder.ChainElements.FirstOrDefault(element => element.Subject.Equals(element.Issuer))?.Thumbprint ?? string.Empty;
-        bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots!.Any(r => r.Thumbprint == chainRootThumb);
+        bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots.Any(r => r.Thumbprint == chainRootThumb);
         flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.
         List<X509Certificate2>? outdatedCerts = ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList();
-        bool expired = outdatedCerts?.Any(c => c.Extensions.OfType<X509Extension>().Any(e => e.Oid?.Value == LifetimeEkuOidValue)) ?? false;
-        flagsToIgnore |= allowOutdated && !expired ? X509ChainStatusFlags.NotTimeValid : 0;
+        if (allowOutdated && outdatedCerts is not null && outdatedCerts.Count > 0)
+        {
+            bool chainHasLifetimeEku = outdatedCerts
+                .Any(cert => cert.Extensions.OfType<X509EnhancedKeyUsageExtension>()
+                    .Any(extension => extension.EnhancedKeyUsages.OfType<Oid>()
+                        .Any(ekuOid => ekuOid.Value == LifetimeEkuOidValue)));
+
+            if (!chainHasLifetimeEku)
+            {
+                flagsToIgnore |= X509ChainStatusFlags.NotTimeValid;
+            }
+        }
 
         // If we only have the allowed chain status messages, return success.
         if (ChainBuilder.ChainStatus.All(st => (st.Status &~ flagsToIgnore) == 0)) // use &~ to mask out UntrustedRoot and NoError

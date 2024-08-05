@@ -345,25 +345,44 @@ public class X509ChainTrustValidatorTests
         status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
 
         // Validate with AllowUntrusted AND AllowOutdated and an expired certificate
-        var cert2 = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired", null, false, null, TimeSpan.FromSeconds(1));
+        var expiredCert = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired", null, false, null, TimeSpan.FromSeconds(1));
         Thread.Sleep(1000);
-        X509Certificate2CoseSigningKeyProvider keyProvider2 = new(null, cert2);
-        var message2 = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider2, embedPayload: true);
+        X509Certificate2CoseSigningKeyProvider keyProviderWithExpiredCert = new(null, expiredCert);
+        var messageExpired = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderWithExpiredCert, embedPayload: true);
         Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: true);
-        Validator.TryValidate(message2, out List<CoseSign1ValidationResult> results2).Should().BeTrue();
-        results2.Count.Should().Be(1);
-        results2[0].PassedValidation.Should().BeTrue();
-        results2[0].ResultMessage.Should().Contain("AllowOutdated and AllowUntrusted");
-        results2[0].Includes.Should().BeNull();
+        Validator.TryValidate(messageExpired, out List<CoseSign1ValidationResult> resultsExpired).Should().BeTrue();
+        resultsExpired.Count.Should().Be(1);
+        resultsExpired[0].PassedValidation.Should().BeTrue();
+        resultsExpired[0].ResultMessage.Should().Contain("AllowOutdated and AllowUntrusted");
+        resultsExpired[0].Includes.Should().BeNull();
 
         // Validate with AllowOutdated OFF and an expired certificate
-        Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true);
-        Validator.TryValidate(message2, out results2).Should().BeFalse();
-        results2.Count.Should().Be(1);
-        results2[0].PassedValidation.Should().BeFalse();
-        results2[0].Includes.Should().NotBeNull();
-        results2[0].Includes?.Count.Should().Be(2);
-        status = results2[0].Includes?.Cast<X509ChainStatus>()
+        Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: false);
+        Validator.TryValidate(messageExpired, out resultsExpired).Should().BeFalse();
+        resultsExpired.Count.Should().Be(1);
+        resultsExpired[0].PassedValidation.Should().BeFalse();
+        resultsExpired[0].Includes.Should().NotBeNull();
+        resultsExpired[0].Includes?.Count.Should().Be(2);
+        status = resultsExpired[0].Includes?.Cast<X509ChainStatus>()
+            .FirstOrDefault(s => s.Status == X509ChainStatusFlags.NotTimeValid);
+        status.Should().NotBeNull();
+
+        // Validate with AllowOutdated ON and an expired certificate with a lifetime EKU
+        var expiredCertWithLifetimeEku = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired",
+            null, false, null, TimeSpan.FromSeconds(1), addLifetimeEku: true);
+        //Oid LifetimeEkuOid = new("1.3.6.1.4.1.311.10.3.13");
+        //X509EnhancedKeyUsageExtension LifetimeEkuExt = new([LifetimeEkuOid], false);
+        //expiredCertWithLifetimeEku.Extensions.Add(LifetimeEkuExt);
+        Thread.Sleep(1000);
+        X509Certificate2CoseSigningKeyProvider keyProviderLifetimeEku = new(null, expiredCertWithLifetimeEku);
+        var messageLifetimeEku = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderLifetimeEku, embedPayload: true);
+        Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: true);
+        Validator.TryValidate(messageLifetimeEku, out List<CoseSign1ValidationResult> resultsLifetimeEku).Should().BeFalse();
+        resultsLifetimeEku.Count.Should().Be(1);
+        resultsLifetimeEku[0].PassedValidation.Should().BeFalse();
+        resultsLifetimeEku[0].Includes.Should().NotBeNull();
+        resultsLifetimeEku[0].Includes?.Count.Should().Be(2);
+        status = resultsExpired[0].Includes?.Cast<X509ChainStatus>()
             .FirstOrDefault(s => s.Status == X509ChainStatusFlags.NotTimeValid);
         status.Should().NotBeNull();
     }

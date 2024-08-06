@@ -13,6 +13,7 @@ global using System.Runtime.Serialization;
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
+global using System.Threading;
 global using CoseSign1.Abstractions;
 global using CoseSign1.Abstractions.Exceptions;
 global using CoseSign1.Abstractions.Interfaces;

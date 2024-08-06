@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool.Tests;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class ValidateCommandTests

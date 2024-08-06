@@ -3,14 +3,6 @@
 
 namespace CoseX509;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using CoseSign1.Abstractions;
-using CoseSign1.Certificates.Extensions;
-
 /// <summary>
 /// Defines the result of a COSE signature validation attempt.
 /// </summary>

@@ -21,6 +21,8 @@ CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solutio
 First, download the latest release from GitHub. There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.
 
 If you have the option of calling it from a .NET application, go to [CoseHandler.md](./docs/CoseHandler.md)
+You can also use [indirect signatures](./docs/CoseIndirectSignature.md), where the signature can be validated against a hash of the payload content instead of requiring the full payload.
+For advanced topics such as time stamping, see [Advanced](./docs/Advanced.md)
 
 Otherwise, go to [CoseSignTool.md](./docs/CoseSignTool.md)
 
@@ -36,7 +38,7 @@ This is an alpha release, so there are some planned features that are not yet in
 The planned work is currently tracked only in an internal Microsoft ADO instance but will be moved to Github Issues soon. In the meantime, here is some of the work currently planned.
 
 #### New features
-* Investigate adding suport for RFC3161 timestamp counter signatures
+* Add suport for SCITT time stamping
 * Enable specifying a mandatory cert chain root for validation
 * Simplify digest signing scenario
 * Support batch operations in CoseSignTool to reduce file and cert store reads
@@ -47,17 +49,18 @@ The planned work is currently tracked only in an internal Microsoft ADO instance
 * Ensure type saftey on cert store and file reads
 * Investigate specific compilation by platform for possible performance gains
 * Expand code coverage in unit and integration tests
+* Enable secure strings for manual password entry
 
 #### Other
 * Move work item tracking to public Github repo
 * Re-organize the CoseSignTool unit tests for better readability
 
 ## Requirements
-CoseSignTool runs on .NET 7. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.
+CoseSignTool runs on .NET 8. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.
 
 The libraries depend on [System.Formats.Cbor](https://www.nuget.org/packages/System.Formats.Cbor/) version 7.0.0, [System.Security.Cryptography.Cose](https://www.nuget.org/packages/System.Security.Cryptography.Cose) version 7.0.0, and [System.Runtime.Caching](https://www.nuget.org/packages/System.Runtime.Caching) version 7.0.0 via NuGet package. Do not attempt to use later versions of System.Formats.Cbor or System.Security.Cryptography.Cose, as this breaks some of the fundamental data structures the libraries depend on.
 
-The underlying libraries run on .NET Standard 2.1 but will shortly be released on 2.0 for compatibility with legacy .NET Framework environments. CoseHandler currently builds on .NET 7 but will be switched to .NET Standard 2.0 soon to match the other libraries.
+The API libraries all run on .NET Standard 2.0.
 
 ### Trademarks
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow [Microsoft’s Trademark & Brand Guidelines.](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general) Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party’s policies.

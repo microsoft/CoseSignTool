@@ -5,7 +5,6 @@ global using System;
 global using System.IO;
 global using System.Linq;
 global using System.Security.Cryptography.X509Certificates;
-global using System.Text;
 global using CoseIndirectSignature;
 global using CoseSign1.Certificates.Local;
 global using CoseSign1.Tests.Common;

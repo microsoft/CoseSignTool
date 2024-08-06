@@ -5,11 +5,6 @@
 
 namespace CoseIndirectSignature.Exceptions;
 
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
-using CoseSign1.Abstractions.Exceptions;
-
 /// <summary>
 /// Base exception class for the CoseIndirectSignature library.
 /// </summary>

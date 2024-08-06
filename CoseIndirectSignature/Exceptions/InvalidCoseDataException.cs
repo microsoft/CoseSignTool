@@ -5,10 +5,6 @@
 
 namespace CoseIndirectSignature.Exceptions;
 
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
-
 /// <summary>
 /// Exception thrown when the COSE data is invalid with Cose Indirect Signature library.
 /// </summary>

@@ -3,13 +3,6 @@
 
 namespace CoseX509;
 
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CoseSign1;
-using CoseSign1.Extensions;
-
 public static class FileInfoExtensions
 {
     /// <summary>

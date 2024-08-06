@@ -3,8 +3,6 @@
 
 namespace CoseSign1.Extensions;
 
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// A class that defines extension methods for the <see cref="Stream"/> class.
 /// </summary>

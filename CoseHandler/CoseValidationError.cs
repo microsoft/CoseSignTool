@@ -3,8 +3,6 @@
 
 namespace CoseX509;
 
-using System.Collections.Generic;
-
 /// <summary>
 /// Holds information about an error in COSE validation.
 /// </summary>

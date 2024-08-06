@@ -4,12 +4,6 @@
 // Ignore Spelling: Cose Deserialize
 
 namespace CoseIndirectSignature;
-using System;
-using System.Formats.Cbor;
-using System.IO;
-using System.Threading.Tasks;
-using CoseIndirectSignature.Exceptions;
-using CoseSign1.Abstractions.Exceptions;
 
 /// <summary>
 /// Represents the COSE_Hash_V structure as suggested in https://tools.ietf.org/html/rfc9054#section-2.1
@@ -27,10 +21,7 @@ public record CoseHashV
     /// </summary>
     public byte[] HashValue
     {
-        get
-        {
-            return InternalHashValue ?? [];
-        }
+        get => InternalHashValue ?? [];
         set
         {
             // validate the input

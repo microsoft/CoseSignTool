@@ -5,8 +5,6 @@
 
 namespace CoseIndirectSignature.Extensions;
 
-using CoseIndirectSignature.Exceptions;
-
 /// <summary>
 /// Class which extends <see cref="CoseSign1Message"/> for indirect signature use cases.
 /// </summary>
@@ -187,13 +185,9 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
     /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
     private static bool SignatureMatchesInternal(this CoseSign1Message? @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
-    {
-        if(@this.TryGetIsCoseHashVContentType())
-        {
-            return SignatureMatchesInternalCoseHashV(@this, artifactBytes, artifactStream);
-        }
-        return SignatureMatchesInternalDirect(@this, artifactBytes, artifactStream);
-    }
+        => @this.TryGetIsCoseHashVContentType()
+            ? SignatureMatchesInternalCoseHashV(@this, artifactBytes, artifactStream)
+            : SignatureMatchesInternalDirect(@this, artifactBytes, artifactStream);
 
     /// <summary>
     /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact bytes or artifact stream.

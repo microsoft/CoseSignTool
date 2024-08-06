@@ -5,8 +5,6 @@
 
 namespace CoseIndirectSignature;
 
-using System.ComponentModel;
-
 /// <summary>
 /// COSE HashAlgorithm values from the IANA COSE Algorithms registry found at https://www.iana.org/assignments/cose/cose.xhtml#algorithms
 /// </summary>

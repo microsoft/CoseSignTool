@@ -3,8 +3,6 @@
 
 namespace CoseIndirectSignature.Tests;
 
-using System.Runtime.CompilerServices;
-
 /// <summary>
 /// Class for Testing Methods of <see cref="IndirectSignatureFactory"/>
 /// </summary>

@@ -4,8 +4,6 @@
 // Ignore Spelling: Cose Fuzzer
 
 namespace CoseIndirectSignature.Tests;
-using System;
-using CoseIndirectSignature.Exceptions;
 
 /// <summary>
 /// Class used to fuzz the parsing logic for CoseHashV and CborReader under the covers.

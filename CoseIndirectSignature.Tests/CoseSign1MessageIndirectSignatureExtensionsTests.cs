@@ -5,12 +5,7 @@
 
 namespace CoseIndirectSignature.Tests;
 
-using System.IO;
-using System.Runtime.CompilerServices;
-using CoseIndirectSignature;
-using CoseIndirectSignature.Exceptions;
-using CoseIndirectSignature.Extensions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+//using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 /// <summary>
 /// Class for Testing Methods of <see cref="CoseSign1MessageIndirectSignatureExtensions"/>

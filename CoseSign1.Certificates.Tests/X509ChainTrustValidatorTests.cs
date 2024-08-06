@@ -3,8 +3,6 @@
 
 namespace CoseSign1.Certificates.Tests;
 
-using System.Threading;
-
 /// <summary>
 /// Test class for <see cref="X509ChainTrustValidator"/>
 /// </summary>

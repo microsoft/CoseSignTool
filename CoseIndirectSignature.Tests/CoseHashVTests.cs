@@ -5,11 +5,7 @@
 
 namespace CoseIndirectSignature.Tests;
 
-using System.Formats.Cbor;
-using System.Security.Cryptography;
-using CoseIndirectSignature.Exceptions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using NUnit.Framework.Internal;
+using Microsoft.VisualStudio.TestTools.UnitTesting;     // Do not make global because it will conflict with NUnit.
 
 /// <summary>
 /// Class for Testing Methods of <see cref="CoseHashV"/>

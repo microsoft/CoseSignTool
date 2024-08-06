@@ -3,8 +3,6 @@
 
 namespace CoseX509;
 
-using System.Collections.Generic;
-
 /// <summary>
 /// Extension methods for <see cref="object"/>.
 /// </summary>

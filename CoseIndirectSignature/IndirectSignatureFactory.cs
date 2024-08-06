@@ -68,22 +68,13 @@ public sealed class IndirectSignatureFactory : IDisposable
 
     private CoseHashAlgorithm GetCoseHashAlgorithmFromHashAlgorithm(HashAlgorithm algorithm)
     {
-        if (algorithm is SHA256)
+        return algorithm switch
         {
-            return CoseHashAlgorithm.SHA256;
-        }
-        else if (algorithm is SHA384)
-        {
-            return CoseHashAlgorithm.SHA384;
-        }
-        else if (algorithm is SHA512)
-        {
-            return CoseHashAlgorithm.SHA512;
-        }
-        else
-        {
-            throw new ArgumentException($@"No mapping for hash algorithm {algorithm.GetType().FullName} to any {nameof(CoseHashAlgorithm)}");
-        }
+            SHA256 => CoseHashAlgorithm.SHA256,
+            SHA384 => CoseHashAlgorithm.SHA384,
+            SHA512 => CoseHashAlgorithm.SHA512,
+            _ => throw new ArgumentException($@"No mapping for hash algorithm {algorithm.GetType().FullName} to any {nameof(CoseHashAlgorithm)}")
+        };
     }
 
     /// <summary>
@@ -457,8 +448,8 @@ public sealed class IndirectSignatureFactory : IDisposable
             throw new ArgumentNullException(nameof(contentType), "A content type must be specified");
         }
 
-        if (streamPayload == null && !bytePayload.HasValue || // both are empty
-            streamPayload != null && bytePayload.HasValue)    // both are specified
+        if (streamPayload is null && !bytePayload.HasValue || // both are empty
+            streamPayload is not null && bytePayload.HasValue)    // both are specified
         {
             throw new ArgumentNullException("payload", "Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null");
         }
@@ -520,9 +511,11 @@ public sealed class IndirectSignatureFactory : IDisposable
                 throw new ArgumentException($"{nameof(payloadHashed)} is set, but payload length {rawHash.Length} does not correspond to the hash size for {InternalHashAlgorithmName} of {HashLength}.");
             }
 
-            hash = new CoseHashV();
-            hash.Algorithm = InternalCoseHashAlgorithm;
-            hash.HashValue = rawHash;
+            hash = new CoseHashV
+            {
+                Algorithm = InternalCoseHashAlgorithm,
+                HashValue = rawHash
+            };
         }
 
 

@@ -2,25 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseX509;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security;
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using CoseIndirectSignature.Extensions;
-using CoseSign1;
-using CoseSign1.Abstractions;
-using CoseSign1.Abstractions.Interfaces;
-using CoseSign1.Certificates.Exceptions;
-using CoseSign1.Certificates.Extensions;
-using CoseSign1.Certificates.Local;
-using CoseSign1.Certificates.Local.Validators;
-using CoseSign1.Extensions;
 
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.

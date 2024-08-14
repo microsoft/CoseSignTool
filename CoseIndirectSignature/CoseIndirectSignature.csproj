@@ -35,7 +35,7 @@
 		<Description>Abstractions and classes required to manage indirect signatures via COSE Sign1 message envelopes in a way that is compatible with Supply Chain Integrity Transparency and Trust (SCITT).</Description>
 	</PropertyGroup>
 
-	<!--Package references-->	
+	<!--Package references-->
 	<ItemGroup>
 		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
 	</ItemGroup>

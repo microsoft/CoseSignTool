@@ -37,16 +37,12 @@
 
 	<!--Package references-->
 	<ItemGroup>
-		<PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
-		<PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
 	</ItemGroup>
 
 	<!--Project references-->
 	<ItemGroup>
 		<ProjectReference Include="..\CoseIndirectSignature\CoseIndirectSignature.csproj" />
-		<ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
-		<ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
 	</ItemGroup>
 
 	<!--Files to include in the package-->

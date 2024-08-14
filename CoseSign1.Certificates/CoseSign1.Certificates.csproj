@@ -34,12 +34,10 @@
 		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
 		<Description>Abstractions and classes required to extend or enhance Microsoft.CoseSign1.Abstractions for all certificate based signing.</Description>
 	</PropertyGroup>
-	
+
 	<!--Package references-->
 	<ItemGroup>
-		<PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
-		<PackageReference Include="System.Runtime.Caching" Version="7.0.0" />
-		<PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
+		<PackageReference Include="System.Runtime.Caching" Version="8.0.0" />
 	</ItemGroup>
 
 	<!--Project references-->

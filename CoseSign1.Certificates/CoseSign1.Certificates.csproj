@@ -38,7 +38,7 @@
 	<!--Package references-->
 	<ItemGroup>
 		<PackageReference Include="System.Formats.Cbor" Version="7.0.0" />
-		<PackageReference Include="System.Runtime.Caching" Version="7.0.0" />
+		<PackageReference Include="System.Runtime.Caching" Version="8.0.0" />
 		<PackageReference Include="System.Security.Cryptography.Cose" Version="7.0.0" />
 	</ItemGroup>
 

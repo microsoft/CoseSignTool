@@ -21,3 +21,5 @@ global using CoseSign1.Certificates.Extensions;
 global using CoseSign1.Certificates.Local;
 global using CoseSign1.Certificates.Local.Validators;
 global using CoseSign1.Extensions;
+global using CoseSign1.Headers;
+

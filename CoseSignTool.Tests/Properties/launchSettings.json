@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CoseSignTool.Tests": {
+      "commandName": "Project",
+      "commandLineArgs": "sign /p \"C:\\Users\\settiy.NORTHAMERICA\\Downloads\\remove_member.json\" /pfx \"C:\\Users\\settiy.NORTHAMERICA\\Downloads\\member1.pfx\" /ep /po /sh"
+    }
+  }
+}

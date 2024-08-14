@@ -47,6 +47,7 @@
 		<ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
 		<ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
+        <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
 	</ItemGroup>
 
 	<!--Files to include in the package-->

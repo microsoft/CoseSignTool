@@ -15,6 +15,7 @@
 		<!-- other property settings -->
 		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
 		<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+		<PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -3,6 +3,9 @@
 
 namespace CoseSignTool;
 
+using System;
+
+
 /// <summary>
 /// A base class for console commands that handle COSE signatures.
 /// </summary>
@@ -205,6 +208,47 @@ public abstract partial class CoseCommand
                 text?.Split(",").Select(x => x.Trim().Trim('"', '(', ')', '[', ']', '{', '}')).ToArray() ??
                 defaultValue ??
                 [];
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a header type command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
+    /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
+    [return: NotNullIfNotNull(nameof(defaultValue))]
+    protected static List<CoseHeader<TypeV>>? GetOptionHeaders<TypeV>(CommandLineConfigurationProvider provider, string name, List<CoseHeader<TypeV>>? defaultValue = null, JsonConverter? converter = null)
+    {
+        FileInfo? file = GetOptionFile(provider, name, null);
+
+        if (file == null)
+        {
+            return defaultValue;
+        }
+
+        try
+        {
+            using StreamReader reader = new StreamReader(file.FullName) ;
+            string json = reader.ReadToEnd();
+            List<CoseHeader<TypeV>> headers = converter != null ? JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json, converter) : JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json);
+            return headers;
+        }
+        catch(Exception ex)
+        {
+            if (ex is ArgumentException)
+            {
+                throw;
+            }
+            else if (ex is FileNotFoundException)
+            {
+                throw new FileNotFoundException($"The file specified in /{name} was not found: {file.FullName}");
+            }
+            else 
+            {
+                throw new ArgumentException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
+            }
         }
     }
 

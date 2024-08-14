@@ -29,11 +29,19 @@ public class SignCommand : CoseCommand
         ["-sl"] = "StoreLocation",
         ["-ContentType"] = "ContentType",
         ["-cty"] = "ContentType",
+        ["-IntHeaders"] = "IntHeaders",
+        ["-ih"] = "IntHeaders",
+        ["-StringHeaders"] = "StringHeaders",
+        ["-sh"] = "StringHeaders"
     };
 
     // Inherited default values
     private const string DefaultStoreName = "My";
     private const string DefaultStoreLocation = "CurrentUser";
+
+    private IEnumerable<KeyValuePair<string, int>> ProtectedHeadersInteger { get; set; }
+
+    private IEnumerable<KeyValuePair<string, int>> ProtectedHeadersString { get; set; }
 
     //<inheritdoc />
     public static new readonly Dictionary<string, string> Options =
@@ -83,6 +91,17 @@ public class SignCommand : CoseCommand
     /// Optional. Gets or sets the content type of the payload to be set in protected header. Default value is "application/cose".
     /// </summary>
     public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the headers with Int32 values.
+    /// </summary>
+    public List<CoseHeader<int>>? IntHeaders { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the headers with string values.
+    /// </summary>
+    public List<CoseHeader<string>>? StringHeaders { get; set; }
+
     #endregion
 
     /// <summary>
@@ -143,9 +162,30 @@ public class SignCommand : CoseCommand
         }
 
         try
-        { 
+        {
+            // Extend the headers.
+            CoseHeaderExtender? headerExtender = null;
+
+            if (IntHeaders != null ||
+                StringHeaders != null)
+            {
+                headerExtender = new();
+            }
+
+            if (IntHeaders != null)
+            {
+                CoseHandler.HeaderFactory.AddProtectedHeaders<int>(IntHeaders.ToList().Where(h => h.IsProtected));
+                CoseHandler.HeaderFactory.AddUnProtectedHeaders<int>(IntHeaders.ToList().Where(h => !h.IsProtected));
+            }
+
+            if(StringHeaders != null)
+            {
+                CoseHandler.HeaderFactory.AddProtectedHeaders<string>(StringHeaders.ToList().Where(h => h.IsProtected));
+                CoseHandler.HeaderFactory.AddUnProtectedHeaders<string>(StringHeaders.ToList().Where(h => !h.IsProtected));
+            }
+
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
 
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -187,6 +227,8 @@ public class SignCommand : CoseCommand
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
+        IntHeaders = GetOptionHeaders<int>(provider, nameof(IntHeaders), null);
+        StringHeaders = GetOptionHeaders<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
         base.ApplyOptions(provider);
     }
 
@@ -265,5 +307,11 @@ Options:
 
     ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
+
+    IntHeaders /ih: Optional. Path to a JSON file with headers to add to the signed message. The label is string and the value is int32.
+        JSON format is [{""label"":""created-at"",""value"":1723672289,""protected"":true},...]. Protected is optional and when ignored, it is set to false.
+
+    StringHeaders /sh: Optional. Path to a JSON file with headers to add to the signed message. The label and value are strings.
+        JSON format is [{""label"":""company"",""value"":""Microsoft"",""protected"":true},...]. Protected is optional and when ignored, it is set to false.
 ";
 }

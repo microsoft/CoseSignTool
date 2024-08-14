@@ -214,4 +214,92 @@ public class MainTests
         string[] args = [ "sign" ];
         CoseSignTool.Main(args).Should().Be((int)ExitCode.HelpRequested);
     }
+
+    [TestMethod]
+    public void SignWithIntegerHeadersSuccess()
+    {
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":1723588348,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with integer headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Payload must be signed.");
+    }
+
+    [TestMethod]
+    public void SignWithMissingValueIntegerHeaders()
+    {
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with integer headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Invalid integer header value.");
+    }
+
+    [TestMethod]
+    public void SignWithOutOfRangeValueIntegerHeaders()
+    {
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":-999999999999999,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with integer headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Invalid integer header value.");
+    }
+
+    [TestMethod]
+    public void SignWithDeserializationErrorIntegerHeaders()
+    {
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"","""":-999999999999999,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with integer headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Integer headers file deserialization error.");
+    }
+
+    [TestMethod]
+    public void SignWithMissingIntegerHeadersFile()
+    {
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":2312345,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with integer headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih"];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UserSpecifiedFileNotFound, "Missing integer headers file.");
+    }
+
+    [TestMethod]
+    public void SignWithMissingStringHeadersFile()
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with string headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/sh"];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UserSpecifiedFileNotFound, "Missing string headers file.");
+    }
+
+    [TestMethod]
+    public void SignWithMissingValueStringHeaders()
+    {
+        string headersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":"""",""protected"":false}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with string headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/sh", headersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.MissingRequiredOption, "Missing value in string headers file.");
+    }
+
+    [TestMethod]
+    public void SignWithDeserializationErrorStringHeaders()
+    {
+        string headersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""protected"":false}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign with string headers
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/sh", headersFile];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "String headers file could not be deserialized.");
+    }
 }
+

@@ -43,4 +43,11 @@ public static class FileSystemUtils
         File.WriteAllBytes(fileName, bytes);
         return new(fileName);
     }
+
+    public static string GenerateHeadersFile(string? content = null)
+    {
+        string fileName = Path.GetTempFileName().Replace(".tmp", $".headers.json");
+        File.WriteAllText(fileName, content);
+        return new(fileName);
+    }
 }

@@ -21,7 +21,7 @@
 	<PropertyGroup>
 		<SignAssembly>True</SignAssembly>
 		<PublicSign>True</PublicSign>
-		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>		
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
 	</PropertyGroup>
 
 	<!--NuGet package configuration-->
@@ -45,13 +45,12 @@
 
 	<!--Package references-->
 	<ItemGroup>
-	  <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
 	</ItemGroup>
 
 	<!--Project references-->
 	<ItemGroup>
 		<ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
-		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
 	</ItemGroup>
 
 	<!--Files to include in the package-->

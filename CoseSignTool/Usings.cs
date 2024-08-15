@@ -18,9 +18,9 @@ global using CoseSign1.Certificates.Extensions;
 global using CoseSign1.Extensions;
 global using CoseSign1.Headers;
 global using CoseSign1.Headers.Local;
+global using CoseSignTool.Local;
 global using CoseX509;
 global using Microsoft.Extensions.Configuration.CommandLine;
 global using Newtonsoft.Json;
-global using CoseSignTool.Local;
 
 

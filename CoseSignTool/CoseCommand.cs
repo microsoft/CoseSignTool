@@ -3,9 +3,6 @@
 
 namespace CoseSignTool;
 
-using System;
-
-
 /// <summary>
 /// A base class for console commands that handle COSE signatures.
 /// </summary>
@@ -272,7 +269,7 @@ public abstract partial class CoseCommand
 
         if (headers == null)
         {
-            headers = new();
+            throw new ArgumentException("Headers collection cannot be null");
         }
 
         try

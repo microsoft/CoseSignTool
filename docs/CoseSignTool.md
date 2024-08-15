@@ -52,7 +52,7 @@ The JSON schema is the same for both types of header files. Sample int32 and str
         "label": "customer-count",
         "value": 10,
         "protected": false
-    },
+    }
 ]
 ~~~
 
@@ -67,7 +67,7 @@ The JSON schema is the same for both types of header files. Sample int32 and str
         "label": "customer-name",
         "value": "contoso",
         "protected": true
-    },
+    }
 ]
 ~~~
 

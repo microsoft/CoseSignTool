@@ -381,10 +381,18 @@ Options:
     ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
-    IntHeaders /ih: Optional. Path to a JSON file with headers to add to the signed message. The label is string and the value is int32.
-        JSON format is [{""label"":""created-at"",""value"":1723672289,""protected"":true},...]. Protected is optional and when ignored, it is set to false.
+    IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.
+    Sample file. [{""label"":""created-at"",""value"":12345678,""protected"":true},{""label"":""customer-count"",""value"":10,""protected"":false}]
 
-    StringHeaders /sh: Optional. Path to a JSON file with headers to add to the signed message. The label and value are strings.
-        JSON format is [{""label"":""company"",""value"":""Microsoft"",""protected"":true},...]. Protected is optional and when ignored, it is set to false.
+    StringHeaders /sh: Optional. Path to a JSON file containing the header collection to be added to the cose message. Both the label and value are strings.
+    Sample file. [{""label"":""message-type"",""value"":""cose"",""protected"":false},{""label"":""customer-name"",""value"":""contoso"",""protected"":true}]
+
+    IntProtectedHeders /iph: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntProtectedHeaders created-at=12345678,customer-count=10
+
+    StringProtectedHeders /sph: A collection of name-value pairs with a string label and value. Sample input: /StringProtectedHeaders message-type=cose,customer-name=contoso
+    
+    IntUnProtectedHeders /iuh: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntUnProtectedHeaders created-at=12345678,customer-count=10
+
+    StringUnProtectedHeders /suh: A collection of name-value pairs with a string label and value. Sample input: /StringUnProtectedHeaders message-type=cose,customer-name=contoso
 ";
 }

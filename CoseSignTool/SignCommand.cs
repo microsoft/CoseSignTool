@@ -180,13 +180,13 @@ public class SignCommand : CoseCommand
                 headerExtender = new();
             }
 
-            if (IntHeaders != null)
+            if (IntHeaders != null && IntHeaders.Count > 0)
             {
                 CoseHandler.HeaderFactory.AddProtectedHeaders<int>(IntHeaders.ToList().Where(h => h.IsProtected));
                 CoseHandler.HeaderFactory.AddUnProtectedHeaders<int>(IntHeaders.ToList().Where(h => !h.IsProtected));
             }
 
-            if(StringHeaders != null)
+            if(StringHeaders != null && StringHeaders.Count > 0)
             {
                 CoseHandler.HeaderFactory.AddProtectedHeaders<string>(StringHeaders.ToList().Where(h => h.IsProtected));
                 CoseHandler.HeaderFactory.AddUnProtectedHeaders<string>(StringHeaders.ToList().Where(h => !h.IsProtected));

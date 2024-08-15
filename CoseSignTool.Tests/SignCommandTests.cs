@@ -51,4 +51,24 @@ public class SignCommandTests
 
         cmd1.IntHeaders.ForEach(h => h.IsProtected.Should().Be(false, "Protected flag is not set to default value of false when unsupplied"));
     }
+
+    [TestMethod]
+    public void SignWithCommandLineAndInputHeaderFile()
+    {
+        string headersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":190,""protected"":true},{""label"":""header2"",""value"":88897,""protected"":true}]");
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+
+        // sign
+        // The unprotected header on the command line must be ignored
+        string[] args = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned, @"/ih", headersFile, @"/ep", "iuh", "created-at=1234567"];
+        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        badArg.Should().BeNull("badArg should be null.");
+
+        var cmd1 = new SignCommand();
+        cmd1.ApplyOptions(provider);
+
+        cmd1.IntHeaders.Count.Should().Be(2, "When both input file and command line headers are supplied, the command line headers are not ignored");
+
+        cmd1.IntHeaders.ForEach(h => h.IsProtected.Should().Be(true, "Protected flag is not set to default value of false when unsupplied"));
+    }
 }

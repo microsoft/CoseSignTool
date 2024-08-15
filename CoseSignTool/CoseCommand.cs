@@ -219,7 +219,7 @@ public abstract partial class CoseCommand
     /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
     /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
     [return: NotNullIfNotNull(nameof(defaultValue))]
-    protected static List<CoseHeader<TypeV>>? GetOptionHeaders<TypeV>(CommandLineConfigurationProvider provider, string name, List<CoseHeader<TypeV>>? defaultValue = null, JsonConverter? converter = null)
+    protected static List<CoseHeader<TypeV>>? GetOptionHeadersFromFile<TypeV>(CommandLineConfigurationProvider provider, string name, List<CoseHeader<TypeV>>? defaultValue = null, JsonConverter? converter = null)
     {
         FileInfo? file = GetOptionFile(provider, name, null);
 
@@ -249,6 +249,42 @@ public abstract partial class CoseCommand
             {
                 throw new ArgumentException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a header type command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
+    /// <param name="isProtected">A flag to indicate if the header is protected.</param>
+    /// <param name="converter">A method to convert the header value to the required type.</param>
+    /// <param name="headers">A collection of headers.</param>
+    /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
+    protected static void GetOptionHeadersFromCommandLine<TypeV>(CommandLineConfigurationProvider provider, string name, bool isProtected, Func<string[], TypeV>? converter = null, List<CoseHeader<TypeV>>? headers = null)
+    {
+        string[] inputs = GetOptionArray(provider, name);
+
+        if (inputs.Length == 0)
+        {
+            return;
+        }
+
+        if (headers == null)
+        {
+            headers = new();
+        }
+
+        try
+        {
+            inputs.ToList().ForEach(header => {
+                string[] labelValue = header.Split("=");
+                headers.Add(new CoseHeader<TypeV>(labelValue[0], converter(labelValue), isProtected));
+            });
+        }
+        catch (Exception)
+        {
+            throw;
         }
     }
 

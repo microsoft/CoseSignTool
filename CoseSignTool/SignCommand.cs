@@ -32,7 +32,15 @@ public class SignCommand : CoseCommand
         ["-IntHeaders"] = "IntHeaders",
         ["-ih"] = "IntHeaders",
         ["-StringHeaders"] = "StringHeaders",
-        ["-sh"] = "StringHeaders"
+        ["-sh"] = "StringHeaders",
+        ["-IntProtectedHeaders"] = "IntProtectedHeaders",
+        ["-iph"] = "IntProtectedHeaders",
+        ["-StringProtectedHeaders"] = "StringProtectedHeaders",
+        ["-sph"] = "StringProtectedHeaders",
+        ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
+        ["-iuh"] = "IntUnProtectedHeaders",
+        ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
+        ["-suh"] = "StringUnProtectedHeaders"
     };
 
     // Inherited default values
@@ -227,9 +235,74 @@ public class SignCommand : CoseCommand
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
-        IntHeaders = GetOptionHeaders<int>(provider, nameof(IntHeaders), null);
-        StringHeaders = GetOptionHeaders<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
+        IntHeaders = GetOptionHeadersFromFile<int>(provider, nameof(IntHeaders), null);
+        StringHeaders = GetOptionHeadersFromFile<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
+
+        if (IntHeaders == null)
+        {
+            IntHeaders = new();
+
+            // IntProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "IntProtectedHeaders", true, HeaderValueConverter<int>, IntHeaders);
+
+            // IntUnProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "IntUnProtectedHeaders", false, HeaderValueConverter<int>, IntHeaders);
+        }
+        
+        if (StringHeaders == null)
+        {
+            StringHeaders = new();
+
+            // StringProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "StringProtectedHeaders", true, HeaderValueConverter<string>, StringHeaders);
+
+            // StringUnProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "StringUnProtectedHeaders", false, HeaderValueConverter<string>, StringHeaders);
+        }
+
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// A helper method to convert the header value to the required type.
+    /// </summary>
+    /// <typeparam name="TypeV">The type of the header value.</typeparam>
+    /// <param name="labelValue">A string array containing the header label and value.</param>
+    /// <returns>The value converted to the correct type.</returns>
+    /// <exception cref="ArgumentException">Throws if the conversion failed.</exception>
+    private static TypeV HeaderValueConverter<TypeV>(string[]? labelValue = null)
+    {
+        if(labelValue == null || labelValue.Length < 2)
+        {
+            throw new ArgumentException("Invalid header. Header label and value must be provided.");
+        }
+
+        // Validate label
+        if (string.IsNullOrEmpty(labelValue[0]))
+        {
+            throw new ArgumentException("Header label cannot be null");
+        }
+
+        // Validate value
+        switch (typeof(TypeV))
+        {
+            case var x when x == typeof(int):
+                if (!int.TryParse(labelValue[1], out int value))
+                {
+                    throw new ArgumentException($"Invalid header int32 value {labelValue[1]}");
+                }
+
+                return (TypeV)Convert.ChangeType(value, typeof(TypeV));
+            case var x when x == typeof(string):
+                if(string.IsNullOrEmpty(labelValue[1]))
+                {
+                    throw new ArgumentException($"Invalid header string value {labelValue[1]}");
+                }
+
+                return (TypeV)Convert.ChangeType(labelValue[1], typeof(TypeV));
+            default:
+                throw new ArgumentException($"Header value of type {typeof(TypeV)} is not supported.");
+        }
     }
 
     /// <summary>

@@ -30,9 +30,9 @@ Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUs
 
     * Command-line:
         * /IntProtectedHeaders, /iph - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntProtectedHeaders created-at=12345678,customer-count=10
-        * /StringProtectedHeaders, /sph - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringProtectedHeaders message-type=cose,customer-name=contoso
+        * /StringProtectedHeaders, /sph - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringProtectedHeaders message-type="cose",customer-name="contoso"
         * /IntUnProtectedHeaders, /iuh - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntUnProtectedHeaders created-at=12345678,customer-count=10
-        * /StringUnProtectedHeaders, /suh - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringProtectedHeaders message-type=cose,customer-name=contoso
+        * /StringUnProtectedHeaders, /suh - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringUnProtectedHeaders message-type="cose",customer-name="contoso"
     * File:
         * /IntHeaders, /ih - A JSON file containing the headers with the value being an int32.
         * /StringHeaders, /sh - A JSON file containing the headers with the value being a string.

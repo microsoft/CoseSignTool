@@ -44,6 +44,11 @@ public static class FileSystemUtils
         return new(fileName);
     }
 
+    /// <summary>
+    /// Creates a randomly generated headers file on disk for signature testing.
+    /// </summary>
+    /// <param name="content">The content to be written to the file.</param>
+    /// <returns>The path to the new file.</returns>
     public static string GenerateHeadersFile(string? content = null)
     {
         string fileName = Path.GetTempFileName().Replace(".tmp", $".headers.json");

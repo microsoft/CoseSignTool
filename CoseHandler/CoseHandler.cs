@@ -51,6 +51,7 @@ public static class CoseHandler
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
     /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
     /// <param name="contentType"/>Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
+    /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
     /// <exception cref="CryptographicException">The signing certificate is null or invalid.</exception>
     public static ReadOnlyMemory<byte> Sign(

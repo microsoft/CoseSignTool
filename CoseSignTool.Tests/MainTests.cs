@@ -325,15 +325,6 @@ public class MainTests
     }
 
     [TestMethod]
-    public void SignWithCommandLineProtectedAndUnprotectedHeaders()
-    {
-        string payloadFile = FileSystemUtils.GeneratePayloadFile();
-
-        // sign with string protected headers
-    
-    }
-
-    [TestMethod]
     public void SignWithMissingAndInvalidCommandLineHeaders()
     {
         string payloadFile = FileSystemUtils.GeneratePayloadFile();

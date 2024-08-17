@@ -73,7 +73,6 @@ public class Tests
 
         Assert.That(coseProtectedHeaders.Count, Is.EqualTo(2));
         Assert.That(coseUnProtectedHeaders.Count, Is.EqualTo(3));
-        factory.Dispose();
     }
 
     [Test]

@@ -262,7 +262,6 @@ public class MainTests
     [TestMethod]
     public void SignWithMissingIntegerHeadersFile()
     {
-        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""value"":2312345,""protected"":true}]");
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign with integer headers

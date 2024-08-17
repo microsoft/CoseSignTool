@@ -81,7 +81,7 @@ public sealed class CoseHeaderFactory : ICoseHeaderFactory, IDisposable
                 headers.ToList().ForEach(h =>
                 {
                     // We do not allow null or empty string as a string value although the caller might.
-                    if (!CoseHeader<string>.IsValid((value) => {return string.IsNullOrEmpty(value) ? false : true;}, h.Value.ToString()))
+                    if (!CoseHeader<string>.IsValid((value) => { return !string.IsNullOrEmpty(value); }, h.Value.ToString()))
                     {
                         throw new ArgumentException($"A non-empty string value must be supplied for the header '{h.Label}'");
                     }
@@ -161,6 +161,5 @@ public sealed class CoseHeaderFactory : ICoseHeaderFactory, IDisposable
     {
         IntHeaders.Clear();
         StringHeaders.Clear();
-        SingletonInstance = null;
     }
 }

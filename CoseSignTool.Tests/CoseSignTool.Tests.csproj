@@ -18,6 +18,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Properties\launchSettings.json" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<!-- Because this is a test project, don't run code coverage -->
 		<AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
 	</ItemGroup>
@@ -32,6 +36,7 @@
 	</ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Properties\" />
       <Folder Include="TestContent\" />
     </ItemGroup>
 </Project>

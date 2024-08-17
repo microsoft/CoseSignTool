@@ -271,18 +271,11 @@ public abstract partial class CoseCommand
         {
             throw new ArgumentException("Headers collection cannot be null");
         }
-
-        try
-        {
-            inputs.ToList().ForEach(header => {
-                string[] labelValue = header.Split("=");
-                headers.Add(new CoseHeader<TypeV>(labelValue[0], converter(labelValue), isProtected));
-            });
-        }
-        catch (Exception)
-        {
-            throw;
-        }
+      
+        inputs.ToList().ForEach(header => {
+            string[] labelValue = header.Split("=");
+            headers.Add(new CoseHeader<TypeV>(labelValue[0], converter(labelValue), isProtected));
+        });
     }
 
     // One liner for file existence checks

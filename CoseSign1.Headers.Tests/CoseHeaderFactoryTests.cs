@@ -17,8 +17,7 @@ public class Tests
     [Test]
     public void AddHeadersCountTest()
     {
-        CoseHeaderFactory factory = CoseHeaderFactory.Instance();
-
+        using CoseHeaderFactory factory = CoseHeaderFactory.Instance();
         List<CoseHeader<int>> intProtectedHeaders = new();
         List<CoseHeader<string>> stringProtectedHeaders = new();
 
@@ -43,14 +42,12 @@ public class Tests
 
         Assert.That(factory.ProtectedHeadersCount, Is.EqualTo(expectedProtectedHeaderCount));
         Assert.That(factory.UnProtectedHeadersCount, Is.EqualTo(expectedUnProtectedHeaderCount));
-
-        factory.Dispose();
     }
 
     [Test]
     public void AddHeadersTest()
     {
-        CoseHeaderFactory factory = CoseHeaderFactory.Instance();
+        using CoseHeaderFactory factory = CoseHeaderFactory.Instance();
 
         CoseHeaderMap coseProtectedHeaders = new();
         coseProtectedHeaders.Add(new CoseHeaderLabel("Label1"), 32);
@@ -76,7 +73,6 @@ public class Tests
 
         Assert.That(coseProtectedHeaders.Count, Is.EqualTo(2));
         Assert.That(coseUnProtectedHeaders.Count, Is.EqualTo(3));
-
         factory.Dispose();
     }
 

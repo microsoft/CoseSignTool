@@ -29,11 +29,27 @@ public class SignCommand : CoseCommand
         ["-sl"] = "StoreLocation",
         ["-ContentType"] = "ContentType",
         ["-cty"] = "ContentType",
+        ["-IntHeaders"] = "IntHeaders",
+        ["-ih"] = "IntHeaders",
+        ["-StringHeaders"] = "StringHeaders",
+        ["-sh"] = "StringHeaders",
+        ["-IntProtectedHeaders"] = "IntProtectedHeaders",
+        ["-iph"] = "IntProtectedHeaders",
+        ["-StringProtectedHeaders"] = "StringProtectedHeaders",
+        ["-sph"] = "StringProtectedHeaders",
+        ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
+        ["-iuh"] = "IntUnProtectedHeaders",
+        ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
+        ["-suh"] = "StringUnProtectedHeaders"
     };
 
     // Inherited default values
     private const string DefaultStoreName = "My";
     private const string DefaultStoreLocation = "CurrentUser";
+
+    private IEnumerable<KeyValuePair<string, int>> ProtectedHeadersInteger { get; set; }
+
+    private IEnumerable<KeyValuePair<string, int>> ProtectedHeadersString { get; set; }
 
     //<inheritdoc />
     public static new readonly Dictionary<string, string> Options =
@@ -83,6 +99,17 @@ public class SignCommand : CoseCommand
     /// Optional. Gets or sets the content type of the payload to be set in protected header. Default value is "application/cose".
     /// </summary>
     public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the headers with Int32 values.
+    /// </summary>
+    public List<CoseHeader<int>>? IntHeaders { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the headers with string values.
+    /// </summary>
+    public List<CoseHeader<string>>? StringHeaders { get; set; }
+
     #endregion
 
     /// <summary>
@@ -143,9 +170,30 @@ public class SignCommand : CoseCommand
         }
 
         try
-        { 
+        {
+            // Extend the headers.
+            CoseHeaderExtender? headerExtender = null;
+
+            if (IntHeaders != null ||
+                StringHeaders != null)
+            {
+                headerExtender = new();
+            }
+
+            if (IntHeaders != null && IntHeaders.Count > 0)
+            {
+                CoseHandler.HeaderFactory.AddProtectedHeaders<int>(IntHeaders.ToList().Where(h => h.IsProtected));
+                CoseHandler.HeaderFactory.AddUnProtectedHeaders<int>(IntHeaders.ToList().Where(h => !h.IsProtected));
+            }
+
+            if(StringHeaders != null && StringHeaders.Count > 0)
+            {
+                CoseHandler.HeaderFactory.AddProtectedHeaders<string>(StringHeaders.ToList().Where(h => h.IsProtected));
+                CoseHandler.HeaderFactory.AddUnProtectedHeaders<string>(StringHeaders.ToList().Where(h => !h.IsProtected));
+            }
+
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
 
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -187,7 +235,74 @@ public class SignCommand : CoseCommand
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
+        IntHeaders = GetOptionHeadersFromFile<int>(provider, nameof(IntHeaders), null);
+        StringHeaders = GetOptionHeadersFromFile<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
+
+        if (IntHeaders == null)
+        {
+            IntHeaders = new();
+
+            // IntProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "IntProtectedHeaders", true, HeaderValueConverter<int>, IntHeaders);
+
+            // IntUnProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "IntUnProtectedHeaders", false, HeaderValueConverter<int>, IntHeaders);
+        }
+        
+        if (StringHeaders == null)
+        {
+            StringHeaders = new();
+
+            // StringProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "StringProtectedHeaders", true, HeaderValueConverter<string>, StringHeaders);
+
+            // StringUnProtectedHeaders
+            GetOptionHeadersFromCommandLine(provider, "StringUnProtectedHeaders", false, HeaderValueConverter<string>, StringHeaders);
+        }
+
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// A helper method to convert the header value to the required type.
+    /// </summary>
+    /// <typeparam name="TypeV">The type of the header value.</typeparam>
+    /// <param name="labelValue">A string array containing the header label and value.</param>
+    /// <returns>The value converted to the correct type.</returns>
+    /// <exception cref="ArgumentException">Throws if the conversion failed.</exception>
+    private static TypeV HeaderValueConverter<TypeV>(string[]? labelValue = null)
+    {
+        if(labelValue == null || labelValue.Length < 2)
+        {
+            throw new ArgumentException("Invalid header. Header label and value must be provided.");
+        }
+
+        // Validate label
+        if (string.IsNullOrEmpty(labelValue[0]))
+        {
+            throw new ArgumentException("Header label cannot be null");
+        }
+
+        // Validate value
+        switch (typeof(TypeV))
+        {
+            case var x when x == typeof(int):
+                if (!int.TryParse(labelValue[1], out int value))
+                {
+                    throw new ArgumentException($"Invalid header int32 value {labelValue[1]}");
+                }
+
+                return (TypeV)Convert.ChangeType(value, typeof(TypeV));
+            case var x when x == typeof(string):
+                if(string.IsNullOrEmpty(labelValue[1]))
+                {
+                    throw new ArgumentException($"Invalid header string value {labelValue[1]}");
+                }
+
+                return (TypeV)Convert.ChangeType(labelValue[1], typeof(TypeV));
+            default:
+                throw new ArgumentException($"Header value of type {typeof(TypeV)} is not supported.");
+        }
     }
 
     /// <summary>
@@ -265,5 +380,19 @@ Options:
 
     ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
+
+    IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.
+    Sample file. [{""label"":""created-at"",""value"":12345678,""protected"":true},{""label"":""customer-count"",""value"":10,""protected"":false}]
+
+    StringHeaders /sh: Optional. Path to a JSON file containing the header collection to be added to the cose message. Both the label and value are strings.
+    Sample file. [{""label"":""message-type"",""value"":""cose"",""protected"":false},{""label"":""customer-name"",""value"":""contoso"",""protected"":true}]
+
+    IntProtectedHeders /iph: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntProtectedHeaders created-at=12345678,customer-count=10
+
+    StringProtectedHeders /sph: A collection of name-value pairs with a string label and value. Sample input: /StringProtectedHeaders message-type=cose,customer-name=contoso
+    
+    IntUnProtectedHeders /iuh: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntUnProtectedHeaders created-at=12345678,customer-count=10
+
+    StringUnProtectedHeders /suh: A collection of name-value pairs with a string label and value. Sample input: /StringUnProtectedHeaders message-type=cose,customer-name=contoso
 ";
 }

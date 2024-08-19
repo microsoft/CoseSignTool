@@ -24,6 +24,52 @@ You may also want to specify:
 ~~~
 Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUser\MyNewStore'
 ~~~
+* Headers:
+*   There are two ways to supply headers: (1) command-line, and, (2) a JSON file. Both options support providing protected and un-protected headers with int32 and string values. The header label is always a string value.
+>Note: When both file and command-line header options are specified, the command-line input is ignored.
+
+    * Command-line:
+        * /IntProtectedHeaders, /iph - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntProtectedHeaders created-at=12345678,customer-count=10
+        * /StringProtectedHeaders, /sph - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringProtectedHeaders message-type="cose",customer-name="contoso"
+        * /IntUnProtectedHeaders, /iuh - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntUnProtectedHeaders created-at=12345678,customer-count=10
+        * /StringUnProtectedHeaders, /suh - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringUnProtectedHeaders message-type="cose",customer-name="contoso"
+    * File:
+        * /IntHeaders, /ih - A JSON file containing the headers with the value being an int32.
+        * /StringHeaders, /sh - A JSON file containing the headers with the value being a string.
+
+The JSON schema is the same for both types of header files. Sample int32 and string headers file are shown below.
+
+>Note: protected is optional. When ignored, it defaults to False.
+
+~~~
+[
+    {
+        "label":"created-at",
+        "value": 12345678,
+        "protected": true
+    },
+    {
+        "label": "customer-count",
+        "value": 10,
+        "protected": false
+    }
+]
+~~~
+
+~~~
+[
+    {
+        "label":"message-type",
+        "value": "cose",
+        "protected": false
+    },
+    {
+        "label": "customer-name",
+        "value": "contoso",
+        "protected": true
+    }
+]
+~~~
 
 Run *CoseSignTool sign /?* for the complete command line usage.
 

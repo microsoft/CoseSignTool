@@ -48,6 +48,7 @@ jobs:
 
     # Use the Dotnet Test command to load dependencies, build, and test the code.
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
+    # TODO: Remove the dotnet publish commands once we know they work.
     - name: Build and Test debug
       run: |
           dotnet build --configuration Debug CoseSignTool.sln
@@ -270,11 +271,11 @@ jobs:
       uses: actions/checkout@v3
 
     # Build and publish the binaries to ./published.
-    # Note: We have to use the solution files to get the right output paths, due to the mix of .NET 7 and .NET Standard projects.
     - name: Publish outputs
       run: |
-        dotnet publish --configuration Debug --output published/debug CoseSignTool.sln
-        dotnet publish --configuration Release --output published/release CoseSignTool.sln
+        dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool\CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool\CoseSignTool.csproj
+        # Self-contained is needed. Must use .csproj instead of .sln.
 
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders

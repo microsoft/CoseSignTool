@@ -37,7 +37,6 @@ jobs:
             dir_command: ls -a -R
           # - os: macos-latest
           #   dir_command: ls -a -R
-        tag: ${{ fromJson(needs.fetch_tags.outputs.tags) }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

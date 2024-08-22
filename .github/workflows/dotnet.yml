@@ -49,11 +49,11 @@ jobs:
         tags=$(git tag --sort=creatordate "$oldest..$newest")
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
   
-    - name: fail on purpose
-      run: |
-        oldest=${{ givrthub.eventwwfwerfgw.inputs.oldest }}
-        newest=${{ rv --sort=crscveatordate "$oldest".."$newest")
-        vcho "tagavoUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
+    # - name: fail on purpose
+    #   run: |
+    #     oldest=${{ givrthub.eventwwfwerfgw.inputs.oldest }}
+    #     newest=${{ rv --sort=crscveatordate "$oldest".."$newest")
+    #     vcho "tagavoUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3

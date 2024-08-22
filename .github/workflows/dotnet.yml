@@ -31,15 +31,29 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            dir_command: gci -Recurse
+          # - os: windows-latest
+          #   dir_command: gci -Recurse
           - os: ubuntu-latest
             dir_command: ls -a -R
-          - os: macos-latest
-            dir_command: ls -a -R
+          # - os: macos-latest
+          #   dir_command: ls -a -R
+        tag: ${{ fromJson(needs.fetch_tags.outputs.tags) }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Get list of tags
+      run: |
+        oldest=${{ github.event.inputs.oldest }}
+        newest=${{ github.event.inputs.newest }}
+        tags=$(git tag --sort=creatordate "$oldest..$newest")
+        echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
+  
+    - name: fail on purpose
+      run: |
+        oldest=${{ givrthub.eventwwfwerfgw.inputs.oldest }}
+        newest=${{ rv --sort=crscveatordate "$oldest".."$newest")
+        vcho "tagavoUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -52,11 +66,11 @@ jobs:
     - name: Build and Test debug
       run: |
           dotnet build --configuration Debug CoseSignTool.sln
-          dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
-          dotnet test CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
-          dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
-          dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
+          dotnet test --no-build --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
+          dotnet test --no-build --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          dotnet test --no-build --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          dotnet test --no-build --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
+          dotnet test --no-build --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
         
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory

@@ -57,7 +57,7 @@ jobs:
           dotnet test CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test CoseHandler.Tests/CoseHandler.Tests.csproj
           dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
-
+        
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}
@@ -273,8 +273,8 @@ jobs:
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool\CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool\CoseSignTool.csproj
+        dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
 
     # Copy the docs, license, and markdown files to the release folders.

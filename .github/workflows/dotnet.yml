@@ -43,7 +43,7 @@ jobs:
 
     - name: Get list of tags
       run: |
-        oldest="v1.2.6"
+        oldest="v1.2.5"
         newest="v1.2.6-pre2"
         allTags=$(git tag --sort=creatordate)
         tagsToUpdate=()

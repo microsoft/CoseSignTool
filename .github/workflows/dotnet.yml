@@ -48,7 +48,7 @@ jobs:
         allTags=$(git tag --sort=creatordate)
         tagsToUpdate=()
         for tag in $allTags; do
-          if [[ "$tag" >= "$oldest" && "$tag" <= "$newest" ]]; then
+          if "$tag" >= "$oldest" && "$tag" <= "$newest"; then
             tagsToUpdate+=("$tag")
           fi
         done

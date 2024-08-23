@@ -45,7 +45,7 @@ jobs:
       run: |
         oldest=v1.2.5
         newest=v1.2.6-pre2
-        allTags=$(git tag --sort=creatordate)
+        allTags=$(git tag --list --sort=version:refname)
         echo "allTags is $allTags"
         tagsToUpdate=()
         for tag in $allTags; do

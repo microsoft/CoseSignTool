@@ -52,6 +52,7 @@ jobs:
             tagsToUpdate+=("$tag")
           fi
         done
+        echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]"
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
   
     # - name: fail on purpose

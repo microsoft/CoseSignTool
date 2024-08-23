@@ -43,13 +43,15 @@ jobs:
 
     - name: Get list of tags
       run: |
-        git fetch
-        allTags=$(git tag --list)
+        git fetch --quiet
+        oldest=v1.2.5
+        newest=v1.2.6-pre2
+        allTags=$(git tag --list --sort=version:refname)
         echo "allTags is $allTags"
         tagsToUpdate=()
         for tag in $allTags; do
           echo "Checking tag $tag"
-          if "$tag" >= "v1.2.5" && "$tag" <= "v1.2.6-pre2"; then
+          if "$tag" >= "$oldest" && "$tag" <= "$newest"; then
             tagsToUpdate+=("$tag")
           fi
         done

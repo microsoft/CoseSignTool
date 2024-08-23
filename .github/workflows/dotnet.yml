@@ -43,6 +43,7 @@ jobs:
 
     - name: Get list of tags
       run: |
+        git fetch
         allTags=$(git tag --list)
         echo "allTags is $allTags"
         tagsToUpdate=()

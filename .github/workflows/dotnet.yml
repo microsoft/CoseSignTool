@@ -45,7 +45,13 @@ jobs:
       run: |
         oldest="v1.2.6"
         newest="v1.2.6-pre2"
-        tags=$(git tag --sort=creatordate "v1.2.6 .. v1.2.6-pre2")
+        allTags=$(git tag --sort=creatordate)
+        tagsToUpdate=()
+        for tag in $allTags; do
+          if [[ "$tag" >= "$oldest" && "$tag" <= "$newest" ]]; then
+            tagsToUpdate+=("$tag")
+          fi
+        done
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
   
     # - name: fail on purpose

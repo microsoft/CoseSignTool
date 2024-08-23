@@ -60,6 +60,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 		.github\workflows\dependency-review.yml = .github\workflows\dependency-review.yml
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 		.github\workflows\OpenPR.yml = .github\workflows\OpenPR.yml
+		re-release.yml = re-release.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Headers", "CoseSign1.Headers\CoseSign1.Headers.csproj", "{DE822040-D5AB-41C8-83B2-4938FF00C7E5}"

@@ -46,7 +46,7 @@ jobs:
         git fetch --quiet
         oldest=v1.2.5
         newest=v1.2.6-pre2
-        allTags=$(git tag --list --sort=version:refname | $0 >= $oldest && $0 <= $newest)
+        allTags=$(git tag --list --sort=version:refname) | $0 >= $oldest && $0 <= $newest
         echo "allTags is $allTags"
         tagsToUpdate=()
         for tag in $allTags; do

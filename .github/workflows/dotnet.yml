@@ -46,7 +46,7 @@ jobs:
         oldest=v1.2.5
         newest=v1.2.6-pre2
         git fetch --quiet
-        tags=$(git tag --list --sort=version:refname | awk '/$oldest/, /$newest/')
+        tags=$(git tag --list --sort=version:refname | awk -v old="$oldest" -v new="$newest" '$0 >= old && $0 <= new')
         echo "tags = $tags"
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
 

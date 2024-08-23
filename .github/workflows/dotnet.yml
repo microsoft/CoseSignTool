@@ -46,10 +46,18 @@ jobs:
         oldest=v1.2.5
         newest=v1.2.6-pre2
         git fetch --quiet
-        tags=$(git tag --list --sort=version:refname | awk '/$oldest/, /$newest/' | tr ' ' ',')
-        echo "tagsToUpdate=$tags"
-        echo "tagsToUpdate=[$(echo $tags)]" >> $GITHUB_ENV
-  
+        tags=$(git tag --list --sort=version:refname | awk '/$oldest/, /$newest/')
+        echo "tags = $tags"
+        echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
+
+    - name: Log each tag in tagsToUpdate
+      run: |
+        for tag in $(echo $tagsToUpdate | tr ',' ' '); do
+          echo "Tag: $tag"
+        done
+      env:
+        tagsToUpdate: ${{ env.tagsToUpdate }}
+
     # - name: fail on purpose
     #   run: |
     #     oldest=${{ givrthub.eventwwfwerfgw.inputs.oldest }}

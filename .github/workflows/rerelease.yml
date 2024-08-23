@@ -62,6 +62,20 @@ jobs:
         for tag in ${{ env.tagsToUpdate }}; do
           echo "**** Release $tag ****\n******************************\n"
 
+
+                    echo "**** Checkout $tag ****"
+          git fetch --tags
+          git checkout "$tag"
+          echo "**** Build and publish $tag ****"
+          dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+          echo "**** Copy documentation for $tag ****"
+          for folder in debug release; do
+            mkdir -p published/$folder/docs
+            cp -r docs/* published/$folder/docs/
+            cp -r LICENSE published/$folder/
+            cp -r *.md published/$folder/
+
           # Run checkout action
           echo "::group::Checkout"
           echo "Checkout tagged release"

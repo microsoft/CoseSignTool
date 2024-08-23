@@ -52,7 +52,7 @@ jobs:
 
     - name: Log each tag in tagsToUpdate
       run: |
-        for tag in $(echo $tagsToUpdate); do
+        for tag in ${{ env.tagsToUpdate }}; do
           echo "Tag: $tag"
         done
       env:

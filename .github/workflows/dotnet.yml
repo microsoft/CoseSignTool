@@ -43,11 +43,12 @@ jobs:
 
     - name: Get list of tags
       run: |
-        oldest="v1.2.5"
-        newest="v1.2.6-pre2"
+        oldest=v1.2.5
+        newest=v1.2.6-pre2
         allTags=$(git tag --sort=creatordate)
         tagsToUpdate=()
         for tag in $allTags; do
+          echo "Checking tag $tag"
           if "$tag" >= "$oldest" && "$tag" <= "$newest"; then
             tagsToUpdate+=("$tag")
           fi

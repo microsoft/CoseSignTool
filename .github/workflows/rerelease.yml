@@ -44,7 +44,6 @@ jobs:
             zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
 
     steps:
-    # Checkout the branch.
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -59,67 +58,27 @@ jobs:
 
     - name: Release assets for selected tags
       run: |
+        git fetch --tags
         for tag in ${{ env.tagsToUpdate }}; do
-          echo "**** Checkout $tag ****"
-          git fetch --tags
-          git checkout "$tag"
           echo "**** Build and publish $tag ****"
+          git checkout "$tag"
           dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
           dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+
           echo "**** Copy documentation for $tag ****"
           for folder in debug release; do
             mkdir -p published/$folder/docs
             cp -r docs/* published/$folder/docs/
             cp -r LICENSE published/$folder/
             cp -r *.md published/$folder/
-
-          # Run checkout action
-          echo "::group::Checkout"
-          echo "Checkout tagged release"
-          - name: Checkout tagged release
-            uses: actions/checkout@v4
-            with:
-              ref: $tag
-          echo "::endgroup::"
-
-          # Build and publish the binaries to ./published.
-          echo "::group::Publish"
-          echo "Build and publish"
-          dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
-          # Self-contained is needed. Must use .csproj instead of .sln.
-          echo "::endgroup::"
-
-          # Copy the docs, license, and markdown files to the release folders.
-          echo "::group::Copy"
-          echo "Copy documentation"
-          for folder in debug release; do
-            mkdir -p published/$folder/docs
-            cp -r docs/* published/$folder/docs/
-            cp -r LICENSE published/$folder/
-            cp -r *.md published/$folder/
           done
-          echo "::endgroup::"
 
-          # Create zip files for release.
-          echo "::group::Zips"
-          echo "Create zip files for the release"
+          echo "**** Create zip files for $tag ****"
           ${{ matrix.zip_command_debug }}
           ${{ matrix.zip_command_release }}
           ${{ matrix.dir_command }}
-          echo "::endgroup::"
 
-          # Upload the zipped assets to the release.
-          echo "::group::Upload"
-          echo "Upload .zip files to Github"
-          - name: Upload artifacts
-            id: upload
-            uses: svenstaro/upload-release-action@v2
-            with:
-            repo_token: ${{ secrets.GITHUB_TOKEN }}
-            file: ./published/CoseSignTool-*.zip
-            file_glob: true
-            overwrite: true
-            tag: ${{ needs.create_release.outputs.tag_name }}
-          echo "::endgroup::"
+          echo "**** Upload zip files to GitHub ****"
+          gh release upload $tag ./published/CoseSignTool-*.zip
+
         done

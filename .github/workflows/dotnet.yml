@@ -31,44 +31,15 @@ jobs:
     strategy:
       matrix:
         include:
-          # - os: windows-latest
-          #   dir_command: gci -Recurse
+          - os: windows-latest
+            dir_command: gci -Recurse
           - os: ubuntu-latest
             dir_command: ls -a -R
-          # - os: macos-latest
-          #   dir_command: ls -a -R
+          - os: macos-latest
+            dir_command: ls -a -R
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Get list of tags
-      run: |
-        oldest=v1.2.5
-        newest=v1.2.6-pre2
-        git fetch --tags --quiet
-        tags=$(git tag --list --sort=version:refname | awk -v old="$oldest" -v new="$newest" '$0 >= old && $0 <= new')
-        echo "tags = $tags"
-        echo "tagsToUpdate=$(echo $tags)" >> $GITHUB_ENV
-
-    - name: Log each tag in tagsToUpdate
-      run: |
-        for tag in ${{ env.tagsToUpdate }}; do
-          echo "**** Checkout $tag ****"
-          git fetch --tags
-          git checkout "$tag"
-
-          for tag2 in ${{ env.tagsToUpdate }}; do
-            echo "tag2 is $tag2"
-          done
-          echo "**** Build and publish $tag ****"
-        done
-
-
-    # - name: fail on purpose
-    #   run: |
-    #     oldest=${{ givrthub.eventwwfwerfgw.inputs.oldest }}
-    #     newest=${{ rv --sort=crscveatordate "$oldest".."$newest")
-    #     vcho "tagavoUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -77,7 +48,6 @@ jobs:
 
     # Use the Dotnet Test command to load dependencies, build, and test the code.
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
-    # TODO: Remove the dotnet publish commands once we know they work.
     - name: Build and Test debug
       run: |
           dotnet build --configuration Debug CoseSignTool.sln

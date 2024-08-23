@@ -44,8 +44,8 @@ jobs:
     - name: Get list of tags
       run: |
         oldest="v1.2.6"
-        newest = "v1.2.6-pre2"
-        tags=$(git tag --sort=creatordate "$oldest..$newest")
+        newest="v1.2.6-pre2"
+        tags=$(git tag --sort=creatordate "v1.2.6 .. v1.2.6-pre2")
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
   
     # - name: fail on purpose

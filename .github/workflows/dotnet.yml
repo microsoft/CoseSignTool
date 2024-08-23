@@ -53,7 +53,16 @@ jobs:
     - name: Log each tag in tagsToUpdate
       run: |
         for tag in ${{ env.tagsToUpdate }}; do
-          echo "Tag: $tag"
+          echo "**** Release $tag ****\n******************************\n"
+
+          # Run checkout action
+          echo "::group::Checkout"
+          echo "Checkout tagged release"
+          - name: Checkout tagged release
+            uses: actions/checkout@v4
+            with:
+              ref: $tag
+          echo "::endgroup::"
         done
 
 

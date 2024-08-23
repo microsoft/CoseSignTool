@@ -60,10 +60,7 @@ jobs:
     - name: Release assets for selected tags
       run: |
         for tag in ${{ env.tagsToUpdate }}; do
-          echo "**** Release $tag ****\n******************************\n"
-
-
-                    echo "**** Checkout $tag ****"
+          echo "**** Checkout $tag ****"
           git fetch --tags
           git checkout "$tag"
           echo "**** Build and publish $tag ****"

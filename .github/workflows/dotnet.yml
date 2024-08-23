@@ -43,18 +43,10 @@ jobs:
 
     - name: Get list of tags
       run: |
-        git fetch --quiet
         oldest=v1.2.5
         newest=v1.2.6-pre2
-        allTags=$(git tag --list --sort=version:refname | awk -v old="$oldest" -v new="$newest" '$0 >= old && $0 <= new')
-        echo "allTags is $allTags"
-        tagsToUpdate=()
-        for tag in $allTags; do
-          echo "Checking tag $tag"
-          if "$tag" >= "$oldest" && "$tag" <= "$newest"; then
-            tagsToUpdate+=("$tag")
-          fi
-        done
+        git fetch --quiet
+        tags=$(git tag --list --sort=version:refname | awk '/$oldest/, /$newest/')
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]"
         echo "tagsToUpdate=[$(echo $tags | tr ' ' ',')]" >> $GITHUB_ENV
   

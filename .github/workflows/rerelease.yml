@@ -4,16 +4,18 @@
 
 name: Re-release Assets
 on:
+  pull_request:
+    branches: [ "*" ]   # Take this out once it works
   workflow_dispatch:
     inputs:
       oldest:
         description: 'Oldest release to include'
         required: true
-        default: 'v0.3.1'
+        default: 'v1.2.3'
       newest:
         description: 'Newest release to include'
         required: true
-        default: 'current'
+        default: 'v1.2.4'
 
 jobs:
   release_assets_by_tag:
@@ -32,16 +34,16 @@ jobs:
         include:
           - os: windows-latest
             dir_command: gci -Recurse
-            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
-            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+            zip_command_debug: Compress-Archive -Path ./published/debug/ -DestinationPath CoseSignTool-Windows-debug.zip
+            zip_command_release: Compress-Archive -Path ./published/release/ -DestinationPath CoseSignTool-Windows-release.zip
           - os: ubuntu-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./published/debug/
+            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./published/release/
           - os: macos-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./published/debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./published/release/
 
     steps:
     - name: Checkout repository

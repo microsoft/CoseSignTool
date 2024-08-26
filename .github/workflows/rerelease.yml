@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       oldest:
-        description: 'Oldest release to include'
+        description: 'Oldest release to include'    # ${{ github.event.inputs.oldest }}
         required: true
-        default: 'v0.3.1'
+        default: 'v1.2.3'
       newest:
         description: 'Newest release to include'
         required: true
-        default: 'current'
+        default: 'v1.2.4'
 
 jobs:
   release_assets_by_tag:
@@ -31,26 +31,29 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            dir_command: gci -Recurse
-            zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
-            zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
+            zip_command_debug: zip --quiet -r CoseSignTool-Windows-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-Windows-release.zip ./published/release/
           - os: ubuntu-latest
-            dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
+            zip_command_debug: zip --quiet -r CoseSignTool-Linux-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-Linux-release.zip ./published/release/
           - os: macos-latest
-            dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+            zip_command_debug: zip --quiet -r CoseSignTool-MacOS-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-MacOS-release.zip ./published/release/
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install Zip command
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: choco install zip
+
     - name: Get list of tags
       run: |
+        oldest=${{ github.event.inputs.oldest }}
+        newest=${{ github.event.inputs.newest }}
         git fetch --quiet
-        tags=$(git tag --list --sort=version:refname | awk -v old=${{ github.event.inputs.oldest }} -v new=${{ github.event.inputs.newest }} '$0 >= old && $0 <= new')
+        tags=$(git tag --list --sort=version:refname | awk -v old=$oldest -v new=$newest '$0 >= old && $0 <= new')
         echo "tags = $tags"
         echo "tagsToUpdate=$(echo $tags)" >> $GITHUB_ENV
       shell: bash
@@ -59,10 +62,13 @@ jobs:
       run: |
         git fetch --tags
         for tag in ${{ env.tagsToUpdate }}; do
+          echo "**** Checkout $tag ****"
+          git checkout "$tag" --quiet
+
           echo "**** Build and publish $tag ****"
-          git checkout "$tag"
           dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
           dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+          echo "publish succeeded"
 
           echo "**** Copy documentation for $tag ****"
           for folder in debug release; do
@@ -75,10 +81,12 @@ jobs:
           echo "**** Create zip files for $tag ****"
           ${{ matrix.zip_command_debug }}
           ${{ matrix.zip_command_release }}
-          ${{ matrix.dir_command }}
+          find . -type f -name "*.zip"
 
           echo "**** Upload zip files to GitHub ****"
-          gh release upload $tag ./published/CoseSignTool-*.zip
+          gh release upload $tag ./CoseSignTool-*.zip --clobber
 
         done
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}

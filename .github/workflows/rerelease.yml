@@ -4,8 +4,6 @@
 
 name: Re-release Assets
 on:
-  pull_request:
-    branches: [ "*" ]   # Take this out once it works
   workflow_dispatch:
     inputs:
       oldest:
@@ -33,20 +31,14 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            dir_command: gci -Recurse
             zip_command_debug: zip --quiet -r CoseSignTool-Windows-debug.zip ./published/debug/
             zip_command_release: zip --quiet -r CoseSignTool-Windows-release.zip ./published/release/
-            find_zips: dir /s /b *.zip
           - os: ubuntu-latest
-            dir_command: ls -a -R
             zip_command_debug: zip --quiet -r CoseSignTool-Linux-debug.zip ./published/debug/
             zip_command_release: zip --quiet -r CoseSignTool-Linux-release.zip ./published/release/
-            find_zips: find . -type f -name "*.zip"
           - os: macos-latest
-            dir_command: ls -a -R
             zip_command_debug: zip --quiet -r CoseSignTool-MacOS-debug.zip ./published/debug/
             zip_command_release: zip --quiet -r CoseSignTool-MacOS-release.zip ./published/release/
-            find_zips: find . -type f -name "*.zip"
 
     steps:
     - name: Checkout repository
@@ -58,8 +50,8 @@ jobs:
 
     - name: Get list of tags
       run: |
-        oldest=v1.2.3
-        newest=v1.2.4
+        oldest=${{ github.event.inputs.oldest }}
+        newest=${{ github.event.inputs.newest }}
         git fetch --quiet
         tags=$(git tag --list --sort=version:refname | awk -v old=$oldest -v new=$newest '$0 >= old && $0 <= new')
         echo "tags = $tags"
@@ -72,9 +64,6 @@ jobs:
         for tag in ${{ env.tagsToUpdate }}; do
           echo "**** Checkout $tag ****"
           git checkout "$tag" --quiet
-
-          echo "**** List files in CoseSignTool directory ****"
-          ls -a CoseSignTool
 
           echo "**** Build and publish $tag ****"
           dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj

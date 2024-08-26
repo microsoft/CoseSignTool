@@ -53,6 +53,7 @@ jobs:
         tags=$(git tag --list --sort=version:refname | awk -v old=${{ github.event.inputs.oldest }} -v new=${{ github.event.inputs.newest }} '$0 >= old && $0 <= new')
         echo "tags = $tags"
         echo "tagsToUpdate=$(echo $tags)" >> $GITHUB_ENV
+      shell: bash
 
     - name: Release assets for selected tags
       run: |
@@ -80,3 +81,4 @@ jobs:
           gh release upload $tag ./published/CoseSignTool-*.zip
 
         done
+      shell: bash

@@ -34,8 +34,8 @@ jobs:
         include:
           - os: windows-latest
             dir_command: gci -Recurse
-            zip_command_debug: Compress-Archive -Path ./published/debug/ -DestinationPath CoseSignTool-Windows-debug.zip
-            zip_command_release: Compress-Archive -Path ./published/release/ -DestinationPath CoseSignTool-Windows-release.zip
+            zip_command_debug: zip --quiet -r CoseSignTool-Windows-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-Windows-release.zip ./published/release/
             find_zips: dir /s /b *.zip
           - os: ubuntu-latest
             dir_command: ls -a -R
@@ -86,8 +86,8 @@ jobs:
           done
 
           echo "**** Create zip files for $tag ****"
-          zip --quiet -r CoseSignTool-Linux-debug.zip ./published/debug/
-          zip --quiet -r CoseSignTool-Linux-release.zip ./published/release/
+          ${{ matrix.zip_command_debug }}
+          ${{ matrix.zip_command_release }}
           find . -type f -name "*.zip"
 
           echo "**** Upload zip files to GitHub ****"

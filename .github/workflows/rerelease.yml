@@ -52,6 +52,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install Zip command
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: choco install zip
+
     - name: Get list of tags
       run: |
         oldest=v1.2.3

@@ -86,9 +86,9 @@ jobs:
           done
 
           echo "**** Create zip files for $tag ****"
-          ${{ matrix.zip_command_debug }}
-          ${{ matrix.zip_command_release }}
-          ${{ matrix.find_zips }}
+          zip --quiet -r CoseSignTool-Linux-debug.zip ./published/debug/
+          zip --quiet -r CoseSignTool-Linux-release.zip ./published/release/
+          find . -type f -name "*.zip"
 
           echo "**** Upload zip files to GitHub ****"
           gh release upload $tag ./CoseSignTool-*.zip --clobber

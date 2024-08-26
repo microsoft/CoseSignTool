@@ -9,11 +9,10 @@ on:
       oldest:
         description: 'Oldest release to include'    # ${{ github.event.inputs.oldest }}
         required: true
-        default: 'v1.2.3'
+        default: 'v0.3.1'
       newest:
         description: 'Newest release to include'
         required: true
-        default: 'v1.2.4'
 
 jobs:
   release_assets_by_tag:
@@ -66,7 +65,9 @@ jobs:
           git checkout "$tag" --quiet
 
           echo "**** Build and publish $tag ****"
+          rm -rf published/debug
           dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
+          rm -rf published/release
           dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
           echo "publish succeeded"
 

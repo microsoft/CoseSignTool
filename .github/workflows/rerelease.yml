@@ -36,14 +36,17 @@ jobs:
             dir_command: gci -Recurse
             zip_command_debug: Compress-Archive -Path ./published/debug/ -DestinationPath CoseSignTool-Windows-debug.zip
             zip_command_release: Compress-Archive -Path ./published/release/ -DestinationPath CoseSignTool-Windows-release.zip
+            find_zips: dir /s /b *.zip
           - os: ubuntu-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./published/debug/
-            zip_command_release: zip -r CoseSignTool-Linux-release.zip ./published/release/
+            zip_command_debug: zip --quiet -r CoseSignTool-Linux-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-Linux-release.zip ./published/release/
+            find_zips: find . -type f -name "*.zip"
           - os: macos-latest
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./published/debug/
-            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./published/release/
+            zip_command_debug: zip --quiet -r CoseSignTool-MacOS-debug.zip ./published/debug/
+            zip_command_release: zip --quiet -r CoseSignTool-MacOS-release.zip ./published/release/
+            find_zips: find . -type f -name "*.zip"
 
     steps:
     - name: Checkout repository
@@ -72,6 +75,7 @@ jobs:
           echo "**** Build and publish $tag ****"
           dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
           dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+          echo "publish succeeded"
 
           echo "**** Copy documentation for $tag ****"
           for folder in debug release; do
@@ -84,10 +88,12 @@ jobs:
           echo "**** Create zip files for $tag ****"
           ${{ matrix.zip_command_debug }}
           ${{ matrix.zip_command_release }}
-          ${{ matrix.dir_command }}
+          ${{ matrix.find_zips }}
 
           echo "**** Upload zip files to GitHub ****"
           gh release upload $tag ./published/CoseSignTool-*.zip
 
         done
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}

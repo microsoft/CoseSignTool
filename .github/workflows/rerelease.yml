@@ -91,7 +91,7 @@ jobs:
           ${{ matrix.find_zips }}
 
           echo "**** Upload zip files to GitHub ****"
-          gh release upload $tag ./CoseSignTool-*.zip
+          gh release upload $tag ./CoseSignTool-*.zip --clobber
 
         done
       shell: bash

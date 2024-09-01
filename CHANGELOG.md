@@ -315,6 +315,14 @@
 
 - update moq dependency to 4.18.4 [\#61](https://github.com/microsoft/CoseSignTool/pull/61) ([JeromySt](https://github.com/JeromySt))
 
+## [v1.1.0-pre4](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre4) (2023-11-15)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre3...v1.1.0-pre4)
+
+**Merged pull requests:**
+
+- update moq dependency to 4.18.4 [\#61](https://github.com/microsoft/CoseSignTool/pull/61) ([JeromySt](https://github.com/JeromySt))
+
 ## [v1.1.0-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre3) (2023-11-15)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre2...v1.1.0-pre3)

@@ -92,6 +92,7 @@ And in some cases:
 * **/RevocationMode** -- By default, CoseSignTool checks the signing certificate against an online database to see if it has been revoked. You can skip this check by setting **/RevocationMode** to **none**. RevocationMode.Offline is not yet implemented.
 * **/CommonName** -- Forces validation to require that the signing certificate match a specific Common Name value.
 * **/AllowUntrusted** -- Prevents CoseSignTool from failing validation when the certificate chain has an untrusted root. This is intended for test purposes and should not generally be used for production.
+* **/AllowOutdated** -- Prevents CoseSignTool from failing validation when the certificate chain has an expired certificate, unless the expired certificate has a lifetime EKU.
 
 Run *CoseSignTool validate /?* for the complete command line usage.
 
@@ -103,6 +104,6 @@ You will need to specify:
 
 You may also want to specify:
 * A file to write the payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
-* **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, and **/AllowUntrusted**, exactly as with the Validate command.
+* **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, **/AllowUntrusted**, and **/AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get /?* for the complete command line usage.

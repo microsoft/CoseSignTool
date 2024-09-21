@@ -19,6 +19,8 @@ public class ValidateCommand : CoseCommand
         ["-AllowUntrusted"] = "AllowUntrusted",
         ["-allow"] = "AllowUntrusted",
         ["-au"] = "AllowUntrusted",
+        ["-AllowOutdated"] = "AllowOutdated",
+        ["-ao"] = "AllowOutdated",
         ["-ShowCertificateDetails"] = "ShowCertificateDetails",
         ["-scd"] = "ShowCertificateDetails",
         ["-Verbose"] = "Verbose",
@@ -73,6 +75,14 @@ public class ValidateCommand : CoseCommand
     /// </summary>
     public bool AllowUntrusted { get; set; }
 
+    /// <summary>
+    /// True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.
+    /// </summary>
+    public bool AllowOutdated { get; set; }
+
+    /// <summary>
+    /// True to show certificate chain details
+    /// </summary>
     public bool ShowCertificateDetails { get; set; }
 
     /// <summary>
@@ -138,7 +148,8 @@ public class ValidateCommand : CoseCommand
                 rootCerts,
                 RevocationMode,
                 CommonName,
-                AllowUntrusted);
+                AllowUntrusted,
+                AllowOutdated);
 
             // Write the result to console on STDOUT
             Console.WriteLine(result.ToString(Verbose, ShowCertificateDetails));
@@ -175,14 +186,16 @@ public class ValidateCommand : CoseCommand
         List<X509Certificate2>? rootCerts,
         X509RevocationMode revocationMode,
         string? commonName = null,
-        bool allowUntrusted = false)
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
         => CoseHandler.Validate(
             signature,
             payload?.GetStreamResilient(),
             rootCerts,
             revocationMode,
             commonName,
-            allowUntrusted);
+            allowUntrusted,
+            allowOutdated);
 
     //<inheritdoc />
     protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)
@@ -192,6 +205,7 @@ public class ValidateCommand : CoseCommand
         RevocationMode = Enum.Parse<X509RevocationMode>(revModeString, true);
         CommonName = GetOptionString(provider, nameof(CommonName));
         AllowUntrusted = GetOptionBool(provider, nameof(AllowUntrusted));
+        AllowOutdated = GetOptionBool(provider, nameof(AllowOutdated));
         ShowCertificateDetails = GetOptionBool(provider, nameof(ShowCertificateDetails));
         Verbose = GetOptionBool(provider, nameof(Verbose));
         base.ApplyOptions(provider);
@@ -261,6 +275,9 @@ Options:
 
     AllowUntrusted / allow / au: Optional flag. Allows validation to succeed when chaining to an arbitrary root
         certificate on the host machine without that root being trusted.
+
+    AllowOutdated / ao: Optional flag. Allows validation to succeed when the signing certificate has expired, unless the
+        expired certificate has a lifetime EKU.
 
     ShowCertificateDetails / scd: Optional flag. Prints the certificate chain details to the console if the certificate chain is available.
 

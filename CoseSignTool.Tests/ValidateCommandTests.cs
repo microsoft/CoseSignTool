@@ -3,6 +3,8 @@
 
 namespace CoseSignTool.Tests;
 
+using System.Threading.Tasks;
+
 [TestClass]
 public class ValidateCommandTests
 {
@@ -37,28 +39,97 @@ public class ValidateCommandTests
     }
 
     /// <summary>
+    /// Validates that signatures made from "expired" chains fail validation
+    /// </summary>
+    [TestMethod]
+    public void ValidateTrustedFailsWhenExpiredChain()
+    {
+        string payloadFilePath = FileSystemUtils.GeneratePayloadFile();
+        FileInfo payloadFile = new(payloadFilePath);
+        string sigFilePath = $"{payloadFilePath}.cose";
+        FileInfo sigFile = new(sigFilePath);
+
+        // need enough time to sign when valid and then expire before validation
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " expired set", rootDuration: TimeSpan.FromSeconds(1));
+
+        Task.Delay(1000).Wait(); // wait for the chain to expire
+
+        // setup validator. The cert chain wont be installed on the machine so we need to pass it in to construct the chain
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [chain[1]]), false, sigFile);
+
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(
+            sigFile.OpenRead(),
+            payloadFile,
+            [chain[0]],
+            X509RevocationMode.NoCheck,
+            null,
+            false,
+            false);
+
+        result.Success.Should().BeFalse(result.ToString(true, true));
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        result.ToString(true).Should().Contain("A required certificate is not within its validity period", result.ToString(true, true));
+    }
+
+    /// <summary>
+    /// Validates that signatures made from "expired" chains are accepted when AllowOutdated is set
+    /// </summary>
+    [TestMethod]
+    public void ValidateTrustedSucceedsWhenAllowOutdatedExpiredChain()
+    {
+        string payloadFilePath = FileSystemUtils.GeneratePayloadFile();
+        FileInfo payloadFile = new(payloadFilePath);
+        string sigFilePath = $"{payloadFilePath}.cose";
+        FileInfo sigFile = new(sigFilePath);
+
+        // need enough time to sign when valid and then expire before validation
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " expired set", rootDuration: TimeSpan.FromSeconds(1));
+
+        // setup validator. The cert chain wont be installed on the machine so we need to pass it in to construct the chain
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [chain[1]]), false, sigFile);
+
+        Task.Delay(1000).Wait(); // wait for the chain to expire
+
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(
+            sigFile.OpenRead(),
+            payloadFile,
+            [chain[0]],
+            X509RevocationMode.NoCheck,
+            null,
+            false,
+            true);
+
+        result.Success.Should().BeTrue(result.ToString(true, true));
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached, result.ToString(true, true));
+        result.ToString(true).Should().Contain("Certificate was allowed because AllowOutdated was specified.");
+    }
+
+    /// <summary>
     /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
     /// </summary>
     [TestMethod]
     public void ValidateSucceedsWithRootPassedIn()
     {
         string payloadFilePath = FileSystemUtils.GeneratePayloadFile();
+        FileInfo payloadFile = new(payloadFilePath);
+        string sigFilePath = $"{payloadFilePath}.cose";
+        FileInfo sigFile = new(sigFilePath);
 
         // sign detached
-        string[] args1 = ["sign", @"/p", payloadFilePath, @"/pfx", PrivateKeyCertFileSelfSigned];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign failed.");
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv, [Int1Priv]), false, sigFile);
 
-        // setup validator
-        string sigFilePath = $"{payloadFilePath}.cose";
-        using FileStream sigStream = new(sigFilePath, FileMode.Open);
-        FileInfo payloadFile = new(payloadFilePath);
+
         var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(sigStream,
-                                                     payloadFile,
-                                                     [SelfSignedCert],
-                                                     X509RevocationMode.Online,
-                                                     null,
-                                                     false);
+        var result = validator.RunCoseHandlerCommand(
+            sigFile.OpenRead(),
+            payloadFile,
+            [Root1Priv],
+            X509RevocationMode.NoCheck,
+            null,
+            false);
+
         result.Success.Should().BeTrue();
         result.ContentValidationType.Should().Be(ContentValidationType.Detached);
         result.ToString(true).Should().Contain("Detached");

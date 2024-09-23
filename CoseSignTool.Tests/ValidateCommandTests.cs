@@ -52,10 +52,10 @@ public class ValidateCommandTests
         // need enough time to sign when valid and then expire before validation
         X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " expired set", rootDuration: TimeSpan.FromSeconds(1));
 
-        Task.Delay(1000).Wait(); // wait for the chain to expire
-
         // setup validator. The cert chain wont be installed on the machine so we need to pass it in to construct the chain
-        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [chain[1]]), false, sigFile);
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [.. chain]), false, sigFile);
+
+        Task.Delay(2000).Wait(); // wait for the chain to expire
 
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(
@@ -69,7 +69,11 @@ public class ValidateCommandTests
 
         result.Success.Should().BeFalse(result.ToString(true, true));
         result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
-        result.ToString(true).Should().Contain("A required certificate is not within its validity period", result.ToString(true, true));
+
+        // The expired message seems to differ between Windows and Linux
+        (result.ToString(true, true).Contains("A required certificate is not within its validity period") ||
+            result.ToString(true, true).Contains("A required certificate is not within its validity period"))
+            .Should().BeTrue(result.ToString(true, true));
     }
 
     /// <summary>
@@ -84,12 +88,12 @@ public class ValidateCommandTests
         FileInfo sigFile = new(sigFilePath);
 
         // need enough time to sign when valid and then expire before validation
-        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " expired set", rootDuration: TimeSpan.FromSeconds(1));
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(ValidateCommandTests) + " expired set", rootDuration: TimeSpan.FromSeconds(2));
 
         // setup validator. The cert chain wont be installed on the machine so we need to pass it in to construct the chain
-        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [chain[1]]), false, sigFile);
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, chain[2], [.. chain]), false, sigFile);
 
-        Task.Delay(1000).Wait(); // wait for the chain to expire
+        Task.Delay(2000).Wait(); // wait for the chain to expire
 
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(

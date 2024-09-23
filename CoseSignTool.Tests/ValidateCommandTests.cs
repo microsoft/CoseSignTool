@@ -72,7 +72,7 @@ public class ValidateCommandTests
 
         // The expired message seems to differ between Windows and Linux
         (result.ToString(true, true).Contains("A required certificate is not within its validity period") ||
-            result.ToString(true, true).Contains("A required certificate is not within its validity period"))
+            result.ToString(true, true).Contains("An expired certificate was detected."))
             .Should().BeTrue(result.ToString(true, true));
     }
 

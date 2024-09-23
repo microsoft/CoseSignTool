@@ -221,9 +221,10 @@ public class X509ChainTrustValidatorTests
         CoseSign1Message message = CreateCoseSign1MessageWithChainedCert();
 
         // Mock the ChainBuilder to always return success
-        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
+        Mock<ICertificateChainBuilder> mockBuilder = new();
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
         mockBuilder.Setup(x => x.ChainElements).Returns([.. DefaultTestChain]);
+        mockBuilder.Setup(x => x.ChainPolicy).Returns(new X509ChainPolicy());
 
         // Validate
         X509ChainTrustValidator Validator = new(mockBuilder.Object);
@@ -302,7 +303,7 @@ public class X509ChainTrustValidatorTests
         results[0].Includes.Should().NotBeNull();
         results[0].Includes?.Count.Should().Be(1);
         X509ChainStatus? status = results[0].Includes?.Cast<X509ChainStatus>().FirstOrDefault();
-        status.Value.Status.Should().Be(X509ChainStatusFlags.PartialChain);
+        status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
     }
 
     // Prove that an untrusted, self-signed cert passes only when the same cert is passed as a root or AllowUntrusted is ON
@@ -396,7 +397,7 @@ public class X509ChainTrustValidatorTests
         results[0].Includes.Should().NotBeNull();
         results[0].Includes?.Count.Should().Be(1);
         X509ChainStatus? status = results[0].Includes?.Cast<X509ChainStatus>().FirstOrDefault();
-        status.Value.Status.Should().Be(X509ChainStatusFlags.PartialChain);
+        status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
 
         // Revoked cert case //
         Mock<ICertificateChainBuilder> builder = new();

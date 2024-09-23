@@ -330,6 +330,8 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     /// <exception cref="CoseValidationException">The exception thrown if validation failed</exception>
     public static ValidationResult Validate(
         byte[] signature,
@@ -337,8 +339,9 @@ public static class CoseHandler
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated), payload);
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -348,14 +351,17 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     public static ValidationResult Validate(
         byte[] signature,
         Stream payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in memory.
@@ -365,14 +371,17 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     public static ValidationResult Validate(
         Stream signature,
         byte[]? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated), payload);
 
     /// <summary>
     /// Validates a COSE signature file.
@@ -382,16 +391,19 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     public static ValidationResult Validate(
         FileInfo signature,
         FileInfo? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
         => ValidateInternal(signatureBytes: null, signatureStream: null, signatureFile: signature,
             payloadBytes: null, payloadStream: null, payloadFile: payload, out _,
-            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted));
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated));
 
     /// <summary>
     /// Validates a detached COSE signature in memory.
@@ -401,14 +413,17 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     public static ValidationResult Validate(
         Stream signature,
         Stream? payload,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
-        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted), payload);
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
+        => Validate(signature, GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated), payload);
 
     /// <summary>
     /// Validates a detached or embedded COSE signature in  memory.
@@ -484,15 +499,19 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to during validation, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
         byte[] signature,
         out ValidationResult result,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
+        string? requiredCommonName = null,
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
         => GetPayload(signature,
-            GetValidator(roots, revocationMode, requiredCommonName),
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated),
             out result);
 
     /// <summary>
@@ -503,15 +522,19 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to during validation, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
         Stream signature,
         out ValidationResult result,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
+        string? requiredCommonName = null,
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
         => GetPayload(signature,
-            GetValidator(roots, revocationMode, requiredCommonName),
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated),
             out result);
 
     /// <summary>
@@ -522,15 +545,19 @@ public static class CoseHandler
     /// <param name="roots">Optional. A set of root certificates to try to chain the signing certificate to during validation, in addition to the certificates installed on the host machine.</param>
     /// <param name="revocationMode">Optional. Revocation mode to use when validating the certificate chain.</param>
     /// <param name="requiredCommonName">Optional. Requires the signing certificate to match the specified Common Name.</param>
+    /// <param name="allowUntrusted">True to allow untrusted certificates.</param>
+    /// <param name="allowOutdated">True to allow signatures with expired certificates to pass validation unless the expired certificate has a lifetime EKU.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
         FileInfo signature,
         out ValidationResult result,
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
-        string? requiredCommonName = null)
+        string? requiredCommonName = null,
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
         => GetPayloadInternal(signatureBytes: null, signatureStream: null, signatureFile: signature,
-            GetValidator(roots, revocationMode, requiredCommonName),
+            GetValidator(roots, revocationMode, requiredCommonName, allowUntrusted, allowOutdated),
             out result);
 
     /// <summary>
@@ -792,14 +819,16 @@ public static class CoseHandler
         List<X509Certificate2>? roots = null,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         string? requiredCommonName = null,
-        bool allowUntrusted = false)
+        bool allowUntrusted = false,
+        bool allowOutdated = false)
     {
         // Create a validator for the certificate trust chain.
         CoseSign1MessageValidator chainTrustValidator = new X509ChainTrustValidator(
                 roots,
                 revocationMode,
                 allowUnprotected: true,
-                allowUntrusted: allowUntrusted);
+                allowUntrusted: allowUntrusted,
+                allowOutdated: allowOutdated);
 
         // If validating CommonName, we'll do that first, and set it to call for chain trust validation when it finishes.
         if (!string.IsNullOrWhiteSpace(requiredCommonName))

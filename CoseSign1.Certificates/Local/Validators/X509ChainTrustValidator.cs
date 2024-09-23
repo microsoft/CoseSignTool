@@ -101,7 +101,6 @@ public class X509ChainTrustValidator(
         List<X509Certificate2>? certChain,
         List<X509Certificate2>? extraCertificates)
     {
-
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
         if (Roots?.Count > 0)
@@ -109,6 +108,16 @@ public class X509ChainTrustValidator(
             hasRoots = true;
             ChainBuilder.ChainPolicy.ExtraStore.Clear();
             Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
+        }
+
+        if (certChain?.Count > 0)
+        {
+            ChainBuilder.ChainPolicy.ExtraStore.AddRange(certChain.ToArray());
+        }
+
+        if (extraCertificates?.Count > 0)
+        {
+            ChainBuilder.ChainPolicy.ExtraStore.AddRange(extraCertificates.ToArray());
         }
 
         // Build the cert chain. If Build succeeds, return success.

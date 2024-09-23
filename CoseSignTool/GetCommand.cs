@@ -38,10 +38,17 @@ public class GetCommand : ValidateCommand
     // This is consumed by ValidateCommand.Run, which uses it in place of the call to CoseParser.Validate.
     protected internal override ValidationResult RunCoseHandlerCommand(
         Stream signature, FileInfo? payloadFile, List<X509Certificate2>? rootCerts,
-        X509RevocationMode revocationMode, string? commonName, bool allowUntrusted)
+        X509RevocationMode revocationMode, string? commonName, bool allowUntrusted, bool allowOutdated)
     {
         // Get the embedded payload content.
-        string? content = CoseHandler.GetPayload(signature, out ValidationResult result, rootCerts, revocationMode, commonName);
+        string? content = CoseHandler.GetPayload(
+            signature,
+            out ValidationResult result,
+            rootCerts,
+            revocationMode,
+            commonName,
+            allowUntrusted,
+            allowOutdated);
 
         // Write the content to the specified file, if any, or else pipe to STDOUT.
         if (content is null)

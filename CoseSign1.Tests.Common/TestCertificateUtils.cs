@@ -149,9 +149,10 @@ public static class TestCertificateUtils
         [CallerMemberName] string? testName = "none",
         bool useEcc = false,
         int? keySize = null,
-        bool leafFirst = false)
+        bool leafFirst = false,
+        TimeSpan? rootDuration = null)
     {
-        X509Certificate2 testRoot = CreateCertificate($"Test Root: {testName}", useEcc: useEcc, keySize: keySize);
+        X509Certificate2 testRoot = CreateCertificate($"Test Root: {testName}", useEcc: useEcc, keySize: keySize, duration: rootDuration);
         X509Certificate2 issuer = CreateCertificate($"Test Issuer: {testName}", testRoot, useEcc: useEcc, keySize: keySize);
         X509Certificate2 leaf = CreateCertificate($"Test Leaf: {testName}", issuer, useEcc: useEcc, keySize: keySize);
 

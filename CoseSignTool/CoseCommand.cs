@@ -25,6 +25,10 @@ public abstract partial class CoseCommand
         ["-SignatureFile"] = "SignatureFile",
         ["-sig"] = "SignatureFile",
         ["-sf"] = "SignatureFile",
+        ["-UseAdvancedStreamHandling"] = "UseAdvancedStreamHandling",
+        ["-adv"] = "UseAdvancedStreamHandling",
+        ["-MaxWaitTime"] = "MaxWaitTime",
+        ["-wait"] = "MaxWaitTime"
     };
 
     #region Public properties
@@ -40,6 +44,18 @@ public abstract partial class CoseCommand
     /// Default filename when signing is [Payload].cose for detached or [Payload].csm for embedded.
     /// </summary>
     public FileInfo? SignatureFile { get; set; }
+
+    /// <summary>
+    /// If set, uses experimental stream validation techniques before loading file streams.
+    /// May exceed MaxWaitTime if it detects a large file being written to.
+    /// </summary>
+    public bool UseAdvancedStreamHandling { get; set; } = false;
+
+    /// <summary>
+    /// The maximum number of seconds to wait for a payload or signature file to be available
+    /// and not empty before loading it.
+    /// </summary>
+    public int MaxWaitTime { get; set; } = 30;
     #endregion
 
     /// <summary>
@@ -56,6 +72,8 @@ public abstract partial class CoseCommand
     {
         PayloadFile = GetOptionFile(provider, nameof(PayloadFile));
         SignatureFile = GetOptionFile(provider, nameof(SignatureFile));
+        UseAdvancedStreamHandling = GetOptionBool(provider, nameof(UseAdvancedStreamHandling));
+        MaxWaitTime = GetOptionInt(provider, nameof(MaxWaitTime), $"{MaxWaitTime}");
     }
 
     /// <summary>
@@ -109,14 +127,14 @@ public abstract partial class CoseCommand
     /// <param name="optionName">The name of the command line option that specifies a file to read from.</param>
     /// <param name="content">The content of the file or input stream if any.</param>
     /// <returns>An ExitCode indocating success or failure type.</returns>
-    protected static ExitCode TryGetStreamFromPipeOrFile(FileInfo? file, string optionName, out Stream? content)
+    protected ExitCode TryGetStreamFromPipeOrFile(FileInfo? file, string optionName, out Stream? content)
     {
         content = null;
         if (file is not null)
         {
             try
             {
-                content = file.GetStreamResilient();
+                content = UseAdvancedStreamHandling ? file.GetStreamResilient(MaxWaitTime) : file.GetStreamBasic(MaxWaitTime);
                 return
                     content.IsNullOrEmpty() ?
                         CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
@@ -175,6 +193,20 @@ public abstract partial class CoseCommand
     /// </summary>
     /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
     /// <param name="name">The name of the command line option.</param>
+    /// <param name="defaultValue">A default value to use if the option was not set.</param>
+    /// <returns>The value the option was set to on the command line, if any, or the default value otherwise.</returns>
+    [return: NotNullIfNotNull(nameof(defaultValue))]
+    protected static int GetOptionInt(CommandLineConfigurationProvider provider, string name, string defaultValue)
+    {
+        string value = GetOptionString(provider, name, defaultValue) ?? defaultValue;
+        return int.Parse(value);
+    }
+
+    /// <summary>
+    /// Checks whether a command line option has been set.
+    /// </summary>
+    /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
+    /// <param name="name">The name of the command line option.</param>
     /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
     /// <returns>The value the option was set to on the command line, if any, or the default value otherwise.</returns>
     [return: NotNullIfNotNull(nameof(defaultValue))]
@@ -214,9 +246,15 @@ public abstract partial class CoseCommand
     /// <param name="provider">A CommandLineConfigurationProvider object to make the check.</param>
     /// <param name="name">The name of the command line option.</param>
     /// <param name="defaultValue">Optional. A default value to use if the option was not set. Defaults to null.</param>
+    /// <exception cref="FileNotFoundException">The file associated with the commadn line option could not be found.</exception>
+    /// <exception cref="ArgumentException">The file content could not be parsed into option headers.</exception>
     /// <returns>The comma-separated list the option was set to on the command line, split into an array, or the default value otherwise.</returns>
     [return: NotNullIfNotNull(nameof(defaultValue))]
-    protected static List<CoseHeader<TypeV>>? GetOptionHeadersFromFile<TypeV>(CommandLineConfigurationProvider provider, string name, List<CoseHeader<TypeV>>? defaultValue = null, JsonConverter? converter = null)
+    protected static List<CoseHeader<TypeV>>? GetOptionHeadersFromFile<TypeV>(
+        CommandLineConfigurationProvider provider,
+        string name,
+        List<CoseHeader<TypeV>>? defaultValue = null,
+        JsonConverter? converter = null)
     {
         FileInfo? file = GetOptionFile(provider, name, null);
 
@@ -227,25 +265,16 @@ public abstract partial class CoseCommand
 
         try
         {
-            using StreamReader reader = new StreamReader(file.FullName) ;
+            using StreamReader reader = new(file.FullName);
             string json = reader.ReadToEnd();
-            List<CoseHeader<TypeV>> headers = converter != null ? JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json, converter) : JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json);
+            List<CoseHeader<TypeV>> headers =
+                converter != null ? JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json, converter)
+                : JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json);
             return headers;
         }
-        catch(Exception ex)
+        catch (Exception ex) when (ex is not FileNotFoundException && ex is not ArgumentException)
         {
-            if (ex is ArgumentException)
-            {
-                throw;
-            }
-            else if (ex is FileNotFoundException)
-            {
-                throw new FileNotFoundException($"The file specified in /{name} was not found: {file.FullName}");
-            }
-            else 
-            {
-                throw new ArgumentException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
-            }
+            throw new ArgumentException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
         }
     }
 

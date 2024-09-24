@@ -188,14 +188,19 @@ public class ValidateCommand : CoseCommand
         string? commonName = null,
         bool allowUntrusted = false,
         bool allowOutdated = false)
-        => CoseHandler.Validate(
-            signature,
-            payload?.GetStreamResilient(),
-            rootCerts,
-            revocationMode,
-            commonName,
-            allowUntrusted,
-            allowOutdated);
+    {
+        FileStream? payloadStream =
+            UseAdvancedStreamHandling ? payload?.GetStreamResilient(MaxWaitTime)
+            : payload?.GetStreamBasic(MaxWaitTime);
+        return CoseHandler.Validate(
+                signature,
+                payloadStream,
+                rootCerts,
+                revocationMode,
+                commonName,
+                allowUntrusted,
+                allowOutdated);
+    }
 
     //<inheritdoc />
     protected internal override void ApplyOptions(CommandLineConfigurationProvider provider)

@@ -292,7 +292,8 @@ public static class CoseHandler
         try
         {
             // Read payload file to stream if provided.
-            payloadStream ??= payloadFile?.GetStreamResilient();
+            //payloadStream ??= payloadFile?.GetStreamResilient();
+            payloadStream ??= payloadFile?.GetStreamBasic(30);
 
             // Sign the payload.
             //#pragma warning disable CS8604 // Possible null reference argument: False positive on contentType param which has a default value.
@@ -622,8 +623,8 @@ public static class CoseHandler
         try
         {
             // Load file content if provided.
-            payloadStream ??= payloadFile?.GetStreamResilient();
-            signatureStream ??= signatureFile?.GetStreamResilient();
+            payloadStream ??= payloadFile?.GetStreamBasic(30);
+            signatureStream ??= signatureFile?.GetStreamBasic(30);
             signatureBytes ??= signatureStream!.GetBytes().AsMemory();
 
             // List for collecting any validation errors we hit.

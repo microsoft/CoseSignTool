@@ -15,13 +15,47 @@ public static class FileInfoExtensions
     public static byte[] GetBytesResilient(this FileInfo f, OutputTarget? writeTo = null, int maxWaitTime = 5) => GetBytesOrStream(f, false, writeTo, maxWaitTime).Item1!;
 
     /// <summary>
+    /// Loads the content of a file into a <see cref="FileStream"/> with retries to make sure the file loads successfully and is not empty.
+    /// </summary>
+    /// <param name="f">The file to read.</param>
+    /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
+    /// <param name="maxWaitTime">The maximum number of seconds to wait for file availability. This value is used up to four times.</param>
+    /// <returns>The file content.</returns>
+    public static FileStream? GetStreamBasic(this FileInfo f, int maxWaitTime = 30, OutputTarget? writeTo = null)
+    {
+        Exception? ex = null;
+        DateTime startTime = DateTime.Now;
+        int counter = 0;
+        writeTo ??= OutputTarget.StdOut;
+        while (SecondsSince(startTime) < 30)
+        {
+            try
+            {
+                if (!f.Exists) { throw new FileNotFoundException(); }
+                else if (f.Length == 0) { throw new EmptyFileException(f.FullName); }
+                return f.OpenRead();
+            }
+            catch (Exception e)
+            {
+                if (counter % 4 == 0) { writeTo.Write("."); }
+                ex = e;
+                Thread.Sleep(250);
+                counter++;
+            }
+        }
+
+        throw ex!;
+    }
+
+
+    /// <summary>
     /// Loads the content of a file into a <see cref="FileStream"/> after making sure the file exists, is not empty, and is not locked by another process.
     /// </summary>
     /// <param name="f">The file to read.</param>
     /// <param name="writeTo">The output target to write status messages to. Default is STDOUT.</param>
     /// <param name="maxWaitTime">The maximum number of seconds to wait for file availability. This value is used up to four times.</param>
     /// <returns>The file content.</returns>
-    public static FileStream? GetStreamResilient(this FileInfo f, OutputTarget? writeTo = null, int maxWaitTime = 5) => GetBytesOrStream(f, true, writeTo, maxWaitTime).Item2;
+    public static FileStream? GetStreamResilient(this FileInfo f, int maxWaitTime = 5, OutputTarget? writeTo = null) => GetBytesOrStream(f, true, writeTo, maxWaitTime).Item2;
 
     private static (byte[]?, FileStream?) GetBytesOrStream(FileInfo f, bool isStream, OutputTarget? writer, int maxWaitTime)
     {
@@ -46,7 +80,7 @@ public static class FileInfoExtensions
 
             if (OutOfTime(startTime, maxWaitTime))
             {
-                throw new IOException($"File is empty after {SecondsSince(startTime)} seconds.");
+                throw new EmptyFileException(f.FullName, $"File is empty after {SecondsSince(startTime)} seconds.");
             }
         }
 

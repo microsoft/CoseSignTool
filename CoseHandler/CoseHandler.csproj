@@ -36,8 +36,6 @@
 	</PropertyGroup>
 
 	<!--Package references-->
-	<ItemGroup>
-	</ItemGroup>
 
 	<!--Project references-->
 	<ItemGroup>

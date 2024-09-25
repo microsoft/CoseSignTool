@@ -194,11 +194,11 @@ public class MainTests
 
         // empty payload file
         string[] args1 = ["sign", @"/pfx", "fake.pfx", @"/p", emptyFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.EmptySourceFile);
+         CoseSignTool.Main(args1).Should().Be((int)ExitCode.FileUnreadable);
 
         // empty signature file
         string[] args2 = ["validate", @"/rt", PublicKeyRootCertFile, @"/sf", emptyFile, "/rm", "NoCheck", "/scd"];
-        CoseSignTool.Main(args2).Should().Be((int)ExitCode.EmptySourceFile);
+        CoseSignTool.Main(args2).Should().Be((int)ExitCode.FileUnreadable);
     }
 
     [TestMethod]

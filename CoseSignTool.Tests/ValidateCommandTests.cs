@@ -111,6 +111,34 @@ public class ValidateCommandTests
     }
 
     /// <summary>
+    /// Validates that signatures made from real "expired" chains are accepted when AllowOutdated is set
+    /// </summary>
+    [TestMethod]
+    public void ValidateRealExpiredSignatureWithOnlineRevocation()
+    {
+        FileInfo payloadFile = new(@"E:\testvpacks\tmp\manifest.spdx.json");
+        FileInfo sigFile = new(@"E:\testvpacks\tmp\manifest.spdx.cose");
+        string root = @"E:\testvpacks\cose128\CoseSignTool\MicrosoftValidationRoots\Roots\Microsoft_Supply_Chain_RSA_Root_CA_2022.cer";
+
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(
+            sigFile.OpenRead(),
+            payloadFile,
+            [new(X509Certificate2.CreateFromCertFile(root))],
+            X509RevocationMode.Online,
+            null,
+            false,
+            true);
+
+        result.Success.Should().BeTrue(result.ToString(true, true));
+        result.ContentValidationType.Should().Be(ContentValidationType.Detached, result.ToString(true, true));
+        result.ToString(true).Should().Contain("Certificate was allowed because AllowOutdated was specified.");
+
+        string[] args1 = ["validate", @"/p", payloadFile.FullName, @"/sf", sigFile.FullName, @"/rt", root, "/v", "/scd", "/AllowOutdated"];
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach validation failed.");
+    }
+
+    /// <summary>
     /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
     /// </summary>
     [TestMethod]

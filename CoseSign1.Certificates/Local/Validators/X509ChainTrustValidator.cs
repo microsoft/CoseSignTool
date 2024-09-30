@@ -158,6 +158,33 @@ public class X509ChainTrustValidator(
         bool trustUserRoot = hasRoots && TrustUserRoots && !string.IsNullOrEmpty(chainRootThumb) && Roots!.Any(r => r.Thumbprint == chainRootThumb);
         flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
 
+        // Despite the intended behavior of the X509Chain ignoring revocation for root certs, the builder will not recognize non-installed roots
+        // and will erroneously attempt to check revocation. This will always fail for a root. To get around this, we can remove the root from the chain,
+        // and then rebuild it using the same policies. If the chain has no revocation issues without the root, then we know we can ignore them.
+        if (trustUserRoot && ChainBuilder.ChainStatus.Any(st =>
+            st.Status.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown) ||
+            st.Status.HasFlag(X509ChainStatusFlags.OfflineRevocation)))
+        {
+            X509Chain revocationFilter = new();
+            X509ChainPolicy filterPolicy = new()
+            {
+                RevocationFlag = ChainBuilder.ChainPolicy.RevocationFlag,
+                RevocationMode = ChainBuilder.ChainPolicy.RevocationMode,
+                VerificationFlags = ChainBuilder.ChainPolicy.VerificationFlags
+            };
+            
+            revocationFilter.ChainPolicy.ExtraStore
+                .AddRange((X509Certificate2[])[.. ChainBuilder.ChainElements.Where(c => c.Thumbprint != chainRootThumb)]);
+
+            revocationFilter.Build(signingCertificate);
+
+            foreach (X509ChainStatus st in revocationFilter.ChainStatus)
+            {
+                flagsToIgnore |= st.Status.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown) ? X509ChainStatusFlags.RevocationStatusUnknown : 0;
+                flagsToIgnore |= st.Status.HasFlag(X509ChainStatusFlags.OfflineRevocation) ? X509ChainStatusFlags.OfflineRevocation : 0;
+            }
+        }
+
         // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.
         List<X509Certificate2>? outdatedCerts = ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList();
         if (allowOutdated && outdatedCerts is not null && outdatedCerts.Count > 0)

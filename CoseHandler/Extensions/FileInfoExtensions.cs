@@ -27,7 +27,7 @@ public static class FileInfoExtensions
         DateTime startTime = DateTime.Now;
         int counter = 0;
         writeTo ??= OutputTarget.StdOut;
-        while (SecondsSince(startTime) < 30)
+        while (SecondsSince(startTime) < maxWaitTime)
         {
             try
             {

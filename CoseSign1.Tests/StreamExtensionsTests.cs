@@ -3,6 +3,11 @@
 
 namespace CoseSign1.Tests;
 
+using System;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 public class StreamExtensionsTests
 {
     [Test]
@@ -59,5 +64,39 @@ public class StreamExtensionsTests
         mockStream.Setup(s => s.ReadAsync(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns((byte[] buffer, int offset, int count, CancellationToken ct) => memory.ReadAsync(buffer, offset, count, ct));
 
         mockStream.Object.IsNullOrEmpty().Should().Be(true);
+    }
+
+    [Test]
+    public void IsNullOrEmpty_WithTimeout()
+    {        
+        byte[] buffer = Encoding.ASCII.GetBytes("Hello test");
+        using DelayedMemoryStream memory = new(buffer, 1000);
+
+        // Try with default max wait of 100ms
+        memory.IsNullOrEmpty().Should().Be(true);
+
+        // Try with a 2 second max delay
+        memory.IsNullOrEmpty(2000).Should().Be(false);
+    }
+
+    public class DelayedMemoryStream : MemoryStream
+    {
+        private readonly int Delay;
+
+        public DelayedMemoryStream(byte[] content, int delay)
+        {
+            Write(content, 0, content.Length);
+            Position = 0;
+            Delay = delay;
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            // Introduce a delay before reading
+            await Task.Delay(Delay, cancellationToken);
+
+            // Call the base class's ReadAsync method
+            return await base.ReadAsync(buffer, offset, count, cancellationToken);
+        }
     }
 }

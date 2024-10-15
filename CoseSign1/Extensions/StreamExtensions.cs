@@ -20,7 +20,7 @@ public static class StreamExtensions
         {
             return true;
         }
-        DateTime dt = DateTime.Now;
+
         Task<bool> result = Task.Run(() => HasContent(stream, maxWait));
 
         return !result.Result;

@@ -287,5 +287,12 @@ Options:
     ShowCertificateDetails / scd: Optional flag. Prints the certificate chain details to the console if the certificate chain is available.
 
     Verbose / v: Optional flag. Includes certificate chain status errors and exception messages in the error output
-        when validation fails.";
+        when validation fails.
+
+    Advanced options to customize file and stream handling:
+        MaxWaitTime /wait: The maximum number of seconds to wait for a payload or signature file to be available and non-empty before loading it.
+
+        FailFast /ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
+
+        UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.";
 }

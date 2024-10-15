@@ -12,28 +12,29 @@ public static class StreamExtensions
     /// Checks if the current <see cref="Stream"/> is null or empty.
     /// </summary>
     /// <param name="stream">The stream to check.</param>
+    /// <param name="maxWait">The number of milliseconds before timeout. Default is 100.</param>
     /// <returns>True if the stream is null or empty; false otherwise.</returns>
-    public static bool IsNullOrEmpty(this Stream? stream)
+    public static bool IsNullOrEmpty(this Stream? stream, int maxWait = 100)
     {
         if (stream == null)
         {
             return true;
         }
-
-        Task<bool> result = Task.Run(() => HasContent(stream));
+        DateTime dt = DateTime.Now;
+        Task<bool> result = Task.Run(() => HasContent(stream, maxWait));
 
         return !result.Result;
     }
 
 
-    private static async Task<bool> HasContent(Stream stream)
+    private static async Task<bool> HasContent(Stream stream, int maxWait = 100)
     {
         if (stream.CanSeek)
         {
             byte[] buffer = new byte[8];
 
             // If the stream is STDIN, it will otherwise wait indefinitely for input, so we need a timeout task.
-            Task timeout = Task.Delay(TimeSpan.FromMilliseconds(100));
+            Task timeout = Task.Delay(TimeSpan.FromMilliseconds(maxWait));
             Task<int> readStdin = stream.ReadAsync(buffer, 0, 8);
 
             // Go for 100 ms or until we read 8 bytes or reach end of stream, whichever happen first.

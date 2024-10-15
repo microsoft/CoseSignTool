@@ -132,7 +132,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     // Checks to see if the payload is empty
     private static void ThrowIfEmpty(Stream stream)
     {
-        if (stream.IsNullOrEmpty())
+        if (stream.IsNullOrEmpty(10000))
         {
             throw new ArgumentOutOfRangeException(null, "The payload to sign is empty.");
         }

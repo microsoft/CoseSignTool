@@ -136,7 +136,7 @@ public abstract partial class CoseCommand
             {
                 content = UseAdvancedStreamHandling ? file.GetStreamResilient(MaxWaitTime) : file.GetStreamBasic(MaxWaitTime);
                 return
-                    content.IsNullOrEmpty() ?
+                    content.IsNullOrEmpty(10000) ?
                         CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
                     : ExitCode.Success;
             }
@@ -160,7 +160,7 @@ public abstract partial class CoseCommand
         content = Console.OpenStandardInput();
         string inputName = optionName == nameof(PayloadFile) ? "payload" : "signature";
         return
-            content.IsNullOrEmpty() ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
+            content.IsNullOrEmpty(10000) ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
                 $"You must either specify a {inputName} file or pass the {inputName} content in as a Stream.")                    
             : ExitCode.Success;
     }

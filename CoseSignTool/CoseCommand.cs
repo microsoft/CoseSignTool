@@ -28,7 +28,9 @@ public abstract partial class CoseCommand
         ["-UseAdvancedStreamHandling"] = "UseAdvancedStreamHandling",
         ["-adv"] = "UseAdvancedStreamHandling",
         ["-MaxWaitTime"] = "MaxWaitTime",
-        ["-wait"] = "MaxWaitTime"
+        ["-wait"] = "MaxWaitTime",
+        ["-FailFast"] = "FailFast",
+        ["-ff"] = "FailFast",
     };
 
     #region Public properties
@@ -56,6 +58,11 @@ public abstract partial class CoseCommand
     /// and not empty before loading it.
     /// </summary>
     public int MaxWaitTime { get; set; } = 30;
+
+    /// <summary>
+    /// If set, do not wait more than 100ms when checking for null or empty files and streams.
+    /// </summary>
+    public bool FailFast { get; set; } = false;
     #endregion
 
     /// <summary>
@@ -74,6 +81,7 @@ public abstract partial class CoseCommand
         SignatureFile = GetOptionFile(provider, nameof(SignatureFile));
         UseAdvancedStreamHandling = GetOptionBool(provider, nameof(UseAdvancedStreamHandling));
         MaxWaitTime = GetOptionInt(provider, nameof(MaxWaitTime), $"{MaxWaitTime}");
+        FailFast = GetOptionBool(provider, nameof(FailFast));
     }
 
     /// <summary>
@@ -130,13 +138,14 @@ public abstract partial class CoseCommand
     protected ExitCode TryGetStreamFromPipeOrFile(FileInfo? file, string optionName, out Stream? content)
     {
         content = null;
+        int nullCheckTimeout = FailFast ? 100 : 10000;
         if (file is not null)
         {
             try
             {
                 content = UseAdvancedStreamHandling ? file.GetStreamResilient(MaxWaitTime) : file.GetStreamBasic(MaxWaitTime);
                 return
-                    content.IsNullOrEmpty(10000) ?
+                    content.IsNullOrEmpty(nullCheckTimeout) ?
                         CoseSignTool.Fail(ExitCode.EmptySourceFile, null, $"The file specified in /{optionName} was empty: {file.FullName}")
                     : ExitCode.Success;
             }
@@ -160,7 +169,7 @@ public abstract partial class CoseCommand
         content = Console.OpenStandardInput();
         string inputName = optionName == nameof(PayloadFile) ? "payload" : "signature";
         return
-            content.IsNullOrEmpty(10000) ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
+            content.IsNullOrEmpty(nullCheckTimeout) ? CoseSignTool.Fail(ExitCode.MissingRequiredOption, null,
                 $"You must either specify a {inputName} file or pass the {inputName} content in as a Stream.")                    
             : ExitCode.Success;
     }

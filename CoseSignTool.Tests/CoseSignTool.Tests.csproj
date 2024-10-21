@@ -24,8 +24,6 @@
 	</ItemGroup>
 
 	<!-- Package references -->
-	<ItemGroup>
-	</ItemGroup>
 
 	<!-- Project references -->
 	<ItemGroup>
@@ -36,5 +34,9 @@
 	<!-- Includes -->
 	<ItemGroup>
 		<Folder Include="TestContent\" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="17.10.4" />
+	  <PackageReference Include="System.Text.Json" Version="8.0.5" />
 	</ItemGroup>
 </Project>

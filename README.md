@@ -18,13 +18,54 @@ The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provid
 CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solution for signing SBOMs and, we believe, the most powerful and convenient solution currently on the market.
 
 ## How do I get started?
-First, download the latest release from GitHub. There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.
+
+### Using as an executable CLI
+Downloadable versions are available in GitHub [releases](https://github.com/microsoft/CoseSignTool/releases) of this repository. Separate page lists the features and how to use them: [CoseSignTool.md](./docs/CoseSignTool.md).
+
+#### Linux
+Download and extract the folder with the compiled binaries, then make `CoseSignTool` available on the `$PATH`.
+
+```bash
+# download and uzip the release
+mkdir -p ~/cosesigntool
+curl -L https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Linux-release.zip -o ~/cosesigntool/release.zip
+unzip ~/cosesigntool/release.zip -d ~/cosesigntool
+# move the directory to a stable location
+mv ~/cosesigntool/release ~/.local/bin/cosesigntool
+export PATH="$PATH":~/.local/bin/cosesigntool
+# cleanup of files
+rm -rf ~/cosesigntool
+# run the binary
+CoseSignTool
+
+> *** CoseSignTool ***
+> A tool for signing, validating, and getting payload from Cose signatures.
+```
+
+#### MacOS
+See Linux, but make sure to download `CoseSignTool-MacOS-release.zip` instead.
+
+#### Windows
+Similar to Linux or MacOS you could use PowerShell to download the release, extract and move it to the desired location and to add it to the Path like shown in the example below:
+
+```ps
+PS C:\Users\johndoe> Invoke-WebRequest -Uri https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Windows-release.zip -OutFile C:\Users\johndoe\release.zip
+PS C:\Users\johndoe> Expand-Archive C:\Users\johndoe\release.zip -DestinationPath C:\Users\johndoe
+PS C:\Users\johndoe> Rename-Item -Path "C:\Users\johndoe\release" -NewName "cosesigntool"
+PS C:\Users\johndoe> Move-Item -Path C:\Users\johndoe\cosesigntool -Destination C:\Users\johndoe\AppData\Local\
+PS C:\Users\johndoe> $env:Path += ";C:\Users\johndoe\AppData\Local\cosesigntool"
+PS C:\Users\johndoe> CoseSignTool
+
+*** CoseSignTool ***
+A tool for signing, validating, and getting payload from Cose signatures.
+```
+
+### Using in .NET
+Download a specific version from [releases](https://github.com/microsoft/CoseSignTool/releases). There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.
 
 If you have the option of calling it from a .NET application, go to [CoseHandler.md](./docs/CoseHandler.md)
 You can also use [indirect signatures](./docs/CoseIndirectSignature.md), where the signature can be validated against a hash of the payload content instead of requiring the full payload.
 For advanced topics such as time stamping, see [Advanced](./docs/Advanced.md)
-
-Otherwise, go to [CoseSignTool.md](./docs/CoseSignTool.md)
 
 ## How do I make this better?
 You would like to help? Great!

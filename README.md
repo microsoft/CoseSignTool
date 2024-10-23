@@ -28,7 +28,7 @@ Download and extract the folder with the compiled binaries, then make `CoseSignT
 ```bash
 # download and uzip the release
 mkdir -p ~/cosesigntool
-curl -L https://github.com/microsoft/CoseSignTool/releases/download/v1.2.8/CoseSignTool-Linux-release.zip -o ~/cosesigntool/release.zip
+curl -L https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Linux-release.zip -o ~/cosesigntool/release.zip
 unzip ~/cosesigntool/release.zip -d ~/cosesigntool
 # move the directory to a stable location
 mv ~/cosesigntool/release ~/.local/bin/cosesigntool
@@ -49,7 +49,7 @@ See Linux, but make sure to download `CoseSignTool-MacOS-release.zip` instead.
 Similar to Linux or MacOS you could use PowerShell to download the release, extract and move it to the desired location and to add it to the Path like shown in the example below:
 
 ```ps
-PS C:\Users\johndoe> Invoke-WebRequest -Uri https://github.com/microsoft/CoseSignTool/releases/download/v1.2.8-pre5/CoseSignTool-Windows-release.zip -OutFile C:\Users\johndoe\release.zip
+PS C:\Users\johndoe> Invoke-WebRequest -Uri https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Windows-release.zip -OutFile C:\Users\johndoe\release.zip
 PS C:\Users\johndoe> Expand-Archive C:\Users\johndoe\release.zip -DestinationPath C:\Users\johndoe
 PS C:\Users\johndoe> Rename-Item -Path "C:\Users\johndoe\release" -NewName "cosesigntool"
 PS C:\Users\johndoe> Move-Item -Path C:\Users\johndoe\cosesigntool -Destination C:\Users\johndoe\AppData\Local\

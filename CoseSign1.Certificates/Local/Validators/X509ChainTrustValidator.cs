@@ -3,7 +3,7 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
-using System.Diagnostics;
+using System.Linq;
 
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
@@ -116,10 +116,9 @@ public class X509ChainTrustValidator(
             Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
 
 #if NET5_0_OR_GREATER
-            // don't bother with bestEffortLegacyRevocation if we can turn on custom root trust
             if (TrustUserRoots)
             {
-                legacyRevocation = false;
+                // Trust the user-supplied and system-trusted roots.
                 using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
                 x509Store.Open(OpenFlags.ReadOnly);
                 X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
@@ -175,14 +174,6 @@ public class X509ChainTrustValidator(
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.
         X509ChainStatusFlags flagsToIgnore = X509ChainStatusFlags.NoError;
-
-        // Unfortunately pre net5.0 chain builder will always report unknown/offline revocation for roots not in the trusted store.
-        flagsToIgnore |=
-            legacyRevocation && // only do this if we're in best-effort mode i.e. pre net5.0
-            ChainBuilder.ChainStatus.Any(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot)) ?
-                (X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation) : // These flags are always set on roots not in the trusted store
-                0;
-
         flagsToIgnore |= AllowUntrusted ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)

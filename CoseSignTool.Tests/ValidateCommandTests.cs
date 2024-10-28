@@ -36,7 +36,7 @@ public class ValidateCommandTests
     public static void TestClassInit(TestContext context)
     {
         // Set up the test data directory
-        AssemblyPath = context.TestRunDirectory!;
+        AssemblyPath = Path.GetDirectoryName(Environment.ProcessPath);
         TestDataPath = Path.Combine(AssemblyPath, DataDirName);
 
         // export generated certs to files

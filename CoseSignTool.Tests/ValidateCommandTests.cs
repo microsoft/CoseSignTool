@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using CoseSign1.Certificates.Extensions;
+using CoseSign1.Tests.Common;
 
 [TestClass]
 public class ValidateCommandTests
@@ -30,9 +31,11 @@ public class ValidateCommandTests
     private static readonly string CertPassword = Guid.NewGuid().ToString();
     private static readonly string DataDirName = "TestData";
 
-    [AssemblyInitialize]
+    [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
+        _ = context;
+
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));

@@ -40,8 +40,8 @@
 	<!-- Copy to output -->
 	<ItemGroup>
 	  <EmbeddedResource Include="TestData\**\*" />
-	  <None Update="TestData\**">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
+	  <Content  Update="TestData\**">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content >
 	</ItemGroup>
 </Project>

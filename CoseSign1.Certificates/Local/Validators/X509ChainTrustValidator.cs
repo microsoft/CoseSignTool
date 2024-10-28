@@ -106,9 +106,7 @@ public class X509ChainTrustValidator(
     {
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
-#pragma warning disable CS0219 // Variable is assigned but its value is never used
-        bool legacyRevocation = true;
-#pragma warning restore CS0219 // Variable is assigned but its value is never used
+
         if (Roots?.Count > 0)
         {
             hasRoots = true;

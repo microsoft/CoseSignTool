@@ -254,7 +254,7 @@ public class ValidateCommandTests
             [root],
             X509RevocationMode.Online);
         Console.WriteLine(result.ToString(true, true));
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ToString(true, true));
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
     }

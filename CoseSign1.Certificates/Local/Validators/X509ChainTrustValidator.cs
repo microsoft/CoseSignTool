@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
+using System.Diagnostics;
+
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
@@ -96,6 +98,7 @@ public class X509ChainTrustValidator(
 
     #region Overrides
     /// <inheritdoc/>
+
     protected override CoseSign1ValidationResult ValidateCertificate(
         X509Certificate2 signingCertificate,
         List<X509Certificate2>? certChain,
@@ -103,11 +106,25 @@ public class X509ChainTrustValidator(
     {
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
+#pragma warning disable CS0219 // Variable is assigned but its value is never used
+        bool bestEffortLegacyRevocation = true;
+#pragma warning restore CS0219 // Variable is assigned but its value is never used
         if (Roots?.Count > 0)
         {
             hasRoots = true;
             ChainBuilder.ChainPolicy.ExtraStore.Clear();
             Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
+
+#if NET5_0_OR_GREATER
+            // don't bother with bestEffortLegacyRevocation on .NET 5.0 and later
+            bestEffortLegacyRevocation = false;
+
+            using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
+            x509Store.Open(OpenFlags.ReadOnly);
+            X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
+            ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
+#endif
         }
 
         if (certChain?.Count > 0)
@@ -143,7 +160,7 @@ public class X509ChainTrustValidator(
             }
         }
 
-        // If we're here, chain build failed.
+        // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
             $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
@@ -151,6 +168,14 @@ public class X509ChainTrustValidator(
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.
         X509ChainStatusFlags flagsToIgnore = X509ChainStatusFlags.NoError;
+
+        // Unfortunately pre net5.0 chain builder will always report unknown/offline revocation for roots not in the trusted store.
+        flagsToIgnore |=
+            bestEffortLegacyRevocation && // only do this if we're in best-effort mode i.e. pre net5.0
+            ChainBuilder.ChainStatus.Any(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot)) ?
+                (X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation) : // These flags are always set on roots not in the trusted store
+                0;
+
         flagsToIgnore |= AllowUntrusted ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If we have a valid user-supplied root, consider it trusted. (Not supported by .NET Standard 2.0 so we have to do it ourselves.)

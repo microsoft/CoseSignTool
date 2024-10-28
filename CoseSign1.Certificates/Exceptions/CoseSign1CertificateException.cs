@@ -121,6 +121,9 @@ public class CoseSign1CertificateException : CoseSign1Exception
         {
             info.AddValue(nameof(Status), string.Join("\r\n", Status.Select(s => $"{s.Status}: {s.StatusInformation}")));
         }
+
+#if NETSTANDARD2_0
         base.GetObjectData(info, context);
+#endif
     }
 }

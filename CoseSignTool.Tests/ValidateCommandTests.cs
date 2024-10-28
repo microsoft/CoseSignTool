@@ -3,7 +3,11 @@
 
 namespace CoseSignTool.Tests;
 
+using System.Collections.Generic;
+using System.Reflection;
+using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
+using CoseSign1.Certificates.Extensions;
 
 [TestClass]
 public class ValidateCommandTests
@@ -24,10 +28,17 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
+    private static readonly string DataDirName = "TestData";
+    private static string AssemblyPath;
+    private static string TestDataPath;
 
     [AssemblyInitialize]
     public static void TestClassInit(TestContext context)
     {
+        // Set up the test data directory
+        AssemblyPath = Path.Combine(Path.GetDirectoryName(path: Assembly.GetExecutingAssembly().Location));
+        TestDataPath = Path.Combine(AssemblyPath, DataDirName);
+
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
@@ -229,27 +240,20 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string payloadFile = FileSystemUtils.GeneratePayloadFile();
-
-        // sign indirectly
-        var msgFac = new IndirectSignatureFactory();
-        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-            payload: File.ReadAllBytes(payloadFile),
-            contentType: "application/spdx+json",
-            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert))
-            .ToArray();
-
-        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
-        coseFile.Write(signedBytes);
-        coseFile.Seek(0, SeekOrigin.Begin);
+        string cosePath = new(Path.Combine(TestDataPath, "signature.cose"));
+        CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
+        message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
+        X509Certificate2 root = chain![^1];
+        using FileStream coseStream = new(cosePath, FileMode.Open);
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(
-            coseFile,
-            new FileInfo(payloadFile),
-            [SelfSignedCert],
+            coseStream,
+            new FileInfo(Path.Combine(TestDataPath, "payload.json")),
+            [root],
             X509RevocationMode.Online);
+        Console.WriteLine(result.ToString(true, true));
         result.Success.Should().BeTrue();
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");

@@ -50,7 +50,7 @@ public abstract class CoseSign1MessageValidator
             // something unexpected happened.
             validationResults.Add(new CoseSign1ValidationResult(GetType(), ex)
             {
-                ResultMessage = ex.Message,
+                ResultMessage = ex.ToString(),
                 PassedValidation = false
             });
         }

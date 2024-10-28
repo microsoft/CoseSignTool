@@ -167,7 +167,7 @@ public class X509ChainTrustValidator(
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
-            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
+            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation + "/n" + cs.Status.ToString() + (int)cs.Status).ToArray())}]",
             ChainBuilder.ChainStatus.Cast<object>().ToList());
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.

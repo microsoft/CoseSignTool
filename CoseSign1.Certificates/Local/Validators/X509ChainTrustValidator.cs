@@ -106,6 +106,7 @@ public class X509ChainTrustValidator(
     {
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
+        string extra = string.Empty;
 
         if (Roots?.Count > 0)
         {
@@ -122,15 +123,20 @@ public class X509ChainTrustValidator(
                 X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
                 ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
+                X509Certificate2[] r = [];
+                trustAnchors.CopyTo(r, 0);
+                extra = extra + string.Join<string>('\n', r.Select(c => c.Subject));
             }
             else
             {
                 ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
                 ChainBuilder.ChainPolicy.CustomTrustStore.Clear();
+                extra = extra + "\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
             }
 #endif
         }
 
+        extra = extra + "\n====================================================================================================================";
         if (certChain?.Count > 0)
         {
             ChainBuilder.ChainPolicy.ExtraStore.AddRange(certChain.ToArray());
@@ -167,7 +173,7 @@ public class X509ChainTrustValidator(
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
-            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation + "/n" + cs.Status.ToString() + (int)cs.Status).ToArray())}]",
+            extra + "\n" + $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation + "/n" + cs.Status.ToString() + (int)cs.Status).ToArray())}]",
             ChainBuilder.ChainStatus.Cast<object>().ToList());
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.

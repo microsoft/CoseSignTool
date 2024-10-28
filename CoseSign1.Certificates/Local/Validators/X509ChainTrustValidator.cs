@@ -107,7 +107,7 @@ public class X509ChainTrustValidator(
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
 #pragma warning disable CS0219 // Variable is assigned but its value is never used
-        bool bestEffortLegacyRevocation = true;
+        bool legacyRevocation = true;
 #pragma warning restore CS0219 // Variable is assigned but its value is never used
         if (Roots?.Count > 0)
         {
@@ -116,14 +116,21 @@ public class X509ChainTrustValidator(
             Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
 
 #if NET5_0_OR_GREATER
-            // don't bother with bestEffortLegacyRevocation on .NET 5.0 and later
-            bestEffortLegacyRevocation = false;
-
-            using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
-            x509Store.Open(OpenFlags.ReadOnly);
-            X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
-            ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
+            // don't bother with bestEffortLegacyRevocation if we can turn on custom root trust
+            if (TrustUserRoots)
+            {
+                legacyRevocation = false;
+                using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
+                x509Store.Open(OpenFlags.ReadOnly);
+                X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
+            }
+            else
+            {
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
+                ChainBuilder.ChainPolicy.CustomTrustStore.Clear();
+            }
 #endif
         }
 
@@ -171,7 +178,7 @@ public class X509ChainTrustValidator(
 
         // Unfortunately pre net5.0 chain builder will always report unknown/offline revocation for roots not in the trusted store.
         flagsToIgnore |=
-            bestEffortLegacyRevocation && // only do this if we're in best-effort mode i.e. pre net5.0
+            legacyRevocation && // only do this if we're in best-effort mode i.e. pre net5.0
             ChainBuilder.ChainStatus.Any(st => st.Status.HasFlag(X509ChainStatusFlags.UntrustedRoot)) ?
                 (X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation) : // These flags are always set on roots not in the trusted store
                 0;

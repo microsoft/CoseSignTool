@@ -39,6 +39,7 @@
 
 	<!-- Copy to output -->
 	<ItemGroup>
+	  <EmbeddedResource Include="TestData\**\*" />
 	  <None Update="TestData\**">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>

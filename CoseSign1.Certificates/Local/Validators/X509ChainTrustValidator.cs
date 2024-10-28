@@ -120,12 +120,13 @@ public class X509ChainTrustValidator(
                 // Trust the user-supplied and system-trusted roots.
                 using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
                 x509Store.Open(OpenFlags.ReadOnly);
-                X509CertificateCollection trustAnchors = [.. x509Store.Certificates, .. Roots];
+                X509CertificateCollection trustAnchors = new(x509Store.Certificates);
+                trustAnchors.AddRange(Roots.ToArray());
                 ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
-                X509Certificate2[] r = [];
-                trustAnchors.CopyTo(r, 0);
-                extra = extra + string.Join<string>('\n', r.Select(c => c.Subject));
+                //X509Certificate2[] r = [];
+                //trustAnchors.CopyTo(r, 0);
+                //extra = extra + string.Join<string>('\n', r.Select(c => c.Subject));
             }
             else
             {
@@ -173,7 +174,7 @@ public class X509ChainTrustValidator(
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
-            extra + "\n" + $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation + "/n" + cs.Status.ToString() + (int)cs.Status).ToArray())}]",
+            /*extra + "\n" + */$"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation + "/n" + cs.Status.ToString() + (int)cs.Status).ToArray())}]",
             ChainBuilder.ChainStatus.Cast<object>().ToList());
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.

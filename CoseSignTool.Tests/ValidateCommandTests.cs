@@ -243,8 +243,9 @@ public class ValidateCommandTests
         string debug = "";
         try
         {
-            debug = string.Join("\n", Directory.GetFiles(DeploymentDirectory, "*", SearchOption.AllDirectories));
-
+            var test = Directory.GetParent(DeploymentDirectory).Parent!;
+            debug = string.Join("\n", Directory.GetFiles(test.FullName, "*", SearchOption.AllDirectories));
+            Console.WriteLine(debug);
             string cosePath = new(Path.Combine(DeploymentDirectory, "signature.cose"));
             CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
             message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();

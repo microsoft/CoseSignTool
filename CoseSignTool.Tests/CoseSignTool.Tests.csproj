@@ -49,11 +49,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<AssetsSourceFiles Include="TestData\**\*.*"/>
+		<AssetsSourceFiles Include="$(ProjectDir)TestData\signature.cose;$(ProjectDir)TestData\payload.json"/>
 	</ItemGroup>			
 
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ @(AssetsSourceFiles) ++++++++++++++++++++++++++++++++++++" />
 	</Target>	  			  	
 
 </Project>

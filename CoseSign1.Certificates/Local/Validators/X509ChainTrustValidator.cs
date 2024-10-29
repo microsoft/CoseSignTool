@@ -149,7 +149,7 @@ public class X509ChainTrustValidator(
             ChainBuilder.ChainPolicy.ExtraStore.AddRange(extraCertificates.ToArray());
         }
 
-        ChainBuilder.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+        ChainBuilder.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreRootRevocationUnknown;
 
         // Build the cert chain. If Build succeeds, return success.
         if (ChainBuilder.Build(signingCertificate))

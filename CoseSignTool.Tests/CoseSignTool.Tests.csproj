@@ -48,14 +48,14 @@
 	  </None>
 	</ItemGroup>
 
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">	
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copying $(SolutionDir)CoseSignTool.tests/TestData/payload.json to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
-		<Copy SourceFiles="$(SolutionDir)CoseSignTool.tests/TestData/payload.json" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ $(SolutionDir)CoseSignTool.tests/TestData/payload.json to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
+	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+		<ItemGroup>
+			<MyTestFiles Include="TestData\**\*.*" />
+		</ItemGroup>
 
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copying $(SolutionDir)CoseSignTool.tests/TestData/signature.cose to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
-		<Copy SourceFiles="$(SolutionDir)CoseSignTool.tests/TestData/signature.cose" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ $(SolutionDir)CoseSignTool.tests/TestData/signature.cose to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(MyTestFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
+		<Copy SourceFiles="@(MyTestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ @(MyTestFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
 	</Target>	  			  	
 
 </Project>

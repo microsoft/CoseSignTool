@@ -127,6 +127,7 @@ public class X509ChainTrustValidator(
                 X509Certificate[] r = [.. trustAnchors];
                 trustAnchors.CopyTo(r, 0);
                 Debug.WriteLine(string.Join<string>('\n', r.Select(c => c.Subject)));
+                Debug.WriteLine($"Trust mode1: {(int)ChainBuilder.ChainPolicy.TrustMode}");
             }
             else
             {
@@ -154,6 +155,9 @@ public class X509ChainTrustValidator(
             return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
         }
 
+        ChainBuilder.ChainStatus.ToList().ForEach(cs => Debug.WriteLine($"0{cs.StatusInformation}\n{cs.Status.ToString()}\n{(int)cs.Status}"));
+        Debug.WriteLine(ChainBuilder.ChainPolicy.ExtraStore);
+
         // If we fail because chain build failed to reach the revocation server, retry in case the server is down.
         if (ChainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
         {
@@ -170,6 +174,14 @@ public class X509ChainTrustValidator(
                 Thread.Sleep(1000);
             }
         }
+
+        ChainBuilder.ChainStatus.ToList().ForEach(cs => Debug.WriteLine($"1{cs.StatusInformation}\n{cs.Status.ToString()}\n{(int)cs.Status}"));
+        foreach (X509Certificate2 c in ChainBuilder.ChainPolicy.ExtraStore)
+        {
+            Debug.WriteLine(c.Subject);
+        }
+
+        Debug.WriteLine((int)ChainBuilder.ChainPolicy.RevocationFlag);
 
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.

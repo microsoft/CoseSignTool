@@ -39,16 +39,21 @@
 	</ItemGroup>
 
 	<!-- Copy to output -->
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<Copy SourceFiles="TestData\signature.cose;TestData\payload.json" DestinationFolder="$(OutDir)" />
-	</Target>
+	<ItemGroup>
+	  <None Update="TestData\payload.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	  <None Update="TestData\signature.cose">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
 
-<!--	<ItemGroup>
-	  <None Update="TestData/payload.json">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
-	  <None Update="TestData/signature.cose">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
-	</ItemGroup>-->
+	<ItemGroup>
+		<AssetsSourceFiles Include="TestData\**\*.*"/>
+	</ItemGroup>			
+
+	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>	  			  	
+
 </Project>

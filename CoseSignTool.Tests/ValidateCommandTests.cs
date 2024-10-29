@@ -5,6 +5,7 @@ namespace CoseSignTool.Tests;
 
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using CoseSign1.Certificates.Extensions;
@@ -249,6 +250,12 @@ public class ValidateCommandTests
             X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
             using FileStream coseStream = new(cosePath, FileMode.Open);
 
+            // https://github.com/NuGet/Home/issues/11985
+            // OSX no longer trusts CRLs and will fail online validation on any chain that lacks OCSPs
+            X509RevocationMode revocationMode = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
+                X509RevocationMode.Offline :
+                X509RevocationMode.Online;
+
             // setup validator
             var validator = new ValidateCommand();
             var result = validator.RunCoseHandlerCommand(
@@ -257,6 +264,7 @@ public class ValidateCommandTests
                 [root],
                 X509RevocationMode.Online);
             Console.WriteLine(result.ToString(true, true));
+
             result.Success.Should().BeTrue(result.ToString(true, true));
             result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
             result.ToString(true).Should().Contain("Indirect");
@@ -266,7 +274,6 @@ public class ValidateCommandTests
             throw new Exception($"Failed to run ValidateIndirectSucceedsWithRootPassedIn:\n{debug}", e);
         }
     }
-
 
     [TestMethod]
     public void ValidateSameFileMultipleTimesCommand()

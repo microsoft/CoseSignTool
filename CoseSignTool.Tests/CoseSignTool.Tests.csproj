@@ -48,11 +48,10 @@
 	  </None>
 	</ItemGroup>
 
-	<ItemGroup>
-		<AssetsSourceFiles Include="$(ProjectDir)TestData\**"/>
-	</ItemGroup>			
-
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+		<ItemGroup>
+			<AssetsSourceFiles Include="$(ProjectDir)TestData\**"/>
+		</ItemGroup>		
 		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(AssetsSourceFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
 		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
 		<Message Importance="High" Text="+++++++++++++++++++++++ @(AssetsSourceFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />

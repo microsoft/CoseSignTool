@@ -48,13 +48,13 @@
 	  </None>
 	</ItemGroup>
 
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<ItemGroup>
-			<AssetsSourceFiles Include="$(ProjectDir)TestData\**"/>
-		</ItemGroup>		
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(AssetsSourceFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
-		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ @(AssetsSourceFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
+	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">	
+		<Message Importance="High" Text="+++++++++++++++++++++++ Copying $(ProjectDir)TestData\payload.json to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
+		<Copy SourceFiles="$(ProjectDir)TestData\payload.json" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ $(ProjectDir)TestData\payload.json to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ Copying $(ProjectDir)TestData\signature.cose to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
+		<Copy SourceFiles="$(ProjectDir)TestData\signature.cose" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ $(ProjectDir)TestData\signature.cose to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
 	</Target>	  			  	
 
 </Project>

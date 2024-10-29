@@ -149,6 +149,9 @@ public class X509ChainTrustValidator(
             ChainBuilder.ChainPolicy.ExtraStore.AddRange(extraCertificates.ToArray());
         }
 
+        Debug.WriteLine($"Timeout: {ChainBuilder.ChainPolicy.UrlRetrievalTimeout}");
+        ChainBuilder.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(30);
+
         // Build the cert chain. If Build succeeds, return success.
         if (ChainBuilder.Build(signingCertificate))
         {

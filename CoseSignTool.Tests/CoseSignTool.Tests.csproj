@@ -49,7 +49,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<AssetsSourceFiles Include="$(ProjectDir)TestData\signature.cose;$(ProjectDir)TestData\payload.json"/>
+		<AssetsSourceFiles Include="TestData\signature.cose;$(ProjectDir)TestData\payload.json"/>
 	</ItemGroup>			
 
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">

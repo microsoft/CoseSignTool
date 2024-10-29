@@ -30,11 +30,12 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
     private static readonly string DataDirName = "TestData";
+    private static string DeploymentDirectory = string.Empty;
 
     [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
-        _ = context;
+        DeploymentDirectory = context.DeploymentDirectory!;
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
@@ -235,17 +236,16 @@ public class ValidateCommandTests
     /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
     /// </summary>
     [TestMethod]
+    [DeploymentItem("TestData\\signature.cose")]
+    [DeploymentItem("TestData\\payload.json")]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
         string debug = "";
         try
         {
-            string assemblyPath = Path.Combine(Path.GetDirectoryName(path: Assembly.GetExecutingAssembly().Location));
-            string testDataPath = Path.Combine(assemblyPath, DataDirName);
+            debug = string.Join("\n", Directory.GetFiles(DeploymentDirectory, "*", SearchOption.AllDirectories));
 
-            debug = string.Join("\n", Directory.GetFiles(assemblyPath, "*", SearchOption.AllDirectories));
-
-            string cosePath = new(Path.Combine(testDataPath, "signature.cose"));
+            string cosePath = new(Path.Combine(DeploymentDirectory, "signature.cose"));
             CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
             message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
             X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
@@ -255,7 +255,7 @@ public class ValidateCommandTests
             var validator = new ValidateCommand();
             var result = validator.RunCoseHandlerCommand(
                 coseStream,
-                new FileInfo(Path.Combine(testDataPath, "payload.json")),
+                new FileInfo(Path.Combine(DeploymentDirectory, "payload.json")),
                 [root],
                 X509RevocationMode.Online);
             Console.WriteLine(result.ToString(true, true));

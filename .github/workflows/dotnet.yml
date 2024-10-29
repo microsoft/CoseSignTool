@@ -56,7 +56,7 @@ jobs:
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
-          dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
+          dotnet test CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
         
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory

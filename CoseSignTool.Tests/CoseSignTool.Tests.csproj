@@ -50,7 +50,7 @@
 
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
 		<ItemGroup>
-			<MyTestFiles Include="TestData\**\*.*" />
+			<MyTestFiles Include="**\payload.json*;**\signature.cose" />
 		</ItemGroup>
 
 		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(MyTestFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />

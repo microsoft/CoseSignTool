@@ -35,8 +35,8 @@ jobs:
             dir_command: gci -Recurse
           - os: ubuntu-latest
             dir_command: ls -a -R
-          # - os: macos-latest
-          #   dir_command: ls -a -R
+          - os: macos-latest
+            dir_command: ls -a -R
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

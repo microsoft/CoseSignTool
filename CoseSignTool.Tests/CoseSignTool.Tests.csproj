@@ -53,7 +53,7 @@
 	</ItemGroup>			
 
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(AssetsSourceFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
 	</Target>	  			  	
 
 </Project>

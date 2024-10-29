@@ -245,11 +245,11 @@ public class ValidateCommandTests
         try
         {
             string cosePath = new(Path.Combine(OutputPath, "signature.cose"));
+            debug = $"{string.Join("\n", Directory.GetFiles(OutputPath))}";
             CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
             message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
             X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
             using FileStream coseStream = new(cosePath, FileMode.Open);
-            debug = $"{string.Join("\n", Directory.GetFiles(OutputPath))}";
 
             // https://github.com/NuGet/Home/issues/11985
             // OSX no longer trusts CRLs and will fail validation on any chain that lacks OCSPs

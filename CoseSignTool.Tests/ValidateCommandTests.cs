@@ -253,7 +253,7 @@ public class ValidateCommandTests
             // https://github.com/NuGet/Home/issues/11985
             // OSX no longer trusts CRLs and will fail validation on any chain that lacks OCSPs
             X509RevocationMode revocationMode = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
-                X509RevocationMode.Offline :
+                X509RevocationMode.NoCheck :
                 X509RevocationMode.Online;
 
             // setup validator

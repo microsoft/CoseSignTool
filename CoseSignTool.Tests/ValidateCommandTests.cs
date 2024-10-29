@@ -245,7 +245,7 @@ public class ValidateCommandTests
         try
         {
             string cosePath = new(Path.Combine(OutputPath, "signature.cose"));
-            debug = $"{string.Join("\n", Directory.GetFiles(OutputPath))}";
+            debug = $"{string.Join("\n", Directory.GetFiles(Directory.GetParent(OutputPath).Parent.Parent.Parent.Parent.FullName))}";
             CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
             message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
             X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));

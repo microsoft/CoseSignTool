@@ -30,14 +30,14 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
     private static readonly string DataDirName = "TestData";
-    private static string OutputPath = string.Empty;
+    private static string? OutputPath = string.Empty;
     private static string TestData = string.Empty;
 
     [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
-        OutputPath = Path.GetDirectoryName(Environment.ProcessPath);
-        TestData = Path.Combine(OutputPath, DataDirName);
+        OutputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        TestData = Path.Combine(OutputPath!, DataDirName);
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));

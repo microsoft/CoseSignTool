@@ -245,7 +245,9 @@ public class X509ChainTrustValidatorTests
 
         // Validate with TrustUserRoots ON (default state)
         X509ChainTrustValidator Validator = new(DefaultRoots, X509RevocationMode.NoCheck);
-        Validator.TryValidate(message, out List<CoseSign1ValidationResult> results).Should().BeTrue();
+        Validator.TryValidate(message, out List<CoseSign1ValidationResult> results)
+            .Should().BeTrue(string.Join("\n", results.Select(v => v.ResultMessage)));
+
         results.Count.Should().Be(1);
         results[0].PassedValidation.Should().BeTrue();
         results[0].ResultMessage.Should().Be("Certificate was Trusted.");
@@ -292,7 +294,7 @@ public class X509ChainTrustValidatorTests
         CoseSign1Message message = CreateCoseSign1MessageWithChainedCert();
 
         // Validate with TrustUserRoots and AllowUntrusted ON but no roots provided
-        X509ChainTrustValidator Validator = new(X509RevocationMode.NoCheck)
+        X509ChainTrustValidator Validator = new(X509RevocationMode.Offline)
         {
             TrustUserRoots = false,
             AllowUntrusted = false
@@ -301,9 +303,12 @@ public class X509ChainTrustValidatorTests
         results.Count.Should().Be(1);
         results[0].PassedValidation.Should().BeFalse();
         results[0].Includes.Should().NotBeNull();
-        results[0].Includes?.Count.Should().Be(1);
-        X509ChainStatus? status = results[0].Includes?.Cast<X509ChainStatus>().FirstOrDefault();
-        status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
+        results[0].Includes?.Count.Should().BeGreaterThan(1);
+        List<X509ChainStatus> status = [.. results[0].Includes?.Cast<X509ChainStatus>()];
+
+        // When root is distrusted with a revocation checks turned on, the chain status will include trust and revocation issues
+        status.Any(s => s.Status == X509ChainStatusFlags.UntrustedRoot).Should().BeTrue();
+        status.Any(s => s.Status.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown) || s.Status.HasFlag(X509ChainStatusFlags.OfflineRevocation)).Should().BeTrue();
     }
 
     // Prove that an untrusted, self-signed cert passes only when the same cert is passed as a root or AllowUntrusted is ON

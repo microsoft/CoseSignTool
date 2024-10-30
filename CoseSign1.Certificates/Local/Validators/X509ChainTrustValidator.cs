@@ -117,27 +117,21 @@ public class X509ChainTrustValidator(
             if (TrustUserRoots)
             {
                 // Trust the user-supplied and system-trusted roots.
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
                 x509Store.Open(OpenFlags.ReadOnly);
                 X509CertificateCollection trustAnchors = new(x509Store.Certificates);
                 trustAnchors.AddRange(Roots.ToArray());
-                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
-                X509Certificate[] r = [.. trustAnchors];
-                trustAnchors.CopyTo(r, 0);
-                Debug.WriteLine(string.Join<string>('\n', r.Select(c => c.Subject)));
-                Debug.WriteLine($"Trust mode1: {(int)ChainBuilder.ChainPolicy.TrustMode}");
             }
             else
             {
                 ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
                 ChainBuilder.ChainPolicy.CustomTrustStore.Clear();
-                Debug.WriteLine("\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
             }
 #endif
         }
 
-        Debug.WriteLine("\n====================================================================================================================");
         if (certChain?.Count > 0)
         {
             ChainBuilder.ChainPolicy.ExtraStore.AddRange(certChain.ToArray());
@@ -153,9 +147,6 @@ public class X509ChainTrustValidator(
         {
             return new CoseSign1ValidationResult(GetType(), true, "Certificate was Trusted.");
         }
-
-        ChainBuilder.ChainStatus.ToList().ForEach(cs => Debug.WriteLine($"0{cs.StatusInformation}\n{cs.Status.ToString()}\n{(int)cs.Status}"));
-        Debug.WriteLine(ChainBuilder.ChainPolicy.ExtraStore);
 
         // If we fail because chain build failed to reach the revocation server, retry in case the server is down.
         if (ChainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
@@ -173,14 +164,6 @@ public class X509ChainTrustValidator(
                 Thread.Sleep(1000);
             }
         }
-
-        ChainBuilder.ChainStatus.ToList().ForEach(cs => Debug.WriteLine($"1{cs.StatusInformation}\n{cs.Status.ToString()}\n{(int)cs.Status}"));
-        foreach (X509Certificate2 c in ChainBuilder.ChainPolicy.ExtraStore)
-        {
-            Debug.WriteLine(c.Subject);
-        }
-
-        Debug.WriteLine((int)ChainBuilder.ChainPolicy.RevocationFlag);
 
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.

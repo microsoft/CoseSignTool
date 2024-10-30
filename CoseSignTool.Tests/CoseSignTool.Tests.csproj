@@ -14,8 +14,8 @@
 
 	<PropertyGroup>
 		<!-- other property settings -->
-<!--		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
-		<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>-->
+		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+		<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -37,24 +37,20 @@
 		<ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
 	</ItemGroup>
 
-	<!-- Copy to output -->
+	<!-- File Includes -->
 	<ItemGroup>
-	  <None Update="..\CoseSignTool.tests\TestData\payload.json">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
-	  <None Update="..\CoseSignTool.tests\TestData\signature.cose">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
+	  <None Update="..\CoseSignTool.tests\TestData\payload.json"></None>
+	  <None Update="..\CoseSignTool.tests\TestData\signature.cose"></None>
 	</ItemGroup>
 
+	<!-- Copy test files to output. This explicit target is needed for linux build/test agents -->
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
 		<ItemGroup>
-			<MyTestFiles Include="..\CoseSignTool.tests\TestData\payload.json;..\CoseSignTool.tests\TestData\signature.cose" />
+			<MyTestFiles Include="..\CoseSignTool.tests\TestData\**\*.*" />
 		</ItemGroup>
 
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(MyTestFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
 		<Copy SourceFiles="@(MyTestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ @(MyTestFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ Copied @(MyTestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
 	</Target>	  			  	
 
 </Project>

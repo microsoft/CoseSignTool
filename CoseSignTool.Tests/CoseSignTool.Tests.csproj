@@ -39,18 +39,17 @@
 
 	<!-- File Includes -->
 	<ItemGroup>
-	  <None Update="..\CoseSignTool.tests\TestData\payload.json"></None>
-	  <None Update="..\CoseSignTool.tests\TestData\signature.cose"></None>
+	  <None Update="..\CoseSignTool.tests\TestData\UnitTestPayload.json"/>
+	  <None Update="..\CoseSignTool.tests\TestData\UnitTestSignatureWithCRL.cose" />
 	</ItemGroup>
 
 	<!-- Copy test files to output. This explicit target is needed for linux build/test agents -->
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
 		<ItemGroup>
-			<MyTestFiles Include="..\CoseSignTool.tests\TestData\**\*.*" />
+			<TestFiles Include="..\CoseSignTool.tests\TestData\**\*.*" />
 		</ItemGroup>
-
-		<Copy SourceFiles="@(MyTestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copied @(MyTestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
+		<Copy SourceFiles="@(TestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+		<Message Importance="High" Text="+++++++++++++++++++++++ Copied @(TestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
 	</Target>	  			  	
 
 </Project>

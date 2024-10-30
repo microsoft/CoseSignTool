@@ -4,7 +4,6 @@
 namespace CoseSignTool.Tests;
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.Cose;
@@ -31,15 +30,13 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
-    private static readonly string DataDirName = "TestData";
     private static string? OutputPath = string.Empty;
-    private static string TestData = string.Empty;
 
     [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
+        // path to assembly directory
         OutputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        TestData = Path.Combine(OutputPath!, DataDirName);
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
@@ -242,45 +239,30 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string debug = "";
-        try
-        {
-            TestData = OutputPath;
-            string cosePath = new(Path.Combine(TestData, "signature.cose"));
-            debug = "==========================================================================\n" +
-                $"{string.Join("\n", Directory.GetFiles(Directory.GetParent(OutputPath).Parent.Parent.FullName, "*", SearchOption.AllDirectories))}\n" +
-                "==========================================================================\n";
+        string cosePath = new(Path.Combine(OutputPath!, "UnitTestSignatureWithCRL.cose"));
 
-            Debug.WriteLine(debug);
+        CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
+        message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
+        X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
+        using FileStream coseStream = new(cosePath, FileMode.Open);
 
-            CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
-            message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
-            X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
-            using FileStream coseStream = new(cosePath, FileMode.Open);
+        // https://github.com/NuGet/Home/issues/11985
+        // OSX no longer trusts CRLs and will fail validation on any chain that lacks OCSPs
+        X509RevocationMode revocationMode = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
+            X509RevocationMode.NoCheck :
+            X509RevocationMode.Online;
 
-            // https://github.com/NuGet/Home/issues/11985
-            // OSX no longer trusts CRLs and will fail validation on any chain that lacks OCSPs
-            X509RevocationMode revocationMode = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
-                X509RevocationMode.NoCheck :
-                X509RevocationMode.Online;
+        // setup validator
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(
+            coseStream,
+            new FileInfo(Path.Combine(OutputPath!, "UnitTestPayload.json")),
+            [root],
+            revocationMode);
 
-            // setup validator
-            var validator = new ValidateCommand();
-            var result = validator.RunCoseHandlerCommand(
-                coseStream,
-                new FileInfo(Path.Combine(TestData, "payload.json")),
-                [root],
-                revocationMode);
-            Console.WriteLine(result.ToString(true, true));
-
-            result.Success.Should().BeTrue(result.ToString(true, true));
-            result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
-            result.ToString(true).Should().Contain("Indirect");
-        }
-        catch (Exception e)
-        {
-            throw new Exception($"Failed to run ValidateIndirectSucceedsWithRootPassedIn:\n{debug}", e);
-        }
+        result.Success.Should().BeTrue(result.ToString(true, true));
+        result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
+        result.ToString(true).Should().Contain("Indirect");
     }
 
     [TestMethod]

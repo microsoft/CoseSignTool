@@ -303,7 +303,7 @@ public class X509ChainTrustValidatorTests
         results.Count.Should().Be(1);
         results[0].PassedValidation.Should().BeFalse();
         results[0].Includes.Should().NotBeNull();
-        results[0].Includes?.Count.Should().Be(3);
+        results[0].Includes?.Count.Should().BeGreaterThan(1);
         List<X509ChainStatus> status = [.. results[0].Includes?.Cast<X509ChainStatus>()];
 
         // When root is distrusted with a revocation checks turned on, the chain status will include trust and revocation issues

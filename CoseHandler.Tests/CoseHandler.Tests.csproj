@@ -21,11 +21,11 @@
 
 	<!-- Package references -->
 	<ItemGroup>
-		<PackageReference Include="FluentAssertions" Version="6.12.0" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-		<PackageReference Include="Moq" Version="4.20.70" />
-		<PackageReference Include="MSTest.TestAdapter" Version="2.2.10" />
-		<PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+		<PackageReference Include="FluentAssertions" Version="6.12.1" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+		<PackageReference Include="Moq" Version="4.20.72" />
+		<PackageReference Include="MSTest.TestAdapter" Version="3.6.1" />
+		<PackageReference Include="MSTest.TestFramework" Version="3.6.1" />
 	</ItemGroup>
 
 	<!-- Project refrences-->

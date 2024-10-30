@@ -121,6 +121,11 @@ public class CoseSign1CertificateException : CoseSign1Exception
         {
             info.AddValue(nameof(Status), string.Join("\r\n", Status.Select(s => $"{s.Status}: {s.StatusInformation}")));
         }
-        base.GetObjectData(info, context);
+
+#if NET5_0_OR_GREATER
+        return;
+#else
+        base.GetObjectData(info, context); // deprecated in .NET 5.0
+#endif
     }
 }

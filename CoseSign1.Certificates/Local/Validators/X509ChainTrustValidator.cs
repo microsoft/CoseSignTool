@@ -3,6 +3,9 @@
 
 namespace CoseSign1.Certificates.Local.Validators;
 
+using System.Diagnostics;
+using System.Linq;
+
 /// <summary>
 /// Validation chain element for verifying a <see cref="CoseSign1Message"/> is signed by a trusted <see cref="X509Certifiate2"/>
 /// </summary>
@@ -96,6 +99,7 @@ public class X509ChainTrustValidator(
 
     #region Overrides
     /// <inheritdoc/>
+
     protected override CoseSign1ValidationResult ValidateCertificate(
         X509Certificate2 signingCertificate,
         List<X509Certificate2>? certChain,
@@ -103,11 +107,29 @@ public class X509ChainTrustValidator(
     {
         // If there are user-supplied roots, add them to the ExtraCerts collection.
         bool hasRoots = false;
+
         if (Roots?.Count > 0)
         {
             hasRoots = true;
             ChainBuilder.ChainPolicy.ExtraStore.Clear();
-            Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
+
+#if NET5_0_OR_GREATER
+            if (TrustUserRoots)
+            {
+                // Trust the user-supplied and system-trusted roots.
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                using X509Store x509Store = new(StoreName.Root, StoreLocation.CurrentUser);
+                x509Store.Open(OpenFlags.ReadOnly);
+                X509CertificateCollection trustAnchors = new(x509Store.Certificates);
+                trustAnchors.AddRange(Roots.ToArray());
+                ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(trustAnchors);
+            }
+            else
+            {
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
+                ChainBuilder.ChainPolicy.CustomTrustStore.Clear();
+            }
+#endif
         }
 
         if (certChain?.Count > 0)
@@ -143,7 +165,7 @@ public class X509ChainTrustValidator(
             }
         }
 
-        // If we're here, chain build failed.
+        // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
             $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",

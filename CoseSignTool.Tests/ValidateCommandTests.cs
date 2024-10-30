@@ -3,7 +3,13 @@
 
 namespace CoseSignTool.Tests;
 
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
+using CoseSign1.Certificates.Extensions;
+using CoseSign1.Tests.Common;
 
 [TestClass]
 public class ValidateCommandTests
@@ -24,10 +30,14 @@ public class ValidateCommandTests
     private static readonly string PrivateKeyCertFileChained = Path.GetTempFileName() + ".pfx";
     private static readonly string PrivateKeyCertFileChainedWithPassword = Path.GetTempFileName() + ".pfx";
     private static readonly string CertPassword = Guid.NewGuid().ToString();
+    private static string? OutputPath = string.Empty;
 
-    [AssemblyInitialize]
+    [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
+        // path to assembly directory
+        OutputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
         File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
@@ -229,32 +239,31 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string cosePath = new(Path.Combine(OutputPath!, "UnitTestSignatureWithCRL.cose"));
 
-        // sign indirectly
-        var msgFac = new IndirectSignatureFactory();
-        byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
-            payload: File.ReadAllBytes(payloadFile),
-            contentType: "application/spdx+json",
-            signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(SelfSignedCert))
-            .ToArray();
+        CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
+        message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
+        X509Certificate2 root = chain.First(cer => cer.Subject.Equals(cer.Issuer));
+        using FileStream coseStream = new(cosePath, FileMode.Open);
 
-        using FileStream coseFile = new(payloadFile + ".cose", FileMode.Create);
-        coseFile.Write(signedBytes);
-        coseFile.Seek(0, SeekOrigin.Begin);
+        // https://github.com/NuGet/Home/issues/11985
+        // OSX no longer trusts CRLs and will fail validation on any chain that lacks OCSPs
+        X509RevocationMode revocationMode = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
+            X509RevocationMode.NoCheck :
+            X509RevocationMode.Online;
 
         // setup validator
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(
-            coseFile,
-            new FileInfo(payloadFile),
-            [SelfSignedCert],
-            X509RevocationMode.Online);
-        result.Success.Should().BeTrue();
+            coseStream,
+            new FileInfo(Path.Combine(OutputPath!, "UnitTestPayload.json")),
+            [root],
+            revocationMode);
+
+        result.Success.Should().BeTrue(result.ToString(true, true));
         result.ContentValidationType.Should().Be(ContentValidationType.Indirect);
         result.ToString(true).Should().Contain("Indirect");
     }
-
 
     [TestMethod]
     public void ValidateSameFileMultipleTimesCommand()

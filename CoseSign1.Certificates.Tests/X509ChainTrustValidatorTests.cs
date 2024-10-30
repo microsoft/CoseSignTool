@@ -278,6 +278,7 @@ public class X509ChainTrustValidatorTests
         Validator.TryValidate(message, out List<CoseSign1ValidationResult> results).Should().BeTrue();
         results.Count.Should().Be(1);
         results[0].PassedValidation.Should().BeTrue();
+        results[0].ResultMessage.Should().Be("Certificate was allowed because AllowUntrusted was specified.");
         results[0].Includes.Should().BeNull();
 
         // Validate with AllowUntrusted OFF covered by X509TrustValidatorValidUserRoot test

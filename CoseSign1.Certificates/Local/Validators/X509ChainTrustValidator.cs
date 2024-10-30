@@ -112,7 +112,6 @@ public class X509ChainTrustValidator(
         {
             hasRoots = true;
             ChainBuilder.ChainPolicy.ExtraStore.Clear();
-            //Roots.ForEach(c => ChainBuilder.ChainPolicy.ExtraStore.Add(c));
 
 #if NET5_0_OR_GREATER
             if (TrustUserRoots)

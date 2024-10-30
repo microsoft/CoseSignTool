@@ -125,7 +125,7 @@ public struct ValidationResult(
             .ToList();
         string certChainBlock =
             certChainErrors?.Count > 0
-                ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation + "\n" + (int)c.Status + "\n" + c.ToString()))}"
+                ? $"Certificate chain status:{newline}{string.Join(newline + tab, certChainErrors.Select(c => c.StatusInformation))}"
                 : string.Empty;
 
         // Do the same for exceptions.

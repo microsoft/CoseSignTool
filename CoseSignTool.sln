@@ -7,6 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool", "CoseSignToo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0EBBE2F9-CCAE-4129-BCD6-C59647AF9EB8}"
 	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
 		LICENSE = LICENSE
 		Nuget.config = Nuget.config
 		README.md = README.md

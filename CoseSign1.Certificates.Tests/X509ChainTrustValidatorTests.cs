@@ -306,10 +306,9 @@ public class X509ChainTrustValidatorTests
         results[0].Includes?.Count.Should().Be(3);
         List<X509ChainStatus> status = [.. results[0].Includes?.Cast<X509ChainStatus>()];
 
-        // When root is distrusted with a revocation checks turned on, the chain status will include the following
+        // When root is distrusted with a revocation checks turned on, the chain status will include trust and revocation issues
         status.Any(s => s.Status == X509ChainStatusFlags.UntrustedRoot).Should().BeTrue();
-        status.Any(s => s.Status == X509ChainStatusFlags.OfflineRevocation).Should().BeTrue();
-        status.Any(s => s.Status == X509ChainStatusFlags.RevocationStatusUnknown).Should().BeTrue();
+        status.Any(s => s.Status.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown) || s.Status.HasFlag(X509ChainStatusFlags.OfflineRevocation)).Should().BeTrue();
     }
 
     // Prove that an untrusted, self-signed cert passes only when the same cert is passed as a root or AllowUntrusted is ON

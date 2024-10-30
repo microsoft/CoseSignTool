@@ -26,6 +26,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Tests.Common", "CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj", "{86692A26-A05C-4E85-B90D-F41346F463C3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSignTool.Tests", "CoseSignTool.Tests\CoseSignTool.Tests.csproj", "{FA48F9DF-CB88-48BC-8594-EC496E193659}"
+	ProjectSection(SolutionItems) = preProject
+		CoseSignTool.Tests\TestData\payload.json = CoseSignTool.Tests\TestData\payload.json
+		CoseSignTool.Tests\TestData\signature.cose = CoseSignTool.Tests\TestData\signature.cose
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseHandler", "CoseHandler\CoseHandler.csproj", "{AA28D81F-A0AB-492F-BC66-18EBB2E0BBF9}"
 EndProject

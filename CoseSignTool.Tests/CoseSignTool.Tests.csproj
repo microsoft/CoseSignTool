@@ -39,15 +39,15 @@
 
 	<!-- Copy to output -->
 	<ItemGroup>
-	  <None Update="TestData\payload.json">
+	  <None Update="..\CoseSignTool.tests\TestData\payload.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </None>
-	  <None Update="TestData\signature.cose">
+	  <None Update="..\CoseSignTool.tests\TestData\signature.cose">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </None>
 	</ItemGroup>
 
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+<!--	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
 		<ItemGroup>
 			<MyTestFiles Include="TestData\payload.json;TestData\signature.cose" />
 		</ItemGroup>
@@ -55,6 +55,6 @@
 		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(MyTestFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
 		<Copy SourceFiles="@(MyTestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
 		<Message Importance="High" Text="+++++++++++++++++++++++ @(MyTestFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
-	</Target>	  			  	
+	</Target>-->	  			  	
 
 </Project>

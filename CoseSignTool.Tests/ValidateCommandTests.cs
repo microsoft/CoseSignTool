@@ -245,7 +245,7 @@ public class ValidateCommandTests
         string debug = "";
         try
         {
-            string cosePath = new(Path.Combine(OutputPath, "signature.cose"));
+            string cosePath = new(Path.Combine(TestData, "signature.cose"));
             debug = "==========================================================================\n" +
                 $"{string.Join("\n", Directory.GetFiles(Directory.GetParent(OutputPath).Parent.Parent.FullName, "*", SearchOption.AllDirectories))}\n" +
                 "==========================================================================\n";
@@ -267,7 +267,7 @@ public class ValidateCommandTests
             var validator = new ValidateCommand();
             var result = validator.RunCoseHandlerCommand(
                 coseStream,
-                new FileInfo(Path.Combine(OutputPath, "payload.json")),
+                new FileInfo(Path.Combine(TestData, "payload.json")),
                 [root],
                 revocationMode);
             Console.WriteLine(result.ToString(true, true));

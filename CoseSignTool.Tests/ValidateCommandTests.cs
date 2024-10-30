@@ -245,6 +245,7 @@ public class ValidateCommandTests
         string debug = "";
         try
         {
+            TestData = OutputPath;
             string cosePath = new(Path.Combine(TestData, "signature.cose"));
             debug = "==========================================================================\n" +
                 $"{string.Join("\n", Directory.GetFiles(Directory.GetParent(OutputPath).Parent.Parent.FullName, "*", SearchOption.AllDirectories))}\n" +

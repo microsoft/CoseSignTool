@@ -47,14 +47,14 @@
 	  </None>
 	</ItemGroup>
 
-<!--	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
 		<ItemGroup>
-			<MyTestFiles Include="TestData\payload.json;TestData\signature.cose" />
+			<MyTestFiles Include="..\CoseSignTool.tests\TestData\payload.json;..\CoseSignTool.tests\TestData\signature.cose" />
 		</ItemGroup>
 
 		<Message Importance="High" Text="+++++++++++++++++++++++ Copying @(MyTestFiles) to $(TargetDir). Project directory is $(ProjectDir) ++++++++++++++++++++++++++++++++++++" />
 		<Copy SourceFiles="@(MyTestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
 		<Message Importance="High" Text="+++++++++++++++++++++++ @(MyTestFiles) to $(TargetDir) ++++++++++++++++++++++++++++++++++++" />
-	</Target>-->	  			  	
+	</Target>	  			  	
 
 </Project>

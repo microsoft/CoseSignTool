@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.0-Test1](https://github.com/microsoft/CoseSignTool/tree/v0.0.0-Test1) (2024-10-30)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.8-pre7...v0.0.0-Test1)
+
 ## [v1.2.8-pre7](https://github.com/microsoft/CoseSignTool/tree/v1.2.8-pre7) (2024-10-30)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.3.0...v1.2.8-pre7)

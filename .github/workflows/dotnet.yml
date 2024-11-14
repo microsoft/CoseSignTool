@@ -239,7 +239,7 @@ jobs:
   release_assets:
     name: release-assets
     # if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    needs: [ create_release ]
+    # needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write

@@ -238,8 +238,8 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    # if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    # needs: [ create_release ]
+    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
+    needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write
@@ -274,7 +274,7 @@ jobs:
     - name: Update file versions
       run: |
         # Define the new version number
-        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name'] -or "0.0.0-test1"    # get rid of the "-or" part when the release is created.
+        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
 
         # Get all non-test .csproj files in the solution directory and its subdirectories
         $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
@@ -302,7 +302,6 @@ jobs:
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        exit 1    # Remove this line when the script is ready.  
         dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
         dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.

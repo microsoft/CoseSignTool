@@ -276,8 +276,8 @@ jobs:
         # Define the new version number
         $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name'] -or "0.0.0-test1"    # get rid of the "-or" part when the release is created.
 
-        # Get all .csproj files in the solution directory and its subdirectories
-        $csprojFiles = Get-ChildItem -Path "C:\Path\To\Your\Solution" -Recurse -Filter "*.csproj"
+        # Get all non-test .csproj files in the solution directory and its subdirectories
+        $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
           | Where-Object { $_.Name -notmatch "test" }
 
         foreach ($file in $csprojFiles) {

@@ -270,6 +270,30 @@ jobs:
     - name: Checkout code again
       uses: actions/checkout@v3
 
+    # Update file versions.
+    - name: Update file versions
+      run: |
+        # Define the new version number
+        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
+
+        # Get all .csproj files in the solution directory and its subdirectories
+        $csprojFiles = Get-ChildItem -Path "C:\Path\To\Your\Solution" -Recurse -Filter "*.csproj"
+          | Where-Object { $_.Name -notmatch "test" }
+
+        foreach ($file in $csprojFiles) {
+          # Read the content of the .csproj file
+          $content = Get-Content -Path $file.FullName
+
+          # Update the version number in the .csproj file
+          $updatedContent = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$newVersion</FileVersion>"
+
+          # Write the updated content back to the .csproj file
+          Set-Content -Path $file.FullName -Value $updatedContent
+
+          Write-Host "Updated version in $($file.FullName)"
+        }
+      shell: pwsh
+
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |

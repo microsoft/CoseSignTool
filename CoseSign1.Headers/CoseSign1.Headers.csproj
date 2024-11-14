@@ -4,6 +4,9 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
         <LangVersion>latest</LangVersion>
+
+		<!--This is the file version of the last release. It gets auto-updated when a new release is published on GitHub.-->
+		<FileVersion>1.0.0</FileVersion>
     </PropertyGroup>
 
     <!--Code style and static analysis-->

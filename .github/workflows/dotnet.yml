@@ -238,7 +238,7 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
+    # if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
     needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
@@ -274,7 +274,7 @@ jobs:
     - name: Update file versions
       run: |
         # Define the new version number
-        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
+        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name'] -or "0.0.0-test1"    # get rid of the "-or" part when the release is created.
 
         # Get all .csproj files in the solution directory and its subdirectories
         $csprojFiles = Get-ChildItem -Path "C:\Path\To\Your\Solution" -Recurse -Filter "*.csproj"
@@ -291,6 +291,7 @@ jobs:
           Set-Content -Path $file.FullName -Value $updatedContent
 
           Write-Host "Updated version in $($file.FullName)"
+          exit 1    # Remove this line when the script is ready.
         }
       shell: pwsh
 

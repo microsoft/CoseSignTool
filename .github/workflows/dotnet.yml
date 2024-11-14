@@ -291,13 +291,13 @@ jobs:
           Set-Content -Path $file.FullName -Value $updatedContent
 
           Write-Host "Updated version in $($file.FullName)"
-          exit 1    # Remove this line when the script is ready.
         }
       shell: pwsh
 
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
+        exit 1    # Remove this line when the script is ready.  
         dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
         dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.

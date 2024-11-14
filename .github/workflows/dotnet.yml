@@ -291,9 +291,11 @@ jobs:
           Set-Content -Path $file.FullName -Value $updatedContent
 
           # Make sure the version number was updated
-          Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>"
-
-          Write-Host "Updated version in $($file.FullName)"
+          if (Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>") {
+            Write-Host "Updated version in $($file.FullName)"
+          } else {
+            Write-Host "Failed to update version in $($file.FullName)"
+          }
         }
       shell: pwsh
 

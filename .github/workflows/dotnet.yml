@@ -50,7 +50,8 @@ jobs:
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
       run: |
-          dotnet build --configuration Debug CoseSignTool.sln
+          VERSION=$(git tag | sort --version-sort | tail -n1)
+          dotnet build --configuration Debug -p:FileVersion=VERSION CoseSignTool.sln 
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
@@ -61,6 +62,13 @@ jobs:
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}
+
+    # Print the version number of CoseSignTool.exe
+    - name: Print version number
+      shell: pwsh
+      run: |
+        $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("CoseSignTool/bin/Debug/net8.0/CoseSignTool.exe").FileVersion
+        Write-Output "CoseSignTool version is $version"
 
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
@@ -271,39 +279,40 @@ jobs:
       uses: actions/checkout@v3
 
     # Update file versions.
-    - name: Update file versions
-      run: |
-        # Define the new version number
-        $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
+    # - name: Update file versions
+    #   run: |
+    #     # Define the new version number
+    #     $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
 
-        # Get all non-test .csproj files in the solution directory and its subdirectories
-        $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
-          | Where-Object { $_.Name -notmatch "test" }
+    #     # Get all non-test .csproj files in the solution directory and its subdirectories
+    #     $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
+    #       | Where-Object { $_.Name -notmatch "test" }
 
-        foreach ($file in $csprojFiles) {
-          # Read the content of the .csproj file
-          $content = Get-Content -Path $file.FullName
+    #     foreach ($file in $csprojFiles) {
+    #       # Read the content of the .csproj file
+    #       $content = Get-Content -Path $file.FullName
 
-          # Update the version number in the .csproj file
-          $updatedContent = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$newVersion</FileVersion>"
+    #       # Update the version number in the .csproj file
+    #       $updatedContent = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$newVersion</FileVersion>"
 
-          # Write the updated content back to the .csproj file
-          Set-Content -Path $file.FullName -Value $updatedContent
+    #       # Write the updated content back to the .csproj file
+    #       Set-Content -Path $file.FullName -Value $updatedContent
 
-          # Make sure the version number was updated
-          if (Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>") {
-            Write-Host "Updated version in $($file.FullName)"
-          } else {
-            Write-Host "Failed to update version in $($file.FullName)"
-          }
-        }
-      shell: pwsh
+    #       # Make sure the version number was updated
+    #       if (Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>") {
+    #         Write-Host "Updated version in $($file.FullName)"
+    #       } else {
+    #         Write-Host "Failed to update version in $($file.FullName)"
+    #       }
+    #     }
+    #   shell: pwsh
 
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+        VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
+        dotnet publish --configuration Debug --self-contained true --output published/debug -p:FileVersion=VERSION CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release -p:FileVersion=VERSION CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
 
     # Copy the docs, license, and markdown files to the release folders.

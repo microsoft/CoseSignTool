@@ -50,8 +50,8 @@ jobs:
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
       run: |
-          VERSION=$(git tag | sort --version-sort | tail -n1)
-          dotnet build --configuration Debug -p:FileVersion=VERSION CoseSignTool.sln 
+          $VERSION=$(git tag | sort --version-sort | tail -n1)
+          dotnet build --configuration Debug -p:FileVersion=$VERSION CoseSignTool.sln 
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
@@ -310,9 +310,9 @@ jobs:
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
-        dotnet publish --configuration Debug --self-contained true --output published/debug -p:FileVersion=VERSION CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release -p:FileVersion=VERSION CoseSignTool/CoseSignTool.csproj
+        $VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
+        dotnet publish --configuration Debug --self-contained true --output published/debug -p:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release -p:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
 
     # Copy the docs, license, and markdown files to the release folders.

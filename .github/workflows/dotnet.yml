@@ -309,7 +309,7 @@ jobs:
 
     - name: Check File Version
       run: |
-        $filePath = 'published\debug\CoseSignTool.exe'
+        $filePath = '.\published\debug\CoseSignTool.exe'
         $versionInfo = (Get-Command $filePath).FileVersionInfo
         Write-Output "File Version: $($versionInfo.FileVersion)"
       shell: pwsh

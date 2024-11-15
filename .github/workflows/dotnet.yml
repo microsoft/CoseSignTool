@@ -50,7 +50,7 @@ jobs:
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
       run: |
-          $VERSION=$(git tag | sort --version-sort | tail -n1)
+          $VERSION="1.2.3.4"
           dotnet build --configuration Debug -p:FileVersion=$VERSION CoseSignTool.sln 
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj

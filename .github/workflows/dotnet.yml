@@ -312,14 +312,14 @@ jobs:
     - name: List published directory
       run: ${{ matrix.dir_command }}
       working-directory: ./published
-      
+
     - name: Check File Version
       run: |
-        $filePath = "CoseSignTool.exe"
+        $filePath = "CoseSignTool.dll"
         $versionInfo = (Get-Item $filePath).FileVersionInfo
         Write-Output "File Version: $($versionInfo.FileVersion)"
       shell: pwsh
-      working-directory: ../published/debug
+      working-directory: ./published/debug
 
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders

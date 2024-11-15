@@ -309,10 +309,11 @@ jobs:
 
     - name: Check File Version
       run: |
-        $filePath = '.\published\debug\CoseSignTool.exe'
+        $filePath = 'CoseSignTool.exe'
         $versionInfo = (Get-Command $filePath).FileVersionInfo
         Write-Output "File Version: $($versionInfo.FileVersion)"
       shell: pwsh
+      working-directory: ./published/debug
 
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders

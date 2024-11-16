@@ -315,9 +315,9 @@ jobs:
 
     - name: Check File Version
       run: |
-        $filePath = "CoseSignTool.dll"
-        $versionInfo = (Get-Item $filePath).FileVersionInfo
-        Write-Output "File Version: $versionInfo.FileVersion"
+        # $filePath = "CoseSignTool.dll"
+        # $versionInfo = (Get-Item $filePath).VersionInfo
+        Write-Output "File Version: (Get-Item CoseSignTool.dll).VersionInfo.FileVersion"
       shell: pwsh
       working-directory: ./published/debug
 

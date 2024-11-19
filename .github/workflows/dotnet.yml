@@ -53,7 +53,6 @@ jobs:
     - name: Build and Test debug
       id: build-test
       run: |
-          exit 1
           dotnet build --configuration Debug CoseSignTool.sln
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj

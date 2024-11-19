@@ -62,7 +62,7 @@ jobs:
 
     - name: Check File Version
       run: |
-        $file = Get-Item "published/debug/CoseSignTool.dll"
+        $file = Get-Item "CoseSignTool.dll"
         $version = $file.VersionInfo.FileVersion
         Write-Output "File Version is $version"
       shell: pwsh

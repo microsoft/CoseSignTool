@@ -5,9 +5,6 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
 		<Platforms>AnyCPU</Platforms>
-
-		<!--This is the file version of the last release. It gets auto-updated when a new release is published on GitHub.-->
-		<FileVersion>1.0.0</FileVersion>
 	</PropertyGroup>
 
 	<!--Code style and static analysis-->

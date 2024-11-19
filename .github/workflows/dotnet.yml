@@ -28,8 +28,6 @@ jobs:
     name: build-${{matrix.os}}
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ${{ matrix.os }}
-    outputs:
-      test_val: ${{ steps.build-test.outputs.test_val }}
     strategy:
       matrix:
         include:
@@ -54,15 +52,13 @@ jobs:
       id: build-test
       run: |
           dotnet build --configuration Debug CoseSignTool.sln
-          #dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
-          #dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          #dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
-          #dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
-          #dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
-          #dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
-          # get rid of this          
-          echo "::set-output name=test_val::${{ github.event_name }}"
-        
+          dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
+          dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
+          dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
+          dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
+
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
       run: ${{ matrix.dir_command }}
@@ -85,12 +81,6 @@ jobs:
       - name: Checkout code
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v2
-
-      # Get rid of this
-      - name: Check syntax
-        run: |
-          EVENT=${{ needs.build.outputs.test_val }}
-          echo "event is $EVENT"
           
       # Sync the changelog version.
       - name: Fetch and checkout
@@ -284,9 +274,9 @@ jobs:
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        # VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
-        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
+        VERSION=${{ needs.create_release.outputs.tag_name }}
+        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
         
     # List the contents of the published directory to make sure all the artifacts are there.
@@ -294,6 +284,7 @@ jobs:
       run: ${{ matrix.dir_command }}
       working-directory: ./published
 
+    # Verify that the file versions on the DLLs match the release version
     - name: Check File Version
       run: |
         $file = Get-Item "CoseSignTool.dll"

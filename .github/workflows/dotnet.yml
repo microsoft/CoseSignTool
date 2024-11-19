@@ -46,6 +46,36 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    # Build and publish the binaries to ./published.
+    - name: Publish outputs
+      run: |
+        # VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
+        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
+        # Self-contained is needed. Must use .csproj instead of .sln.
+
+        
+    # List the contents of the published directory to make sure all the artifacts are there.
+    - name: List published directory
+      run: ${{ matrix.dir_command }}
+      working-directory: ./published
+
+    - name: Check DLL Version
+      run: |
+        dll_path="published/debug/CoseSignTool.dll"
+        version=$(dotnet exec --runtimeconfig published/debug/CoseSignTool.runtimeconfig.json --depsfile published/debug/CoseSignTool.deps.json --additionalprobingpath $HOME/.nuget/packages --additionalprobingpath /usr/share/dotnet/sdk/NuGetFallbackFolder $dll_path --version)
+        echo "DLL Version: $version"
+
+    - name: Check File Version
+      run: |
+        # $filePath = "CoseSignTool.dll"
+        # $versionInfo = (Get-Item $filePath).VersionInfo
+        Write-Output "File Version: $(Get-Item CoseSignTool.dll).VersionInfo.FileVersion"
+        exit 1
+      shell: pwsh
+      working-directory: ./published/debug
+
+
     # Use the Dotnet Test command to load dependencies, build, and test the code.
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
@@ -238,8 +268,8 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    needs: [ create_release ]
+    #if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
+    #needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write
@@ -270,16 +300,61 @@ jobs:
     - name: Checkout code again
       uses: actions/checkout@v3
 
+    # Update file versions.
+    # - name: Update file versions
+    #   run: |
+    #     # Define the new version number
+    #     $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
+
+    #     # Get all non-test .csproj files in the solution directory and its subdirectories
+    #     $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
+    #       | Where-Object { $_.Name -notmatch "test" }
+
+    #     foreach ($file in $csprojFiles) {
+    #       # Read the content of the .csproj file
+    #       $content = Get-Content -Path $file.FullName
+
+    #       # Update the version number in the .csproj file
+    #       $updatedContent = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$newVersion</FileVersion>"
+
+    #       # Write the updated content back to the .csproj file
+    #       Set-Content -Path $file.FullName -Value $updatedContent
+
+    #       # Make sure the version number was updated
+    #       if (Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>") {
+    #         Write-Host "Updated version in $($file.FullName)"
+    #       } else {
+    #         Write-Host "Failed to update version in $($file.FullName)"
+    #       }
+    #     }
+    #   shell: pwsh
+
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
-        dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+        # VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
+        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
+
+        
+    # List the contents of the published directory to make sure all the artifacts are there.
+    - name: List published directory
+      run: ${{ matrix.dir_command }}
+      working-directory: ./published
+
+    - name: Check File Version
+      run: |
+        # $filePath = "CoseSignTool.dll"
+        # $versionInfo = (Get-Item $filePath).VersionInfo
+        Write-Output "File Version: $(Get-Item CoseSignTool.dll).VersionInfo.FileVersion"
+      shell: pwsh
+      working-directory: ./published/debug
 
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders
       run: |
+        exit 1  # remove this line when the script is ready
         mkdir -p published/debug/docs
         cp -r docs/* published/debug/docs/
         mkdir -p published/release/docs

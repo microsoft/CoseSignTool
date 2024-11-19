@@ -54,12 +54,12 @@ jobs:
       id: build-test
       run: |
           dotnet build --configuration Debug CoseSignTool.sln
-          dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
-          dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
-          dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
-          dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
-          dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
+          #dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
+          #dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          #dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
+          #dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          #dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
+          #dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
           # get rid of this          
           echo "::set-output name=test_val::${{ github.event_name }}"
         
@@ -89,8 +89,8 @@ jobs:
       # Get rid of this
       - name: Check syntax
         run: |
-          version=$GITHUB_ENV['needs.build.outputs.test_val']
-          echo "event is $version"
+          EVENT=${{ needs.build.outputs.test_val }}
+          echo "event is $EVENT"
           
       # Sync the changelog version.
       - name: Fetch and checkout

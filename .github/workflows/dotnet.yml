@@ -28,6 +28,8 @@ jobs:
     name: build-${{matrix.os}}
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ${{ matrix.os }}
+    outputs:
+      test_val: ${{ steps.build-test.outputs.test_val }}
     strategy:
       matrix:
         include:
@@ -46,32 +48,10 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    # Build and publish the binaries to ./published.
-    - name: Publish outputs
-      run: |
-        # VERSION=$GITHUB_ENV['needs.create_release.outputs.tag_name']
-        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
-        # Self-contained is needed. Must use .csproj instead of .sln.
-
-        
-    # List the contents of the published directory to make sure all the artifacts are there.
-    - name: List published directory
-      run: ${{ matrix.dir_command }}
-      working-directory: ./published
-
-    - name: Check File Version
-      run: |
-        $file = Get-Item "CoseSignTool.dll"
-        $version = $file.VersionInfo.FileVersion
-        Write-Output "File Version is $version"
-      shell: pwsh
-      working-directory: ./published/debug
-
-
     # Use the Dotnet Test command to load dependencies, build, and test the code.
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug
+      id: build-test
       run: |
           exit 1
           dotnet build --configuration Debug CoseSignTool.sln
@@ -81,6 +61,8 @@ jobs:
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
           dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj --verbosity detailed
+          # get rid of this          
+          echo "::set-output name=test_val::${{ github.event_name }}"
         
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
@@ -105,6 +87,12 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v2
 
+      # Get rid of this
+      - name: Check syntax
+        run: |
+          version=$GITHUB_ENV['needs.build.outputs.test_val']
+          echo "event is $version"
+          
       # Sync the changelog version.
       - name: Fetch and checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -262,8 +250,8 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    #if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    #needs: [ create_release ]
+    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
+    needs: [ create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write
@@ -294,35 +282,6 @@ jobs:
     - name: Checkout code again
       uses: actions/checkout@v3
 
-    # Update file versions.
-    # - name: Update file versions
-    #   run: |
-    #     # Define the new version number
-    #     $version = $env:GITHUB_ENV['needs.create_release.outputs.tag_name']
-
-    #     # Get all non-test .csproj files in the solution directory and its subdirectories
-    #     $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.csproj"
-    #       | Where-Object { $_.Name -notmatch "test" }
-
-    #     foreach ($file in $csprojFiles) {
-    #       # Read the content of the .csproj file
-    #       $content = Get-Content -Path $file.FullName
-
-    #       # Update the version number in the .csproj file
-    #       $updatedContent = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$newVersion</FileVersion>"
-
-    #       # Write the updated content back to the .csproj file
-    #       Set-Content -Path $file.FullName -Value $updatedContent
-
-    #       # Make sure the version number was updated
-    #       if (Get-Content -Path $file.FullName | Select-String -Pattern "<FileVersion>$newVersion</FileVersion>") {
-    #         Write-Host "Updated version in $($file.FullName)"
-    #       } else {
-    #         Write-Host "Failed to update version in $($file.FullName)"
-    #       }
-    #     }
-    #   shell: pwsh
-
     # Build and publish the binaries to ./published.
     - name: Publish outputs
       run: |
@@ -330,7 +289,6 @@ jobs:
         dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
         dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion="1.2.3.4" CoseSignTool/CoseSignTool.csproj
         # Self-contained is needed. Must use .csproj instead of .sln.
-
         
     # List the contents of the published directory to make sure all the artifacts are there.
     - name: List published directory
@@ -339,9 +297,9 @@ jobs:
 
     - name: Check File Version
       run: |
-        # $filePath = "CoseSignTool.dll"
-        # $versionInfo = (Get-Item $filePath).VersionInfo
-        Write-Output "File Version: $(Get-Item CoseSignTool.dll).VersionInfo.FileVersion"
+        $file = Get-Item "CoseSignTool.dll"
+        $version = $file.VersionInfo.FileVersion
+        Write-Output "File Version is $version"
       shell: pwsh
       working-directory: ./published/debug
 

@@ -63,7 +63,7 @@ jobs:
     - name: Check DLL Version
       run: |
         dll_path="published/debug/CoseSignTool.dll"
-        version=$(dotnet exec --runtimeconfig published/debug/CoseSignTool.runtimeconfig.json --depsfile published/debug/CoseSignTool.deps.json --additionalprobingpath $HOME/.nuget/packages --additionalprobingpath /usr/share/dotnet/sdk/NuGetFallbackFolder $dll_path --version)
+        version=$(dotnet exec --runtimeconfig published/debug/CoseSignTool.runtimeconfig.json --depsfile published/debug/CoseSignTool.deps.json $dll_path --version)
         echo "DLL Version: $version"
 
     - name: Check File Version

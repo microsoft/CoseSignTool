@@ -296,7 +296,6 @@ jobs:
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders
       run: |
-        exit 1  # remove this line when the script is ready
         mkdir -p published/debug/docs
         cp -r docs/* published/debug/docs/
         mkdir -p published/release/docs

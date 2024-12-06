@@ -40,7 +40,7 @@ public class CoseSign1IntegrationTestsWithFactory
         var responseAsCoseSign1Message = Factory.CreateCoseSign1Message(testPayload, testSigningKeyProvider);
         responseAsCoseSign1Message.Equals(CoseMessage.DecodeSign1(responseAsBytes.ToArray()));
 
-        responseAsCoseSign1Message.ProtectedHeaders.Should().HaveCount(c => c == 4);
+        responseAsCoseSign1Message.ProtectedHeaders.Should().HaveCount(c => c == 5);
 
         responseAsCoseSign1Message.UnprotectedHeaders.Should().BeEmpty();
     }
@@ -79,8 +79,8 @@ public class CoseSign1IntegrationTestsWithFactory
 
         responseAsCoseSign1Message.ProtectedHeaders.Should().NotBeNull();
 
-        //checking if the count of protected headers are 4.
-        responseAsCoseSign1Message.ProtectedHeaders.Should().HaveCount(c => c == 5);
+        //checking if the count of protected headers are 6.
+        responseAsCoseSign1Message.ProtectedHeaders.Should().HaveCount(c => c == 6);
 
         responseAsCoseSign1Message.ProtectedHeaders.First().Key.Should().Be(CoseHeaderLabel.Algorithm); // this is the algo header added by the CoseSigner
 

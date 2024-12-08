@@ -129,7 +129,7 @@ public class CertificateCoseSigningKeyProviderTests
         testObj.Protected().Verify("GetSigningCertificate", Times.AtLeastOnce());
         testObj.Protected().Verify("GetCertificateChain", Times.Once(), X509ChainSortOrder.LeafFirst);
         response.Should().NotBeNull();
-        response.Count.Should().Be(2);
+        response.Count.Should().Be(3);
     }
 
     /// <summary>

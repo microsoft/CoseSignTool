@@ -38,10 +38,10 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // There should be 4 ProtectedHeaders.
-        // First one is the algo header provided by Cosesigner. The second and third are from the Default ProtectedHeaders provided by CertificateCoseSignerKeyProvider
+        // There should be 5 ProtectedHeaders.
+        // First one is the algo header provided by Cosesigner. The second, third and fourth are from the Default ProtectedHeaders provided by CertificateCoseSignerKeyProvider
         // The last is the Content Type header provided by the user.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 4);
+        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
 
         response.UnprotectedHeaders.Should().BeEmpty();
     }
@@ -79,8 +79,8 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // The count of protected headers should be 5.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
+        // The count of protected headers should be 6.
+        response.ProtectedHeaders.Should().HaveCount(c => c == 6);
         response.ProtectedHeaders.First().Key.Should().Be(CoseHeaderLabel.Algorithm); // this is the algo header added by the CoseSigner
 
         // Count of Unprotected headers should be 1.

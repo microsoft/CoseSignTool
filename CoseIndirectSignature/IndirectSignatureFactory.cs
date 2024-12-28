@@ -13,7 +13,7 @@ namespace CoseIndirectSignature;
 /// The <see cref="CoseMessage.Content"/> field will contain the hash value of the specified payload.
 /// The default hash algorithm used is <see cref="HashAlgorithmName.SHA256"/>.
 /// </remarks>
-public sealed class IndirectSignatureFactory : IDisposable
+public sealed class IndirectSignatureFactory : ICoseSignatureFactory, IDisposable
 {
     private readonly HashAlgorithm InternalHashAlgorithm;
     private readonly uint HashLength;
@@ -90,11 +90,13 @@ public sealed class IndirectSignatureFactory : IDisposable
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
+        ICoseHeaderExtender? headerExtender = null,
         bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
                                             returnBytes: false,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
                                             bytePayload: payload,
+                                            headerExtender: headerExtender,
                                             useOldFormat: useOldFormat);
 
     /// <summary>
@@ -176,11 +178,13 @@ public sealed class IndirectSignatureFactory : IDisposable
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
+        ICoseHeaderExtender? headerExtender = null,
         bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
                                             returnBytes: false,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
                                             streamPayload: payload,
+                                            headerExtender: headerExtender,
                                             useOldFormat: useOldFormat);
 
     /// <summary>
@@ -262,11 +266,13 @@ public sealed class IndirectSignatureFactory : IDisposable
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
+        ICoseHeaderExtender? headerExtender = null,
         bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
                                             returnBytes: true,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
                                             bytePayload: payload,
+                                            headerExtender: headerExtender,
                                             useOldFormat: useOldFormat);
 
     /// <summary>
@@ -348,11 +354,13 @@ public sealed class IndirectSignatureFactory : IDisposable
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
+        ICoseHeaderExtender? headerExtender = null,
         bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
                                             returnBytes: true,
                                             signingKeyProvider: signingKeyProvider,
                                             contentType: contentType,
                                             streamPayload: payload,
+                                            headerExtender: headerExtender,
                                             useOldFormat: useOldFormat);
 
     /// <summary>
@@ -440,6 +448,7 @@ public sealed class IndirectSignatureFactory : IDisposable
         string contentType,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
+        ICoseHeaderExtender? headerExtender = null,
         bool payloadHashed = false,
         bool useOldFormat = false)
     {
@@ -461,6 +470,7 @@ public sealed class IndirectSignatureFactory : IDisposable
                 contentType,
                 streamPayload,
                 bytePayload,
+                headerExtender,
                 payloadHashed)
             : CreateIndirectSignatureWithChecksInternalNewFormat(
                 returnBytes,
@@ -468,6 +478,7 @@ public sealed class IndirectSignatureFactory : IDisposable
                 contentType,
                 streamPayload,
                 bytePayload,
+                headerExtender,
                 payloadHashed);
     }
 
@@ -490,6 +501,7 @@ public sealed class IndirectSignatureFactory : IDisposable
         string contentType,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
+        ICoseHeaderExtender? headerExtender = null,
         bool payloadHashed = false)
     {
         CoseHashV hash;
@@ -525,13 +537,15 @@ public sealed class IndirectSignatureFactory : IDisposable
                     hash.Serialize(),
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType)
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender)
                // return the CoseSign1Message object
                : InternalMessageFactory.CreateCoseSign1Message(
                     hash.Serialize(),
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType);
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender);
     }
 
     /// <summary>
@@ -553,6 +567,7 @@ public sealed class IndirectSignatureFactory : IDisposable
         string contentType,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
+        ICoseHeaderExtender? headerExtender = null,
         bool payloadHashed = false)
     {
         ReadOnlyMemory<byte> hash;
@@ -586,12 +601,14 @@ public sealed class IndirectSignatureFactory : IDisposable
                     hash,
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType)
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender)
                : InternalMessageFactory.CreateCoseSign1Message(
                     hash,
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType);
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender);
     }
 
     /// <summary>
@@ -683,4 +700,32 @@ public sealed class IndirectSignatureFactory : IDisposable
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
+
+    public CoseSign1Message CreateCoseSign1Message(
+        ReadOnlyMemory<byte> payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType = "application/cose",
+        ICoseHeaderExtender? headerExtender = null)
+        => CreateIndirectSignature(payload, signingKeyProvider, contentType, headerExtender);
+
+    public CoseSign1Message CreateCoseSign1Message(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType = "application/cose",
+        ICoseHeaderExtender? headerExtender = null)
+        => CreateIndirectSignature(payload, signingKeyProvider, contentType, headerExtender);
+
+    public ReadOnlyMemory<byte> CreateCoseSign1MessageBytes(
+        ReadOnlyMemory<byte> payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType = "application/cose",
+        ICoseHeaderExtender? headerExtender = null)
+        => CreateIndirectSignatureBytes(payload, signingKeyProvider, contentType, headerExtender);
+
+    public ReadOnlyMemory<byte> CreateCoseSign1MessageBytes(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType = "application/cose",
+        ICoseHeaderExtender? headerExtender = null)
+        => CreateIndirectSignatureBytes(payload, signingKeyProvider, contentType, headerExtender);
 }

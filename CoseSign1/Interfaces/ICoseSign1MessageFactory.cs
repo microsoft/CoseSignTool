@@ -26,8 +26,7 @@ public interface ICoseSign1MessageFactory
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
-           ICoseHeaderExtender? headerExtender = null
-           );
+           ICoseHeaderExtender? headerExtender = null);
 
     /// <summary>
     /// Creates a CoseSign1Message object that represents a COSE signature.

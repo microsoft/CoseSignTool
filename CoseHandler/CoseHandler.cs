@@ -3,6 +3,12 @@
 
 namespace CoseX509;
 
+using CoseIndirectSignature;
+using CoseSign1.Abstractions.Exceptions;
+
+using CoseSign1.Interfaces;
+using Microsoft.Extensions.Logging;
+
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
 /// </summary>
@@ -12,12 +18,34 @@ public static class CoseHandler
     private const string DefaultStoreName = "My";
 
     // static instance of the factory for creating new CoseSign1Messages
-    private static readonly CoseSign1MessageFactory Factory = new();
+    private static readonly CoseSign1MessageFactory DefaultCoseMsgFactory = new();
+
+    private static readonly IndirectSignatureFactory IndirectCoseFactory = new();
 
     // static instance of the factory for managing headers.
     public static readonly CoseHeaderFactory HeaderFactory = CoseHeaderFactory.Instance();
 
     #region Sign Overloads
+    /// <summary>
+    /// Signs the payload content with the supplied certificate and returns a ReadOnlyMemory object containing the COSE signatureFile.
+    /// </summary>
+    /// <param name="payload">The file content to sign.</param>
+    /// <param name="signingKeyProvider">An CertificateCoseSigningKeyProvider that contains the signing certificate and hash information.</param>
+    /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
+    /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
+    /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
+    /// <exception cref="CryptographicException">The signing certificate is null or invalid.</exception>
+    public static ReadOnlyMemory<byte> Sign(
+        byte[] payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null)
+        => SignInternal(
+            payloadBytes: payload, payloadStream: null, payloadFile: null,
+            signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
+
+
+
     /// <summary>
     /// Signs the payload content with the supplied certificate and returns a ReadOnlyMemory object containing the COSE signatureFile.
     /// </summary>
@@ -264,10 +292,306 @@ public static class CoseHandler
             payloadBytes: null, payloadStream: null, payloadFile: payload,
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender);
 
+    //private const string EmptyPayloadBytesExceptionMessage =
+    //$"[{nameof(CoseSignerBase)}::{nameof(CoseSignIndirect)}]: " +
+    //$"Input payloadBytes is null or empty";
+
+    //private const string FailedToSignBitsExceptionMessage =
+    //    $"[{nameof(CoseSignerBase)}::{nameof(CoseSignIndirect)}]: " +
+    //    $"ESRP Request failed to create signed bits";
+
+    //private const string InvalidStreamExceptionMessage =
+    //    $"[{nameof(CoseSignerBase)}::{nameof(CoseSignIndirect)}]: " +
+    //    $"Input payloadStream is null or non-seekable";
+
+    //private const string OneOrTheOtherPayloadExceptionMessage =
+    //    $"[{nameof(CoseSignerBase)}::{nameof(CoseSignInternal)}]: " +
+    //    $"Please provide either a byte[] or stream containing the payload, but not both";
+
+    //internal virtual IndirectSignatureFactory IndirectCoseFactory { get; set; } = new IndirectSignatureFactory();
+    //internal virtual ICoseSign1MessageFactory CoseMessageFactory { get; set; } = new CoseSign1MessageFactory();
+
+    /// <summary>
+    /// The key provider used to sign.
+    /// </summary>
+    //internal abstract ICoseSigningKeyProvider SigningKeyProvider { get; }
+
+    //private bool DisposedValue;
+
+    /// <inheritdoc />
+    public static SignResult CoseSignIndirect(string payloadFilePath, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignFileInternal(payloadFilePath, contentType, false, logger);
+
+    /// <inheritdoc />
+    public static SignResult CoseSignIndirect(byte[] payloadBytes, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignBytesInternal(payloadBytes, contentType, false, logger);
+
+    /// <inheritdoc />
+    public static SignResult CoseSignIndirect(Stream payloadStream, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignStreamInternal(payloadStream, contentType, false, logger);
+
+    /// <inheritdoc />
+    public static SignResult CoseSignHash(byte[] hashBytes, string contentType = "application/spdx+json", ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignHash));
+
+        Exception err;
+        if (hashBytes == null || hashBytes.Length == 0)
+        {
+            err = new ArgumentNullException(nameof(hashBytes), EmptyPayloadBytesExceptionMessage);
+            logger?.LogError(err, err.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = err
+            };
+        }
+
+        return CoseSignIndirectInternal(
+            payloadBytes: hashBytes,
+            contentType: contentType,
+            payloadHashed: true,
+            logger: logger);
+    }
+
+    /// <inheritdoc />
+    public static SignResult CoseSignHash(Stream hashStream, string contentType = "application/spdx+json", ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignHash));
+
+        Exception err;
+        if (hashStream.IsNullOrEmpty())
+        {
+            err = new ArgumentNullException(nameof(hashStream), InvalidStreamExceptionMessage);
+            logger?.LogError(err, err.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = err
+            };
+        }
+
+        return CoseSignIndirectInternal(
+            payloadStream: hashStream,
+            contentType: contentType,
+            payloadHashed: true,
+            logger: logger);
+    }
+
+    /// <inheritdoc />
+    public static SignResult CoseSignDetached(string payloadFilePath, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignFileInternal(payloadFilePath, contentType, true, logger);
+
+    /// <inheritdoc />
+    public static SignResult CoseSignDetached(byte[] payloadBytes, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignBytesInternal(payloadBytes, contentType, true, logger);
+
+    /// <inheritdoc />
+    public static SignResult CoseSignDetached(Stream payloadStream, string contentType = "application/spdx+json", ILogger? logger = null)
+        => CoseSignStreamInternal(payloadStream, contentType, true, logger);
+
+    private static SignResult CoseSignFileInternal(
+        string payloadFilePath,
+        string contentType = "application/spdx+json",
+        bool embedSign = false,
+        ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignFileInternal));
+
+        Exception err;
+        if (string.IsNullOrEmpty(payloadFilePath))
+        {
+            err = new ArgumentNullException(nameof(payloadFilePath));
+        }
+
+        FileInfo payloadFile = new(payloadFilePath);
+
+        if (!payloadFile.Exists)
+        {
+            string message = $"[{nameof(CoseHandler)}::{nameof(CoseSignIndirect)}]: Input payloadFile:{payloadFile.FullName} does not exist";
+            err = new FileNotFoundException(message, payloadFile.FullName);
+            logger?.LogError(err, err.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = err
+            };
+        }
+
+        string signAttemptMsg = $"Attempting to sign file at {payloadFile.FullName}";
+        logger?.LogInformation(signAttemptMsg);
+
+        // route to appropriate override based on size of file
+        if (payloadFile.Length >= int.MaxValue)
+        {
+            using FileStream payloadFileStream = new(payloadFile.FullName, FileMode.Open, FileAccess.Read, FileShare.None);
+            return CoseSignStreamInternal(payloadFileStream, contentType, embedSign, logger);
+        }
+
+        return CoseSignBytesInternal(File.ReadAllBytes(payloadFile.FullName), contentType, embedSign, logger);
+    }
+
+    private static SignResult CoseSignBytesInternal(
+        byte[] payloadBytes,
+        string contentType = "application/spdx+json",
+        bool embedSign = false,
+        ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignBytesInternal));
+
+        Exception err;
+        if (payloadBytes == null || payloadBytes.Length == 0)
+        {
+            err = new ArgumentNullException(nameof(payloadBytes), EmptyPayloadBytesExceptionMessage);
+            logger?.LogError(err, err.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = err
+            };
+        }
+
+        return CoseSignIndirectInternal(
+            payloadBytes: payloadBytes,
+            contentType: contentType,
+            embedSign: embedSign,
+            logger: logger);
+    }
+
+    private static SignResult CoseSignStreamInternal(
+        Stream payloadStream,
+        string contentType = "application/spdx+json",
+        bool embedSign = false,
+        ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignStreamInternal));
+
+        Exception err;
+        if (payloadStream.IsNullOrEmpty())
+        {
+            err = new ArgumentNullException(nameof(payloadStream), InvalidStreamExceptionMessage);
+            logger?.LogError(err, err.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = err
+            };
+        }
+
+        SignInternal(
+            payloadStream: payloadStream,
+            contentType: contentType,
+            embedSign: !embedSign);
+    }
+
+    /// <summary>
+    /// COSE signs a payload from a byte[].
+    /// </summary>
+    /// <param name="payloadBytes">A byte array containing the payload bytes to sign</param>
+    /// <param name="payloadStream">A stream containing the payload bytes to sign. Useful for payloads > 2GB, which cannot be represented as a byte[].</param>
+    /// <param name="contentType">Content type of the payload.</param>
+    /// <param name="payloadHashed">Whether or not the payload represents the hash of the desired payload</param>
+    /// <param name="embedSign">When set, will sign as a embedSign signature (payload hash not embedded)</param>
+    /// <param name="logger"></param>
+    /// <returns>A byte[] representing a COSE signature.</returns>
+    private static SignResult CoseSignIndirectInternal(
+        byte[]? payloadBytes = null,
+        Stream? payloadStream = null,
+         string contentType = "application/spdx+json",
+        bool payloadHashed = false,
+        ILogger? logger = null)
+    {
+        using var scope = logger?.BeginScope(nameof(CoseSignIndirectInternal));
+
+        Exception err;
+        try
+        {
+            if (payloadBytes == null && payloadStream == null ||
+                payloadBytes != null && payloadStream != null)
+            {
+                err = new ArgumentException(OneOrTheOtherPayloadExceptionMessage);
+                logger?.LogError(err, err.ToString());
+                throw err;
+            }
+
+            ReadOnlyMemory<byte>? coseMessageBytes = null;
+
+            // Sign stream payload
+            if (payloadStream != null)
+            {
+                // Sign payload that is already hashed
+                if (payloadHashed)
+                {
+                    coseMessageBytes = IndirectCoseFactory
+                        .CreateIndirectSignatureBytesFromHash(
+                            rawHash: payloadStream,
+                            contentType: contentType,
+                            signingKeyProvider: SigningKeyProvider);
+
+                    // extract hash and convert to hex string for logging
+                    payloadStream.Seek(0, SeekOrigin.Begin);
+                }
+                // Sign raw (unhashed) payload
+                else
+                {
+                    coseMessageBytes = IndirectCoseFactory
+                        .CreateIndirectSignatureBytes( // Sign as indirect (COSE_Hash_V) detached signature
+                            payload: payloadStream,
+                            contentType: contentType,
+                            signingKeyProvider: SigningKeyProvider);
+                }
+            }
+            // Sign byte[] payload
+            else if (payloadBytes is not null)
+            {
+                // Sign raw (unhashed) payload
+                if (payloadHashed)
+                {
+                    coseMessageBytes = IndirectCoseFactory
+                        .CreateIndirectSignatureBytesFromHash(
+                            rawHash: payloadBytes,
+                            contentType: contentType,
+                            signingKeyProvider: SigningKeyProvider);
+                }
+                else
+                {
+                    coseMessageBytes = IndirectCoseFactory
+                        .CreateIndirectSignatureBytes( // Sign as indirect (COSE_Hash_V) detached signature
+                            payload: payloadBytes,
+                            contentType: contentType,
+                            signingKeyProvider: SigningKeyProvider);
+                }
+            }
+
+            if (coseMessageBytes is null || coseMessageBytes.Value.Length == 0)
+            {
+                err = new CoseSigningException(FailedToSignBitsExceptionMessage);
+                logger?.LogError(err, err.ToString());
+                throw err;
+            }
+
+            SignResult result = new(coseMessageBytes)
+            {
+                IsSuccess = true,
+            };
+
+            return result;
+        }
+        catch (Exception e)
+        {
+            logger?.LogError(e, e.ToString());
+            return new SignResult()
+            {
+                IsSuccess = false,
+                Exception = e
+            };
+        }
+    }
+
     /// <summary>
     /// Signs a file with the supplied key provider.
     /// </summary>
-    /// <param name="payload">The content to be signatureFile. This may be a byte[], a Stream, or a string. If string, it will be read as a file path.</param>
+    /// <param name="payloadBytes">The content to be signatureFile. This may be a byte[], a Stream, or a string. If string, it will be read as a file path.</param>
     /// <param name="signingKeyProvider">An CertificateCoseSigningKeyProvider that contains the signing certificate and hash information.</param>
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
@@ -299,9 +623,9 @@ public static class CoseHandler
             //#pragma warning disable CS8604 // Possible null reference argument: False positive on contentType param which has a default value.
             ReadOnlyMemory<byte> signedBytes =
                 !payloadBytes.IsNullOrEmpty() ?
-                    Factory.CreateCoseSign1MessageBytes(payloadBytes, signingKeyProvider, embedSign, contentType, headerExtender) :
+                    DefaultCoseMsgFactory.CreateCoseSign1MessageBytes(payloadBytes, signingKeyProvider, embedSign, contentType, headerExtender) :
                 payloadStream is not null ?
-                    Factory.CreateCoseSign1MessageBytes(payloadStream, signingKeyProvider, embedSign, contentType, headerExtender) :
+                    DefaultCoseMsgFactory.CreateCoseSign1MessageBytes(payloadStream, signingKeyProvider, embedSign, contentType, headerExtender) :
                     throw new ArgumentException("Payload not provided.");
             //#pragma warning restore CS8604 // Possible null reference argument.
 

@@ -18,7 +18,6 @@ public class CoseX509Thumprint
     /// </summary>
     private static readonly Dictionary<int, HashAlgorithmName> HashAlgorithmToCoseValues = new()
     {
-        { -14, HashAlgorithmName.SHA1 },
         { -16, HashAlgorithmName.SHA256 },
         { -43, HashAlgorithmName.SHA384 },
         { -44, HashAlgorithmName.SHA512 }
@@ -162,7 +161,6 @@ public class CoseX509Thumprint
 
         // HashAlgorithmName values are not constants, so we can't use an actual switch here.
         Hasher =
-            algName == HashAlgorithmName.SHA1 ? SHA1.Create() :
             algName == HashAlgorithmName.SHA256 ? SHA256.Create() :
             algName == HashAlgorithmName.SHA384 ? SHA384.Create() :
             algName == HashAlgorithmName.SHA512 ? SHA512.Create() :

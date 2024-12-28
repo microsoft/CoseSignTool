@@ -48,6 +48,6 @@ public class CoseX509ThumbprintTests
     [ExpectedException(typeof(CoseX509FormatException))]
     public void ConstructThumbprintWithUnsupportedAlgo()
     {
-        _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.MD5);
+        _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.SHA3_512);
     }
 }

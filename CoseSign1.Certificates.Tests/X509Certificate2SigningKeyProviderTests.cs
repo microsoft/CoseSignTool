@@ -30,7 +30,6 @@ public class X509Certificate2SigningKeyProviderTests
             new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert)),
             new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA256)),
             new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA512)),
-            new Action(() => _= new X509Certificate2CoseSigningKeyProvider(testCert, HashAlgorithmName.SHA1)),
         ];
 
         // test validate

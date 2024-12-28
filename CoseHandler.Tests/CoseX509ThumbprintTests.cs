@@ -28,7 +28,7 @@ public class CoseX509ThumbprintTests
     {
         var algos = new HashAlgorithm[]
         {
-            SHA1.Create(), SHA256.Create(), SHA384.Create(), SHA512.Create()
+            SHA256.Create(), SHA384.Create(), SHA512.Create()
         };
 
         foreach (HashAlgorithm algo in algos)
@@ -48,6 +48,6 @@ public class CoseX509ThumbprintTests
     [ExpectedException(typeof(CoseX509FormatException))]
     public void ConstructThumbprintWithUnsupportedAlgo()
     {
-        _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.MD5);
+        _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.SHA3_512);
     }
 }

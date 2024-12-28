@@ -601,8 +601,6 @@ public sealed class IndirectSignatureFactory : IDisposable
     private static readonly ConcurrentDictionary<int, HashAlgorithmName> SizeInBytesToAlgorithm = new(
         new Dictionary<int, HashAlgorithmName>()
         {
-            { 16, HashAlgorithmName.MD5 },
-            { 20, HashAlgorithmName.SHA1 },
             { 32, HashAlgorithmName.SHA256 },
             { 48, HashAlgorithmName.SHA384 },
             { 64, HashAlgorithmName.SHA512 }

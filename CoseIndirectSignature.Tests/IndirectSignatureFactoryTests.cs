@@ -201,26 +201,10 @@ public class IndirectSignatureFactoryTests
     }
 
     [Test]
-    public void TestCreateIndirectSignatureMd5Failure()
+    public void TestCreateIndirectSignatureUnsupportedAlgorithmFailure()
     {
-        Action act = () => { IndirectSignatureFactory factory = new(HashAlgorithmName.MD5); };
+        Action act = () => { IndirectSignatureFactory factory = new(HashAlgorithmName.SHA3_256); };
         act.Should().Throw<ArgumentException>();
-    }
-
-    [Test]
-    public void TestCreateIndirectSignatureMd5HashProvidedFailure()
-    {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
-        using IndirectSignatureFactory factory = new();
-        byte[] randomBytes = new byte[50];
-        new Random().NextBytes(randomBytes);
-        using HashAlgorithm hasher = CoseSign1MessageIndirectSignatureExtensions.CreateHashAlgorithmFromName(HashAlgorithmName.MD5)
-         ?? throw new Exception($"Failed to get hash algorithm from {nameof(CoseSign1MessageIndirectSignatureExtensions.CreateHashAlgorithmFromName)}");
-        byte[] hash = hasher!.ComputeHash(randomBytes);
-
-        // test the sync method
-        Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, string.Empty));
-        Assert.Throws<ArgumentException>(() => factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, "application/test.payload"));
     }
 
     [Test]

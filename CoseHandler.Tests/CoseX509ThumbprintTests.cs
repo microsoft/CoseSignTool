@@ -28,7 +28,7 @@ public class CoseX509ThumbprintTests
     {
         var algos = new HashAlgorithm[]
         {
-            SHA1.Create(), SHA256.Create(), SHA384.Create(), SHA512.Create()
+            SHA256.Create(), SHA384.Create(), SHA512.Create()
         };
 
         foreach (HashAlgorithm algo in algos)

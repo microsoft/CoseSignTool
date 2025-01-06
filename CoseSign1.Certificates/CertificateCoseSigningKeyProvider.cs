@@ -100,6 +100,9 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
         CoseHeaderValue value = CoseHeaderValue.FromEncodedValue(encodedBytes);
         protectedHeaders.Add(CertificateCoseHeaderLabels.X5T, value);
 
+        // Add key identifier
+        protectedHeaders.Add(CoseHeaderLabel.KeyIdentifier, GetKeyIdentifier(signingCertificate));
+
         //X509ChainSortOrder is based on x5Chain elements order suggested here <see cref="https://datatracker.ietf.org/doc/rfc9360/"/>.
         IEnumerable<X509Certificate2> chain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
         X509Certificate2? firstCert = chain.FirstOrDefault();
@@ -142,6 +145,23 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
         }
 
         roots.ForEach(c => store.Add(c));
+    }
+
+    /// <summary>
+    /// Calculate the fingerprint of a certificate.
+    /// Reference: https://stackoverflow.com/questions/34586588/how-can-i-get-an-sha-256-certificate-thumbprint
+    /// </summary>
+    /// <param name="cert">The certificate.</param>
+    /// <returns>The SHA256 fingerprint.</returns>
+    private static CoseHeaderValue GetKeyIdentifier(X509Certificate2 cert)
+    {
+        Byte[] hashBytes;
+        using (var hasher = SHA256.Create())
+        {
+            hashBytes = hasher.ComputeHash(cert.RawData);
+        }
+        
+        return CoseHeaderValue.FromBytes(hashBytes);
     }
 }
 

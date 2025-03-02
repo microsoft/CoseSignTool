@@ -13,6 +13,7 @@
 		<DelaySign>True</DelaySign>
 		<Nullable>enable</Nullable>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+		<RootNamespace>CoseSignUnitTests</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>

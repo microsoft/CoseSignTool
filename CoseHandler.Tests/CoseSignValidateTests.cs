@@ -11,12 +11,12 @@ public class CoseHandlerSignValidateTests
     // Certificates and chains as objects
     private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
     private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 1");      // Two complete cert chains
-    private static readonly X509Certificate2Collection CertChain2= TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
+    // private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
     private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains
-    private static readonly X509Certificate2 Root2Priv = CertChain2[0];
+    // private static readonly X509Certificate2 Root2Priv = CertChain2[0];
     private static readonly X509Certificate2 Int1Priv = CertChain1[1];
     private static readonly X509Certificate2 Leaf1Priv = CertChain1[^1];                                                                                        // Leaf node certs
-    private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
+    // private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // As byte arrays
     private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);
@@ -49,9 +49,9 @@ public class CoseHandlerSignValidateTests
     {
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
-        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));        
-        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));        
-        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));        
+        File.WriteAllBytes(PublicKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Cert));
+        File.WriteAllBytes(PrivateKeyRootCertFile, Root1Priv.Export(X509ContentType.Pkcs12));
+        File.WriteAllBytes(PublicKeyRootCertFile, Root1Priv.Export(X509ContentType.Cert));
         File.WriteAllBytes(PrivateKeyCertFileChained, Leaf1Priv.Export(X509ContentType.Pkcs12));
     }
 
@@ -103,7 +103,7 @@ public class CoseHandlerSignValidateTests
     {
         FileInfo f = new(FileSystemUtils.GeneratePayloadFile());
         string signaturePath = f.FullName.Replace("spdx.json", "cose");
-        FileInfo signatureFile = new (signaturePath);
+        FileInfo signatureFile = new(signaturePath);
         byte[] signedBytes = CoseHandler.Sign(f, Leaf1Priv, false, signatureFile).ToArray();
 
         signedBytes.Should().NotBeNull();
@@ -116,7 +116,7 @@ public class CoseHandlerSignValidateTests
             .Success.Should().Be(true);
 
         // Validate from stream
-        FileInfo sigFile = new (signaturePath);
+        FileInfo sigFile = new(signaturePath);
         sigFile.Should().NotBeNull();
         CoseHandler.Validate(sigFile.GetStreamResilient()!, Payload1Bytes, ValidRootSetPriv, RevMode)
             .Success.Should().Be(true);
@@ -307,7 +307,7 @@ public class CoseHandlerSignValidateTests
     public void SignWithoutPayload()
     {
 #pragma warning disable CS8600, CS8625 // Converting null literal -- deliberate null convetrsion for test purposes.
-        _ = CoseHandler.Sign((byte[]) null, Leaf1Priv);
+        _ = CoseHandler.Sign((byte[])null, Leaf1Priv);
 #pragma warning restore CS8600, CS8625 // Converting null literal or possible null value to non-nullable type.
     }
 

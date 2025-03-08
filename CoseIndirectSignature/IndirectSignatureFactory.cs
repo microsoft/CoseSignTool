@@ -13,8 +13,29 @@ namespace CoseIndirectSignature;
 /// The <see cref="CoseMessage.Content"/> field will contain the hash value of the specified payload.
 /// The default hash algorithm used is <see cref="HashAlgorithmName.SHA256"/>.
 /// </remarks>
-public sealed class IndirectSignatureFactory : IDisposable
+public sealed partial class IndirectSignatureFactory : IDisposable
 {
+    /// <summary>
+    /// The version of the indirect signature to be used.
+    /// </summary>
+    public enum IndirectSignatureVersion
+    {
+        /// <summary>
+        /// The older format, which is not recommended for new applications and is included for backwards compatibility.
+        /// </summary>
+        [Obsolete("Use CoseHashEnvelope instead")]
+        Direct,
+        /// <summary>
+        /// The CoseHashV format, which is not recommended for new applications and is included for backwards compatibility.
+        /// </summary>
+        [Obsolete("Use CoseHashEnvelope instead")]
+        CoseHashV,
+        /// <summary>
+        /// The CoseHashEnvelope format, which is the recommended format for new applications.
+        /// </summary>
+        CoseHashEnvelope
+    }
+
     private readonly HashAlgorithm InternalHashAlgorithm;
     private readonly uint HashLength;
     private readonly CoseHashAlgorithm InternalCoseHashAlgorithm;
@@ -78,349 +99,6 @@ public sealed class IndirectSignatureFactory : IDisposable
     }
 
     /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public CoseSign1Message CreateIndirectSignature(
-        ReadOnlyMemory<byte> payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: payload,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public CoseSign1Message CreateIndirectSignatureFromHash(
-        ReadOnlyMemory<byte> rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: rawHash,
-                                            payloadHashed: true,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureAsync(
-        ReadOnlyMemory<byte> payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                        (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: payload,
-                                            useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureFromHashAsync(
-        ReadOnlyMemory<byte> rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                        (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: rawHash,
-                                            payloadHashed: true,
-                                            useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public CoseSign1Message CreateIndirectSignature(
-        Stream payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            streamPayload: payload,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public CoseSign1Message CreateIndirectSignatureFromHash(
-        Stream rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: false,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            streamPayload: rawHash,
-                                            payloadHashed: true,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureAsync(
-        Stream payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                    (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                        returnBytes: false,
-                                        signingKeyProvider: signingKeyProvider,
-                                        contentType: contentType,
-                                        streamPayload: payload,
-                                        useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureFromHashAsync(
-        Stream rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                    (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                                        returnBytes: false,
-                                        signingKeyProvider: signingKeyProvider,
-                                        contentType: contentType,
-                                        streamPayload: rawHash,
-                                        payloadHashed: true,
-                                        useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public ReadOnlyMemory<byte> CreateIndirectSignatureBytes(
-        ReadOnlyMemory<byte> payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: true,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: payload,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public ReadOnlyMemory<byte> CreateIndirectSignatureBytesFromHash(
-        ReadOnlyMemory<byte> rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: true,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            bytePayload: rawHash,
-                                            payloadHashed: true,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesAsync(
-        ReadOnlyMemory<byte> payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                            (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                                returnBytes: true,
-                                                signingKeyProvider: signingKeyProvider,
-                                                contentType: contentType,
-                                                bytePayload: payload,
-                                                useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesFromHashAsync(
-        ReadOnlyMemory<byte> rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                            (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                                returnBytes: true,
-                                                signingKeyProvider: signingKeyProvider,
-                                                contentType: contentType,
-                                                bytePayload: rawHash,
-                                                payloadHashed: true,
-                                                useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public ReadOnlyMemory<byte> CreateIndirectSignatureBytes(
-        Stream payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: true,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            streamPayload: payload,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public ReadOnlyMemory<byte> CreateIndirectSignatureBytesFromHash(
-        Stream rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                            returnBytes: true,
-                                            signingKeyProvider: signingKeyProvider,
-                                            contentType: contentType,
-                                            streamPayload: rawHash,
-                                            payloadHashed: true,
-                                            useOldFormat: useOldFormat);
-
-    /// <summary>
-    /// Creates a Indirect signature of the specified payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="payload">The payload to create a Indirect signature for.</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesAsync(
-        Stream payload,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                    (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                        returnBytes: true,
-                                        signingKeyProvider: signingKeyProvider,
-                                        contentType: contentType,
-                                        streamPayload: payload,
-                                        useOldFormat: useOldFormat));
-
-    /// <summary>
-    /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
-    /// </summary>
-    /// <param name="rawHash">The raw hash of the payload</param>
-    /// <param name="signingKeyProvider">The COSE signing key provider to be used for the signing operation within the <see cref="ICoseSign1MessageFactory"/>.</param>
-    /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
-    /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesFromHashAsync(
-        Stream rawHash,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        bool useOldFormat = false) => Task.FromResult(
-                                    (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                                        returnBytes: true,
-                                        signingKeyProvider: signingKeyProvider,
-                                        contentType: contentType,
-                                        streamPayload: rawHash,
-                                        payloadHashed: true,
-                                        useOldFormat: useOldFormat));
-    /// <summary>
     /// Does the heavy lifting for this class in computing the hash and creating the correct representation of the CoseSign1Message base on input.
     /// </summary>
     /// <param name="returnBytes">True if ReadOnlyMemory<byte> form of CoseSign1Message is to be returned, False for a proper CoseSign1Message</param>
@@ -429,7 +107,7 @@ public sealed class IndirectSignatureFactory : IDisposable
     /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
     /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
-    /// <param name="useOldFormat">True to use the older format, False to use CoseHashV format (default).</param>
+    /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -438,10 +116,10 @@ public sealed class IndirectSignatureFactory : IDisposable
         bool returnBytes,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
+        IndirectSignatureVersion signatureVersion,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
-        bool payloadHashed = false,
-        bool useOldFormat = false)
+        bool payloadHashed = false)
     {
         if (string.IsNullOrWhiteSpace(contentType))
         {
@@ -454,144 +132,84 @@ public sealed class IndirectSignatureFactory : IDisposable
             throw new ArgumentNullException("payload", "Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null");
         }
 
-        return useOldFormat
-            ? CreateIndirectSignatureWithChecksInternalOldFormat(
-                returnBytes,
-                signingKeyProvider,
-                contentType,
-                streamPayload,
-                bytePayload,
-                payloadHashed)
-            : CreateIndirectSignatureWithChecksInternalNewFormat(
-                returnBytes,
-                signingKeyProvider,
-                contentType,
-                streamPayload,
-                bytePayload,
-                payloadHashed);
+        switch(signatureVersion)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            case IndirectSignatureVersion.Direct:
+#pragma warning restore CS0618 // Type or member is obsolete
+                return CreateIndirectSignatureWithChecksInternalDirectFormat(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed);
+#pragma warning disable CS0618 // Type or member is obsolete
+            case IndirectSignatureVersion.CoseHashV:
+#pragma warning restore CS0618 // Type or member is obsolete
+                return CreateIndirectSignatureWithChecksInternalCoseHashVFormat(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed);
+            case IndirectSignatureVersion.CoseHashEnvelope:
+                return CreateIndirectSignatureWithChecksInternalCoseHashEnvelopeFormat(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(signatureVersion), "Unknown signature version");
+        }
     }
 
     /// <summary>
-    /// Does the heavy lifting for this class in computing the hash and creating the correct representation of the CoseSign1Message base on input.
+    /// Get the hash algorithm from the specified CoseHashAlgorithm.
     /// </summary>
-    /// <param name="returnBytes">True if ReadOnlyMemory<byte> form of CoseSign1Message is to be returned, False for a proper CoseSign1Message</param>
-    /// <param name="signingKeyProvider">The signing key provider used for COSE signing operations.</param>
-    /// <param name="contentType">The user specified content type.</param>
-    /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
-    /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
-    /// <param name="payloadHashed">True if the payload represents the raw hash</param>
-    /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
-    /// <exception cref="ArgumentException">payloadHashed is set, but hash size does not correspond to any known hash algorithms</exception>
-    private object CreateIndirectSignatureWithChecksInternalNewFormat(
-        bool returnBytes,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        Stream? streamPayload = null,
-        ReadOnlyMemory<byte>? bytePayload = null,
-        bool payloadHashed = false)
+    /// <param name="algorithm">The CoseHashAlgorithm to get a hashing type from.</param>
+    /// <returns>The type of the hash object to use.</returns>
+    /// <exception cref="NotSupportedException">The CoseHashAlgorithm specified is not yet supported.</exception>
+    public static HashAlgorithm GetHashAlgorithmFromCoseHashAlgorithm(CoseHashAlgorithm algorithm)
     {
-        CoseHashV hash;
-        string extendedContentType = ExtendContentType(contentType);
-        if (!payloadHashed)
+        return algorithm switch
         {
-            hash = streamPayload != null
-                                 ? new CoseHashV(InternalCoseHashAlgorithm, streamPayload)
-                                 : new CoseHashV(InternalCoseHashAlgorithm, bytePayload!.Value);
-        }
-        else
-        {
-            byte[] rawHash = streamPayload != null
-                                           ? streamPayload.GetBytes()
-                                           : bytePayload!.Value.ToArray();
-
-            if (rawHash.Length != HashLength)
-            {
-                throw new ArgumentException($"{nameof(payloadHashed)} is set, but payload length {rawHash.Length} does not correspond to the hash size for {InternalHashAlgorithmName} of {HashLength}.");
-            }
-
-            hash = new CoseHashV
-            {
-                Algorithm = InternalCoseHashAlgorithm,
-                HashValue = rawHash
-            };
-        }
-
-
-        return returnBytes
-               // return the raw bytes if asked
-               ? InternalMessageFactory.CreateCoseSign1MessageBytes(
-                    hash.Serialize(),
-                    signingKeyProvider,
-                    embedPayload: true,
-                    contentType: extendedContentType)
-               // return the CoseSign1Message object
-               : InternalMessageFactory.CreateCoseSign1Message(
-                    hash.Serialize(),
-                    signingKeyProvider,
-                    embedPayload: true,
-                    contentType: extendedContentType);
+            CoseHashAlgorithm.SHA256 => new SHA256Managed(),
+            CoseHashAlgorithm.SHA512 => new SHA512Managed(),
+            CoseHashAlgorithm.SHA384 => new SHA384Managed(),
+            _ => throw new NotSupportedException($"The algorithm {algorithm} is not supported by {nameof(CoseHashV)}.")
+        };
     }
 
     /// <summary>
-    /// Does the heavy lifting for this class in computing the hash and creating the correct representation of the CoseSign1Message base on input.
+    /// Method for handling byte[] and stream for the same logic.
     /// </summary>
-    /// <param name="returnBytes">True if ReadOnlyMemory<byte> form of CoseSign1Message is to be returned, False for a proper CoseSign1Message</param>
-    /// <param name="signingKeyProvider">The signing key provider used for COSE signing operations.</param>
-    /// <param name="contentType">The user specified content type.</param>
-    /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
-    /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
-    /// <param name="payloadHashed">True if the payload represents the raw hash</param>
-    /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
-    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
-    /// <exception cref="ArgumentException">payloadHashed is set, but hash size does not correspond to any known hash algorithms</exception>
-    private object CreateIndirectSignatureWithChecksInternalOldFormat(
-        bool returnBytes,
-        ICoseSigningKeyProvider signingKeyProvider,
-        string contentType,
-        Stream? streamPayload = null,
-        ReadOnlyMemory<byte>? bytePayload = null,
-        bool payloadHashed = false)
+    /// <param name="data">if specified, then will compute a hash of this data and compare to internal hash value.</param>
+    /// <param name="stream">if data is null and stream is specified, then will compute a hash of this stream and compare to internal hash value.</param>
+    /// <returns>True if the hashes match, False otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if data is null or data length is 0 and stream is null, or if data is null and stream is null.</exception>
+    /// <exception cref="CoseSign1Exception">Thrown if the length of the computed hash does not match the internal stored hash length, thus the wrong hash algorithm is being used.</exception>
+    internal static bool HashMatches(CoseHashAlgorithm hashAlgorithm, ReadOnlyMemory<byte> hashValue, ReadOnlyMemory<byte>? data, Stream? stream)
     {
-        ReadOnlyMemory<byte> hash;
-        string extendedContentType;
-        if (!payloadHashed)
+        // handle input validation
+        if (
+            (data == null || data.Value.Length == 0) &&
+            (stream == null))
         {
-            hash = streamPayload != null
-                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
-                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
-            extendedContentType = ExtendContentTypeOld(contentType);
-        }
-        else
-        {
-            hash = streamPayload != null
-                                 ? streamPayload.GetBytes()
-                                 : bytePayload!.Value.ToArray();
-            try
-            {
-                HashAlgorithmName algoName = SizeInBytesToAlgorithm[hash.Length];
-                extendedContentType = ExtendContentTypeOld(contentType, algoName);
-            }
-            catch (KeyNotFoundException e)
-            {
-                throw new ArgumentException($"{nameof(payloadHashed)} is set, but payload size does not correspond to any known hash sizes in {nameof(HashAlgorithmName)}", e);
-            }
+            throw new ArgumentNullException(nameof(data));
         }
 
+        // initialize and compute the hash
+        using HashAlgorithm hashAlgorithmImpl = GetHashAlgorithmFromCoseHashAlgorithm(hashAlgorithm);
+        byte[] hash = stream != null ? hashAlgorithmImpl.ComputeHash(stream) : hashAlgorithmImpl.ComputeHash(data!.Value.ToArray());
 
-        return returnBytes
-               ? InternalMessageFactory.CreateCoseSign1MessageBytes(
-                    hash,
-                    signingKeyProvider,
-                    embedPayload: true,
-                    contentType: extendedContentType)
-               : InternalMessageFactory.CreateCoseSign1Message(
-                    hash,
-                    signingKeyProvider,
-                    embedPayload: true,
-                    contentType: extendedContentType);
+        // handle the case where the algorithm we derived did not match the algorithm that was used to populate the CoseHashV instance.
+        return hash.Length != hashValue.Length
+            ? throw new CoseSign1Exception($@"The computed hash length of {hash.Length} for hash type {hashAlgorithm.GetType().FullName} created a hash different than the length of {hashValue.Length} which is unexpected.")
+            : hash.SequenceEqual(hashValue.ToArray());
     }
 
     /// <summary>
@@ -605,58 +223,6 @@ public sealed class IndirectSignatureFactory : IDisposable
             { 48, HashAlgorithmName.SHA384 },
             { 64, HashAlgorithmName.SHA512 }
         });
-
-    /// <summary>
-    /// quick lookup map between algorithm name and mime extension
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, string> MimeExtensionMap = new(
-        new Dictionary<string, string>()
-        {
-            { HashAlgorithmName.SHA256.Name, "+hash-sha256" },
-            { HashAlgorithmName.SHA384.Name, "+hash-sha384" },
-            { HashAlgorithmName.SHA512.Name, "+hash-sha512" }
-        });
-
-    /// <summary>
-    /// Method which produces a mime type extension based on the given content type and hash algorithm name.
-    /// </summary>
-    /// <param name="contentType">The content type to append the hash value to if not already appended.</param>
-    /// <returns>A string representing the content type with an appended hash algorithm</returns>
-    private string ExtendContentTypeOld(string contentType) => ExtendContentTypeOld(contentType, InternalHashAlgorithmName);
-
-    /// <summary>
-    /// Method which produces a mime type extension based on the given content type and hash algorithm name.
-    /// </summary>
-    /// <param name="contentType">The content type to append the hash value to if not already appended.</param>
-    /// <param name="algorithmName">The "HashAlgorithmName" to append if not already appended.</param>
-    /// <returns>A string representing the content type with an appended hash algorithm</returns>
-    private static string ExtendContentTypeOld(string contentType, HashAlgorithmName algorithmName)
-    {
-        // extract from the string cache to keep string allocations down.
-        string extensionMapping = MimeExtensionMap.GetOrAdd(algorithmName.Name, (name) => $"+hash-{name.ToLowerInvariant()}");
-
-        // only add the extension mapping, if it's not already present within the contentType
-        bool alreadyPresent = contentType.IndexOf("+hash-", StringComparison.InvariantCultureIgnoreCase) != -1;
-
-        return alreadyPresent
-            ? contentType
-            : $"{contentType}{extensionMapping}";
-    }
-
-    /// <summary>
-    /// Method which produces a mime type extension for cose_hash_v
-    /// </summary>
-    /// <param name="contentType">The content type to append the cose_hash_v extension to if not already appended.</param>
-    /// <returns>A string representing the content type with an appended cose_hash_v extension</returns>
-    private static string ExtendContentType(string contentType)
-    {
-        // only add the extension mapping, if it's not already present within the contentType
-        bool alreadyPresent = contentType.IndexOf("+cose-hash-v", StringComparison.InvariantCultureIgnoreCase) != -1;
-
-        return alreadyPresent
-            ? contentType
-            : $"{contentType}+cose-hash-v";
-    }
 
     private bool DisposedValue;
     /// <summary>

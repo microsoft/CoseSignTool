@@ -45,14 +45,30 @@ public class IndirectSignatureFactoryTests
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrent = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrent.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrent.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        memStream.Seek(0, SeekOrigin.Begin);
+
 
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignature(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature2 = factory.CreateIndirectSignature(memStream, coseSigningKeyProvider, "application/test.payload");
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature2 = factory.CreateIndirectSignature(memStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature2.SignatureMatches(randomBytes).Should().BeTrue();
@@ -60,14 +76,37 @@ public class IndirectSignatureFactoryTests
 
         // test the async methods
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureAsync(randomBytes, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature3 = await factory.CreateIndirectSignatureAsync(randomBytes, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrentAsync = await factory.CreateIndirectSignatureAsync(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrentAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature3 = await factory.CreateIndirectSignatureAsync(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature3.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureAsync(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature4 = await factory.CreateIndirectSignatureAsync(memStream, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrentStreamAsync = await factory.CreateIndirectSignatureAsync(memStream, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrentStreamAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentStreamAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        memStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature4 = await factory.CreateIndirectSignatureAsync(memStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature4.SignatureMatches(randomBytes).Should().BeTrue();
@@ -88,14 +127,37 @@ public class IndirectSignatureFactoryTests
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature = factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrent = factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrent.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrent.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
 
-        Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignature(hashStream, coseSigningKeyProvider, string.Empty));
+        Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureFromHash(hashStream, coseSigningKeyProvider, string.Empty));
         hashStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature2 = factory.CreateIndirectSignatureFromHash(hashStream, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureStreamCurrent = factory.CreateIndirectSignatureFromHash(hashStream, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureStreamCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureStreamCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureStreamCurrent.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureStreamCurrent.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        hashStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature2 = factory.CreateIndirectSignatureFromHash(hashStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature2.SignatureMatches(randomBytes).Should().BeTrue();
@@ -103,14 +165,38 @@ public class IndirectSignatureFactoryTests
 
         // test the async methods
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureFromHashAsync(hash, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature3 = await factory.CreateIndirectSignatureFromHashAsync(hash, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrentAsync = factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrentAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        hashStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature3 = await factory.CreateIndirectSignatureFromHashAsync(hash, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature3.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureFromHashAsync(hashStream, coseSigningKeyProvider, string.Empty));
         hashStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature4 = await factory.CreateIndirectSignatureFromHashAsync(hashStream, coseSigningKeyProvider, "application/test.payload");
+
+        CoseSign1Message IndirectSignatureCurrentStreamAsync = factory.CreateIndirectSignatureFromHash(hash, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignatureCurrentStreamAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentStreamAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        hashStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature4 = await factory.CreateIndirectSignatureFromHashAsync(hashStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature4.SignatureMatches(randomBytes).Should().BeTrue();
@@ -128,14 +214,37 @@ public class IndirectSignatureFactoryTests
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
+
+        CoseSign1Message IndirectSignatureCurrent = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrent.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrent.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureBytes(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature2 = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(memStream, coseSigningKeyProvider, "application/test.payload").ToArray());
+
+        CoseSign1Message IndirectSignatureStreamCurrent = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(memStream, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureStreamCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureStreamCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureStreamCurrent.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureStreamCurrent.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        memStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature2 = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(memStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature2.SignatureMatches(randomBytes).Should().BeTrue();
@@ -143,14 +252,37 @@ public class IndirectSignatureFactoryTests
 
         // test the async methods
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesAsync(randomBytes, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature3 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesAsync(randomBytes, coseSigningKeyProvider, "application/test.payload")).ToArray());
+
+        CoseSign1Message IndirectSignatureCurrentAsync = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureCurrentAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature3 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesAsync(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV)).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature3.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesAsync(memStream, coseSigningKeyProvider, string.Empty));
         memStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature4 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesAsync(memStream, coseSigningKeyProvider, "application/test.payload")).ToArray());
+
+        CoseSign1Message IndirectSignatureCurrentStreamAsync = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesAsync(memStream, coseSigningKeyProvider, "application/test.payload")).ToArray());
+        IndirectSignatureCurrentStreamAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrentStreamAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrentStreamAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        memStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature4 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesAsync(memStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV)).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         memStream.Seek(0, SeekOrigin.Begin);
@@ -171,14 +303,37 @@ public class IndirectSignatureFactoryTests
 
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, "application/test.payload").ToArray());
+
+        CoseSign1Message IndirectSignatureCurrent = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureCurrent.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureCurrent.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesFromHash(hashStream, coseSigningKeyProvider, string.Empty));
         hashStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature2 = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hashStream, coseSigningKeyProvider, "application/test.payload").ToArray());
+
+        CoseSign1Message IndirectSignatureStreamCurrent = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hashStream, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureStreamCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureStreamCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureStreamCurrent.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureStreamCurrent.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        hashStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature2 = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hashStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature2.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature2.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature2.SignatureMatches(randomBytes).Should().BeTrue();
@@ -186,14 +341,37 @@ public class IndirectSignatureFactoryTests
 
         // test the async methods
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesFromHashAsync(hash, coseSigningKeyProvider, string.Empty));
-        CoseSign1Message IndirectSignature3 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesFromHashAsync(hash, coseSigningKeyProvider, "application/test.payload")).ToArray());
+
+        CoseSign1Message IndirectSignatureHashCurrent = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytesFromHash(hash, coseSigningKeyProvider, "application/test.payload").ToArray());
+        IndirectSignatureHashCurrent.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureHashCurrent.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureHashCurrent.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureHashCurrent.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature3 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesFromHashAsync(hash, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV)).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature3.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature3.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature3.SignatureMatches(randomBytes).Should().BeTrue();
 
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateIndirectSignatureBytesFromHashAsync(hashStream, coseSigningKeyProvider, string.Empty));
         hashStream.Seek(0, SeekOrigin.Begin);
-        CoseSign1Message IndirectSignature4 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesFromHashAsync(hashStream, coseSigningKeyProvider, "application/test.payload")).ToArray());
+
+        CoseSign1Message IndirectSignatureHashCurrentAsync = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesFromHashAsync(hashStream, coseSigningKeyProvider, "application/test.payload")).ToArray());
+        IndirectSignatureHashCurrentAsync.IsIndirectSignature().Should().BeTrue();
+        IndirectSignatureHashCurrentAsync.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignatureHashCurrentAsync.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignatureHashCurrentAsync.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        hashStream.Seek(0, SeekOrigin.Begin);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature4 = CoseMessage.DecodeSign1((await factory.CreateIndirectSignatureBytesFromHashAsync(hashStream, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV)).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature4.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
         IndirectSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         hashStream.Seek(0, SeekOrigin.Begin);
@@ -221,9 +399,12 @@ public class IndirectSignatureFactoryTests
         // test the sync method
         Assert.Throws<ArgumentNullException>(() => factory.CreateIndirectSignature(hash, coseSigningKeyProvider, string.Empty));
         CoseSign1Message IndirectSignature = CoseMessage.DecodeSign1(factory.CreateIndirectSignatureBytes(randomBytes, coseSigningKeyProvider, "application/test.payload").ToArray());
-        IndirectSignature.ProtectedHeaders.ContainsKey(CoseHeaderLabel.ContentType).Should().BeTrue();
-        IndirectSignature.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
+        IndirectSignature.IsIndirectSignature().Should().BeTrue();
         IndirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignature.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignature.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
     }
 
     private static ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none")

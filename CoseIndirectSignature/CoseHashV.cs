@@ -39,7 +39,7 @@ public record CoseHashV
             }
 
             // sanity check the length of the hash against the specified algorithm to be sure we're not allowing a mismatch.
-            HashAlgorithm algo = GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
+            HashAlgorithm algo = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
             if (value.Length != (algo.HashSize / 8))
             {
                 throw new ArgumentOutOfRangeException(nameof(value), @$"The hash value length of {value.Length} did not match the CoseHashAlgorithm {Algorithm} required length of {algo.HashSize / 8}");
@@ -136,7 +136,7 @@ public record CoseHashV
         {
             throw new ArgumentOutOfRangeException(nameof(byteData), "The data to be hashed cannot be empty.");
         }
-        using HashAlgorithm hashAlgorightm = GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
+        using HashAlgorithm hashAlgorightm = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
         // bypass the property setter since we are computing the hash value based on the algorithm directly.
         InternalHashValue = hashAlgorightm.ComputeHash(byteData);
     }
@@ -173,7 +173,7 @@ public record CoseHashV
     {
         _= streamData ?? throw new ArgumentNullException(nameof(streamData));
 
-        using HashAlgorithm hashAlgorightm = GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
+        using HashAlgorithm hashAlgorightm = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
         // bypass the property setter since we are computing the hash value based on the algorithm directly.
         InternalHashValue = hashAlgorightm.ComputeHash(streamData);
     }
@@ -202,7 +202,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public Task<bool> ContentMatchesAsync(Stream stream)
-        => Task.FromResult(HashMatches(data: null, stream: stream));
+        => Task.FromResult(IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: null, stream: stream));
 
     /// <summary>
     /// Validates that the given data stored in the stream matches the hash value stored in this instance.
@@ -212,7 +212,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public bool ContentMatches(Stream stream)
-        => HashMatches(data: null, stream: stream);
+        => IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: null, stream: stream);
 
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.
@@ -222,7 +222,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public Task<bool> ContentMatchesAsync(byte[] data)
-        => Task.FromResult(HashMatches(data: data, stream: null));
+        => Task.FromResult(IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data, stream: null));
     
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.
@@ -232,7 +232,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public bool ContentMatches(ReadOnlyMemory<byte> data)
-        => HashMatches(data: data.ToArray(), stream: null);
+        => IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data.ToArray(), stream: null);
 
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.
@@ -242,7 +242,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public Task<bool> ContentMatchesAsync(ReadOnlyMemory<byte> data)
-        => Task.FromResult(HashMatches(data: data.ToArray(), stream: null));
+        => Task.FromResult(IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data.ToArray(), stream: null));
 
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.
@@ -252,35 +252,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public bool ContentMatches(byte[] data)
-        => HashMatches(data: data, stream: null);
-
-    /// <summary>
-    /// Method for handling byte[] and stream for the same logic.
-    /// </summary>
-    /// <param name="data">if specified, then will compute a hash of this data and compare to internal hash value.</param>
-    /// <param name="stream">if data is null and stream is specified, then will compute a hash of this stream and compare to internal hash value.</param>
-    /// <returns>True if the hashes match, False otherwise.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if data is null or data length is 0 and stream is null, or if data is null and stream is null.</exception>
-    /// <exception cref="CoseSign1Exception">Thrown if the length of the computed hash does not match the internal stored hash length, thus the wrong hash algorithm is being used.</exception>
-    private bool HashMatches(byte[]? data, Stream? stream)
-    {
-        // handle input validation
-        if (
-            (data == null || data.Length == 0) &&
-            (stream == null))
-        {
-            throw new ArgumentNullException(nameof(data));
-        }
-
-        // initialize and compute the hash
-        using HashAlgorithm hashAlgorithm = GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
-        byte[] hash = stream != null ? hashAlgorithm.ComputeHash(stream) : hashAlgorithm.ComputeHash(data);
-
-        // handle the case where the algorithm we derived did not match the algorithm that was used to populate the CoseHashV instance.
-        return hash.Length != HashValue.Length
-            ? throw new CoseSign1Exception($@"The computed hash length of {hash.Length} for hash type {hashAlgorithm.GetType().FullName} created a hash different than the length of {HashValue.Length} which is unexpected.")
-            : hash.SequenceEqual(HashValue);
-    }
+        => IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data, stream: null);
 
     /// <summary>
     /// Writes the current CoseHashV instance to a cbor byte[].
@@ -532,22 +504,5 @@ public record CoseHashV
         {
             throw new InvalidCoseDataException($"Invalid COSE_Hash_V structure, reading the state of the reader threw an exception: {ex.Message}", ex);
         }
-    }
-
-    /// <summary>
-    /// Get the hash algorithm from the specified CoseHashAlgorithm.
-    /// </summary>
-    /// <param name="algorithm">The CoseHashAlgorithm to get a hashing type from.</param>
-    /// <returns>The type of the hash object to use.</returns>
-    /// <exception cref="NotSupportedException">The CoseHashAlgorithm specified is not yet supported.</exception>
-    private static HashAlgorithm GetHashAlgorithmFromCoseHashAlgorithm(CoseHashAlgorithm algorithm)
-    {
-        return algorithm switch
-        {
-            CoseHashAlgorithm.SHA256 => new SHA256Managed(),
-            CoseHashAlgorithm.SHA512 => new SHA512Managed(),
-            CoseHashAlgorithm.SHA384 => new SHA384Managed(),
-            _ => throw new NotSupportedException($"The algorithm {algorithm} is not supported by {nameof(CoseHashV)}.")
-        };
     }
 }

@@ -42,6 +42,7 @@
 
 	<!--Project references-->
 	<ItemGroup>
+		<ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
 		<ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
 	</ItemGroup>
 

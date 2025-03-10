@@ -136,9 +136,9 @@ public record CoseHashV
         {
             throw new ArgumentOutOfRangeException(nameof(byteData), "The data to be hashed cannot be empty.");
         }
-        using HashAlgorithm hashAlgorightm = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
+        using HashAlgorithm hashAlgorithm = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
         // bypass the property setter since we are computing the hash value based on the algorithm directly.
-        InternalHashValue = hashAlgorightm.ComputeHash(byteData);
+        InternalHashValue = hashAlgorithm.ComputeHash(byteData);
     }
 
     /// <summary>

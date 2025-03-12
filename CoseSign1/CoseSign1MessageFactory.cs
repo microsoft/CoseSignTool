@@ -24,7 +24,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
-        string contentType = DEFAULT_CONTENT_TYPE,
+        string? contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null
            )
     {
@@ -37,7 +37,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
-        string contentType = DEFAULT_CONTENT_TYPE,
+        string? contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
     {
         ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender);
@@ -49,7 +49,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
-        string contentType = DEFAULT_CONTENT_TYPE,
+        string? contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
     {
         CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
@@ -65,7 +65,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
-        string contentType = DEFAULT_CONTENT_TYPE,
+        string? contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
     {
         CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
@@ -79,7 +79,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     // Generate a CoseSigner object from the SigningKeyProvider, content type, and HeaderExtender
     private static CoseSigner GetSigner(
         ICoseSigningKeyProvider signingKeyProvider,
-        string contentType = DEFAULT_CONTENT_TYPE,
+        string? contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
     {
         // Make sure we have something to sign with.

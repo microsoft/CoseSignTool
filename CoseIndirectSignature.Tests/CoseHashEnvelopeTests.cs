@@ -287,7 +287,6 @@ public class CoseHashEnvelopeTests
 
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-        Mock<ICoseHeaderExtender> mockHeaderExtender = new(MockBehavior.Strict);
 
         CoseHashEnvelopeHeaderExtender headerExtender = new CoseHashEnvelopeHeaderExtender(HashAlgorithmName.SHA256, "application/test", "payload_location");
         CoseSign1Message? message = factory.CreateCoseSign1Message(

@@ -9,12 +9,9 @@ public class MainTests
     // Certificates
     private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(MainTests) + " self signed");    // A self-signed cert
     private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(MainTests) + " set 1");      // Two complete cert chains
-    private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(MainTests) + " set 2");
-    private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains       
-    private static readonly X509Certificate2 Root2Priv = CertChain2[0];
+    private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains
     private static readonly X509Certificate2 Int1Priv = CertChain1[1];
     private static readonly X509Certificate2 Leaf1Priv = CertChain1[^1];                                                                                        // Leaf node certs
-    private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // File paths to export them to
     private static readonly string PrivateKeyCertFileSelfSigned = Path.GetTempFileName() + "_SelfSigned.pfx";

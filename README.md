@@ -99,8 +99,6 @@ The planned work is currently tracked only in an internal Microsoft ADO instance
 ## Requirements
 CoseSignTool runs on .NET 8. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.
 
-The libraries depend on [System.Formats.Cbor](https://www.nuget.org/packages/System.Formats.Cbor/) version 7.0.0, [System.Security.Cryptography.Cose](https://www.nuget.org/packages/System.Security.Cryptography.Cose) version 7.0.0, and [System.Runtime.Caching](https://www.nuget.org/packages/System.Runtime.Caching) version 7.0.0 via NuGet package. Do not attempt to use later versions of System.Formats.Cbor or System.Security.Cryptography.Cose, as this breaks some of the fundamental data structures the libraries depend on.
-
 The API libraries all run on .NET Standard 2.0.
 
 ### Trademarks

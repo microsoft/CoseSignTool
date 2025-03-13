@@ -24,8 +24,9 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-
-        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", useOldFormat: true);
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.Direct);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.TryGetIndirectSignatureAlgorithm(out HashAlgorithmName hashAlgorithmName).Should().BeTrue();
         hashAlgorithmName.Should().Be(HashAlgorithmName.SHA256);
     }
@@ -94,8 +95,9 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
-
-        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.Direct);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.IsIndirectSignature().Should().BeTrue();
     }
 
@@ -194,7 +196,9 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
 
-        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", useOldFormat: true);
+#pragma warning disable CS0618 // Type or member is obsolete
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", IndirectSignatureFactory.IndirectSignatureVersion.Direct);
+#pragma warning restore CS0618 // Type or member is obsolete
         IndirectSignature.TryGetHashAlgorithm(out HashAlgorithm? hashAlgorithm).Should().BeTrue();
         hashAlgorithm.Should().NotBeNull();
         hashAlgorithm.Should().BeAssignableTo<SHA256>();
@@ -221,7 +225,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
         {
             // test the fetching case
             case 1:
-                CoseSign1Message? testObj1 = signaturefactory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+                CoseSign1Message? testObj1 = signaturefactory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", useOldFormat: true);
                 CoseHashV hashObject = testObj1.GetCoseHashV();
                 hashObject.ContentMatches(randomBytes).Should().BeTrue();
                 break;
@@ -245,7 +249,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
                 break;
             // tryget success
             case 5:
-                CoseSign1Message? testObj5 = signaturefactory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+                CoseSign1Message? testObj5 = signaturefactory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", useOldFormat: true);
                 testObj5.TryGetCoseHashV(out CoseHashV? hashObject5).Should().BeTrue();
                 hashObject5.ContentMatches(randomBytes).Should().BeTrue();
                 break;

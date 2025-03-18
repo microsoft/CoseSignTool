@@ -12,7 +12,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
 {
     /// <summary>
     /// Checks to see if the COSE Sign1 Message is a CoseHashEnvelope.
-    /// https://datatracker.ietf.org/doc/draft-ietf-cose-hash-envelope/03/
+    /// https://www.ietf.org/archive/id/draft-ietf-cose-hash-envelope-04.html
     /// </summary>
     /// <param name="this">The <see cref="CoseSign1Message"/> to check.</param>
     /// <returns>True if <paramref name="this"/> is a CoseHashEnvelope, False otherwise.</returns>
@@ -65,7 +65,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
             return false;
         }
 
-        // Label TBD_1(payload hash algorithm) MUST be present in the protected header
+        // Label 258 (payload hash algorithm) MUST be present in the protected header
         if (@this.ProtectedHeaders.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PayloadHashAlg], out payloadHashAlgorithmValue))
         {
             extractedValue = GetCoseHashAlgorithmFromHeaderValue(payloadHashAlgorithmValue);
@@ -135,7 +135,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
             return false;
         }
 
-        // Label TBD_2(content type of the preimage of the payload) MAY be
+        // Label 259 (content type of the preimage of the payload) MAY be
         // present in the protected header or unprotected header.
 
         // first check protected headers as its preferred to be present there
@@ -186,7 +186,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
             return false;
         }
 
-        // Label TBD_3(payload_location) MAY be added to the protected
+        // Label 260 (payload_location) MAY be added to the protected
         // header and MUST NOT be presented in the unprotected header.
 
         if(@this.UnprotectedHeaders?.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PayloadLocation], out CoseHeaderValue payloadLocationValue) ?? false)

@@ -112,7 +112,7 @@ public class CoseHashEnvelopeTests
                 algoName.Should().BeNull();
                 break;
             case 3:
-                coseSign1Message.TryGetPreImageContentType(out string? contentType).Should().BeFalse();
+                coseSign1Message.TryGetPreImageContentType(out string? contentType, out _).Should().BeFalse();
                 contentType.Should().BeNull();
                 break;
             case 4:
@@ -140,7 +140,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
         algoName.Should().Be(CoseHashAlgorithm.SHA256);
-        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -175,7 +175,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeFalse();
         algoName.Should().BeNull();
-        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -208,7 +208,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeFalse();
         algoName.Should().BeNull();
-        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -243,7 +243,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeTrue();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
         algoName.Should().Be(CoseHashAlgorithm.SHA256);
-        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -277,6 +277,78 @@ public class CoseHashEnvelopeTests
         algoName.Should().Be(CoseHashAlgorithm.SHA256);
         message.TryGetPreImageContentType(out string? contentType).Should().BeFalse();
         contentType.Should().BeNullOrEmpty();
+    }
+
+    [Test]
+    public void ValidCoseHashEnvelopePayloadNoPreImageContentCoaPShouldValidate()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        CoseSign1MessageFactory factory = new();
+
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        Mock<ICoseHeaderExtender> mockHeaderExtender = new(MockBehavior.Strict);
+        CoseHeaderMap protectedHeader = new();
+        CoseHeaderMap unProtectedHeader = new();
+
+        CoseHashEnvelopeHeaderExtender headerExtender = new CoseHashEnvelopeHeaderExtender(HashAlgorithmName.SHA256, "application/test");
+        protectedHeader = headerExtender.ExtendProtectedHeaders(protectedHeader);
+        protectedHeader.Remove(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType]);
+        // https://www.rfc-editor.org/rfc/rfc9052.html#CoAP_content_type
+        protectedHeader.Add(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType], CoseHeaderValue.FromInt32(98));
+
+        mockHeaderExtender.Setup(x => x.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(protectedHeader);
+        mockHeaderExtender.Setup(x => x.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(unProtectedHeader);
+
+        CoseSign1Message? message = factory.CreateCoseSign1Message(
+                            randomBytes,
+                            coseSigningKeyProvider,
+                            embedPayload: true,
+                            headerExtender: mockHeaderExtender.Object);
+        message.Should().NotBeNull();
+        message!.TryGetIsCoseHashEnvelope().Should().BeTrue();
+        message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
+        algoName.Should().Be(CoseHashAlgorithm.SHA256);
+        message.TryGetPreImageContentType(out string? contentType).Should().BeFalse();
+        contentType.Should().BeNullOrEmpty();
+        message.TryGetPreImageContentType(out int? coapPreImageContentType).Should().BeTrue();
+        coapPreImageContentType.Should().Be(98);
+    }
+
+    [Test]
+    public void ValidCoseHashEnvelopePayloadNoPreImageContentCoaPUnprotectedShouldValidate()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        CoseSign1MessageFactory factory = new();
+
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        Mock<ICoseHeaderExtender> mockHeaderExtender = new(MockBehavior.Strict);
+        CoseHeaderMap protectedHeader = new();
+        CoseHeaderMap unProtectedHeader = new();
+
+        CoseHashEnvelopeHeaderExtender headerExtender = new CoseHashEnvelopeHeaderExtender(HashAlgorithmName.SHA256, "application/test");
+        protectedHeader = headerExtender.ExtendProtectedHeaders(protectedHeader);
+        protectedHeader.Remove(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType]);
+        // https://www.rfc-editor.org/rfc/rfc9052.html#CoAP_content_type
+        unProtectedHeader.Add(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType], CoseHeaderValue.FromInt32(98));
+
+        mockHeaderExtender.Setup(x => x.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(protectedHeader);
+        mockHeaderExtender.Setup(x => x.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(unProtectedHeader);
+
+        CoseSign1Message? message = factory.CreateCoseSign1Message(
+                            randomBytes,
+                            coseSigningKeyProvider,
+                            embedPayload: true,
+                            headerExtender: mockHeaderExtender.Object);
+        message.Should().NotBeNull();
+        message!.TryGetIsCoseHashEnvelope().Should().BeTrue();
+        message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
+        algoName.Should().Be(CoseHashAlgorithm.SHA256);
+        message.TryGetPreImageContentType(out string? contentType).Should().BeFalse();
+        contentType.Should().BeNullOrEmpty();
+        message.TryGetPreImageContentType(out int? coapPreImageContentType).Should().BeTrue();
+        coapPreImageContentType.Should().Be(98);
     }
 
     [Test]

@@ -106,7 +106,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
     /// <param name="preImageContentType">OUT param which will have the value of the PreImageContentType Cose Header as a string.</param>
     /// <returns>True if the PreImageContentType header is found and <paramref name="preImageContentType"/> will be non-null, False otherwise.</returns>
     public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out string? preImageContentType) =>
-        TryGetPreImageContentType(@this, out preImageContentType, out _) ? string.IsNullOrWhiteSpace(preImageContentType) == false : false;
+        TryGetPreImageContentType(@this, out preImageContentType, out _) && !string.IsNullOrWhiteSpace(preImageContentType);
 
     /// <summary>
     /// Tries to get the preimage content type as CoaP from the headers of the CoseSign1Message.
@@ -115,7 +115,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
     /// <param name="coapPreImageContentType">OUT param which will have the value of the PreImageContentType Cose Header as a CoAP content type.</param>
     /// <returns>True if the PreImageContentType header is found and <paramref name="coapPreImageContentType"/> will be non-null, False otherwise.</returns>
     public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out int? coapPreImageContentType) =>
-        TryGetPreImageContentType(@this, out _, out coapPreImageContentType) ? coapPreImageContentType != null : false;
+        TryGetPreImageContentType(@this, out _, out coapPreImageContentType) && coapPreImageContentType != null;
 
     /// <summary>
     /// Tries to get the preimage content type from the headers of the CoseSign1Message.

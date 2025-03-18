@@ -12,7 +12,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
 {
     /// <summary>
     /// Checks to see if the COSE Sign1 Message is a CoseHashEnvelope.
-    /// https://datatracker.ietf.org/doc/draft-ietf-cose-hash-envelope/03/
+    /// https://www.ietf.org/archive/id/draft-ietf-cose-hash-envelope-04.html
     /// </summary>
     /// <param name="this">The <see cref="CoseSign1Message"/> to check.</param>
     /// <returns>True if <paramref name="this"/> is a CoseHashEnvelope, False otherwise.</returns>
@@ -65,7 +65,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
             return false;
         }
 
-        // Label TBD_1(payload hash algorithm) MUST be present in the protected header
+        // Label 258 (payload hash algorithm) MUST be present in the protected header
         if (@this.ProtectedHeaders.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PayloadHashAlg], out payloadHashAlgorithmValue))
         {
             extractedValue = GetCoseHashAlgorithmFromHeaderValue(payloadHashAlgorithmValue);
@@ -100,39 +100,73 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
     }
 
     /// <summary>
+    /// Tries to get the preimage content type as string from the headers of the CoseSign1Message.
+    /// </summary>
+    /// <param name="this">The <see cref="CoseSign1Message"/> to evaluate.</param>
+    /// <param name="preImageContentType">OUT param which will have the value of the PreImageContentType Cose Header as a string.</param>
+    /// <returns>True if the PreImageContentType header is found and <paramref name="preImageContentType"/> will be non-null, False otherwise.</returns>
+    public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out string? preImageContentType) =>
+        TryGetPreImageContentType(@this, out preImageContentType, out _) && !string.IsNullOrWhiteSpace(preImageContentType);
+
+    /// <summary>
+    /// Tries to get the preimage content type as CoaP from the headers of the CoseSign1Message.
+    /// </summary>
+    /// <param name="this">The <see cref="CoseSign1Message"/> to evaluate.</param>
+    /// <param name="coapPreImageContentType">OUT param which will have the value of the PreImageContentType Cose Header as a CoAP content type.</param>
+    /// <returns>True if the PreImageContentType header is found and <paramref name="coapPreImageContentType"/> will be non-null, False otherwise.</returns>
+    public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out int? coapPreImageContentType) =>
+        TryGetPreImageContentType(@this, out _, out coapPreImageContentType) && coapPreImageContentType != null;
+
+    /// <summary>
     /// Tries to get the preimage content type from the headers of the CoseSign1Message.
     /// </summary>
     /// <param name="this">The <see cref="CoseSign1Message"/> to evaluate.</param>
     /// <param name="preImageContentType">OUT param which will have the value of the PreImageContentType Cose Header.</param>
+    /// <param name="coapPreImageContentType">OUT param which will have the value of the PreImageContentType Cose Header as a CoAP content type.</param>
     /// <returns>True if the PreImageContentType header is found and <paramref name="preImageContentType"/> will be non-null, False otherwise.</returns>
-    public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out string? preImageContentType)
+    public static bool TryGetPreImageContentType(this CoseSign1Message? @this, out string? preImageContentType, out int? coapPreImageContentType)
     {
+        coapPreImageContentType = null;
+        preImageContentType = null;
+
         if (@this == null)
         {
             Trace.TraceError($"{nameof(TryGetPayloadHashAlgorithm)} was called on a null CoseSign1Message object");
-            preImageContentType = null;
             return false;
         }
 
-        // Label TBD_2(content type of the preimage of the payload) MAY be
+        // Label 259 (content type of the preimage of the payload) MAY be
         // present in the protected header or unprotected header.
 
         // first check protected headers as its preferred to be present there
         if (@this.ProtectedHeaders.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType], out CoseHeaderValue preImageContentTypeValue))
         {
-            preImageContentType = preImageContentTypeValue.GetValueAsString();
+            try
+            {
+                preImageContentType = preImageContentTypeValue.GetValueAsString();
+            }
+            catch(InvalidOperationException)
+            {
+                coapPreImageContentType = preImageContentTypeValue.GetValueAsInt32();
+            }
             return true;
         }
 
         // second check unprotected headers
         if (@this.UnprotectedHeaders.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PreimageContentType], out preImageContentTypeValue))
         {
-            preImageContentType = preImageContentTypeValue.GetValueAsString();
+            try
+            {
+                preImageContentType = preImageContentTypeValue.GetValueAsString();
+            }
+            catch (InvalidOperationException)
+            {
+                coapPreImageContentType = preImageContentTypeValue.GetValueAsInt32();
+            }
             return true;
         }
 
         Trace.TraceWarning($"{nameof(TryGetPreImageContentType)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the PreimageContentType header present.");
-        preImageContentType = null;
         return false;
     }
 
@@ -152,7 +186,7 @@ public static class CoseSign1MessageCoseHashEnvelopeExtensions
             return false;
         }
 
-        // Label TBD_3(payload_location) MAY be added to the protected
+        // Label 260 (payload_location) MAY be added to the protected
         // header and MUST NOT be presented in the unprotected header.
 
         if(@this.UnprotectedHeaders?.TryGetValue(CoseHashEnvelopeHeaderExtender.CoseHashEnvelopeHeaderLabels[CoseHashEnvelopeHeaderLabels.PayloadLocation], out CoseHeaderValue payloadLocationValue) ?? false)

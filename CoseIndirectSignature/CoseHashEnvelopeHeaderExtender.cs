@@ -125,11 +125,10 @@ public class CoseHashEnvelopeHeaderExtender: ICoseHeaderExtender
                Label 3 (content_type) MUST NOT be present in the protected or
                   unprotected headers.
 
-               Label 3 is easily confused with label TBD_2
-               payload_preimage_content_type.  The difference between content_type
-               (3) and payload_preimage_content_type (TBD2) is content_type is used
-               to identify the content format associated with payload, whereas
-               payload_preimage_content_type is used to identify the content format
+               Label 3 is easily confused with label 259 payload_preimage_content_type.
+               The difference between content_type (3) and payload_preimage_content_type (259)
+               is content_type is used to identify the content format associated with payload,
+               whereas payload_preimage_content_type is used to identify the content format
                of the bytes which are hashed to produce the payload.
             */
             protectedHeaders.Remove(CoseHeaderLabel.ContentType);

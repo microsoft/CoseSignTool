@@ -112,7 +112,7 @@ public class CoseHashEnvelopeTests
                 algoName.Should().BeNull();
                 break;
             case 3:
-                coseSign1Message.TryGetPreImageContentType(out string? contentType, out _).Should().BeFalse();
+                coseSign1Message.TryGetPreImageContentType(out string? contentType).Should().BeFalse();
                 contentType.Should().BeNull();
                 break;
             case 4:
@@ -140,7 +140,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
         algoName.Should().Be(CoseHashAlgorithm.SHA256);
-        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -175,7 +175,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeFalse();
         algoName.Should().BeNull();
-        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -208,7 +208,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeFalse();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeFalse();
         algoName.Should().BeNull();
-        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 
@@ -243,7 +243,7 @@ public class CoseHashEnvelopeTests
         message!.TryGetIsCoseHashEnvelope().Should().BeTrue();
         message.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algoName).Should().BeTrue();
         algoName.Should().Be(CoseHashAlgorithm.SHA256);
-        message.TryGetPreImageContentType(out string? contentType, out _).Should().BeTrue();
+        message.TryGetPreImageContentType(out string? contentType).Should().BeTrue();
         contentType.Should().Be("application/test");
     }
 

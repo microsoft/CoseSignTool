@@ -17,7 +17,6 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     // Regex looks for "+hash-sha256" and will parse it out as a named group of "extension" with value "+hash-sha256" an the algorithm group name of "sha256"
     // Will also work with "+hash-sha3_256"
     private static readonly Regex HashMimeTypeExtension = new(@$"(?<extension>\+hash-(?<{AlgorithmGroupName}>[\w_]+))", RegexOptions.Compiled);
-    private static readonly Regex CoseHashVMimeTypeExtension = new(@$"\+cose-hash-v", RegexOptions.Compiled);
 
     /// <summary>
     /// Lazy populate all known hash algorithms from System.Security.Cryptography into a runtime cache
@@ -78,42 +77,6 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     }
 
     /// <summary>
-    /// Checks to see if a COSE Sign1 Message has the Content Type Protected Header set to include +cose-hash-v
-    /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate</param>
-    /// <returns>True if +cose-hash-v is found, False otherwise.</returns>
-    public static bool TryGetIsCoseHashVContentType(this CoseSign1Message? @this)
-    {
-        if (@this == null)
-        {
-            Trace.TraceError($"{nameof(TryGetIsCoseHashVContentType)} was called on a null CoseSign1Message object");
-            return false;
-        }
-
-        if (@this.Content == null)
-        {
-            Trace.TraceWarning($"{nameof(TryGetIsCoseHashVContentType)} was called on a detached CoseSign1Message object, which is not valid.");
-            return false;
-        }
-
-        if (!@this.ProtectedHeaders.TryGetValue(CoseHeaderLabel.ContentType, out CoseHeaderValue contentTypeValue))
-        {
-            Trace.TraceWarning($"{nameof(TryGetIsCoseHashVContentType)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header present.");
-            return false;
-        }
-
-        string contentType = contentTypeValue.GetValueAsString();
-        if (string.IsNullOrEmpty(contentType))
-        {
-            Trace.TraceWarning($"{nameof(TryGetIsCoseHashVContentType)} was called on a CoseSign1Message object({@this.GetHashCode()}) without the ContentType protected header being a string value.");
-            return false;
-        }
-
-        Match mimeMatch = CoseHashVMimeTypeExtension.Match(contentType);
-        return mimeMatch.Success;
-    }
-
-    /// <summary>
     /// Extracts the hash algorithm name from the hash extension within the Content Type Protected Header if present.
     /// </summary>
     /// <param name="this">The CoseSign1Message to evaluate</param>
@@ -157,7 +120,7 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     /// </summary>
     /// <param name="this">The CoseSign1Message to evaluate.</param>
     /// <returns>True if the CoseSign1Message is a encoded indirect signature; False otherwise.</returns>
-    public static bool IsIndirectSignature(this CoseSign1Message? @this) => @this.TryGetIsCoseHashVContentType() || @this.TryGetIndirectSignatureAlgorithm(out _);
+    public static bool IsIndirectSignature(this CoseSign1Message? @this) => @this.TryGetIsCoseHashEnvelope() || @this.TryGetIsCoseHashVContentType() || @this.TryGetIndirectSignatureAlgorithm(out _);
 
     /// <summary>
     /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact stream.
@@ -185,33 +148,11 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
     /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
     private static bool SignatureMatchesInternal(this CoseSign1Message? @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
-        => @this.TryGetIsCoseHashVContentType()
-            ? SignatureMatchesInternalCoseHashV(@this, artifactBytes, artifactStream)
-            : SignatureMatchesInternalDirect(@this, artifactBytes, artifactStream);
-
-    /// <summary>
-    /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact bytes or artifact stream.
-    /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate.</param>
-    /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
-    /// <param name="artifactStream">The artifact stream to evaluate.</param>
-    /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
-    private static bool SignatureMatchesInternalDirect(this CoseSign1Message @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
-    {
-        if (!@this.TryGetHashAlgorithm(out HashAlgorithm? hasher))
-        {
-            Trace.TraceError($"{nameof(SignatureMatches)} failed to extract a valid HashAlgorithm from the provided CoseSign1Message[{@this?.GetHashCode()}]");
-            return false;
-        }
-
-        ReadOnlyMemory<byte> artifactHash = artifactBytes.HasValue
-                                            ? hasher!.ComputeHash(artifactBytes.Value.ToArray())
-                                            : hasher!.ComputeHash(artifactStream!);
-
-        bool equals = @this!.Content.Value.Span.SequenceEqual(artifactHash.Span);
-        Debug.WriteLine($"{nameof(SignatureMatches)} compared the two hashes with lengths ({artifactHash.Length},{@this!.Content.Value.Length}) for equality and returned {equals}");
-        return equals;
-    }
+        => @this.TryGetIsCoseHashEnvelope()
+            ? @this.SignatureMatchesInternalCoseHashEnvelope(artifactBytes, artifactStream)
+            : @this.TryGetIsCoseHashVContentType()
+                ? @this.SignatureMatchesInternalCoseHashV(artifactBytes, artifactStream)
+                : @this.SignatureMatchesInternalDirect(artifactBytes, artifactStream);
 
     /// <summary>
     /// Extracts a HashAlgoritm used to compute hashes from a given CoseSign1Message object if possible.
@@ -247,55 +188,26 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     }
 
     /// <summary>
-    /// Returns the CoseHashV object contained within the .Content of the CoseSign1Message if it is a CoseHashV encoded message.
+    /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact bytes or artifact stream.
     /// </summary>
     /// <param name="this">The CoseSign1Message to evaluate.</param>
-    /// <param name="disableValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
-    /// <returns>A deserialized CoseHashV object if no errors, an exception otherwise.</returns>
-    /// <exception cref="InvalidDataException">Thrown if the CoseSign1Message is not a CoseHashV capable object.</exception>
-    /// <exception cref="InvalidCoseDataException">Thrown if the content of this CoseSign1Message cannot be deserialized into a CoseHashV object.</exception>
-    public static CoseHashV GetCoseHashV(this CoseSign1Message @this, bool disableValidation = false)
-    {
-        return !@this.TryGetIsCoseHashVContentType()
-            ? throw new InvalidDataException($"The CoseSign1Message[{@this?.GetHashCode()}] object is not a CoseHashV capable object.")
-            : CoseHashV.Deserialize(@this!.Content.Value, disableValidation);
-    }
-
-    /// <summary>
-    /// Returns true and populates indirectHash with the CoseHashV object contained within the .Content of the CoseSign1Message if it is a CoseHashV encoded message, false otherwise.
-    /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate.</param>
-    /// <param name="disableValidation">True to disable the checks which ensure the decoded algorithm expected hash length and the length of the decoded hash match, False (default) to leave them enabled.</param>
-    /// <returns>True if indirectHash is successfully populated, false otherwise.</returns>
-    public static bool TryGetCoseHashV(this CoseSign1Message @this, out CoseHashV? indirectHash, bool disableValidation = false)
-    {
-        indirectHash = null;
-
-        try
-        {
-            indirectHash = @this.GetCoseHashV(disableValidation: disableValidation);
-        }
-        catch (Exception ex) when (ex is InvalidDataException || ex is InvalidCoseDataException)
-        {
-            Trace.TraceWarning($"Attempting to get CoseHashV from CoseSign1Message[{@this?.GetHashCode()}] failed, returning false.");
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Leverages the CoseHashV structure path to validate content against the stored indirect hash of the content.
-    /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate the CoseHashV structure from .Content</param>
     /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
     /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
-    private static bool SignatureMatchesInternalCoseHashV(this CoseSign1Message @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
+    private static bool SignatureMatchesInternalDirect(this CoseSign1Message @this, ReadOnlyMemory<byte>? artifactBytes = null, Stream? artifactStream = null)
     {
-        CoseHashV hashStructure = CoseHashV.Deserialize(@this.Content.Value);
-        return artifactStream != null
-                              ? hashStructure.ContentMatches(artifactStream)
-                              : hashStructure.ContentMatches(artifactBytes!.Value);
+        if (!@this.TryGetHashAlgorithm(out HashAlgorithm? hasher))
+        {
+            Trace.TraceError($"{nameof(SignatureMatchesInternalDirect)} failed to extract a valid HashAlgorithm from the provided CoseSign1Message[{@this?.GetHashCode()}]");
+            return false;
+        }
+
+        ReadOnlyMemory<byte> artifactHash = artifactBytes.HasValue
+                                            ? hasher!.ComputeHash(artifactBytes.Value.ToArray())
+                                            : hasher!.ComputeHash(artifactStream!);
+
+        bool equals = @this!.Content.Value.Span.SequenceEqual(artifactHash.Span);
+        Debug.WriteLine($"{nameof(SignatureMatchesInternalDirect)} compared the two hashes with lengths ({artifactHash.Length},{@this!.Content.Value.Length}) for equality and returned {equals}");
+        return equals;
     }
 }

@@ -39,6 +39,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		docs\CoseHandler.md = docs\CoseHandler.md
 		docs\CoseIndirectSignature.md = docs\CoseIndirectSignature.md
 		docs\CoseSign1.Abstractions.md = docs\CoseSign1.Abstractions.md
+		docs\CoseSign1.Certificates.AzureTrustedSigning.md = docs\CoseSign1.Certificates.AzureTrustedSigning.md
 		docs\CoseSign1.Certificates.md = docs\CoseSign1.Certificates.md
 		CoseSign1.md = CoseSign1.md
 		docs\CoseSignTool.md = docs\CoseSignTool.md
@@ -67,6 +68,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Headers", "CoseSign1.Headers\CoseSign1.Headers.csproj", "{DE822040-D5AB-41C8-83B2-4938FF00C7E5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Headers.Tests", "CoseSign1.Headers.Tests\CoseSign1.Headers.Tests.csproj", "{5181310A-CA82-4399-9197-86B468F7FCE9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.AzureTrustedSigning", "CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj", "{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.AzureTrustedSigning.Tests", "CoseSign1.Certificates.AzureTrustedSigning.Tests\CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj", "{14C76799-55FD-4A17-AB97-5148912A2CB2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent", "CoseSign1.Transparent\CoseSign1.Transparent.csproj", "{F01E36FD-EF26-4F61-B025-1E9C603047D3}"
 EndProject
@@ -324,6 +329,38 @@ Global
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x64.Build.0 = Release|Any CPU
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x86.ActiveCfg = Release|Any CPU
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x86.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x64.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x86.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|ARM64.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x64.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x64.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x86.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x86.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x64.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x86.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|ARM64.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x64.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x64.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x86.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x86.Build.0 = Release|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|ARM64.ActiveCfg = Debug|Any CPU

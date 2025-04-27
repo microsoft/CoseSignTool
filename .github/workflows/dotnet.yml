@@ -62,6 +62,7 @@ jobs:
           dotnet build --configuration Debug CoseSignTool.sln
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+          dotnet test --no-restore CoseSign1.Certificates.AzureTrustedSigning.Tests/CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test --no-restore CoseSign1.Transparent.Tests/CoseSign1.Transparent.Tests.csproj

@@ -19,6 +19,8 @@ using NUnit.Framework;
 
 /// <summary>
 /// Unit tests for the <see cref="AzureTrustedSigningCoseSigningKeyProvider"/> class.
+/// These tests ensure that the class behaves as expected under various conditions,
+/// including valid and invalid configurations of the Azure Trusted Signing context.
 /// </summary>
 [TestFixture]
 public class AzureTrustedSigningCoseSigningKeyProviderTests
@@ -76,7 +78,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     /// to ensure it returns the certificate chain in the correct order.
     /// </summary>
     /// <param name="sortOrder">The desired sort order of the certificate chain.</param>
-    /// <param name="expectedOrder">The expected order of the certificate chain.</param>
+    /// <param name="reverseOrder">Indicates whether the chain should be reversed.</param>
     [Test]
     [TestCase(X509ChainSortOrder.LeafFirst, false, TestName = "GetCertificateChain_ReturnsChainInLeafFirstOrder")]
     [TestCase(X509ChainSortOrder.RootFirst, true, TestName = "GetCertificateChain_ReturnsChainInRootFirstOrder")]
@@ -110,7 +112,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
 
         // Act & Assert
         Assert.That(
-            () => InvokeProtectedWithReflection<X509Certificate2>(provider,"GetSigningCertificate"),
+            () => InvokeProtectedWithReflection<X509Certificate2>(provider, "GetSigningCertificate"),
             Throws.TypeOf<InvalidOperationException>().With.Message.Contains("Signing certificate is not available"));
     }
 
@@ -173,17 +175,21 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     /// <summary>
     /// Helper method to create a mock certificate chain.
     /// </summary>
+    /// <param name="testCallerName">The name of the test method calling this helper.</param>
     /// <returns>A list of mock <see cref="X509Certificate2"/> objects.</returns>
-    private static List<X509Certificate2> CreateMockCertificateChain([CallerMemberName]string testCallerName = "")
+    private static List<X509Certificate2> CreateMockCertificateChain([CallerMemberName] string testCallerName = "")
     {
         return TestCertificateUtils.CreateTestChain(testCallerName).Cast<X509Certificate2>().ToList();
     }
+
     /// <summary>
-    /// Helper method to invoke the protected GetCertificateChain method on the AzureTrustedSigningCoseSigningKeyProvider instance.
+    /// Helper method to invoke a protected method on the <see cref="AzureTrustedSigningCoseSigningKeyProvider"/> instance using reflection.
     /// </summary>
+    /// <typeparam name="T">The return type of the method being invoked.</typeparam>
     /// <param name="provider">The instance of <see cref="AzureTrustedSigningCoseSigningKeyProvider"/>.</param>
-    /// <param name="sortOrder">The desired sort order of the certificate chain.</param>
-    /// <returns>The certificate chain as an <see cref="IEnumerable{X509Certificate2}"/>.</returns>
+    /// <param name="methodName">The name of the protected method to invoke.</param>
+    /// <param name="arguments">The arguments to pass to the method.</param>
+    /// <returns>The result of the invoked method.</returns>
     private static T InvokeProtectedWithReflection<T>(
         AzureTrustedSigningCoseSigningKeyProvider provider,
         string methodName,
@@ -191,7 +197,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     {
         // Use reflection to access the protected method
         MethodInfo method = typeof(AzureTrustedSigningCoseSigningKeyProvider)
-            .GetMethod(methodName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            .GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
 
         if (method == null)
         {

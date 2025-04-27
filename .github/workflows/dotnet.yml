@@ -56,6 +56,8 @@ jobs:
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+          dotnet test --no-restore CoseSign1.Transparent.Tests/CoseSign1.Transparent.Tests.csproj
+          dotnet test --no-restore CoseSign1.Transparent.CTS.Tests/CoseSign1.Transparent.CTS.Tests.csproj
           dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
           dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
 

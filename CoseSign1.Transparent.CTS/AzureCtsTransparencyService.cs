@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.CTS;
 
 using System;
 using System.Collections.Generic;
+using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
@@ -112,7 +113,15 @@ public class AzureCtsTransparencyService : ITransparencyService
             TransparencyClient.RunTransparentStatementVerification(message.Encode());
             return Task.FromResult(true);
         }
-        catch
+        catch(InvalidOperationException)
+        {
+            return Task.FromResult(false);
+        }
+        catch(CborContentException)
+        {
+            return Task.FromResult(false);
+        }
+        catch(ArgumentException)
         {
             return Task.FromResult(false);
         }

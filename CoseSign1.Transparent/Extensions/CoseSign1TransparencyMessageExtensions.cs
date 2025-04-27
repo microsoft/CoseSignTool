@@ -140,7 +140,19 @@ public static class CoseSign1TransparencyMessageExtensions
             receipts = receiptValue.ParseCoseHeaderToArray();
             return true;
         }
-        catch
+        catch(FormatException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (CborContentException)
+        {
+            return false;
+        }
+        catch(ArgumentOutOfRangeException)
         {
             return false;
         }
@@ -169,39 +181,36 @@ public static class CoseSign1TransparencyMessageExtensions
             throw new ArgumentOutOfRangeException(nameof(receipts), "Receipts cannot be empty.");
         }
 
-        bool existingReceipts = message.TryGetReceipts(out List<byte[]>? existingReceiptsList);
+        _ = message.TryGetReceipts(out List<byte[]>? existingReceiptsList);
 
-        List<byte[]> totalReceipts = new List<byte[]>(receipts.Count + (existingReceiptsList?.Count ?? 0));
+        // Write the receipts to a CBOR-encoded array
+        CborWriter cborWriter = new();
+        cborWriter.WriteStartArray(receipts.Count + (existingReceiptsList?.Count ?? 0));
+
+        // Add existing receipts to the array if they exist
         if (existingReceiptsList != null)
         {
             foreach (byte[] receipt in existingReceiptsList)
             {
-                totalReceipts.Add(receipt);
+                cborWriter.WriteByteString(receipt);
             }
         }
-        foreach (byte[] receipt in receipts)
-        {
-            totalReceipts.Add(receipt);
-        }
 
-        // Write the receipts to a CBOR-encoded array
-        CborWriter cborWriter = new();
-        cborWriter.WriteStartArray(totalReceipts.Count);
-        
-        foreach (byte[] receipt in totalReceipts)
+        // Add the new receipts to the array
+        foreach (byte[] receipt in receipts)
         {
             cborWriter.WriteByteString(receipt);
         }
+
+        // End the CBOR array
         cborWriter.WriteEndArray();
 
-        if (existingReceipts)
+        // Remove the existing receipts from the unprotected headers
+        if (message.UnprotectedHeaders.ContainsKey(TransparencyHeaderLabel))
         {
-            // Remove the existing receipts from the unprotected headers
-            if (message.UnprotectedHeaders.ContainsKey(TransparencyHeaderLabel))
-            {
-                message.UnprotectedHeaders.Remove(TransparencyHeaderLabel);
-            }
+            message.UnprotectedHeaders.Remove(TransparencyHeaderLabel);
         }
+
         // Add the new receipts to the unprotected headers
         message.UnprotectedHeaders.Add(TransparencyHeaderLabel, CoseHeaderValue.FromEncodedValue(cborWriter.Encode()));
     }

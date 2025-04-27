@@ -57,7 +57,15 @@ public static class BinaryDataExtensions
                 }
             }
         }
-        catch
+        catch(InvalidOperationException)
+        {
+            return false;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (CborContentException)
         {
             return false;
         }

@@ -207,4 +207,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         return (T)method.Invoke(provider, arguments);
     }
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2533295 (Improve unit test documentation and structure)

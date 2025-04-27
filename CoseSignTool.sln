@@ -71,7 +71,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent", "Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.Tests", "CoseSign1.Transparent.Tests\CoseSign1.Transparent.Tests.csproj", "{033430CC-6D03-415A-A476-96A3922231D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS.Tests", "CoseSign1.Transparent.Cts.Tests\CoseSign1.Transparent.CTS.Tests.csproj", "{DDDE7449-C4C6-4BA0-A815-0BD532CFA331}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS.Tests", "CoseSign1.Transparent.CTS.Tests\CoseSign1.Transparent.CTS.Tests.csproj", "{DDDE7449-C4C6-4BA0-A815-0BD532CFA331}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS", "CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj", "{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}"
 EndProject

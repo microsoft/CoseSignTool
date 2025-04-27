@@ -207,3 +207,4 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         return (T)method.Invoke(provider, arguments);
     }
 }
+

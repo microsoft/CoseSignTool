@@ -73,6 +73,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.Azur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.AzureTrustedSigning.Tests", "CoseSign1.Certificates.AzureTrustedSigning.Tests\CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj", "{14C76799-55FD-4A17-AB97-5148912A2CB2}"
 EndProject
+<<<<<<< HEAD
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent", "CoseSign1.Transparent\CoseSign1.Transparent.csproj", "{F01E36FD-EF26-4F61-B025-1E9C603047D3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.Tests", "CoseSign1.Transparent.Tests\CoseSign1.Transparent.Tests.csproj", "{033430CC-6D03-415A-A476-96A3922231D0}"

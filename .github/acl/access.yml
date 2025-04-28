@@ -1,0 +1,26 @@
+name: Access control list
+description: List of users and teams and their permission levels
+resource: repository
+where:
+configuration:
+  manageAccess:
+  # - team: sgalias-team-readers  -- We should have a security group for this instead of individual members
+  #   role: Read
+  # - team: sgalias-team-writers
+  #   role: Write
+  # - team: sgalias-team-maintainers
+  #   role: Maintain
+  - member: lemccomb
+    role: Maintain
+  - member: elantigua
+    role: Maintain
+  - member: jobussel
+    role: Maintain
+  - member: joschutz
+    role: Maintain
+  - member: jstatia
+    role: Maintain
+  - member: abdulkk
+    role: Maintain
+  - member: srmayuram
+    role: Maintain

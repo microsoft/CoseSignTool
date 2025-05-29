@@ -3,7 +3,8 @@
 
 namespace CoseSignUnitTests;
 
-internal class TestsForTheUnderlyingAPI
+[TestClass]
+public class TestsForTheUnderlyingAPI
 {
     private readonly byte[] Payload1 = Encoding.ASCII.GetBytes("Payload1!");
     private const string SubjectName1 = $"{nameof(TestsForTheUnderlyingAPI)}_Cert1";

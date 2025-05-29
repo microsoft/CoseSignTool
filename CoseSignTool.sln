@@ -42,8 +42,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		docs\CoseSign1.Certificates.AzureTrustedSigning.md = docs\CoseSign1.Certificates.AzureTrustedSigning.md
 		docs\CoseSign1.Certificates.md = docs\CoseSign1.Certificates.md
 		CoseSign1.md = CoseSign1.md
-		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\CoseSign1.Transparent.md = docs\CoseSign1.Transparent.md
+		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\SECURITY.md = docs\SECURITY.md
 		docs\STYLE.md = docs\STYLE.md
 		docs\SUPPORT.md = docs\SUPPORT.md
@@ -82,6 +82,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS", "CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj", "{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}"
 EndProject
+<<<<<<< HEAD
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.Abstractions", "CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj", "{4559C1F2-91B0-469E-8B02-F3029F27DB3D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.CTS.Plugin", "CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj", "{25D44857-FFBD-4D53-B6B2-A02BC339B0B3}"
@@ -424,6 +425,7 @@ Global
 		{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}.Release|ARM64.Build.0 = Release|Any CPU
 		{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}.Release|x64.ActiveCfg = Release|Any CPU
 		{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}.Release|x64.Build.0 = Release|Any CPU
+<<<<<<< HEAD
 		{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}.Release|x86.ActiveCfg = Release|Any CPU
 		{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}.Release|x86.Build.0 = Release|Any CPU
 		{4559C1F2-91B0-469E-8B02-F3029F27DB3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

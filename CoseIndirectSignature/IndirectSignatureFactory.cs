@@ -108,6 +108,7 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
+    /// <param name="headerExtender">An optional <see cref="ICoseHeaderExtender"/> to extend the protected headers of the CoseSign1Message.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -119,7 +120,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
         IndirectSignatureVersion signatureVersion,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
-        bool payloadHashed = false)
+        bool payloadHashed = false,
+        ICoseHeaderExtender? headerExtender = null)
     {
         if (string.IsNullOrWhiteSpace(contentType))
         {
@@ -143,7 +145,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
                             contentType,
                             streamPayload,
                             bytePayload,
-                            payloadHashed);
+                            payloadHashed,
+                            headerExtender);
 #pragma warning disable CS0618 // Type or member is obsolete
             case IndirectSignatureVersion.CoseHashV:
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -153,7 +156,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
                             contentType,
                             streamPayload,
                             bytePayload,
-                            payloadHashed);
+                            payloadHashed,
+                            headerExtender);
             case IndirectSignatureVersion.CoseHashEnvelope:
                 return CreateIndirectSignatureWithChecksInternalCoseHashEnvelopeFormat(
                             returnBytes,
@@ -161,7 +165,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
                             contentType,
                             streamPayload,
                             bytePayload,
-                            payloadHashed);
+                            payloadHashed,
+                            headerExtender);
             default:
                 throw new ArgumentOutOfRangeException(nameof(signatureVersion), "Unknown signature version");
         }

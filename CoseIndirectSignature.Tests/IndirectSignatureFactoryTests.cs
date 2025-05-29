@@ -3,6 +3,22 @@
 
 namespace CoseIndirectSignature.Tests;
 
+public class TestCoseHeaderExtender : ICoseHeaderExtender
+{
+    public Func<CoseHeaderMap, CoseHeaderMap>? ExtendProtectedHeadersFunc { get; set; }
+    public Func<CoseHeaderMap?, CoseHeaderMap>? ExtendUnProtectedHeadersFunc { get; set; }
+
+    public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap protectedHeaders)
+    {
+        return ExtendProtectedHeadersFunc == null ? protectedHeaders : ExtendProtectedHeadersFunc(protectedHeaders);
+    }
+
+    public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
+    {
+        return ExtendUnProtectedHeadersFunc == null ? new CoseHeaderMap() : ExtendUnProtectedHeadersFunc(unProtectedHeaders);
+    }
+}
+
 /// <summary>
 /// Class for Testing Methods of <see cref="IndirectSignatureFactory"/>
 /// </summary>
@@ -111,6 +127,24 @@ public class IndirectSignatureFactoryTests
         IndirectSignature4.ProtectedHeaders[CoseHeaderLabel.ContentType].GetValueAsString().Should().Be("application/test.payload+cose-hash-v");
         IndirectSignature4.SignatureMatches(randomBytes).Should().BeTrue();
         memStream.Seek(0, SeekOrigin.Begin);
+
+        TestCoseHeaderExtender testExtender = new TestCoseHeaderExtender();
+        CoseHeaderLabel coseHeaderLabel = new("test-header");
+        testExtender.ExtendProtectedHeadersFunc = (CoseHeaderMap protectedHeaders) =>
+        {
+            protectedHeaders[coseHeaderLabel] = CoseHeaderValue.FromString("test-value");
+            return protectedHeaders;
+        };
+
+        CoseSign1Message IndirectSignature5 = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload", coseHeaderExtender: testExtender);
+        IndirectSignature5.IsIndirectSignature().Should().BeTrue();
+        IndirectSignature5.SignatureMatches(randomBytes).Should().BeTrue();
+        IndirectSignature5.TryGetPreImageContentType(out payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        IndirectSignature5.TryGetPayloadHashAlgorithm(out algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+        IndirectSignature5.ProtectedHeaders.ContainsKey(coseHeaderLabel).Should().BeTrue();
+        IndirectSignature5.ProtectedHeaders[coseHeaderLabel].GetValueAsString().Should().Be("test-value");
     }
 
     [Test]

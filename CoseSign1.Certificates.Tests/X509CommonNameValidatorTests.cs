@@ -43,7 +43,7 @@ public class X509CommonNameValidatorTests
     }
 
     /// <summary>
-    /// Testing Constructors Success
+    /// Testing Constructors Success 
     /// </summary>
     /// <param name="inputCase"></param>
     [Test,

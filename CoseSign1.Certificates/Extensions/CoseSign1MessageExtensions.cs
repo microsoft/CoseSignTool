@@ -4,6 +4,12 @@
 namespace CoseSign1.Certificates.Extensions;
 
 using System.Diagnostics;
+using System.Formats.Cbor;
+using System.IO;
+using System.Runtime.Caching;
+using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates;
 
 /// <summary>
 /// Extension methods for the <see cref="CoseSign1Message"/> objects related to certificate operations.
@@ -198,5 +204,175 @@ public static class CoseSign1MessageExtensions
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Attempts to verify the COSE_Sign1 message using the embedded signing certificate if present and the message is not detached.
+    /// </summary>
+    /// <param name="@this">The COSE_Sign1 message to verify.</param>
+    /// <param name="allowUnprotected">True if the unprotected headers should be allowed to contribute, false (default - more secure) otherwise.</param>
+    /// <returns>True if the message is verified with the embedded signing certificate; false otherwise.</returns>
+    public static bool VerifyEmbeddedWithCertificate(
+        this CoseSign1Message @this,
+        bool allowUnprotected = false)
+    {
+        if(@this is null)
+        {
+            Trace.TraceWarning($"{nameof(@this)} is null and cannot be verified.");
+            return false;
+        }
+
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
+        if (!foundCert || publicKey is null)
+        {
+            return false;
+        }
+
+        // If the message is detached, we cannot verify without the payload.
+        if (@this.Content is null)
+        {
+            Trace.TraceWarning($"Message is a detached payload; cannot verify without payload.");
+            return false;
+        }
+
+        try
+        {
+            return @this.VerifyEmbedded(publicKey);
+        }
+        catch (CryptographicException ex)
+        {
+            Trace.TraceWarning($"Verification failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to verify the COSE_Sign1 message using the embedded signing certificate and the provided detached content (byte array).
+    /// </summary>
+    /// <param name="@this">The COSE_Sign1 message to verify.</param>
+    /// <param name="detachedContent">The detached content to verify against.</param>
+    /// <param name="allowUnprotected">True if the unprotected headers should be allowed to contribute, false (default - more secure) otherwise.</param>
+    /// <returns>True if the message is verified with the embedded signing certificate; false otherwise.</returns>
+    public static bool VerifyDetachedWithCertificate(this CoseSign1Message @this, byte[] detachedContent, bool allowUnprotected = false)
+    {
+        if(@this is null)
+        {
+            Trace.TraceWarning($"{nameof(@this)} is null and cannot be verified.");
+            return false;
+        }
+
+        if (detachedContent is null || detachedContent.Length == 0)
+        {
+            Trace.TraceWarning($"Detached content is null or empty; cannot verify.");
+            return false;
+        }
+
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
+        if (!foundCert || publicKey is null)
+        {
+            return false;
+        }
+        try
+        {
+            return @this.VerifyDetached(publicKey, detachedContent);
+        }
+        catch (CryptographicException ex)
+        {
+            Trace.TraceWarning($"Verification failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to verify the COSE_Sign1 message using the embedded signing certificate and the provided detached content (ReadOnlySpan).
+    /// </summary>
+    /// <param name="@this">The COSE_Sign1 message to verify.</param>
+    /// <param name="detachedContent">The detached content to verify against.</param>
+    /// <param name="allowUnprotected">True if the unprotected headers should be allowed to contribute, false (default - more secure) otherwise.</param>
+    /// <returns>True if the message is verified with the embedded signing certificate; false otherwise.</returns>
+    public static bool VerifyDetachedWithCertificate(this CoseSign1Message @this, ReadOnlySpan<byte> detachedContent, bool allowUnprotected = false)
+    {
+        if(@this is null)
+        {
+            Trace.TraceWarning($"{nameof(@this)} is null and cannot be verified.");
+            return false;
+        }
+
+        if (detachedContent.IsEmpty)
+        {
+            Trace.TraceWarning($"Detached content is empty; cannot verify.");
+            return false;
+        }
+
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
+        if (!foundCert || publicKey is null)
+        {
+            return false;
+        }
+        try
+        {
+            return @this.VerifyDetached(publicKey, detachedContent);
+        }
+        catch (CryptographicException ex)
+        {
+            Trace.TraceWarning($"Verification failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to verify the COSE_Sign1 message using the embedded signing certificate and the provided detached content (Stream).
+    /// </summary>
+    /// <param name="@this">The COSE_Sign1 message to verify.</param>
+    /// <param name="detachedContent">The detached content to verify against.</param>
+    /// <param name="allowUnprotected">True if the unprotected headers should be allowed to contribute, false (default - more secure) otherwise.</param>
+    /// <returns>True if the message is verified with the embedded signing certificate; false otherwise.</returns>
+    public static bool VerifyDetachedWithCertificate(this CoseSign1Message @this, Stream detachedContent, bool allowUnprotected = false)
+    {
+        if(@this is null)
+        {
+            Trace.TraceWarning($"{nameof(@this)} is null and cannot be verified.");
+            return false;
+        }
+
+        if(detachedContent is null)
+        {
+            Trace.TraceWarning($"Detached content stream is null; cannot verify.");
+            return false;
+        }
+
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
+        if (!foundCert || publicKey is null)
+        {
+            return false;
+        }
+        try
+        {
+            return @this.VerifyDetached(publicKey, detachedContent);
+        }
+        catch (CryptographicException ex)
+        {
+            Trace.TraceWarning($"Verification failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    // Shared logic to extract the public key from the embedded signing certificate
+    private static AsymmetricAlgorithm? GetEmbeddedPublicKey(this CoseSign1Message @this, bool allowUnprotected, out bool foundCert)
+    {
+        foundCert = false;
+        if (!@this.TryGetSigningCertificate(out X509Certificate2 signingCert, allowUnprotected) || signingCert == null)
+        {
+            Trace.TraceWarning($"No signing certificate found in message.");
+            return null;
+        }
+        foundCert = true;
+        AsymmetricAlgorithm? publicKey = (AsymmetricAlgorithm?)signingCert.GetRSAPublicKey() ?? signingCert.GetECDsaPublicKey();
+        if (publicKey is null)
+        {
+            Trace.TraceWarning($"Signing certificate does not contain a valid public key for verification.");
+            return null;
+        }
+        return publicKey;
     }
 }

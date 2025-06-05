@@ -31,23 +31,15 @@ public class X509CommonNameValidatorTests
     {
         string subjectName = "Test Certificate, O=Microsoft Corporation, L=Redmond, S=Washington, C=US";
         X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate(subjectName);
-        X509CommonNameValidator.ValidateCommonName(selfSignedRoot, $"CN={subjectName}");
+        X509CommonNameValidator.ValidateCommonName(selfSignedRoot, subjectName);
     }
 
     [Test]
-    public void ValidateBadlyFormedCommonNameFail()
+    public void ValidateCommonNameFail()
     {
         X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();
         Exception e = Assert.Throws<CoseValidationException>(() => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "epic fail"));
-        e.Message.Should().Contain("Invalid common name format");
-    }
-
-    [Test]
-    public void ValidateIncorrectCommonNameFail()
-    {
-        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();
-        Exception e = Assert.Throws<CoseValidationException>(() => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "CN=epic fail"));
-        e.Message.Should().Contain("does not match required name");
+        e.Message.Should().Contain("does not match");
     }
 
     /// <summary>

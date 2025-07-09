@@ -11,12 +11,9 @@ public class CoseHandlerSignValidateTests
     // Certificates and chains as objects
     private static readonly X509Certificate2 SelfSignedCert = TestCertificateUtils.CreateCertificate(nameof(CoseHandlerSignValidateTests) + " self signed");    // A self-signed cert
     private static readonly X509Certificate2Collection CertChain1 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 1");      // Two complete cert chains
-    // private static readonly X509Certificate2Collection CertChain2 = TestCertificateUtils.CreateTestChain(nameof(CoseHandlerSignValidateTests) + " set 2");
     private static readonly X509Certificate2 Root1Priv = CertChain1[0];                                                                                         // Roots from the chains
-    // private static readonly X509Certificate2 Root2Priv = CertChain2[0];
     private static readonly X509Certificate2 Int1Priv = CertChain1[1];
     private static readonly X509Certificate2 Leaf1Priv = CertChain1[^1];                                                                                        // Leaf node certs
-    // private static readonly X509Certificate2 Leaf2Priv = CertChain2[^1];
 
     // As byte arrays
     private static readonly byte[] Root1Cer = Root1Priv.Export(X509ContentType.Cert);

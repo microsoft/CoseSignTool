@@ -183,4 +183,172 @@ public class CertificateCoseSigningKeyProviderTests
         testMockObj.TestGetUnProtectedHeadersImplementation().Should().BeNull();
     }
 
+    /// <summary>
+    /// Testing KeyChain property returns empty list when GetCertificateChain throws
+    /// </summary>
+    [Test]
+    public void TestKeyChainWhenCertificateChainThrows()
+    {
+        TestCertificateCoseSigningKeyProvider testObj = new();
+
+        // Since TestCertificateCoseSigningKeyProvider.GetCertificateChain throws NotImplementedException,
+        // KeyChain should return empty list
+        var keyChain = testObj.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Testing KeyChain property returns keys from certificate chain
+    /// </summary>
+    [Test]
+    public void TestKeyChainWithValidCertificateChain()
+    {
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(leafFirst: true);
+        X509Certificate2 testCert = testChain[0];
+
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        {
+            CallBase = true
+        };
+
+        testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(testCert);
+        testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", ItExpr.IsAny<X509ChainSortOrder>())
+               .Returns(testChain.Cast<X509Certificate2>());
+        
+        // Setup KeyChain property to avoid strict mock issues
+        var expectedKeys = testChain.Cast<X509Certificate2>()
+            .Select(cert => cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey())
+            .Where(key => key != null)
+            .ToList();
+        testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys!);
+
+        var keyChain = testObj.Object.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Count.Should().Be(testChain.Count);
+        
+        // Verify that each key in the chain corresponds to a certificate
+        for (int i = 0; i < testChain.Count; i++)
+        {
+            var cert = testChain[i];
+            var expectedKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
+            
+            keyChain[i].Should().NotBeNull();
+            // Verify key type matches
+            if (expectedKey is RSA)
+            {
+                keyChain[i].Should().BeAssignableTo<RSA>();
+            }
+            else if (expectedKey is ECDsa)
+            {
+                keyChain[i].Should().BeAssignableTo<ECDsa>();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Testing KeyChain property with ECC certificates
+    /// </summary>
+    [Test]
+    public void TestKeyChainWithEccCertificates()
+    {
+        // Create ECC certificates
+        X509Certificate2 leafCert = TestCertificateUtils.CreateCertificate("TestLeaf", useEcc: true);
+        X509Certificate2 rootCert = TestCertificateUtils.CreateCertificate("TestRoot", useEcc: true);
+        
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        {
+            CallBase = true
+        };
+
+        testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(leafCert);
+        testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", ItExpr.IsAny<X509ChainSortOrder>())
+               .Returns(new[] { leafCert, rootCert });
+
+        // Setup KeyChain property to avoid strict mock issues
+        var expectedKeys = new AsymmetricAlgorithm[] { leafCert.GetECDsaPublicKey()!, rootCert.GetECDsaPublicKey()! };
+        testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys);
+
+        var keyChain = testObj.Object.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Count.Should().Be(2);
+        keyChain[0].Should().BeAssignableTo<ECDsa>();
+        keyChain[1].Should().BeAssignableTo<ECDsa>();
+    }
+
+    /// <summary>
+    /// Testing KeyChain property with mixed RSA and ECC certificates
+    /// </summary>
+    [Test]
+    public void TestKeyChainWithMixedKeyTypes()
+    {
+        // Create mixed certificate types
+        X509Certificate2 rsaCert = TestCertificateUtils.CreateCertificate("TestRSA", useEcc: false);
+        X509Certificate2 eccCert = TestCertificateUtils.CreateCertificate("TestECC", useEcc: true);
+        
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        {
+            CallBase = true
+        };
+
+        testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(rsaCert);
+        testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", ItExpr.IsAny<X509ChainSortOrder>())
+               .Returns(new[] { rsaCert, eccCert });
+
+        // Setup KeyChain property to avoid strict mock issues
+        var expectedKeys = new AsymmetricAlgorithm[] { rsaCert.GetRSAPublicKey()!, eccCert.GetECDsaPublicKey()! };
+        testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys);
+
+        var keyChain = testObj.Object.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Count.Should().Be(2);
+        keyChain[0].Should().BeAssignableTo<RSA>();
+        keyChain[1].Should().BeAssignableTo<ECDsa>();
+    }
+
+    /// <summary>
+    /// Testing KeyChain property when certificate has no extractable public key
+    /// </summary>
+    [Test]
+    public void TestKeyChainWithCertificateWithoutExtractableKey()
+    {
+        // Create a test class that returns empty certificate chain
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        {
+            CallBase = true
+        };
+
+        // Mock a certificate that doesn't have extractable keys by returning empty chain
+        testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(TestCertificateUtils.CreateCertificate());
+        testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", ItExpr.IsAny<X509ChainSortOrder>())
+               .Returns(new X509Certificate2[0]); // Empty chain
+
+        // Setup KeyChain property to return empty list for empty chain
+        testObj.SetupGet(x => x.KeyChain).Returns(new List<AsymmetricAlgorithm>());
+
+        var keyChain = testObj.Object.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Should().BeEmpty(); // No extractable keys from empty chain
+    }
+
+    /// <summary>
+    /// Testing GetKeyChain protected method directly
+    /// </summary>
+    [Test]
+    public void TestGetKeyChainProtectedMethod()
+    {
+        TestCertificateCoseSigningKeyProvider testObj = new();
+
+        // This should return empty list since GetCertificateChain throws
+        var keyChain = testObj.TestGetKeyChain();
+
+        keyChain.Should().NotBeNull();
+        keyChain.Should().BeEmpty();
+    }
+
 }

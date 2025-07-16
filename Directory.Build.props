@@ -1,0 +1,8 @@
+﻿<Project>
+  <PropertyGroup>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+</Project>

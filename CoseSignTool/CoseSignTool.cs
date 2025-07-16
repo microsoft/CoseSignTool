@@ -13,6 +13,7 @@ public class CoseSignTool
     }
 
     private static Verbs Verb = Verbs.Unknown;
+    private static readonly Dictionary<string, IPluginCommand> PluginCommands = new();
 
     #region public methods
     /// <summary>
@@ -23,19 +24,35 @@ public class CoseSignTool
     /// <returns>An exit code indicating success or failure.</returns>
     public static int Main(string[] args)
     {
+        // Load plugins before processing commands
+        LoadPlugins();
+
         // Make sure we have a verb and at least one argument, and that neither of the first two arguments are help requests.
-        if (args.Length == 0 || IsNullOrHelp(args[0]) || !Enum.TryParse(args[0], ignoreCase: true, out Verb))
+        if (args.Length == 0 || IsNullOrHelp(args[0]))
         {
-            return (int)Usage(CoseCommand.Usage);
+            return (int)Usage(GetUsageString());
         }
-        else if (args.Length == 1 || IsNullOrHelp(args[1]))
+
+        // Check if it's a plugin command first
+        if (PluginCommands.TryGetValue(args[0].ToLowerInvariant(), out IPluginCommand? pluginCommand))
+        {
+            return (int)RunPluginCommand(pluginCommand, args.Skip(1).ToArray());
+        }
+
+        // Otherwise, try to parse as a built-in verb
+        if (!Enum.TryParse(args[0], ignoreCase: true, out Verb))
+        {
+            return (int)Usage(GetUsageString());
+        }
+
+        if (args.Length == 1 || IsNullOrHelp(args[1]))
         {
             string usageString = Verb switch
             {
                 Verbs.Sign => SignCommand.Usage,
                 Verbs.Validate => ValidateCommand.Usage,
                 Verbs.Get => GetCommand.Usage,
-                _ => CoseCommand.Usage,
+                _ => GetUsageString(),
             };
 
             return (int)Usage(usageString);
@@ -58,7 +75,54 @@ public class CoseSignTool
         }
     }
 
-    private static bool IsNullOrHelp(string arg) => arg is null || arg.EndsWith('?') || arg.EndsWith("help", StringComparison.OrdinalIgnoreCase); 
+    private static bool IsNullOrHelp(string arg) => arg is null || arg.EndsWith('?') || arg.EndsWith("help", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Loads plugins from the plugins directory and registers their commands.
+    /// For security reasons, plugins are only loaded from the "plugins" subdirectory.
+    /// </summary>
+    private static void LoadPlugins()
+    {
+        try
+        {
+            string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
+            
+            // Only load plugins from the authorized "plugins" subdirectory
+            string pluginsDirectory = Path.Combine(executableDirectory, "plugins");
+            
+            var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
+            
+            foreach (var plugin in plugins)
+            {
+                try
+                {
+                    plugin.Initialize();
+                    
+                    foreach (var command in plugin.Commands)
+                    {
+                        string commandKey = command.Name.ToLowerInvariant();
+                        if (!PluginCommands.ContainsKey(commandKey))
+                        {
+                            PluginCommands[commandKey] = command;
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine($"Warning: Command '{command.Name}' from plugin '{plugin.Name}' conflicts with an existing command and will be ignored.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: Failed to initialize plugin '{plugin.Name}': {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Warning: Plugin loading failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Creates a SignCommand, ValidateCommand, or GetCommand instance based on raw command line input and then runs the command.
@@ -92,6 +156,67 @@ public class CoseSignTool
         {
             return Fail(ExitCode.UserSpecifiedFileNotFound, ex);
         }
+    }
+
+    /// <summary>
+    /// Runs a plugin command with the provided arguments.
+    /// </summary>
+    /// <param name="command">The plugin command to execute.</param>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>An exit code indicating success or failure.</returns>
+    private static ExitCode RunPluginCommand(IPluginCommand command, string[] args)
+    {
+        CommandLineConfigurationProvider? provider;
+        string? badArg;
+
+        try
+        {
+            provider = CoseCommand.LoadCommandLineArgs(args, new Dictionary<string, string>(command.Options), out badArg);
+            if (provider is null)
+            {
+                return Usage(command.Usage, badArg);
+            }
+
+            // Build configuration from the provider
+            var configuration = new ConfigurationBuilder()
+                .AddCommandLine(args, new Dictionary<string, string>(command.Options))
+                .Build();
+
+            var result = command.ExecuteAsync(configuration).GetAwaiter().GetResult();
+            return (ExitCode)(int)result;
+        }
+        catch (FileNotFoundException ex)
+        {
+            return Fail(ExitCode.UserSpecifiedFileNotFound, ex);
+        }
+        catch (Exception ex)
+        {
+            return Fail(ExitCode.UnknownError, ex);
+        }
+    }
+
+    /// <summary>
+    /// Gets the usage string including both built-in commands and plugin commands.
+    /// </summary>
+    /// <returns>The complete usage string.</returns>
+    private static string GetUsageString()
+    {
+        var usageBuilder = new StringBuilder();
+        usageBuilder.AppendLine(CoseCommand.Usage);
+
+        if (PluginCommands.Count > 0)
+        {
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("Plugin Commands:");
+            foreach (var kvp in PluginCommands.OrderBy(x => x.Key))
+            {
+                usageBuilder.AppendLine($"  {kvp.Key,-12} {kvp.Value.Description}");
+            }
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("For help with a specific plugin command, use: CoseSignTool <command> --help");
+        }
+
+        return usageBuilder.ToString();
     }
 
     /// <summary>

@@ -60,6 +60,8 @@ jobs:
           dotnet test --no-restore CoseSign1.Transparent.CTS.Tests/CoseSign1.Transparent.CTS.Tests.csproj
           dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
           dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
+          dotnet test --no-restore CoseSignTool.Abstractions.Tests/CoseSignTool.Abstractions.Tests.csproj
+          dotnet test --no-restore CoseSignTool.CTS.Plugin.Tests/CoseSignTool.CTS.Plugin.Tests.csproj
 
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
@@ -284,11 +286,76 @@ jobs:
         #   Running build and test separately because we can't pass the version number to dotnet test, or
         #   Setting the version number dynamically in the csproj files, using <FileVersion>$(VersionBin)</FileVersion>  
       shell: bash
+
+    # Build and copy the CTS plugin to the plugins directory
+    - name: Build and deploy CTS plugin
+      run: |
+        VERSION=${{ needs.create_release.outputs.tag_name }}
+        
+        # Build the CTS plugin
+        dotnet build --configuration Debug --property:FileVersion=$VERSION CoseSignTool.CTS.Plugin/CoseSignTool.CTS.Plugin.csproj
+        dotnet build --configuration Release --property:FileVersion=$VERSION CoseSignTool.CTS.Plugin/CoseSignTool.CTS.Plugin.csproj
+        
+        # Create plugins directories
+        mkdir -p published/debug/plugins
+        mkdir -p published/release/plugins
+        
+        # Copy the CTS plugin DLL to the plugins directories
+        cp CoseSignTool.CTS.Plugin/bin/Debug/net8.0/CoseSignTool.CTS.Plugin.dll published/debug/plugins/
+        cp CoseSignTool.CTS.Plugin/bin/Release/net8.0/CoseSignTool.CTS.Plugin.dll published/release/plugins/
+        
+        # Copy plugin-specific dependencies that aren't already in the main application
+        # These are the Azure-specific libraries that the plugin needs but the main app doesn't include
+        
+        # Function to safely copy dependencies
+        copy_if_exists() {
+          if [ -f "$1" ]; then
+            cp "$1" "$2"
+            echo "Copied: $1 -> $2"
+          else
+            echo "Not found (skipping): $1"
+          fi
+        }
+        
+        # Copy Azure.Security.CodeTransparency (plugin-specific)
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Security.CodeTransparency.dll" "published/debug/plugins/"
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Security.CodeTransparency.dll" "published/release/plugins/"
+        
+        # Copy other Azure dependencies that might not be in main app
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.dll" "published/debug/plugins/"
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.dll" "published/release/plugins/"
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Identity.dll" "published/debug/plugins/"
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Identity.dll" "published/release/plugins/"
+        
+        # Copy Core Azure dependencies
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Core.dll" "published/debug/plugins/"
+        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Core.dll" "published/release/plugins/"
+        
+        echo "CTS Plugin deployment completed."
+      shell: bash
         
     # List the contents of the published directory to make sure all the artifacts are there.
     - name: List published directory
       run: ${{ matrix.dir_command }}
       working-directory: ./published
+
+    # Verify the CTS plugin was properly deployed
+    - name: Verify CTS plugin deployment
+      run: |
+        echo "Checking if CTS plugin exists in debug build:"
+        ls -la published/debug/plugins/ || echo "Debug plugins directory not found"
+        
+        echo "Checking if CTS plugin exists in release build:"
+        ls -la published/release/plugins/ || echo "Release plugins directory not found"
+        
+        echo "Testing plugin discovery (debug build):"
+        cd published/debug
+        ./CoseSignTool --help | grep -i "cts" || echo "CTS plugin commands not found in help output"
+        
+        echo "Testing plugin discovery (release build):"
+        cd ../release
+        ./CoseSignTool --help | grep -i "cts" || echo "CTS plugin commands not found in help output"
+      shell: bash
 
     # Verify that the file versions on the DLLs match the release version
     - name: Check File Version

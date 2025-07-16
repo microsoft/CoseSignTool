@@ -145,9 +145,10 @@ public class SignCommand : CoseCommand
 
         // Get the signing certificate.
         X509Certificate2 cert;
+        List<X509Certificate2>? additionalRoots;
         try
         {
-            cert = LoadCert();
+            (cert, additionalRoots) = LoadCert();
         }
         catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
         {
@@ -193,7 +194,9 @@ public class SignCommand : CoseCommand
             }
 
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
+            // Create the signing key provider with additional roots if available
+            CoseSign1.Abstractions.Interfaces.ICoseSigningKeyProvider signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
 
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -308,20 +311,39 @@ public class SignCommand : CoseCommand
     /// <summary>
     /// Tries to load the certificate to sign with.
     /// </summary>
-    /// <returns>The certificate if found.</returns>
+    /// <returns>The certificate if found and optional additional root certificates from PFX.</returns>
     /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Windows OS.</exception>
     /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
     /// <exception cref="CryptographicException">The certificate was found but could not be loaded
     /// -- OR --
     /// The certificate required a password and the user did not supply one, or the user-supplied password was wrong.</exception>
-    internal X509Certificate2 LoadCert()
+    internal (X509Certificate2 certificate, List<X509Certificate2>? additionalRoots) LoadCert()
     {
         X509Certificate2 cert;
+        List<X509Certificate2>? additionalRoots = null;
+        
         if (PfxCertificate is not null)
         {
             // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
-            cert = new X509Certificate2(PfxCertificate, Password);
+            
+            // Load the PFX as a certificate store to extract all certificates
+            X509Certificate2Collection pfxCertificates = [];
+            pfxCertificates.Import(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
+            
+            // Find the certificate with a private key (the signing certificate)
+            // If a thumbprint is specified, find the certificate that matches both criteria
+            cert = pfxCertificates.Cast<X509Certificate2>()
+                .FirstOrDefault(c => c.HasPrivateKey && 
+                    (string.IsNullOrEmpty(Thumbprint) || c.Thumbprint.Equals(Thumbprint, StringComparison.OrdinalIgnoreCase))) 
+                ?? throw new CoseSign1CertificateException(string.IsNullOrEmpty(Thumbprint) 
+                    ? "No certificate with private key found in PFX file"
+                    : $"No certificate with private key and thumbprint '{Thumbprint}' found in PFX file");
+            
+            // Extract additional certificates (potential chain members) for use as roots
+            additionalRoots = pfxCertificates.Cast<X509Certificate2>()
+                .Where(c => !c.Equals(cert))
+                .ToList();
         }
         else
         {
@@ -330,7 +352,7 @@ public class SignCommand : CoseCommand
                 throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
         }
 
-        return cert;
+        return (cert, additionalRoots);
     }
 
     /// <inheritdoc/>

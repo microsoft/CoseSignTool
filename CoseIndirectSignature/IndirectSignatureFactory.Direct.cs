@@ -17,6 +17,7 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
     /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
+    /// <param name="headerExtender">Optional header extender to add custom headers to the COSE message.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -27,7 +28,8 @@ public sealed partial class IndirectSignatureFactory
         string contentType,
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
-        bool payloadHashed = false)
+        bool payloadHashed = false,
+        ICoseHeaderExtender? headerExtender = null)
     {
         ReadOnlyMemory<byte> hash;
         string extendedContentType;
@@ -59,12 +61,14 @@ public sealed partial class IndirectSignatureFactory
                     hash,
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType)
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender)
                : InternalMessageFactory.CreateCoseSign1Message(
                     hash,
                     signingKeyProvider,
                     embedPayload: true,
-                    contentType: extendedContentType);
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender);
     }
 
     /// <summary>

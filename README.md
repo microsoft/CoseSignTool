@@ -70,7 +70,7 @@ For advanced topics such as time stamping, see [Advanced](./docs/Advanced.md)
 ## How do I make this better?
 You would like to help? Great!
 First [check to make sure the work isn't already planned](#state-of-the-project), then...
-* If you find a bug or have a feature reccomendation, [log an issue.](https://github.com/microsoft/CoseSignTool/issues)
+* If you find a bug or have a feature recommendation, [log an issue.](https://github.com/microsoft/CoseSignTool/issues)
 * If you would like to contribute actual code to the repo or comment on the pull requests of others, read our [contributor guidelines](./docs/CONTRIBUTING.md) and [style guidelines](./docs/STYLE.md), and then make your contribution.
 
 ## State of the project
@@ -79,7 +79,6 @@ This is an alpha release, so there are some planned features that are not yet in
 The planned work is currently tracked only in an internal Microsoft ADO instance but will be moved to Github Issues soon. In the meantime, here is some of the work currently planned.
 
 #### New features
-* Add suport for SCITT time stamping
 * Enable specifying a mandatory cert chain root for validation
 * Simplify digest signing scenario
 * Support batch operations in CoseSignTool to reduce file and cert store reads

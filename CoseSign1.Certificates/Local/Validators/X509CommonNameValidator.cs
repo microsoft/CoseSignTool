@@ -63,11 +63,11 @@ public class X509CommonNameValidator : X509Certificate2MessageValidator
     {
         if (commonName is not null)
         {
-            string signingCertSubjectName = cert.SubjectName.Format(multiLine: false);
+            string signerCommonName = cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
 
-            if (!commonName.Equals(signingCertSubjectName, StringComparison.Ordinal))
+            if (!commonName.Contains(signerCommonName))
             {
-                throw new CoseValidationException($"Signing certificate common name [{signingCertSubjectName}] does not match required name [{commonName}]");
+                throw new CoseValidationException($"Signing certificate common name [{signerCommonName}] does not match [{commonName}]");
             }
         }
     }

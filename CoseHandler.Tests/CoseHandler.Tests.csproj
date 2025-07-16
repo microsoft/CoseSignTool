@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<OutputType>Exe</OutputType>
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
@@ -12,6 +13,7 @@
 		<DelaySign>True</DelaySign>
 		<Nullable>enable</Nullable>
 		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+		<RootNamespace>CoseSignUnitTests</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -22,10 +24,10 @@
 	<!-- Package references -->
 	<ItemGroup>
 		<PackageReference Include="FluentAssertions" Version="6.12.1" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="MSTest.TestAdapter" Version="3.6.1" />
-		<PackageReference Include="MSTest.TestFramework" Version="3.6.1" />
+		<PackageReference Include="MSTest.TestAdapter" Version="3.9.3" />
+		<PackageReference Include="MSTest.TestFramework" Version="3.9.3" />
+
 	</ItemGroup>
 
 	<!-- Project refrences-->

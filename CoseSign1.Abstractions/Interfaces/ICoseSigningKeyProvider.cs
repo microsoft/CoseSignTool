@@ -31,6 +31,14 @@ public interface ICoseSigningKeyProvider
     public ECDsa? GetECDsaKey(bool publicKey = false);
 
     /// <summary>
+    /// Gets the key chain representing the parents (in bottom-up order) of the RSA or ECDsa key.
+    /// The first element in the list corresponds to the key returned by GetRSAKey or GetECDsaKey,
+    /// and subsequent elements represent the parent keys up the chain.
+    /// </summary>
+    /// <returns>List of AsymmetricAlgorithm representing the key chain, or empty list if no chain is available</returns>
+    public IReadOnlyList<AsymmetricAlgorithm> KeyChain { get; }
+
+    /// <summary>
     /// Returns the Protected Headers
     /// </summary>
     public CoseHeaderMap GetProtectedHeaders();

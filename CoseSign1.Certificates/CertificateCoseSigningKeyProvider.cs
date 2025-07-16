@@ -14,6 +14,9 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     /// <inheritdoc/>
     public bool IsRSA => GetRSAKey(true) != null;
 
+    /// <inheritdoc/>
+    public virtual IReadOnlyList<AsymmetricAlgorithm> KeyChain => GetKeyChain();
+
     /// <summary>
     /// An X509ChainBuilder instance to build the certificate chain. 
     /// </summary>
@@ -44,6 +47,39 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     /// <param name="publicKey">True if the public key is to be returned, false for the private key (default).</param>
     /// <returns>RSA Key</returns>
     protected abstract RSA? ProvideRSAKey(bool publicKey = false);
+
+    /// <summary>
+    /// Virtual method to get the key chain representing the parents (in bottom-up order) of the signing key.
+    /// Can be overridden by derived classes to provide custom key chain logic.
+    /// </summary>
+    /// <returns>List of AsymmetricAlgorithm representing the key chain</returns>
+    protected virtual IReadOnlyList<AsymmetricAlgorithm> GetKeyChain()
+    {
+        List<AsymmetricAlgorithm> keyChain = new();
+        
+        try
+        {
+            // Get the certificate chain in leaf-first order (bottom-up)
+            IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+            
+            foreach (X509Certificate2 cert in certChain)
+            {
+                // Extract the public key from each certificate
+                AsymmetricAlgorithm? publicKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
+                if (publicKey != null)
+                {
+                    keyChain.Add(publicKey);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is CoseSign1CertificateException || ex is ArgumentNullException)
+        {
+            // If certificate chain cannot be built, return empty list
+            // This allows graceful handling when chain building fails
+        }
+        
+        return keyChain.AsReadOnly();
+    }
 
     /// <summary>
     /// Virtual Method for UnProtectedHeaders so that it could be Overridden By Derived Class Instance

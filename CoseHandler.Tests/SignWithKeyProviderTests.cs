@@ -41,6 +41,9 @@ public class SignWithKeyProviderTests
         mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
+        
+        // Setup KeyChain property to return empty list since no keys are available
+        mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(new List<AsymmetricAlgorithm>().AsReadOnly());
 
         var exceptionText = Assert.ThrowsException<CoseSigningException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
         exceptionText.Message.Should().Be("Unsupported certificate type for COSE signing.");
@@ -65,6 +68,11 @@ public class SignWithKeyProviderTests
         mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
+        
+        // Setup KeyChain property
+        var publicKey = selfSignedCertwithRSA.GetRSAPublicKey();
+        var keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
+        mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(keyChain);
 
         bool isRSA = mockedSignerKeyProvider.Object.IsRSA;
 

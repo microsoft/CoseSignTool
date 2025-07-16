@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.6...HEAD)
+
+**Merged pull requests:**
+
+- Migrate from VSTest to MTP [\#124](https://github.com/microsoft/CoseSignTool/pull/124) ([Youssef1313](https://github.com/Youssef1313))
+
 ## [v1.5.6](https://github.com/microsoft/CoseSignTool/tree/v1.5.6) (2025-07-15)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v.1.5.5...v1.5.6)

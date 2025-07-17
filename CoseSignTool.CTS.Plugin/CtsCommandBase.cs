@@ -93,8 +93,13 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <returns>Combined cancellation token with timeout.</returns>
     protected static CancellationTokenSource CreateTimeoutCancellationToken(int timeoutSeconds, CancellationToken cancellationToken)
     {
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-        return CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        
+        // Register disposal of the timeout CTS when the linked CTS is disposed
+        linkedCts.Token.Register(() => timeoutCts.Dispose());
+        
+        return linkedCts;
     }
 
     /// <summary>

@@ -82,12 +82,14 @@ public class SignCommandTests
     public void SignWithPfxCertificateChain_ExtractsAllCertificatesFromPfx()
     {
         // Arrange - Create a PFX file containing the full certificate chain
+        // Use the PFX-specific chain where only leaf has private key
+        X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(SignWithPfxCertificateChain_ExtractsAllCertificatesFromPfx));
         string pfxChainFile = Path.GetTempFileName() + "_Chain.pfx";
         try
         {
             // Export the entire chain to a single PFX file
             X509Certificate2Collection chainCollection = new();
-            chainCollection.AddRange(CertChain1);
+            chainCollection.AddRange(pfxChain);
             
             byte[] pfxBytes = chainCollection.Export(X509ContentType.Pkcs12);
             File.WriteAllBytes(pfxChainFile, pfxBytes);
@@ -112,9 +114,19 @@ public class SignCommandTests
             additionalRoots.Should().NotBeNull("Additional roots should be extracted from PFX");
             additionalRoots!.Count.Should().BeGreaterThan(0, "Should have additional certificates from the chain");
             
+            // Verify that only the leaf certificate has a private key
+            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+            cert.Thumbprint.Should().Be(leafCert.Thumbprint, "Should select the certificate with private key as signing cert");
+            
+            // Verify that the additional roots contain only public key certificates
+            foreach (var additionalCert in additionalRoots)
+            {
+                additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
+            }
+            
             // Verify that the additional roots contain the other certificates from the chain
             // (excluding the signing certificate itself)
-            var expectedAdditionalCerts = CertChain1.Cast<X509Certificate2>()
+            var expectedAdditionalCerts = pfxChain.Cast<X509Certificate2>()
                 .Where(c => !c.Equals(cert))
                 .ToList();
             
@@ -132,6 +144,12 @@ public class SignCommandTests
             {
                 File.Delete(pfxChainFile);
             }
+            
+            // Dispose certificates
+            foreach (var cert in pfxChain)
+            {
+                cert.Dispose();
+            }
         }
     }
 
@@ -139,12 +157,14 @@ public class SignCommandTests
     public void SignWithPfxCertificateChain_UsesAdditionalRootsForChainBuilding()
     {
         // Arrange - Create a PFX file containing the full certificate chain
+        // Use the PFX-specific chain where only leaf has private key
+        X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(SignWithPfxCertificateChain_UsesAdditionalRootsForChainBuilding));
         string pfxChainFile = Path.GetTempFileName() + "_ChainForValidation.pfx";
         try
         {
             // Export the entire chain to a single PFX file
             X509Certificate2Collection chainCollection = new();
-            chainCollection.AddRange(CertChain1);
+            chainCollection.AddRange(pfxChain);
             
             byte[] pfxBytes = chainCollection.Export(X509ContentType.Pkcs12);
             File.WriteAllBytes(pfxChainFile, pfxBytes);
@@ -185,17 +205,25 @@ public class SignCommandTests
                 extractedCertChain.Should().NotBeNull("Extracted certificate chain should not be null");
                 extractedCertChain!.Count.Should().Be(3, "Certificate chain should contain all 3 certificates (root, intermediate, leaf)");
 
-                // Verify that the extracted signing certificate matches one from our test chain
-                var expectedSigningCert = CertChain1.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+                // Verify that the extracted signing certificate matches our test leaf certificate
+                var expectedSigningCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
                 extractedSigningCert!.Thumbprint.Should().Be(expectedSigningCert.Thumbprint, 
                     "Extracted signing certificate should match the expected signing certificate");
 
                 // Verify the certificate chain contains all expected certificates
-                var expectedCertificates = CertChain1.Cast<X509Certificate2>().ToList();
+                var expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
                 foreach (var expectedCert in expectedCertificates)
                 {
                     extractedCertChain.Any(c => c.Thumbprint == expectedCert.Thumbprint).Should().BeTrue(
                         $"Certificate chain should contain certificate with subject '{expectedCert.Subject}'");
+                }
+                
+                // Verify that intermediate and root certificates in the extracted chain don't have private keys
+                // (This validates that the PFX structure was correctly built with only leaf having private key)
+                var nonLeafCerts = extractedCertChain.Where(c => c.Thumbprint != expectedSigningCert.Thumbprint);
+                foreach (var cert in nonLeafCerts)
+                {
+                    cert.HasPrivateKey.Should().BeFalse($"Non-leaf certificate with subject '{cert.Subject}' should not have private key");
                 }
             }
             finally
@@ -213,29 +241,39 @@ public class SignCommandTests
             {
                 File.Delete(pfxChainFile);
             }
+            
+            // Dispose certificates
+            foreach (var cert in pfxChain)
+            {
+                cert.Dispose();
+            }
         }
     }
 
     [TestMethod]
     public void LoadCertFromPfxWithThumbprintFindsSpecificCertificate()
     {
-        // Create a PFX file containing a full certificate chain
+        // Create a PFX file containing a full certificate chain with only leaf having private key
+        X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(LoadCertFromPfxWithThumbprintFindsSpecificCertificate));
         string pfxFileWithChain = Path.GetTempFileName() + "_chain.pfx";
         
         try
         {
             // Export the full certificate chain to a PFX file
             X509Certificate2Collection chainCollection = new();
-            chainCollection.AddRange(CertChain1);
+            chainCollection.AddRange(pfxChain);
             byte[] pfxBytes = chainCollection.Export(X509ContentType.Pkcs12, CertPassword);
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
+
+            // Get the leaf certificate (the one with private key)
+            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
 
             // Create a SignCommand and configure it to use the PFX with a specific thumbprint
             var cmd = new SignCommand
             {
                 PfxCertificate = pfxFileWithChain,
                 Password = CertPassword,
-                Thumbprint = Leaf1Priv.Thumbprint // Specify the leaf certificate's thumbprint
+                Thumbprint = leafCert.Thumbprint // Specify the leaf certificate's thumbprint
             };
 
             // Test LoadCert method
@@ -243,13 +281,19 @@ public class SignCommandTests
             
             // Verify the signing certificate matches the specified thumbprint
             signingCert.Should().NotBeNull("Signing certificate should be found");
-            signingCert.Thumbprint.Should().Be(Leaf1Priv.Thumbprint, "Should find the certificate with the specified thumbprint");
+            signingCert.Thumbprint.Should().Be(leafCert.Thumbprint, "Should find the certificate with the specified thumbprint");
             signingCert.HasPrivateKey.Should().BeTrue("Signing certificate should have private key");
             
-            // Verify additional roots contain the other certificates
+            // Verify additional roots contain the other certificates and they don't have private keys
             additionalRoots.Should().NotBeNull("Additional roots should be extracted");
             additionalRoots.Should().HaveCount(2, "Should have root and intermediate certificates as additional roots");
             additionalRoots.Should().NotContain(signingCert, "Additional roots should not contain the signing certificate");
+            
+            // Verify that additional roots don't have private keys
+            foreach (var additionalCert in additionalRoots!)
+            {
+                additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
+            }
         }
         finally
         {
@@ -257,20 +301,27 @@ public class SignCommandTests
             {
                 File.Delete(pfxFileWithChain);
             }
+            
+            // Dispose certificates
+            foreach (var cert in pfxChain)
+            {
+                cert.Dispose();
+            }
         }
     }
 
     [TestMethod]
     public void LoadCertFromPfxWithInvalidThumbprintThrowsException()
     {
-        // Create a PFX file containing a full certificate chain
+        // Create a PFX file containing a full certificate chain with only leaf having private key
+        X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(LoadCertFromPfxWithInvalidThumbprintThrowsException));
         string pfxFileWithChain = Path.GetTempFileName() + "_chain.pfx";
         
         try
         {
             // Export the full certificate chain to a PFX file
             X509Certificate2Collection chainCollection = new();
-            chainCollection.AddRange(CertChain1);
+            chainCollection.AddRange(pfxChain);
             byte[] pfxBytes = chainCollection.Export(X509ContentType.Pkcs12, CertPassword);
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
 
@@ -293,13 +344,20 @@ public class SignCommandTests
             {
                 File.Delete(pfxFileWithChain);
             }
+            
+            // Dispose certificates
+            foreach (var cert in pfxChain)
+            {
+                cert.Dispose();
+            }
         }
     }
 
     [TestMethod]
     public void SignWithPfxAndThumbprintSucceeds()
     {
-        // Create a PFX file containing a full certificate chain
+        // Create a PFX file containing a full certificate chain with only leaf having private key
+        X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(SignWithPfxAndThumbprintSucceeds));
         string pfxFileWithChain = Path.GetTempFileName() + "_chain.pfx";
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
         
@@ -307,12 +365,15 @@ public class SignCommandTests
         {
             // Export the full certificate chain to a PFX file
             X509Certificate2Collection chainCollection = new();
-            chainCollection.AddRange(CertChain1);
+            chainCollection.AddRange(pfxChain);
             byte[] pfxBytes = chainCollection.Export(X509ContentType.Pkcs12, CertPassword);
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
 
+            // Get the leaf certificate (the one with private key)
+            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+
             // Sign using the PFX with a specific thumbprint
-            string[] args = ["sign", "/p", payloadFile, "/pfx", pfxFileWithChain, "/pw", CertPassword, "/th", Leaf1Priv.Thumbprint, "/ep"];
+            string[] args = ["sign", "/p", payloadFile, "/pfx", pfxFileWithChain, "/pw", CertPassword, "/th", leafCert.Thumbprint, "/ep"];
             var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
             badArg.Should().BeNull("badArg should be null.");
 
@@ -325,8 +386,14 @@ public class SignCommandTests
 
             // Verify that the correct certificate was used
             var (signingCert, additionalRoots) = cmd.LoadCert();
-            signingCert.Thumbprint.Should().Be(Leaf1Priv.Thumbprint, "Should use the certificate with the specified thumbprint");
+            signingCert.Thumbprint.Should().Be(leafCert.Thumbprint, "Should use the certificate with the specified thumbprint");
             additionalRoots.Should().HaveCount(2, "Should extract other certificates as additional roots");
+            
+            // Verify that additional roots don't have private keys
+            foreach (var additionalCert in additionalRoots!)
+            {
+                additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
+            }
 
             // Verify that a signature file was created and extract certificates from it
             string? signatureFilePath = cmd.SignatureFile?.FullName;
@@ -339,7 +406,7 @@ public class SignCommandTests
             // Extract and validate certificates from the COSE message
             bool foundSigningCert = coseMessage.TryGetSigningCertificate(out X509Certificate2? extractedSigningCert);
             foundSigningCert.Should().BeTrue("Should extract signing certificate from COSE message");
-            extractedSigningCert!.Thumbprint.Should().Be(Leaf1Priv.Thumbprint, 
+            extractedSigningCert!.Thumbprint.Should().Be(leafCert.Thumbprint, 
                 "Extracted signing certificate should match the specified thumbprint");
 
             bool foundCertChain = coseMessage.TryGetCertificateChain(out List<X509Certificate2>? extractedCertChain);
@@ -348,13 +415,16 @@ public class SignCommandTests
             extractedCertChain!.Count.Should().Be(3, "Should have full certificate chain embedded");
 
             // Verify that the chain contains the expected certificates
-            var rootCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == Root1Priv.Thumbprint);
-            var intermediateCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == Int1Priv.Thumbprint);
-            var leafCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == Leaf1Priv.Thumbprint);
+            var extractedLeafCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == leafCert.Thumbprint);
+            extractedLeafCert.Should().NotBeNull("Leaf certificate should be in the chain");
 
-            rootCert.Should().NotBeNull("Root certificate should be in the chain");
-            intermediateCert.Should().NotBeNull("Intermediate certificate should be in the chain");
-            leafCert.Should().NotBeNull("Leaf certificate should be in the chain");
+            // Verify that other certificates from our PFX chain are also present
+            var expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
+            foreach (var expectedCert in expectedCertificates)
+            {
+                extractedCertChain.Any(c => c.Thumbprint == expectedCert.Thumbprint).Should().BeTrue(
+                    $"Certificate with subject '{expectedCert.Subject}' should be in the extracted chain");
+            }
 
             // Clean up the signature file
             if (File.Exists(signatureFilePath))
@@ -371,6 +441,12 @@ public class SignCommandTests
             if (File.Exists(payloadFile))
             {
                 File.Delete(payloadFile);
+            }
+            
+            // Dispose certificates
+            foreach (var cert in pfxChain)
+            {
+                cert.Dispose();
             }
         }
     }

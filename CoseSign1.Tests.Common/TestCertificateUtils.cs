@@ -139,6 +139,16 @@ public static class TestCertificateUtils
     }
 
     /// <summary>
+    /// Creates a certificate without private key from an existing certificate.
+    /// </summary>
+    /// <param name="certificate">The certificate to extract public key from.</param>
+    /// <returns>A certificate with only the public key.</returns>
+    public static X509Certificate2 CreateCertificateWithoutPrivateKey(X509Certificate2 certificate)
+    {
+        return new X509Certificate2(certificate.Export(X509ContentType.Cert));
+    }
+
+    /// <summary>
     /// Creates a 3-tiered certificate structure in memory for use in unit tests.
     /// </summary>
     /// <param name="testName">The test name for cert name uniqueness.  They all start with Test.</param>
@@ -162,6 +172,44 @@ public static class TestCertificateUtils
             issuer,
             leafFirst ? testRoot : leaf
         ];
+        return returnValue;
+    }
+
+    /// <summary>
+    /// Creates a 3-tiered certificate structure for PFX testing where only the leaf certificate has a private key.
+    /// Root and intermediate certificates will only contain public keys.
+    /// </summary>
+    /// <param name="testName">The test name for cert name uniqueness.</param>
+    /// <param name="useEcc">True for ecc certs, false (default) for RSA certs.</param>
+    /// <param name="keySize">The optional key size to request for the certificate, defaults to 256 for ECC and 2048 for RSA.</param>
+    /// <returns>An <see cref="X509Certificate2Collection"/> containing root (public only), intermediate (public only), and leaf (with private key) certificates.</returns>
+    public static X509Certificate2Collection CreateTestChainForPfx(
+        [CallerMemberName] string? testName = "none",
+        bool useEcc = false,
+        int? keySize = null,
+        TimeSpan? rootDuration = null)
+    {
+        // Create certificates with private keys for signing purposes
+        X509Certificate2 testRootWithPrivateKey = CreateCertificate($"Test Root: {testName}", useEcc: useEcc, keySize: keySize, duration: rootDuration);
+        X509Certificate2 issuerWithPrivateKey = CreateCertificate($"Test Issuer: {testName}", testRootWithPrivateKey, useEcc: useEcc, keySize: keySize);
+        X509Certificate2 leafWithPrivateKey = CreateCertificate($"Test Leaf: {testName}", issuerWithPrivateKey, useEcc: useEcc, keySize: keySize);
+
+        // Create public-only versions of root and intermediate certificates
+        X509Certificate2 testRootPublicOnly = CreateCertificateWithoutPrivateKey(testRootWithPrivateKey);
+        X509Certificate2 issuerPublicOnly = CreateCertificateWithoutPrivateKey(issuerWithPrivateKey);
+
+        // Return collection with public-only root and intermediate, but private key leaf
+        X509Certificate2Collection returnValue =
+        [
+            testRootPublicOnly,    // Root with public key only
+            issuerPublicOnly,      // Intermediate with public key only  
+            leafWithPrivateKey     // Leaf with private key
+        ];
+
+        // Dispose the private key versions we don't need
+        testRootWithPrivateKey.Dispose();
+        issuerWithPrivateKey.Dispose();
+
         return returnValue;
     }
 

@@ -145,9 +145,10 @@ public class SignCommand : CoseCommand
 
         // Get the signing certificate.
         X509Certificate2 cert;
+        List<X509Certificate2>? additionalRoots;
         try
         {
-            cert = LoadCert();
+            (cert, additionalRoots) = LoadCert();
         }
         catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
         {
@@ -193,7 +194,9 @@ public class SignCommand : CoseCommand
             }
 
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, cert, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
+            // Create the signing key provider with additional roots if available
+            CoseSign1.Abstractions.Interfaces.ICoseSigningKeyProvider signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
 
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -308,20 +311,41 @@ public class SignCommand : CoseCommand
     /// <summary>
     /// Tries to load the certificate to sign with.
     /// </summary>
-    /// <returns>The certificate if found.</returns>
+    /// <returns>The certificate if found and optional additional root certificates from PFX.</returns>
     /// <exception cref="ArgumentOutOfRangeException">User passed in a thumbprint instead of a file path on a non-Windows OS.</exception>
     /// <exception cref="ArgumentNullException">No certificate filepath or thumbprint was given.</exception>
     /// <exception cref="CryptographicException">The certificate was found but could not be loaded
     /// -- OR --
     /// The certificate required a password and the user did not supply one, or the user-supplied password was wrong.</exception>
-    internal X509Certificate2 LoadCert()
+    internal (X509Certificate2 certificate, List<X509Certificate2>? additionalRoots) LoadCert()
     {
         X509Certificate2 cert;
+        List<X509Certificate2>? additionalRoots = null;
+        
         if (PfxCertificate is not null)
         {
             // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
-            cert = new X509Certificate2(PfxCertificate, Password);
+            
+            // Load the PFX as a certificate store to extract all certificates
+            X509Certificate2Collection pfxCertificates = [];
+            pfxCertificates.Import(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
+            
+            // Build the certificate chain in leaf-first order
+            var chainedCertificates = BuildCertificateChain(pfxCertificates, Thumbprint);
+            
+            if (chainedCertificates.Count == 0)
+            {
+                throw new CoseSign1CertificateException(string.IsNullOrEmpty(Thumbprint) 
+                    ? "No valid certificate chain found in PFX file"
+                    : $"No certificate with private key and thumbprint '{Thumbprint}' found in PFX file");
+            }
+            
+            // The first certificate in the chain is the signing certificate (leaf)
+            cert = chainedCertificates[0];
+            
+            // The remaining certificates are the chain (intermediate and root)
+            additionalRoots = chainedCertificates.Skip(1).ToList();
         }
         else
         {
@@ -330,7 +354,315 @@ public class SignCommand : CoseCommand
                 throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
         }
 
-        return cert;
+        return (cert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Builds a certificate chain from a collection of certificates, ordering them from leaf to root.
+    /// </summary>
+    /// <param name="certificates">The collection of certificates to build the chain from.</param>
+    /// <param name="targetThumbprint">Optional thumbprint to specify which certificate should be the leaf.</param>
+    /// <returns>A list of certificates ordered from leaf to root.</returns>
+    private static List<X509Certificate2> BuildCertificateChain(X509Certificate2Collection certificates, string? targetThumbprint = null)
+    {
+        var certList = certificates.Cast<X509Certificate2>().ToList();
+        var result = new List<X509Certificate2>();
+        
+        // If a specific thumbprint is provided, start with that certificate
+        X509Certificate2? leafCert = null;
+        if (!string.IsNullOrEmpty(targetThumbprint))
+        {
+            leafCert = certList.FirstOrDefault(c => c.Thumbprint.Equals(targetThumbprint, StringComparison.OrdinalIgnoreCase));
+            if (leafCert == null)
+            {
+                return result; // Return empty list if thumbprint not found
+            }
+        }
+        else
+        {
+            // Find the leaf certificate (one that is not an issuer of any other certificate)
+            // Priority: 1) Has private key and is not an issuer, 2) Has private key, 3) Is not an issuer
+            leafCert = certList
+                .Where(c => c.HasPrivateKey && !IsIssuerOfAnyCertificate(c, certList))
+                .FirstOrDefault() ??
+                certList
+                .Where(c => c.HasPrivateKey)
+                .FirstOrDefault() ??
+                certList
+                .Where(c => !IsIssuerOfAnyCertificate(c, certList))
+                .FirstOrDefault();
+        }
+        
+        if (leafCert == null)
+        {
+            return result; // No suitable leaf certificate found
+        }
+        
+        // Build the chain starting from the leaf
+        var current = leafCert;
+        var usedCerts = new HashSet<string>();
+        
+        while (current != null && !usedCerts.Contains(current.Thumbprint))
+        {
+            result.Add(current);
+            usedCerts.Add(current.Thumbprint);
+            
+            // Find the issuer of the current certificate
+            current = FindIssuer(current, certList.Where(c => !usedCerts.Contains(c.Thumbprint)));
+        }
+        
+        return result;
+    }
+    
+    /// <summary>
+    /// Checks if a certificate is the issuer of any certificate in the collection.
+    /// </summary>
+    /// <param name="potentialIssuer">The certificate to check as a potential issuer.</param>
+    /// <param name="certificates">The collection of certificates to check against.</param>
+    /// <returns>True if the certificate is an issuer of any certificate in the collection.</returns>
+    private static bool IsIssuerOfAnyCertificate(X509Certificate2 potentialIssuer, List<X509Certificate2> certificates)
+    {
+        return certificates.Any(cert => cert != potentialIssuer && IsIssuer(potentialIssuer, cert));
+    }
+    
+    /// <summary>
+    /// Finds the issuer certificate for a given certificate.
+    /// </summary>
+    /// <param name="certificate">The certificate to find the issuer for.</param>
+    /// <param name="candidates">The collection of potential issuer certificates.</param>
+    /// <returns>The issuer certificate if found, otherwise null.</returns>
+    private static X509Certificate2? FindIssuer(X509Certificate2 certificate, IEnumerable<X509Certificate2> candidates)
+    {
+        return candidates.FirstOrDefault(issuer => IsIssuer(issuer, certificate));
+    }
+    
+    /// <summary>
+    /// Checks if one certificate is the issuer of another certificate by verifying the cryptographic signature.
+    /// </summary>
+    /// <param name="issuer">The potential issuer certificate.</param>
+    /// <param name="subject">The subject certificate.</param>
+    /// <returns>True if the issuer certificate issued the subject certificate.</returns>
+    private static bool IsIssuer(X509Certificate2 issuer, X509Certificate2 subject)
+    {
+        // Quick check: if the issuer's subject name doesn't match the subject's issuer name, it's not the issuer
+        if (!issuer.SubjectName.Name.Equals(subject.IssuerName.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        
+        // Handle self-signed certificates
+        if (issuer.Equals(subject))
+        {
+            return issuer.SubjectName.Name.Equals(issuer.IssuerName.Name, StringComparison.OrdinalIgnoreCase);
+        }
+        
+        // Verify the cryptographic signature
+        try
+        {
+            // Use the built-in X.509 chain building to verify the relationship
+            using var chain = new X509Chain();
+            chain.ChainPolicy.ExtraStore.Add(issuer);
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+            
+            // Build the chain and check if the issuer is in the chain
+            if (chain.Build(subject))
+            {
+                // Check if the issuer certificate is in the chain elements
+                foreach (var element in chain.ChainElements)
+                {
+                    if (element.Certificate.Thumbprint.Equals(issuer.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            
+            // Fallback: manual signature verification for edge cases
+            return VerifySignatureManually(issuer, subject);
+        }
+        catch
+        {
+            // If chain building fails, try manual verification
+            try
+            {
+                return VerifySignatureManually(issuer, subject);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Manually verifies if an issuer certificate signed a subject certificate.
+    /// </summary>
+    /// <param name="issuer">The potential issuer certificate.</param>
+    /// <param name="subject">The subject certificate.</param>
+    /// <returns>True if the signature is valid.</returns>
+    private static bool VerifySignatureManually(X509Certificate2 issuer, X509Certificate2 subject)
+    {
+        try
+        {
+            // Get the public key from the issuer
+            var publicKey = issuer.PublicKey;
+            if (publicKey == null)
+            {
+                return false;
+            }
+            
+            // Get the signature algorithm and signature value from the subject certificate
+            var signatureAlgorithm = subject.SignatureAlgorithm;
+            if (signatureAlgorithm == null)
+            {
+                return false;
+            }
+            
+            // Extract the To-Be-Signed (TBS) data from the subject certificate
+            // This is the raw certificate data without the signature
+            var rawData = subject.RawData;
+            if (rawData == null || rawData.Length == 0)
+            {
+                return false;
+            }
+            
+            // Parse the certificate to extract TBS and signature
+            var (tbsData, signatureData) = ExtractTbsAndSignature(rawData);
+            if (tbsData == null || signatureData == null)
+            {
+                return false;
+            }
+            
+            // Verify the signature based on the algorithm
+            return signatureAlgorithm.Value switch
+            {
+                "1.2.840.113549.1.1.11" => VerifyRsaSha256Signature(publicKey, tbsData, signatureData), // SHA256withRSA
+                "1.2.840.113549.1.1.5" => VerifyRsaSha1Signature(publicKey, tbsData, signatureData),   // SHA1withRSA
+                "1.2.840.10045.4.3.2" => VerifyEcdsaSha256Signature(publicKey, tbsData, signatureData), // SHA256withECDSA
+                "1.2.840.10045.4.1" => VerifyEcdsaSha1Signature(publicKey, tbsData, signatureData),     // SHA1withECDSA
+                _ => false // Unsupported algorithm
+            };
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Extracts the To-Be-Signed (TBS) data and signature from a certificate's raw data.
+    /// </summary>
+    /// <param name="rawData">The raw certificate data.</param>
+    /// <returns>A tuple containing the TBS data and signature data.</returns>
+    private static (byte[]? tbsData, byte[]? signatureData) ExtractTbsAndSignature(byte[] rawData)
+    {
+        try
+        {
+            // Use AsnReader to parse the certificate structure
+            var reader = new System.Formats.Asn1.AsnReader(rawData, System.Formats.Asn1.AsnEncodingRules.DER);
+            var certSequence = reader.ReadSequence();
+            
+            // Read the TBS certificate (first element) by marking position and reading
+            var tbsReader = certSequence.ReadSequence();
+            var tbsData = tbsReader.ReadEncodedValue().ToArray();
+            
+            // Skip the signature algorithm identifier (second element)
+            certSequence.ReadSequence();
+            
+            // Read the signature value (third element)
+            var signatureData = certSequence.ReadBitString(out _);
+            
+            return (tbsData, signatureData);
+        }
+        catch
+        {
+            return (null, null);
+        }
+    }
+    
+    /// <summary>
+    /// Verifies an RSA-SHA256 signature.
+    /// </summary>
+    private static bool VerifyRsaSha256Signature(PublicKey publicKey, byte[] tbsData, byte[] signature)
+    {
+        try
+        {
+            using var rsa = publicKey.GetRSAPublicKey();
+            if (rsa == null)
+            {
+                return false;
+            }
+            
+            return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Verifies an RSA-SHA1 signature.
+    /// </summary>
+    private static bool VerifyRsaSha1Signature(PublicKey publicKey, byte[] tbsData, byte[] signature)
+    {
+        try
+        {
+            using var rsa = publicKey.GetRSAPublicKey();
+            if (rsa == null)
+            {
+                return false;
+            }
+            
+            return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Verifies an ECDSA-SHA256 signature.
+    /// </summary>
+    private static bool VerifyEcdsaSha256Signature(PublicKey publicKey, byte[] tbsData, byte[] signature)
+    {
+        try
+        {
+            using var ecdsa = publicKey.GetECDsaPublicKey();
+            if (ecdsa == null)
+            {
+                return false;
+            }
+            
+            return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA256);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Verifies an ECDSA-SHA1 signature.
+    /// </summary>
+    private static bool VerifyEcdsaSha1Signature(PublicKey publicKey, byte[] tbsData, byte[] signature)
+    {
+        try
+        {
+            using var ecdsa = publicKey.GetECDsaPublicKey();
+            if (ecdsa == null)
+            {
+                return false;
+            }
+            
+            return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc/>

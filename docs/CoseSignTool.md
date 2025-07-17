@@ -35,6 +35,7 @@ The **Sign** command signs a file or stream.
 You will need to specify:
 * The payload content to sign. This may be a file specified with the **/Payload** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
 * A certificate to sign with. You can either use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate or use the **/PfxCertificate** option to point to a .pfx certificate file and a **/Password** to open the certificate file with if it is locked. The certificate must include a private key.
+  * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **/Thumbprint** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
 
 You may also want to specify:
 * Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
@@ -95,6 +96,25 @@ The JSON schema is the same for both types of header files. Sample int32 and str
 ~~~
 
 Run *CoseSignTool sign /?* for the complete command line usage.
+
+### PFX Certificate Chain Examples
+
+**Sign with a PFX containing a certificate chain (uses first certificate with private key):**
+```bash
+CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /sf signature.cose
+```
+
+**Sign with a specific certificate from a PFX chain using thumbprint:**
+```bash
+CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /th A1B2C3D4E5F6789... /sf signature.cose
+```
+
+**Sign with embedded payload using PFX certificate chain:**
+```bash
+CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /ep /sf signature.csm
+```
+
+When using these commands with a PFX file containing multiple certificates, CoseSignTool will automatically embed the complete certificate chain in the COSE signature, ensuring proper validation without requiring additional root certificates to be specified during validation.
 
 ## Validate
 The **Validate** command validates that a COSE signature is properly constructed, matches the signed payload, and roots to a valid certificate chain.

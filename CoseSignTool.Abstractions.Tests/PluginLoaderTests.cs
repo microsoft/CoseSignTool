@@ -260,6 +260,12 @@ public class PluginLoaderTests
     {
         // Arrange
         string systemDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        
+        // On some systems (like Linux), GetFolderPath might return empty, so use a fallback
+        if (string.IsNullOrWhiteSpace(systemDirectory))
+        {
+            systemDirectory = "/usr/bin"; // Use a known system directory on Unix-like systems
+        }
 
         // Act & Assert
         var exception = Assert.ThrowsException<UnauthorizedAccessException>(
@@ -289,14 +295,56 @@ public class PluginLoaderTests
     [TestMethod]
     public void ValidatePluginDirectory_WithRelativePath_ThrowsUnauthorizedAccessException()
     {
-        // Arrange
-        string relativePath = "..\\..\\somedir";
+        // Arrange - Use cross-platform path separator
+        string relativePath = ".." + Path.DirectorySeparatorChar + ".." + Path.DirectorySeparatorChar + "somedir";
 
         // Act & Assert
         var exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(relativePath));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
+    }
+
+    /// <summary>
+    /// Tests that ValidatePluginDirectory rejects null directory paths.
+    /// </summary>
+    [TestMethod]
+    public void ValidatePluginDirectory_NullDirectory_ThrowsUnauthorizedAccessException()
+    {
+        // Act & Assert
+        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+            () => PluginLoader.ValidatePluginDirectory(null!));
+        
+        Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
+        Assert.IsTrue(exception.Message.Contains("empty or null directory path"));
+    }
+
+    /// <summary>
+    /// Tests that ValidatePluginDirectory rejects empty directory paths.
+    /// </summary>
+    [TestMethod]
+    public void ValidatePluginDirectory_EmptyDirectory_ThrowsUnauthorizedAccessException()
+    {
+        // Act & Assert
+        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+            () => PluginLoader.ValidatePluginDirectory(string.Empty));
+        
+        Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
+        Assert.IsTrue(exception.Message.Contains("empty or null directory path"));
+    }
+
+    /// <summary>
+    /// Tests that ValidatePluginDirectory rejects whitespace-only directory paths.
+    /// </summary>
+    [TestMethod]
+    public void ValidatePluginDirectory_WhitespaceDirectory_ThrowsUnauthorizedAccessException()
+    {
+        // Act & Assert
+        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+            () => PluginLoader.ValidatePluginDirectory("   "));
+        
+        Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
+        Assert.IsTrue(exception.Message.Contains("empty or null directory path"));
     }
 
     /// <summary>

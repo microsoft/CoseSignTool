@@ -35,8 +35,11 @@ public class ValidateCommandTests
     [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
-        // path to assembly directory
-        OutputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        // path to assembly directory - with fallback for cross-platform compatibility
+        string assemblyLocation = Assembly.GetExecutingAssembly().Location;
+        OutputPath = string.IsNullOrWhiteSpace(assemblyLocation) 
+            ? Directory.GetCurrentDirectory() 
+            : Path.GetDirectoryName(assemblyLocation) ?? Directory.GetCurrentDirectory();
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));

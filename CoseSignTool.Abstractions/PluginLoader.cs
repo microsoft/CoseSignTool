@@ -48,8 +48,32 @@ public static class PluginLoader
     /// <exception cref="UnauthorizedAccessException">Thrown when the directory is not authorized for plugin loading.</exception>
     public static void ValidatePluginDirectory(string pluginDirectory)
     {
+        // Check for null or empty directory path first
+        if (string.IsNullOrWhiteSpace(pluginDirectory))
+        {
+            throw new UnauthorizedAccessException(
+                "Plugin loading is only allowed from the 'plugins' subdirectory. " +
+                "Attempted to load from an empty or null directory path.");
+        }
+
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-        string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
+        string executableDirectory;
+        
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            // Fallback for single-file deployments or when Location is not available
+            executableDirectory = Directory.GetCurrentDirectory();
+        }
+        else
+        {
+            executableDirectory = Path.GetDirectoryName(executablePath);
+            if (string.IsNullOrWhiteSpace(executableDirectory))
+            {
+                // Additional fallback if GetDirectoryName returns null/empty
+                executableDirectory = Directory.GetCurrentDirectory();
+            }
+        }
+        
         string authorizedPluginsDirectory = Path.Combine(executableDirectory, "plugins");
         
         // Normalize paths for comparison (remove trailing directory separators)

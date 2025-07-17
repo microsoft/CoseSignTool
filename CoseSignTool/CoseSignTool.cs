@@ -89,7 +89,7 @@ public class CoseSignTool
             string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
             
             // Only load plugins from the authorized "plugins" subdirectory
-            string pluginsDirectory = Path.Combine(executableDirectory, "plugins");
+            string pluginsDirectory = Path.Join(executableDirectory, "plugins");
             
             var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
             

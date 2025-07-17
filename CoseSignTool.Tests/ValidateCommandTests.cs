@@ -242,7 +242,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string cosePath = new(Path.Combine(OutputPath!, "UnitTestSignatureWithCRL.cose"));
+        string cosePath = new(Path.Join(OutputPath!, "UnitTestSignatureWithCRL.cose"));
 
         CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
         message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
@@ -259,7 +259,7 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(
             coseStream,
-            new FileInfo(Path.Combine(OutputPath!, "UnitTestPayload.json")),
+            new FileInfo(Path.Join(OutputPath!, "UnitTestPayload.json")),
             [root],
             revocationMode,
             allowOutdated: true);

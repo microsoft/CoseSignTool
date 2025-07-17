@@ -19,11 +19,11 @@ public class PluginLoaderTests
     public void TestInitialize()
     {
         // Create a temporary directory for test plugins
-        _tempDirectory = Path.Combine(Path.GetTempPath(), $"PluginTests_{Guid.NewGuid()}");
+        _tempDirectory = Path.Join(Path.GetTempPath(), $"PluginTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_tempDirectory);
         
         // Create the plugins subdirectory for authorized testing
-        _pluginsDirectory = Path.Combine(_tempDirectory, "plugins");
+        _pluginsDirectory = Path.Join(_tempDirectory, "plugins");
         Directory.CreateDirectory(_pluginsDirectory);
     }
 
@@ -49,7 +49,7 @@ public class PluginLoaderTests
         // Arrange: Use the actual plugins directory relative to the test executable
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string pluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string pluginsDirectory = Path.Join(executableDirectory, "plugins");
         
         // Ensure the plugins directory exists but is empty
         if (Directory.Exists(pluginsDirectory))
@@ -78,7 +78,7 @@ public class PluginLoaderTests
         // Arrange: Use the actual plugins directory relative to the test executable
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string pluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string pluginsDirectory = Path.Join(executableDirectory, "plugins");
         
         // Ensure the plugins directory exists but only has non-plugin files
         if (Directory.Exists(pluginsDirectory))
@@ -87,7 +87,7 @@ public class PluginLoaderTests
         }
         Directory.CreateDirectory(pluginsDirectory);
         
-        var regularDll = Path.Combine(pluginsDirectory, "RegularLibrary.dll");
+        var regularDll = Path.Join(pluginsDirectory, "RegularLibrary.dll");
         File.WriteAllText(regularDll, "fake dll content");
 
         // Act
@@ -108,7 +108,7 @@ public class PluginLoaderTests
     public void DiscoverPlugins_NonExistentDirectory_ReturnsEmptyList()
     {
         // Arrange
-        var nonExistentPath = Path.Combine(_tempDirectory, "DoesNotExist");
+        var nonExistentPath = Path.Join(_tempDirectory, "DoesNotExist");
 
         // Act
         var plugins = PluginLoader.DiscoverPlugins(nonExistentPath);
@@ -155,7 +155,7 @@ public class PluginLoaderTests
         // Arrange: Use the actual plugins directory relative to the test executable
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string pluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string pluginsDirectory = Path.Join(executableDirectory, "plugins");
         
         // Ensure the plugins directory exists with fake plugin files
         if (Directory.Exists(pluginsDirectory))
@@ -164,9 +164,9 @@ public class PluginLoaderTests
         }
         Directory.CreateDirectory(pluginsDirectory);
         
-        var pluginFile1 = Path.Combine(pluginsDirectory, "MyApp.Plugin.dll");
-        var pluginFile2 = Path.Combine(pluginsDirectory, "SomeTool.Plugin.dll");
-        var regularFile = Path.Combine(pluginsDirectory, "RegularLibrary.dll");
+        var pluginFile1 = Path.Join(pluginsDirectory, "MyApp.Plugin.dll");
+        var pluginFile2 = Path.Join(pluginsDirectory, "SomeTool.Plugin.dll");
+        var regularFile = Path.Join(pluginsDirectory, "RegularLibrary.dll");
         
         File.WriteAllText(pluginFile1, "fake plugin dll content");
         File.WriteAllText(pluginFile2, "fake plugin dll content");
@@ -194,7 +194,7 @@ public class PluginLoaderTests
         // Arrange
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string authorizedPluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string authorizedPluginsDirectory = Path.Join(executableDirectory, "plugins");
 
         // Act & Assert - Should not throw
         PluginLoader.ValidatePluginDirectory(authorizedPluginsDirectory);
@@ -283,7 +283,7 @@ public class PluginLoaderTests
         // Arrange
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string authorizedPluginsDirectory = Path.Combine(executableDirectory, "plugins") + Path.DirectorySeparatorChar;
+        string authorizedPluginsDirectory = Path.Join(executableDirectory, "plugins") + Path.DirectorySeparatorChar;
 
         // Act & Assert - Should not throw even with trailing slash
         PluginLoader.ValidatePluginDirectory(authorizedPluginsDirectory);
@@ -355,7 +355,7 @@ public class PluginLoaderTests
     {
         // Arrange
         string unauthorizedDirectory = _tempDirectory;
-        var pluginFile = Path.Combine(unauthorizedDirectory, "Test.Plugin.dll");
+        var pluginFile = Path.Join(unauthorizedDirectory, "Test.Plugin.dll");
         File.WriteAllText(pluginFile, "fake plugin dll content");
 
         // Act & Assert
@@ -374,7 +374,7 @@ public class PluginLoaderTests
         // Arrange
         string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
-        string nonExistentPluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string nonExistentPluginsDirectory = Path.Join(executableDirectory, "plugins");
 
         // Act & Assert - Should not throw, just return empty
         var plugins = PluginLoader.DiscoverPlugins(nonExistentPluginsDirectory);

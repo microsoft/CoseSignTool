@@ -74,7 +74,7 @@ public static class PluginLoader
             }
         }
         
-        string authorizedPluginsDirectory = Path.Combine(executableDirectory, "plugins");
+        string authorizedPluginsDirectory = Path.Join(executableDirectory, "plugins");
         
         // Normalize paths for comparison (remove trailing directory separators)
         string normalizedPluginDirectory = Path.GetFullPath(pluginDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

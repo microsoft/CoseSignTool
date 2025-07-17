@@ -9,6 +9,7 @@ You must provide:
 * Content to sign. This may be a byte array, a stream, or a *FileInfo* object.
 * A certificate to sign with. This can be an *X509Certificate2* object or the SHA1 thumbprint of an installed certificate.
   * An *X509Certificate* object must include a private key to be used for signing.
+  * **Note**: When loading certificates from PFX files programmatically, if your PFX contains multiple certificates (such as a complete certificate chain), consider using the *SigningKeyProvider* with additional root certificates to ensure proper chain validation.
 
 You may also want to specify:
 * Detached or embedded: By default, CoseHandler creates a detached signature, which contains a hash of the original payoad. Setting ***embedSign=true*** creates an embedded signature, meaning that the signature file includes a copy of the payload as a byte array. Note that embedded signatures are only supported for payload of less than 2gb.

@@ -28,7 +28,8 @@ public class RegisterCommand : CtsCommandBase
     protected override string GetExamples()
     {
         return $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
-               $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --output result.json";
+               $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --output result.json{Environment.NewLine}" +
+               $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR";
     }
 
     /// <inheritdoc/>

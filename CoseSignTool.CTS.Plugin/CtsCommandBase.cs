@@ -18,7 +18,7 @@ public abstract class CtsCommandBase : PluginCommandBase
     protected static readonly Dictionary<string, string> CommonOptions = new()
     {
         { "endpoint", "The Azure Code Transparency Service endpoint URL" },
-        { "credential", "The path to a JSON file containing Azure credentials (optional - uses default Azure credential if not specified)" },
+        { "token-env", "The name of the environment variable containing the access token (default: AZURE_CTS_TOKEN)" },
         { "payload", "The file path to the payload file" },
         { "signature", "The file path to the COSE Sign1 signature file" },
         { "output", "The file path where the result will be written (optional)" },
@@ -176,12 +176,12 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// Creates an Azure CTS client using the shared helper.
     /// </summary>
     /// <param name="endpoint">The CTS endpoint URL.</param>
-    /// <param name="credentialPath">Optional path to credential file.</param>
+    /// <param name="tokenEnvVarName">Name of the environment variable containing the access token.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Configured CodeTransparencyClient.</returns>
-    protected static Task<CodeTransparencyClient> CreateCtsClient(string endpoint, string? credentialPath, CancellationToken cancellationToken)
+    protected static Task<CodeTransparencyClient> CreateCtsClient(string endpoint, string? tokenEnvVarName, CancellationToken cancellationToken)
     {
-        return CodeTransparencyClientHelper.CreateClientAsync(endpoint, credentialPath, cancellationToken);
+        return CodeTransparencyClientHelper.CreateClientAsync(endpoint, tokenEnvVarName, cancellationToken);
     }
 
     /// <summary>
@@ -201,7 +201,7 @@ public abstract class CtsCommandBase : PluginCommandBase
             string signaturePath = GetRequiredValue(configuration, "signature");
 
             // Get optional parameters
-            string? credentialPath = GetOptionalValue(configuration, "credential");
+            string? tokenEnvVarName = GetOptionalValue(configuration, "token-env");
             string? outputPath = GetOptionalValue(configuration, "output");
 
             // Validate common parameters
@@ -235,7 +235,7 @@ public abstract class CtsCommandBase : PluginCommandBase
             }
 
             // Create CTS client
-            CodeTransparencyClient client = await CreateCtsClient(endpoint, credentialPath, cancellationToken);
+            CodeTransparencyClient client = await CreateCtsClient(endpoint, tokenEnvVarName, cancellationToken);
 
             // Execute the specific operation
             using var combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
@@ -302,9 +302,8 @@ public abstract class CtsCommandBase : PluginCommandBase
                $"  --signature     The file path to the COSE Sign1 signature file{Environment.NewLine}" +
                $"{Environment.NewLine}" +
                $"Optional arguments:{Environment.NewLine}" +
-               $"  --credential    Path to JSON file containing Azure credentials{Environment.NewLine}" +
-               $"                  Format: {{\"token\": \"<access-token>\"}} or {{\"scopes\": [\"<scope1>\", \"<scope2>\"]}}{Environment.NewLine}" +
-               $"                  (uses default Azure credential if not specified){Environment.NewLine}" +
+               $"  --token-env     Name of environment variable containing access token{Environment.NewLine}" +
+               $"                  (default: AZURE_CTS_TOKEN, uses default Azure credential if not specified){Environment.NewLine}" +
                $"  --output        File path where {verb} result will be written{Environment.NewLine}";
     }
 

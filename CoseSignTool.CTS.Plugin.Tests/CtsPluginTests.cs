@@ -77,7 +77,7 @@ public class RegisterCommandTests
         Assert.IsTrue(command.Options.ContainsKey("endpoint"));
         Assert.IsTrue(command.Options.ContainsKey("payload"));
         Assert.IsTrue(command.Options.ContainsKey("signature"));
-        Assert.IsTrue(command.Options.ContainsKey("credential"));
+        Assert.IsTrue(command.Options.ContainsKey("token-env"));
         Assert.IsTrue(command.Options.ContainsKey("output"));
         Assert.IsTrue(command.Options.ContainsKey("timeout"));
     }
@@ -256,7 +256,7 @@ public class VerifyCommandTests
         Assert.IsTrue(command.Options.ContainsKey("endpoint"));
         Assert.IsTrue(command.Options.ContainsKey("payload"));
         Assert.IsTrue(command.Options.ContainsKey("signature"));
-        Assert.IsTrue(command.Options.ContainsKey("credential"));
+        Assert.IsTrue(command.Options.ContainsKey("token-env"));
         Assert.IsTrue(command.Options.ContainsKey("output"));
         Assert.IsTrue(command.Options.ContainsKey("receipt"));
         Assert.IsTrue(command.Options.ContainsKey("timeout"));
@@ -408,6 +408,93 @@ public class VerifyCommandTests
             // Clean up temporary files
             try { File.Delete(tempPayloadFile); } catch { }
             try { File.Delete(tempSignatureFile); } catch { }
+        }
+    }
+}
+
+/// <summary>
+/// Tests for the CodeTransparencyClientHelper class.
+/// </summary>
+[TestClass]
+public class CodeTransparencyClientHelperTests
+{
+    private const string TestEndpoint = "https://test.confidential-ledger.azure.com";
+    private const string TestToken = "test-token-12345";
+    private const string TestEnvVarName = "TEST_CTS_TOKEN";
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithTokenFromDefaultEnvironmentVariable_CreatesClient()
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", TestToken);
+        try
+        {
+            // Act
+            var client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null);
+
+            // Assert
+            Assert.IsNotNull(client);
+        }
+        finally
+        {
+            // Cleanup
+            Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+        }
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithTokenFromCustomEnvironmentVariable_CreatesClient()
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable(TestEnvVarName, TestToken);
+        try
+        {
+            // Act
+            var client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
+
+            // Assert
+            Assert.IsNotNull(client);
+        }
+        finally
+        {
+            // Cleanup
+            Environment.SetEnvironmentVariable(TestEnvVarName, null);
+        }
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithoutTokenEnvironmentVariable_UsesDefaultCredential()
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+        Environment.SetEnvironmentVariable(TestEnvVarName, null);
+
+        // Act & Assert
+        // This test verifies that when no token is found, it attempts to use DefaultAzureCredential
+        // In a test environment without Azure credentials, this will throw a CredentialUnavailableException
+        // which is the expected behavior - the method should attempt to use DefaultAzureCredential
+        await Assert.ThrowsExceptionAsync<Azure.Identity.CredentialUnavailableException>(
+            async () => await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName));
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithEmptyTokenEnvironmentVariable_UsesDefaultCredential()
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable(TestEnvVarName, "");
+        try
+        {
+            // Act & Assert
+            // This test verifies that when token is empty, it attempts to use DefaultAzureCredential
+            // In a test environment without Azure credentials, this will throw a CredentialUnavailableException
+            // which is the expected behavior - the method should attempt to use DefaultAzureCredential
+            await Assert.ThrowsExceptionAsync<Azure.Identity.CredentialUnavailableException>(
+                async () => await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName));
+        }
+        finally
+        {
+            // Cleanup
+            Environment.SetEnvironmentVariable(TestEnvVarName, null);
         }
     }
 }

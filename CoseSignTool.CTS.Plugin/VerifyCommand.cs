@@ -35,7 +35,8 @@ public class VerifyCommand : CtsCommandBase
     protected override string GetExamples()
     {
         return $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
-               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --receipt receipt.cose --output verification.json";
+               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --receipt receipt.cose --output verification.json{Environment.NewLine}" +
+               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR";
     }
 
     /// <inheritdoc/>

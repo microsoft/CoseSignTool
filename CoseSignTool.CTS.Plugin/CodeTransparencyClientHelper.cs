@@ -13,71 +13,33 @@ using System.Text.Json;
 internal static class CodeTransparencyClientHelper
 {
     /// <summary>
-    /// Creates a CodeTransparencyClient with the specified endpoint and optional credential file.
+    /// Creates a CodeTransparencyClient with the specified endpoint and optional token environment variable.
     /// </summary>
     /// <param name="endpoint">The Azure Code Transparency Service endpoint URL.</param>
-    /// <param name="credentialPath">Optional path to a JSON file containing Azure credentials.</param>
+    /// <param name="tokenEnvVarName">Optional name of the environment variable containing the access token. 
+    /// If not specified, defaults to "AZURE_CTS_TOKEN". If the environment variable is not set, 
+    /// uses DefaultAzureCredential.</param>
     /// <param name="cancellationToken">Cancellation token for async operations.</param>
     /// <returns>A configured CodeTransparencyClient instance.</returns>
-    /// <exception cref="FileNotFoundException">Thrown when the credential file is not found.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when credential file format is invalid.</exception>
-    public static async Task<CodeTransparencyClient> CreateClientAsync(string endpoint, string? credentialPath, CancellationToken cancellationToken = default)
+    /// <exception cref="InvalidOperationException">Thrown when token environment variable is empty or invalid.</exception>
+    public static async Task<CodeTransparencyClient> CreateClientAsync(string endpoint, string? tokenEnvVarName, CancellationToken cancellationToken = default)
     {
         var uri = new Uri(endpoint);
 
-        if (!string.IsNullOrEmpty(credentialPath))
+        // Use the specified environment variable name or default to AZURE_CTS_TOKEN
+        string envVarName = tokenEnvVarName ?? "AZURE_CTS_TOKEN";
+        string? token = Environment.GetEnvironmentVariable(envVarName);
+
+        if (!string.IsNullOrEmpty(token))
         {
-            // Load credentials from file if specified
-            if (!File.Exists(credentialPath))
-            {
-                throw new FileNotFoundException($"Credential file not found: {credentialPath}");
-            }
-
-            string credentialJson = await File.ReadAllTextAsync(credentialPath, cancellationToken);
-            var credentialData = JsonSerializer.Deserialize<JsonElement>(credentialJson);
-
-            // Check for access token in the credential file
-            if (credentialData.TryGetProperty("token", out JsonElement tokenElement))
-            {
-                string token = tokenElement.GetString() ?? throw new InvalidOperationException("Invalid access token in credential file.");
-                // Use AzureKeyCredential for access tokens as documented in:
-                // https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/confidentialledger/Azure.Security.CodeTransparency/samples/Sample3_UseYourCredentials.md
-                var credential = new AzureKeyCredential(token);
-                return new CodeTransparencyClient(uri, credential);
-            }
-            
-            // Check for legacy "key" property for backward compatibility
-            if (credentialData.TryGetProperty("key", out JsonElement keyElement))
-            {
-                string key = keyElement.GetString() ?? throw new InvalidOperationException("Invalid credential key in credential file.");
-                var credential = new AzureKeyCredential(key);
-                return new CodeTransparencyClient(uri, credential);
-            }
-
-            // Check for Azure credential configuration with scopes
-            if (credentialData.TryGetProperty("scopes", out JsonElement scopesElement))
-            {
-                var scopes = scopesElement.EnumerateArray()
-                    .Select(s => s.GetString())
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .Cast<string>()
-                    .ToArray();
-
-                if (scopes.Length > 0)
-                {
-                    // Use DefaultAzureCredential to get access token as documented in:
-                    // https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/confidentialledger/Azure.Security.CodeTransparency/samples/Sample3_UseYourCredentials.md
-                    TokenCredential defaultCredential = new DefaultAzureCredential();
-                    AccessToken accessToken = await defaultCredential.GetTokenAsync(new TokenRequestContext(scopes), cancellationToken);
-                    var credential = new AzureKeyCredential(accessToken.Token);
-                    return new CodeTransparencyClient(uri, credential);
-                }
-            }
-
-            throw new InvalidOperationException("Credential file must contain either 'token', 'key', or 'scopes' property for authentication.");
+            // Use the access token from the environment variable
+            // Use AzureKeyCredential for access tokens as documented in:
+            // https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/confidentialledger/Azure.Security.CodeTransparency/samples/Sample3_UseYourCredentials.md
+            var credential = new AzureKeyCredential(token);
+            return new CodeTransparencyClient(uri, credential);
         }
 
-        // Use default Azure credential (managed identity, Azure CLI, etc.) when no credential file is specified
+        // Use default Azure credential (managed identity, Azure CLI, etc.) when no token is provided
         // Note: CodeTransparencyClient constructor only accepts TokenCredential if using DefaultAzureCredential
         // directly, but the pattern from Azure docs uses AzureKeyCredential with retrieved tokens
         var defaultCred = new DefaultAzureCredential();

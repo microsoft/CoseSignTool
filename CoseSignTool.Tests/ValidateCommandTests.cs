@@ -153,6 +153,35 @@ public class ValidateCommandTests
     }
 
     /// <summary>
+    /// Validates that signatures made from "untrusted" chains are accepted when root is passed in as trusted
+    /// </summary>
+    [TestMethod]
+    public void ValidateFailsWithWrongCommonName()
+    {
+        string payloadFilePath = FileSystemUtils.GeneratePayloadFile();
+        FileInfo payloadFile = new(payloadFilePath);
+        string sigFilePath = $"{payloadFilePath}.cose";
+        FileInfo sigFile = new(sigFilePath);
+
+        // sign detached
+        CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv, [Int1Priv]), false, sigFile);
+
+        string commonName = $"CN={Guid.NewGuid()}";
+
+        var validator = new ValidateCommand();
+        var result = validator.RunCoseHandlerCommand(
+            sigFile.OpenRead(),
+            payloadFile,
+            [Root1Priv],
+            X509RevocationMode.NoCheck,
+            commonName);
+
+        result.Success.Should().BeFalse();
+        result.ContentValidationType.Should().Be(ContentValidationType.ContentValidationNotPerformed);
+        result.ToString(true).Should().Contain(commonName);
+    }
+
+    /// <summary>
     /// Validates that modified payloads are rejected
     /// </summary>
     [TestMethod]

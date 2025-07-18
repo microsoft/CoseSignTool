@@ -6,6 +6,9 @@ The best way to 'shoot' trouble is to avoid it in the first place. The error mes
 * Make sure your certificates have not expired.
 * When signing with installed certificates you will get quicker lookups if you load the certificate from a custom store instead of from My/CurrentUser.
 * When signing with a loose certificate file, you should delete the file as soon as you are done signing with it to protect your private keys.
+* **PFX Certificate Chain Files**: When using a PFX file that contains multiple certificates (such as a complete certificate chain with root, intermediate, and leaf certificates), CoseSignTool will automatically extract and use all certificates for proper chain building. This ensures that the complete certificate chain is embedded in the COSE signature for proper validation.
+  * If you need to sign with a specific certificate from a multi-certificate PFX file, use the **/Thumbprint** option to specify which certificate to use for signing.
+  * The remaining certificates in the PFX will be used as additional roots for chain validation, ensuring proper trust chain establishment.
 
 ## Detached vs embedded signatures
 * Detached signatures are more efficient to produce than embeddeded signatures, have smaller file sizes, and are the only way to sign payloads larger than 2gb. In general, we recommend detached signing for most scenarios.
@@ -35,3 +38,4 @@ Do not include non-test certificates unless they are necessary to reproduce the 
 * If the certificates are publicly available, include the Common Names and Thumbprints, and a link to where you got them from if not from Microsoft.
 * If the certificates are proprietary, try to reproduce the issue with a similar set of test certificates and include those.
 * If you cannot reproduce the error with non-proprietary certificates, tell us and we will either try to diagnose the problem without the certificates or arrange a secure transfer.
+* **For PFX certificate chain issues**: Include information about how many certificates are in your PFX file, whether you're using a thumbprint to select a specific certificate, and the Common Names of the certificates in the chain (root, intermediate, leaf).

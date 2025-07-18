@@ -400,7 +400,15 @@ Plugin commands receive configuration through the standard .NET `IConfiguration`
 
 ## Example: Azure Code Transparency Service Plugin
 
-The CoseSignTool includes a reference implementation for Azure Code Transparency Service integration:
+The CoseSignTool includes a reference implementation for Azure Code Transparency Service integration.
+
+> **📖 Complete Documentation**: For comprehensive Azure CTS plugin documentation, including detailed authentication options, CI/CD integration examples, and troubleshooting, see [AzureCTS.md](AzureCTS.md).
+
+### Quick Start
+
+The Azure CTS plugin provides two main commands:
+- `cts_register` - Register signatures with Azure CTS
+- `cts_verify` - Verify signatures against Azure CTS
 
 ### Plugin Structure
 ```
@@ -414,19 +422,63 @@ CoseSignTool.CTS.Plugin/
 ### Usage Examples
 
 ```bash
-# Register a signature with Azure CTS
+# Register a signature with Azure CTS using default environment variable
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_register \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose
+
+# Register a signature with Azure CTS using custom environment variable
+export MY_CTS_TOKEN="your-access-token"
 CoseSignTool cts_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --credential default
+    --token-env-var MY_CTS_TOKEN
 
 # Verify a signature with Azure CTS
+export AZURE_CTS_TOKEN="your-access-token"
 CoseSignTool cts_verify \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --receipt receipt.json
+
+# Using Azure DefaultCredential when no token is provided
+CoseSignTool cts_register \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose
+```
+
+### Authentication
+
+The Azure CTS plugin supports multiple authentication methods with the following priority:
+
+1. **Environment Variable Token**: Uses an access token from an environment variable
+   - `--token-env-var` specifies the environment variable name
+   - If not specified, defaults to `AZURE_CTS_TOKEN`
+   - This is the recommended approach for CI/CD environments
+
+2. **Azure DefaultCredential**: Falls back to Azure DefaultCredential when no token is found
+   - Automatically uses available Azure credentials (managed identity, Azure CLI, etc.)
+   - Ideal for local development and Azure-hosted environments
+
+#### Authentication Examples
+
+```bash
+# Using default environment variable
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
+
+# Using custom environment variable
+export MY_CUSTOM_TOKEN="your-access-token"
+CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose --token-env-var MY_CUSTOM_TOKEN
+
+# Using Azure DefaultCredential (no token environment variable set)
+# Requires Azure CLI login, managed identity, or other Azure credential
+CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
 ```
 
 ## Best Practices

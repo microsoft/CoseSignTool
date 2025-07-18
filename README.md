@@ -16,8 +16,9 @@ Additionally, CoseSignTool supports a **Plugin System** that allows developers t
 
 For plugin development, see:
 - [Plugins.md](./docs/Plugins.md) - Comprehensive plugin documentation
-- [PluginQuickStart.md](./docs/PluginQuickStart.md) - Quick start guide
+- [PluginQuickStart.md](./docs/PluginQuickStart.md) - Quick start guide  
 - [PluginAPI.md](./docs/PluginAPI.md) - Complete API reference
+- [AzureCTS.md](./docs/AzureCTS.md) - Azure Code Transparency Service plugin documentation
 
 The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
 

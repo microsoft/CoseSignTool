@@ -17,6 +17,7 @@ CoseSignTool includes a powerful plugin architecture that allows developers to e
 CoseSignTool --help
 
 # Use a plugin command (example: Azure CTS)
+export AZURE_CTS_TOKEN="your-access-token"
 CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.txt --signature file.txt.cose
 ```
 
@@ -24,6 +25,7 @@ CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.t
 - See [Plugins.md](Plugins.md) for comprehensive plugin development documentation
 - See [PluginQuickStart.md](PluginQuickStart.md) for a quick start guide
 - See [PluginExamples.md](PluginExamples.md) for example plugin implementations
+- See [AzureCTS.md](AzureCTS.md) for Azure Code Transparency Service plugin documentation
 
 ## Concepts to know before you start
 * **Payload**: We use the term "Payload" to describe the content that is or will be signed. This might be a file or an object in memory.

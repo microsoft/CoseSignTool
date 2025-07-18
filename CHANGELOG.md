@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.7...HEAD)
+
+**Merged pull requests:**
+
+- BugFix: Include Exception in Verbose Out [\#134](https://github.com/microsoft/CoseSignTool/pull/134) ([elantiguamsft](https://github.com/elantiguamsft))
+
 ## [v1.5.7](https://github.com/microsoft/CoseSignTool/tree/v1.5.7) (2025-07-17)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre1...v1.5.7)

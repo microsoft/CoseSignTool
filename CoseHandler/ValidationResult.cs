@@ -129,7 +129,7 @@ public struct ValidationResult(
                 : string.Empty;
 
         // Do the same for exceptions.
-        List<Exception>? innerExceptions = allIncludes?.Where(e => e.GetType() == typeof(Exception)).Cast<Exception>().ToList();
+        List<Exception>? innerExceptions = allIncludes?.Where(e => e.GetType().IsSubclassOf(typeof(Exception))).Cast<Exception>().ToList();
         string exceptionBlock =
             innerExceptions?.Count > 0
                 ? $"Exceptions:{newline}{string.Join(newline + tab, innerExceptions.Select(e => $"{e.GetType()}: {e.Message}"))}"

@@ -46,6 +46,10 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    # Show dotnet info for debugging architecture issues
+    - name: Show .NET info
+      run: dotnet --info
+
     # Use the Dotnet Test command to load dependencies, build, and test the code.
     # We have to run the test projects individually so CoseSignTool.Tests can run under arm64 on the Mac runner.
     - name: Build and Test debug

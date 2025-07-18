@@ -8,6 +8,18 @@ CoseSignTool and CoseHandler support three commands/methods:
 2. Validate: Validates that a COSE signature is properly formed, has a valid certificate chain, and matches the source payload or its hash.
 3. Get: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
 
+Additionally, CoseSignTool supports a **Plugin System** that allows developers to extend the tool with custom commands and third-party integrations:
+- **Custom Commands**: Add specialized functionality for specific workflows
+- **Service Integration**: Connect with external services like Azure Code Transparency Service
+- **Extensible Architecture**: Develop plugins using simple .NET interfaces
+- **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
+
+For plugin development, see:
+- [Plugins.md](./docs/Plugins.md) - Comprehensive plugin documentation
+- [PluginQuickStart.md](./docs/PluginQuickStart.md) - Quick start guide  
+- [PluginAPI.md](./docs/PluginAPI.md) - Complete API reference
+- [AzureCTS.md](./docs/AzureCTS.md) - Azure Code Transparency Service plugin documentation
+
 The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
 
 ## What is COSE?

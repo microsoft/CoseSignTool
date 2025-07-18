@@ -46,7 +46,7 @@
 	<!--Package references-->
 	<ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.7" />
 	</ItemGroup>
 
 	<!--Project references-->
@@ -54,6 +54,8 @@
 		<ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
     <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+		<ProjectReference Include="..\CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj" />
+		<ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
 	</ItemGroup>
 
 	<!--Files to include in the package-->
@@ -64,4 +66,25 @@
 		<None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
 		<None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
 	</ItemGroup>
+
+	<!--Plugin deployment targets for local development-->
+	<Target Name="DeployCTSPlugin" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+		<PropertyGroup>
+			<PluginsDir>$(OutputPath)plugins</PluginsDir>
+			<CTSPluginPath>$(MSBuildProjectDirectory)\..\CoseSignTool.CTS.Plugin\bin\$(Configuration)\net8.0\CoseSignTool.CTS.Plugin.dll</CTSPluginPath>
+		</PropertyGroup>
+		
+		<MakeDir Directories="$(PluginsDir)" />
+		
+		<Copy SourceFiles="$(CTSPluginPath)" DestinationFolder="$(PluginsDir)" Condition="Exists('$(CTSPluginPath)')" />
+		
+		<Message Text="CTS Plugin deployed to: $(PluginsDir)" Importance="high" Condition="Exists('$(CTSPluginPath)')" />
+		<Warning Text="CTS Plugin not found at: $(CTSPluginPath)" Condition="!Exists('$(CTSPluginPath)')" />
+	</Target>
+
+	<!--Target to build and deploy all plugins for local development-->
+	<Target Name="BuildAndDeployPlugins">
+		<MSBuild Projects="..\CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj" Properties="Configuration=$(Configuration)" />
+		<MSBuild Projects="$(MSBuildProjectFile)" Properties="DeployPlugins=true;Configuration=$(Configuration)" Targets="DeployCTSPlugin" />
+	</Target>
 </Project>

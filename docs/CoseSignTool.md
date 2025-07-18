@@ -1,6 +1,31 @@
 # CoseSignTool
 CoseSignTool is a platform-independent command line application to COSE sign files, validate COSE signatures, and optionally retrieve the content from COSE embed-signed files. 
-It supports three commands: **Sign**, **Validate**, and **Get**.
+It supports three built-in commands: **Sign**, **Validate**, and **Get**, and can be extended with custom commands through the **Plugin System**.
+
+## Plugin System
+CoseSignTool includes a powerful plugin architecture that allows developers to extend the tool with custom commands and integrations. Plugins are automatically discovered and loaded from the `plugins` subdirectory.
+
+**Key Features:**
+- **Custom Commands**: Add new functionality beyond the built-in commands
+- **Third-party Integrations**: Connect with external services and APIs (e.g., Azure Code Transparency Service)
+- **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
+- **Easy Development**: Simple interfaces and base classes for rapid development
+
+**Using Plugins:**
+```bash
+# List all available commands (including plugins)
+CoseSignTool --help
+
+# Use a plugin command (example: Azure CTS)
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.txt --signature file.txt.cose
+```
+
+**For Developers:**
+- See [Plugins.md](Plugins.md) for comprehensive plugin development documentation
+- See [PluginQuickStart.md](PluginQuickStart.md) for a quick start guide
+- See [PluginExamples.md](PluginExamples.md) for example plugin implementations
+- See [AzureCTS.md](AzureCTS.md) for Azure Code Transparency Service plugin documentation
 
 ## Concepts to know before you start
 * **Payload**: We use the term "Payload" to describe the content that is or will be signed. This might be a file or an object in memory.

@@ -4,5 +4,9 @@
     <EnableMSTestRunner>true</EnableMSTestRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!-- Configure architecture for macOS ARM64 runners -->
+    <TestingPlatformArchitecture Condition="'$(OS)' == 'Unix' AND $([MSBuild]::IsOSPlatform('OSX'))">arm64</TestingPlatformArchitecture>
+    <!-- Alternative: Use RuntimeIdentifier on macOS -->
+    <RuntimeIdentifier Condition="'$(OS)' == 'Unix' AND $([MSBuild]::IsOSPlatform('OSX')) AND '$(RuntimeIdentifier)' == ''">osx-arm64</RuntimeIdentifier>
   </PropertyGroup>
 </Project>

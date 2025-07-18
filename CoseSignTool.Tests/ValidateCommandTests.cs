@@ -35,8 +35,11 @@ public class ValidateCommandTests
     [ClassInitialize]
     public static void TestClassInit(TestContext context)
     {
-        // path to assembly directory
-        OutputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        // path to assembly directory - with fallback for cross-platform compatibility
+        string assemblyLocation = Assembly.GetExecutingAssembly().Location;
+        OutputPath = string.IsNullOrWhiteSpace(assemblyLocation) 
+            ? Directory.GetCurrentDirectory() 
+            : Path.GetDirectoryName(assemblyLocation) ?? Directory.GetCurrentDirectory();
 
         // export generated certs to files
         File.WriteAllBytes(PrivateKeyCertFileSelfSigned, SelfSignedCert.Export(X509ContentType.Pkcs12));
@@ -268,7 +271,7 @@ public class ValidateCommandTests
     [TestMethod]
     public void ValidateIndirectSucceedsWithRootPassedIn()
     {
-        string cosePath = new(Path.Combine(OutputPath!, "UnitTestSignatureWithCRL.cose"));
+        string cosePath = new(Path.Join(OutputPath!, "UnitTestSignatureWithCRL.cose"));
 
         CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(cosePath));
         message.TryGetCertificateChain(out List<X509Certificate2> chain).Should().BeTrue();
@@ -285,7 +288,7 @@ public class ValidateCommandTests
         var validator = new ValidateCommand();
         var result = validator.RunCoseHandlerCommand(
             coseStream,
-            new FileInfo(Path.Combine(OutputPath!, "UnitTestPayload.json")),
+            new FileInfo(Path.Join(OutputPath!, "UnitTestPayload.json")),
             [root],
             revocationMode,
             allowOutdated: true);

@@ -37,7 +37,7 @@
 
 	<!--Package references-->
 	<ItemGroup>
-		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
+		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
 	</ItemGroup>
 
 	<!--Project references-->

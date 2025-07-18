@@ -37,7 +37,7 @@
 
 	<!--Package references-->
 	<ItemGroup>
-		<PackageReference Include="System.Security.Cryptography.Cose" Version="9.0.2" />
+		<PackageReference Include="System.Security.Cryptography.Cose" Version="9.0.7" />
 	</ItemGroup>
 
 	<!--Files to include in the package-->

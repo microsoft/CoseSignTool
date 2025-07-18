@@ -46,7 +46,7 @@
 	<!--Package references-->
 	<ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.7" />
 	</ItemGroup>
 
 	<!--Project references-->
@@ -76,9 +76,7 @@
 		
 		<MakeDir Directories="$(PluginsDir)" />
 		
-		<Copy SourceFiles="$(CTSPluginPath)" 
-			  DestinationFolder="$(PluginsDir)" 
-			  Condition="Exists('$(CTSPluginPath)')" />
+		<Copy SourceFiles="$(CTSPluginPath)" DestinationFolder="$(PluginsDir)" Condition="Exists('$(CTSPluginPath)')" />
 		
 		<Message Text="CTS Plugin deployed to: $(PluginsDir)" Importance="high" Condition="Exists('$(CTSPluginPath)')" />
 		<Warning Text="CTS Plugin not found at: $(CTSPluginPath)" Condition="!Exists('$(CTSPluginPath)')" />
@@ -86,10 +84,7 @@
 
 	<!--Target to build and deploy all plugins for local development-->
 	<Target Name="BuildAndDeployPlugins">
-		<MSBuild Projects="..\CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj" 
-				 Properties="Configuration=$(Configuration)" />
-		<MSBuild Projects="$(MSBuildProjectFile)" 
-				 Properties="DeployPlugins=true;Configuration=$(Configuration)" 
-				 Targets="DeployCTSPlugin" />
+		<MSBuild Projects="..\CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj" Properties="Configuration=$(Configuration)" />
+		<MSBuild Projects="$(MSBuildProjectFile)" Properties="DeployPlugins=true;Configuration=$(Configuration)" Targets="DeployCTSPlugin" />
 	</Target>
 </Project>

@@ -42,7 +42,7 @@ internal static class CodeTransparencyClientHelper
         // Use default Azure credential (managed identity, Azure CLI, etc.) when no token is provided
         // Note: CodeTransparencyClient constructor only accepts TokenCredential if using DefaultAzureCredential
         // directly, but the pattern from Azure docs uses AzureKeyCredential with retrieved tokens
-        var defaultCred = new DefaultAzureCredential();
+        var defaultCred = new DefaultAzureCredential(); // CodeQL [SM05137] This is non-production testing code which is not deployed.
         var defaultScopes = new[] { "https://confidential-ledger.azure.com/.default" };
         var defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(defaultScopes), cancellationToken);
         return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token));

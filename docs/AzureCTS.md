@@ -39,6 +39,13 @@ When no token is provided, the plugin automatically falls back to Azure DefaultC
 - Visual Studio credentials
 - VS Code credentials
 
+> **⚠️ Production Security Note**: When deploying to production environments, create an environment variable named `AZURE_TOKEN_CREDENTIALS` and set its value to `"prod"`. This excludes developer tool credentials from the credential chain, ensuring only production-appropriate credentials are used. This is required when using Azure.Identity version 1.14.0 or later. For more information, see the [DefaultAzureCredential overview](https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential).
+
+```bash
+# In production environments, set this environment variable:
+export AZURE_TOKEN_CREDENTIALS="prod"
+```
+
 ## Commands
 
 ### cts_register
@@ -180,6 +187,7 @@ jobs:
     - name: Register with Azure CTS
       env:
         AZURE_CTS_TOKEN: ${{ secrets.AZURE_CTS_TOKEN }}
+        AZURE_TOKEN_CREDENTIALS: "prod"  # Exclude developer credentials in production
       run: |
         ./CoseSignTool cts_register \
           --endpoint https://your-cts-instance.azure.com \
@@ -198,6 +206,7 @@ pool:
 
 variables:
   AZURE_CTS_TOKEN: $(azure-cts-token)  # Set in Azure DevOps Library
+  AZURE_TOKEN_CREDENTIALS: "prod"  # Exclude developer credentials in production
 
 steps:
 - task: UseDotNet@2
@@ -236,6 +245,7 @@ steps:
 2. **Use secure secret management** - Store tokens in Azure Key Vault, GitHub Secrets, or Azure DevOps Library
 3. **Rotate tokens regularly** - Implement token rotation policies
 4. **Use managed identities** - When running in Azure, prefer managed identities over access tokens
+5. **Production DefaultAzureCredential configuration** - In production environments, set `AZURE_TOKEN_CREDENTIALS="prod"` to exclude developer tool credentials from the credential chain. This is required when using Azure.Identity version 1.14.0 or later for security compliance.
 
 ### Performance
 
@@ -278,6 +288,14 @@ Error: The endpoint URL is not valid
 ```
 - Verify the endpoint URL format: `https://your-cts-instance.azure.com`
 - Ensure the CTS service is accessible from your network
+
+**Production Authentication Issues:**
+```
+Error: DefaultAzureCredential used developer credentials in production
+```
+- Set `AZURE_TOKEN_CREDENTIALS="prod"` to exclude developer tool credentials
+- Ensure proper production authentication is configured (managed identity, service principal, etc.)
+- Review authentication chain in logs to verify correct credential type is used
 
 ### Debug Mode
 

@@ -615,7 +615,7 @@ public class SignCommand : CoseCommand
                 return false;
             }
             
-            return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1); // CodeQL [SM02196] This is to support certificates or other singers which use SHA1 with RSA for validation only.
         }
         catch
         {
@@ -657,7 +657,7 @@ public class SignCommand : CoseCommand
                 return false;
             }
             
-            return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1);
+            return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1); // CodeQL [SM02196] This is to support certificates or other singers which use SHA1 with ECDSA for validation only.
         }
         catch
         {

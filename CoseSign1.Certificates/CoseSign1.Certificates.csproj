@@ -36,7 +36,7 @@
 
 	<!--Package references-->
 	<ItemGroup>
-		<PackageReference Include="System.Runtime.Caching" Version="9.0.2" />
+		<PackageReference Include="System.Runtime.Caching" Version="9.0.7" />
 	</ItemGroup>
 
 	<!--Project references-->

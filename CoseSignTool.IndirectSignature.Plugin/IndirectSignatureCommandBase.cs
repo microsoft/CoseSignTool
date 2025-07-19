@@ -234,6 +234,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     {
         CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
         CancellationTokenSource combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        combinedCts.Token.Register(timeoutCts.Dispose);
         return combinedCts;
     }
 

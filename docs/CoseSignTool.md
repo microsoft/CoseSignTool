@@ -10,6 +10,12 @@ CoseSignTool includes a powerful plugin architecture that allows developers to e
 - **Third-party Integrations**: Connect with external services and APIs (e.g., Azure Code Transparency Service)
 - **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
 - **Easy Development**: Simple interfaces and base classes for rapid development
+- **🚀 Automatic CI/CD Packaging**: Plugins following naming conventions are automatically included in releases
+
+**🎯 Plugin Naming Convention for Auto-Packaging:**
+- **Project files** must end with `.Plugin.csproj` for automatic CI/CD inclusion
+- **Assembly names** must end with `.Plugin.dll` for runtime discovery
+- **Example**: `YourCompany.CustomSigning.Plugin.csproj` → Automatically packaged!
 
 **Using Plugins:**
 ```bash
@@ -22,6 +28,7 @@ CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.t
 ```
 
 **For Developers:**
+- See [PluginNamingConventions.md](PluginNamingConventions.md) for **naming requirements and auto-packaging**
 - See [Plugins.md](Plugins.md) for comprehensive plugin development documentation
 - See [PluginQuickStart.md](PluginQuickStart.md) for a quick start guide
 - See [PluginExamples.md](PluginExamples.md) for example plugin implementations

@@ -40,48 +40,48 @@ public class ChainedCoseHeaderExtenderTests
     [Test]
     public void Constructor_ThrowsOnNullElement()
     {
-        var extenders = new ICoseHeaderExtender[] { new DummyExtender(h => h, h => h!), null! };
+        ICoseHeaderExtender[] extenders = new ICoseHeaderExtender[] { new DummyExtender(h => h, h => h!), null! };
         Assert.Throws<ArgumentException>(() => new ChainedCoseHeaderExtender(extenders));
     }
 
     [Test]
     public void ExtendProtectedHeaders_ThrowsOnNullInput()
     {
-        var chain = new ChainedCoseHeaderExtender(new[] { new DummyExtender(h => h, h => h) });
+        ChainedCoseHeaderExtender chain = new ChainedCoseHeaderExtender(new[] { new DummyExtender(h => h, h => h) });
         Assert.Throws<ArgumentNullException>(() => chain.ExtendProtectedHeaders(null));
     }
 
     [Test]
     public void ExtendProtectedHeaders_ThrowsIfAnyExtenderReturnsNull()
     {
-        var extenders = new ICoseHeaderExtender[] {
+        ICoseHeaderExtender[] extenders = new ICoseHeaderExtender[] {
             new DummyExtender(h => h, h => h),
             new DummyExtender(h => null, h => h)
         };
-        var chain = new ChainedCoseHeaderExtender(extenders);
+        ChainedCoseHeaderExtender chain = new ChainedCoseHeaderExtender(extenders);
         Assert.Throws<InvalidOperationException>(() => chain.ExtendProtectedHeaders(new CoseHeaderMap()));
     }
 
     [Test]
     public void ExtendUnProtectedHeaders_ThrowsIfAnyExtenderReturnsNull()
     {
-        var extenders = new ICoseHeaderExtender[] {
+        ICoseHeaderExtender[] extenders = new ICoseHeaderExtender[] {
             new DummyExtender(h => h, h => h),
             new DummyExtender(h => h, h => null)
         };
-        var chain = new ChainedCoseHeaderExtender(extenders);
+        ChainedCoseHeaderExtender chain = new ChainedCoseHeaderExtender(extenders);
         Assert.Throws<InvalidOperationException>(() => chain.ExtendUnProtectedHeaders(new CoseHeaderMap()));
     }
 
     [Test]
     public void ExtendProtectedHeaders_ChainsCorrectly()
     {
-        var chain = new ChainedCoseHeaderExtender(new ICoseHeaderExtender[] {
+        ChainedCoseHeaderExtender chain = new ChainedCoseHeaderExtender(new ICoseHeaderExtender[] {
             new DummyExtender(h => { h[new CoseHeaderLabel("a")] = CoseHeaderValue.FromInt32(1); return h; }, h => h!),
             new DummyExtender(h => { h[new CoseHeaderLabel("b")] = CoseHeaderValue.FromInt32(2); return h; }, h => h!)
         });
-        var map = new CoseHeaderMap();
-        var result = chain.ExtendProtectedHeaders(map);
+        CoseHeaderMap map = new CoseHeaderMap();
+        CoseHeaderMap result = chain.ExtendProtectedHeaders(map);
         result[new CoseHeaderLabel("a")].GetValueAsInt32().Should().Be(1);
         result[new CoseHeaderLabel("b")].GetValueAsInt32().Should().Be(2);
     }
@@ -89,12 +89,12 @@ public class ChainedCoseHeaderExtenderTests
     [Test]
     public void ExtendUnProtectedHeaders_ChainsCorrectly()
     {
-        var chain = new ChainedCoseHeaderExtender(new ICoseHeaderExtender[] {
+        ChainedCoseHeaderExtender chain = new ChainedCoseHeaderExtender(new ICoseHeaderExtender[] {
             new DummyExtender(h => h, h => { h![new CoseHeaderLabel("x")] = CoseHeaderValue.FromInt32(10); return h; }),
             new DummyExtender(h => h, h => { h![new CoseHeaderLabel("y")] = CoseHeaderValue.FromInt32(20); return h; })
         });
-        var map = new CoseHeaderMap();
-        var result = chain.ExtendUnProtectedHeaders(map);
+        CoseHeaderMap map = new CoseHeaderMap();
+        CoseHeaderMap result = chain.ExtendUnProtectedHeaders(map);
         result[new CoseHeaderLabel("x")].GetValueAsInt32().Should().Be(10);
         result[new CoseHeaderLabel("y")].GetValueAsInt32().Should().Be(20);
     }

@@ -142,7 +142,7 @@ public class X509Certificate2SigningKeyProviderTests
         TestX509Certificate2SigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
 
         // Test
-        var exceptionText = Assert.Throws<CoseSign1CertificateException>(() => testObj.TestGetCertificateChain(X509ChainSortOrder.RootFirst));
+        CoseSign1CertificateException? exceptionText = Assert.Throws<CoseSign1CertificateException>(() => testObj.TestGetCertificateChain(X509ChainSortOrder.RootFirst));
 
         // Validate
         exceptionText.Message.Should().MatchRegex(":Build is not successful for the provided SigningCertificate:");
@@ -159,7 +159,7 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
         // Test
-        var keyChain = testObj.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
         // Validate
         keyChain.Should().NotBeNull();
@@ -182,14 +182,14 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(testChainBuilder.Object, testChain[2]); // Use leaf certificate
 
         // Test
-        var keyChain = testObj.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
         // Validate
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(testChain.Count);
         
         // All keys should be RSA since test chain uses RSA certificates
-        foreach (var key in keyChain)
+        foreach (AsymmetricAlgorithm key in keyChain)
         {
             key.Should().BeAssignableTo<RSA>();
         }
@@ -206,7 +206,7 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
         // Test
-        var keyChain = testObj.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
         // Validate
         keyChain.Should().NotBeNull();
@@ -231,7 +231,7 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
 
         // Test - KeyChain should handle the exception gracefully
-        var keyChain = testObj.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
         // Validate
         keyChain.Should().NotBeNull();
@@ -249,17 +249,17 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
         // Test
-        var keyChain = testObj.KeyChain;
-        var rsaKey = testObj.GetRSAKey(publicKey: true);
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+        RSA? rsaKey = testObj.GetRSAKey(publicKey: true);
 
         // Validate
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(1);
         rsaKey.Should().NotBeNull();
         keyChain[0].Should().BeAssignableTo<RSA>();
-        
+
         // Both should represent the same public key
-        var chainRsaKey = (RSA)keyChain[0];
+        RSA chainRsaKey = (RSA)keyChain[0];
         chainRsaKey.KeySize.Should().Be(rsaKey!.KeySize);
     }
 
@@ -274,17 +274,17 @@ public class X509Certificate2SigningKeyProviderTests
         X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
         // Test
-        var keyChain = testObj.KeyChain;
-        var ecdsaKey = testObj.GetECDsaKey(publicKey: true);
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+        ECDsa? ecdsaKey = testObj.GetECDsaKey(publicKey: true);
 
         // Validate
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(1);
         ecdsaKey.Should().NotBeNull();
         keyChain[0].Should().BeAssignableTo<ECDsa>();
-        
+
         // Both should represent the same public key
-        var chainEcdsaKey = (ECDsa)keyChain[0];
+        ECDsa chainEcdsaKey = (ECDsa)keyChain[0];
         chainEcdsaKey.KeySize.Should().Be(ecdsaKey!.KeySize);
     }
 }

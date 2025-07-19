@@ -24,10 +24,10 @@ public static class TestUtils
         mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-        
+
         // Setup KeyChain property to return the public key from the certificate
-        var publicKey = selfSignedCertWithRSA.GetRSAPublicKey();
-        var keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
+        RSA? publicKey = selfSignedCertWithRSA.GetRSAPublicKey();
+        System.Collections.ObjectModel.ReadOnlyCollection<AsymmetricAlgorithm> keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
         mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(keyChain);
 
         return mockedSignerKeyProvider.Object;

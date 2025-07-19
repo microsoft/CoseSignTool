@@ -88,7 +88,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
         signedBytes.ToArray().Should().NotBeNull();
-        var results = CoseHandler.Validate(signedBytes.ToArray(), new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
+        ValidationResult results = CoseHandler.Validate(signedBytes.ToArray(), new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
         results.Success.Should().Be(true);
     }
 
@@ -128,7 +128,7 @@ public class CoseHandlerSignValidateTests
         // Sign bytes, validate stream
         ReadOnlyMemory<byte> signedBytesFromBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv));
         signedBytesFromBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytesFromBytes.ToArray(), BaseValidator, new MemoryStream(Payload1Bytes));
+        ValidationResult result = CoseHandler.Validate(signedBytesFromBytes.ToArray(), BaseValidator, new MemoryStream(Payload1Bytes));
         result.Success.Should().Be(true);
 
         // Sign stream, validate bytes
@@ -148,7 +148,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv, true);
         signedBytes.ToArray().Should().NotBeNull();
-        var returnedPayload = CoseHandler.GetPayload(signedBytes.ToArray(), out _, ValidRootSetPriv, RevMode);
+        string? returnedPayload = CoseHandler.GetPayload(signedBytes.ToArray(), out _, ValidRootSetPriv, RevMode);
         returnedPayload.Should().Be("Payload1!");
     }
 
@@ -197,7 +197,7 @@ public class CoseHandlerSignValidateTests
         signedBytes.ToArray().Should().NotBeNull();
         string validCommonName = Leaf1Priv.Subject;
 
-        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: "Not the cert common name");
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: "Not the cert common name");
         result.Success.Should().Be(false);
 
         result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: validCommonName);
@@ -237,7 +237,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert);
         signedBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, [SelfSignedCert], RevMode);
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, [SelfSignedCert], RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -293,7 +293,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
         signedBytes.ToArray().Should().NotBeNull();
-        var result = CoseHandler.Validate(signedBytes.ToArray(), BaseValidator);
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), BaseValidator);
 
         result.Success.Should().Be(false);
         result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMissing));
@@ -315,10 +315,10 @@ public class CoseHandlerSignValidateTests
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
 
         // Now change one character in the payload
-        var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
+        byte[] modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
 
         // Try to validate
-        var result = CoseHandler.Validate(signedBytes.ToArray(), modifiedPayload, ValidRootSetPriv, RevMode);
+        ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), modifiedPayload, ValidRootSetPriv, RevMode);
 
         result.Success.Should().Be(false);
         result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
@@ -327,40 +327,40 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void IndirectSignatureValidation()
     {
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
 
         // Try to validate byte[]
-        var result = CoseHandler.Validate(signedBytes, Payload1Bytes, ValidRootSetPriv, RevMode);
+        ValidationResult result = CoseHandler.Validate(signedBytes, Payload1Bytes, ValidRootSetPriv, RevMode);
         result.Success.Should().Be(true);
 
         // Try to validate stream
-        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
+        ValidationResult result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), ValidRootSetPriv, RevMode);
         result2.Success.Should().Be(true);
     }
 
     [TestMethod]
     public void IndirectSignatureModifiedPayload()
     {
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
 
         // Now change one character in the payload
-        var modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
+        byte[] modifiedPayload = Encoding.ASCII.GetBytes("Payload2!");
 
         // Try to validate byte[]
-        var result = CoseHandler.Validate(signedBytes, modifiedPayload, ValidRootSetPriv, RevMode);
+        ValidationResult result = CoseHandler.Validate(signedBytes, modifiedPayload, ValidRootSetPriv, RevMode);
         result.Success.Should().Be(false);
         result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
 
         // Try to validate stream
-        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(modifiedPayload), ValidRootSetPriv, RevMode);
+        ValidationResult result2 = CoseHandler.Validate(signedBytes, new MemoryStream(modifiedPayload), ValidRootSetPriv, RevMode);
         result2.Success.Should().Be(false);
         result2.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
     }
@@ -368,19 +368,19 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void IndirectSignatureUntrustedSignature()
     {
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: Payload1Bytes,
             contentType: "application/spdx+json",
             signingKeyProvider: new X509Certificate2CoseSigningKeyProvider(Leaf1Priv)).ToArray();
 
         // Try to validate byte[]
-        var result = CoseHandler.Validate(signedBytes, Payload1Bytes, null, RevMode);
+        ValidationResult result = CoseHandler.Validate(signedBytes, Payload1Bytes, null, RevMode);
         result.Success.Should().Be(false);
         result.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.TrustValidationFailed));
 
         // Try to validate stream
-        var result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), null, RevMode);
+        ValidationResult result2 = CoseHandler.Validate(signedBytes, new MemoryStream(Payload1Bytes), null, RevMode);
         result2.Success.Should().Be(false);
         result2.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.TrustValidationFailed));
     }
@@ -390,8 +390,8 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void SignBytesWithCert()
     {
-        var sig = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -399,16 +399,16 @@ public class CoseHandlerSignValidateTests
     public void SignBytesWithKeyProvider()
     {
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, Leaf1Priv);
-        var sig = CoseHandler.Sign(Payload1Bytes, keyProvider);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(Payload1Bytes, keyProvider);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 
     [TestMethod]
     public void SignStreamWithCert()
     {
-        var sig = CoseHandler.Sign(new MemoryStream(Payload1Bytes), Leaf1Priv);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(new MemoryStream(Payload1Bytes), Leaf1Priv);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -416,8 +416,8 @@ public class CoseHandlerSignValidateTests
     public void SignStreamWithKeyProvider()
     {
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, Leaf1Priv);
-        var sig = CoseHandler.Sign(new MemoryStream(Payload1Bytes), keyProvider);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(new MemoryStream(Payload1Bytes), keyProvider);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -426,12 +426,12 @@ public class CoseHandlerSignValidateTests
     {
         FileInfo f = new(FileSystemUtils.GeneratePayloadFile());
         File.Exists(f.FullName).Should().BeTrue();
-        var b = File.ReadAllBytes(f.FullName);
+        byte[] b = File.ReadAllBytes(f.FullName);
         b.Should().NotBeNull();
         b.Length.Should().BeGreaterThan(0);
 
-        var sig = CoseHandler.Sign(f, Leaf1Priv);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(f, Leaf1Priv);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 
@@ -452,8 +452,8 @@ public class CoseHandlerSignValidateTests
     {
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, Leaf1Priv);
         FileInfo f = new(FileSystemUtils.GeneratePayloadFile());
-        var sig = CoseHandler.Sign(f, keyProvider);
-        var result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
+        ReadOnlyMemory<byte> sig = CoseHandler.Sign(f, keyProvider);
+        ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
 }

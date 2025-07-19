@@ -59,7 +59,7 @@ public class PluginLoaderTests
         Directory.CreateDirectory(pluginsDirectory);
 
         // Act
-        var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
 
         // Assert
         Assert.IsNotNull(plugins);
@@ -86,12 +86,12 @@ public class PluginLoaderTests
             Directory.Delete(pluginsDirectory, true);
         }
         Directory.CreateDirectory(pluginsDirectory);
-        
-        var regularDll = Path.Join(pluginsDirectory, "RegularLibrary.dll");
+
+        string regularDll = Path.Join(pluginsDirectory, "RegularLibrary.dll");
         File.WriteAllText(regularDll, "fake dll content");
 
         // Act
-        var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
 
         // Assert
         Assert.IsNotNull(plugins);
@@ -108,10 +108,10 @@ public class PluginLoaderTests
     public void DiscoverPlugins_NonExistentDirectory_ReturnsEmptyList()
     {
         // Arrange
-        var nonExistentPath = Path.Join(_tempDirectory, "DoesNotExist");
+        string nonExistentPath = Path.Join(_tempDirectory, "DoesNotExist");
 
         // Act
-        var plugins = PluginLoader.DiscoverPlugins(nonExistentPath);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(nonExistentPath);
 
         // Assert
         Assert.IsNotNull(plugins);
@@ -125,7 +125,7 @@ public class PluginLoaderTests
     public void DiscoverPlugins_NullDirectory_ReturnsEmptyList()
     {
         // Act
-        var plugins = PluginLoader.DiscoverPlugins(null!);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(null!);
 
         // Assert
         Assert.IsNotNull(plugins);
@@ -139,7 +139,7 @@ public class PluginLoaderTests
     public void DiscoverPlugins_EmptyStringDirectory_ReturnsEmptyList()
     {
         // Act
-        var plugins = PluginLoader.DiscoverPlugins(string.Empty);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(string.Empty);
 
         // Assert
         Assert.IsNotNull(plugins);
@@ -163,17 +163,17 @@ public class PluginLoaderTests
             Directory.Delete(pluginsDirectory, true);
         }
         Directory.CreateDirectory(pluginsDirectory);
-        
-        var pluginFile1 = Path.Join(pluginsDirectory, "MyApp.Plugin.dll");
-        var pluginFile2 = Path.Join(pluginsDirectory, "SomeTool.Plugin.dll");
-        var regularFile = Path.Join(pluginsDirectory, "RegularLibrary.dll");
+
+        string pluginFile1 = Path.Join(pluginsDirectory, "MyApp.Plugin.dll");
+        string pluginFile2 = Path.Join(pluginsDirectory, "SomeTool.Plugin.dll");
+        string regularFile = Path.Join(pluginsDirectory, "RegularLibrary.dll");
         
         File.WriteAllText(pluginFile1, "fake plugin dll content");
         File.WriteAllText(pluginFile2, "fake plugin dll content");
         File.WriteAllText(regularFile, "fake dll content");
 
         // Act - This will attempt to load assemblies and fail, but should handle gracefully
-        var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
 
         // Assert - Should return empty list since these are fake DLLs
         Assert.IsNotNull(plugins);
@@ -210,7 +210,7 @@ public class PluginLoaderTests
         string unauthorizedDirectory = _tempDirectory;
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(unauthorizedDirectory));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -228,7 +228,7 @@ public class PluginLoaderTests
         string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(executableDirectory));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -246,7 +246,7 @@ public class PluginLoaderTests
         string parentDirectory = Directory.GetParent(executableDirectory)?.FullName ?? executableDirectory;
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(parentDirectory));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -268,7 +268,7 @@ public class PluginLoaderTests
         }
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(systemDirectory));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -299,7 +299,7 @@ public class PluginLoaderTests
         string relativePath = ".." + Path.DirectorySeparatorChar + ".." + Path.DirectorySeparatorChar + "somedir";
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(relativePath));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -312,7 +312,7 @@ public class PluginLoaderTests
     public void ValidatePluginDirectory_NullDirectory_ThrowsUnauthorizedAccessException()
     {
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(null!));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -326,7 +326,7 @@ public class PluginLoaderTests
     public void ValidatePluginDirectory_EmptyDirectory_ThrowsUnauthorizedAccessException()
     {
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory(string.Empty));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -340,7 +340,7 @@ public class PluginLoaderTests
     public void ValidatePluginDirectory_WhitespaceDirectory_ThrowsUnauthorizedAccessException()
     {
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.ValidatePluginDirectory("   "));
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -355,11 +355,11 @@ public class PluginLoaderTests
     {
         // Arrange
         string unauthorizedDirectory = _tempDirectory;
-        var pluginFile = Path.Join(unauthorizedDirectory, "Test.Plugin.dll");
+        string pluginFile = Path.Join(unauthorizedDirectory, "Test.Plugin.dll");
         File.WriteAllText(pluginFile, "fake plugin dll content");
 
         // Act & Assert
-        var exception = Assert.ThrowsException<UnauthorizedAccessException>(
+        UnauthorizedAccessException exception = Assert.ThrowsException<UnauthorizedAccessException>(
             () => PluginLoader.DiscoverPlugins(unauthorizedDirectory).ToList());
         
         Assert.IsTrue(exception.Message.Contains("Plugin loading is only allowed from the 'plugins' subdirectory"));
@@ -377,7 +377,7 @@ public class PluginLoaderTests
         string nonExistentPluginsDirectory = Path.Join(executableDirectory, "plugins");
 
         // Act & Assert - Should not throw, just return empty
-        var plugins = PluginLoader.DiscoverPlugins(nonExistentPluginsDirectory);
+        IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(nonExistentPluginsDirectory);
         Assert.IsNotNull(plugins);
         Assert.AreEqual(0, plugins.Count());
     }

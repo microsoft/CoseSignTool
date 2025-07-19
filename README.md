@@ -11,7 +11,9 @@ CoseSignTool and CoseHandler support three commands/methods:
 Additionally, CoseSignTool supports a **Plugin System** that allows developers to extend the tool with custom commands and third-party integrations:
 - **Custom Commands**: Add specialized functionality for specific workflows
 - **Service Integration**: Connect with external services like Azure Code Transparency Service
-- **Extensible Architecture**: Develop plugins using simple .NET interfaces
+- **Enhanced Architecture**: Subdirectory-based plugin deployment with dependency isolation (v2.0+)
+- **Dependency Management**: Each plugin can use different versions of dependencies without conflicts
+- **Backward Compatibility**: Legacy flat plugin structure still supported
 - **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
 
 For plugin development, see:

@@ -31,13 +31,13 @@ public class CoseSign1IntegrationTestsWithFactory
         CoseSign1MessageFactory Factory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
-        var responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider);
+        ReadOnlyMemory<byte> responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider);
 
         //verify response
         responseAsBytes.Should().NotBeNull();
         responseAsBytes.Should().BeOfType<ReadOnlyMemory<byte>>();
 
-        var responseAsCoseSign1Message = Factory.CreateCoseSign1Message(testPayload, testSigningKeyProvider);
+        CoseSign1Message responseAsCoseSign1Message = Factory.CreateCoseSign1Message(testPayload, testSigningKeyProvider);
         responseAsCoseSign1Message.Equals(CoseMessage.DecodeSign1(responseAsBytes.ToArray()));
 
         responseAsCoseSign1Message.ProtectedHeaders.Should().HaveCount(c => c == 4);
@@ -70,12 +70,12 @@ public class CoseSign1IntegrationTestsWithFactory
         CoseSign1MessageFactory Factory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
-        var responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
+        ReadOnlyMemory<byte> responseAsBytes = Factory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
 
         //verify response
         responseAsBytes.Should().NotBeNull();
         responseAsBytes.Should().BeOfType<ReadOnlyMemory<byte>>();
-        var responseAsCoseSign1Message = Factory.CreateCoseSign1Message(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
+        CoseSign1Message responseAsCoseSign1Message = Factory.CreateCoseSign1Message(testPayload, testSigningKeyProvider, false, ContentTypeConstants.Cose, testHeaderExtender);
 
         responseAsCoseSign1Message.ProtectedHeaders.Should().NotBeNull();
 
@@ -100,7 +100,7 @@ public class CoseSign1IntegrationTestsWithFactory
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("Payload1!");
 
         // Try creating CoseSign1Message with a null signing key provider
-        var exceptionText = Assert.Throws<ArgumentNullException>(() =>
+        ArgumentNullException? exceptionText = Assert.Throws<ArgumentNullException>(() =>
             coseSign1MessageFactory.CreateCoseSign1Message(testPayload,
             signingKeyProvider: null, embedPayload: false, ContentTypeConstants.Cose, headerExtender: null));
 
@@ -125,7 +125,7 @@ public class CoseSign1IntegrationTestsWithFactory
         CoseSign1MessageFactory testFactory = new();
 
         //call CreateCoseSign1MessageBytes method of CoseSign1MessageFactory
-        var exceptionText = Assert.Throws<ArgumentOutOfRangeException>(() => testFactory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider));
+        ArgumentOutOfRangeException? exceptionText = Assert.Throws<ArgumentOutOfRangeException>(() => testFactory.CreateCoseSign1MessageBytes(testPayload, testSigningKeyProvider));
 
         exceptionText.Message.Should().Be("The payload to sign is empty.");
     }

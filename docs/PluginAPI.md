@@ -10,7 +10,33 @@ All plugin interfaces and base classes are contained in the `CoseSignTool.Abstra
 
 - **Target Framework**: .NET 8.0
 - **Assembly Naming**: Must end with `.Plugin.dll` for automatic discovery
+- **Project Naming**: Must end with `.Plugin.csproj` for automatic CI/CD packaging
 - **Location**: Must be placed in the `plugins` subdirectory of CoseSignTool
+
+### 🚨 **Critical Naming Conventions**
+
+For full automatic integration with CoseSignTool:
+
+#### **Project File Naming** (CI/CD Auto-Packaging)
+```
+<ProjectName>.Plugin.csproj
+```
+**Examples:**
+- ✅ `YourCompany.CustomSigning.Plugin.csproj` → Automatically packaged in releases
+- ✅ `AzureKeyVault.Integration.Plugin.csproj` → Automatically packaged in releases
+- ❌ `CustomSigningTool.csproj` → NOT automatically packaged
+
+#### **Assembly Naming** (Runtime Discovery)
+```xml
+<AssemblyName>YourCompany.CustomSigning.Plugin</AssemblyName>
+```
+**Results in**: `YourCompany.CustomSigning.Plugin.dll` → Automatically discovered at runtime
+
+#### **Benefits of Following Conventions**
+- ✅ **Zero CI/CD Maintenance**: No manual updates to build scripts
+- ✅ **Automatic Packaging**: Included in all releases automatically
+- ✅ **Automatic Discovery**: Commands appear in CoseSignTool help
+- ✅ **Future-Proof**: Works with any number of plugins
 
 ## Interfaces
 

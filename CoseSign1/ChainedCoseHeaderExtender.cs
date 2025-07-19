@@ -53,7 +53,7 @@ public sealed class ChainedCoseHeaderExtender : ICoseHeaderExtender
         }
 
         CoseHeaderMap result = protectedHeaders;
-        foreach (var extender in Extenders)
+        foreach (ICoseHeaderExtender extender in Extenders)
         {
             result = extender.ExtendProtectedHeaders(result);
             if (result == null)
@@ -73,7 +73,7 @@ public sealed class ChainedCoseHeaderExtender : ICoseHeaderExtender
     public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
     {
         CoseHeaderMap? result = unProtectedHeaders;
-        foreach (var extender in Extenders)
+        foreach (ICoseHeaderExtender extender in Extenders)
         {
             result = extender.ExtendUnProtectedHeaders(result);
             if (result == null)

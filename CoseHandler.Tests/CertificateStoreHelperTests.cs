@@ -11,7 +11,7 @@ public class CertificateStoreHelperTests
 
     public CertificateStoreHelperTests()
     {
-        using var certStore = new X509Store(DefaultStoreName, DefaultStoreLocation);
+        using X509Store certStore = new X509Store(DefaultStoreName, DefaultStoreLocation);
         certStore.Open(OpenFlags.ReadOnly);
         StoreCertSet = certStore.Certificates.Take(5).ToList();
         StoreCertSet.Should().NotBeEmpty();
@@ -20,8 +20,8 @@ public class CertificateStoreHelperTests
     [TestMethod]
     public void GetCertByThumbprint()
     {
-        var storeCert = StoreCertSet?.First() ?? throw new ArgumentNullException();
-        var foundCert = CoseHandler.LookupCertificate(storeCert.Thumbprint);
+        X509Certificate2 storeCert = StoreCertSet?.First() ?? throw new ArgumentNullException();
+        X509Certificate2 foundCert = CoseHandler.LookupCertificate(storeCert.Thumbprint);
         foundCert.Should().Be(storeCert);
     }
 }

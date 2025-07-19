@@ -50,10 +50,10 @@ public class SignCommandTests
 
         // sign
         string[] args = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned, @"/ih", headersFile, @"/ep"];
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd1 = new SignCommand();
+        SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
 
         cmd1.IntHeaders.ForEach(h => h.IsProtected.Should().Be(false, "Protected flag is not set to default value of false when unsupplied"));
@@ -68,10 +68,10 @@ public class SignCommandTests
         // sign
         // The unprotected header on the command line must be ignored
         string[] args = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned, @"/ih", headersFile, @"/ep", "iuh", "created-at=1234567"];
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd1 = new SignCommand();
+        SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
 
         cmd1.IntHeaders.Count.Should().Be(2, "When both input file and command line headers are supplied, the command line headers are not ignored");
@@ -99,14 +99,14 @@ public class SignCommandTests
 
             // Act - Sign using the PFX with full chain
             string[] args = ["sign", "/p", payloadFile, "/pfx", pfxChainFile, "/ep"];
-            var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
             badArg.Should().BeNull("badArg should be null.");
 
-            var cmd = new SignCommand();
+            SignCommand cmd = new SignCommand();
             cmd.ApplyOptions(provider);
 
             // Verify LoadCert extracts the signing certificate and additional roots
-            var (cert, additionalRoots) = cmd.LoadCert();
+            (X509Certificate2 cert, List<X509Certificate2> additionalRoots) = cmd.LoadCert();
 
             // Assert
             cert.Should().NotBeNull("Signing certificate should be found");
@@ -114,20 +114,20 @@ public class SignCommandTests
             
             additionalRoots.Should().NotBeNull("Additional roots should be extracted from PFX");
             additionalRoots!.Count.Should().BeGreaterThan(0, "Should have additional certificates from the chain");
-            
+
             // Verify that only the leaf certificate has a private key
-            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+            X509Certificate2 leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
             cert.Thumbprint.Should().Be(leafCert.Thumbprint, "Should select the certificate with private key as signing cert");
             
             // Verify that the additional roots contain only public key certificates
-            foreach (var additionalCert in additionalRoots)
+            foreach (X509Certificate2 additionalCert in additionalRoots)
             {
                 additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
             }
-            
+
             // Verify that the additional roots contain the other certificates from the chain
             // (excluding the signing certificate itself)
-            var expectedAdditionalCerts = pfxChain.Cast<X509Certificate2>()
+            List<X509Certificate2> expectedAdditionalCerts = pfxChain.Cast<X509Certificate2>()
                 .Where(c => !c.Equals(cert))
                 .ToList();
             
@@ -147,7 +147,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -177,10 +177,10 @@ public class SignCommandTests
             {
                 // Act - Sign using the PFX with full chain
                 string[] args = ["sign", "/p", payloadFile, "/pfx", pfxChainFile, "/sf", signatureFile];
-                var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+                Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
                 badArg.Should().BeNull("badArg should be null.");
 
-                var cmd = new SignCommand();
+                SignCommand cmd = new SignCommand();
                 cmd.ApplyOptions(provider);
 
                 ExitCode result = cmd.Run();
@@ -191,9 +191,9 @@ public class SignCommandTests
                 
                 byte[] signatureBytes = File.ReadAllBytes(signatureFile);
                 signatureBytes.Length.Should().BeGreaterThan(0, "Signature file should not be empty");
-                
+
                 // Verify we can read the COSE signature (basic validation)
-                var coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
+                CoseSign1Message coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
                 coseMessage.Should().NotBeNull("Should be able to decode the COSE signature");
 
                 // Extract and validate the certificate chain from the COSE message
@@ -207,22 +207,22 @@ public class SignCommandTests
                 extractedCertChain!.Count.Should().Be(3, "Certificate chain should contain all 3 certificates (root, intermediate, leaf)");
 
                 // Verify that the extracted signing certificate matches our test leaf certificate
-                var expectedSigningCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+                X509Certificate2 expectedSigningCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
                 extractedSigningCert!.Thumbprint.Should().Be(expectedSigningCert.Thumbprint, 
                     "Extracted signing certificate should match the expected signing certificate");
 
                 // Verify the certificate chain contains all expected certificates
-                var expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
-                foreach (var expectedCert in expectedCertificates)
+                List<X509Certificate2> expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
+                foreach (X509Certificate2? expectedCert in expectedCertificates)
                 {
                     extractedCertChain.Any(c => c.Thumbprint == expectedCert.Thumbprint).Should().BeTrue(
                         $"Certificate chain should contain certificate with subject '{expectedCert.Subject}'");
                 }
-                
+
                 // Verify that intermediate and root certificates in the extracted chain don't have private keys
                 // (This validates that the PFX structure was correctly built with only leaf having private key)
-                var nonLeafCerts = extractedCertChain.Where(c => c.Thumbprint != expectedSigningCert.Thumbprint);
-                foreach (var cert in nonLeafCerts)
+                IEnumerable<X509Certificate2> nonLeafCerts = extractedCertChain.Where(c => c.Thumbprint != expectedSigningCert.Thumbprint);
+                foreach (X509Certificate2? cert in nonLeafCerts)
                 {
                     cert.HasPrivateKey.Should().BeFalse($"Non-leaf certificate with subject '{cert.Subject}' should not have private key");
                 }
@@ -244,7 +244,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -274,10 +274,10 @@ public class SignCommandTests
             {
                 // Act - Sign using the PFX with full chain
                 string[] args = ["sign", "/p", payloadFile, "/pfx", pfxChainFile, "/sf", signatureFile];
-                var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+                Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
                 badArg.Should().BeNull("badArg should be null.");
 
-                var cmd = new SignCommand();
+                SignCommand cmd = new SignCommand();
                 cmd.ApplyOptions(provider);
 
                 ExitCode result = cmd.Run();
@@ -288,9 +288,9 @@ public class SignCommandTests
                 
                 byte[] signatureBytes = File.ReadAllBytes(signatureFile);
                 signatureBytes.Length.Should().BeGreaterThan(0, "Signature file should not be empty");
-                
+
                 // Verify we can read the COSE signature (basic validation)
-                var coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
+                CoseSign1Message coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
                 coseMessage.Should().NotBeNull("Should be able to decode the COSE signature");
 
                 // Extract and validate the certificate chain from the COSE message
@@ -304,22 +304,22 @@ public class SignCommandTests
                 extractedCertChain!.Count.Should().Be(3, "Certificate chain should contain all 3 certificates (root, intermediate, leaf)");
 
                 // Verify that the extracted signing certificate matches our test leaf certificate
-                var expectedSigningCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+                X509Certificate2 expectedSigningCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
                 extractedSigningCert!.Thumbprint.Should().Be(expectedSigningCert.Thumbprint, 
                     "Extracted signing certificate should match the expected signing certificate");
 
                 // Verify the certificate chain contains all expected certificates
-                var expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
-                foreach (var expectedCert in expectedCertificates)
+                List<X509Certificate2> expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
+                foreach (X509Certificate2? expectedCert in expectedCertificates)
                 {
                     extractedCertChain.Any(c => c.Thumbprint == expectedCert.Thumbprint).Should().BeTrue(
                         $"Certificate chain should contain certificate with subject '{expectedCert.Subject}'");
                 }
-                
+
                 // Verify that intermediate and root certificates in the extracted chain have private keys as a test
                 // (This validates that a PFX structure that was correctly built with the chain having private key)
-                var nonLeafCerts = extractedCertChain.Where(c => c.Thumbprint != expectedSigningCert.Thumbprint);
-                foreach (var cert in nonLeafCerts)
+                IEnumerable<X509Certificate2> nonLeafCerts = extractedCertChain.Where(c => c.Thumbprint != expectedSigningCert.Thumbprint);
+                foreach (X509Certificate2? cert in nonLeafCerts)
                 {
                     cert.HasPrivateKey.Should().BeFalse($"Non-leaf certificate with subject '{cert.Subject}' should not have private key when extracted from COSE message.");
                 }
@@ -341,7 +341,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -364,10 +364,10 @@ public class SignCommandTests
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
 
             // Get the leaf certificate (the one with private key)
-            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+            X509Certificate2 leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
 
             // Create a SignCommand and configure it to use the PFX with a specific thumbprint
-            var cmd = new SignCommand
+            SignCommand cmd = new SignCommand
             {
                 PfxCertificate = pfxFileWithChain,
                 Password = CertPassword,
@@ -375,7 +375,7 @@ public class SignCommandTests
             };
 
             // Test LoadCert method
-            var (signingCert, additionalRoots) = cmd.LoadCert();
+            (X509Certificate2 signingCert, List<X509Certificate2> additionalRoots) = cmd.LoadCert();
             
             // Verify the signing certificate matches the specified thumbprint
             signingCert.Should().NotBeNull("Signing certificate should be found");
@@ -388,7 +388,7 @@ public class SignCommandTests
             additionalRoots.Should().NotContain(signingCert, "Additional roots should not contain the signing certificate");
             
             // Verify that additional roots don't have private keys
-            foreach (var additionalCert in additionalRoots!)
+            foreach (X509Certificate2 additionalCert in additionalRoots!)
             {
                 additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
             }
@@ -401,7 +401,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -424,7 +424,7 @@ public class SignCommandTests
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
 
             // Create a SignCommand with an invalid thumbprint
-            var cmd = new SignCommand
+            SignCommand cmd = new SignCommand
             {
                 PfxCertificate = pfxFileWithChain,
                 Password = CertPassword,
@@ -444,7 +444,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -468,14 +468,14 @@ public class SignCommandTests
             File.WriteAllBytes(pfxFileWithChain, pfxBytes);
 
             // Get the leaf certificate (the one with private key)
-            var leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+            X509Certificate2 leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
 
             // Sign using the PFX with a specific thumbprint
             string[] args = ["sign", "/p", payloadFile, "/pfx", pfxFileWithChain, "/pw", CertPassword, "/th", leafCert.Thumbprint, "/ep"];
-            var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
             badArg.Should().BeNull("badArg should be null.");
 
-            var cmd = new SignCommand();
+            SignCommand cmd = new SignCommand();
             cmd.ApplyOptions(provider);
             ExitCode result = cmd.Run();
 
@@ -483,12 +483,12 @@ public class SignCommandTests
             result.Should().Be(ExitCode.Success, "Signing with PFX and specific thumbprint should succeed");
 
             // Verify that the correct certificate was used
-            var (signingCert, additionalRoots) = cmd.LoadCert();
+            (X509Certificate2 signingCert, List<X509Certificate2> additionalRoots) = cmd.LoadCert();
             signingCert.Thumbprint.Should().Be(leafCert.Thumbprint, "Should use the certificate with the specified thumbprint");
             additionalRoots.Should().HaveCount(2, "Should extract other certificates as additional roots");
             
             // Verify that additional roots don't have private keys
-            foreach (var additionalCert in additionalRoots!)
+            foreach (X509Certificate2 additionalCert in additionalRoots!)
             {
                 additionalCert.HasPrivateKey.Should().BeFalse("Additional root certificates should not have private keys");
             }
@@ -499,7 +499,7 @@ public class SignCommandTests
             File.Exists(signatureFilePath!).Should().BeTrue("Signature file should exist");
 
             byte[] signatureBytes = File.ReadAllBytes(signatureFilePath);
-            var coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
+            CoseSign1Message coseMessage = CoseSign1Message.DecodeSign1(signatureBytes);
 
             // Extract and validate certificates from the COSE message
             bool foundSigningCert = coseMessage.TryGetSigningCertificate(out X509Certificate2? extractedSigningCert);
@@ -513,12 +513,12 @@ public class SignCommandTests
             extractedCertChain!.Count.Should().Be(3, "Should have full certificate chain embedded");
 
             // Verify that the chain contains the expected certificates
-            var extractedLeafCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == leafCert.Thumbprint);
+            X509Certificate2? extractedLeafCert = extractedCertChain.FirstOrDefault(c => c.Thumbprint == leafCert.Thumbprint);
             extractedLeafCert.Should().NotBeNull("Leaf certificate should be in the chain");
 
             // Verify that other certificates from our PFX chain are also present
-            var expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
-            foreach (var expectedCert in expectedCertificates)
+            List<X509Certificate2> expectedCertificates = pfxChain.Cast<X509Certificate2>().ToList();
+            foreach (X509Certificate2? expectedCert in expectedCertificates)
             {
                 extractedCertChain.Any(c => c.Thumbprint == expectedCert.Thumbprint).Should().BeTrue(
                     $"Certificate with subject '{expectedCert.Subject}' should be in the extracted chain");
@@ -542,7 +542,7 @@ public class SignCommandTests
             }
             
             // Dispose certificates
-            foreach (var cert in pfxChain)
+            foreach (X509Certificate2 cert in pfxChain)
             {
                 cert.Dispose();
             }
@@ -555,10 +555,10 @@ public class SignCommandTests
     public void IsIssuer_ValidIssuerSubjectRelationship_ReturnsTrue()
     {
         // Arrange
-        var certChain = TestCertificateUtils.CreateTestChain("IsIssuer Test Chain");
-        var rootCert = certChain[0];
-        var intermediateCert = certChain[1];
-        var leafCert = certChain[2];
+        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain("IsIssuer Test Chain");
+        X509Certificate2 rootCert = certChain[0];
+        X509Certificate2 intermediateCert = certChain[1];
+        X509Certificate2 leafCert = certChain[2];
 
         try
         {
@@ -585,7 +585,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in certChain)
+            foreach (X509Certificate2 cert in certChain)
             {
                 cert.Dispose();
             }
@@ -596,7 +596,7 @@ public class SignCommandTests
     public void IsIssuer_SelfSignedCertificate_ReturnsTrue()
     {
         // Arrange
-        var selfSignedCert = TestCertificateUtils.CreateCertificate("Self-Signed Test Certificate");
+        X509Certificate2 selfSignedCert = TestCertificateUtils.CreateCertificate("Self-Signed Test Certificate");
 
         try
         {
@@ -618,8 +618,8 @@ public class SignCommandTests
     public void IsIssuer_UnrelatedCertificates_ReturnsFalse()
     {
         // Arrange
-        var cert1 = TestCertificateUtils.CreateCertificate("Unrelated Certificate 1");
-        var cert2 = TestCertificateUtils.CreateCertificate("Unrelated Certificate 2");
+        X509Certificate2 cert1 = TestCertificateUtils.CreateCertificate("Unrelated Certificate 1");
+        X509Certificate2 cert2 = TestCertificateUtils.CreateCertificate("Unrelated Certificate 2");
 
         try
         {
@@ -642,8 +642,8 @@ public class SignCommandTests
     public void IsIssuer_DifferentSubjectIssuerNames_ReturnsFalse()
     {
         // Arrange
-        var certChain1 = TestCertificateUtils.CreateTestChain("Chain 1");
-        var certChain2 = TestCertificateUtils.CreateTestChain("Chain 2");
+        X509Certificate2Collection certChain1 = TestCertificateUtils.CreateTestChain("Chain 1");
+        X509Certificate2Collection certChain2 = TestCertificateUtils.CreateTestChain("Chain 2");
 
         try
         {
@@ -657,11 +657,11 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in certChain1)
+            foreach (X509Certificate2 cert in certChain1)
             {
                 cert.Dispose();
             }
-            foreach (var cert in certChain2)
+            foreach (X509Certificate2 cert in certChain2)
             {
                 cert.Dispose();
             }
@@ -672,8 +672,8 @@ public class SignCommandTests
     public void BuildCertificateChain_ValidChain_ReturnsCorrectOrder()
     {
         // Arrange
-        var originalChain = TestCertificateUtils.CreateTestChain("Chain Building Test");
-        var shuffledCollection = new X509Certificate2Collection();
+        X509Certificate2Collection originalChain = TestCertificateUtils.CreateTestChain("Chain Building Test");
+        X509Certificate2Collection shuffledCollection = new X509Certificate2Collection();
         
         // Add certificates in random order to test sorting
         shuffledCollection.Add(originalChain[2]); // leaf
@@ -683,7 +683,7 @@ public class SignCommandTests
         try
         {
             // Act
-            var result = (List<X509Certificate2>)typeof(SignCommand)
+            List<X509Certificate2> result = (List<X509Certificate2>)typeof(SignCommand)
                 .GetMethod("BuildCertificateChain", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [shuffledCollection, null])!;
 
@@ -707,7 +707,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in originalChain)
+            foreach (X509Certificate2 cert in originalChain)
             {
                 cert.Dispose();
             }
@@ -718,9 +718,9 @@ public class SignCommandTests
     public void BuildCertificateChain_WithSpecificThumbprint_ReturnsChainStartingWithSpecifiedCert()
     {
         // Arrange
-        var originalChain = TestCertificateUtils.CreateTestChain("Thumbprint Chain Test");
-        var collection = new X509Certificate2Collection();
-        foreach (var cert in originalChain)
+        X509Certificate2Collection originalChain = TestCertificateUtils.CreateTestChain("Thumbprint Chain Test");
+        X509Certificate2Collection collection = new X509Certificate2Collection();
+        foreach (X509Certificate2 cert in originalChain)
         {
             collection.Add(cert);
         }
@@ -731,7 +731,7 @@ public class SignCommandTests
         try
         {
             // Act
-            var result = (List<X509Certificate2>)typeof(SignCommand)
+            List<X509Certificate2> result = (List<X509Certificate2>)typeof(SignCommand)
                 .GetMethod("BuildCertificateChain", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [collection, targetThumbprint])!;
 
@@ -742,7 +742,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in originalChain)
+            foreach (X509Certificate2 cert in originalChain)
             {
                 cert.Dispose();
             }
@@ -753,9 +753,9 @@ public class SignCommandTests
     public void BuildCertificateChain_WithInvalidThumbprint_ReturnsEmptyList()
     {
         // Arrange
-        var originalChain = TestCertificateUtils.CreateTestChain("Invalid Thumbprint Test");
-        var collection = new X509Certificate2Collection();
-        foreach (var cert in originalChain)
+        X509Certificate2Collection originalChain = TestCertificateUtils.CreateTestChain("Invalid Thumbprint Test");
+        X509Certificate2Collection collection = new X509Certificate2Collection();
+        foreach (X509Certificate2 cert in originalChain)
         {
             collection.Add(cert);
         }
@@ -765,7 +765,7 @@ public class SignCommandTests
         try
         {
             // Act
-            var result = (List<X509Certificate2>)typeof(SignCommand)
+            List<X509Certificate2> result = (List<X509Certificate2>)typeof(SignCommand)
                 .GetMethod("BuildCertificateChain", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [collection, invalidThumbprint])!;
 
@@ -775,7 +775,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in originalChain)
+            foreach (X509Certificate2 cert in originalChain)
             {
                 cert.Dispose();
             }
@@ -786,13 +786,13 @@ public class SignCommandTests
     public void BuildCertificateChain_SingleSelfSignedCertificate_ReturnsSingleCertificate()
     {
         // Arrange
-        var selfSignedCert = TestCertificateUtils.CreateCertificate("Single Self-Signed Test");
-        var collection = new X509Certificate2Collection { selfSignedCert };
+        X509Certificate2 selfSignedCert = TestCertificateUtils.CreateCertificate("Single Self-Signed Test");
+        X509Certificate2Collection collection = new X509Certificate2Collection { selfSignedCert };
 
         try
         {
             // Act
-            var result = (List<X509Certificate2>)typeof(SignCommand)
+            List<X509Certificate2> result = (List<X509Certificate2>)typeof(SignCommand)
                 .GetMethod("BuildCertificateChain", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [collection, null])!;
 
@@ -811,9 +811,9 @@ public class SignCommandTests
     public void IsIssuerOfAnyCertificate_CertificateIsIssuer_ReturnsTrue()
     {
         // Arrange
-        var certChain = TestCertificateUtils.CreateTestChain("IsIssuerOfAny Test");
-        var rootCert = certChain[0];
-        var certList = certChain.Cast<X509Certificate2>().ToList();
+        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain("IsIssuerOfAny Test");
+        X509Certificate2 rootCert = certChain[0];
+        List<X509Certificate2> certList = certChain.Cast<X509Certificate2>().ToList();
 
         try
         {
@@ -827,7 +827,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in certChain)
+            foreach (X509Certificate2 cert in certChain)
             {
                 cert.Dispose();
             }
@@ -838,9 +838,9 @@ public class SignCommandTests
     public void IsIssuerOfAnyCertificate_CertificateIsNotIssuer_ReturnsFalse()
     {
         // Arrange
-        var certChain = TestCertificateUtils.CreateTestChain("IsIssuerOfAny Leaf Test");
-        var leafCert = certChain[2]; // Leaf certificate
-        var certList = certChain.Cast<X509Certificate2>().ToList();
+        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain("IsIssuerOfAny Leaf Test");
+        X509Certificate2 leafCert = certChain[2]; // Leaf certificate
+        List<X509Certificate2> certList = certChain.Cast<X509Certificate2>().ToList();
 
         try
         {
@@ -854,7 +854,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in certChain)
+            foreach (X509Certificate2 cert in certChain)
             {
                 cert.Dispose();
             }
@@ -865,14 +865,14 @@ public class SignCommandTests
     public void FindIssuer_ValidIssuerExists_ReturnsCorrectIssuer()
     {
         // Arrange
-        var certChain = TestCertificateUtils.CreateTestChain("FindIssuer Test");
-        var leafCert = certChain[2];
-        var candidates = certChain.Cast<X509Certificate2>().ToList();
+        X509Certificate2Collection certChain = TestCertificateUtils.CreateTestChain("FindIssuer Test");
+        X509Certificate2 leafCert = certChain[2];
+        List<X509Certificate2> candidates = certChain.Cast<X509Certificate2>().ToList();
 
         try
         {
             // Act
-            var result = (X509Certificate2?)typeof(SignCommand)
+            X509Certificate2 result = (X509Certificate2?)typeof(SignCommand)
                 .GetMethod("FindIssuer", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [leafCert, candidates])!;
 
@@ -882,7 +882,7 @@ public class SignCommandTests
         }
         finally
         {
-            foreach (var cert in certChain)
+            foreach (X509Certificate2 cert in certChain)
             {
                 cert.Dispose();
             }
@@ -893,14 +893,14 @@ public class SignCommandTests
     public void FindIssuer_NoValidIssuerExists_ReturnsNull()
     {
         // Arrange
-        var cert1 = TestCertificateUtils.CreateCertificate("Standalone Certificate 1");
-        var cert2 = TestCertificateUtils.CreateCertificate("Standalone Certificate 2");
-        var candidates = new List<X509Certificate2> { cert2 };
+        X509Certificate2 cert1 = TestCertificateUtils.CreateCertificate("Standalone Certificate 1");
+        X509Certificate2 cert2 = TestCertificateUtils.CreateCertificate("Standalone Certificate 2");
+        List<X509Certificate2> candidates = new List<X509Certificate2> { cert2 };
 
         try
         {
             // Act
-            var result = (X509Certificate2?)typeof(SignCommand)
+            X509Certificate2 result = (X509Certificate2?)typeof(SignCommand)
                 .GetMethod("FindIssuer", BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [cert1, candidates])!;
 

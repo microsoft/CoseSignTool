@@ -11,7 +11,9 @@ The Azure CTS plugin (`CoseSignTool.CTS.Plugin`) extends CoseSignTool with comma
 
 ## Installation
 
-The Azure CTS plugin is automatically included with CoseSignTool releases. No additional installation is required.
+The Azure CTS plugin is automatically included with CoseSignTool releases using the enhanced subdirectory architecture for dependency isolation. No additional installation is required.
+
+**Plugin Location:** The plugin is deployed to `plugins/CoseSignTool.CTS.Plugin/` with all its Azure dependencies isolated in the subdirectory, preventing conflicts with other plugins or the main application.
 
 ## Authentication
 

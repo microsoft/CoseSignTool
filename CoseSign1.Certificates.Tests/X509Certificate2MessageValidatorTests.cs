@@ -94,7 +94,7 @@ public class X509Certificate2MessageValidatorTests
 
         CoseSign1Message message = factory.CreateCoseSign1Message(testArray, keyProvider, embedPayload: true, ContentTypeConstants.Cose);
 
-        mockValidator.Object.TryValidate(message, out var results).Should().BeTrue(results.First().ResultMessage);
+        mockValidator.Object.TryValidate(message, out List<CoseSign1ValidationResult>? results).Should().BeTrue(results.First().ResultMessage);
         results.Should().NotBeNull();
         results.Count.Should().Be(1);
         results[0].PassedValidation.Should().BeTrue();

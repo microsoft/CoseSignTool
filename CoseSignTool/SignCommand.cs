@@ -330,9 +330,9 @@ public class SignCommand : CoseCommand
             // Load the PFX as a certificate store to extract all certificates
             X509Certificate2Collection pfxCertificates = [];
             pfxCertificates.Import(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
-            
+
             // Build the certificate chain in leaf-first order
-            var chainedCertificates = BuildCertificateChain(pfxCertificates, Thumbprint);
+            List<X509Certificate2> chainedCertificates = BuildCertificateChain(pfxCertificates, Thumbprint);
             
             if (chainedCertificates.Count == 0)
             {
@@ -365,8 +365,8 @@ public class SignCommand : CoseCommand
     /// <returns>A list of certificates ordered from leaf to root.</returns>
     private static List<X509Certificate2> BuildCertificateChain(X509Certificate2Collection certificates, string? targetThumbprint = null)
     {
-        var certList = certificates.Cast<X509Certificate2>().ToList();
-        var result = new List<X509Certificate2>();
+        List<X509Certificate2> certList = certificates.Cast<X509Certificate2>().ToList();
+        List<X509Certificate2> result = new List<X509Certificate2>();
         
         // If a specific thumbprint is provided, start with that certificate
         X509Certificate2? leafCert = null;
@@ -397,10 +397,10 @@ public class SignCommand : CoseCommand
         {
             return result; // No suitable leaf certificate found
         }
-        
+
         // Build the chain starting from the leaf
-        var current = leafCert;
-        var usedCerts = new HashSet<string>();
+        X509Certificate2? current = leafCert;
+        HashSet<string> usedCerts = new HashSet<string>();
         
         while (current != null && !usedCerts.Contains(current.Thumbprint))
         {
@@ -460,7 +460,7 @@ public class SignCommand : CoseCommand
         try
         {
             // Use the built-in X.509 chain building to verify the relationship
-            using var chain = new X509Chain();
+            using X509Chain chain = new X509Chain();
             chain.ChainPolicy.ExtraStore.Add(issuer);
             chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
@@ -469,7 +469,7 @@ public class SignCommand : CoseCommand
             if (chain.Build(subject))
             {
                 // Check if the issuer certificate is in the chain elements
-                foreach (var element in chain.ChainElements)
+                foreach (X509ChainElement element in chain.ChainElements)
                 {
                     if (element.Certificate.Thumbprint.Equals(issuer.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
@@ -506,29 +506,29 @@ public class SignCommand : CoseCommand
         try
         {
             // Get the public key from the issuer
-            var publicKey = issuer.PublicKey;
+            PublicKey publicKey = issuer.PublicKey;
             if (publicKey == null)
             {
                 return false;
             }
-            
+
             // Get the signature algorithm and signature value from the subject certificate
-            var signatureAlgorithm = subject.SignatureAlgorithm;
+            Oid signatureAlgorithm = subject.SignatureAlgorithm;
             if (signatureAlgorithm == null)
             {
                 return false;
             }
-            
+
             // Extract the To-Be-Signed (TBS) data from the subject certificate
             // This is the raw certificate data without the signature
-            var rawData = subject.RawData;
+            byte[] rawData = subject.RawData;
             if (rawData == null || rawData.Length == 0)
             {
                 return false;
             }
             
             // Parse the certificate to extract TBS and signature
-            var (tbsData, signatureData) = ExtractTbsAndSignature(rawData);
+            (byte[] tbsData, byte[] signatureData) = ExtractTbsAndSignature(rawData);
             if (tbsData == null || signatureData == null)
             {
                 return false;
@@ -560,18 +560,18 @@ public class SignCommand : CoseCommand
         try
         {
             // Use AsnReader to parse the certificate structure
-            var reader = new System.Formats.Asn1.AsnReader(rawData, System.Formats.Asn1.AsnEncodingRules.DER);
-            var certSequence = reader.ReadSequence();
-            
+            System.Formats.Asn1.AsnReader reader = new System.Formats.Asn1.AsnReader(rawData, System.Formats.Asn1.AsnEncodingRules.DER);
+            System.Formats.Asn1.AsnReader certSequence = reader.ReadSequence();
+
             // Read the TBS certificate (first element) by marking position and reading
-            var tbsReader = certSequence.ReadSequence();
-            var tbsData = tbsReader.ReadEncodedValue().ToArray();
+            System.Formats.Asn1.AsnReader tbsReader = certSequence.ReadSequence();
+            byte[] tbsData = tbsReader.ReadEncodedValue().ToArray();
             
             // Skip the signature algorithm identifier (second element)
             certSequence.ReadSequence();
-            
+
             // Read the signature value (third element)
-            var signatureData = certSequence.ReadBitString(out _);
+            byte[] signatureData = certSequence.ReadBitString(out _);
             
             return (tbsData, signatureData);
         }
@@ -588,7 +588,7 @@ public class SignCommand : CoseCommand
     {
         try
         {
-            using var rsa = publicKey.GetRSAPublicKey();
+            using RSA? rsa = publicKey.GetRSAPublicKey();
             if (rsa == null)
             {
                 return false;
@@ -609,7 +609,7 @@ public class SignCommand : CoseCommand
     {
         try
         {
-            using var rsa = publicKey.GetRSAPublicKey();
+            using RSA? rsa = publicKey.GetRSAPublicKey();
             if (rsa == null)
             {
                 return false;
@@ -630,7 +630,7 @@ public class SignCommand : CoseCommand
     {
         try
         {
-            using var ecdsa = publicKey.GetECDsaPublicKey();
+            using ECDsa? ecdsa = publicKey.GetECDsaPublicKey();
             if (ecdsa == null)
             {
                 return false;
@@ -651,7 +651,7 @@ public class SignCommand : CoseCommand
     {
         try
         {
-            using var ecdsa = publicKey.GetECDsaPublicKey();
+            using ECDsa? ecdsa = publicKey.GetECDsaPublicKey();
             if (ecdsa == null)
             {
                 return false;

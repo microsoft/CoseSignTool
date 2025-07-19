@@ -61,7 +61,7 @@ public class CoseX509HeadersTests
 
         CborWriter writer = new(CborConformanceMode.Strict);
         writer.WriteStartArray(expectedCerts.Count);
-        foreach (var cert in expectedCerts)
+        foreach (X509Certificate2 cert in expectedCerts)
         {
             writer.WriteByteString(cert.RawData);
         }

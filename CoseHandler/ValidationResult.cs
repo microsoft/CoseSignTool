@@ -68,7 +68,7 @@ public struct ValidationResult(
         if (showCertDetails && CertificateChain is not null && CertificateChain.Count > 0)
         {
             StringBuilder certDetailsBuilder = new($"Certificate chain details:{newline}");
-            foreach (var cert in CertificateChain)
+            foreach (X509Certificate2 cert in CertificateChain)
             {
                 certDetailsBuilder.Append(
                     $"{newline}Subject Distinguished Name: {cert.Subject}{newline}" +
@@ -118,7 +118,7 @@ public struct ValidationResult(
                 .Distinct();
 
         // Now filter them down to just chain status errors.
-        var certChainErrors = allIncludes?
+        List<X509ChainStatus>? certChainErrors = allIncludes?
             .Where(s => s.GetType() == typeof(X509ChainStatus))
             .Cast<X509ChainStatus>()
             .Where(f => f.Status != X509ChainStatusFlags.NoError)

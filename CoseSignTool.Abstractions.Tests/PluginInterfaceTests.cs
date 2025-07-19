@@ -105,7 +105,7 @@ public class PluginCommandBaseTests
     public void TestPluginCommand_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        var command = new TestPluginCommand();
+        TestPluginCommand command = new TestPluginCommand();
 
         // Assert
         Assert.AreEqual("test", command.Name);
@@ -122,14 +122,14 @@ public class PluginCommandBaseTests
     public async Task TestPluginCommand_ExecuteAsync_ReturnsSuccess()
     {
         // Arrange
-        var command = new TestPluginCommand(PluginExitCode.Success);
-        var configData = new Dictionary<string, string?>();
-        var configuration = new ConfigurationBuilder()
+        TestPluginCommand command = new TestPluginCommand(PluginExitCode.Success);
+        Dictionary<string, string?> configData = new Dictionary<string, string?>();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.Success, result);
@@ -142,14 +142,14 @@ public class PluginCommandBaseTests
     public async Task TestPluginCommand_ExecuteAsync_ReturnsFailure()
     {
         // Arrange
-        var command = new TestPluginCommand(PluginExitCode.UnknownError);
-        var configData = new Dictionary<string, string?>();
-        var configuration = new ConfigurationBuilder()
+        TestPluginCommand command = new TestPluginCommand(PluginExitCode.UnknownError);
+        Dictionary<string, string?> configData = new Dictionary<string, string?>();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UnknownError, result);
@@ -162,12 +162,12 @@ public class PluginCommandBaseTests
     public async Task TestPluginCommand_ExecuteAsync_WithCancellation_ThrowsOperationCanceledException()
     {
         // Arrange
-        var command = new TestPluginCommand();
-        var configData = new Dictionary<string, string?>();
-        var configuration = new ConfigurationBuilder()
+        TestPluginCommand command = new TestPluginCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
-        var cancellationToken = new CancellationToken(true);
+        CancellationToken cancellationToken = new CancellationToken(true);
 
         // Act & Assert
         await Assert.ThrowsExceptionAsync<OperationCanceledException>(
@@ -181,9 +181,9 @@ public class PluginCommandBaseTests
     public async Task TestPluginCommand_ExecuteAsync_ThrowsException_PropagatesException()
     {
         // Arrange
-        var command = new TestPluginCommand(shouldThrow: true);
-        var configData = new Dictionary<string, string?>();
-        var configuration = new ConfigurationBuilder()
+        TestPluginCommand command = new TestPluginCommand(shouldThrow: true);
+        Dictionary<string, string?> configData = new Dictionary<string, string?>();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
@@ -206,9 +206,9 @@ public class PluginInterfaceTests
     public void TestPlugin_Properties_ReturnCorrectValues()
     {
         // Arrange
-        var command1 = new TestPluginCommand();
-        var command2 = new TestPluginCommand();
-        var plugin = new TestPlugin(command1, command2);
+        TestPluginCommand command1 = new TestPluginCommand();
+        TestPluginCommand command2 = new TestPluginCommand();
+        TestPlugin plugin = new TestPlugin(command1, command2);
 
         // Act & Assert
         Assert.AreEqual("TestPlugin", plugin.Name);
@@ -227,7 +227,7 @@ public class PluginInterfaceTests
     public void TestPlugin_Initialize_SetsInitializedFlag()
     {
         // Arrange
-        var plugin = new TestPlugin();
+        TestPlugin plugin = new TestPlugin();
 
         // Act
         plugin.Initialize();
@@ -243,7 +243,7 @@ public class PluginInterfaceTests
     public void TestPlugin_WithNoCommands_HasEmptyCommandsList()
     {
         // Arrange & Act
-        var plugin = new TestPlugin();
+        TestPlugin plugin = new TestPlugin();
 
         // Assert
         Assert.AreEqual(0, plugin.Commands.Count());
@@ -275,9 +275,9 @@ public class PluginExitCodeTests
     public void PluginExitCode_CanBeCastToInt()
     {
         // Arrange
-        var successCode = PluginExitCode.Success;
-        var helpCode = PluginExitCode.HelpRequested;
-        var missingOptionCode = PluginExitCode.MissingRequiredOption;
+        PluginExitCode successCode = PluginExitCode.Success;
+        PluginExitCode helpCode = PluginExitCode.HelpRequested;
+        PluginExitCode missingOptionCode = PluginExitCode.MissingRequiredOption;
 
         // Act & Assert
         Assert.AreEqual(0, (int)successCode);

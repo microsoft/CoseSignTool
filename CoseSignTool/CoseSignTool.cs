@@ -90,16 +90,16 @@ public class CoseSignTool
             
             // Only load plugins from the authorized "plugins" subdirectory
             string pluginsDirectory = Path.Join(executableDirectory, "plugins");
+
+            IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
             
-            var plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
-            
-            foreach (var plugin in plugins)
+            foreach (ICoseSignToolPlugin plugin in plugins)
             {
                 try
                 {
                     plugin.Initialize();
                     
-                    foreach (var command in plugin.Commands)
+                    foreach (IPluginCommand command in plugin.Commands)
                     {
                         string commandKey = command.Name.ToLowerInvariant();
                         if (!PluginCommands.ContainsKey(commandKey))
@@ -178,11 +178,11 @@ public class CoseSignTool
             }
 
             // Build configuration from the provider
-            var configuration = new ConfigurationBuilder()
+            IConfigurationRoot configuration = new ConfigurationBuilder()
                 .AddCommandLine(args, new Dictionary<string, string>(command.Options))
                 .Build();
 
-            var result = command.ExecuteAsync(configuration).GetAwaiter().GetResult();
+            PluginExitCode result = command.ExecuteAsync(configuration).GetAwaiter().GetResult();
             return (ExitCode)(int)result;
         }
         catch (FileNotFoundException ex)
@@ -201,14 +201,14 @@ public class CoseSignTool
     /// <returns>The complete usage string.</returns>
     private static string GetUsageString()
     {
-        var usageBuilder = new StringBuilder();
+        StringBuilder usageBuilder = new StringBuilder();
         usageBuilder.AppendLine(CoseCommand.Usage);
 
         if (PluginCommands.Count > 0)
         {
             usageBuilder.AppendLine();
             usageBuilder.AppendLine("Plugin Commands:");
-            foreach (var kvp in PluginCommands.OrderBy(x => x.Key))
+            foreach (KeyValuePair<string, IPluginCommand> kvp in PluginCommands.OrderBy(x => x.Key))
             {
                 usageBuilder.AppendLine($"  {kvp.Key,-12} {kvp.Value.Description}");
             }

@@ -63,14 +63,35 @@ dotnet build examples/HelloWorldPlugin/
 ## Running Examples
 
 1. Build the examples
-2. Copy the plugin DLLs to your CoseSignTool plugins directory:
+2. Deploy plugins using the enhanced subdirectory architecture:
+
+**Enhanced Subdirectory Deployment (Recommended):**
 
 ```bash
-# Windows
+# Create plugin subdirectories
+mkdir plugins/HelloWorld.Plugin
+mkdir plugins/FileProcessor.Plugin
+mkdir plugins/ServiceIntegration.Plugin
+
+# Windows - Copy plugins to subdirectories
+copy examples\HelloWorldPlugin\bin\Debug\net8.0\*.* plugins\HelloWorld.Plugin\
+copy examples\FileProcessorPlugin\bin\Debug\net8.0\*.* plugins\FileProcessor.Plugin\
+copy examples\ServiceIntegrationPlugin\bin\Debug\net8.0\*.* plugins\ServiceIntegration.Plugin\
+
+# Linux/macOS - Copy plugins to subdirectories  
+cp examples/HelloWorldPlugin/bin/Debug/net8.0/* plugins/HelloWorld.Plugin/
+cp examples/FileProcessorPlugin/bin/Debug/net8.0/* plugins/FileProcessor.Plugin/
+cp examples/ServiceIntegrationPlugin/bin/Debug/net8.0/* plugins/ServiceIntegration.Plugin/
+```
+
+**Legacy Flat Deployment (Backward Compatibility):**
+
+```bash
+# Windows - Copy just plugin DLLs
 copy examples\HelloWorldPlugin\bin\Debug\net8.0\HelloWorld.Plugin.dll plugins\
 copy examples\FileProcessorPlugin\bin\Debug\net8.0\FileProcessor.Plugin.dll plugins\
 
-# Linux/macOS
+# Linux/macOS - Copy just plugin DLLs
 cp examples/HelloWorldPlugin/bin/Debug/net8.0/HelloWorld.Plugin.dll plugins/
 cp examples/FileProcessorPlugin/bin/Debug/net8.0/FileProcessor.Plugin.dll plugins/
 ```
@@ -80,6 +101,11 @@ cp examples/FileProcessorPlugin/bin/Debug/net8.0/FileProcessor.Plugin.dll plugin
 ```bash
 CoseSignTool --help
 ```
+
+**Benefits of Subdirectory Deployment:**
+- Each example plugin is isolated with its own dependencies
+- Easy to add/remove individual plugins
+- No dependency conflicts between examples
 
 ## Learning Path
 

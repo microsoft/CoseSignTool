@@ -14,6 +14,7 @@ public static class PluginLoader
     /// <summary>
     /// Discovers plugins in the specified directory.
     /// For security reasons, only plugins in the "plugins" subdirectory are allowed.
+    /// Supports both flat structure (legacy) and subdirectory structure (recommended).
     /// </summary>
     /// <param name="pluginDirectory">The directory to search for plugins.</param>
     /// <returns>A collection of discovered plugins.</returns>
@@ -28,7 +29,53 @@ public static class PluginLoader
         // Security check: Only allow plugins from the "plugins" subdirectory
         ValidatePluginDirectory(pluginDirectory);
 
-        var pluginFiles = Directory.GetFiles(pluginDirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
+        // First, try the new subdirectory structure
+        foreach (ICoseSignToolPlugin plugin in DiscoverPluginsInSubdirectories(pluginDirectory))
+        {
+            yield return plugin;
+        }
+
+        // Then, try the legacy flat structure for backward compatibility
+        foreach (ICoseSignToolPlugin plugin in DiscoverPluginsFlat(pluginDirectory))
+        {
+            yield return plugin;
+        }
+    }
+
+    /// <summary>
+    /// Discovers plugins using the new subdirectory structure.
+    /// Each plugin has its own subdirectory with its dependencies.
+    /// </summary>
+    /// <param name="pluginDirectory">The main plugins directory.</param>
+    /// <returns>A collection of discovered plugins.</returns>
+    private static IEnumerable<ICoseSignToolPlugin> DiscoverPluginsInSubdirectories(string pluginDirectory)
+    {
+        string[] subdirectories = Directory.GetDirectories(pluginDirectory);
+
+        foreach (string subdirectory in subdirectories)
+        {
+            string[] pluginFiles = Directory.GetFiles(subdirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
+
+            foreach (string pluginFile in pluginFiles)
+            {
+                ICoseSignToolPlugin? plugin = LoadPluginWithContext(pluginFile, subdirectory);
+                if (plugin != null)
+                {
+                    yield return plugin;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Discovers plugins using the legacy flat structure.
+    /// All plugins and dependencies are in the same directory.
+    /// </summary>
+    /// <param name="pluginDirectory">The plugins directory.</param>
+    /// <returns>A collection of discovered plugins.</returns>
+    private static IEnumerable<ICoseSignToolPlugin> DiscoverPluginsFlat(string pluginDirectory)
+    {
+        string[] pluginFiles = Directory.GetFiles(pluginDirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
 
         foreach (string pluginFile in pluginFiles)
         {
@@ -37,6 +84,28 @@ public static class PluginLoader
             {
                 yield return plugin;
             }
+        }
+    }
+
+    /// <summary>
+    /// Loads a plugin using its own AssemblyLoadContext for dependency isolation.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the plugin assembly.</param>
+    /// <param name="pluginDirectory">The directory containing the plugin and its dependencies.</param>
+    /// <returns>The loaded plugin, or null if the plugin could not be loaded.</returns>
+    private static ICoseSignToolPlugin? LoadPluginWithContext(string assemblyPath, string pluginDirectory)
+    {
+        try
+        {
+            PluginLoadContext loadContext = new PluginLoadContext(assemblyPath, pluginDirectory);
+            Assembly assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
+            return LoadPlugin(assembly);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or FileLoadException)
+        {
+            // Log or handle plugin loading errors as needed
+            Console.Error.WriteLine($"Warning: Could not load plugin from '{assemblyPath}': {ex.Message}");
+            return null;
         }
     }
 

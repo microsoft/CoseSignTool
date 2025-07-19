@@ -87,7 +87,7 @@ public class CoseSign1MessageBuilderTests
         mockedSigningKeyPovider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCert.GetRSAPrivateKey());
         mockedSigningKeyPovider.Setup(x => x.IsRSA).Returns(true);
 
-        var response = testCosesign1Builder.SetPayloadBytes(testPayload).SetEmbedPayload(true).Build();
+        CoseSign1Message response = testCosesign1Builder.SetPayloadBytes(testPayload).SetEmbedPayload(true).Build();
 
         mockedCoseSignFactoryObject.Verify(v => v.CreateCoseSign1Message(It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<ICoseSigningKeyProvider>(),
                It.IsAny<bool>(), It.IsAny<string>(),It.IsAny<ICoseHeaderExtender>()), Times.Once);
@@ -136,7 +136,7 @@ public class CoseSign1MessageBuilderTests
         mockedHeaderExtender.Setup(x => x.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(testUnProtectedHeaders);
 
         //test
-        var response = testCoseSign1Builder.SetPayloadBytes(testPayload)
+        CoseSign1Message response = testCoseSign1Builder.SetPayloadBytes(testPayload)
                                            .SetContentType(ContentTypeConstants.Cose)
                                            .ExtendCoseHeader(mockedHeaderExtender.Object).Build();
 

@@ -44,6 +44,21 @@ public enum PluginExitCode
     UserSpecifiedFileNotFound = 6,
 
     /// <summary>
+    /// Certificate loading failed during signing operation.
+    /// </summary>
+    CertificateLoadFailure = 7,
+
+    /// <summary>
+    /// The payload could not be read during signing operation.
+    /// </summary>
+    PayloadReadError = 8,
+
+    /// <summary>
+    /// An indirect signature verification failed.
+    /// </summary>
+    IndirectSignatureVerificationFailure = 9,
+
+    /// <summary>
     /// An unknown error occurred.
     /// </summary>
     UnknownError = 10

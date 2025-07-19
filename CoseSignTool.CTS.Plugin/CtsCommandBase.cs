@@ -51,7 +51,7 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <returns>PluginExitCode indicating validation result.</returns>
     protected static PluginExitCode ValidateFilePaths(Dictionary<string, string> filePaths)
     {
-        foreach (var kvp in filePaths)
+        foreach (KeyValuePair<string, string> kvp in filePaths)
         {
             if (!File.Exists(kvp.Value))
             {
@@ -93,8 +93,8 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <returns>Combined cancellation token with timeout.</returns>
     protected static CancellationTokenSource CreateTimeoutCancellationToken(int timeoutSeconds, CancellationToken cancellationToken)
     {
-        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
         
         // Register disposal of the timeout CTS when the linked CTS is disposed
         linkedCts.Token.Register(() => timeoutCts.Dispose());
@@ -205,14 +205,14 @@ public abstract class CtsCommandBase : PluginCommandBase
             string? outputPath = GetOptionalValue(configuration, "output");
 
             // Validate common parameters
-            var validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
+            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
             }
 
             // Validate file paths
-            var requiredFiles = new Dictionary<string, string>
+            Dictionary<string, string> requiredFiles = new Dictionary<string, string>
             {
                 { "Payload", payloadPath },
                 { "Signature", signaturePath }
@@ -228,7 +228,7 @@ public abstract class CtsCommandBase : PluginCommandBase
             }
 
             // Read and decode COSE message
-            var (message, signatureBytes, readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken);
+            (CoseSign1Message message, byte[] signatureBytes, PluginExitCode readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken);
             if (readResult != PluginExitCode.Success || message == null)
             {
                 return readResult;
@@ -238,8 +238,8 @@ public abstract class CtsCommandBase : PluginCommandBase
             CodeTransparencyClient client = await CreateCtsClient(endpoint, tokenEnvVarName, cancellationToken);
 
             // Execute the specific operation
-            using var combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
-            var operationResult = await ExecuteSpecificOperation(
+            using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
+            (PluginExitCode exitCode, object? result) operationResult = await ExecuteSpecificOperation(
                 client, message, signatureBytes, endpoint, payloadPath, signaturePath, 
                 configuration, combinedCts.Token);
 

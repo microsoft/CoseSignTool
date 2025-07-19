@@ -66,6 +66,7 @@ jobs:
           dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
           dotnet test --no-restore CoseSignTool.Abstractions.Tests/CoseSignTool.Abstractions.Tests.csproj
           dotnet test --no-restore CoseSignTool.CTS.Plugin.Tests/CoseSignTool.CTS.Plugin.Tests.csproj
+          dotnet test --no-restore CoseSignTool.IndirectSignature.Plugin.Tests/CoseSignTool.IndirectSignature.Plugin.Tests.csproj
 
     # List the contents of the working directory to make sure all the artifacts are there.  
     - name: List working directory
@@ -291,51 +292,86 @@ jobs:
         #   Setting the version number dynamically in the csproj files, using <FileVersion>$(VersionBin)</FileVersion>  
       shell: bash
 
-    # Build and copy the CTS plugin to the plugins directory
-    - name: Build and deploy CTS plugin
+    # Build and deploy plugins using automatic discovery
+    - name: Build and deploy all plugins
       run: |
         VERSION=${{ needs.create_release.outputs.tag_name }}
         
-        # Build the CTS plugin
-        dotnet build --configuration Debug --property:FileVersion=$VERSION CoseSignTool.CTS.Plugin/CoseSignTool.CTS.Plugin.csproj
-        dotnet build --configuration Release --property:FileVersion=$VERSION CoseSignTool.CTS.Plugin/CoseSignTool.CTS.Plugin.csproj
-        
-        # Create plugins directories
+        # Create plugins directories for both configurations
         mkdir -p published/debug/plugins
         mkdir -p published/release/plugins
         
-        # Copy the CTS plugin DLL to the plugins directories
-        cp CoseSignTool.CTS.Plugin/bin/Debug/net8.0/CoseSignTool.CTS.Plugin.dll published/debug/plugins/
-        cp CoseSignTool.CTS.Plugin/bin/Release/net8.0/CoseSignTool.CTS.Plugin.dll published/release/plugins/
+        # Automatically discover plugin projects by pattern
+        echo "🔍 Discovering plugin projects..."
+        PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f | sed 's|^\./||' | sed 's|/[^/]*\.csproj$||'))
         
-        # Copy plugin-specific dependencies that aren't already in the main application
-        # These are the Azure-specific libraries that the plugin needs but the main app doesn't include
+        if [ ${#PLUGIN_PROJECTS[@]} -eq 0 ]; then
+          echo "⚠️  No plugin projects found (looking for *.Plugin.csproj)"
+          exit 0
+        fi
         
-        # Function to safely copy dependencies
-        copy_if_exists() {
-          if [ -f "$1" ]; then
-            cp "$1" "$2"
-            echo "Copied: $1 -> $2"
+        echo "📦 Found ${#PLUGIN_PROJECTS[@]} plugin project(s):"
+        for project in "${PLUGIN_PROJECTS[@]}"; do
+          echo "   - $project"
+        done
+        echo ""
+        
+        # Function to deploy a plugin for a specific configuration
+        deploy_plugin() {
+          local plugin_name=$1
+          local config=$2
+          local output_dir=$3
+          
+          echo "=== Deploying $plugin_name ($config) ==="
+          
+          # Build the plugin
+          dotnet build --configuration $config --property:FileVersion=$VERSION $plugin_name/$plugin_name.csproj
+          
+          # Create plugin subdirectory
+          mkdir -p "$output_dir/plugins/$plugin_name"
+          
+          # Get list of files that exist in main application output (shared dependencies)
+          main_files=($(find "published/$config" -maxdepth 1 -name "*.dll" -o -name "*.exe" 2>/dev/null | xargs -r basename -a))
+          
+          # Copy all plugin files that don't exist in main app or are plugin-specific
+          plugin_dir="$plugin_name/bin/$config/net8.0"
+          if [ -d "$plugin_dir" ]; then
+            for file in "$plugin_dir"/*.{dll,exe,xml,pdb,json}; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                
+                # Check if file exists in main app or is plugin-specific
+                is_shared=false
+                for main_file in "${main_files[@]}"; do
+                  if [ "$filename" = "$main_file" ]; then
+                    is_shared=true
+                    break
+                  fi
+                done
+                
+                # Copy if not shared or if it's plugin-specific (starts with plugin name)
+                if [ "$is_shared" = false ] || [[ "$filename" == "$plugin_name"* ]]; then
+                  cp "$file" "$output_dir/plugins/$plugin_name/"
+                  echo "Copied: $filename"
+                fi
+              fi
+            done
+            
+            # Count and display results
+            copied_count=$(ls -1 "$output_dir/plugins/$plugin_name/" | wc -l)
+            echo "✅ Plugin '$plugin_name' deployed to $output_dir/plugins/$plugin_name/ ($copied_count files)"
           else
-            echo "Not found (skipping): $1"
+            echo "❌ Plugin directory not found: $plugin_dir"
           fi
         }
         
-        # Copy Azure.Security.CodeTransparency (plugin-specific)
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Security.CodeTransparency.dll" "published/debug/plugins/"
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Security.CodeTransparency.dll" "published/release/plugins/"
+        # Deploy all discovered plugins for both configurations
+        for plugin in "${PLUGIN_PROJECTS[@]}"; do
+          deploy_plugin "$plugin" "Debug" "published/debug"
+          deploy_plugin "$plugin" "Release" "published/release"
+        done
         
-        # Copy other Azure dependencies that might not be in main app
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.dll" "published/debug/plugins/"
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.dll" "published/release/plugins/"
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Identity.dll" "published/debug/plugins/"
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Identity.dll" "published/release/plugins/"
-        
-        # Copy Core Azure dependencies
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Debug/net8.0/Azure.Core.dll" "published/debug/plugins/"
-        copy_if_exists "CoseSignTool.CTS.Plugin/bin/Release/net8.0/Azure.Core.dll" "published/release/plugins/"
-        
-        echo "CTS Plugin deployment completed."
+        echo "🎉 All plugin deployments completed."
       shell: bash
         
     # List the contents of the published directory to make sure all the artifacts are there.
@@ -343,22 +379,58 @@ jobs:
       run: ${{ matrix.dir_command }}
       working-directory: ./published
 
-    # Verify the CTS plugin was properly deployed
-    - name: Verify CTS plugin deployment
+    # Verify the plugins were properly deployed
+    - name: Verify plugin deployment
       run: |
-        echo "Checking if CTS plugin exists in debug build:"
-        ls -la published/debug/plugins/ || echo "Debug plugins directory not found"
+        echo "=== Plugin Deployment Verification ==="
         
-        echo "Checking if CTS plugin exists in release build:"
-        ls -la published/release/plugins/ || echo "Release plugins directory not found"
+        # Function to verify plugins for a configuration
+        verify_config() {
+          local config=$1
+          local config_lower=$(echo "$config" | tr '[:upper:]' '[:lower:]')
+          
+          echo "🔍 Checking $config build plugins..."
+          
+          if [ -d "published/$config_lower/plugins" ]; then
+            echo "✅ Plugins directory exists for $config"
+            
+            # List all plugins found
+            plugin_count=$(find "published/$config_lower/plugins" -maxdepth 1 -type d | grep -v "published/$config_lower/plugins$" | wc -l)
+            echo "📂 Found $plugin_count plugin(s) in $config build:"
+            
+            for plugin_dir in published/$config_lower/plugins/*/; do
+              if [ -d "$plugin_dir" ]; then
+                plugin_name=$(basename "$plugin_dir")
+                file_count=$(ls -1 "$plugin_dir" | wc -l)
+                echo "   📦 $plugin_name ($file_count files)"
+                ls -la "$plugin_dir" | head -5  # Show first 5 files
+              fi
+            done
+            
+            # Test plugin discovery
+            echo "🧪 Testing plugin discovery in $config build..."
+            cd "published/$config_lower"
+            
+            # Test if plugins are discoverable in help output
+            if ./CoseSignTool --help 2>&1 | grep -qi "cts\|indirect"; then
+              echo "✅ Plugin commands found in help output"
+            else
+              echo "⚠️  Plugin commands not found in help output (may be normal if plugins require additional setup)"
+            fi
+            
+            cd - > /dev/null
+          else
+            echo "❌ Plugins directory not found for $config build"
+          fi
+          
+          echo ""
+        }
         
-        echo "Testing plugin discovery (debug build):"
-        cd published/debug
-        ./CoseSignTool --help | grep -i "cts" || echo "CTS plugin commands not found in help output"
+        # Verify both configurations
+        verify_config "Debug"
+        verify_config "Release"
         
-        echo "Testing plugin discovery (release build):"
-        cd ../release
-        ./CoseSignTool --help | grep -i "cts" || echo "CTS plugin commands not found in help output"
+        echo "🎯 Verification completed."
       shell: bash
 
     # Verify that the file versions on the DLLs match the release version

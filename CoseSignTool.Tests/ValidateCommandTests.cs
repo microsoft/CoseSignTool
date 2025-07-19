@@ -70,8 +70,8 @@ public class ValidateCommandTests
 
         Task.Delay(2000).Wait(); // wait for the chain to expire
 
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(
             sigFile.OpenRead(),
             payloadFile,
             [chain[0]],
@@ -108,8 +108,8 @@ public class ValidateCommandTests
 
         Task.Delay(2000).Wait(); // wait for the chain to expire
 
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(
             sigFile.OpenRead(),
             payloadFile,
             [chain[0]],
@@ -138,8 +138,8 @@ public class ValidateCommandTests
         CoseHandler.Sign(File.ReadAllBytes(payloadFilePath), new X509Certificate2CoseSigningKeyProvider(null, Leaf1Priv, [Int1Priv]), false, sigFile);
 
 
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(
             sigFile.OpenRead(),
             payloadFile,
             [Root1Priv],
@@ -168,8 +168,8 @@ public class ValidateCommandTests
 
         string commonName = $"CN={Guid.NewGuid()}";
 
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(
             sigFile.OpenRead(),
             payloadFile,
             [Root1Priv],
@@ -195,8 +195,8 @@ public class ValidateCommandTests
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile,
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(PublicKeyRootCertFile),
                                                      [SelfSignedCert],
                                                      X509RevocationMode.Online,
@@ -224,8 +224,8 @@ public class ValidateCommandTests
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, allowUntrusted: true);
         result.Success.Should().BeTrue();
         result.InnerResults?.Should().ContainSingle();
         result.InnerResults?[0].PassedValidation.Should().BeTrue();
@@ -250,8 +250,8 @@ public class ValidateCommandTests
         using FileStream coseFile = new(payloadFile + ".cose", FileMode.Open);
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, false);
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile, new FileInfo(payloadFile), null, X509RevocationMode.Online, null, false);
         result.Success.Should().BeFalse();
         result.Errors?.Should().ContainSingle();
         result.Errors?[0].ErrorCode.Should().Be(ValidationFailureCode.TrustValidationFailed);
@@ -285,8 +285,8 @@ public class ValidateCommandTests
             X509RevocationMode.Online;
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(
             coseStream,
             new FileInfo(Path.Join(OutputPath!, "UnitTestPayload.json")),
             [root],
@@ -340,7 +340,7 @@ public class ValidateCommandTests
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
@@ -351,8 +351,8 @@ public class ValidateCommandTests
         coseFile.Seek(0, SeekOrigin.Begin);
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile,
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile,
                                                      null,
                                                      [SelfSignedCert],
                                                      X509RevocationMode.Online);
@@ -371,7 +371,7 @@ public class ValidateCommandTests
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
@@ -383,8 +383,8 @@ public class ValidateCommandTests
 
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile,
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(PublicKeyRootCertFile),
                                                      [SelfSignedCert],
                                                      X509RevocationMode.Online);
@@ -404,7 +404,7 @@ public class ValidateCommandTests
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign indirectly
-        var msgFac = new IndirectSignatureFactory();
+        IndirectSignatureFactory msgFac = new IndirectSignatureFactory();
         byte[] signedBytes = msgFac.CreateIndirectSignatureBytes(
         payload: File.ReadAllBytes(payloadFile),
             contentType: "application/spdx+json",
@@ -415,8 +415,8 @@ public class ValidateCommandTests
         coseFile.Seek(0, SeekOrigin.Begin);
 
         // setup validator
-        var validator = new ValidateCommand();
-        var result = validator.RunCoseHandlerCommand(coseFile,
+        ValidateCommand validator = new ValidateCommand();
+        ValidationResult result = validator.RunCoseHandlerCommand(coseFile,
                                                      new FileInfo(payloadFile),
                                                      null,
                                                      X509RevocationMode.Online);

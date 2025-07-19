@@ -316,13 +316,13 @@ public class X509ChainTrustValidatorTests
     public void X509TrustValidatorSelfSigned()
     {
         // Build a COSE embed-signed file with a self-signed certificate
-        var cert = TestCertificateUtils.CreateCertificate();
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
         CoseSign1MessageFactory factory = new();
         X509Certificate2CoseSigningKeyProvider keyProvider = new(null, cert);
-        var message = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
+        CoseSign1Message message = factory.CreateCoseSign1Message(DefaultTestArray, keyProvider, embedPayload: true);
 
         // Validate with certificate provided as root
-        var roots = new List<X509Certificate2>() { cert };
+        List<X509Certificate2> roots = new List<X509Certificate2>() { cert };
         X509ChainTrustValidator Validator = new(roots, X509RevocationMode.NoCheck);
         Validator.TryValidate(message, out List<CoseSign1ValidationResult> results).Should().BeTrue();
         results.Count.Should().Be(1);
@@ -349,10 +349,10 @@ public class X509ChainTrustValidatorTests
         status.Value.Status.Should().Be(X509ChainStatusFlags.UntrustedRoot);
 
         // Validate with AllowUntrusted AND AllowOutdated and an expired certificate
-        var expiredCert = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired", null, false, null, TimeSpan.FromSeconds(1));
+        X509Certificate2 expiredCert = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired", null, false, null, TimeSpan.FromSeconds(1));
         Thread.Sleep(1000);
         X509Certificate2CoseSigningKeyProvider keyProviderWithExpiredCert = new(null, expiredCert);
-        var messageExpired = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderWithExpiredCert, embedPayload: true);
+        CoseSign1Message messageExpired = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderWithExpiredCert, embedPayload: true);
         Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: true);
         Validator.TryValidate(messageExpired, out List<CoseSign1ValidationResult> resultsExpired).Should().BeTrue();
         resultsExpired.Count.Should().Be(1);
@@ -372,11 +372,11 @@ public class X509ChainTrustValidatorTests
         status.Should().NotBeNull();
 
         // Validate with AllowOutdated ON and an expired certificate with a lifetime EKU
-        var expiredCertWithLifetimeEku = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired",
+        X509Certificate2 expiredCertWithLifetimeEku = TestCertificateUtils.CreateCertificate("X509TrustValidatorSelfSigned-Expired",
             null, false, null, TimeSpan.FromSeconds(1), addLifetimeEku: true);
         Thread.Sleep(1000);
         X509Certificate2CoseSigningKeyProvider keyProviderLifetimeEku = new(null, expiredCertWithLifetimeEku);
-        var messageLifetimeEku = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderLifetimeEku, embedPayload: true);
+        CoseSign1Message messageLifetimeEku = factory.CreateCoseSign1Message(DefaultTestArray, keyProviderLifetimeEku, embedPayload: true);
         Validator = new(X509RevocationMode.NoCheck, false, allowUntrusted: true, allowOutdated: true);
         Validator.TryValidate(messageLifetimeEku, out List<CoseSign1ValidationResult> resultsLifetimeEku).Should().BeFalse();
         resultsLifetimeEku.Count.Should().Be(1);
@@ -431,8 +431,8 @@ public class X509ChainTrustValidatorTests
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
         X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate();
 
-        var protectedHeaders = new CoseHeaderMap();
-        var unProtectedHeaders = new CoseHeaderMap();
+        CoseHeaderMap protectedHeaders = new CoseHeaderMap();
+        CoseHeaderMap unProtectedHeaders = new CoseHeaderMap();
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns(protectedHeaders);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns(unProtectedHeaders);
         mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);

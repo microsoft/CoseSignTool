@@ -20,8 +20,8 @@ This file ensures GitHub Copilot follows the repository's coding standards as de
 
 ### Naming Conventions
 - **Constants**: PascalCase (e.g., `DefaultStoreName`)
-- **Static private fields**: `s_` prefix with camelCase (e.g., `s_factory`)
-- **Private/internal instance fields**: `_` prefix with camelCase (e.g., `_commands`)
+- **Static private fields**: PascalCase (e.g. `StaticStoreName`)
+- **Private/internal instance fields**: camelCase (e.g., `commands`)
 - **Public properties/methods**: PascalCase
 - **Local variables**: camelCase
 - **Parameters**: camelCase
@@ -29,7 +29,7 @@ This file ensures GitHub Copilot follows the repository's coding standards as de
 ### Code Style Preferences
 - **Braces**: Always use braces for control statements (enforced as error)
 - **var usage**: Avoid `var` - use explicit types for clarity
-- **this qualifier**: Avoid `this.` unless absolutely necessary
+- **this qualifier**: useh `this.` so that it's clear when member parameters or state is being modified
 - **Predefined types**: Use predefined types (`int`, `string`) over .NET types (`Int32`, `String`)
 - **Null checking**: Prefer `is null` over `== null`
 - **Object initialization**: Prefer object and collection initializers
@@ -73,18 +73,19 @@ Follow this order: `public`, `private`, `protected`, `internal`, `static`, `exte
 - Missing braces are errors
 - Unused private members are errors
 
-### Project-Specific Patterns
+### Plugin Project-Specific Patterns
 - **Plugin naming**: Use `.Plugin.csproj` suffix for auto-packaging
-- **Assembly naming**: Use `.Plugin.dll` suffix for runtime discovery
-- **Exit codes**: Use the `PluginExitCode` enum for plugin commands
+- **Plugin Assembly naming**: Use `.Plugin.dll` suffix for runtime discovery
+- **Plugin Exit codes**: Use the `PluginExitCode` enum for plugin commands
 - **Async patterns**: Always use `CancellationToken` parameters in async methods
-- **Interface implementation**: Implement plugin interfaces (`ICoseSignToolPlugin`, `IPluginCommand`)
-- **Error handling**: Use appropriate exit codes and console error output
+- **Plugin Interface implementation**: Implement plugin interfaces (`ICoseSignToolPlugin`, `IPluginCommand`)
+- **Plugin Error handling**: Use appropriate exit codes and console error output
 
 ### Documentation
 - Use XML documentation comments for public APIs
 - Include parameter descriptions and return value documentation
 - Use `<summary>`, `<param>`, `<returns>` tags appropriately
+- Where possible provide appropriate `<example>` tags for different behaviors
 - Document exceptions with `<exception>` tags
 
 ### Testing Patterns
@@ -92,6 +93,11 @@ Follow this order: `public`, `private`, `protected`, `internal`, `static`, `exte
 - Follow Arrange-Act-Assert pattern
 - Use meaningful assertions with clear error messages
 - Include both positive and negative test cases
+- Cover as close to 100% of blocks as posible without overgenerating test cases
+- Prefer NUnit tests with the new `Assert.That` syntax when writing new tests
+- Prefer data-driven test cases when possible
+- Prefer test local state over shared state to enable parallel execution
+- Leverage maintainability patterns in test code by creating shared functions for common code
 
 ### Plugin Development Guidelines
 - Implement `PluginCommandBase` for command implementations
@@ -116,12 +122,12 @@ namespace CoseSignTool.MyPlugin;
 /// </summary>
 public class ExamplePlugin : ICoseSignToolPlugin
 {
-    private readonly List<IPluginCommand> _commands;
-    private static readonly object s_lockObject = new();
+    private readonly List<IPluginCommand> commands;
+    private static readonly object LockObject = new();
 
     public ExamplePlugin()
     {
-        _commands = new List<IPluginCommand>
+        this.commands = new List<IPluginCommand>
         {
             new ExampleCommand()
         };
@@ -159,8 +165,8 @@ public class ExampleCommand : PluginCommandBase
     {
         try
         {
-            string inputFile = GetRequiredValue(configuration, "input");
-            string? outputFile = GetOptionalValue(configuration, "output");
+            string inputFile = base.GetRequiredValue(configuration, "input");
+            string? outputFile = base.GetOptionalValue(configuration, "output");
 
             if (!File.Exists(inputFile))
             {
@@ -169,7 +175,7 @@ public class ExampleCommand : PluginCommandBase
             }
 
             // Process the file
-            await ProcessFileAsync(inputFile, outputFile, cancellationToken);
+            await this.ProcessFileAsync(inputFile, outputFile, cancellationToken);
             
             return PluginExitCode.Success;
         }
@@ -209,7 +215,7 @@ When generating code for this repository, always:
 4. Use explicit types instead of var
 5. Include proper error handling with appropriate exit codes
 6. Implement cancellation token support in async methods
-7. Use the established plugin patterns for extensibility
+7. If creating a plug-in, use the established plugin patterns for extensibility
 8. Follow the formatting and spacing rules exactly as specified
 9. Include comprehensive XML documentation for public APIs
 10. Ensure all generated code follows the .editorconfig rules

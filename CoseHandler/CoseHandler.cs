@@ -14,9 +14,6 @@ public static class CoseHandler
     // static instance of the factory for creating new CoseSign1Messages
     private static readonly CoseSign1MessageFactory Factory = new();
 
-    // static instance of the factory for managing headers.
-    public static readonly CoseHeaderFactory HeaderFactory = CoseHeaderFactory.Instance();
-
     #region Sign Overloads
     /// <summary>
     /// Signs the payload content with the supplied certificate and returns a ReadOnlyMemory object containing the COSE signatureFile.

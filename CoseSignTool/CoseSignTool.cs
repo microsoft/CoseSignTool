@@ -156,6 +156,10 @@ public class CoseSignTool
         {
             return Fail(ExitCode.UserSpecifiedFileNotFound, ex);
         }
+        catch (InvalidOperationException ex)
+        {
+            return Fail(ExitCode.InvalidArgumentValue, ex);
+        }
     }
 
     /// <summary>

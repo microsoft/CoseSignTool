@@ -20,6 +20,9 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    
+    <!-- Disable NuGet package generation for plugins -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

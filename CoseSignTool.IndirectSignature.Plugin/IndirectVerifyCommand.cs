@@ -49,6 +49,16 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             bool allowUntrusted = !string.IsNullOrEmpty(GetOptionalValue(configuration, "allow-untrusted"));
             bool allowOutdated = !string.IsNullOrEmpty(GetOptionalValue(configuration, "allow-outdated"));
             string? commonName = GetOptionalValue(configuration, "common-name");
+            string? revocationModeString = GetOptionalValue(configuration, "revocation-mode");
+            
+            // Validate revocation mode before parsing
+            if (!string.IsNullOrEmpty(revocationModeString) && 
+                !Enum.TryParse<X509RevocationMode>(revocationModeString, ignoreCase: true, out _))
+            {
+                throw new ArgumentException($"Invalid revocation mode '{revocationModeString}'. Valid values are: {string.Join(", ", Enum.GetNames<X509RevocationMode>())}", nameof(revocationModeString));
+            }
+            
+            X509RevocationMode revocationMode = ParseRevocationMode(revocationModeString, X509RevocationMode.NoCheck);
 
             // Validate common parameters
             PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
@@ -85,6 +95,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                 allowUntrusted,
                 allowOutdated,
                 commonName,
+                revocationMode,
                 combinedCts.Token);
 
             // Write output if requested
@@ -118,6 +129,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
     /// <param name="allowUntrusted">Whether to allow untrusted certificate chains.</param>
     /// <param name="allowOutdated">Whether to allow outdated certificates.</param>
     /// <param name="commonName">Expected common name in signing certificate (optional).</param>
+    /// <param name="revocationMode">Certificate revocation checking mode.</param>
     /// <param name="cancellationToken">Cancellation token with timeout.</param>
     /// <returns>Tuple containing the exit code and optional result object for JSON output.</returns>
     private static async Task<(PluginExitCode exitCode, object? result)> VerifyIndirectSignature(
@@ -127,58 +139,43 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
         bool allowUntrusted,
         bool allowOutdated,
         string? commonName,
+        X509RevocationMode revocationMode,
         CancellationToken cancellationToken)
     {
         try
         {
-            // Read signature file
-            byte[] signatureBytes = await File.ReadAllBytesAsync(signaturePath, cancellationToken);
-            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            PrintOperationStatus("Verifying", payloadPath, signaturePath);
 
-            // Check if this is an indirect signature
+            // Read signature and payload files
+            byte[] signatureBytes = await File.ReadAllBytesAsync(signaturePath, cancellationToken);
+            byte[] payload = await File.ReadAllBytesAsync(payloadPath, cancellationToken);
+
+            // First check if this is an indirect signature before performing validation
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
             if (!message.IsIndirectSignature())
             {
                 Console.Error.WriteLine("Error: The signature is not an indirect signature.");
                 return (PluginExitCode.InvalidArgumentValue, null);
             }
 
-            PrintOperationStatus("Verifying", payloadPath, signaturePath);
-
-            // Read payload
-            byte[] payload = await File.ReadAllBytesAsync(payloadPath, cancellationToken);
-
-            // Verify the signature matches the payload
-            bool signatureMatches;
-            using (MemoryStream payloadStream = new MemoryStream(payload))
-            {
-                signatureMatches = message.SignatureMatches(payloadStream);
-            }
-
-            if (!signatureMatches)
-            {
-                Console.WriteLine("❌ Indirect signature verification FAILED: Payload hash does not match signature");
-                object failureResult = new
-                {
-                    Operation = "IndirectVerify",
-                    PayloadPath = payloadPath,
-                    SignaturePath = signaturePath,
-                    IsValid = false,
-                    FailureReason = "Payload hash does not match signature",
-                    VerificationTime = DateTime.UtcNow
-                };
-                return (PluginExitCode.IndirectSignatureVerificationFailure, failureResult);
-            }
-
-            // Perform certificate validation using CoseHandler
+            // Load root certificates if provided
             List<X509Certificate2>? rootCerts = null;
             if (!string.IsNullOrEmpty(rootCertsPath))
             {
                 rootCerts = LoadRootCertificates(rootCertsPath);
             }
 
-            ValidationResult validationResult = await ValidateCertificateChain(message, payload, rootCerts, allowUntrusted, allowOutdated, commonName);
+            // Use CoseHandler.Validate to perform comprehensive validation
+            ValidationResult validationResult = CoseHandler.Validate(
+                signature: signatureBytes,
+                payload: payload,
+                roots: rootCerts,
+                revocationMode: revocationMode,
+                requiredCommonName: commonName,
+                allowUntrusted: allowUntrusted,
+                allowOutdated: allowOutdated);
 
-            bool isValid = signatureMatches && validationResult.Success;
+            bool isValid = validationResult.Success;
             string status = isValid ? "✅ SUCCESS" : "❌ FAILED";
             
             Console.WriteLine($"{status}: Indirect signature verification completed");
@@ -197,14 +194,9 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             }
             else
             {
-                if (signatureMatches)
-                {
-                    Console.WriteLine("  - Payload hash matches signature");
-                }
-                
                 if (validationResult.Errors?.Count > 0)
                 {
-                    Console.WriteLine("  - Certificate validation errors:");
+                    Console.WriteLine("  - Validation errors:");
                     foreach (CoseValidationError error in validationResult.Errors)
                     {
                         Console.WriteLine($"    • {error.ErrorCode}: {error.Message}");
@@ -219,7 +211,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                 PayloadPath = payloadPath,
                 SignaturePath = signaturePath,
                 IsValid = isValid,
-                PayloadHashMatches = signatureMatches,
+                ContentValidationType = validationResult.ContentValidationType.ToString(),
                 CertificateValidation = new
                 {
                     Success = validationResult.Success,
@@ -261,51 +253,6 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
     }
 
     /// <summary>
-    /// Validates the certificate chain of the COSE Sign1 message.
-    /// </summary>
-    /// <param name="message">The COSE Sign1 message.</param>
-    /// <param name="payloadBytes">The payload bytes for validation.</param>
-    /// <param name="rootCerts">Optional root certificates for validation.</param>
-    /// <param name="allowUntrusted">Whether to allow untrusted certificate chains.</param>
-    /// <param name="allowOutdated">Whether to allow outdated certificates.</param>
-    /// <param name="commonName">Expected common name in signing certificate.</param>
-    /// <returns>Validation result.</returns>
-    private static Task<ValidationResult> ValidateCertificateChain(
-        CoseSign1Message message, 
-        byte[] payloadBytes,
-        List<X509Certificate2>? rootCerts, 
-        bool allowUntrusted, 
-        bool allowOutdated, 
-        string? commonName)
-    {
-        try
-        {
-            // Create a memory stream for the signature
-            using MemoryStream signatureStream = new MemoryStream(message.Encode());
-            using MemoryStream payloadStream = new MemoryStream(payloadBytes);
-            
-            // Validate the signature with payload for certificate chain validation
-            ValidationResult result = CoseHandler.Validate(
-                signature: signatureStream,
-                payload: payloadStream, // Provide payload for full validation
-                roots: rootCerts,
-                revocationMode: X509RevocationMode.NoCheck, // Default for indirect signatures
-                requiredCommonName: commonName,
-                allowUntrusted: allowUntrusted,
-                allowOutdated: allowOutdated);
-
-            return Task.FromResult(result);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Certificate validation error: {ex.Message}");
-            ValidationResult result = new ValidationResult(false, null);
-            result.AddError(ValidationFailureCode.Unknown);
-            return Task.FromResult(result);
-        }
-    }
-
-    /// <summary>
     /// Gets the validation usage section for the command help.
     /// </summary>
     private static string GetValidationUsage()
@@ -315,7 +262,8 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                $"  --roots         Path to a file containing root certificates for validation{Environment.NewLine}" +
                $"  --allow-untrusted Allow signatures from untrusted certificate chains{Environment.NewLine}" +
                $"  --allow-outdated Allow signatures from outdated certificates{Environment.NewLine}" +
-               $"  --common-name   Expected common name in the signing certificate{Environment.NewLine}";
+               $"  --common-name   Expected common name in the signing certificate{Environment.NewLine}" +
+               $"  --revocation-mode Certificate revocation checking mode (NoCheck, Online, Offline, default: NoCheck){Environment.NewLine}";
     }
 
     /// <inheritdoc/>
@@ -334,6 +282,9 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                $"{Environment.NewLine}" +
                $"  # Verify with expected common name{Environment.NewLine}" +
                $"  CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --common-name \"My Company\"{Environment.NewLine}" +
+               $"{Environment.NewLine}" +
+               $"  # Verify with online revocation checking{Environment.NewLine}" +
+               $"  CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --revocation-mode Online{Environment.NewLine}" +
                $"{Environment.NewLine}" +
                $"  # Verify with JSON output{Environment.NewLine}" +
                $"  CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --output result.json{Environment.NewLine}";

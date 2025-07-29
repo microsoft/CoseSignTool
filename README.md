@@ -57,7 +57,13 @@ CoseSignTool
 ```
 
 #### MacOS
-See Linux, but make sure to download `CoseSignTool-MacOS-release.zip` instead.
+Similar to Linux, but choose the appropriate macOS architecture:
+- For Intel Macs: Download `CoseSignTool-MacOS-x64-release.zip`
+- For Apple Silicon Macs (M1/M2/M3): Download `CoseSignTool-MacOS-arm64-release.zip`
+
+If you're unsure of your Mac's architecture, run `uname -m` in Terminal:
+- `x86_64` = Intel Mac (use x64 version)
+- `arm64` = Apple Silicon Mac (use arm64 version)
 
 #### Windows
 Similar to Linux or MacOS you could use PowerShell to download the release, extract and move it to the desired location and to add it to the Path like shown in the example below:

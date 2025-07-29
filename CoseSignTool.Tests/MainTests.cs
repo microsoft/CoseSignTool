@@ -231,7 +231,7 @@ public class MainTests
 
         // sign with integer headers
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Invalid integer header value.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.InvalidArgumentValue, "Invalid integer header value.");
     }
 
     [TestMethod]
@@ -242,18 +242,18 @@ public class MainTests
 
         // sign with integer headers
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Invalid integer header value.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.InvalidArgumentValue, "Invalid integer header value.");
     }
 
     [TestMethod]
     public void SignWithDeserializationErrorIntegerHeaders()
     {
-        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"","""":-999999999999999,""protected"":true}]");
+        string integerHeadersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",XXX:-999999999999999,""protected"":true}]");
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign with integer headers
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/ih", integerHeadersFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "Integer headers file deserialization error.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.InvalidArgumentValue, "Integer headers file deserialization error.");
     }
 
     [TestMethod]
@@ -290,12 +290,12 @@ public class MainTests
     [TestMethod]
     public void SignWithDeserializationErrorStringHeaders()
     {
-        string headersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",""protected"":false}]");
+        string headersFile = FileSystemUtils.GenerateHeadersFile(@"[{""label"":""created-at"",YYY:""invalid"",""protected"":false}]");
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
         // sign with string headers
         string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChainedWithPassword, @"/pw", CertPassword, @"/ep", @"/sh", headersFile];
-        CoseSignTool.Main(args1).Should().Be((int)ExitCode.UnknownError, "String headers file could not be deserialized.");
+        CoseSignTool.Main(args1).Should().Be((int)ExitCode.InvalidArgumentValue, "String headers file could not be deserialized.");
     }
 
     [TestMethod]

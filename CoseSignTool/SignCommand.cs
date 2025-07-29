@@ -3,6 +3,8 @@
 
 namespace CoseSignTool;
 
+using System.Security.Cryptography.Cose;
+
 /// <summary>
 /// Signs a file with a COSE signature based on passed in command line arguments.
 /// </summary>
@@ -172,26 +174,8 @@ public class SignCommand : CoseCommand
 
         try
         {
-            // Extend the headers.
-            CoseHeaderExtender? headerExtender = null;
-
-            if (IntHeaders != null ||
-                StringHeaders != null)
-            {
-                headerExtender = new();
-            }
-
-            if (IntHeaders != null && IntHeaders.Count > 0)
-            {
-                CoseHandler.HeaderFactory.AddProtectedHeaders<int>(IntHeaders.ToList().Where(h => h.IsProtected));
-                CoseHandler.HeaderFactory.AddUnProtectedHeaders<int>(IntHeaders.ToList().Where(h => !h.IsProtected));
-            }
-
-            if(StringHeaders != null && StringHeaders.Count > 0)
-            {
-                CoseHandler.HeaderFactory.AddProtectedHeaders<string>(StringHeaders.ToList().Where(h => h.IsProtected));
-                CoseHandler.HeaderFactory.AddUnProtectedHeaders<string>(StringHeaders.ToList().Where(h => !h.IsProtected));
-            }
+            // Use shared header processing logic
+            CoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
             // Sign the content.
             // Create the signing key provider with additional roots if available
@@ -214,6 +198,10 @@ public class SignCommand : CoseCommand
         catch (ArgumentException ex)
         {
             return CoseSignTool.Fail(ExitCode.PayloadReadError, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return CoseSignTool.Fail(ExitCode.UnknownError, ex);
         }
         catch (Exception ex) when (ex is CryptographicException or CoseSign1CertificateException)
         {

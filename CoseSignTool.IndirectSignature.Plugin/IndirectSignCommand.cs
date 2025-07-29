@@ -3,6 +3,8 @@
 
 namespace CoseSignTool.IndirectSignature.Plugin;
 
+using CoseSign1.Abstractions.Interfaces;
+
 /// <summary>
 /// Command to create an indirect COSE Sign1 signature.
 /// </summary>
@@ -21,6 +23,10 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
         {
             Dictionary<string, string> options = new Dictionary<string, string>(CommonOptions);
             foreach (KeyValuePair<string, string> option in CertificateOptions)
+            {
+                options[option.Key] = option.Value;
+            }
+            foreach (KeyValuePair<string, string> option in HeaderOptions)
             {
                 options[option.Key] = option.Value;
             }
@@ -98,7 +104,8 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 additionalCertificates,
                 contentType, 
                 hashAlgorithm, 
-                signatureVersion, 
+                signatureVersion,
+                configuration,
                 combinedCts.Token);
 
             // Write output if requested
@@ -133,6 +140,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     /// <param name="contentType">The content type of the payload.</param>
     /// <param name="hashAlgorithm">The hash algorithm to use.</param>
     /// <param name="signatureVersion">The indirect signature version to create.</param>
+    /// <param name="configuration">The configuration containing header options.</param>
     /// <param name="cancellationToken">Cancellation token with timeout.</param>
     /// <returns>Tuple containing the exit code and optional result object for JSON output.</returns>
     private static async Task<(PluginExitCode exitCode, JsonElement? result)> CreateIndirectSignature(
@@ -143,6 +151,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
         string contentType,
         HashAlgorithmName hashAlgorithm,
         IndirectSignatureFactory.IndirectSignatureVersion signatureVersion,
+        IConfiguration configuration,
         CancellationToken cancellationToken)
     {
         try
@@ -153,15 +162,19 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             // Create signing key provider
             X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(certificate);
 
+            // Create header extender from configuration
+            ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(configuration);
+
             // Create indirect signature factory
             using IndirectSignatureFactory factory = new IndirectSignatureFactory(hashAlgorithm);
             
-            // Create the indirect signature
+            // Create the indirect signature with optional header extender
             CoseSign1Message indirectSignature = factory.CreateIndirectSignature(
                 payload: payload,
                 signingKeyProvider: signingKeyProvider,
                 contentType: contentType,
-                signatureVersion: signatureVersion);
+                signatureVersion: signatureVersion,
+                coseHeaderExtender: headerExtender);
 
             // Encode and write signature to file
             byte[] signatureBytes = indirectSignature.Encode();
@@ -182,6 +195,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 SignatureVersion = signatureVersion.ToString(),
                 SignatureSize = signatureBytes.Length,
                 CertificateThumbprint = certificate.Thumbprint,
+                HasCustomHeaders = headerExtender != null,
                 CreationTime = DateTime.UtcNow
             };
 

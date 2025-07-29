@@ -25,7 +25,7 @@ jobs:
   
   # Build and test the code.
   build:
-    name: build-${{matrix.os}}
+    name: build-${{matrix.os}}-${{matrix.runtime_id || 'default'}}
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -36,6 +36,10 @@ jobs:
           - os: ubuntu-latest
             dir_command: ls -a -R
           - os: macos-latest
+            runtime_id: osx-x64
+            dir_command: ls -a -R
+          - os: macos-latest
+            runtime_id: osx-arm64
             dir_command: ls -a -R
     steps:
     - name: Checkout code
@@ -271,9 +275,15 @@ jobs:
             zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
             zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
           - os: macos-latest
+            runtime_id: osx-x64
             dir_command: ls -a -R
-            zip_command_debug: zip -r CoseSignTool-MacOS-debug.zip ./debug/
-            zip_command_release: zip -r CoseSignTool-MacOS-release.zip ./release/
+            zip_command_debug: zip -r CoseSignTool-MacOS-x64-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-x64-release.zip ./release/
+          - os: macos-latest
+            runtime_id: osx-arm64
+            dir_command: ls -a -R
+            zip_command_debug: zip -r CoseSignTool-MacOS-arm64-debug.zip ./debug/
+            zip_command_release: zip -r CoseSignTool-MacOS-arm64-release.zip ./release/
 
     steps:
     # Checkout the branch.
@@ -281,157 +291,32 @@ jobs:
       uses: actions/checkout@v3
 
     # Build and publish the binaries to ./published.
+    # The publish command will automatically deploy plugins via the DeployAllPluginsForPublish target in CoseSignTool.csproj
     - name: Publish outputs
       run: |
         VERSION=${{ needs.create_release.outputs.tag_name }}
-        dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION CoseSignTool/CoseSignTool.csproj
+        RUNTIME_ID=${{ matrix.runtime_id || '' }}
+        if [ -n "$RUNTIME_ID" ]; then
+          echo "Publishing for runtime: $RUNTIME_ID"
+          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+        else
+          echo "Publishing for current platform"
+          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+        fi
         # Self-contained is needed. Must use .csproj instead of .sln.
+        # DeployPlugins=true enables automatic plugin deployment during publish
+        # RUNTIME_ID specifies the target runtime (e.g., osx-x64, osx-arm64) for cross-platform builds
         # Ideally we should also verify in the Build and Test job, but that will require pre-caulculating the version number and either
         #   Running build and test separately because we can't pass the version number to dotnet test, or
         #   Setting the version number dynamically in the csproj files, using <FileVersion>$(VersionBin)</FileVersion>  
       shell: bash
 
-    # Build and deploy plugins using automatic discovery
-    - name: Build and deploy all plugins
-      run: |
-        VERSION=${{ needs.create_release.outputs.tag_name }}
-        
-        # Create plugins directories for both configurations
-        mkdir -p published/debug/plugins
-        mkdir -p published/release/plugins
-        
-        # Automatically discover plugin projects by pattern
-        echo "🔍 Discovering plugin projects..."
-        PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f | sed 's|^\./||' | sed 's|/[^/]*\.csproj$||'))
-        
-        if [ ${#PLUGIN_PROJECTS[@]} -eq 0 ]; then
-          echo "⚠️  No plugin projects found (looking for *.Plugin.csproj)"
-          exit 0
-        fi
-        
-        echo "📦 Found ${#PLUGIN_PROJECTS[@]} plugin project(s):"
-        for project in "${PLUGIN_PROJECTS[@]}"; do
-          echo "   - $project"
-        done
-        echo ""
-        
-        # Function to deploy a plugin for a specific configuration
-        deploy_plugin() {
-          local plugin_name=$1
-          local config=$2
-          local output_dir=$3
-          
-          echo "=== Deploying $plugin_name ($config) ==="
-          
-          # Build the plugin
-          dotnet build --configuration $config --property:FileVersion=$VERSION $plugin_name/$plugin_name.csproj
-          
-          # Create plugin subdirectory
-          mkdir -p "$output_dir/plugins/$plugin_name"
-          
-          # Get list of files that exist in main application output (shared dependencies)
-          main_files=($(find "published/$config" -maxdepth 1 -name "*.dll" -o -name "*.exe" 2>/dev/null | xargs -r basename -a))
-          
-          # Copy all plugin files that don't exist in main app or are plugin-specific
-          plugin_dir="$plugin_name/bin/$config/net8.0"
-          if [ -d "$plugin_dir" ]; then
-            for file in "$plugin_dir"/*.{dll,exe,xml,pdb,json}; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file")
-                
-                # Check if file exists in main app or is plugin-specific
-                is_shared=false
-                for main_file in "${main_files[@]}"; do
-                  if [ "$filename" = "$main_file" ]; then
-                    is_shared=true
-                    break
-                  fi
-                done
-                
-                # Copy if not shared or if it's plugin-specific (starts with plugin name)
-                if [ "$is_shared" = false ] || [[ "$filename" == "$plugin_name"* ]]; then
-                  cp "$file" "$output_dir/plugins/$plugin_name/"
-                  echo "Copied: $filename"
-                fi
-              fi
-            done
-            
-            # Count and display results
-            copied_count=$(ls -1 "$output_dir/plugins/$plugin_name/" | wc -l)
-            echo "✅ Plugin '$plugin_name' deployed to $output_dir/plugins/$plugin_name/ ($copied_count files)"
-          else
-            echo "❌ Plugin directory not found: $plugin_dir"
-          fi
-        }
-        
-        # Deploy all discovered plugins for both configurations
-        for plugin in "${PLUGIN_PROJECTS[@]}"; do
-          deploy_plugin "$plugin" "Debug" "published/debug"
-          deploy_plugin "$plugin" "Release" "published/release"
-        done
-        
-        echo "🎉 All plugin deployments completed."
-      shell: bash
-        
     # List the contents of the published directory to make sure all the artifacts are there.
     - name: List published directory
       run: ${{ matrix.dir_command }}
       working-directory: ./published
-
-    # Verify the plugins were properly deployed
-    - name: Verify plugin deployment
-      run: |
-        echo "=== Plugin Deployment Verification ==="
-        
-        # Function to verify plugins for a configuration
-        verify_config() {
-          local config=$1
-          local config_lower=$(echo "$config" | tr '[:upper:]' '[:lower:]')
-          
-          echo "🔍 Checking $config build plugins..."
-          
-          if [ -d "published/$config_lower/plugins" ]; then
-            echo "✅ Plugins directory exists for $config"
-            
-            # List all plugins found
-            plugin_count=$(find "published/$config_lower/plugins" -maxdepth 1 -type d | grep -v "published/$config_lower/plugins$" | wc -l)
-            echo "📂 Found $plugin_count plugin(s) in $config build:"
-            
-            for plugin_dir in published/$config_lower/plugins/*/; do
-              if [ -d "$plugin_dir" ]; then
-                plugin_name=$(basename "$plugin_dir")
-                file_count=$(ls -1 "$plugin_dir" | wc -l)
-                echo "   📦 $plugin_name ($file_count files)"
-                ls -la "$plugin_dir" | head -5  # Show first 5 files
-              fi
-            done
-            
-            # Test plugin discovery
-            echo "🧪 Testing plugin discovery in $config build..."
-            cd "published/$config_lower"
-            
-            # Test if plugins are discoverable in help output
-            if ./CoseSignTool --help 2>&1 | grep -qi "cts\|indirect"; then
-              echo "✅ Plugin commands found in help output"
-            else
-              echo "⚠️  Plugin commands not found in help output (may be normal if plugins require additional setup)"
-            fi
-            
-            cd - > /dev/null
-          else
-            echo "❌ Plugins directory not found for $config build"
-          fi
-          
-          echo ""
-        }
-        
-        # Verify both configurations
-        verify_config "Debug"
-        verify_config "Release"
-        
-        echo "🎯 Verification completed."
-      shell: bash
 
     # Verify that the file versions on the DLLs match the release version
     - name: Check File Version
@@ -441,6 +326,64 @@ jobs:
         Write-Output "File Version is $version"
       shell: pwsh
       working-directory: ./published/debug
+
+    # Create NuGet packages for library projects (commented out for now)
+    - name: Create NuGet packages
+      run: |
+        echo "📦 Creating NuGet packages for library projects..."
+        
+        # Define library projects that should be packaged (excluding plugins and test projects)
+        LIBRARY_PROJECTS=(
+          "CoseHandler/CoseHandler.csproj"
+          "CoseIndirectSignature/CoseIndirectSignature.csproj"
+          "CoseSign1/CoseSign1.csproj"
+          "CoseSign1.Abstractions/CoseSign1.Abstractions.csproj"
+          "CoseSign1.Certificates/CoseSign1.Certificates.csproj"
+          "CoseSign1.Headers/CoseSign1.Headers.csproj"
+          "CoseSign1.Transparent/CoseSign1.Transparent.csproj"
+          "CoseSign1.Transparent.CTS/CoseSign1.Transparent.CTS.csproj"
+          "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
+        )
+        
+        # Create packages directory
+        mkdir -p published/packages
+        
+        # Pack each library project
+        for project in "${LIBRARY_PROJECTS[@]}"; do
+          if [ -f "$project" ]; then
+            project_name=$(basename "${project%.*}")
+            echo "📦 Creating package for $project_name..."
+            
+            dotnet pack "$project" \
+              --configuration Release \
+              --property:FileVersion=$VERSION \
+              --property:PackageVersion=$VERSION \
+              --output published/packages \
+              --verbosity minimal
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Successfully created package for $project_name"
+            else
+              echo "❌ Failed to create package for $project_name"
+            fi
+          else
+            echo "⚠️  Project file not found: $project"
+          fi
+        done
+        
+        # List created packages
+        echo ""
+        echo "📋 Created NuGet packages:"
+        if [ -d "published/packages" ]; then
+          ls -la published/packages/*.nupkg | while read -r line; do
+            echo "   📦 $(echo "$line" | awk '{print $9}')"
+          done
+        else
+          echo "❌ No packages directory found"
+        fi
+        
+        echo "🎯 NuGet package creation completed."
+      shell: bash
 
     # Copy the docs, license, and markdown files to the release folders.
     - name: Copy docs to release folders
@@ -467,7 +410,7 @@ jobs:
       working-directory: ./published
 
     # Upload the zipped assets to the release.
-    - name: Upload artifacts
+    - name: Upload binary archives
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -475,3 +418,14 @@ jobs:
         file_glob: true
         overwrite: true
         tag: ${{ needs.create_release.outputs.tag_name }}
+
+    # Commented out until we decide to support publishing of nuget packages.
+    # Upload the NuGet packages to the release (commented out for now)
+    # - name: Upload NuGet packages
+    #   uses: svenstaro/upload-release-action@v2
+    #   with:
+    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
+    #     file: ./published/packages/*.nupkg
+    #     file_glob: true
+    #     overwrite: true
+    #     tag: ${{ needs.create_release.outputs.tag_name }}

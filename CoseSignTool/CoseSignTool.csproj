@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net8.0</TargetFramework>
-		<RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
+		<RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64;</RuntimeIdentifiers>
 		<Platforms>AnyCPU</Platforms>
 	</PropertyGroup>
 
@@ -34,6 +34,9 @@
 		<PackageReadmeFile>readme.md</PackageReadmeFile>
 		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
 		<Description>Command line tool to sign files using COSE Sign1 message envelopes in a way that is compatible with Supply Chain Integrity Transparency and Trust (SCITT).</Description>
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>CoseSignTool</ToolCommandName>
+		<IncludeBuildOutput>true</IncludeBuildOutput>
 	</PropertyGroup>
 
 	<!--Internals for testing-->
@@ -45,7 +48,6 @@
 
 	<!--Package references-->
 	<ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.7" />
 	</ItemGroup>
 
@@ -53,7 +55,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
-    <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+    	<ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
 		<ProjectReference Include="..\CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj" />
 		<ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
 	</ItemGroup>
@@ -120,6 +122,27 @@
 		
 		<Message Text="Auto-discovered and deployed @(PluginNames->Count()) plugin(s): @(PluginNames, ', ')" Importance="high" Condition="'@(PluginNames)' != ''" />
 		<Warning Text="No plugin projects found (looking for *.Plugin.csproj)" Condition="'@(PluginNames)' == ''" />
+	</Target>
+
+	<!--Deploy plugins for publish operations-->
+	<Target Name="DeployAllPluginsForPublish" AfterTargets="Publish" Condition="'$(DeployPlugins)' == 'true'">
+		<!-- Discover all plugin projects by looking for *.Plugin.csproj files -->
+		<ItemGroup>
+			<PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+		</ItemGroup>
+		
+		<!-- Extract plugin names from project paths -->
+		<ItemGroup>
+			<PluginNamesForPublish Include="@(PluginProjectsForPublish->'%(Filename)')" />
+		</ItemGroup>
+		
+		<!-- Deploy each discovered plugin to the publish directory -->
+		<MSBuild Projects="$(MSBuildProjectFile)" 
+				 Properties="PluginName=%(PluginNamesForPublish.Identity);Configuration=$(Configuration);OutputPath=$(PublishDir)" 
+				 Targets="DeployPlugin" 
+				 Condition="'@(PluginNamesForPublish)' != ''" />
+		
+		<Message Text="Auto-discovered and deployed @(PluginNamesForPublish->Count()) plugin(s) for publish: @(PluginNamesForPublish, ', ')" Importance="high" Condition="'@(PluginNamesForPublish)' != ''" />
 	</Target>
 
 	<!--Target to build and deploy all plugins for local development-->

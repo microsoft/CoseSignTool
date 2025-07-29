@@ -43,8 +43,14 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
         { "roots", "Path to a file containing root certificates for validation" },
         { "allow-untrusted", "Allow signatures from untrusted certificate chains" },
         { "allow-outdated", "Allow signatures from outdated certificates" },
-        { "common-name", "Expected common name in the signing certificate" }
+        { "common-name", "Expected common name in the signing certificate" },
+        { "revocation-mode", "Certificate revocation checking mode (NoCheck, Online, Offline, default: NoCheck)" }
     };
+
+    /// <summary>
+    /// Header options for customizing COSE headers.
+    /// </summary>
+    protected static readonly Dictionary<string, string> HeaderOptions = CoseHeaderHelper.HeaderOptions;
 
     /// <summary>
     /// Validates common parameters and returns parsed timeout value.
@@ -349,7 +355,30 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                $"  --timeout       Timeout in seconds for the operation (default: 30){Environment.NewLine}" +
                $"  --content-type  The content type of the payload (default: application/octet-stream){Environment.NewLine}" +
                $"  --hash-algorithm The hash algorithm to use (SHA256, SHA384, SHA512, default: SHA256){Environment.NewLine}" +
-               $"  --signature-version The indirect signature version (CoseHashEnvelope, default: CoseHashEnvelope){Environment.NewLine}";
+               $"  --signature-version The indirect signature version (CoseHashEnvelope, default: CoseHashEnvelope){Environment.NewLine}" +
+               CoseHeaderHelper.HeaderUsage;
+    }
+
+    /// <summary>
+    /// Parses the revocation mode string and returns the corresponding X509RevocationMode enum value.
+    /// </summary>
+    /// <param name="revocationModeString">The revocation mode string (case-insensitive).</param>
+    /// <param name="defaultMode">The default mode to use if parsing fails.</param>
+    /// <returns>The parsed X509RevocationMode value.</returns>
+    protected internal static X509RevocationMode ParseRevocationMode(string? revocationModeString, X509RevocationMode defaultMode = X509RevocationMode.NoCheck)
+    {
+        if (string.IsNullOrEmpty(revocationModeString))
+        {
+            return defaultMode;
+        }
+
+        if (Enum.TryParse<X509RevocationMode>(revocationModeString, ignoreCase: true, out X509RevocationMode result))
+        {
+            return result;
+        }
+
+        // This should not be reached since validation happens earlier
+        return defaultMode;
     }
 
     /// <summary>

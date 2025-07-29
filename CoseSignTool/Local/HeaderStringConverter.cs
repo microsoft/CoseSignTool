@@ -1,31 +1,21 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace CoseSignTool.Local;
 
-internal class HeaderStringConverter : JsonConverter
+internal class HeaderStringConverter : JsonConverter<string>
 {
-    public override bool CanConvert(Type objectType)
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return objectType == typeof(string);
+        string? value = reader.GetString();
+        return string.IsNullOrEmpty(value) ? throw new ArgumentNullException("String header value cannot be null or empty.") : value;
     }
 
-    /// <summary>
-    /// Ensure that the value is not null or empty.
-    /// </summary>
-    /// <param name="reader"></param>
-    /// <param name="objectType"></param>
-    /// <param name="existingValue"></param>
-    /// <param name="serializer"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentNullException"></exception>
-    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
     {
-        return reader.Value == null || string.IsNullOrEmpty(reader.Value.ToString()) ? throw new ArgumentNullException("String header value cannot be null or empty.") : reader.Value.ToString();
-    }
-
-    public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-    {
-        throw new NotImplementedException();
+        writer.WriteStringValue(value);
     }
 }

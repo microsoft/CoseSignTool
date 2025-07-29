@@ -14,7 +14,7 @@ public static class PluginLoader
     /// <summary>
     /// Discovers plugins in the specified directory.
     /// For security reasons, only plugins in the "plugins" subdirectory are allowed.
-    /// Supports both flat structure (legacy) and subdirectory structure (recommended).
+    /// Each plugin must be in its own subdirectory with its dependencies.
     /// </summary>
     /// <param name="pluginDirectory">The directory to search for plugins.</param>
     /// <returns>A collection of discovered plugins.</returns>
@@ -29,21 +29,15 @@ public static class PluginLoader
         // Security check: Only allow plugins from the "plugins" subdirectory
         ValidatePluginDirectory(pluginDirectory);
 
-        // First, try the new subdirectory structure
+        // Discover plugins using the subdirectory structure
         foreach (ICoseSignToolPlugin plugin in DiscoverPluginsInSubdirectories(pluginDirectory))
-        {
-            yield return plugin;
-        }
-
-        // Then, try the legacy flat structure for backward compatibility
-        foreach (ICoseSignToolPlugin plugin in DiscoverPluginsFlat(pluginDirectory))
         {
             yield return plugin;
         }
     }
 
     /// <summary>
-    /// Discovers plugins using the new subdirectory structure.
+    /// Discovers plugins using the subdirectory structure.
     /// Each plugin has its own subdirectory with its dependencies.
     /// </summary>
     /// <param name="pluginDirectory">The main plugins directory.</param>
@@ -63,26 +57,6 @@ public static class PluginLoader
                 {
                     yield return plugin;
                 }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Discovers plugins using the legacy flat structure.
-    /// All plugins and dependencies are in the same directory.
-    /// </summary>
-    /// <param name="pluginDirectory">The plugins directory.</param>
-    /// <returns>A collection of discovered plugins.</returns>
-    private static IEnumerable<ICoseSignToolPlugin> DiscoverPluginsFlat(string pluginDirectory)
-    {
-        string[] pluginFiles = Directory.GetFiles(pluginDirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
-
-        foreach (string pluginFile in pluginFiles)
-        {
-            ICoseSignToolPlugin? plugin = LoadPlugin(pluginFile);
-            if (plugin != null)
-            {
-                yield return plugin;
             }
         }
     }
@@ -159,31 +133,11 @@ public static class PluginLoader
     }
 
     /// <summary>
-    /// Loads a plugin from the specified assembly file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly file.</param>
-    /// <returns>The loaded plugin, or null if the plugin could not be loaded.</returns>
-    public static ICoseSignToolPlugin? LoadPlugin(string assemblyPath)
-    {
-        try
-        {
-            Assembly assembly = Assembly.LoadFrom(assemblyPath);
-            return LoadPlugin(assembly);
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or FileLoadException)
-        {
-            // Log or handle plugin loading errors as needed
-            Console.Error.WriteLine($"Warning: Could not load plugin from '{assemblyPath}': {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Loads a plugin from the specified assembly.
     /// </summary>
     /// <param name="assembly">The assembly to search for plugins.</param>
     /// <returns>The loaded plugin, or null if no plugin was found.</returns>
-    public static ICoseSignToolPlugin? LoadPlugin(Assembly assembly)
+    private static ICoseSignToolPlugin? LoadPlugin(Assembly assembly)
     {
         try
         {

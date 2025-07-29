@@ -520,4 +520,113 @@ public class IndirectVerifyCommandTests
         Assert.AreEqual(PluginExitCode.Success, result);
         Assert.IsFalse(File.Exists(TestOutputPath), "Output file should not be created when no output path specified");
     }
+
+    [TestMethod]
+    public async Task IndirectVerifyCommand_Execute_WithRevocationModeNoCheck_ShouldSucceed()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["allow-untrusted"] = "true",
+            ["revocation-mode"] = "NoCheck",
+            ["output"] = TestOutputPath
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.Success, result);
+        Assert.IsTrue(File.Exists(TestOutputPath));
+    }
+
+    [TestMethod]
+    public async Task IndirectVerifyCommand_Execute_WithRevocationModeOnline_ShouldSucceed()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["allow-untrusted"] = "true",
+            ["revocation-mode"] = "Online",
+            ["output"] = TestOutputPath
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.Success, result);
+        Assert.IsTrue(File.Exists(TestOutputPath));
+    }
+
+    [TestMethod]
+    public async Task IndirectVerifyCommand_Execute_WithRevocationModeOffline_ShouldSucceed()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["allow-untrusted"] = "true",
+            ["revocation-mode"] = "Offline",
+            ["output"] = TestOutputPath
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.Success, result);
+        Assert.IsTrue(File.Exists(TestOutputPath));
+    }
+
+    [TestMethod]
+    public async Task IndirectVerifyCommand_Execute_WithInvalidRevocationMode_ShouldReturnInvalidArgumentValue()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["allow-untrusted"] = "true",
+            ["revocation-mode"] = "InvalidMode",
+            ["output"] = TestOutputPath
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
+    }
+
+    [TestMethod]
+    public async Task IndirectVerifyCommand_Execute_WithoutRevocationMode_ShouldUseDefaultNoCheck()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["allow-untrusted"] = "true",
+            ["output"] = TestOutputPath
+            // Note: no revocation-mode parameter - should default to NoCheck
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.Success, result);
+        Assert.IsTrue(File.Exists(TestOutputPath));
+    }
 }

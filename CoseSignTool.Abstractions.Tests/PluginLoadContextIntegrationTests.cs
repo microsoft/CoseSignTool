@@ -48,28 +48,32 @@ public class PluginLoadContextIntegrationTests
     }
 
     /// <summary>
-    /// Tests PluginLoadContext working with PluginLoader for loading actual plugin assemblies.
+    /// Tests PluginLoadContext working with PluginLoader for discovering plugins.
     /// </summary>
     [TestMethod]
-    public void Integration_WithPluginLoader_ShouldLoadPluginInIsolation()
+    public void Integration_WithPluginLoader_ShouldDiscoverPluginsInSubdirectories()
     {
         // Arrange
-        string pluginPath = CreateTestPluginAssembly();
+        string pluginSubDir = Path.Join(_pluginDirectory, "TestPlugin");
+        Directory.CreateDirectory(pluginSubDir);
+        CreateTestPluginAssembly(pluginSubDir);
         
         // Act
         try
         {
-            ICoseSignToolPlugin? plugin = PluginLoader.LoadPlugin(pluginPath);
+            var plugins = PluginLoader.DiscoverPlugins(_pluginDirectory);
             
             // Assert
             // Since we're creating a test assembly that's not a valid plugin,
-            // this should return null or throw an exception, both are acceptable
-            Assert.IsNull(plugin, "Test assembly should not be loaded as a valid plugin");
+            // this should return an empty collection or handle gracefully
+            Assert.IsNotNull(plugins, "DiscoverPlugins should return a collection");
+            var pluginList = plugins.ToList();
+            Assert.IsTrue(pluginList.Count == 0, "Test assembly should not be loaded as a valid plugin");
         }
         catch (Exception ex)
         {
-            // This test might fail if we can't create a valid assembly, but we can verify the context behavior
-            Console.WriteLine($"Note: Plugin loading failed as expected for test assembly: {ex.Message}");
+            // This test might fail if we can't create a valid assembly, but we can verify the discovery behavior
+            Console.WriteLine($"Note: Plugin discovery handled invalid assembly gracefully: {ex.Message}");
             Assert.IsTrue(true, "Integration test completed - PluginLoader handles invalid assemblies gracefully");
         }
     }
@@ -350,7 +354,15 @@ public class PluginLoadContextIntegrationTests
     /// </summary>
     private string CreateTestPluginAssembly()
     {
-        string pluginPath = Path.Join(_pluginDirectory, "TestPlugin.dll");
+        return CreateTestPluginAssembly(_pluginDirectory);
+    }
+    
+    /// <summary>
+    /// Creates a minimal test plugin assembly file (not a real assembly, just for path testing).
+    /// </summary>
+    private string CreateTestPluginAssembly(string directory)
+    {
+        string pluginPath = Path.Join(directory, "TestPlugin.dll");
         
         // Create a minimal file that looks like it could be an assembly
         // This won't be a valid assembly, but it will test the file handling logic

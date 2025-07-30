@@ -25,7 +25,7 @@ jobs:
   
   # Build and test the code.
   build:
-    name: build-${{matrix.os}}-${{matrix.runtime_id || 'default'}}
+    name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ${{ matrix.os }}
     strategy:

@@ -38,10 +38,10 @@ public class CoseSign1MessageExtensionsTests
     /// </summary>
     private static CoseSign1Message CreateCoseSign1MessageWithoutCert(byte[] content)
     {
-        using var rsa = RSA.Create(2048);
+        using RSA rsa = RSA.Create(2048);
 
-        var coseSigner = new CoseSigner(rsa, RSASignaturePadding.Pkcs1, HashAlgorithmName.SHA256, new CoseHeaderMap(), new CoseHeaderMap());
-        var coseBytes = CoseSign1Message.SignEmbedded(content, coseSigner);
+        CoseSigner coseSigner = new CoseSigner(rsa, RSASignaturePadding.Pkcs1, HashAlgorithmName.SHA256, new CoseHeaderMap(), new CoseHeaderMap());
+        byte[] coseBytes = CoseSign1Message.SignEmbedded(content, coseSigner);
         return CoseMessage.DecodeSign1(coseBytes);
     }
 
@@ -52,9 +52,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyEmbeddedWithCertificate_ValidMessage_ReturnsTrue()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 1, 2, 3, 4 };
-        var msg = CreateValidCoseSign1Message(content, cert, out _);
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 1, 2, 3, 4 };
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _);
 
         // Act
         bool result = msg.VerifyEmbeddedWithCertificate();
@@ -83,8 +83,8 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyEmbeddedWithCertificate_NoCertificate_ReturnsFalse()
     {
         // Arrange
-        var content = new byte[] { 1, 2, 3, 4 };
-        var msg = CreateCoseSign1MessageWithoutCert(content);
+        byte[] content = new byte[] { 1, 2, 3, 4 };
+        CoseSign1Message msg = CreateCoseSign1MessageWithoutCert(content);
         // Act
         bool result = msg.VerifyEmbeddedWithCertificate();
         // Assert
@@ -98,9 +98,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ByteArray_Valid_ReturnsTrue()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 10, 20, 30 };
-        var msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 10, 20, 30 };
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act
         bool result = msg.VerifyDetachedWithCertificate(content);
         // Assert
@@ -115,7 +115,7 @@ public class CoseSign1MessageExtensionsTests
     {
         // Arrange
         CoseSign1Message msg = null!;
-        var content = new byte[] { 1, 2 };
+        byte[] content = new byte[] { 1, 2 };
         // Act & Assert
         Assert.That(msg.VerifyDetachedWithCertificate(content), Is.False, "Expected false when message is null.");
     }
@@ -127,9 +127,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ByteArray_NullContent_ReturnsFalse()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 1, 2 };
-        var msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 1, 2 };
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act & Assert
         Assert.That(msg.VerifyDetachedWithCertificate((byte[])null!), Is.False, "Expected false when detached content is null.");
     }
@@ -141,9 +141,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ReadOnlySpan_Valid_ReturnsTrue()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 42, 43, 44 };
-        var msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 42, 43, 44 };
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act
         bool result = msg.VerifyDetachedWithCertificate(content.AsSpan());
         // Assert
@@ -157,10 +157,10 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ReadOnlySpan_EmptyContent_ReturnsFalse()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var contentCreate = new byte[] { 99, 100, 101 };
-        var contentVerify = Array.Empty<byte>();
-        var msg = CreateValidCoseSign1Message(contentCreate, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] contentCreate = new byte[] { 99, 100, 101 };
+        byte[] contentVerify = Array.Empty<byte>();
+        CoseSign1Message msg = CreateValidCoseSign1Message(contentCreate, cert, out _, detached: true); // Detached
         // Act
         bool result = msg.VerifyDetachedWithCertificate(contentVerify.AsSpan());
         // Assert
@@ -174,10 +174,10 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_Valid_ReturnsTrue()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 99, 100, 101 };
-        using var stream = new MemoryStream(content);
-        var msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 99, 100, 101 };
+        using MemoryStream stream = new MemoryStream(content);
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act
         bool result = msg.VerifyDetachedWithCertificate(stream);
         // Assert
@@ -192,7 +192,7 @@ public class CoseSign1MessageExtensionsTests
     {
         // Arrange
         CoseSign1Message msg = null!;
-        using var stream = new MemoryStream(new byte[] { 1 });
+        using MemoryStream stream = new MemoryStream(new byte[] { 1 });
         // Act & Assert
         Assert.That(msg.VerifyDetachedWithCertificate(stream), Is.False, "Expected false when message is null.");
     }
@@ -204,9 +204,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_NullStream_ReturnsFalse()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 99, 100, 101 };
-        var msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 99, 100, 101 };
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act & Assert
         Assert.That(msg.VerifyDetachedWithCertificate((Stream)null!), Is.False, "Expected false when detached stream is null.");
     }
@@ -218,11 +218,11 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyEmbeddedWithCertificate_DetachedMessage_ReturnsFalse()
     {
         // Arrange
-        var cert = TestCertificateUtils.CreateCertificate();
-        var content = new byte[] { 1, 2, 3, 4 };
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        byte[] content = new byte[] { 1, 2, 3, 4 };
         byte[] coseBytes;
         // Create a detached message: pass null as content and detached=true
-        var msg = CreateValidCoseSign1Message(content, cert, out coseBytes, detached: true);
+        CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out coseBytes, detached: true);
 
         // Act
         bool result = msg.VerifyEmbeddedWithCertificate();
@@ -238,8 +238,8 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ByteArray_NoCertificate_ReturnsFalse()
     {
         // Arrange
-        var content = new byte[] { 1, 2, 3 };
-        var msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
+        byte[] content = new byte[] { 1, 2, 3 };
+        CoseSign1Message msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
         // Act
         bool result = msg.VerifyDetachedWithCertificate(content);
         // Assert
@@ -253,8 +253,8 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ReadOnlySpan_NoCertificate_ReturnsFalse()
     {
         // Arrange
-        var content = new byte[] { 1, 2, 3 };
-        var msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
+        byte[] content = new byte[] { 1, 2, 3 };
+        CoseSign1Message msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
         // Act
         bool result = msg.VerifyDetachedWithCertificate(content.AsSpan());
         // Assert
@@ -268,9 +268,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_NoCertificate_ReturnsFalse()
     {
         // Arrange
-        var content = new byte[] { 1, 2, 3 };
-        using var stream = new MemoryStream(content);
-        var msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
+        byte[] content = new byte[] { 1, 2, 3 };
+        using MemoryStream stream = new MemoryStream(content);
+        CoseSign1Message msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
         // Act
         bool result = msg.VerifyDetachedWithCertificate(stream);
         // Assert
@@ -284,9 +284,9 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_NoCertificateOrPublicKey_ReturnsFalse()
     {
         // Arrange
-        var content = new byte[] { 1, 2, 3 };
-        using var stream = new MemoryStream(content);
-        var msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
+        byte[] content = new byte[] { 1, 2, 3 };
+        using MemoryStream stream = new MemoryStream(content);
+        CoseSign1Message msg = CreateCoseSign1MessageWithoutCert(content); // No cert in headers
         // Act
         bool result = msg.VerifyDetachedWithCertificate(stream);
         // Assert

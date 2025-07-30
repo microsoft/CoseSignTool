@@ -10,14 +10,15 @@ This guide will help you create your first CoseSignTool plugin in just a few min
 
 ## Step 1: Create the Plugin Project
 
-Create a new class library project:
+Create a new class library project with the **correct naming convention**:
 
 ```bash
-dotnet new classlib -n MyFirstPlugin
-cd MyFirstPlugin
+# IMPORTANT: Use .Plugin.csproj naming for automatic CI/CD packaging
+dotnet new classlib -n MyFirst.Plugin
+cd MyFirst.Plugin
 ```
 
-Update the project file (`MyFirstPlugin.csproj`):
+Update the project file (`MyFirst.Plugin.csproj`):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -33,6 +34,19 @@ Update the project file (`MyFirstPlugin.csproj`):
   </ItemGroup>
 </Project>
 ```
+
+### 🚨 **Critical Naming Requirements**
+
+For automatic CI/CD packaging and deployment, your project **must** follow these conventions:
+
+✅ **Project File**: `<Name>.Plugin.csproj` (enables automatic CI/CD packaging)  
+✅ **Assembly Name**: `<Name>.Plugin.dll` (enables runtime discovery)
+
+#### **Examples:**
+- `MyFirst.Plugin.csproj` → ✅ Automatically packaged in CI/CD
+- `AzureVault.Plugin.csproj` → ✅ Automatically packaged in CI/CD  
+- `CustomSigning.Plugin.csproj` → ✅ Automatically packaged in CI/CD
+- `MyFirstPlugin.csproj` → ❌ NOT automatically packaged (missing `.Plugin` suffix)
 
 ## Step 2: Create the Plugin Class
 
@@ -149,7 +163,31 @@ dotnet build
 
 ## Step 5: Deploy the Plugin
 
-1. Copy the built assembly to the CoseSignTool plugins directory:
+**Enhanced Subdirectory Deployment (Recommended):**
+
+1. Create a subdirectory for your plugin:
+
+```bash
+# Windows
+mkdir "C:\path\to\CoseSignTool\plugins\MyFirst.Plugin"
+
+# Linux/macOS
+mkdir -p /path/to/CoseSignTool/plugins/MyFirst.Plugin
+```
+
+2. Copy the built assembly and dependencies to the subdirectory:
+
+```bash
+# Windows
+copy bin\Debug\net8.0\*.* "C:\path\to\CoseSignTool\plugins\MyFirst.Plugin\"
+
+# Linux/macOS
+cp bin/Debug/net8.0/* /path/to/CoseSignTool/plugins/MyFirst.Plugin/
+```
+
+**Legacy Flat Deployment (Backward Compatibility):**
+
+1. Copy just the plugin DLL to the main plugins directory:
 
 ```bash
 # Windows
@@ -159,11 +197,10 @@ copy bin\Debug\net8.0\MyFirst.Plugin.dll "C:\path\to\CoseSignTool\plugins\"
 cp bin/Debug/net8.0/MyFirst.Plugin.dll /path/to/CoseSignTool/plugins/
 ```
 
-2. Create the plugins directory if it doesn't exist:
-
-```bash
-mkdir plugins
-```
+**Benefits of Subdirectory Deployment:**
+- **Dependency Isolation**: Your plugin dependencies won't conflict with other plugins
+- **Self-Contained**: Easy to distribute and manage as a complete unit
+- **Version Independence**: Use any dependency versions without worrying about conflicts
 
 ## Step 6: Test Your Plugin
 

@@ -14,6 +14,7 @@ public static class PluginLoader
     /// <summary>
     /// Discovers plugins in the specified directory.
     /// For security reasons, only plugins in the "plugins" subdirectory are allowed.
+    /// Each plugin must be in its own subdirectory with its dependencies.
     /// </summary>
     /// <param name="pluginDirectory">The directory to search for plugins.</param>
     /// <returns>A collection of discovered plugins.</returns>
@@ -28,15 +29,57 @@ public static class PluginLoader
         // Security check: Only allow plugins from the "plugins" subdirectory
         ValidatePluginDirectory(pluginDirectory);
 
-        var pluginFiles = Directory.GetFiles(pluginDirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
-
-        foreach (string pluginFile in pluginFiles)
+        // Discover plugins using the subdirectory structure
+        foreach (ICoseSignToolPlugin plugin in DiscoverPluginsInSubdirectories(pluginDirectory))
         {
-            ICoseSignToolPlugin? plugin = LoadPlugin(pluginFile);
-            if (plugin != null)
+            yield return plugin;
+        }
+    }
+
+    /// <summary>
+    /// Discovers plugins using the subdirectory structure.
+    /// Each plugin has its own subdirectory with its dependencies.
+    /// </summary>
+    /// <param name="pluginDirectory">The main plugins directory.</param>
+    /// <returns>A collection of discovered plugins.</returns>
+    private static IEnumerable<ICoseSignToolPlugin> DiscoverPluginsInSubdirectories(string pluginDirectory)
+    {
+        string[] subdirectories = Directory.GetDirectories(pluginDirectory);
+
+        foreach (string subdirectory in subdirectories)
+        {
+            string[] pluginFiles = Directory.GetFiles(subdirectory, "*.Plugin.dll", SearchOption.TopDirectoryOnly);
+
+            foreach (string pluginFile in pluginFiles)
             {
-                yield return plugin;
+                ICoseSignToolPlugin? plugin = LoadPluginWithContext(pluginFile, subdirectory);
+                if (plugin != null)
+                {
+                    yield return plugin;
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// Loads a plugin using its own AssemblyLoadContext for dependency isolation.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the plugin assembly.</param>
+    /// <param name="pluginDirectory">The directory containing the plugin and its dependencies.</param>
+    /// <returns>The loaded plugin, or null if the plugin could not be loaded.</returns>
+    private static ICoseSignToolPlugin? LoadPluginWithContext(string assemblyPath, string pluginDirectory)
+    {
+        try
+        {
+            PluginLoadContext loadContext = new PluginLoadContext(assemblyPath, pluginDirectory);
+            Assembly assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
+            return LoadPlugin(assembly);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or FileLoadException)
+        {
+            // Log or handle plugin loading errors as needed
+            Console.Error.WriteLine($"Warning: Could not load plugin from '{assemblyPath}': {ex.Message}");
+            return null;
         }
     }
 
@@ -90,31 +133,11 @@ public static class PluginLoader
     }
 
     /// <summary>
-    /// Loads a plugin from the specified assembly file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly file.</param>
-    /// <returns>The loaded plugin, or null if the plugin could not be loaded.</returns>
-    public static ICoseSignToolPlugin? LoadPlugin(string assemblyPath)
-    {
-        try
-        {
-            Assembly assembly = Assembly.LoadFrom(assemblyPath);
-            return LoadPlugin(assembly);
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or FileLoadException)
-        {
-            // Log or handle plugin loading errors as needed
-            Console.Error.WriteLine($"Warning: Could not load plugin from '{assemblyPath}': {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Loads a plugin from the specified assembly.
     /// </summary>
     /// <param name="assembly">The assembly to search for plugins.</param>
     /// <returns>The loaded plugin, or null if no plugin was found.</returns>
-    public static ICoseSignToolPlugin? LoadPlugin(Assembly assembly)
+    private static ICoseSignToolPlugin? LoadPlugin(Assembly assembly)
     {
         try
         {

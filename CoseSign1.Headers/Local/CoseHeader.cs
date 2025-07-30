@@ -12,19 +12,21 @@ public class CoseHeader<TypeV>
     /// <summary>
     /// Gets or sets the Header label.
     /// </summary>
-    [JsonProperty(Required = Required.Always, PropertyName = "label")]
+    [JsonRequired]
+    [JsonPropertyName("label")]
     public string Label { get; set; }
 
     /// <summary>
     /// Gets or sets the Header value.
     /// </summary>
-    [JsonProperty(Required = Required.Always, PropertyName = "value")]
+    [JsonRequired]
+    [JsonPropertyName("value")]
     public TypeV Value { get; set; }
 
     /// <summary>
     /// Gets or sets a value to indicate if this header is protected.
     /// </summary>
-    [JsonProperty(PropertyName = "protected", DefaultValueHandling = DefaultValueHandling.Populate)]
+    [JsonPropertyName("protected")]
     public bool IsProtected { get; set; }
 
     /// <summary>

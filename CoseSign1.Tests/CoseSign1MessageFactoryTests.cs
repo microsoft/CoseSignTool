@@ -31,7 +31,7 @@ public class CoseSign1MessageFactoryTests
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
 
-        var response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
 
         mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
         response.Should().NotBeNull();
@@ -130,7 +130,7 @@ public class CoseSign1MessageFactoryTests
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey()); ;
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
 
-        var response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
 
         mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
         response.Should().NotBeNull();
@@ -155,7 +155,7 @@ public class CoseSign1MessageFactoryTests
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
 
-        var response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, embedPayload: false);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, embedPayload: false);
 
         mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
         response.Should().NotBeNull();
@@ -178,7 +178,7 @@ public class CoseSign1MessageFactoryTests
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
 
-        var exceptionText = Assert.Throws<CoseSigningException>(
+        CoseSigningException? exceptionText = Assert.Throws<CoseSigningException>(
                            () => coseSign1MessageFactory.CreateCoseSign1Message(testPayload,
                                  mockedSignerKeyProvider.Object));
 
@@ -196,15 +196,15 @@ public class CoseSign1MessageFactoryTests
         ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(null, selfSignedCertwithRSA);
 
         ReadOnlyMemory<byte> bytesPayload = ReadOnlyMemory<byte>.Empty;
-        var bytesException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(bytesPayload, keyProvider));
+        ArgumentOutOfRangeException? bytesException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(bytesPayload, keyProvider));
         bytesException.Message.Should().Be("The payload to sign is empty.");
 
         Stream streamPayload = new MemoryStream();
-        var streamException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(streamPayload, keyProvider));
+        ArgumentOutOfRangeException? streamException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(streamPayload, keyProvider));
         streamException.Message.Should().Be("The payload to sign is empty.");
 
 #pragma warning disable CS8604 // Intentional null reference argument for testing.
-        var nullException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(null as Stream, keyProvider));
+        ArgumentOutOfRangeException? nullException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(null as Stream, keyProvider));
 #pragma warning restore CS8604 // Test complete.
         nullException.Message.Should().Be("The payload to sign is empty.");
     }
@@ -226,7 +226,7 @@ public class CoseSign1MessageFactoryTests
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
 
-        var exceptionText = Assert.Throws<CoseSigningException>(() =>
+        CoseSigningException? exceptionText = Assert.Throws<CoseSigningException>(() =>
             coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object));
 
         exceptionText.Message.Should().Be("Unsupported certificate type for COSE signing.");
@@ -242,7 +242,7 @@ public class CoseSign1MessageFactoryTests
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type. Disabled for test.
-        var exceptionText = Assert.Throws<ArgumentNullException>(() => coseSign1MessageFactory.CreateCoseSign1Message(testPayload, null));
+        ArgumentNullException? exceptionText = Assert.Throws<ArgumentNullException>(() => coseSign1MessageFactory.CreateCoseSign1Message(testPayload, null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
         exceptionText.Message.Should().Be("Signing key provider is not provided.");

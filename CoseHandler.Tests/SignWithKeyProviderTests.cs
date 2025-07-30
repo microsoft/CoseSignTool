@@ -15,14 +15,14 @@ public class SignWithKeyProviderTests
 
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
         X509Certificate2 testCertRSA = TestCertificateUtils.CreateCertificate();
-        var testChain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
 
         string signedFile = Path.GetTempFileName();
         Mock<ICertificateChainBuilder> testChainBuilder = new();
         testChainBuilder.Setup(x => x.ChainElements).Returns(new List<X509Certificate2>(testChain));
         testChainBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
 
-        var mockedSignerKeyProvider = new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, testCertRSA);
+        X509Certificate2CoseSigningKeyProvider mockedSignerKeyProvider = new X509Certificate2CoseSigningKeyProvider(testChainBuilder.Object, testCertRSA);
 
         CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider, false, new FileInfo(signedFile));
     }
@@ -32,7 +32,7 @@ public class SignWithKeyProviderTests
     public void TestSignWithNoSigningKey()
     {
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        var signedFile = Path.GetTempFileName();
+        string signedFile = Path.GetTempFileName();
 
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
@@ -45,7 +45,7 @@ public class SignWithKeyProviderTests
         // Setup KeyChain property to return empty list since no keys are available
         mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(new List<AsymmetricAlgorithm>().AsReadOnly());
 
-        var exceptionText = Assert.ThrowsException<CoseSigningException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
+        CoseSigningException exceptionText = Assert.ThrowsException<CoseSigningException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
         exceptionText.Message.Should().Be("Unsupported certificate type for COSE signing.");
     }
 
@@ -60,7 +60,7 @@ public class SignWithKeyProviderTests
         X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
-        var signedFile = Path.GetTempFileName();
+        string signedFile = Path.GetTempFileName();
 
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
@@ -68,17 +68,17 @@ public class SignWithKeyProviderTests
         mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
         mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-        
+
         // Setup KeyChain property
-        var publicKey = selfSignedCertwithRSA.GetRSAPublicKey();
-        var keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
+        RSA? publicKey = selfSignedCertwithRSA.GetRSAPublicKey();
+        System.Collections.ObjectModel.ReadOnlyCollection<AsymmetricAlgorithm> keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
         mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(keyChain);
 
         bool isRSA = mockedSignerKeyProvider.Object.IsRSA;
 
         mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
 
-        var exceptionText = Assert.ThrowsException<ArgumentException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
+        ArgumentException exceptionText = Assert.ThrowsException<ArgumentException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
 
         exceptionText.Message.Should().Be("Payload not provided.");
     }

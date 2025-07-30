@@ -16,10 +16,10 @@ public class TestsForTheUnderlyingAPI
     [TestMethod]
     public void ValidateCoseRoundTripDetached()
     {
-        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
-        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
+        RSA rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
+        RSA rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
 
-        var signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
+        CoseSigner signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
         byte[] encodedMsg = CoseSign1Message.SignDetached(Payload1, signer);
 
         CoseSign1Message msg = CoseMessage.DecodeSign1(encodedMsg);
@@ -33,17 +33,17 @@ public class TestsForTheUnderlyingAPI
     [TestMethod]
     public void ValidateCoseRoundTripCustomHeader()
     {
-        var rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
-        var rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
+        RSA rsaPublicKey = SelfSignedCert.GetRSAPublicKey()!;
+        RSA rsaPrivateKey = SelfSignedCert.GetRSAPrivateKey()!;
 
-        var writer = new CborWriter();
+        CborWriter writer = new CborWriter();
         writer.WriteStartArray(definiteLength: 3);
         writer.WriteInt32(42);
         writer.WriteTextString("foo");
         writer.WriteTextString("bar");
         writer.WriteEndArray();
 
-        var myArrayHeader = new CoseHeaderLabel("my-array-header");
+        CoseHeaderLabel myArrayHeader = new CoseHeaderLabel("my-array-header");
 
         CoseHeaderMap unprotectedHeaders = new()
             {
@@ -51,11 +51,11 @@ public class TestsForTheUnderlyingAPI
             };
 
         // Encode but with user-defined headers.
-        var signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, [], unprotectedHeaders);
+        CoseSigner signer = new CoseSigner(rsaPrivateKey, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, [], unprotectedHeaders);
         byte[] encodedMsg = CoseSign1Message.SignDetached(Payload1, signer);
 
         CoseSign1Message msg = CoseMessage.DecodeSign1(encodedMsg);
-        var encodedHeader = msg.UnprotectedHeaders[myArrayHeader].EncodedValue;
+        ReadOnlyMemory<byte> encodedHeader = msg.UnprotectedHeaders[myArrayHeader].EncodedValue;
         CborReader reader = new(encodedHeader);
 
         CborReaderState.StartArray.Should().Be(reader.PeekState(), "encoded as array");

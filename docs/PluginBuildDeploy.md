@@ -1,10 +1,64 @@
 # Plugin Build and Deployment Guide
 
-This document explains how plugins are built, deployed, and packaged with CoseSignTool.
+This document explains how plugins are built, deployed, and packaged with CoseSignTool using the enhanced subdirectory architecture introduced in version 2.0.
 
 ## Overview
 
-The CoseSignTool plugin system includes automated build and deployment processes for both local development and CI/CD pipelines. The Azure Code Transparency Service (CTS) plugin is included as a reference implementation and is automatically built and deployed with CoseSignTool releases.
+The CoseSignTool plugin system includes automated build and deployment processes for both local development and CI/CD pipelines. The system supports:
+
+- **🚀 Automatic Plugin Discovery**: Zero-maintenance CI/CD packaging using naming conventions
+- **Enhanced Subdirectory Architecture**: Each plugin gets its own subdirectory with isolated dependencies
+- **Legacy Flat Architecture**: Backward compatibility with older plugin deployment methods
+- **Dependency Isolation**: Plugins can use different versions of the same dependencies without conflicts
+- **Automated Deployment**: MSBuild targets handle complex dependency copying automatically
+
+The Azure Code Transparency Service (CTS) plugin and Indirect Signature plugin are included as reference implementations and are automatically built and deployed with CoseSignTool releases.
+
+## 🎯 **Automatic Plugin Discovery and Packaging**
+
+### **Convention-Based Auto-Packaging**
+The CI/CD pipeline automatically discovers and packages **any project** following this naming pattern:
+
+```
+<ProjectName>.Plugin.csproj
+```
+
+### **How Automatic Discovery Works**
+The GitHub Actions workflow uses this command to find all plugins:
+```bash
+# Discovers all plugin projects automatically
+PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f | sed 's|^\./||' | sed 's|/[^/]*\.csproj$||'))
+```
+
+### **✅ Current Auto-Packaged Plugins**
+- `CoseSignTool.CTS.Plugin.csproj` → **Automatically packaged**
+- `CoseSignTool.IndirectSignature.Plugin.csproj` → **Automatically packaged**
+
+### **✅ Adding New Plugins (Zero Maintenance)**
+To add a new plugin to automatic CI/CD packaging:
+
+1. **Name your project with `.Plugin.csproj` suffix**:
+   ```
+   YourCompany.CustomSigning.Plugin.csproj
+   AzureKeyVault.Integration.Plugin.csproj
+   ```
+
+2. **That's it!** No other changes needed:
+   - ✅ Automatically discovered by CI/CD
+   - ✅ Automatically built with proper versioning
+   - ✅ Automatically deployed to release packages
+   - ✅ Automatically tested in CI pipeline
+
+### **❌ Projects NOT Auto-Packaged**
+Projects not following the convention are ignored:
+- `CoseSignTool.Utilities.csproj` → Not packaged (missing `.Plugin` suffix)
+- `CustomTool.csproj` → Not packaged (missing `.Plugin` suffix)
+
+### **🚀 Benefits of Auto-Discovery**
+- **Zero Maintenance**: No manual updates to CI/CD scripts
+- **Fail-Safe**: Cannot forget to include a plugin in deployment
+- **Scalable**: Works with 2 plugins or 20 plugins
+- **Convention-Based**: Clear, predictable naming rules
 
 ## Build Process
 
@@ -30,24 +84,28 @@ The GitHub Actions workflow handles plugin deployment in the release process:
 
 ### Local Development
 
-For local development, you can use MSBuild targets to automatically deploy plugins:
+For local development, you can use MSBuild targets to automatically deploy plugins with the enhanced subdirectory architecture:
 
 ```bash
-# Build and deploy all plugins automatically
-dotnet build CoseSignTool --target BuildAndDeployPlugins
-
-# Build with automatic plugin deployment
+# Build and deploy all plugins to subdirectories
 dotnet build CoseSignTool -p:DeployPlugins=true
+
+# This automatically:
+# - Creates plugins/CoseSignTool.CTS.Plugin/ subdirectory
+# - Creates plugins/CoseSignTool.IndirectSignature.Plugin/ subdirectory  
+# - Copies each plugin and its dependencies to respective subdirectories
+# - Maintains backward compatibility with legacy deployment
 ```
 
-This will:
-- Build the CTS plugin
-- Create a `plugins` directory in the CoseSignTool output
-- Copy the plugin DLL to the plugins directory
+**What happens during plugin deployment:**
+- **CTS Plugin**: Deployed to `plugins/CoseSignTool.CTS.Plugin/` with Azure dependencies
+- **Indirect Signature Plugin**: Deployed to `plugins/CoseSignTool.IndirectSignature.Plugin/` with minimal dependencies
+- **Legacy Support**: Also copies plugins to flat structure for backward compatibility
+- **Dependency Isolation**: Each plugin's dependencies are isolated in its subdirectory
 
 ## Plugin Deployment Structure
 
-After deployment, the directory structure looks like:
+After deployment with the enhanced subdirectory architecture, the directory structure looks like:
 
 ```
 CoseSignTool/
@@ -56,32 +114,86 @@ CoseSignTool/
 │       └── net8.0/
 │           ├── CoseSignTool.exe                    # Main application
 │           ├── CoseSignTool.dll                    # Main library
-│           ├── [other dependencies...]
+│           ├── [other shared dependencies...]
 │           └── plugins/                            # Plugin directory
-│               ├── CoseSignTool.CTS.Plugin.dll     # CTS plugin
-│               ├── Azure.Security.CodeTransparency.dll  # Plugin dependencies
-│               ├── Azure.dll
-│               ├── Azure.Identity.dll
-│               └── Azure.Core.dll
+│               ├── CoseSignTool.CTS.Plugin/        # CTS plugin subdirectory
+│               │   ├── CoseSignTool.CTS.Plugin.dll
+│               │   ├── CoseSignTool.CTS.Plugin.deps.json
+│               │   ├── Azure.Security.CodeTransparency.dll
+│               │   ├── Azure.Core.dll
+│               │   ├── Azure.Identity.dll
+│               │   ├── Azure.Security.KeyVault.Keys.dll
+│               │   ├── Microsoft.Bcl.AsyncInterfaces.dll
+│               │   ├── Microsoft.Extensions.Configuration.CommandLine.dll
+│               │   ├── Microsoft.Identity.Client.dll
+│               │   ├── Newtonsoft.Json.dll
+│               │   ├── System.ClientModel.dll
+│               │   └── [other CTS-specific dependencies...]
+│               ├── CoseSignTool.IndirectSignature.Plugin/  # Indirect Signature plugin subdirectory
+│               │   ├── CoseSignTool.IndirectSignature.Plugin.dll
+│               │   ├── CoseSignTool.IndirectSignature.Plugin.deps.json
+│               │   └── [minimal plugin-specific dependencies...]
+│               └── [legacy flat files for backward compatibility]
+│                   ├── CoseSignTool.CTS.Plugin.dll
+│                   ├── CoseSignTool.IndirectSignature.Plugin.dll
+│                   └── [shared dependencies...]
 ```
+
+**Key Features:**
+- **Dependency Isolation**: Each plugin subdirectory contains all its required dependencies
+- **Version Independence**: Plugins can use different versions of the same dependency
+- **Self-Contained**: Each plugin directory is a complete, deployable unit
+- **Backward Compatibility**: Legacy flat structure is maintained for older deployment methods
 
 ## Dependency Management
 
-### Plugin Dependencies
+### Enhanced Subdirectory Architecture (Version 2.0+)
 
-The build process handles plugin dependencies intelligently:
+The enhanced plugin system provides sophisticated dependency management:
+
+1. **Isolated Loading**: Each plugin loads in its own `AssemblyLoadContext` 
+2. **Plugin-Specific Dependencies**: Dependencies are resolved first from the plugin's subdirectory
+3. **Shared Framework**: Common .NET and Microsoft.Extensions assemblies are resolved from the main application
+4. **Version Flexibility**: Different plugins can use different versions of the same dependency
+5. **Conflict Prevention**: Dependencies in one plugin cannot interfere with another plugin
+
+**AssemblyLoadContext Resolution Order:**
+1. Check if assembly is a shared framework assembly (System.*, Microsoft.Extensions.*, etc.)
+   - If yes: Delegate to default context (shared with main application)
+   - If no: Continue to plugin-specific resolution
+2. Look for assembly in plugin's subdirectory
+3. Use AssemblyDependencyResolver to find dependencies
+4. Fall back to default context if not found
+
+### Legacy Flat Architecture (Backward Compatibility)
+
+For plugins deployed in the flat structure:
 
 1. **Shared Dependencies**: Libraries already included in the main application are not duplicated
-2. **Plugin-Specific Dependencies**: Libraries unique to plugins (like Azure SDK components) are copied to the plugins directory
-3. **Automatic Detection**: The build script attempts to copy known plugin-specific dependencies and logs what was found/copied
+2. **Plugin-Specific Dependencies**: Libraries unique to plugins are copied to the plugins directory
+3. **Conflict Risk**: Multiple plugins using different versions of the same dependency may conflict
+4. **Manual Management**: Developers must carefully manage dependency versions
 
-### Dependency Resolution
+### Plugin Dependency Configuration
 
-When CoseSignTool loads plugins:
+For optimal compatibility with the subdirectory architecture, configure your plugin project:
 
-1. **Main Dependencies**: Resolved from the main application directory
-2. **Plugin Dependencies**: Resolved from the plugins directory
-3. **Fallback**: .NET runtime handles standard library resolution
+```xml
+<PropertyGroup>
+  <!-- Ensure all dependencies are copied to output -->
+  <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  <PreserveCompilationContext>true</PreserveCompilationContext>
+  <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+</PropertyGroup>
+
+<ItemGroup>
+  <!-- Explicitly mark plugin-specific dependencies for copying -->
+  <PackageReference Include="Azure.Core" Version="1.46.1">
+    <Private>true</Private>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </PackageReference>
+</ItemGroup>
+```
 
 ## Adding New Plugins
 

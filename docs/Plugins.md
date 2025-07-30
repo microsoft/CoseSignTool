@@ -102,7 +102,46 @@ Create a new .NET 8.0 class library project:
 </Project>
 ```
 
-**Important**: The assembly name must end with `.Plugin.dll` for automatic discovery.
+## ⚠️ **Important**: Naming Conventions for Automatic Packaging
+
+### **Assembly Naming Requirements**
+- **Runtime Discovery**: The assembly name must end with `.Plugin.dll` for automatic discovery by CoseSignTool
+- **CI/CD Auto-Packaging**: The project file must end with `.Plugin.csproj` for automatic inclusion in CI/CD builds
+
+### **CI/CD Auto-Packaging Convention**
+The CoseSignTool CI/CD pipeline automatically discovers and packages **any project following this naming pattern**:
+
+```
+<ProjectName>.Plugin.csproj
+```
+
+#### ✅ **Examples of Auto-Packaged Projects:**
+- `CoseSignTool.CTS.Plugin.csproj` → Automatically built and deployed
+- `CoseSignTool.IndirectSignature.Plugin.csproj` → Automatically built and deployed  
+- `YourCompany.CustomSigning.Plugin.csproj` → **Would be automatically built and deployed**
+- `AzureKeyVault.Integration.Plugin.csproj` → **Would be automatically built and deployed**
+
+#### ❌ **Examples NOT Auto-Packaged:**
+- `CoseSignTool.Utilities.csproj` → Not a plugin (missing `.Plugin` suffix)
+- `CustomSigningTool.csproj` → Not a plugin (missing `.Plugin` suffix)
+- `MyPlugin.csproj` → Not a plugin (missing `.Plugin` suffix)
+
+### **Zero-Maintenance Plugin Deployment**
+When you follow the `.Plugin.csproj` naming convention:
+
+✅ **Automatic CI/CD Integration**: No manual updates needed to build scripts  
+✅ **Automatic Packaging**: Plugin included in all releases automatically  
+✅ **Automatic Discovery**: Plugin commands appear in CoseSignTool help  
+✅ **Automatic Testing**: Plugin included in CI/CD test runs  
+
+### **How It Works**
+The CI/CD pipeline uses this discovery command:
+```bash
+# Automatically finds all plugin projects
+PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f))
+```
+
+This means **adding a new plugin requires no maintenance** - just follow the naming convention!
 
 ### Step 2: Implement the Plugin Class
 
@@ -290,15 +329,40 @@ Optional Options:
 
 ### Directory Restrictions
 
-For security reasons, CoseSignTool only loads plugins from the `plugins` subdirectory of the executable:
+For security reasons, CoseSignTool only loads plugins from the `plugins` subdirectory of the executable. Since version 2.0, CoseSignTool supports both legacy flat and enhanced subdirectory-based plugin architectures:
 
+**Enhanced Subdirectory Architecture (Recommended):**
+```
+CoseSignTool.exe
+└── plugins/
+    ├── YourCompany.YourService.Plugin/
+    │   ├── YourCompany.YourService.Plugin.dll
+    │   ├── YourSpecificDependency.dll
+    │   ├── AnotherDependency.dll
+    │   └── ...
+    ├── AnotherCompany.AnotherService.Plugin/
+    │   ├── AnotherCompany.AnotherService.Plugin.dll
+    │   ├── SpecificDependencyV1.dll
+    │   └── ...
+    └── [legacy flat files for backward compatibility]
+```
+
+**Legacy Flat Architecture (Supported):**
 ```
 CoseSignTool.exe
 └── plugins/
     ├── YourCompany.YourService.Plugin.dll
     ├── AnotherCompany.AnotherService.Plugin.dll
+    ├── SharedDependency.dll
     └── ...
 ```
+
+**Key Benefits of Subdirectory Architecture:**
+- **Dependency Isolation**: Each plugin has its own dependency context, preventing version conflicts
+- **Self-Contained Deployment**: All plugin dependencies are contained within the plugin's subdirectory
+- **Easier Distribution**: Plugins can be packaged as complete, self-contained units
+- **Better Maintainability**: Clear separation between different plugins and their dependencies
+- **Concurrent Versions**: Multiple plugins can use different versions of the same dependency
 
 **Security Features:**
 - **Path validation**: The `PluginLoader.ValidatePluginDirectory()` method ensures plugins are only loaded from the authorized directory
@@ -307,14 +371,26 @@ CoseSignTool.exe
 
 ### Plugin Discovery
 
-The plugin discovery process:
+The plugin discovery process supports both legacy flat and modern subdirectory structures:
 
+**Enhanced Discovery Process (Version 2.0+):**
 1. **Directory existence**: Check if the `plugins` directory exists
 2. **Security validation**: Verify the directory is authorized for plugin loading
-3. **File scanning**: Search for `*.Plugin.dll` files in the directory (top-level only)
-4. **Assembly loading**: Load each plugin assembly using `Assembly.LoadFrom()`
+3. **Subdirectory scanning**: 
+   - Search subdirectories for `*.Plugin.dll` files
+   - Create isolated AssemblyLoadContext for each plugin
+   - Load plugin dependencies from plugin-specific subdirectory
+4. **Legacy fallback**: 
+   - Search for `*.Plugin.dll` files in the main plugins directory
+   - Load using default AssemblyLoadContext for backward compatibility
 5. **Type discovery**: Find types implementing `ICoseSignToolPlugin`
 6. **Instance creation**: Create plugin instances using `Activator.CreateInstance()`
+
+**Plugin Load Context:**
+- Each plugin in a subdirectory gets its own `PluginLoadContext` (derived from `AssemblyLoadContext`)
+- Dependencies are resolved first from the plugin's subdirectory
+- Shared framework assemblies (System.*, Microsoft.Extensions.*) are resolved from the main application context
+- This prevents dependency conflicts between plugins while maintaining shared framework compatibility
 
 ### Error Handling
 
@@ -329,18 +405,87 @@ The plugin system includes comprehensive error handling:
 
 ### Local Development
 
+**Enhanced Subdirectory Deployment (Recommended):**
+
+1. Build your plugin project with dependency copying enabled:
+   ```xml
+   <PropertyGroup>
+     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+     <PreserveCompilationContext>true</PreserveCompilationContext>
+     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+   </PropertyGroup>
+   
+   <ItemGroup>
+     <PackageReference Include="YourDependency" Version="1.0.0">
+       <Private>true</Private>
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </PackageReference>
+   </ItemGroup>
+   ```
+
+2. Create a subdirectory named after your plugin:
+   ```bash
+   mkdir plugins/YourCompany.YourService.Plugin
+   ```
+
+3. Copy your plugin assembly and all its dependencies to the subdirectory:
+   ```bash
+   # Copy main plugin assembly
+   cp bin/Debug/net8.0/YourCompany.YourService.Plugin.dll plugins/YourCompany.YourService.Plugin/
+   
+   # Copy all dependencies
+   cp bin/Debug/net8.0/*.dll plugins/YourCompany.YourService.Plugin/
+   ```
+
+**Legacy Flat Deployment (Backward Compatibility):**
+
 1. Build your plugin project
 2. Copy the resulting `.dll` file to the `plugins` directory next to `CoseSignTool.exe`
-3. Include any required dependencies (but avoid conflicts with CoseSignTool dependencies)
+3. Include any required dependencies (but be careful about conflicts with CoseSignTool dependencies)
+
+### Automated Deployment with MSBuild
+
+For automated plugin deployment, you can use MSBuild targets like those used in the CoseSignTool project:
+
+```xml
+<Target Name="DeployYourPlugin" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+  <PropertyGroup>
+    <PluginsDir>$(OutputPath)plugins</PluginsDir>
+    <YourPluginSubDir>$(PluginsDir)\YourCompany.YourService.Plugin</YourPluginSubDir>
+    <YourPluginDir>$(MSBuildProjectDirectory)\..\YourCompany.YourService.Plugin\bin\$(Configuration)\net8.0</YourPluginDir>
+  </PropertyGroup>
+  
+  <MakeDir Directories="$(YourPluginSubDir)" />
+  
+  <ItemGroup>
+    <YourPluginFiles Include="$(YourPluginDir)\**\*.*" />
+  </ItemGroup>
+  
+  <Copy SourceFiles="@(YourPluginFiles)" DestinationFolder="$(YourPluginSubDir)" />
+  
+  <Message Text="Your Plugin deployed to: $(YourPluginSubDir)" Importance="high" />
+</Target>
+```
 
 ### Distribution
 
-For distributing plugins:
+For distributing plugins, you now have improved options:
 
-1. **NuGet Package**: Create a NuGet package containing the plugin assembly
-2. **ZIP Archive**: Package the plugin and dependencies in a ZIP file
-3. **Installer**: Create an installer that places files in the correct location
-4. **Documentation**: Include usage instructions and examples
+1. **Self-Contained ZIP Archive**: Package the plugin subdirectory with all dependencies
+   ```
+   YourPlugin.zip
+   └── YourCompany.YourService.Plugin/
+       ├── YourCompany.YourService.Plugin.dll
+       ├── dependency1.dll
+       ├── dependency2.dll
+       └── ...
+   ```
+
+2. **NuGet Package**: Create a package that includes the subdirectory structure
+
+3. **Installer**: Create an installer that creates the subdirectory and places all files correctly
+
+4. **Container/Docker**: Include plugins in container images with proper directory structure
 
 ### Dependencies
 
@@ -351,9 +496,36 @@ For distributing plugins:
 - .NET 8.0 Base Class Library
 
 **Plugin-specific dependencies:**
-- Package them with your plugin
-- Ensure version compatibility
+
+**Enhanced Subdirectory Architecture:**
+- **Complete Isolation**: Package all dependencies with your plugin in its subdirectory
+- **Version Freedom**: Use any version of dependencies without conflicts
+- **Self-Contained**: Plugin works independently of other plugins' dependencies
+- **Shared Framework**: Common .NET and Microsoft.Extensions assemblies are still shared for efficiency
+
+**Legacy Flat Architecture:**
+- Package them with your plugin in the main plugins directory
+- Ensure version compatibility with CoseSignTool and other plugins
 - Document any external dependencies
+- Be careful about dependency conflicts
+
+**Recommended Dependency Management:**
+```xml
+<!-- In your plugin .csproj file -->
+<ItemGroup>
+  <!-- External dependencies with explicit copying -->
+  <PackageReference Include="Newtonsoft.Json" Version="13.0.3">
+    <Private>true</Private>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </PackageReference>
+  
+  <!-- Azure dependencies isolated in plugin subdirectory -->
+  <PackageReference Include="Azure.Core" Version="1.46.1">
+    <Private>true</Private>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </PackageReference>
+</ItemGroup>
+```
 
 ## Using Plugins
 

@@ -29,7 +29,7 @@ public class CoseSign1IntegrationTestsWithBuilder
         CoseSign1MessageBuilder testBuilder = new(testSigningKeyProvider);
 
         // Call build method which calls CreateCoseSign1Message method of CoseSign1MessageFactory
-        var response = testBuilder.SetPayloadBytes(testPayload)
+        CoseSign1Message response = testBuilder.SetPayloadBytes(testPayload)
                                                 .SetContentType(ContentTypeConstants.Cose)
                                                 .SetEmbedPayload(false).Build();
 
@@ -69,7 +69,7 @@ public class CoseSign1IntegrationTestsWithBuilder
         CoseSign1MessageBuilder testBuilder = new(testSigningKeyProvider);
 
         // Call the Build method which calls CreateCoseSign1Message method of CoseSign1MessageFactory
-        var response = testBuilder.SetPayloadBytes(testPayload)
+        CoseSign1Message response = testBuilder.SetPayloadBytes(testPayload)
                                     .SetContentType(ContentTypeConstants.Cose)
                                     .SetEmbedPayload(false)
                                     .ExtendCoseHeader(testHeaderExtender).Build();
@@ -105,7 +105,7 @@ public class CoseSign1IntegrationTestsWithBuilder
         CoseSign1MessageBuilder testBuilder = new(testSigningKeyProvider);
 
         // Call SetPayloadBytes method of CoseSign1MessageBuilder
-        var exceptionText = Assert.Throws<ArgumentOutOfRangeException>(() => testBuilder.SetPayloadBytes(testPayload).Build());
+        ArgumentOutOfRangeException? exceptionText = Assert.Throws<ArgumentOutOfRangeException>(() => testBuilder.SetPayloadBytes(testPayload).Build());
         exceptionText.Message.Should().Be("The payload to sign is empty.");
     }
 }

@@ -34,7 +34,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestDefaultHashAlgorithm()
     {
-        var testObj = new TestCertificateCoseSigningKeyProvider();
+        TestCertificateCoseSigningKeyProvider testObj = new TestCertificateCoseSigningKeyProvider();
         testObj.HashAlgorithm.Should().Be(HashAlgorithmName.SHA256);
     }
 
@@ -44,7 +44,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestSetCustomHashAlgorithm()
     {
-        var testObj = new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512);
+        TestCertificateCoseSigningKeyProvider testObj = new TestCertificateCoseSigningKeyProvider(HashAlgorithmName.SHA512);
         testObj.HashAlgorithm.Should().Be(HashAlgorithmName.SHA512);
     }
 
@@ -124,7 +124,7 @@ public class CertificateCoseSigningKeyProviderTests
         testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", X509ChainSortOrder.LeafFirst)
                .Returns(testChain).Verifiable();
 
-        var response = testObj.Object.GetProtectedHeaders();
+        CoseHeaderMap response = testObj.Object.GetProtectedHeaders();
 
         testObj.Protected().Verify("GetSigningCertificate", Times.AtLeastOnce());
         testObj.Protected().Verify("GetCertificateChain", Times.Once(), X509ChainSortOrder.LeafFirst);
@@ -147,7 +147,7 @@ public class CertificateCoseSigningKeyProviderTests
         testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", X509ChainSortOrder.LeafFirst)
                .Returns<IEnumerable<X509Certificate2>>(null);
 
-        var exceptionText = Assert.Throws<CoseSign1CertificateException>(() => testObj.Object.GetProtectedHeaders());
+        CoseSign1CertificateException? exceptionText = Assert.Throws<CoseSign1CertificateException>(() => testObj.Object.GetProtectedHeaders());
 
         exceptionText.Message.Should().Be("Signing Certificate Is Not Provided");
     }
@@ -165,7 +165,7 @@ public class CertificateCoseSigningKeyProviderTests
 
         testObj.Protected().Setup<CoseHeaderMap>("GetUnProtectedHeadersImplementation").Returns<CoseHeaderMap>(null);
 
-        var response = testObj.Object.GetUnProtectedHeaders();
+        CoseHeaderMap? response = testObj.Object.GetUnProtectedHeaders();
 
         testObj.Protected().Verify("GetUnProtectedHeadersImplementation", Times.AtLeastOnce());
 
@@ -193,7 +193,7 @@ public class CertificateCoseSigningKeyProviderTests
 
         // Since TestCertificateCoseSigningKeyProvider.GetCertificateChain throws NotImplementedException,
         // KeyChain should return empty list
-        var keyChain = testObj.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
         keyChain.Should().NotBeNull();
         keyChain.Should().BeEmpty();
@@ -216,15 +216,15 @@ public class CertificateCoseSigningKeyProviderTests
         testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(testCert);
         testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", ItExpr.IsAny<X509ChainSortOrder>())
                .Returns(testChain.Cast<X509Certificate2>());
-        
+
         // Setup KeyChain property to avoid strict mock issues
-        var expectedKeys = testChain.Cast<X509Certificate2>()
+        List<AsymmetricAlgorithm?> expectedKeys = testChain.Cast<X509Certificate2>()
             .Select(cert => cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey())
             .Where(key => key != null)
             .ToList();
         testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys!);
 
-        var keyChain = testObj.Object.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.Object.KeyChain;
 
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(testChain.Count);
@@ -232,8 +232,8 @@ public class CertificateCoseSigningKeyProviderTests
         // Verify that each key in the chain corresponds to a certificate
         for (int i = 0; i < testChain.Count; i++)
         {
-            var cert = testChain[i];
-            var expectedKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
+            X509Certificate2 cert = testChain[i];
+            AsymmetricAlgorithm? expectedKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
             
             keyChain[i].Should().NotBeNull();
             // Verify key type matches
@@ -268,10 +268,10 @@ public class CertificateCoseSigningKeyProviderTests
                .Returns(new[] { leafCert, rootCert });
 
         // Setup KeyChain property to avoid strict mock issues
-        var expectedKeys = new AsymmetricAlgorithm[] { leafCert.GetECDsaPublicKey()!, rootCert.GetECDsaPublicKey()! };
+        AsymmetricAlgorithm[] expectedKeys = new AsymmetricAlgorithm[] { leafCert.GetECDsaPublicKey()!, rootCert.GetECDsaPublicKey()! };
         testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys);
 
-        var keyChain = testObj.Object.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.Object.KeyChain;
 
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(2);
@@ -299,10 +299,10 @@ public class CertificateCoseSigningKeyProviderTests
                .Returns(new[] { rsaCert, eccCert });
 
         // Setup KeyChain property to avoid strict mock issues
-        var expectedKeys = new AsymmetricAlgorithm[] { rsaCert.GetRSAPublicKey()!, eccCert.GetECDsaPublicKey()! };
+        AsymmetricAlgorithm[] expectedKeys = new AsymmetricAlgorithm[] { rsaCert.GetRSAPublicKey()!, eccCert.GetECDsaPublicKey()! };
         testObj.SetupGet(x => x.KeyChain).Returns(expectedKeys);
 
-        var keyChain = testObj.Object.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.Object.KeyChain;
 
         keyChain.Should().NotBeNull();
         keyChain.Count.Should().Be(2);
@@ -330,7 +330,7 @@ public class CertificateCoseSigningKeyProviderTests
         // Setup KeyChain property to return empty list for empty chain
         testObj.SetupGet(x => x.KeyChain).Returns(new List<AsymmetricAlgorithm>());
 
-        var keyChain = testObj.Object.KeyChain;
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.Object.KeyChain;
 
         keyChain.Should().NotBeNull();
         keyChain.Should().BeEmpty(); // No extractable keys from empty chain
@@ -345,7 +345,7 @@ public class CertificateCoseSigningKeyProviderTests
         TestCertificateCoseSigningKeyProvider testObj = new();
 
         // This should return empty list since GetCertificateChain throws
-        var keyChain = testObj.TestGetKeyChain();
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.TestGetKeyChain();
 
         keyChain.Should().NotBeNull();
         keyChain.Should().BeEmpty();

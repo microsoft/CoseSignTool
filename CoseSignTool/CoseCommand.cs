@@ -263,7 +263,7 @@ public abstract partial class CoseCommand
         CommandLineConfigurationProvider provider,
         string name,
         List<CoseHeader<TypeV>>? defaultValue = null,
-        JsonConverter? converter = null)
+        JsonConverter<string>? converter = null)
     {
         FileInfo? file = GetOptionFile(provider, name, null);
 
@@ -276,14 +276,19 @@ public abstract partial class CoseCommand
         {
             using StreamReader reader = new(file.FullName);
             string json = reader.ReadToEnd();
-            List<CoseHeader<TypeV>> headers =
-                converter != null ? JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json, converter)
-                : JsonConvert.DeserializeObject<List<CoseHeader<TypeV>>>(json);
-            return headers;
+            
+            JsonSerializerOptions options = new();
+            if (converter != null && typeof(TypeV) == typeof(string))
+            {
+                options.Converters.Add(converter);
+            }
+            
+            List<CoseHeader<TypeV>>? headers = JsonSerializer.Deserialize<List<CoseHeader<TypeV>>>(json, options);
+            return headers ?? defaultValue;
         }
         catch (Exception ex) when (ex is not FileNotFoundException && ex is not ArgumentException)
         {
-            throw new ArgumentException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
+            throw new InvalidOperationException($"Input file '{file.FullName}' could not be parsed. {ex.Message}");
         }
     }
 

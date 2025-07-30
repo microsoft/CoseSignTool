@@ -70,9 +70,9 @@ public class VerifyCommand : CtsCommandBase
         CancellationToken cancellationToken)
     {
         string? receiptPath = GetOptionalValue(configuration, "receipt");
-        
+
         // Create the transparency service
-        var transparencyService = client.ToCoseSign1TransparencyService();
+        CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = client.ToCoseSign1TransparencyService();
 
         string additionalInfo = !string.IsNullOrEmpty(receiptPath) ? $"Receipt: {receiptPath}" : null;
         PrintOperationStatus("Verifying", endpoint, payloadPath, signaturePath, signatureBytes.Length, additionalInfo);
@@ -105,7 +105,7 @@ public class VerifyCommand : CtsCommandBase
         };
 
         // Return appropriate exit code based on verification result
-        var exitCode = isValid ? PluginExitCode.Success : PluginExitCode.InvalidArgumentValue;
+        PluginExitCode exitCode = isValid ? PluginExitCode.Success : PluginExitCode.InvalidArgumentValue;
         return (exitCode, jsonResult);
     }
 }

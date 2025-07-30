@@ -26,15 +26,15 @@ public class CoseX509ThumbprintTests
     [TestMethod]
     public void ConstructThumbprintWithAlgo()
     {
-        var algos = new HashAlgorithm[]
+        HashAlgorithm[] algos = new HashAlgorithm[]
         {
             SHA256.Create(), SHA384.Create(), SHA512.Create()
         };
 
         foreach (HashAlgorithm algo in algos)
         {
-            var t = algo.GetType();
-            var algName = t.DeclaringType!.Name;
+            Type t = algo.GetType();
+            string algName = t.DeclaringType!.Name;
             CoseX509Thumprint th = new(SelfSignedCert1, new HashAlgorithmName(algName));
             HashAlgorithm hashAlgorithm = algo;
 

@@ -11,7 +11,9 @@ CoseSignTool and CoseHandler support three commands/methods:
 Additionally, CoseSignTool supports a **Plugin System** that allows developers to extend the tool with custom commands and third-party integrations:
 - **Custom Commands**: Add specialized functionality for specific workflows
 - **Service Integration**: Connect with external services like Azure Code Transparency Service
-- **Extensible Architecture**: Develop plugins using simple .NET interfaces
+- **Enhanced Architecture**: Subdirectory-based plugin deployment with dependency isolation (v2.0+)
+- **Dependency Management**: Each plugin can use different versions of dependencies without conflicts
+- **Backward Compatibility**: Legacy flat plugin structure still supported
 - **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
 
 For plugin development, see:
@@ -55,7 +57,13 @@ CoseSignTool
 ```
 
 #### MacOS
-See Linux, but make sure to download `CoseSignTool-MacOS-release.zip` instead.
+Similar to Linux, but choose the appropriate macOS architecture:
+- For Intel Macs: Download `CoseSignTool-MacOS-x64-release.zip`
+- For Apple Silicon Macs (M1/M2/M3): Download `CoseSignTool-MacOS-arm64-release.zip`
+
+If you're unsure of your Mac's architecture, run `uname -m` in Terminal:
+- `x86_64` = Intel Mac (use x64 version)
+- `arm64` = Apple Silicon Mac (use arm64 version)
 
 #### Windows
 Similar to Linux or MacOS you could use PowerShell to download the release, extract and move it to the desired location and to add it to the Path like shown in the example below:

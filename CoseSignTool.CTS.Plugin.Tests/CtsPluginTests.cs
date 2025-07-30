@@ -13,15 +13,15 @@ public class AzureCtsPluginTests
     public void AzureCtsPlugin_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        var plugin = new AzureCtsPlugin();
+        AzureCtsPlugin plugin = new AzureCtsPlugin();
 
         // Assert
         Assert.AreEqual("Azure Code Transparency Service", plugin.Name);
         Assert.AreEqual("1.0.0.0", plugin.Version);
         Assert.AreEqual("Provides Azure Code Transparency Service integration for registering and verifying COSE Sign1 messages.", plugin.Description);
         Assert.AreEqual(2, plugin.Commands.Count());
-        
-        var commandNames = plugin.Commands.Select(c => c.Name).ToArray();
+
+        string[] commandNames = plugin.Commands.Select(c => c.Name).ToArray();
         Assert.IsTrue(commandNames.Contains("cts_register"));
         Assert.IsTrue(commandNames.Contains("cts_verify"));
     }
@@ -30,7 +30,7 @@ public class AzureCtsPluginTests
     public void AzureCtsPlugin_Initialize_DoesNotThrow()
     {
         // Arrange
-        var plugin = new AzureCtsPlugin();
+        AzureCtsPlugin plugin = new AzureCtsPlugin();
 
         // Act & Assert
         plugin.Initialize(); // Should not throw
@@ -40,11 +40,11 @@ public class AzureCtsPluginTests
     public void AzureCtsPlugin_Commands_AreCorrectTypes()
     {
         // Arrange & Act
-        var plugin = new AzureCtsPlugin();
+        AzureCtsPlugin plugin = new AzureCtsPlugin();
 
         // Assert
-        var registerCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_register");
-        var verifyCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_verify");
+        IPluginCommand? registerCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_register");
+        IPluginCommand? verifyCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_verify");
 
         Assert.IsNotNull(registerCommand);
         Assert.IsNotNull(verifyCommand);
@@ -63,7 +63,7 @@ public class RegisterCommandTests
     public void RegisterCommand_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        var command = new RegisterCommand();
+        RegisterCommand command = new RegisterCommand();
 
         // Assert
         Assert.AreEqual("cts_register", command.Name);
@@ -86,18 +86,18 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_MissingEndpoint_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new RegisterCommand();
-        var configData = new Dictionary<string, string?>
+        RegisterCommand command = new RegisterCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "payload", "test-payload.bin" },
             { "signature", "test-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -107,18 +107,18 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_MissingPayload_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new RegisterCommand();
-        var configData = new Dictionary<string, string?>
+        RegisterCommand command = new RegisterCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "signature", "test-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -128,18 +128,18 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_MissingSignature_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new RegisterCommand();
-        var configData = new Dictionary<string, string?>
+        RegisterCommand command = new RegisterCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "test-payload.bin" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -149,19 +149,19 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_NonExistentPayloadFile_ReturnsFailure()
     {
         // Arrange
-        var command = new RegisterCommand();
-        var configData = new Dictionary<string, string?>
+        RegisterCommand command = new RegisterCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "non-existent-payload.bin" },
             { "signature", "non-existent-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
@@ -171,20 +171,20 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_InvalidTimeout_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new RegisterCommand();
-        var configData = new Dictionary<string, string?>
+        RegisterCommand command = new RegisterCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "test-payload.bin" },
             { "signature", "test-signature.cose" },
             { "timeout", "invalid-timeout" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -194,7 +194,7 @@ public class RegisterCommandTests
     public async Task RegisterCommand_ExecuteAsync_WithCancellation_ReturnsInvalidArgumentValue()
     {
         // Arrange
-        var command = new RegisterCommand();
+        RegisterCommand command = new RegisterCommand();
         
         // Create temporary files that exist but contain no meaningful data
         string tempPayloadFile = Path.GetTempFileName();
@@ -205,20 +205,20 @@ public class RegisterCommandTests
             // Write minimal content so files exist
             await File.WriteAllTextAsync(tempPayloadFile, "test");
             await File.WriteAllBytesAsync(tempSignatureFile, new byte[] { 0x01, 0x02, 0x03 }); // Invalid COSE but will fail later
-            
-            var configData = new Dictionary<string, string?>
+
+            Dictionary<string, string?> configData = new Dictionary<string, string?>
             {
                 { "endpoint", "https://example.cts.azure.com" },
                 { "payload", tempPayloadFile },
                 { "signature", tempSignatureFile }
             };
-            var configuration = new ConfigurationBuilder()
+            IConfigurationRoot configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(configData)
                 .Build();
-            var cancellationToken = new CancellationToken(true);
+            CancellationToken cancellationToken = new CancellationToken(true);
 
             // Act
-            var result = await command.ExecuteAsync(configuration, cancellationToken);
+            PluginExitCode result = await command.ExecuteAsync(configuration, cancellationToken);
 
             // Assert
             Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -242,7 +242,7 @@ public class VerifyCommandTests
     public void VerifyCommand_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        var command = new VerifyCommand();
+        VerifyCommand command = new VerifyCommand();
 
         // Assert
         Assert.AreEqual("cts_verify", command.Name);
@@ -266,18 +266,18 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_MissingEndpoint_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new VerifyCommand();
-        var configData = new Dictionary<string, string?>
+        VerifyCommand command = new VerifyCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "payload", "test-payload.bin" },
             { "signature", "test-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -287,18 +287,18 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_MissingPayload_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new VerifyCommand();
-        var configData = new Dictionary<string, string?>
+        VerifyCommand command = new VerifyCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "signature", "test-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -308,18 +308,18 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_MissingSignature_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new VerifyCommand();
-        var configData = new Dictionary<string, string?>
+        VerifyCommand command = new VerifyCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "test-payload.bin" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -329,19 +329,19 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_NonExistentPayloadFile_ReturnsFailure()
     {
         // Arrange
-        var command = new VerifyCommand();
-        var configData = new Dictionary<string, string?>
+        VerifyCommand command = new VerifyCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "non-existent-payload.bin" },
             { "signature", "non-existent-signature.cose" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
@@ -351,20 +351,20 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_InvalidTimeout_ReturnsInvalidArguments()
     {
         // Arrange
-        var command = new VerifyCommand();
-        var configData = new Dictionary<string, string?>
+        VerifyCommand command = new VerifyCommand();
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
         {
             { "endpoint", "https://example.cts.azure.com" },
             { "payload", "test-payload.bin" },
             { "signature", "test-signature.cose" },
             { "timeout", "invalid-timeout" }
         };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
 
         // Act
-        var result = await command.ExecuteAsync(configuration);
+        PluginExitCode result = await command.ExecuteAsync(configuration);
 
         // Assert
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -374,7 +374,7 @@ public class VerifyCommandTests
     public async Task VerifyCommand_ExecuteAsync_WithCancellation_ReturnsInvalidArgumentValue()
     {
         // Arrange
-        var command = new VerifyCommand();
+        VerifyCommand command = new VerifyCommand();
         
         // Create temporary files that exist but contain no meaningful data
         string tempPayloadFile = Path.GetTempFileName();
@@ -385,20 +385,20 @@ public class VerifyCommandTests
             // Write minimal content so files exist
             await File.WriteAllTextAsync(tempPayloadFile, "test");
             await File.WriteAllBytesAsync(tempSignatureFile, new byte[] { 0x01, 0x02, 0x03 }); // Invalid COSE but will fail later
-            
-            var configData = new Dictionary<string, string?>
+
+            Dictionary<string, string?> configData = new Dictionary<string, string?>
             {
                 { "endpoint", "https://example.cts.azure.com" },
                 { "payload", tempPayloadFile },
                 { "signature", tempSignatureFile }
             };
-            var configuration = new ConfigurationBuilder()
+            IConfigurationRoot configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(configData)
                 .Build();
-            var cancellationToken = new CancellationToken(true);
+            CancellationToken cancellationToken = new CancellationToken(true);
 
             // Act
-            var result = await command.ExecuteAsync(configuration, cancellationToken);
+            PluginExitCode result = await command.ExecuteAsync(configuration, cancellationToken);
 
             // Assert
             Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -430,7 +430,7 @@ public class CodeTransparencyClientHelperTests
         try
         {
             // Act
-            var client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null);
+            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null);
 
             // Assert
             Assert.IsNotNull(client);
@@ -450,7 +450,7 @@ public class CodeTransparencyClientHelperTests
         try
         {
             // Act
-            var client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
+            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
 
             // Assert
             Assert.IsNotNull(client);

@@ -18,10 +18,10 @@ public class CoseCommandTests
     {
         string[] args = ["-PfxCertificate", "fake.pfx", "-Payload", FilePath1, "-EmbedPayload", "-sf", FilePath2];
 
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd1 = new SignCommand();
+        SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
 
         cmd1.PfxCertificate.Should().Be("fake.pfx");
@@ -30,10 +30,10 @@ public class CoseCommandTests
 
 
         string[] args2 = ["-Payload", FilePath1, "-roots", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2];
-        var provider2 = CoseCommand.LoadCommandLineArgs(args2, ValidateCommand.Options, out badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider2 = CoseCommand.LoadCommandLineArgs(args2, ValidateCommand.Options, out badArg)!;
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd2 = new ValidateCommand();
+        ValidateCommand cmd2 = new ValidateCommand();
         cmd2.ApplyOptions(provider2);
         cmd2.Roots.Should().BeEquivalentTo(["asd.cer", "wer.cer", "rtg.cer", "xcv.cer", "234.cer"], options => options.WithStrictOrdering());
     }
@@ -43,10 +43,10 @@ public class CoseCommandTests
     {
         string[] args = ["-p", FilePath1, "-rt", "asd.cer, wer.cer, rtg.cer, xcv.cer, 234.cer", "-sf", FilePath2];
 
-        var provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out string? badArg)!;
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd1 = new ValidateCommand();
+        ValidateCommand cmd1 = new ValidateCommand();
         cmd1.ApplyOptions(provider);
 
         cmd1.PayloadFile!.FullName.Should().Be(FilePath1);
@@ -59,8 +59,8 @@ public class CoseCommandTests
     public void SlashAndDash()
     {
         string[] args = ["/PfxCertificate", "fake.pfx", "-Payload", FilePath1, "/EmbedPayload", "-sf", FilePath2];
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out _)!;
-        var cmd1 = new SignCommand();
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out _)!;
+        SignCommand cmd1 = new SignCommand();
 
         cmd1.ApplyOptions(provider);
 
@@ -74,11 +74,11 @@ public class CoseCommandTests
     {
         string[] args = ["-PfxCertificate", "fake.pfx", "-Payload", FilePath1 , "-embedpayload", "-sf", FilePath2];
 
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
 
         badArg.Should().BeNull("badArg should be null.");
 
-        var cmd1 = new SignCommand();
+        SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
     }
 
@@ -86,9 +86,9 @@ public class CoseCommandTests
     public void LoadCommandLineArgsWithColons()
     {
         string[] args = ["-PfxCertificate:fake.pfx", @"-Payload:c:\some.file", "-embedpayload", @"-sf:c:\another.file"];
-        var provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
         badArg.Should().BeNull("badArg should be null.");
-        var cmd1 = new SignCommand();
+        SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
     }
 }

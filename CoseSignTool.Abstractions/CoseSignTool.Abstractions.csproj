@@ -17,7 +17,32 @@
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageId>$(MsBuildProjectName)</PackageId>
+    <PackageVersion>$(VersionNgt)</PackageVersion>
+    <Company>Microsoft</Company>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+    <Description>Abstractions and interfaces for creating CoseSignTool plugins and extensions.</Description>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!--Files to include in the package-->
   <ItemGroup>
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\readme.md" Pack="true" PackagePath="\" />
+    <None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
+    <None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
+    <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.7" />
   </ItemGroup>
 

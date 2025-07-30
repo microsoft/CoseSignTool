@@ -538,6 +538,71 @@ public class CoseHeaderExtensionsTests
     }
 
     [Test]
+    public void MergeHeaderMap_WithOverwriteConflictsFalse_ShouldPreserveTargetValues()
+    {
+        // Arrange
+        var targetMap = new CoseHeaderMap();
+        targetMap.Add(new CoseHeaderLabel("shared-key"), CoseHeaderValue.FromString("target-value"));
+        targetMap.Add(new CoseHeaderLabel("target-only"), CoseHeaderValue.FromInt32(100));
+
+        var sourceMap = new CoseHeaderMap();
+        sourceMap.Add(new CoseHeaderLabel("shared-key"), CoseHeaderValue.FromString("source-value"));
+        sourceMap.Add(new CoseHeaderLabel("source-only"), CoseHeaderValue.FromInt32(200));
+
+        // Act
+        CoseHeaderMap result = targetMap.MergeHeaderMap(sourceMap, overwriteConflicts: false);
+
+        // Assert
+        Assert.That(result, Is.SameAs(targetMap));
+        Assert.That(result.Count, Is.EqualTo(3));
+        Assert.That(result[new CoseHeaderLabel("shared-key")].GetValueAsString(), Is.EqualTo("target-value"));
+        Assert.That(result[new CoseHeaderLabel("target-only")].GetValueAsInt32(), Is.EqualTo(100));
+        Assert.That(result[new CoseHeaderLabel("source-only")].GetValueAsInt32(), Is.EqualTo(200));
+    }
+
+    [Test]
+    public void MergeHeaderMap_WithOverwriteConflictsTrue_ShouldReplaceTargetValues()
+    {
+        // Arrange
+        var targetMap = new CoseHeaderMap();
+        targetMap.Add(new CoseHeaderLabel("shared-key"), CoseHeaderValue.FromString("target-value"));
+        targetMap.Add(new CoseHeaderLabel("target-only"), CoseHeaderValue.FromInt32(100));
+
+        var sourceMap = new CoseHeaderMap();
+        sourceMap.Add(new CoseHeaderLabel("shared-key"), CoseHeaderValue.FromString("source-value"));
+        sourceMap.Add(new CoseHeaderLabel("source-only"), CoseHeaderValue.FromInt32(200));
+
+        // Act
+        CoseHeaderMap result = targetMap.MergeHeaderMap(sourceMap, overwriteConflicts: true);
+
+        // Assert
+        Assert.That(result, Is.SameAs(targetMap));
+        Assert.That(result.Count, Is.EqualTo(3));
+        Assert.That(result[new CoseHeaderLabel("shared-key")].GetValueAsString(), Is.EqualTo("source-value"));
+        Assert.That(result[new CoseHeaderLabel("target-only")].GetValueAsInt32(), Is.EqualTo(100));
+        Assert.That(result[new CoseHeaderLabel("source-only")].GetValueAsInt32(), Is.EqualTo(200));
+    }
+
+    [Test]
+    public void MergeHeaderMap_WithDefaultParameter_ShouldOverwriteConflicts()
+    {
+        // Arrange
+        var targetMap = new CoseHeaderMap();
+        targetMap.Add(new CoseHeaderLabel("key"), CoseHeaderValue.FromString("target-value"));
+
+        var sourceMap = new CoseHeaderMap();
+        sourceMap.Add(new CoseHeaderLabel("key"), CoseHeaderValue.FromString("source-value"));
+
+        // Act - Using default parameter (should overwrite)
+        CoseHeaderMap result = targetMap.MergeHeaderMap(sourceMap);
+
+        // Assert
+        Assert.That(result, Is.SameAs(targetMap));
+        Assert.That(result.Count, Is.EqualTo(1));
+        Assert.That(result[new CoseHeaderLabel("key")].GetValueAsString(), Is.EqualTo("source-value"));
+    }
+
+    [Test]
     public void ToCoseHeaderMap_WithHeadersContainingNullLabel_ShouldSkipThem()
     {
         // Arrange

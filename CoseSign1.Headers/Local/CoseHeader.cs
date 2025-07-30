@@ -12,12 +12,14 @@ public class CoseHeader<TypeV>
     /// <summary>
     /// Gets or sets the Header label.
     /// </summary>
+    [JsonRequired]
     [JsonPropertyName("label")]
     public string Label { get; set; }
 
     /// <summary>
     /// Gets or sets the Header value.
     /// </summary>
+    [JsonRequired]
     [JsonPropertyName("value")]
     public TypeV Value { get; set; }
 

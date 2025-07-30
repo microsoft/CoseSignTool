@@ -76,9 +76,18 @@ public static class CoseHeaderExtensions
     /// </summary>
     /// <param name="targetMap">The target map to merge into.</param>
     /// <param name="sourceMap">The source map to merge from. If null, returns the target map unchanged.</param>
+    /// <param name="overwriteConflicts">
+    /// If true (default), source map values will overwrite target map values when keys conflict.
+    /// If false, existing target map values are preserved and conflicting source values are ignored.
+    /// </param>
     /// <returns>The target map with merged headers.</returns>
+    /// <remarks>
+    /// When <paramref name="overwriteConflicts"/> is true, any header keys that exist in both maps
+    /// will have their values replaced by the source map values. When false, the target map values
+    /// are preserved and the conflicting source values are silently ignored.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when targetMap is null.</exception>
-    public static CoseHeaderMap MergeHeaderMap(this CoseHeaderMap targetMap, CoseHeaderMap? sourceMap)
+    public static CoseHeaderMap MergeHeaderMap(this CoseHeaderMap targetMap, CoseHeaderMap? sourceMap, bool overwriteConflicts = true)
     {
         if (targetMap == null)
         {
@@ -92,7 +101,10 @@ public static class CoseHeaderExtensions
 
         foreach (var kvp in sourceMap)
         {
-            targetMap[kvp.Key] = kvp.Value;
+            if (overwriteConflicts || !targetMap.ContainsKey(kvp.Key))
+            {
+                targetMap[kvp.Key] = kvp.Value;
+            }
         }
 
         return targetMap;

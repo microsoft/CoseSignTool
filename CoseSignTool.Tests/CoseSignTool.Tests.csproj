@@ -1,56 +1,56 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net8.0</TargetFramework>
-		<Platforms>AnyCPU</Platforms>
-		<!-- must match the platform set from CoseSignTool	-->
-		<Nullable>enable</Nullable>
-		<IsPublishable>false</IsPublishable>
-		<EnablePreviewFeatures>true</EnablePreviewFeatures>
-		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
-		<SignAssembly>True</SignAssembly>
-		<PublicSign>True</PublicSign>
-		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
-	</PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Platforms>AnyCPU</Platforms>
+        <!-- must match the platform set from CoseSignTool    -->
+        <Nullable>enable</Nullable>
+        <IsPublishable>false</IsPublishable>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+        <SignAssembly>True</SignAssembly>
+        <PublicSign>True</PublicSign>
+        <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    </PropertyGroup>
 
-	<PropertyGroup>
-		<!-- other property settings -->
-		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
-		<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
-	</PropertyGroup>
+    <PropertyGroup>
+        <!-- other property settings -->
+        <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+        <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    </PropertyGroup>
 
-	<ItemGroup>
-		<!-- Because this is a test project, don't run code coverage -->
-		<AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
-	</ItemGroup>
+    <ItemGroup>
+        <!-- Because this is a test project, don't run code coverage -->
+        <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+    </ItemGroup>
 
-	<!-- Package references -->
-	<ItemGroup>
-		<PackageReference Include="FluentAssertions" Version="6.12.1" />
-		<PackageReference Include="MSTest.TestAdapter" Version="3.9.3" />
-		<PackageReference Include="MSTest.TestFramework" Version="3.9.3" />
+    <!-- Package references -->
+    <ItemGroup>
+        <PackageReference Include="FluentAssertions" />
+        <PackageReference Include="MSTest.TestAdapter" />
+        <PackageReference Include="MSTest.TestFramework" />
 
-	</ItemGroup>
+    </ItemGroup>
 
-	<!-- Project references -->
-	<ItemGroup>
-		<ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
-		<ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
-	</ItemGroup>
+    <!-- Project references -->
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+        <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+    </ItemGroup>
 
-	<!-- File Includes -->
-	<ItemGroup>
-	  <None Update="..\CoseSignTool.Tests\TestData\UnitTestPayload.json" />
-	  <None Update="..\CoseSignTool.Tests\TestData\UnitTestSignatureWithCRL.cose" />
-	</ItemGroup>
+    <!-- File Includes -->
+    <ItemGroup>
+      <None Update="..\CoseSignTool.Tests\TestData\UnitTestPayload.json" />
+      <None Update="..\CoseSignTool.Tests\TestData\UnitTestSignatureWithCRL.cose" />
+    </ItemGroup>
 
-	<!-- Copy test files to output. This explicit target is needed for linux build/test agents -->
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<ItemGroup>
-			<TestFiles Include="..\CoseSignTool.Tests\TestData\**\*.*" />
-		</ItemGroup>
-		<Copy SourceFiles="@(TestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
-		<Message Importance="High" Text="+++++++++++++++++++++++ Copied @(TestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
-	</Target>	  			  	
+    <!-- Copy test files to output. This explicit target is needed for linux build/test agents -->
+    <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+        <ItemGroup>
+            <TestFiles Include="..\CoseSignTool.Tests\TestData\**\*.*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(TestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+        <Message Importance="High" Text="+++++++++++++++++++++++ Copied @(TestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
+    </Target>                        
 
 </Project>

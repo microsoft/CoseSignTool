@@ -1,55 +1,55 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<!--Build configuration-->
-	<PropertyGroup>
-		<TargetFrameworks>netstandard2;net8.0</TargetFrameworks>
-		<LangVersion>latest</LangVersion>
-	</PropertyGroup>
+    <!--Build configuration-->
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2;net8.0</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
 
-	<!--Code style and static analysis-->
-	<PropertyGroup>
-		<Nullable>enable</Nullable>
-		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-		<EnableNETAnalyzers>true</EnableNETAnalyzers>
-		<AnalysisLevel>latest</AnalysisLevel>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-	</PropertyGroup>
+    <!--Code style and static analysis-->
+    <PropertyGroup>
+        <Nullable>enable</Nullable>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest</AnalysisLevel>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
 
-	<!--Strong name signing-->
-	<PropertyGroup>
-		<SignAssembly>True</SignAssembly>
-		<DelaySign>True</DelaySign>
-		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
-	</PropertyGroup>
+    <!--Strong name signing-->
+    <PropertyGroup>
+        <SignAssembly>True</SignAssembly>
+        <DelaySign>True</DelaySign>
+        <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    </PropertyGroup>
 
-	<!--NuGet package configuration-->
-	<PropertyGroup>
-		<PackageId>$(MsBuildProjectName)</PackageId>
-		<PackageVersion>$(VersionNgt)</PackageVersion>
-		<Company>Microsoft</Company>
-		<PackageLicenseFile>LICENSE</PackageLicenseFile>
-		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-		<PackageReadmeFile>readme.md</PackageReadmeFile>
-		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
-		<Description>Abstractions and classes required to extend or enhance Microsoft.CoseSign1.Abstractions for all certificate based signing.</Description>
-	</PropertyGroup>
+    <!--NuGet package configuration-->
+    <PropertyGroup>
+        <PackageId>$(MsBuildProjectName)</PackageId>
+        <PackageVersion>$(VersionNgt)</PackageVersion>
+        <Company>Microsoft</Company>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageReadmeFile>readme.md</PackageReadmeFile>
+        <PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+        <Description>Abstractions and classes required to extend or enhance Microsoft.CoseSign1.Abstractions for all certificate based signing.</Description>
+    </PropertyGroup>
 
-	<!--Package references-->
-	<ItemGroup>
-		<PackageReference Include="System.Runtime.Caching" Version="9.0.7" />
-	</ItemGroup>
+    <!--Package references-->
+    <ItemGroup>
+        <PackageReference Include="System.Runtime.Caching" />
+    </ItemGroup>
 
-	<!--Project references-->
-	<ItemGroup>
-		<ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
-	</ItemGroup>
+    <!--Project references-->
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+    </ItemGroup>
 
-	<!--Files to include in the package-->
-	<ItemGroup>
-		<None Include="..\LICENSE" Pack="true" PackagePath="\" />
-		<None Include="..\readme.md" Pack="true" PackagePath="\" />
-		<None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
-		<None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
-		<None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
-	</ItemGroup>
+    <!--Files to include in the package-->
+    <ItemGroup>
+        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+        <None Include="..\readme.md" Pack="true" PackagePath="\" />
+        <None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
+        <None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
+        <None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
+    </ItemGroup>
 </Project>

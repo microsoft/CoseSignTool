@@ -44,7 +44,10 @@ This file ensures GitHub Copilot follows the repository's coding standards as de
 - **Using statements**: Prefer simple using statements over using blocks
 
 ### Formatting Rules
-- **Indentation**: 4 spaces (no tabs)
+- **Indentation**: **ALWAYS** use 4 spaces for indentation. **NEVER** use tabs.
+  - This applies to ALL file types: .cs, .csproj, .xml, .json, .md files
+  - Convert any existing tabs to 4 spaces
+  - Configure your editor to show whitespace to avoid accidental tab usage
 - **End of line**: CRLF (Windows line endings)
 - **Final newline**: Do not insert final newline
 - **Trim whitespace**: Always trim trailing whitespace

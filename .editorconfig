@@ -5,6 +5,9 @@ root = true
 
 # Default settings:
 [*]
+indent_style = space
+indent_size = 4
+tab_width = 4
 trim_trailing_whitespace = true
 insert_final_newline = false
 dotnet_style_coalesce_expression = true:suggestion
@@ -244,5 +247,21 @@ csharp_style_prefer_pattern_matching = true:silent
 csharp_style_prefer_not_pattern = true:suggestion
 csharp_style_prefer_extended_property_pattern = true:suggestion
 dotnet_diagnostic.IDE0043.severity = error
+
+# XML and project files
+[*.{xml,csproj,props,targets}]
+indent_style = space
+indent_size = 4
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
 csharp_style_prefer_top_level_statements = true:silent
 csharp_style_prefer_utf8_string_literals = true:suggestion

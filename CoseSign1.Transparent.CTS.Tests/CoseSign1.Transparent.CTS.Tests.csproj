@@ -1,39 +1,39 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
 
-		<IsPackable>false</IsPackable>
-		<IsTestProject>true</IsTestProject>
-	</PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Azure.Core" Version="1.47.1" />
-		<PackageReference Include="coverlet.collector" Version="6.0.4">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="NUnit" Version="4.3.2" />
-		<PackageReference Include="NUnit.Analyzers" Version="4.9.2">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
-	</ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Azure.Core" />
+        <PackageReference Include="coverlet.collector">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="Moq" />
+        <PackageReference Include="NUnit" />
+        <PackageReference Include="NUnit.Analyzers">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="NUnit3TestAdapter" />
+    </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
-		<ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
-		<ProjectReference Include="..\CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj" />
-		<ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
-	</ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+        <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+        <ProjectReference Include="..\CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj" />
+        <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
+    </ItemGroup>
 
-	<ItemGroup>
-		<Using Include="NUnit.Framework" />
-	</ItemGroup>
+    <ItemGroup>
+        <Using Include="NUnit.Framework" />
+    </ItemGroup>
 
 </Project>

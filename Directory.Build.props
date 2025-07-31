@@ -1,5 +1,6 @@
 ﻿<Project>
   <PropertyGroup>
+    <!-- Central package management is enabled via Directory.Packages.props -->
     <EnableNUnitRunner>true</EnableNUnitRunner>
     <EnableMSTestRunner>true</EnableMSTestRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>

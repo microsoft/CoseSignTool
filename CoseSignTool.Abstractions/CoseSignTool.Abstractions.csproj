@@ -43,7 +43,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
     <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
   </ItemGroup>
 
 </Project>

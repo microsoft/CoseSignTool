@@ -66,10 +66,12 @@ jobs:
           git checkout "$tag" --quiet
 
           echo "**** Build and publish $tag ****"
+          # Remove the 'v' prefix from tag for VersionNgt property
+          version_without_v=$(echo "$tag" | sed 's/^v//')
           rm -rf published/debug
-          dotnet publish --configuration Debug --self-contained true --output published/debug --property:VersionNgt=$tag CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --output published/debug --property:VersionNgt=$version_without_v CoseSignTool/CoseSignTool.csproj
           rm -rf published/release
-          dotnet publish --configuration Release --self-contained true --output published/release --property:VersionNgt=$tag CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release --property:VersionNgt=$version_without_v CoseSignTool/CoseSignTool.csproj
           echo "publish succeeded"
 
           echo "**** Copy documentation for $tag ****"

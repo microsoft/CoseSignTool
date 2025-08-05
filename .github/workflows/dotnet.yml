@@ -295,15 +295,17 @@ jobs:
     - name: Publish outputs
       run: |
         VERSION=${{ needs.create_release.outputs.tag_name }}
+        # Remove the 'v' prefix from VERSION for VersionNgt property
+        VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
         RUNTIME_ID=${{ matrix.runtime_id || '' }}
         if [ -n "$RUNTIME_ID" ]; then
           echo "Publishing for runtime: $RUNTIME_ID"
-          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
         else
           echo "Publishing for current platform"
-          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
         fi
         # Self-contained is needed. Must use .csproj instead of .sln.
         # DeployPlugins=true enables automatic plugin deployment during publish
@@ -332,6 +334,10 @@ jobs:
       run: |
         echo "📦 Creating NuGet packages for library projects..."
         
+        VERSION=${{ needs.create_release.outputs.tag_name }}
+        # Remove the 'v' prefix from VERSION for VersionNgt property
+        VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
+        
         # Define library projects that should be packaged (excluding plugins and test projects)
         LIBRARY_PROJECTS=(
           "CoseHandler/CoseHandler.csproj"
@@ -357,8 +363,8 @@ jobs:
             dotnet pack "$project" \
               --configuration Release \
               --property:FileVersion=$VERSION \
-              --property:PackageVersion=$VERSION \
-              --property:VersionNgt=$VERSION \
+              --property:PackageVersion=$VERSION_WITHOUT_V \
+              --property:VersionNgt=$VERSION_WITHOUT_V \
               --output published/packages \
               --verbosity minimal
             

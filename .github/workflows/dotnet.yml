@@ -298,12 +298,12 @@ jobs:
         RUNTIME_ID=${{ matrix.runtime_id || '' }}
         if [ -n "$RUNTIME_ID" ]; then
           echo "Publishing for runtime: $RUNTIME_ID"
-          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
         else
           echo "Publishing for current platform"
-          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
         fi
         # Self-contained is needed. Must use .csproj instead of .sln.
         # DeployPlugins=true enables automatic plugin deployment during publish
@@ -358,6 +358,7 @@ jobs:
               --configuration Release \
               --property:FileVersion=$VERSION \
               --property:PackageVersion=$VERSION \
+              --property:VersionNgt=$VERSION \
               --output published/packages \
               --verbosity minimal
             

@@ -32,20 +32,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Core" Version="1.47.1">
+    <PackageReference Include="Azure.Core">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
-    <PackageReference Include="Azure.Identity" Version="1.14.2">
+    <PackageReference Include="Azure.Identity">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
-    <PackageReference Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.3">
+    <PackageReference Include="Azure.Security.CodeTransparency">
       <NoWarn>NU5104</NoWarn>
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.7">
+    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>

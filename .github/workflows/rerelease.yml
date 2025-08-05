@@ -67,9 +67,9 @@ jobs:
 
           echo "**** Build and publish $tag ****"
           rm -rf published/debug
-          dotnet publish --configuration Debug --self-contained true --output published/debug CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Debug --self-contained true --output published/debug --property:VersionNgt=$tag CoseSignTool/CoseSignTool.csproj
           rm -rf published/release
-          dotnet publish --configuration Release --self-contained true --output published/release CoseSignTool/CoseSignTool.csproj
+          dotnet publish --configuration Release --self-contained true --output published/release --property:VersionNgt=$tag CoseSignTool/CoseSignTool.csproj
           echo "publish succeeded"
 
           echo "**** Copy documentation for $tag ****"

@@ -120,7 +120,9 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                 }
 
                 X509Certificate2Collection collection = new X509Certificate2Collection();
+#pragma warning disable SYSLIB0057 // Type or member is obsolete
                 collection.Import(pfxPath, password, X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057 // Type or member is obsolete
 
                 if (collection.Count == 0)
                 {

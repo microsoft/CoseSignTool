@@ -20,7 +20,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestTryGetIndirectSignatureAlgorithmSuccess()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -34,7 +34,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestTryGetIndirectSignatureAlgorithmFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
 
         // no content type
         Mock<ICoseHeaderExtender> removeContentTypeHeaderExtender = new(MockBehavior.Strict);
@@ -91,7 +91,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestIsIndirectSignatureSuccess()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -104,7 +104,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestIsIndirectSignatureFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -116,7 +116,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestSignatureMatchesStreamSuccess()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -129,7 +129,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestSignatureMatchesStreamFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
@@ -156,7 +156,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestSignatureMatchesBytesSuccess()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -168,7 +168,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestSignatureMatchesBytesFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
@@ -191,7 +191,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestTryGetHashAlgorithmSuccess()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -215,7 +215,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [TestCase(8, Description = "TryGet - Null")]
     public void TestGetCoseHashVScenarios(int testCase)
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory signaturefactory = new();
         CoseSign1MessageFactory messageFactory = new();
         byte[] randomBytes = new byte[50];
@@ -279,7 +279,7 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     [Test]
     public void TestTryGetHashAlgorithmFailure()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         byte[] randomBytes2 = new byte[50];
@@ -306,25 +306,5 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
         IndirectSignature = null;
         CoseSign1MessageIndirectSignatureExtensions.TryGetHashAlgorithm(IndirectSignature, out hashAlgorithm).Should().BeFalse();
         hashAlgorithm.Should().BeNull();
-    }
-
-    private static ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none")
-    {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
-        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate(testName);
-
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-
-        // Setup KeyChain property to return the public key from the certificate
-        RSA? publicKey = selfSignedCertWithRSA.GetRSAPublicKey();
-        System.Collections.ObjectModel.ReadOnlyCollection<AsymmetricAlgorithm> keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
-        mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(keyChain);
-
-        return mockedSignerKeyProvider.Object;
     }
 }

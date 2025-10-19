@@ -18,7 +18,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void TestFactoryDefaultCreatesCoseHashEnvelop()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -58,7 +58,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void TestFactoryExplicitCreatesCoseHashEnvelop()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -125,7 +125,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopeMinusContentShouldInvalidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -147,7 +147,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadHashAlgorithmUnprotectedHeaderShouldInvalidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -182,7 +182,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopeInvalidPayloadHashAlgorithmShouldInvalidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -215,7 +215,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadPreImageContentTypeUnprotectedHeaderShouldValidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -250,7 +250,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadNoPreImageContentShouldValidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -282,7 +282,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadNoPreImageContentCoaPShouldValidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -318,7 +318,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadNoPreImageContentCoaPUnprotectedShouldValidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -354,7 +354,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadLocationProtectedHeaderShouldValidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -379,7 +379,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void ValidCoseHashEnvelopePayloadLocationUnProtectedHeaderShouldInvalidate()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -416,7 +416,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void CoseMessage1MinusContentShouldNotHashMatch()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];
@@ -434,7 +434,7 @@ public class CoseHashEnvelopeTests
     [Test]
     public void CoseMessage1BadAlgorithmShouldNotHashMatch()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory factory = new();
 
         byte[] randomBytes = new byte[50];

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <IsPublishable>false</IsPublishable>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
@@ -15,6 +15,11 @@
         <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
     </ItemGroup>
 
+    <ItemGroup>
+        <PackageReference Include="FluentAssertions" />
+        <PackageReference Include="Moq" />
+    </ItemGroup>
+    
     <ItemGroup>
       <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
     </ItemGroup>

@@ -5,6 +5,10 @@
 namespace CoseSign1.Tests.Common;
 
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
+using CoseSign1.Abstractions.Interfaces;
+using Moq;
 
 /// <summary>
 /// Class used to create in-memory certificates and certificate chains used for UnitTesting.
@@ -138,12 +142,121 @@ public static class TestCertificateUtils
         }
     }
 
-    /// <summary>
-    /// Creates a certificate without private key from an existing certificate.
-    /// </summary>
-    /// <param name="certificate">The certificate to extract public key from.</param>
-    /// <returns>A certificate with only the public key.</returns>
-    public static X509Certificate2 CreateCertificateWithoutPrivateKey(X509Certificate2 certificate)
+    private static X509Certificate2 CreateMldsaCertificate([CallerMemberName] string subjectName = "none",
+        X509Certificate2? issuingCa = null,
+        TimeSpan? duration = null,
+        bool addLifetimeEku = false)
+    {
+        using MLDsa algo = MLDsa.GenerateKey(MLDsaAlgorithm.MLDsa65);
+
+        //Oid oid = new Oid("2.16.840.1.101.3.4.3.18", null);
+        //byte[] pkBytes = algo.ExportMLDsaPublicKey();
+
+#pragma warning disable SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        PublicKey pub = new(algo);
+
+        CertificateRequest request = new CertificateRequest($"CN={subjectName}", algo);
+#pragma warning restore SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+        // Set basic certificate contraints
+        request.CertificateExtensions.Add(
+                    new X509BasicConstraintsExtension(true, true, 12, true));
+
+        // Key usage: Digital Signature and Key Encipherment
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(
+                X509KeyUsageFlags.KeyCertSign,
+                true));
+
+        if (issuingCa != null)
+        {
+            // Set the AuthorityKeyIdentifier. There is no built-in
+            // support, so it needs to be copied from the Subject Key
+            // Identifier of the signing certificate and massaged slightly.
+            // AuthorityKeyIdentifier is "KeyID=<subject key identifier>"
+            // byte[] issuerSubjectKey = issuingCa.Extensions?["Subject Key Identifier"]?.RawData ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not a ""Subject Key Identifier"" extension present");
+            byte[] issuerSubjectKey = issuingCa.Extensions.First(x => x is X509SubjectKeyIdentifierExtension)?.RawData ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not a ""Subject Key Identifier"" extension present");
+            ArraySegment<byte> segment = new(issuerSubjectKey, 2, issuerSubjectKey.Length - 2);
+            byte[] authorityKeyIdentifier = new byte[segment.Count + 4];
+            // these bytes define the "KeyID" part of the AuthorityKeyIdentifer
+            authorityKeyIdentifier[0] = 0x30;
+            authorityKeyIdentifier[1] = 0x16;
+            authorityKeyIdentifier[2] = 0x80;
+            authorityKeyIdentifier[3] = 0x14;
+            segment.CopyTo(authorityKeyIdentifier, 4);
+            request.CertificateExtensions.Add(new X509Extension("2.5.29.35", authorityKeyIdentifier, false));
+        }
+        // DPS samples create certs with the device name as a SAN name
+        // in addition to the subject name
+        SubjectAlternativeNameBuilder sanBuilder = new();
+        string dnsName = subjectName.Replace(":", "").Replace(" ", "");
+        if (dnsName.Length > 40)
+        {
+            dnsName = dnsName.Substring(0, 39);
+        }
+        sanBuilder.AddDnsName(dnsName);
+        X509Extension sanExtension = sanBuilder.Build();
+        request.CertificateExtensions.Add(sanExtension);
+
+        // Enhanced key usages
+        OidCollection oids =
+        [
+            new Oid("1.3.6.1.5.5.7.3.2"), // TLS Client auth
+            new Oid("1.3.6.1.5.5.7.3.1")  // TLS Server auth
+        ];
+
+        if (addLifetimeEku)
+        {
+            oids.Add(new("1.3.6.1.4.1.311.10.3.13"));  // Lifetime EKU
+        }
+
+        request.CertificateExtensions.Add(
+            new X509EnhancedKeyUsageExtension(oids, false));
+
+        // add this subject key identifier
+        request.CertificateExtensions.Add(
+            new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+        // Certificate expiry: Valid from Yesterday to Now+365 days
+        // Unless the signing cert's validity is less. It's not possible
+        // to create a cert with longer validity than the signing cert.
+        DateTimeOffset notbefore = DateTimeOffset.UtcNow.AddDays(-1);
+        if (issuingCa != null && notbefore < issuingCa.NotBefore)
+        {
+            notbefore = new DateTimeOffset(issuingCa.NotBefore);
+        }
+        DateTimeOffset notafter =
+            duration is not null ? DateTimeOffset.UtcNow.Add(duration.Value) :
+            DateTimeOffset.UtcNow.AddDays(365);
+        if (issuingCa != null && notafter > issuingCa.NotAfter)
+        {
+            notafter = new DateTimeOffset(issuingCa.NotAfter);
+        }
+
+        // cert serial is the epoch/unix timestamp
+        DateTime epoch = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        long unixTime = Convert.ToInt64((DateTime.UtcNow - epoch).TotalSeconds);
+        byte[] serial = BitConverter.GetBytes(unixTime);
+
+        X509Certificate2? generatedCertificate = null;
+
+#pragma warning disable SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        X509SignatureGenerator gen = X509SignatureGenerator.CreateForMLDsa(algo);
+#pragma warning restore SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+        generatedCertificate = request.CreateSelfSigned(
+            notbefore,
+            notafter);
+
+        return generatedCertificate;
+    }
+
+/// <summary>
+/// Creates a certificate without private key from an existing certificate.
+/// </summary>
+/// <param name="certificate">The certificate to extract public key from.</param>
+/// <returns>A certificate with only the public key.</returns>
+public static X509Certificate2 CreateCertificateWithoutPrivateKey(X509Certificate2 certificate)
     {
         return new X509Certificate2(certificate.Export(X509ContentType.Cert));
     }
@@ -213,5 +326,39 @@ public static class TestCertificateUtils
         return returnValue;
     }
 
+    public static ICoseSigningKeyProvider SetupMockSigningKeyProvider([CallerMemberName] string testName = "none", CoseKeyType keyType = CoseKeyType.RSA)
+    {
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+
+        X509Certificate2? selfSignedCert;
+        CoseKey? coseKey;
+
+        switch (keyType)
+        {
+            case CoseKeyType.RSA:
+                selfSignedCert = TestCertificateUtils.CreateCertificate(testName);
+                coseKey = new(selfSignedCert.GetRSAPrivateKey(), RSASignaturePadding.Pkcs1, HashAlgorithmName.SHA256);
+                break;
+            case CoseKeyType.ECDsa:
+                selfSignedCert = TestCertificateUtils.CreateCertificate(testName, useEcc: true);
+                coseKey = new(selfSignedCert.GetECDsaPrivateKey(), HashAlgorithmName.SHA256);
+                break;
+            case CoseKeyType.MLDsa:
+                selfSignedCert = TestCertificateUtils.CreateMldsaCertificate(testName);
+#pragma warning disable SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                coseKey = new(selfSignedCert.GetMLDsaPrivateKey());
+#pragma warning restore SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(keyType), keyType, "Unknown key type");
+        }
+
+        mockedSignerKeyProvider.Setup(x => x.GetCoseKey()).Returns(coseKey);
+
+        return mockedSignerKeyProvider.Object;
+    }
 }
 

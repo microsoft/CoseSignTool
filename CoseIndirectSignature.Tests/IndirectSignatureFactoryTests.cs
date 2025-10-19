@@ -53,7 +53,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -150,7 +150,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureHashProvidedAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -240,7 +240,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureBytesAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -326,7 +326,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public async Task TestCreateIndirectSignatureBytesHashProvidedAsync()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);
@@ -422,7 +422,7 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void TestCreateIndirectSignatureAlreadyProvided()
     {
-        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         using IndirectSignatureFactory factory = new();
         byte[] randomBytes = new byte[50];
         new Random().NextBytes(randomBytes);

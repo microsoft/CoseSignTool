@@ -50,7 +50,7 @@ public class CoseSign1MessageBuilderTests
     {
         // arrange
         Mock<ICoseSign1MessageFactory> factoryObj = new();
-        Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
+        Mock<ICoseSigningKeyProvider> mockedSigningKeyProvider = new(MockBehavior.Strict);
 
         List<Action> constructorTests =
         [
@@ -75,18 +75,10 @@ public class CoseSign1MessageBuilderTests
     {
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
         X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
-        Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         Mock<ICoseSign1MessageFactory> mockedCoseSignFactoryObject = new();
 
-        CoseSign1MessageBuilder testCosesign1Builder = new(mockedSigningKeyPovider.Object, mockedCoseSignFactoryObject.Object);
-
-        mockedSigningKeyPovider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSigningKeyPovider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSigningKeyPovider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSigningKeyPovider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSigningKeyPovider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCert.GetRSAPrivateKey());
-        mockedSigningKeyPovider.Setup(x => x.IsRSA).Returns(true);
-
+        CoseSign1MessageBuilder testCosesign1Builder = new(mockedSigningKeyProvider, mockedCoseSignFactoryObject.Object);
         CoseSign1Message response = testCosesign1Builder.SetPayloadBytes(testPayload).SetEmbedPayload(true).Build();
 
         mockedCoseSignFactoryObject.Verify(v => v.CreateCoseSign1Message(It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<ICoseSigningKeyProvider>(),
@@ -108,17 +100,10 @@ public class CoseSign1MessageBuilderTests
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
         X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
 
-        Mock<ICoseSigningKeyProvider> mockedSigningKeyPovider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         Mock<ICoseHeaderExtender> mockedHeaderExtender = new(MockBehavior.Strict);
 
-        CoseSign1MessageBuilder testCoseSign1Builder = new(mockedSigningKeyPovider.Object);
-
-        mockedSigningKeyPovider.Setup(x => x.GetProtectedHeaders()).Returns([]);
-        mockedSigningKeyPovider.Setup(x => x.GetUnProtectedHeaders()).Returns([]);
-        mockedSigningKeyPovider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSigningKeyPovider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSigningKeyPovider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCert.GetRSAPrivateKey());
-        mockedSigningKeyPovider.Setup(x => x.IsRSA).Returns(true);
+        CoseSign1MessageBuilder testCoseSign1Builder = new(mockedSigningKeyProvider);
 
         CoseHeaderLabel testHeaderLabel = new("test-header-label");
         CoseHeaderLabel testHeaderLabel2 = new("test-header-label2");

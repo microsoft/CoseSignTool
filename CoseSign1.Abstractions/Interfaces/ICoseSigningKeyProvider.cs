@@ -11,24 +11,33 @@ public interface ICoseSigningKeyProvider
     /// <summary>
     /// Returns true if the signing key is RSA, false if the signing key is ECDsa.
     /// </summary>
-    public bool IsRSA { get; }
+    //public bool IsRSA { get; }
 
     /// <summary>
     /// The hashing algorithm to use
     /// </summary>
-    public HashAlgorithmName HashAlgorithm { get; }
+    //public HashAlgorithmName HashAlgorithm { get; }
 
     /// <summary>
     /// Gets RSA Key used for signing or verification operations.
     /// </summary>
     /// <returns>RSA Key if present, else returns null</returns>
-    public RSA? GetRSAKey(bool publicKey = false);
+    //public RSA? GetRSAKey(bool publicKey = false);
 
     /// <summary>
     /// Gets ECDsa Key used for signing or verification operations.
     /// </summary>
     /// /// <returns>ECDsa Key if present, else returns null</returns>
-    public ECDsa? GetECDsaKey(bool publicKey = false);
+    //public ECDsa? GetECDsaKey(bool publicKey = false);
+
+    /// <summary>
+    /// Retrieves the MLDSA key associated with the current instance.
+    /// </summary>
+    /// <param name="publicKey">true to return only the public portion of the key; false to return the full key if available.</param>
+    /// <returns>An MLDsa object representing the DSA key, or null if no key is available.</returns>
+    //public MLDsa? GetMLDsaKey(bool publicKey = false);
+
+    public CoseKey? GetCoseKey(bool publicKey = false);
 
     /// <summary>
     /// Gets the key chain representing the parents (in bottom-up order) of the RSA or ECDsa key.
@@ -36,7 +45,7 @@ public interface ICoseSigningKeyProvider
     /// and subsequent elements represent the parent keys up the chain.
     /// </summary>
     /// <returns>List of AsymmetricAlgorithm representing the key chain, or empty list if no chain is available</returns>
-    public IReadOnlyList<AsymmetricAlgorithm> KeyChain { get; }
+    //public IReadOnlyList<AsymmetricAlgorithm> KeyChain { get; }
 
     /// <summary>
     /// Returns the Protected Headers

@@ -37,13 +37,7 @@ public class SignWithKeyProviderTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
-        
-        // Setup KeyChain property to return empty list since no keys are available
-        mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(new List<AsymmetricAlgorithm>().AsReadOnly());
+        mockedSignerKeyProvider.Setup(x => x.GetCoseKey()).Returns<CoseKey>(null);
 
         CoseSigningException exceptionText = Assert.ThrowsException<CoseSigningException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
         exceptionText.Message.Should().Be("Unsupported certificate type for COSE signing.");
@@ -55,30 +49,13 @@ public class SignWithKeyProviderTests
     [TestMethod]
     public void TestSignWithEmptyPayload()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory coseSign1MessageFactory = new();
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
         ReadOnlyMemory<byte> testPayload = ReadOnlyMemory<byte>.Empty;
 
         string signedFile = Path.GetTempFileName();
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-
-        // Setup KeyChain property
-        RSA? publicKey = selfSignedCertwithRSA.GetRSAPublicKey();
-        System.Collections.ObjectModel.ReadOnlyCollection<AsymmetricAlgorithm> keyChain = publicKey != null ? new List<AsymmetricAlgorithm> { publicKey }.AsReadOnly() : new List<AsymmetricAlgorithm>().AsReadOnly();
-        mockedSignerKeyProvider.Setup(x => x.KeyChain).Returns(keyChain);
-
-        bool isRSA = mockedSignerKeyProvider.Object.IsRSA;
-
-        mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
-
-        ArgumentException exceptionText = Assert.ThrowsException<ArgumentException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider.Object, false, new FileInfo(signedFile)));
+        ArgumentException exceptionText = Assert.ThrowsException<ArgumentException>(() => CoseHandler.Sign(testPayload.ToArray(), mockedSigningKeyProvider, false, new FileInfo(signedFile)));
 
         exceptionText.Message.Should().Be("Payload not provided.");
     }

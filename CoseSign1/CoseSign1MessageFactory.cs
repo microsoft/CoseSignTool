@@ -104,16 +104,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             unProtectedHeaders = headerExtender.ExtendUnProtectedHeaders(unProtectedHeaders);
         }
 
-        // Get the RSA or ECDSA Signing Key.
-        AsymmetricAlgorithm? key = signingKeyProvider.GetRSAKey() as AsymmetricAlgorithm ?? signingKeyProvider.GetECDsaKey();
-
-        // Build the CoseSigner object.
-        return key switch
-        {
-            RSA => new CoseSigner((RSA)key, RSASignaturePadding.Pss, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
-            ECDsa => new CoseSigner(key, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
-            _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
-        };
+        return new CoseSigner(signingKeyProvider.GetCoseKey(), protectedHeaders, unProtectedHeaders);
     }
 
     // Use only for embed signing -- will throw on streams over 2gb

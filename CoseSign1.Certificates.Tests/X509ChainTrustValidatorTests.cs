@@ -426,21 +426,11 @@ public class X509ChainTrustValidatorTests
     [Test]
     public void X509TrustValidatorValidatesNullCertificate()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSignerKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
         ReadOnlyMemory<byte> testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 testCertRsa = TestCertificateUtils.CreateCertificate();
 
-        CoseHeaderMap protectedHeaders = new CoseHeaderMap();
-        CoseHeaderMap unProtectedHeaders = new CoseHeaderMap();
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns(protectedHeaders);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns(unProtectedHeaders);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(testCertRsa.GetRSAPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-
-        CoseSign1MessageBuilder coseSign1MessageBuilder = new(mockedSignerKeyProvider.Object);
+        CoseSign1MessageBuilder coseSign1MessageBuilder = new(mockedSignerKeyProvider);
         CoseSign1Message message = coseSign1MessageBuilder.SetPayloadBytes(testPayload).Build() ?? throw new ArgumentNullException();
 
         X509ChainTrustValidator testChainTrustValidator = new(mockBuilder.Object);

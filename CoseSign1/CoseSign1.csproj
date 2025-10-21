@@ -36,8 +36,6 @@
     </PropertyGroup>
 
     <!--Package references-->
-    <ItemGroup>
-    </ItemGroup>
 
     <!--Project references-->
     <ItemGroup>
@@ -51,5 +49,8 @@
         <None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
         <None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
         <None Include="\bin\Release\net8.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net8.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="System.Security.Cryptography.Cose" />
     </ItemGroup>
 </Project>

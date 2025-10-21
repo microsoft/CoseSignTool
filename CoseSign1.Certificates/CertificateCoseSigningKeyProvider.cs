@@ -3,19 +3,21 @@
 
 namespace CoseSign1.Certificates;
 
+using System.Security.Cryptography.Cose;
+
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
 public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider
 {
-    /// <inheritdoc/>
-    public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
+    ///// <inheritdoc/>
+    //public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
+
+    ///// <inheritdoc/>
+    //public bool IsRSA => GetRSAKey(true) != null;
 
     /// <inheritdoc/>
-    public bool IsRSA => GetRSAKey(true) != null;
-
-    /// <inheritdoc/>
-    public virtual IReadOnlyList<AsymmetricAlgorithm> KeyChain => GetKeyChain();
+    //public virtual IReadOnlyList<AsymmetricAlgorithm> KeyChain => GetKeyChain();
 
     /// <summary>
     /// An X509ChainBuilder instance to build the certificate chain. 
@@ -53,33 +55,33 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     /// Can be overridden by derived classes to provide custom key chain logic.
     /// </summary>
     /// <returns>List of AsymmetricAlgorithm representing the key chain</returns>
-    protected virtual IReadOnlyList<AsymmetricAlgorithm> GetKeyChain()
-    {
-        List<AsymmetricAlgorithm> keyChain = new();
+    //protected virtual IReadOnlyList<AsymmetricAlgorithm> GetKeyChain()
+    //{
+    //    List<AsymmetricAlgorithm> keyChain = new();
         
-        try
-        {
-            // Get the certificate chain in leaf-first order (bottom-up)
-            IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+    //    try
+    //    {
+    //        // Get the certificate chain in leaf-first order (bottom-up)
+    //        IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
             
-            foreach (X509Certificate2 cert in certChain)
-            {
-                // Extract the public key from each certificate
-                AsymmetricAlgorithm? publicKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
-                if (publicKey != null)
-                {
-                    keyChain.Add(publicKey);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is CoseSign1CertificateException || ex is ArgumentNullException)
-        {
-            // If certificate chain cannot be built, return empty list
-            // This allows graceful handling when chain building fails
-        }
+    //        foreach (X509Certificate2 cert in certChain)
+    //        {
+    //            // Extract the public key from each certificate
+    //            AsymmetricAlgorithm? publicKey = cert.GetRSAPublicKey() as AsymmetricAlgorithm ?? cert.GetECDsaPublicKey();
+    //            if (publicKey != null)
+    //            {
+    //                keyChain.Add(publicKey);
+    //            }
+    //        }
+    //    }
+    //    catch (Exception ex) when (ex is CoseSign1CertificateException || ex is ArgumentNullException)
+    //    {
+    //        // If certificate chain cannot be built, return empty list
+    //        // This allows graceful handling when chain building fails
+    //    }
         
-        return keyChain.AsReadOnly();
-    }
+    //    return keyChain.AsReadOnly();
+    //}
 
     /// <summary>
     /// Virtual Method for UnProtectedHeaders so that it could be Overridden By Derived Class Instance
@@ -98,7 +100,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     /// <param name="hashAlgorithm">The <see cref="HashAlgorithmName"/> used for the signing operation.</param>
     public CertificateCoseSigningKeyProvider(HashAlgorithmName? hashAlgorithm = null)
     {
-        HashAlgorithm = hashAlgorithm ?? HashAlgorithm;
+        //HashAlgorithm = hashAlgorithm ?? HashAlgorithm;
     }
 
     /// <summary>
@@ -110,7 +112,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     public CertificateCoseSigningKeyProvider(ICertificateChainBuilder? certificateChainBuilder, HashAlgorithmName? hashAlgorithm = null, List<X509Certificate2>? rootCertificates = null)
     {
         ChainBuilder = certificateChainBuilder ?? new X509ChainBuilder();
-        HashAlgorithm = hashAlgorithm ?? HashAlgorithm;
+        //HashAlgorithm = hashAlgorithm ?? HashAlgorithm;
         if (rootCertificates?.Count > 0 is true)
         {
             ChainBuilder.ChainPolicy.ExtraStore.Clear();
@@ -178,6 +180,18 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
         }
 
         roots.ForEach(c => store.Add(c));
+    }
+
+    public CoseKey? GetCoseKey(bool publicKey = false)
+    {
+        X509Certificate2 cert = GetSigningCertificate();
+
+#pragma warning disable SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        return cert.GetRSAPrivateKey() is not null ? new CoseKey(cert.GetRSAPrivateKey(), RSASignaturePadding.Pkcs1, HashAlgorithmName.SHA256)
+            : cert.GetECDsaPrivateKey() is not null ? new CoseKey(cert.GetECDsaPrivateKey(), HashAlgorithmName.SHA256)
+            : cert.GetMLDsaPrivateKey() is not null ? new CoseKey(cert.GetMLDsaPrivateKey())
+            : throw new CryptographicException("Unknown key type");
+#pragma warning restore SYSLIB5006 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     }
 }
 

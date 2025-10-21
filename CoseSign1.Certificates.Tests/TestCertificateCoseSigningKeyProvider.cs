@@ -14,7 +14,7 @@ internal class TestCertificateCoseSigningKeyProvider : CertificateCoseSigningKey
 
     public CoseHeaderMap? TestGetUnProtectedHeadersImplementation() => base.GetUnProtectedHeadersImplementation();
 
-    public IReadOnlyList<AsymmetricAlgorithm> TestGetKeyChain() => base.GetKeyChain();
+    //public IReadOnlyList<AsymmetricAlgorithm> TestGetKeyChain() => base.GetKeyChain();
 
     protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
     {

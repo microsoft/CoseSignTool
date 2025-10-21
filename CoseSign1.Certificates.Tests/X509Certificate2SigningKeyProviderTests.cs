@@ -148,143 +148,143 @@ public class X509Certificate2SigningKeyProviderTests
         exceptionText.Message.Should().MatchRegex(":Build is not successful for the provided SigningCertificate:");
     }
 
-    /// <summary>
-    /// Testing KeyChain property with self-signed certificate
-    /// </summary>
-    [Test]
-    public void KeyChainShouldReturnSingleKeyForSelfSignedCert()
-    {
-        // Setup
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
-        X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
+    ///// <summary>
+    ///// Testing KeyChain property with self-signed certificate
+    ///// </summary>
+    //[Test]
+    //public void KeyChainShouldReturnSingleKeyForSelfSignedCert()
+    //{
+    //    // Setup
+    //    X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
-        // Test
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    // Test
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Count.Should().Be(1);
-        keyChain[0].Should().BeAssignableTo<RSA>();
-    }
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Count.Should().Be(1);
+    //    keyChain[0].Should().BeAssignableTo<RSA>();
+    //}
 
-    /// <summary>
-    /// Testing KeyChain property with certificate chain
-    /// </summary>
-    [Test]
-    public void KeyChainShouldReturnAllKeysInChain()
-    {
-        // Setup
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
-        Mock<ICertificateChainBuilder> testChainBuilder = new();
-        testChainBuilder.Setup(x => x.ChainElements).Returns(new List<X509Certificate2>(testChain));
-        testChainBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
+    ///// <summary>
+    ///// Testing KeyChain property with certificate chain
+    ///// </summary>
+    //[Test]
+    //public void KeyChainShouldReturnAllKeysInChain()
+    //{
+    //    // Setup
+    //    X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+    //    Mock<ICertificateChainBuilder> testChainBuilder = new();
+    //    testChainBuilder.Setup(x => x.ChainElements).Returns(new List<X509Certificate2>(testChain));
+    //    testChainBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
 
-        X509Certificate2CoseSigningKeyProvider testObj = new(testChainBuilder.Object, testChain[2]); // Use leaf certificate
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(testChainBuilder.Object, testChain[2]); // Use leaf certificate
 
-        // Test
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    // Test
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Count.Should().Be(testChain.Count);
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Count.Should().Be(testChain.Count);
         
-        // All keys should be RSA since test chain uses RSA certificates
-        foreach (AsymmetricAlgorithm key in keyChain)
-        {
-            key.Should().BeAssignableTo<RSA>();
-        }
-    }
+    //    // All keys should be RSA since test chain uses RSA certificates
+    //    foreach (AsymmetricAlgorithm key in keyChain)
+    //    {
+    //        key.Should().BeAssignableTo<RSA>();
+    //    }
+    //}
 
-    /// <summary>
-    /// Testing KeyChain property with ECC certificate
-    /// </summary>
-    [Test]
-    public void KeyChainShouldReturnEccKeyForEccCert()
-    {
-        // Setup
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(useEcc: true);
-        X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
+    ///// <summary>
+    ///// Testing KeyChain property with ECC certificate
+    ///// </summary>
+    //[Test]
+    //public void KeyChainShouldReturnEccKeyForEccCert()
+    //{
+    //    // Setup
+    //    X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(useEcc: true);
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
-        // Test
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    // Test
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Count.Should().Be(1);
-        keyChain[0].Should().BeAssignableTo<ECDsa>();
-    }
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Count.Should().Be(1);
+    //    keyChain[0].Should().BeAssignableTo<ECDsa>();
+    //}
 
-    /// <summary>
-    /// Testing KeyChain property when chain building fails
-    /// </summary>
-    [Test]
-    public void KeyChainShouldReturnEmptyListWhenChainBuildingFails()
-    {
-        // Setup
-        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
-        Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
-        mockBuilder.Setup(m => m.Build(It.IsAny<X509Certificate2>())).Returns(false);
-        mockBuilder.Setup(m => m.ChainElements).Returns([.. testChain]);
-        mockBuilder.Setup(m => m.ChainPolicy).Returns(new X509ChainPolicy());
-        mockBuilder.Setup(m => m.ChainStatus).Returns([new X509ChainStatus()]);
+    ///// <summary>
+    ///// Testing KeyChain property when chain building fails
+    ///// </summary>
+    //[Test]
+    //public void KeyChainShouldReturnEmptyListWhenChainBuildingFails()
+    //{
+    //    // Setup
+    //    X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+    //    Mock<ICertificateChainBuilder> mockBuilder = new(MockBehavior.Strict);
+    //    mockBuilder.Setup(m => m.Build(It.IsAny<X509Certificate2>())).Returns(false);
+    //    mockBuilder.Setup(m => m.ChainElements).Returns([.. testChain]);
+    //    mockBuilder.Setup(m => m.ChainPolicy).Returns(new X509ChainPolicy());
+    //    mockBuilder.Setup(m => m.ChainStatus).Returns([new X509ChainStatus()]);
         
-        X509Certificate2CoseSigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(mockBuilder.Object, testChain.Last());
 
-        // Test - KeyChain should handle the exception gracefully
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    // Test - KeyChain should handle the exception gracefully
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Should().BeEmpty();
-    }
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Should().BeEmpty();
+    //}
 
-    /// <summary>
-    /// Testing that KeyChain matches GetRSAKey result for RSA certificates
-    /// </summary>
-    [Test]
-    public void KeyChainFirstElementShouldMatchGetRSAKeyForRsaCert()
-    {
-        // Setup
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
-        X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
+    ///// <summary>
+    ///// Testing that KeyChain matches GetRSAKey result for RSA certificates
+    ///// </summary>
+    //[Test]
+    //public void KeyChainFirstElementShouldMatchGetRSAKeyForRsaCert()
+    //{
+    //    // Setup
+    //    X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
-        // Test
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
-        RSA? rsaKey = testObj.GetRSAKey(publicKey: true);
+    //    // Test
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    RSA? rsaKey = testObj.GetRSAKey(publicKey: true);
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Count.Should().Be(1);
-        rsaKey.Should().NotBeNull();
-        keyChain[0].Should().BeAssignableTo<RSA>();
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Count.Should().Be(1);
+    //    rsaKey.Should().NotBeNull();
+    //    keyChain[0].Should().BeAssignableTo<RSA>();
 
-        // Both should represent the same public key
-        RSA chainRsaKey = (RSA)keyChain[0];
-        chainRsaKey.KeySize.Should().Be(rsaKey!.KeySize);
-    }
+    //    // Both should represent the same public key
+    //    RSA chainRsaKey = (RSA)keyChain[0];
+    //    chainRsaKey.KeySize.Should().Be(rsaKey!.KeySize);
+    //}
 
-    /// <summary>
-    /// Testing that KeyChain matches GetECDsaKey result for ECC certificates
-    /// </summary>
-    [Test]
-    public void KeyChainFirstElementShouldMatchGetECDsaKeyForEccCert()
-    {
-        // Setup
-        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(useEcc: true);
-        X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
+    ///// <summary>
+    ///// Testing that KeyChain matches GetECDsaKey result for ECC certificates
+    ///// </summary>
+    //[Test]
+    //public void KeyChainFirstElementShouldMatchGetECDsaKeyForEccCert()
+    //{
+    //    // Setup
+    //    X509Certificate2 testCert = TestCertificateUtils.CreateCertificate(useEcc: true);
+    //    X509Certificate2CoseSigningKeyProvider testObj = new(testCert);
 
-        // Test
-        IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
-        ECDsa? ecdsaKey = testObj.GetECDsaKey(publicKey: true);
+    //    // Test
+    //    IReadOnlyList<AsymmetricAlgorithm> keyChain = testObj.KeyChain;
+    //    ECDsa? ecdsaKey = testObj.GetECDsaKey(publicKey: true);
 
-        // Validate
-        keyChain.Should().NotBeNull();
-        keyChain.Count.Should().Be(1);
-        ecdsaKey.Should().NotBeNull();
-        keyChain[0].Should().BeAssignableTo<ECDsa>();
+    //    // Validate
+    //    keyChain.Should().NotBeNull();
+    //    keyChain.Count.Should().Be(1);
+    //    ecdsaKey.Should().NotBeNull();
+    //    keyChain[0].Should().BeAssignableTo<ECDsa>();
 
-        // Both should represent the same public key
-        ECDsa chainEcdsaKey = (ECDsa)keyChain[0];
-        chainEcdsaKey.KeySize.Should().Be(ecdsaKey!.KeySize);
-    }
+    //    // Both should represent the same public key
+    //    ECDsa chainEcdsaKey = (ECDsa)keyChain[0];
+    //    chainEcdsaKey.KeySize.Should().Be(ecdsaKey!.KeySize);
+    //}
 }

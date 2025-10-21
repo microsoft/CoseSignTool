@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Tests;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Class for Testing Methods of <see cref="CoseSign1MessageFactory"/>
 /// </summary>
@@ -19,21 +21,13 @@ public class CoseSign1MessageFactoryTests
     [Test]
     public void TestEmbedCoseSigningWithRSASuccess()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory coseSign1MessageFactory = new();
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSigningKeyProvider, true);
 
-        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
-
-        mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
+        // TODO: do we want to check the signing certificate in the actual response to make sure it's RSA?
         response.Should().NotBeNull();
     }
 
@@ -43,23 +37,38 @@ public class CoseSign1MessageFactoryTests
     [Test]
     public void TestEmbedCoseSigningWithECDsaSuccess()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider(keyType: CoseKeyType.ECDsa);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
         Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
         X509Certificate2 selfSignedCertwithECDsA = TestCertificateUtils.CreateCertificate(useEcc: true);
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns(selfSignedCertwithECDsA.GetECDsaPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
+        mockedHeaderExtender.Setup(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Verifiable();
+        mockedHeaderExtender.Setup(m => m.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Verifiable();
+
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSigningKeyProvider, true, ContentTypeConstants.Cose, mockedHeaderExtender.Object);
+
+        response.Should().NotBeNull();
+        mockedHeaderExtender.Verify(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>()), Times.Once);
+        mockedHeaderExtender.Verify(m => m.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>()), Times.Once);
+    }
+
+    /// <summary>
+    ///  Testing with ECDsa Signing Key and embed payload true.
+    /// </summary>
+    [Test]
+    public void TestEmbedCoseSigningWithMLDsaSuccess()
+    {
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider(keyType: CoseKeyType.MLDsa);
+        CoseSign1MessageFactory coseSign1MessageFactory = new();
+        Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
+        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+        X509Certificate2 selfSignedCertwithECDsA = TestCertificateUtils.CreateCertificate(useEcc: true);
 
         mockedHeaderExtender.Setup(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Verifiable();
         mockedHeaderExtender.Setup(m => m.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Verifiable();
 
-        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true, ContentTypeConstants.Cose, mockedHeaderExtender.Object);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSigningKeyProvider, true, ContentTypeConstants.Cose, mockedHeaderExtender.Object);
 
         response.Should().NotBeNull();
         mockedHeaderExtender.Verify(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>()), Times.Once);
@@ -72,11 +81,10 @@ public class CoseSign1MessageFactoryTests
     [Test]
     public void TestEmbedCoseSigningWithHeaderExtender()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider(keyType: CoseKeyType.ECDsa);
         CoseSign1MessageFactory coseSign1MessageFactory = new();
         Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertwithECDsA = TestCertificateUtils.CreateCertificate(useEcc: true);
 
         CoseHeaderLabel testHeaderLabel = new("test-header-label");
         CoseHeaderLabel testHeaderLabel2 = new("test-header-label2");
@@ -91,17 +99,10 @@ public class CoseSign1MessageFactoryTests
             { testHeaderLabel2, "test-header-value2" }
         };
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns(selfSignedCertwithECDsA.GetECDsaPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
-
         mockedHeaderExtender.Setup(m => m.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(testProtectedHeaders2);
         mockedHeaderExtender.Setup(m => m.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns<CoseHeaderMap>(null);
 
-        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true, ContentTypeConstants.Cose, mockedHeaderExtender.Object);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSigningKeyProvider, true, ContentTypeConstants.Cose, mockedHeaderExtender.Object);
 
         response.Should().NotBeNull();
         response.ProtectedHeaders.Count.Should().Be(3);
@@ -111,53 +112,20 @@ public class CoseSign1MessageFactoryTests
     }
 
     /// <summary>
-    /// Test when both Keys are provided
-    /// </summary>
-    [Test]
-    public void TestEmbedCoseSigningWithBothKeysSuccess()
-    {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
-        CoseSign1MessageFactory coseSign1MessageFactory = new();
-        Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
-        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
-        X509Certificate2 selfSignedCertwithECDsA = TestCertificateUtils.CreateCertificate(useEcc: true);
-
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns(selfSignedCertwithECDsA.GetECDsaPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey()); ;
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
-
-        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
-
-        mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
-        response.Should().NotBeNull();
-    }
-
-    /// <summary>
     /// Testing for Detached CoseSign1Message
     /// </summary>
     [Test]
     public void TestDetachedCoseSigningSuccess()
     {
-        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        ICoseSigningKeyProvider mockedSigningKeyProvider = TestCertificateUtils.SetupMockSigningKeyProvider();
         CoseSign1MessageFactory coseSign1MessageFactory = new();
         Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
-        X509Certificate2 selfSignedCertwithRSA = TestCertificateUtils.CreateCertificate();
 
-        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertwithRSA.GetRSAPrivateKey());
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(true);
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSigningKeyProvider, embedPayload: false);
 
-        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, embedPayload: false);
-
-        mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
+        // TODO: do we want to check the signing certificate in the actual response to make sure it's RSA?
+        //mockedSignerKeyProvider.Object.IsRSA.Should().BeTrue();
         response.Should().NotBeNull();
     }
 
@@ -173,10 +141,7 @@ public class CoseSign1MessageFactoryTests
 
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
+        mockedSignerKeyProvider.Setup(x => x.GetCoseKey()).Returns<CoseKey>(null);
 
         CoseSigningException? exceptionText = Assert.Throws<CoseSigningException>(
                            () => coseSign1MessageFactory.CreateCoseSign1Message(testPayload,
@@ -221,10 +186,7 @@ public class CoseSign1MessageFactoryTests
 
         mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
         mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
-        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
-        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
-        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
-        mockedSignerKeyProvider.Setup(x => x.IsRSA).Returns(false);
+        
 
         CoseSigningException? exceptionText = Assert.Throws<CoseSigningException>(() =>
             coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object));

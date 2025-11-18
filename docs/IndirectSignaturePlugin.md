@@ -47,6 +47,10 @@ CoseSignTool indirect-sign --payload <payload-file> --signature <signature-file>
 - `--hash-algorithm`: The hash algorithm to use (SHA256, SHA384, SHA512, default: SHA256)
 - `--signature-version`: The indirect signature version (CoseHashEnvelope, default: CoseHashEnvelope)
 
+**Universal Logging Options** (available for all plugin commands):
+- `--verbose`, `-v`: Enable verbose logging output (detailed diagnostic information)
+- `--quiet`, `-q`: Suppress all non-error output
+
 #### Examples
 
 ```bash
@@ -90,6 +94,10 @@ CoseSignTool indirect-verify --payload <payload-file> --signature <signature-fil
 - `--output`: File path where verification result will be written (JSON format)
 - `--timeout`: Timeout in seconds for the operation (default: 30)
 
+**Universal Logging Options** (available for all plugin commands):
+- `--verbose`, `-v`: Enable verbose logging output (detailed diagnostic information)
+- `--quiet`, `-q`: Suppress all non-error output
+
 #### Examples
 
 ```bash
@@ -105,9 +113,65 @@ CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --allo
 # Verify with expected common name
 CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --common-name "My Company"
 
+# Verify with verbose logging
+CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --verbose
+
 # Verify with JSON output
 CoseSignTool indirect-verify --payload myfile.txt --signature myfile.cose --output result.json
 ```
+
+## Logging
+
+The Indirect Signature plugin provides three logging levels to help diagnose issues:
+
+### Normal Mode (Default)
+Shows operation status and results:
+```bash
+CoseSignTool indirect-sign --payload file.txt --signature file.cose --pfx cert.pfx
+# Output:
+# Creating indirect COSE Sign1 message...
+# Indirect signature created successfully (1234 bytes)
+```
+
+### Verbose Mode
+Shows detailed diagnostic information including:
+- File paths and sizes
+- Certificate details (subject, thumbprint)
+- Hash algorithm and signature version
+- Each step of the signing/verification process
+- Stack traces for exceptions
+
+```bash
+CoseSignTool indirect-sign --payload file.txt --signature file.cose --pfx cert.pfx --verbose
+# Output includes:
+# [VERBOSE] Starting indirect sign operation
+# [VERBOSE] Reading payload from: file.txt
+# [VERBOSE] Payload size: 1024 bytes
+# [VERBOSE] Using certificate: CN=My Company
+# [VERBOSE] Certificate thumbprint: ABC123...
+# [VERBOSE] Creating indirect signature...
+# [VERBOSE] Encoded signature size: 1234 bytes
+# Creating indirect COSE Sign1 message...
+# Indirect signature created successfully (1234 bytes)
+```
+
+**When to use verbose mode:**
+- Diagnosing signing or verification failures
+- Understanding certificate selection
+- Troubleshooting payload or signature issues
+- Reporting bugs with detailed context
+
+### Quiet Mode
+Suppresses all output except errors:
+```bash
+CoseSignTool indirect-sign --payload file.txt --signature file.cose --pfx cert.pfx --quiet
+# Only errors are shown, ideal for scripting
+```
+
+**When to use quiet mode:**
+- CI/CD pipelines where only failures matter
+- Automated scripts that check exit codes
+- Batch processing scenarios
 
 ## Indirect Signature Format
 

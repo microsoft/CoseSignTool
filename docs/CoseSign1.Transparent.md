@@ -49,7 +49,19 @@ public class TransparencyExample
 
         // Initialize the transparency service (using Azure CTS as an example)
         CodeTransparencyClient transparencyClient = new CodeTransparencyClient();
-        ITransparencyService transparencyService = new AzureCtsTransparencyService(transparencyClient);
+        
+        // Optional: Configure verification options for advanced receipt validation
+        var verificationOptions = new CodeTransparencyVerificationOptions
+        {
+            AuthorizedDomains = new List<string> { "trusted-cts.azure.com" },
+            AuthorizedReceiptBehavior = AuthorizedReceiptBehavior.RequireAll,
+            UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
+        };
+        
+        ITransparencyService transparencyService = new AzureCtsTransparencyService(
+            transparencyClient, 
+            verificationOptions, 
+            null);
 
         // Make the message transparent
         CoseSign1Message transparentMessage = await message.MakeTransparentAsync(transparencyService);

@@ -126,8 +126,21 @@ CoseSignTool cts_verify [OPTIONS]
 #### Optional Options
 - `--token-env-var` - Environment variable name containing the access token (default: `AZURE_CTS_TOKEN`)
 - `--output` - Output file path for the verification result
-- `--receipt` - Path to save the transparency receipt
+- `--receipt` - Path to a specific receipt file to use for verification
 - `--timeout` - Operation timeout in seconds (default: 30)
+- `--authorized-domains` - Comma-separated list of authorized issuer domains for receipt verification
+- `--authorized-receipt-behavior` - Behavior for receipts from authorized domains:
+  - `VerifyAnyMatching` - At least one receipt from any authorized domain must be valid
+  - `VerifyAllMatching` - All receipts from authorized domains must be valid (default)
+  - `RequireAll` - There must be at least one valid receipt for each authorized domain
+- `--unauthorized-receipt-behavior` - Behavior for receipts from unauthorized domains:
+  - `VerifyAll` - Verify all receipts regardless of issuer domain
+  - `IgnoreAll` - Skip verification of receipts from unauthorized domains
+  - `FailIfPresent` - Fail verification if any unauthorized receipt is present (default)
+
+**Universal Logging Options** (available for all plugin commands):
+- `--verbose`, `-v` - Enable verbose logging output (detailed diagnostic information)
+- `--quiet`, `-q` - Suppress all non-error output
 
 #### Examples
 
@@ -147,7 +160,50 @@ CoseSignTool cts_verify \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --receipt transparency-receipt.json
+    --receipt transparency-receipt.cose
+```
+
+**With authorized domain verification:**
+```bash
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_verify \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose \
+    --authorized-domains example.com,trusted.azure.com \
+    --authorized-receipt-behavior RequireAll
+```
+
+**With custom receipt behaviors:**
+```bash
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_verify \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose \
+    --authorized-domains mycompany.com \
+    --authorized-receipt-behavior VerifyAnyMatching \
+    --unauthorized-receipt-behavior IgnoreAll
+```
+
+**With verbose logging:**
+```bash
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_verify \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose \
+    --verbose
+```
+
+**With quiet mode (errors only):**
+```bash
+export AZURE_CTS_TOKEN="your-access-token"
+CoseSignTool cts_verify \
+    --endpoint https://your-cts-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose \
+    --quiet
 ```
 
 ## CI/CD Integration
@@ -240,6 +296,123 @@ steps:
 ```
 
 ## Best Practices
+
+### Logging and Diagnostics
+
+The Azure CTS plugin provides three logging levels to help diagnose issues:
+
+#### Normal Mode (Default)
+Shows operation status and results:
+```bash
+CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose
+# Output:
+# Verifying COSE Sign1 message with Azure CTS...
+# Verification result: VALID
+```
+
+#### Verbose Mode
+Shows detailed diagnostic information including:
+- Endpoint and file paths
+- Verification options being used
+- Authorized/unauthorized domains
+- Receipt processing steps
+- Message sizes and entry IDs
+- Detailed exception information including stack traces
+
+```bash
+CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose --verbose
+# Output:
+# [VERBOSE] Starting CTS operation
+# [VERBOSE] Endpoint: https://...
+# [VERBOSE] Starting transparency verification
+# [VERBOSE] Transparency header found in message
+# [VERBOSE] Authorized domains: example.com
+# [VERBOSE] Calling CodeTransparencyClient.VerifyTransparentStatement
+# [VERBOSE] Transparency verification succeeded
+# Verifying COSE Sign1 message with Azure CTS...
+# Verification result: VALID
+```
+
+**When to use verbose mode:**
+- Diagnosing verification failures
+- Understanding which verification options are active
+- Troubleshooting receipt issues
+- Reporting bugs with detailed context
+
+#### Quiet Mode
+Suppresses all output except errors:
+```bash
+CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose --quiet
+# Only errors are shown, ideal for scripting and automation
+```
+
+**When to use quiet mode:**
+- CI/CD pipelines where only failures matter
+- Automated scripts that check exit codes
+- Batch processing scenarios
+- When logging to files and console output is unnecessary
+
+### Verification Options
+
+The `cts_verify` command supports advanced verification options to control how receipts from different issuer domains are validated:
+
+#### Authorized Domains
+Specify a list of trusted issuer domains using `--authorized-domains`. This is useful when you want to:
+- Enforce that receipts come from specific, trusted CTS instances
+- Validate multi-tenant scenarios where different domains may issue receipts
+- Implement security policies requiring specific issuer verification
+
+Example:
+```bash
+--authorized-domains company.azure.com,partner.azure.com
+```
+
+#### Receipt Validation Behaviors
+
+**Authorized Receipt Behavior** (`--authorized-receipt-behavior`):
+- **VerifyAnyMatching**: At least one receipt from any authorized domain must pass verification. Use this for flexibility when multiple trusted sources exist, but only one needs to validate successfully.
+- **VerifyAllMatching** (default): All receipts from authorized domains must pass verification. Use this when you require all trusted sources to validate successfully.
+- **RequireAll**: There must be at least one valid receipt for each authorized domain. Use this when you require coverage from every specified trusted source.
+
+**Unauthorized Receipt Behavior** (`--unauthorized-receipt-behavior`):
+- **VerifyAll**: Verify all receipts regardless of issuer domain. Use this for maximum validation coverage.
+- **IgnoreAll**: Skip verification of receipts from unauthorized domains. Use this when you only care about specific trusted sources.
+- **FailIfPresent** (default): Fail verification if any unauthorized receipt is present. Use this for strict security policies that don't allow unknown issuers.
+
+#### Use Cases
+
+**Scenario 1: Require specific trusted domain**
+```bash
+CoseSignTool cts_verify \
+    --endpoint https://your-cts.azure.com \
+    --payload file.txt \
+    --signature file.txt.cose \
+    --authorized-domains your-cts.azure.com \
+    --authorized-receipt-behavior RequireAll \
+    --unauthorized-receipt-behavior FailIfPresent
+```
+
+**Scenario 2: Accept any of multiple trusted sources**
+```bash
+CoseSignTool cts_verify \
+    --endpoint https://your-cts.azure.com \
+    --payload file.txt \
+    --signature file.txt.cose \
+    --authorized-domains primary.azure.com,backup.azure.com \
+    --authorized-receipt-behavior VerifyAnyMatching \
+    --unauthorized-receipt-behavior IgnoreAll
+```
+
+**Scenario 3: Require all trusted domains with no unauthorized receipts**
+```bash
+CoseSignTool cts_verify \
+    --endpoint https://your-cts.azure.com \
+    --payload file.txt \
+    --signature file.txt.cose \
+    --authorized-domains primary.azure.com,secondary.azure.com \
+    --authorized-receipt-behavior RequireAll \
+    --unauthorized-receipt-behavior FailIfPresent
+```
 
 ### Security
 

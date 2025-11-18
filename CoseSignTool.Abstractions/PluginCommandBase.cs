@@ -8,6 +8,17 @@ namespace CoseSignTool.Abstractions;
 /// </summary>
 public abstract class PluginCommandBase : IPluginCommand
 {
+    /// <summary>
+    /// Gets the logger instance for this command. Set by the CLI infrastructure via SetLogger.
+    /// </summary>
+    protected IPluginLogger Logger { get; private set; } = new ConsolePluginLogger();
+
+    /// <inheritdoc/>
+    public void SetLogger(IPluginLogger logger)
+    {
+        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 

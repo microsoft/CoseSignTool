@@ -35,4 +35,10 @@ public interface IPluginCommand
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the exit code.</returns>
     Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the logger instance for this command. Called by the CLI infrastructure before ExecuteAsync.
+    /// </summary>
+    /// <param name="logger">The logger instance to use for diagnostic output.</param>
+    void SetLogger(IPluginLogger logger);
 }

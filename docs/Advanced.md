@@ -9,7 +9,7 @@ For complete documentation on SCITT features, including:
 - CLI usage with `--cwt-*` arguments
 - Programmatic API with `CWTClaimsHeaderExtender`
 - DateTimeOffset support for timestamps
-- Self-signed certificate support
+- Self-signed certificate support (testing/development only)
 
 See **[SCITTCompliance.md](./SCITTCompliance.md)** for comprehensive documentation and examples.
 
@@ -28,8 +28,8 @@ byte[] signature = CoseHandler.Sign(payload, signingKeyProvider, false, headerEx
 ```
 
 #### Indirect Signatures
-COSE signing normally uses either a "detached" signature, where the signature is in a separate file from the payload, or an "embedded" signature, where an encrypted copy of the payload is inserted into the signature file. This can be cumbersome for large payloads, especially when they must be sent to a remote server for signing or validation.
-Indirect signing is a feature that allows you to create and validate a signature against a hash of the payload instead of the payload itself. This feature is available through the [CoseIndirectSignature](.\CoseIndirectSignature.md) library and the **indirect-sign** plugin command in CoseSignTool. Indirect signatures also support full SCITT compliance with CWT Claims.
+COSE signing normally uses either a "detached" signature, where the signature is in a separate file from the payload, or an "embedded" signature, where a copy of the payload is inserted into the signature file. This can be cumbersome for large payloads, especially when they must be sent to a remote server for signing or validation.
+Indirect signing is a feature that allows you to create and validate a signature against a hash of the payload instead of the full payload. **Indirect signatures produce embedded COSE signatures** containing a hash envelope structure rather than the full payload. This feature is available through the [CoseIndirectSignature](.\CoseIndirectSignature.md) library and the **indirect-sign** plugin command in CoseSignTool. Indirect signatures also support full SCITT compliance with CWT Claims.
 
 See [IndirectSignaturePlugin.md](./IndirectSignaturePlugin.md) for CLI usage.
 

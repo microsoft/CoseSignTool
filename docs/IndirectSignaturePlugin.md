@@ -219,7 +219,7 @@ The plugin supports the **CoseHashEnvelope** format (recommended for new applica
 1. Computes a cryptographic hash of the payload using the specified hash algorithm
 2. Embeds the hash value in the COSE message content field
 3. Modifies the content type to include a "+cose-hash-envelope" suffix
-4. Creates a detached signature that can be verified against the original payload
+4. Creates an **embedded** COSE signature containing the hash structure (not the full payload)
 
 ### Content Type Modification
 
@@ -327,7 +327,7 @@ The indirect signature format created by this plugin is designed to be compatibl
 2. **PFX password errors**: Ensure correct password or try without password for unprotected files
 3. **File access errors**: Check file permissions and paths
 4. **Hash mismatch**: Ensure payload file hasn't been modified since signing
-5. **Certificate validation failures**: Use `--allow-untrusted` for testing with self-signed certificates
+5. **Certificate validation failures**: Use `--allow-untrusted` for testing with self-signed certificates (development/testing only - not for production)
 
 ### Debugging
 

@@ -175,6 +175,8 @@ string did = DidX509Utilities.GenerateDidX509Identifier(
 );
 
 // Self-signed certificate (use same cert for both leaf and root)
+// NOTE: Self-signed certificates are for testing/development only.
+// Production SCITT ledgers require certificates from trusted CAs.
 var selfSignedCert = new X509Certificate2("self-signed.pfx", "password");
 string selfSignedDid = DidX509Utilities.GenerateDidX509Identifier(
     selfSignedCert,
@@ -193,12 +195,12 @@ string sha384Did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
 
 - **GenerateDidX509IdentifierFromChain(List<X509Certificate2> chain, HashAlgorithmName hashAlgorithm)**
   - Generates DID from a certificate chain
-  - Automatically handles self-signed certificates (single-certificate chains)
+  - Supports single-certificate chains (self-signed, for testing only)
   - Returns DID:x509 identifier string
 
 - **GenerateDidX509Identifier(X509Certificate2 leafCertificate, X509Certificate2 rootCertificate, HashAlgorithmName hashAlgorithm)**
   - Generates DID from specific leaf and root certificates
-  - Use same certificate for both parameters to handle self-signed certificates
+  - For self-signed certificates (testing only): use same certificate for both parameters
   - Returns DID:x509 identifier string
 
 ### Complete SCITT Example:

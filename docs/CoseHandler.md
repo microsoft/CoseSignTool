@@ -96,6 +96,7 @@ using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography;
 
 // Generate DID:x509 from certificate chain
+// NOTE: For production SCITT, use certificates from trusted CAs only
 List<X509Certificate2> chain = GetCertificateChain();
 string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
     chain, 
@@ -103,7 +104,8 @@ string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
 );
 // Result: "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:O:Example%20Corp"
 
-// Works with self-signed certificates too
+// Self-signed certificates work for testing/development only
+// Production SCITT ledgers require certificates from trusted CAs
 var selfSignedCert = new X509Certificate2("self-signed.pfx", "password");
 string selfSignedDid = DidX509Utilities.GenerateDidX509Identifier(
     selfSignedCert, 
@@ -158,7 +160,7 @@ The **Validate** method validates that a COSE signature is properly constructed,
 
 You will need to specify:
 * The **signature** to validate. You can pass in your COSE signature structure as either a byte array, a stream, or a *FileInfo* object. 
-* The **payload** that was signed (for detached and indirect signatures only.) Again, you can pass it in as a byte array, a stream, or a *FileInfo*. 
+* The **payload** that was signed (for detached signatures only.) Indirect signatures are embedded, so they don't require the payload parameter. You can pass detached payloads in as a byte array, a stream, or a *FileInfo*. 
 Which types you should use for signature and payload depends on your scenario.
   * Arrays and most stream types are limited to 2gb or less, so if you anticipate large payloads, either use *FileInfo*, *FileStream*, or a custom stream type that doesn't have a backing array.
   * Payloads may be more than 2gb but signatures will not, because embedded signatures use byte arrays to store the payload.

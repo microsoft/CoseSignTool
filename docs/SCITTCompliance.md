@@ -44,7 +44,7 @@ did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:
 - **Automatic generation** from certificate chains via `CertificateCoseSigningKeyProvider.Issuer` property
 - **Extensible**: Derived certificate providers can override the `Issuer` property to provide custom values
 - **Multiple hash algorithms** supported (SHA-256, SHA-384, SHA-512)
-- **Self-signed certificate support** for development/testing
+- **Self-signed certificate support** for testing and development purposes only (not for production SCITT ledgers)
 - **Standards-compliant encoding** following RFC 3986
 
 ### Customizing the Issuer
@@ -269,7 +269,7 @@ byte[] coseSigned = builder.Sign(signingKeyProvider);
 
 ## Indirect Signatures with SCITT
 
-Indirect signatures (using CoseIndirectSignature or the IndirectSign plugin) also support SCITT compliance:
+Indirect signatures (using CoseIndirectSignature or the IndirectSign plugin) create **embedded** COSE signatures with a hash envelope instead of the full payload. These also support SCITT compliance:
 
 ```bash
 # Using the indirect-sign plugin with SCITT
@@ -344,7 +344,7 @@ For advanced scenarios requiring direct CBOR access, see the [CoseSign1.Headers 
 A: You can specify any issuer string. DID:x509 is only auto-generated when you don't provide a custom issuer.
 
 **Q: Can I use SCITT compliance with self-signed certificates?**  
-A: Yes! The DID:x509 generation supports self-signed certificates, but only for test purpoes. Production SCITT ledgers may reject self-signed DID:x509 issuers.
+A: Self-signed certificates are supported for **testing and development purposes only**. Production SCITT ledgers will reject signatures from self-signed certificates as they cannot establish a trusted certificate chain. For production use, always use certificates issued by a trusted Certificate Authority (CA).
 
 **Q: How do I verify CWT Claims are included in my signature?**  
 A: Use a CBOR decoder or the validation code example above to inspect the protected headers.

@@ -46,15 +46,20 @@ public class RegisterCommand : CtsCommandBase
         IConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        // Create the transparency service
-        CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = client.ToCoseSign1TransparencyService();
+        Logger.LogVerbose("Creating transparency service");
+        // Create the transparency service with logging
+        CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = client.ToCoseSign1TransparencyService(
+            logVerbose: Logger.LogVerbose,
+            logWarning: Logger.LogWarning,
+            logError: Logger.LogError);
 
         PrintOperationStatus("Registering", endpoint, payloadPath, signaturePath, signatureBytes.Length);
 
+        Logger.LogVerbose("Calling MakeTransparentAsync...");
         // Register with the transparency service
         CoseSign1Message result = await transparencyService.MakeTransparentAsync(message, cancellationToken);
 
-        Console.WriteLine("Registration completed successfully.");
+        Logger.LogInformation("Registration completed successfully.");
 
         // Create result object for JSON output
         var jsonResult = new

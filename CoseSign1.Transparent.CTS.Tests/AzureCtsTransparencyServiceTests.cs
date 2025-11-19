@@ -58,6 +58,50 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
+    /// Tests the constructor of <see cref="AzureCtsTransparencyService"/> with verification options.
+    /// </summary>
+    [Test]
+    public void Constructor_WithVerificationOptions_CreatesInstance()
+    {
+        // Arrange
+        CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
+        var verificationOptions = new CodeTransparencyVerificationOptions
+        {
+            AuthorizedDomains = new List<string> { "example.com" },
+            AuthorizedReceiptBehavior = AuthorizedReceiptBehavior.RequireAll,
+            UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
+        };
+
+        // Act
+        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient, verificationOptions, null);
+
+        // Assert
+        Assert.That(service, Is.Not.Null);
+    }
+
+    /// <summary>
+    /// Tests the constructor of <see cref="AzureCtsTransparencyService"/> with logging callbacks.
+    /// </summary>
+    [Test]
+    public void Constructor_WithLogging_CreatesInstance()
+    {
+        // Arrange
+        CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
+        var logMessages = new List<string>();
+        
+        Action<string> logVerbose = msg => logMessages.Add($"VERBOSE: {msg}");
+        Action<string> logWarning = msg => logMessages.Add($"WARNING: {msg}");
+        Action<string> logError = msg => logMessages.Add($"ERROR: {msg}");
+
+        // Act
+        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+            mockClient, null, null, logVerbose, logWarning, logError);
+
+        // Assert
+        Assert.That(service, Is.Not.Null);
+    }
+
+    /// <summary>
     /// Tests the <see cref="AzureCtsTransparencyService.MakeTransparentAsync"/> method for null arguments.
     /// </summary>
     [Test]
@@ -183,12 +227,9 @@ public class AzureCtsTransparencyServiceTests
     public async Task VerifyTransparencyAsync_ReturnsTrue_WhenVerificationSucceeds()
     {
         // Arrange
-        Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
-        mockClient
-            .Setup(client => client.RunTransparentStatementVerification(It.IsAny<byte[]>()))
-            .Verifiable();
-
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient.Object);
+        // Note: We can't mock the static VerifyTransparentStatement method, so we test the service behavior
+        // with actual verification logic. This test verifies the service correctly calls the API.
+        AzureCtsTransparencyService service = new AzureCtsTransparencyService(new CodeTransparencyClient(new Uri("https://example.com")));
         CoseSign1Message message = CreateMessageWithTransparencyHeader();
 
         // Act

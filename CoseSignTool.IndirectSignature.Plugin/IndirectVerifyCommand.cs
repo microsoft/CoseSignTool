@@ -39,6 +39,8 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
     {
         try
         {
+            Logger.LogVerbose("Starting indirect verify operation");
+
             // Get required parameters
             string payloadPath = GetRequiredValue(configuration, "payload");
             string signaturePath = GetRequiredValue(configuration, "signature");
@@ -61,7 +63,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             X509RevocationMode revocationMode = ParseRevocationMode(revocationModeString, X509RevocationMode.NoCheck);
 
             // Validate common parameters
-            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
+            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
@@ -80,7 +82,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             }
 
             AddAdditionalFileValidation(requiredFiles, configuration);
-            validationResult = ValidateFilePaths(requiredFiles);
+            validationResult = ValidateFilePaths(requiredFiles, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
@@ -88,6 +90,11 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
 
             // Verify the indirect signature
             using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
+            Logger.LogVerbose($"Verifying with revocation mode: {revocationMode}");
+            if (!string.IsNullOrEmpty(commonName))
+            {
+                Logger.LogVerbose($"Expected common name: {commonName}");
+            }
             (PluginExitCode exitCode, object? result) = await VerifyIndirectSignature(
                 payloadPath, 
                 signaturePath, 
@@ -96,11 +103,13 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                 allowOutdated,
                 commonName,
                 revocationMode,
+                Logger,
                 combinedCts.Token);
 
             // Write output if requested
             if (!string.IsNullOrEmpty(outputPath) && result != null)
             {
+                Logger.LogVerbose($"Writing result to: {outputPath}");
                 object outputResult = new
                 {
                     Operation = "IndirectVerify",
@@ -109,14 +118,15 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                     IsValid = exitCode == PluginExitCode.Success,
                     Result = result
                 };
-                await WriteJsonResult(outputPath, outputResult, cancellationToken);
+                await WriteJsonResult(outputPath, outputResult, cancellationToken, Logger);
             }
 
+            Logger.LogVerbose("Indirect verify operation completed");
             return exitCode;
         }
         catch (Exception ex)
         {
-            return HandleCommonException(ex, configuration, cancellationToken);
+            return HandleCommonException(ex, configuration, cancellationToken, Logger);
         }
     }
 
@@ -130,6 +140,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
     /// <param name="allowOutdated">Whether to allow outdated certificates.</param>
     /// <param name="commonName">Expected common name in signing certificate (optional).</param>
     /// <param name="revocationMode">Certificate revocation checking mode.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     /// <param name="cancellationToken">Cancellation token with timeout.</param>
     /// <returns>Tuple containing the exit code and optional result object for JSON output.</returns>
     private static async Task<(PluginExitCode exitCode, object? result)> VerifyIndirectSignature(
@@ -140,32 +151,45 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
         bool allowOutdated,
         string? commonName,
         X509RevocationMode revocationMode,
+        IPluginLogger logger,
         CancellationToken cancellationToken)
     {
         try
         {
-            PrintOperationStatus("Verifying", payloadPath, signaturePath);
+            logger.LogInformation("Verifying indirect COSE Sign1 message...");
+            logger.LogVerbose($"Payload: {payloadPath}");
+            logger.LogVerbose($"Signature: {signaturePath}");
 
             // Read signature and payload files
+            logger.LogVerbose("Reading signature file...");
             byte[] signatureBytes = await File.ReadAllBytesAsync(signaturePath, cancellationToken);
+            logger.LogVerbose($"Signature size: {signatureBytes.Length} bytes");
+
+            logger.LogVerbose("Reading payload file...");
             byte[] payload = await File.ReadAllBytesAsync(payloadPath, cancellationToken);
+            logger.LogVerbose($"Payload size: {payload.Length} bytes");
 
             // First check if this is an indirect signature before performing validation
+            logger.LogVerbose("Decoding COSE Sign1 message...");
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
             if (!message.IsIndirectSignature())
             {
-                Console.Error.WriteLine("Error: The signature is not an indirect signature.");
+                logger.LogError("The signature is not an indirect signature.");
                 return (PluginExitCode.InvalidArgumentValue, null);
             }
+            logger.LogVerbose("Confirmed indirect signature format");
 
             // Load root certificates if provided
             List<X509Certificate2>? rootCerts = null;
             if (!string.IsNullOrEmpty(rootCertsPath))
             {
-                rootCerts = LoadRootCertificates(rootCertsPath);
+                logger.LogVerbose($"Loading root certificates from: {rootCertsPath}");
+                rootCerts = LoadRootCertificates(rootCertsPath, logger);
+                logger.LogVerbose($"Loaded {rootCerts?.Count ?? 0} root certificate(s)");
             }
 
             // Use CoseHandler.Validate to perform comprehensive validation
+            logger.LogVerbose("Performing validation...");
             ValidationResult validationResult = CoseHandler.Validate(
                 signature: signatureBytes,
                 payload: payload,
@@ -176,30 +200,29 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                 allowOutdated: allowOutdated);
 
             bool isValid = validationResult.Success;
-            string status = isValid ? "✅ SUCCESS" : "❌ FAILED";
-            
-            Console.WriteLine($"{status}: Indirect signature verification completed");
             
             if (validationResult.Success)
             {
-                Console.WriteLine("  - Payload hash matches signature");
-                Console.WriteLine("  - Certificate chain validation passed");
+                logger.LogInformation("✅ SUCCESS: Indirect signature verification completed");
+                logger.LogVerbose("  - Payload hash matches signature");
+                logger.LogVerbose("  - Certificate chain validation passed");
                 
                 if (validationResult.CertificateChain?.Count > 0)
                 {
                     X509Certificate2 signingCert = validationResult.CertificateChain.First();
-                    Console.WriteLine($"  - Signed by: {signingCert.Subject}");
-                    Console.WriteLine($"  - Certificate thumbprint: {signingCert.Thumbprint}");
+                    logger.LogInformation($"  - Signed by: {signingCert.Subject}");
+                    logger.LogVerbose($"  - Certificate thumbprint: {signingCert.Thumbprint}");
                 }
             }
             else
             {
+                logger.LogError("❌ FAILED: Indirect signature verification failed");
                 if (validationResult.Errors?.Count > 0)
                 {
-                    Console.WriteLine("  - Validation errors:");
+                    logger.LogError("  - Validation errors:");
                     foreach (CoseValidationError error in validationResult.Errors)
                     {
-                        Console.WriteLine($"    • {error.ErrorCode}: {error.Message}");
+                        logger.LogError($"    • {error.ErrorCode}: {error.Message}");
                     }
                 }
             }
@@ -227,7 +250,8 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error verifying indirect signature: {ex.Message}");
+            logger.LogError($"Error verifying indirect signature: {ex.Message}");
+            logger.LogException(ex);
             return (PluginExitCode.UnknownError, null);
         }
     }
@@ -236,8 +260,9 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
     /// Loads root certificates from a file.
     /// </summary>
     /// <param name="rootCertsPath">Path to the root certificates file.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     /// <returns>List of root certificates.</returns>
-    private static List<X509Certificate2> LoadRootCertificates(string rootCertsPath)
+    private static List<X509Certificate2> LoadRootCertificates(string rootCertsPath, IPluginLogger logger)
     {
         try
         {
@@ -247,7 +272,8 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Warning: Failed to load root certificates from {rootCertsPath}: {ex.Message}");
+            logger.LogWarning($"Failed to load root certificates from {rootCertsPath}: {ex.Message}");
+            logger.LogException(ex);
             return new List<X509Certificate2>();
         }
     }

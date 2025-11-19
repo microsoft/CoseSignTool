@@ -45,6 +45,8 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     {
         try
         {
+            Logger.LogVerbose("Starting indirect sign operation");
+
             // Get required parameters
             string payloadPath = GetRequiredValue(configuration, "payload");
             string signaturePath = GetRequiredValue(configuration, "signature");
@@ -54,7 +56,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             string contentType = GetOptionalValue(configuration, "content-type", "application/octet-stream") ?? "application/octet-stream";
 
             // Validate common parameters
-            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
+            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
@@ -67,14 +69,14 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             };
 
             AddAdditionalFileValidation(requiredFiles, configuration);
-            validationResult = ValidateFilePaths(requiredFiles);
+            validationResult = ValidateFilePaths(requiredFiles, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
             }
 
             // Load signing certificate
-            (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode certResult) = LoadSigningCertificate(configuration);
+            (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode certResult) = LoadSigningCertificate(configuration, Logger);
             if (certResult != PluginExitCode.Success || certificate == null)
             {
                 return certResult;
@@ -91,12 +93,13 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             }
             catch (ArgumentException ex)
             {
-                Console.Error.WriteLine($"Error: {ex.Message}");
+                Logger?.LogError(ex.Message);
                 return PluginExitCode.InvalidArgumentValue;
             }
 
             // Create the indirect signature
             using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
+            Logger.LogVerbose($"Creating indirect signature with hash algorithm: {hashAlgorithm.Name}, version: {signatureVersion}");
             (PluginExitCode exitCode, JsonElement? result) = await CreateIndirectSignature(
                 payloadPath, 
                 signaturePath, 
@@ -106,11 +109,13 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 hashAlgorithm, 
                 signatureVersion,
                 configuration,
+                Logger,
                 combinedCts.Token);
 
             // Write output if requested
             if (!string.IsNullOrEmpty(outputPath) && result.HasValue)
             {
+                Logger.LogVerbose($"Writing result to: {outputPath}");
                 object outputResult = new
                 {
                     Operation = "IndirectSign",
@@ -119,14 +124,15 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                     Success = exitCode == PluginExitCode.Success,
                     Result = result.Value
                 };
-                await WriteJsonResult(outputPath, outputResult, cancellationToken);
+                await WriteJsonResult(outputPath, outputResult, cancellationToken, Logger);
             }
 
+            Logger.LogVerbose("Indirect sign operation completed");
             return exitCode;
         }
         catch (Exception ex)
         {
-            return HandleCommonException(ex, configuration, cancellationToken);
+            return HandleCommonException(ex, configuration, cancellationToken, Logger);
         }
     }
 
@@ -141,6 +147,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     /// <param name="hashAlgorithm">The hash algorithm to use.</param>
     /// <param name="signatureVersion">The indirect signature version to create.</param>
     /// <param name="configuration">The configuration containing header options.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
     /// <param name="cancellationToken">Cancellation token with timeout.</param>
     /// <returns>Tuple containing the exit code and optional result object for JSON output.</returns>
     private static async Task<(PluginExitCode exitCode, JsonElement? result)> CreateIndirectSignature(
@@ -152,23 +159,33 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
         HashAlgorithmName hashAlgorithm,
         IndirectSignatureFactory.IndirectSignatureVersion signatureVersion,
         IConfiguration configuration,
+        IPluginLogger logger,
         CancellationToken cancellationToken)
     {
         try
         {
             // Read payload
+            logger.LogVerbose($"Reading payload from: {payloadPath}");
             byte[] payload = await File.ReadAllBytesAsync(payloadPath, cancellationToken);
+            logger.LogVerbose($"Payload size: {payload.Length} bytes");
             
             // Create signing key provider
+            logger.LogVerbose($"Using certificate: {certificate.Subject}");
+            logger.LogVerbose($"Certificate thumbprint: {certificate.Thumbprint}");
             X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(certificate);
 
             // Create header extender from configuration
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(configuration);
+            if (headerExtender != null)
+            {
+                logger.LogVerbose("Custom COSE headers will be applied");
+            }
 
             // Create indirect signature factory
             using IndirectSignatureFactory factory = new IndirectSignatureFactory(hashAlgorithm);
             
             // Create the indirect signature with optional header extender
+            logger.LogVerbose("Creating indirect signature...");
             CoseSign1Message indirectSignature = factory.CreateIndirectSignature(
                 payload: payload,
                 signingKeyProvider: signingKeyProvider,
@@ -178,11 +195,11 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
 
             // Encode and write signature to file
             byte[] signatureBytes = indirectSignature.Encode();
+            logger.LogVerbose($"Encoded signature size: {signatureBytes.Length} bytes");
             await File.WriteAllBytesAsync(signaturePath, signatureBytes, cancellationToken);
+            logger.LogVerbose($"Signature written to: {signaturePath}");
 
-            PrintOperationStatus("Created", payloadPath, signaturePath, 
-                $"Content-Type: {contentType}, Hash: {hashAlgorithm}, Version: {signatureVersion}");
-            Console.WriteLine($"Indirect signature created successfully ({signatureBytes.Length} bytes)");
+            logger.LogInformation($"Indirect signature created successfully ({signatureBytes.Length} bytes)");
 
             // Create result object for JSON output
             object jsonResult = new
@@ -206,7 +223,8 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error creating indirect signature: {ex.Message}");
+            logger.LogError($"Error creating indirect signature: {ex.Message}");
+            logger.LogException(ex);
             return (PluginExitCode.UnknownError, null);
         }
     }

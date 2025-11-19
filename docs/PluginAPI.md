@@ -163,6 +163,13 @@ public abstract class PluginCommandBase : IPluginCommand
 |--------|-------------|
 | `GetRequiredValue(IConfiguration, string)` | Gets a required configuration value, throws if missing |
 | `GetOptionalValue(IConfiguration, string, string?)` | Gets an optional configuration value with default |
+| `SetLogger(IPluginLogger)` | Sets the logger (called automatically by CLI before ExecuteAsync) |
+
+#### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Logger` | `IPluginLogger` | Logger instance for diagnostic output (set automatically by CLI) |
 
 **Example Usage:**
 ```csharp
@@ -172,19 +179,148 @@ public class MyCommand : PluginCommandBase
     {
         try
         {
+            // Logger is already configured by CLI - just use it!
+            Logger.LogVerbose("Starting operation");
+            
             string required = GetRequiredValue(configuration, "endpoint");
             string optional = GetOptionalValue(configuration, "timeout", "30") ?? "30";
             
+            Logger.LogInformation($"Connecting to {required}");
             // Command logic here
+            
+            Logger.LogInformation("Operation completed successfully");
             return PluginExitCode.Success;
         }
         catch (ArgumentNullException ex)
         {
-            Console.Error.WriteLine($"Missing required option: {ex.ParamName}");
+            Logger.LogError($"Missing required option: {ex.ParamName}");
             return PluginExitCode.MissingRequiredOption;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Operation failed: {ex.Message}");
+            Logger.LogException(ex);
+            return PluginExitCode.UnknownError;
         }
     }
 }
+```
+
+## Logging System
+
+### IPluginLogger
+
+Interface for diagnostic logging in plugins.
+
+```csharp
+public interface IPluginLogger
+{
+    LogLevel Level { get; }
+    void LogInformation(string message);
+    void LogVerbose(string message);
+    void LogWarning(string message);
+    void LogError(string message);
+    void LogException(Exception exception);
+}
+```
+
+#### LogLevel Enumeration
+
+```csharp
+public enum LogLevel
+{
+    Quiet = 0,    // Only errors
+    Normal = 1,   // Info + errors
+    Verbose = 2   // Everything including debug info
+}
+```
+
+#### Methods
+
+| Method | LogLevel Required | Description |
+|--------|------------------|-------------|
+| `LogInformation(string)` | Normal or higher | Status messages and results |
+| `LogVerbose(string)` | Verbose only | Detailed diagnostic information |
+| `LogWarning(string)` | Normal or higher | Warning messages (yellow in console) |
+| `LogError(string)` | Always shown | Error messages (red in console) |
+| `LogException(Exception)` | Verbose: full stack trace<br/>Normal: message only | Exception details |
+
+### ConsolePluginLogger
+
+Default implementation that outputs to console with colored text.
+
+```csharp
+public class ConsolePluginLogger : IPluginLogger
+{
+    public ConsolePluginLogger(LogLevel level = LogLevel.Normal);
+}
+```
+
+**Features:**
+- Colored output (yellow warnings, red errors)
+- Verbosity-aware filtering
+- Exception formatting with stack traces in verbose mode
+
+**Example Usage:**
+```csharp
+public class MyCommand : PluginCommandBase
+{
+    public override async Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // Configure logging (automatically creates ConsolePluginLogger)
+        ConfigureLogging(configuration);
+        
+        Logger.LogVerbose("This only shows with --verbose");
+        Logger.LogInformation("This shows in normal and verbose modes");
+        Logger.LogWarning("This is a warning (yellow text)");
+        Logger.LogError("This always shows (red text)");
+        
+        try
+        {
+            // Operation that might fail
+        }
+        catch (Exception ex)
+        {
+            Logger.LogException(ex); // Full stack trace in --verbose
+        }
+        
+        return PluginExitCode.Success;
+    }
+}
+```
+
+### Command-Line Flags
+
+**Universal Logging Flags** (automatically available for all plugins):
+
+The CLI infrastructure automatically adds these flags to every plugin command:
+
+```bash
+--verbose, -v    Enable verbose logging output
+--quiet, -q      Suppress all non-error output
+--verbosity      Set log level explicitly (verbose, normal, quiet)
+```
+
+**You do NOT need to:**
+- Add these to your command's `Options` dictionary
+- Parse these flags in your ExecuteAsync method
+- Call ConfigureLogging() - the CLI handles this automatically
+
+**The CLI automatically:**
+1. Parses logging flags from command line
+2. Creates appropriate logger instance (ConsolePluginLogger with correct level)
+3. Injects logger via SetLogger() before calling ExecuteAsync
+
+Users can control logging for any plugin command:
+```bash
+# Normal mode (default)
+CoseSignTool mycommand --option value
+
+# Verbose mode
+CoseSignTool mycommand --option value --verbose
+
+# Quiet mode
+CoseSignTool mycommand --option value --quiet
 ```
 
 ## Enumerations

@@ -6,6 +6,7 @@ namespace CoseSign1.Transparent.CTS;
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
+using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,15 @@ using CoseSign1.Transparent.Interfaces;
 public class AzureCtsTransparencyService : ITransparencyService
 {
     private readonly CodeTransparencyClient TransparencyClient;
+    private readonly CodeTransparencyVerificationOptions? VerificationOptions;
+    private readonly CodeTransparencyClientOptions? ClientOptions;
+    private readonly Action<string>? LogVerbose;
+    private readonly Action<string>? LogError;
+
+    // LogWarning is reserved for future use when warning scenarios are identified
+    #pragma warning disable IDE0052 // Remove unread private members
+    private readonly Action<string>? LogWarning;
+    #pragma warning restore IDE0052 // Remove unread private members
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class.
@@ -29,8 +39,49 @@ public class AzureCtsTransparencyService : ITransparencyService
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
     public AzureCtsTransparencyService(CodeTransparencyClient transparencyClient)
+        : this(transparencyClient, null, null, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class with verification options.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public AzureCtsTransparencyService(
+        CodeTransparencyClient transparencyClient,
+        CodeTransparencyVerificationOptions? verificationOptions,
+        CodeTransparencyClientOptions? clientOptions)
+        : this(transparencyClient, verificationOptions, clientOptions, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class with verification options and logging.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <param name="logVerbose">Optional verbose logging callback.</param>
+    /// <param name="logWarning">Optional warning logging callback.</param>
+    /// <param name="logError">Optional error logging callback.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public AzureCtsTransparencyService(
+        CodeTransparencyClient transparencyClient,
+        CodeTransparencyVerificationOptions? verificationOptions,
+        CodeTransparencyClientOptions? clientOptions,
+        Action<string>? logVerbose,
+        Action<string>? logWarning,
+        Action<string>? logError)
     {
         TransparencyClient = transparencyClient ?? throw new ArgumentNullException(nameof(transparencyClient));
+        VerificationOptions = verificationOptions;
+        ClientOptions = clientOptions;
+        LogVerbose = logVerbose;
+        LogWarning = logWarning;
+        LogError = logError;
     }
 
     /// <summary>
@@ -54,28 +105,43 @@ public class AzureCtsTransparencyService : ITransparencyService
             throw new ArgumentNullException(nameof(message));
         }
 
+        LogVerbose?.Invoke("Starting MakeTransparentAsync operation");
+
         // Encode the CoseSign1Message to a byte array
         BinaryData content = BinaryData.FromBytes(message.Encode());
+        LogVerbose?.Invoke($"Encoded message size: {content.ToArray().Length} bytes");
 
         // Request the entry be created in the transparency service
+        LogVerbose?.Invoke("Calling CreateEntryAsync...");
         Operation<BinaryData> operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Completed, content, cancellationToken).ConfigureAwait(false);
 
         // Check if the operation was successful
         if (!operation.HasValue)
         {
-            throw new InvalidOperationException($"The transparency operation CreateEntryAsync failed to return a response: {operation.GetRawResponse().ReasonPhrase}");
+            string error = $"The transparency operation CreateEntryAsync failed to return a response: {operation.GetRawResponse().ReasonPhrase}";
+            LogError?.Invoke(error);
+            throw new InvalidOperationException(error);
         }
+
+        LogVerbose?.Invoke("CreateEntryAsync completed successfully");
 
         // Get the entryId from the operation result
         if (!operation.Value.TryGetCtsEntryId(out string entryId))
         {
-            throw new InvalidOperationException($"The transparency operation failed, content was not a valid CBOR-encoded entryId.");
+            string error = "The transparency operation failed, content was not a valid CBOR-encoded entryId.";
+            LogError?.Invoke(error);
+            throw new InvalidOperationException(error);
         }
 
+        LogVerbose?.Invoke($"Entry ID: {entryId}");
+
         // Query the transparency service for the entry statement
+        LogVerbose?.Invoke("Retrieving entry statement...");
         Response<BinaryData> transparentStatement = await TransparencyClient.GetEntryStatementAsync(entryId, cancellationToken).ConfigureAwait(false);
+        LogVerbose?.Invoke($"Entry statement size: {transparentStatement.Value.ToArray().Length} bytes");
 
         // Azure CTS replies with the full CoseSign1Message which will include the receipts already, so return it to the caller.
+        LogVerbose?.Invoke("Decoding transparent statement");
         return CoseMessage.DecodeSign1(transparentStatement.Value.ToArray());
     }
 
@@ -100,29 +166,71 @@ public class AzureCtsTransparencyService : ITransparencyService
             throw new ArgumentNullException(nameof(message));
         }
 
+        LogVerbose?.Invoke("Starting transparency verification");
+
         // Check if the message contains a transparency header
         if (!message.ContainsTransparencyHeader())
         {
-            throw new InvalidOperationException($"The message does not contain a transparency header and cannot be verified.");
+            string error = "The message does not contain a transparency header and cannot be verified.";
+            LogError?.Invoke(error);
+            throw new InvalidOperationException(error);
         }
+        
+        LogVerbose?.Invoke("Transparency header found in message");
         cancellationToken.ThrowIfCancellationRequested();
+
+        // Log verification options if configured
+        if (VerificationOptions != null && LogVerbose != null)
+        {
+            if (VerificationOptions.AuthorizedDomains?.Count > 0)
+            {
+                LogVerbose.Invoke($"Authorized domains: {string.Join(", ", VerificationOptions.AuthorizedDomains)}");
+            }
+            LogVerbose.Invoke($"Authorized receipt behavior: {VerificationOptions.AuthorizedReceiptBehavior}");
+            LogVerbose.Invoke($"Unauthorized receipt behavior: {VerificationOptions.UnauthorizedReceiptBehavior}");
+        }
 
         // Ask CTS to verify the entry
         try
         {
-            TransparencyClient.RunTransparentStatementVerification(message.Encode());
+            LogVerbose?.Invoke("Calling CodeTransparencyClient.VerifyTransparentStatement");
+            CodeTransparencyClient.VerifyTransparentStatement(message.Encode(), VerificationOptions, ClientOptions);
+            LogVerbose?.Invoke("Transparency verification succeeded");
             return Task.FromResult(true);
         }
-        catch(InvalidOperationException)
+        catch(InvalidOperationException ex)
         {
+            LogError?.Invoke($"Verification failed: {ex.Message}");
+            LogVerbose?.Invoke($"InvalidOperationException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(CborContentException)
+        catch(CryptographicException ex)
         {
+            LogError?.Invoke($"Cryptographic error during verification: {ex.Message}");
+            LogVerbose?.Invoke($"CryptographicException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(ArgumentException)
+        catch(CborContentException ex)
         {
+            LogError?.Invoke($"CBOR content error during verification: {ex.Message}");
+            LogVerbose?.Invoke($"CborContentException details: {ex}");
+            return Task.FromResult(false);
+        }
+        catch(ArgumentException ex)
+        {
+            LogError?.Invoke($"Invalid argument during verification: {ex.Message}");
+            LogVerbose?.Invoke($"ArgumentException details: {ex}");
+            return Task.FromResult(false);
+        }
+        catch(AggregateException ex)
+        {
+            LogError?.Invoke($"Multiple verification failures occurred");
+            
+            foreach (var innerEx in ex.InnerExceptions)
+            {
+                LogVerbose?.Invoke($"  - {innerEx.Message}");
+            }
+            
             return Task.FromResult(false);
         }
     }

@@ -57,14 +57,15 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// </summary>
     /// <param name="configuration">The configuration containing command arguments.</param>
     /// <param name="timeoutSeconds">The parsed timeout value in seconds.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>PluginExitCode indicating validation result.</returns>
-    protected internal static PluginExitCode ValidateCommonParameters(IConfiguration configuration, out int timeoutSeconds)
+    protected internal static PluginExitCode ValidateCommonParameters(IConfiguration configuration, out int timeoutSeconds, IPluginLogger? logger = null)
     {
         string timeoutString = GetOptionalValue(configuration, "timeout", "30") ?? "30";
         
         if (!int.TryParse(timeoutString, out timeoutSeconds) || timeoutSeconds <= 0)
         {
-            Console.Error.WriteLine("Error: Invalid timeout value. Must be a positive integer.");
+            logger?.LogError("Invalid timeout value. Must be a positive integer.");
             return PluginExitCode.InvalidArgumentValue;
         }
 
@@ -75,20 +76,21 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// Validates that required file paths exist.
     /// </summary>
     /// <param name="requiredFiles">Dictionary of file descriptions to file paths.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>PluginExitCode indicating validation result.</returns>
-    protected internal static PluginExitCode ValidateFilePaths(Dictionary<string, string?> requiredFiles)
+    protected internal static PluginExitCode ValidateFilePaths(Dictionary<string, string?> requiredFiles, IPluginLogger? logger = null)
     {
         foreach (KeyValuePair<string, string?> kvp in requiredFiles)
         {
             if (string.IsNullOrWhiteSpace(kvp.Value))
             {
-                Console.Error.WriteLine($"Error: {kvp.Key} file path is required.");
+                logger?.LogError($"{kvp.Key} file path is required.");
                 return PluginExitCode.MissingRequiredOption;
             }
 
             if (!File.Exists(kvp.Value))
             {
-                Console.Error.WriteLine($"Error: {kvp.Key} file not found: {kvp.Value}");
+                logger?.LogError($"{kvp.Key} file not found: {kvp.Value}");
                 return PluginExitCode.UserSpecifiedFileNotFound;
             }
         }
@@ -100,8 +102,9 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// Loads a certificate for signing operations.
     /// </summary>
     /// <param name="configuration">The configuration containing certificate parameters.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>A tuple containing the certificate and any additional certificates, or null on failure.</returns>
-    protected internal static (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) LoadSigningCertificate(IConfiguration configuration)
+    protected internal static (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) LoadSigningCertificate(IConfiguration configuration, IPluginLogger? logger = null)
     {
         try
         {
@@ -115,7 +118,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
             {
                 if (!File.Exists(pfxPath))
                 {
-                    Console.Error.WriteLine($"Error: Certificate file not found: {pfxPath}");
+                    logger?.LogError($"Certificate file not found: {pfxPath}");
                     return (null, null, PluginExitCode.UserSpecifiedFileNotFound);
                 }
 
@@ -124,7 +127,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
 
                 if (collection.Count == 0)
                 {
-                    Console.Error.WriteLine("Error: No certificates found in PFX file.");
+                    logger?.LogError("No certificates found in PFX file.");
                     return (null, null, PluginExitCode.CertificateLoadFailure);
                 }
 
@@ -146,7 +149,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
 
                 if (signingCert == null)
                 {
-                    Console.Error.WriteLine("Error: No certificate with private key found in PFX file.");
+                    logger?.LogError("No certificate with private key found in PFX file.");
                     return (null, null, PluginExitCode.CertificateLoadFailure);
                 }
 
@@ -156,7 +159,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
             {
                 if (!Enum.TryParse<StoreLocation>(storeLocation, true, out StoreLocation storeLocationEnum))
                 {
-                    Console.Error.WriteLine($"Error: Invalid store location: {storeLocation}");
+                    logger?.LogError($"Invalid store location: {storeLocation}");
                     return (null, null, PluginExitCode.InvalidArgumentValue);
                 }
 
@@ -166,14 +169,14 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                 X509Certificate2Collection collection = store.Certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
                 if (collection.Count == 0)
                 {
-                    Console.Error.WriteLine($"Error: Certificate with thumbprint {thumbprint} not found in store {storeName}/{storeLocation}");
+                    logger?.LogError($"Certificate with thumbprint {thumbprint} not found in store {storeName}/{storeLocation}");
                     return (null, null, PluginExitCode.UserSpecifiedFileNotFound);
                 }
 
                 X509Certificate2 cert = collection[0];
                 if (!cert.HasPrivateKey)
                 {
-                    Console.Error.WriteLine("Error: Certificate does not have a private key.");
+                    logger?.LogError("Certificate does not have a private key.");
                     return (null, null, PluginExitCode.CertificateLoadFailure);
                 }
 
@@ -181,13 +184,14 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
             }
             else
             {
-                Console.Error.WriteLine("Error: Either --pfx or --thumbprint must be specified for signing operations.");
+                logger?.LogError("Either --pfx or --thumbprint must be specified for signing operations.");
                 return (null, null, PluginExitCode.MissingRequiredOption);
             }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error loading certificate: {ex.Message}");
+            logger?.LogError($"Error loading certificate: {ex.Message}");
+            logger?.LogException(ex);
             return (null, null, PluginExitCode.CertificateLoadFailure);
         }
     }
@@ -250,7 +254,8 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// <param name="outputPath">Path to write the JSON result.</param>
     /// <param name="result">The object to serialize as JSON.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    protected internal static async Task WriteJsonResult(string outputPath, object result, CancellationToken cancellationToken)
+    /// <param name="logger">Optional logger for status reporting.</param>
+    protected internal static async Task WriteJsonResult(string outputPath, object result, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         try
         {
@@ -262,30 +267,31 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
 
             string json = JsonSerializer.Serialize(result, options);
             await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-            Console.WriteLine($"Result written to: {outputPath}");
+            logger?.LogInformation($"Result written to: {outputPath}");
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Warning: Failed to write result to {outputPath}: {ex.Message}");
+            logger?.LogWarning($"Failed to write result to {outputPath}: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Prints operation status information to the console.
+    /// Prints operation status information.
     /// </summary>
+    /// <param name="logger">The logger to use for output.</param>
     /// <param name="operation">The operation being performed.</param>
     /// <param name="payloadPath">Path to the payload file.</param>
     /// <param name="signaturePath">Path to the signature file.</param>
     /// <param name="additionalInfo">Optional additional information to display.</param>
-    protected static void PrintOperationStatus(string operation, string payloadPath, string signaturePath, string? additionalInfo = null)
+    protected void PrintOperationStatus(IPluginLogger logger, string operation, string payloadPath, string signaturePath, string? additionalInfo = null)
     {
-        Console.WriteLine($"{operation} indirect COSE Sign1 message...");
-        Console.WriteLine($"  Payload: {payloadPath}");
-        Console.WriteLine($"  Signature: {signaturePath}");
+        logger.LogInformation($"{operation} indirect COSE Sign1 message...");
+        logger.LogVerbose($"  Payload: {payloadPath}");
+        logger.LogVerbose($"  Signature: {signaturePath}");
         
         if (!string.IsNullOrEmpty(additionalInfo))
         {
-            Console.WriteLine($"  {additionalInfo}");
+            logger.LogVerbose($"  {additionalInfo}");
         }
     }
 
@@ -295,36 +301,38 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// <param name="ex">The exception to handle.</param>
     /// <param name="configuration">Configuration for getting timeout value in error messages.</param>
     /// <param name="cancellationToken">The original cancellation token to check if operation was cancelled.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>Appropriate PluginExitCode for the exception type.</returns>
-    protected internal static PluginExitCode HandleCommonException(Exception ex, IConfiguration configuration, CancellationToken cancellationToken)
+    protected internal static PluginExitCode HandleCommonException(Exception ex, IConfiguration configuration, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         return ex switch
         {
             ArgumentNullException argEx => 
-                HandleError($"Missing required argument - {argEx.ParamName}", PluginExitCode.MissingRequiredOption),
+                HandleError($"Missing required argument - {argEx.ParamName}", PluginExitCode.MissingRequiredOption, logger, ex),
             
             FileNotFoundException fileEx => 
-                HandleError($"File not found - {fileEx.Message}", PluginExitCode.UserSpecifiedFileNotFound),
+                HandleError($"File not found - {fileEx.Message}", PluginExitCode.UserSpecifiedFileNotFound, logger, ex),
             
             OperationCanceledException when cancellationToken.IsCancellationRequested => 
-                HandleError("Operation was cancelled.", PluginExitCode.UnknownError),
+                HandleError("Operation was cancelled.", PluginExitCode.UnknownError, logger, ex),
             
             OperationCanceledException => 
-                HandleError($"Operation timed out after {GetOptionalValue(configuration, "timeout", "30")} seconds.", PluginExitCode.UnknownError),
+                HandleError($"Operation timed out after {GetOptionalValue(configuration, "timeout", "30")} seconds.", PluginExitCode.UnknownError, logger, ex),
 
             ArgumentException argEx =>
-                HandleError($"Invalid argument - {argEx.Message}", PluginExitCode.InvalidArgumentValue),
+                HandleError($"Invalid argument - {argEx.Message}", PluginExitCode.InvalidArgumentValue, logger, ex),
 
             CryptographicException cryptoEx =>
-                HandleError($"Cryptographic error - {cryptoEx.Message}", PluginExitCode.CertificateLoadFailure),
+                HandleError($"Cryptographic error - {cryptoEx.Message}", PluginExitCode.CertificateLoadFailure, logger, ex),
             
             _ => 
-                HandleError(ex.Message, PluginExitCode.UnknownError)
+                HandleError(ex.Message, PluginExitCode.UnknownError, logger, ex)
         };
 
-        static PluginExitCode HandleError(string message, PluginExitCode code)
+        static PluginExitCode HandleError(string message, PluginExitCode code, IPluginLogger? logger, Exception ex)
         {
-            Console.Error.WriteLine($"Error: {message}");
+            logger?.LogError(message);
+            logger?.LogException(ex);
             return code;
         }
     }

@@ -30,14 +30,15 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// </summary>
     /// <param name="configuration">The configuration containing command arguments.</param>
     /// <param name="timeoutSeconds">The parsed timeout value in seconds.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>PluginExitCode indicating validation result.</returns>
-    protected static PluginExitCode ValidateCommonParameters(IConfiguration configuration, out int timeoutSeconds)
+    protected static PluginExitCode ValidateCommonParameters(IConfiguration configuration, out int timeoutSeconds, IPluginLogger? logger = null)
     {
         string timeoutString = GetOptionalValue(configuration, "timeout", "30") ?? "30";
         
         if (!int.TryParse(timeoutString, out timeoutSeconds) || timeoutSeconds <= 0)
         {
-            Console.Error.WriteLine("Error: Invalid timeout value. Must be a positive integer.");
+            logger?.LogError("Invalid timeout value. Must be a positive integer.");
             return PluginExitCode.InvalidArgumentValue;
         }
 
@@ -48,14 +49,15 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// Validates that required file paths exist.
     /// </summary>
     /// <param name="filePaths">Dictionary of file descriptions to file paths.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>PluginExitCode indicating validation result.</returns>
-    protected static PluginExitCode ValidateFilePaths(Dictionary<string, string> filePaths)
+    protected static PluginExitCode ValidateFilePaths(Dictionary<string, string> filePaths, IPluginLogger? logger = null)
     {
         foreach (KeyValuePair<string, string> kvp in filePaths)
         {
             if (!File.Exists(kvp.Value))
             {
-                Console.Error.WriteLine($"Error: {kvp.Key} file not found: {kvp.Value}");
+                logger?.LogError($"{kvp.Key} file not found: {kvp.Value}");
                 return PluginExitCode.UserSpecifiedFileNotFound;
             }
         }
@@ -68,9 +70,10 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// </summary>
     /// <param name="signaturePath">Path to the signature file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>A tuple containing the decoded message, signature bytes, and operation result.</returns>
     protected static async Task<(CoseSign1Message? message, byte[] signatureBytes, PluginExitCode result)> 
-        ReadAndDecodeCoseMessage(string signaturePath, CancellationToken cancellationToken)
+        ReadAndDecodeCoseMessage(string signaturePath, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         try
         {
@@ -80,7 +83,8 @@ public abstract class CtsCommandBase : PluginCommandBase
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: Failed to decode COSE Sign1 message from {signaturePath}: {ex.Message}");
+            logger?.LogError($"Failed to decode COSE Sign1 message from {signaturePath}: {ex.Message}");
+            logger?.LogException(ex);
             return (null, Array.Empty<byte>(), PluginExitCode.InvalidArgumentValue);
         }
     }
@@ -108,15 +112,16 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <param name="outputPath">Path to write the JSON result.</param>
     /// <param name="result">The object to serialize as JSON.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    protected static async Task WriteJsonResult(string outputPath, object result, CancellationToken cancellationToken)
+    /// <param name="logger">Optional logger for status reporting.</param>
+    protected static async Task WriteJsonResult(string outputPath, object result, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         string jsonOutput = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(outputPath, jsonOutput, cancellationToken);
-        Console.WriteLine($"Result written to: {outputPath}");
+        logger?.LogInformation($"Result written to: {outputPath}");
     }
 
     /// <summary>
-    /// Prints operation status information to the console.
+    /// Prints operation status information using the logger.
     /// </summary>
     /// <param name="operation">The operation being performed (e.g., "Registering", "Verifying").</param>
     /// <param name="endpoint">The CTS endpoint URL.</param>
@@ -124,17 +129,17 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <param name="signaturePath">Path to the signature file.</param>
     /// <param name="signatureSize">Size of the signature in bytes.</param>
     /// <param name="additionalInfo">Optional additional information to display.</param>
-    protected static void PrintOperationStatus(string operation, string endpoint, string payloadPath, 
+    protected void PrintOperationStatus(string operation, string endpoint, string payloadPath, 
         string signaturePath, int signatureSize, string? additionalInfo = null)
     {
-        Console.WriteLine($"{operation} COSE Sign1 message with Azure CTS...");
-        Console.WriteLine($"  Endpoint: {endpoint}");
-        Console.WriteLine($"  Payload: {payloadPath}");
-        Console.WriteLine($"  Signature: {signaturePath} ({signatureSize} bytes)");
+        Logger.LogInformation($"{operation} COSE Sign1 message with Azure CTS...");
+        Logger.LogVerbose($"  Endpoint: {endpoint}");
+        Logger.LogVerbose($"  Payload: {payloadPath}");
+        Logger.LogVerbose($"  Signature: {signaturePath} ({signatureSize} bytes)");
         
         if (!string.IsNullOrEmpty(additionalInfo))
         {
-            Console.WriteLine($"  {additionalInfo}");
+            Logger.LogVerbose($"  {additionalInfo}");
         }
     }
 
@@ -144,30 +149,31 @@ public abstract class CtsCommandBase : PluginCommandBase
     /// <param name="ex">The exception to handle.</param>
     /// <param name="configuration">Configuration for getting timeout value in error messages.</param>
     /// <param name="cancellationToken">The original cancellation token to check if operation was cancelled.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>Appropriate PluginExitCode for the exception type.</returns>
-    protected static PluginExitCode HandleCommonException(Exception ex, IConfiguration configuration, CancellationToken cancellationToken)
+    protected static PluginExitCode HandleCommonException(Exception ex, IConfiguration configuration, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         return ex switch
         {
             ArgumentNullException argEx => 
-                HandleError($"Missing required argument - {argEx.ParamName}", PluginExitCode.MissingRequiredOption),
+                HandleError($"Missing required argument - {argEx.ParamName}", PluginExitCode.MissingRequiredOption, logger),
             
             FileNotFoundException fileEx => 
-                HandleError($"File not found - {fileEx.Message}", PluginExitCode.UserSpecifiedFileNotFound),
+                HandleError($"File not found - {fileEx.Message}", PluginExitCode.UserSpecifiedFileNotFound, logger),
             
             OperationCanceledException when cancellationToken.IsCancellationRequested => 
-                HandleError("Operation was cancelled.", PluginExitCode.UnknownError),
+                HandleError("Operation was cancelled.", PluginExitCode.UnknownError, logger),
             
             OperationCanceledException => 
-                HandleError($"Operation timed out after {GetOptionalValue(configuration, "timeout", "30")} seconds.", PluginExitCode.UnknownError),
+                HandleError($"Operation timed out after {GetOptionalValue(configuration, "timeout", "30")} seconds.", PluginExitCode.UnknownError, logger),
             
             _ => 
-                HandleError(ex.Message, PluginExitCode.UnknownError)
+                HandleError(ex.Message, PluginExitCode.UnknownError, logger)
         };
 
-        static PluginExitCode HandleError(string message, PluginExitCode code)
+        static PluginExitCode HandleError(string message, PluginExitCode code, IPluginLogger? logger)
         {
-            Console.Error.WriteLine($"Error: {message}");
+            logger?.LogError(message);
             return code;
         }
     }
@@ -195,8 +201,11 @@ public abstract class CtsCommandBase : PluginCommandBase
     {
         try
         {
+            Logger.LogVerbose("Starting CTS operation");
+            
             // Get required parameters
             string endpoint = GetRequiredValue(configuration, "endpoint");
+            Logger.LogVerbose($"Endpoint: {endpoint}");
             string payloadPath = GetRequiredValue(configuration, "payload");
             string signaturePath = GetRequiredValue(configuration, "signature");
 
@@ -205,7 +214,7 @@ public abstract class CtsCommandBase : PluginCommandBase
             string? outputPath = GetOptionalValue(configuration, "output");
 
             // Validate common parameters
-            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds);
+            PluginExitCode validationResult = ValidateCommonParameters(configuration, out int timeoutSeconds, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
@@ -221,14 +230,14 @@ public abstract class CtsCommandBase : PluginCommandBase
             // Add any additional file validation from derived classes
             AddAdditionalFileValidation(requiredFiles, configuration);
 
-            validationResult = ValidateFilePaths(requiredFiles);
+            validationResult = ValidateFilePaths(requiredFiles, Logger);
             if (validationResult != PluginExitCode.Success)
             {
                 return validationResult;
             }
 
             // Read and decode COSE message
-            (CoseSign1Message message, byte[] signatureBytes, PluginExitCode readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken);
+            (CoseSign1Message message, byte[] signatureBytes, PluginExitCode readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken, Logger);
             if (readResult != PluginExitCode.Success || message == null)
             {
                 return readResult;
@@ -246,14 +255,14 @@ public abstract class CtsCommandBase : PluginCommandBase
             // Write output if requested
             if (!string.IsNullOrEmpty(outputPath) && operationResult.result != null)
             {
-                await WriteJsonResult(outputPath, operationResult.result, cancellationToken);
+                await WriteJsonResult(outputPath, operationResult.result, cancellationToken, Logger);
             }
 
             return operationResult.exitCode;
         }
         catch (Exception ex)
         {
-            return HandleCommonException(ex, configuration, cancellationToken);
+            return HandleCommonException(ex, configuration, cancellationToken, Logger);
         }
     }
 

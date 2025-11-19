@@ -175,7 +175,17 @@ public class CoseSignTool
 
         try
         {
-            provider = CoseCommand.LoadCommandLineArgs(args, new Dictionary<string, string>(command.Options), out badArg);
+            // Add universal logging options to the command's options
+            Dictionary<string, string> commandOptions = new Dictionary<string, string>(command.Options)
+            {
+                ["--verbose"] = "verbose",
+                ["-v"] = "verbose",
+                ["--quiet"] = "quiet",
+                ["-q"] = "quiet",
+                ["--verbosity"] = "verbosity"
+            };
+
+            provider = CoseCommand.LoadCommandLineArgs(args, commandOptions, out badArg);
             if (provider is null)
             {
                 return Usage(command.Usage, badArg);
@@ -183,8 +193,12 @@ public class CoseSignTool
 
             // Build configuration from the provider
             IConfigurationRoot configuration = new ConfigurationBuilder()
-                .AddCommandLine(args, new Dictionary<string, string>(command.Options))
+                .AddCommandLine(args, commandOptions)
                 .Build();
+
+            // Configure logging based on command-line flags
+            IPluginLogger logger = CreateLoggerFromConfiguration(configuration);
+            command.SetLogger(logger);
 
             PluginExitCode result = command.ExecuteAsync(configuration).GetAwaiter().GetResult();
             return (ExitCode)(int)result;
@@ -197,6 +211,39 @@ public class CoseSignTool
         {
             return Fail(ExitCode.UnknownError, ex);
         }
+    }
+
+    /// <summary>
+    /// Creates a logger instance based on configuration settings.
+    /// </summary>
+    /// <param name="configuration">The configuration containing verbosity settings.</param>
+    /// <returns>A configured logger instance.</returns>
+    private static IPluginLogger CreateLoggerFromConfiguration(IConfiguration configuration)
+    {
+        string? verbosity = configuration["verbosity"];
+        string? quiet = configuration["quiet"];
+        string? verbose = configuration["verbose"];
+
+        LogLevel logLevel = LogLevel.Normal;
+
+        if (!string.IsNullOrEmpty(quiet) && (quiet.ToLowerInvariant() == "true" || string.IsNullOrEmpty(quiet)))
+        {
+            logLevel = LogLevel.Quiet;
+        }
+        else if (!string.IsNullOrEmpty(verbose) && (verbose.ToLowerInvariant() == "true" || string.IsNullOrEmpty(verbose)))
+        {
+            logLevel = LogLevel.Verbose;
+        }
+        else if (verbosity?.ToLowerInvariant() == "verbose")
+        {
+            logLevel = LogLevel.Verbose;
+        }
+        else if (verbosity?.ToLowerInvariant() == "quiet")
+        {
+            logLevel = LogLevel.Quiet;
+        }
+
+        return new ConsolePluginLogger(logLevel);
     }
 
     /// <summary>

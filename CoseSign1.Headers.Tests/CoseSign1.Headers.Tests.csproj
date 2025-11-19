@@ -35,7 +35,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+        <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
         <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+        <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
         <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
     </ItemGroup>
 

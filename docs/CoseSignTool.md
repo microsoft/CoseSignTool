@@ -57,9 +57,103 @@ You may also want to specify:
 ~~~
 Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUser\MyNewStore'
 ~~~
-* Headers:
+
+### SCITT Compliance Options
+
+**CoseSignTool automatically enables SCITT (Supply Chain Integrity, Transparency, and Trust) compliance** when signing with certificates. This includes adding CWT (CBOR Web Token) Claims to your signatures with DID:x509 identifiers.
+
+#### SCITT Arguments:
+* **/EnableScitt**, **/scitt** - Enable or disable SCITT compliance (default: **true**).
+  ```bash
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /scitt false  # Disable SCITT
+  ```
+
+* **/CwtIssuer**, **/cwt-iss** - Set the issuer claim. If not specified, a **DID:x509 identifier is automatically generated** from your certificate chain.
+  ```bash
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-iss "did:example:custom-issuer"
+  ```
+
+* **/CwtSubject**, **/cwt-sub** - Set the subject claim (default: **"unknown.intent"**). This should describe the purpose or intent of the signature.
+  ```bash
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-sub "software.release.v1.2.3"
+  ```
+
+* **/CwtAudience**, **/cwt-aud** - Set the audience claim. Specifies the intended recipient or system.
+  ```bash
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-aud "production.systems"
+  ```
+
+* **/CwtClaims**, **/cwt** - Add custom CWT claims using `label:value` format. Can be specified multiple times.
+  ```bash
+  # Standard timestamp claims (accepts ISO 8601 date/time strings or Unix timestamps)
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "exp:2025-12-31T23:59:59Z"
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "nbf:2024-01-01T00:00:00Z"
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "iat:2024-11-19T10:30:00-05:00"
+  
+  # Using Unix timestamps
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "exp:1735689600"
+  
+  # Custom claims (use integer labels 100+)
+  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "100:custom-value" /cwt "101:another-value"
+  
+  # Combining multiple claims
+  CoseSignTool sign /p payload.txt /pfx cert.pfx \
+    /cwt-sub "release.v2.0" \
+    /cwt "exp:2025-12-31T23:59:59Z" \
+    /cwt "200:build-metadata"
+  ```
+
+#### Standard CWT Claim Labels:
+- **iss** (1): Issuer - automatically set to DID:x509 from certificate chain
+- **sub** (2): Subject - defaults to "unknown.intent"
+- **aud** (3): Audience
+- **exp** (4): Expiration Time - Unix timestamp or ISO 8601 date/time
+- **nbf** (5): Not Before - Unix timestamp or ISO 8601 date/time
+- **iat** (6): Issued At - Unix timestamp or ISO 8601 date/time
+- **cti** (7): CWT ID - unique identifier
+
+For comprehensive SCITT documentation, examples, and programmatic API usage, see **[SCITTCompliance.md](./SCITTCompliance.md)**.
+
+#### SCITT Examples:
+
+**Basic SCITT-compliant signature (automatic DID:x509 issuer + default subject):**
+```bash
+CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose
+```
+
+**Custom subject and expiration:**
+```bash
+CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
+  /cwt-sub "software.release.v1.0" \
+  /cwt "exp:2025-12-31T23:59:59Z"
+```
+
+**Full SCITT signature with all standard claims:**
+```bash
+CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
+  /cwt-sub "container.image.production" \
+  /cwt-aud "production.kubernetes.cluster" \
+  /cwt "exp:2025-06-30T23:59:59Z" \
+  /cwt "nbf:2024-01-01T00:00:00Z" \
+  /cwt "iat:2024-11-19T15:30:00Z"
+```
+
+**Custom issuer (override DID:x509 auto-generation):**
+```bash
+CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
+  /cwt-iss "did:example:custom-issuer" \
+  /cwt-sub "document.approval"
+```
+
+**Disable SCITT compliance:**
+```bash
+CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose /scitt false
+```
+
+### Headers:
 *   There are two ways to supply headers: (1) command-line, and, (2) a JSON file. Both options support providing protected and un-protected headers with int32 and string values. The header label is always a string value.
 >Note: When both file and command-line header options are specified, the command-line input is ignored.
+>Note: SCITT CWT Claims are automatically added to protected headers when enabled. Custom headers are applied in addition to CWT Claims.
 
     * Command-line:
         * /IntProtectedHeaders, /iph - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntProtectedHeaders created-at=12345678,customer-count=10

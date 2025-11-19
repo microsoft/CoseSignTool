@@ -27,6 +27,28 @@ The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provid
 ## What is COSE?
 'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
 
+## SCITT Compliance
+CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through **CWT (CBOR Web Token) Claims** and **DID:x509 identifiers**. SCITT is an emerging IETF standard for creating transparent, verifiable supply chain signatures.
+
+### Key Features
+- **Automatic DID:x509 Generation**: Issuer identifiers are automatically derived from your certificate chain
+- **CWT Claims Support**: Include standardized claims (issuer, subject, audience, expiration, etc.) in your signatures
+- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates
+- **Fully Customizable**: Override defaults or add custom claims via CLI or programmatic API
+
+### Quick Example
+```bash
+# Basic SCITT-compliant signature (automatic DID:x509 issuer + default subject)
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
+
+# Custom SCITT signature with expiration
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
+  --cwt-subject "software.release.v1.0" \
+  --cwt-claims "exp:2025-12-31T23:59:59Z"
+```
+
+For complete documentation, see [SCITTCompliance.md](./docs/SCITTCompliance.md)
+
 ## Why would I use this?
 [The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021](https://en.wikipedia.org/wiki/Software_supply_chain) requires an SBOM for any software or firmare product in use by the US government. This also includes the libraries and tools those products are built with. Even in consumer software, an SBOM helps you protect your customers from supply chain attacks by enabling you to quickly check the version numbers of all the products in your software supply chain.
 CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solution for signing SBOMs and, we believe, the most powerful and convenient solution currently on the market.

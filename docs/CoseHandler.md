@@ -17,6 +17,140 @@ You may also want to specify:
 * What certificate store to use. If you passed in a thumbprint instead of an *X509Certificate2* object, you can either specify a *StoreName* and *StoreLocation* or use the default values of *My/CurrentUser*.
 >Pro tip: Certificate store operations run faster if you use a custom store that has only the certificates you will sign with. You can create a custom store by creating a new *X509Store* object with a custom *StoreName* and then adding a certificate to it.
 * A *SigningKeyProvider* object. This is a wrapper class that you can use instead of passing in an *X509Certificate2* object directly. It allows you to specify a custom certificate chain builder and/or pass in a set of optional root certificates to be stores in the *UprotectedHeaders* area of the COSE signature structure. See [the Advanced Scenarios guide](Advanced.md) for details on why you might want to do this.
+* A *HeaderExtender* object. This allows you to add custom headers to your COSE signatures, including **SCITT compliance through CWT Claims**. See the SCITT section below for details.
+
+### SCITT Compliance in CoseHandler
+
+CoseHandler provides comprehensive support for **SCITT (Supply Chain Integrity, Transparency, and Trust)** through CWT (CBOR Web Token) Claims and DID:x509 identifiers.
+
+#### Quick Start with SCITT:
+
+```csharp
+using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates.Extensions;
+
+// Load certificate
+var cert = new X509Certificate2("mycert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Create SCITT-compliant header extender (automatic DID:x509 issuer)
+var headerExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims();
+
+// Sign with SCITT compliance
+byte[] payload = File.ReadAllBytes("payload.txt");
+byte[] signature = CoseHandler.Sign(
+    payload, 
+    signingKeyProvider, 
+    embedPayload: false,
+    headerExtender: headerExtender
+);
+```
+
+#### Customizing CWT Claims:
+
+```csharp
+using CoseSign1.Headers;
+using CoseSign1.Certificates.Extensions;
+
+// Create custom CWT claims with fluent API
+var cwtClaims = new CWTClaimsHeaderExtender()
+    .SetIssuer("did:example:custom-issuer")
+    .SetSubject("software.release.v1.2.3")
+    .SetAudience("production-environment")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddYears(1))
+    .SetIssuedAt(DateTimeOffset.UtcNow)
+    .SetCustomClaim(100, "custom-metadata");
+
+// Create combined header extender
+var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(
+    signingKeyProvider, 
+    cwtClaims
+);
+
+// Sign with custom claims
+byte[] signature = CoseHandler.Sign(
+    payload,
+    signingKeyProvider,
+    embedPayload: false,
+    headerExtender: headerExtender
+);
+```
+
+#### Using DateTimeOffset for Timestamps:
+
+```csharp
+// Prefer DateTimeOffset over Unix timestamps for better readability
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddMonths(6))
+    .SetNotBefore(DateTimeOffset.UtcNow.AddDays(-1))
+    .SetIssuedAt(DateTimeOffset.UtcNow);
+
+// Or use Unix timestamps directly if needed
+cwtExtender.SetExpirationTime(1735689600L);
+```
+
+#### DID:x509 Generation:
+
+```csharp
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography;
+
+// Generate DID:x509 from certificate chain
+List<X509Certificate2> chain = GetCertificateChain();
+string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
+    chain, 
+    HashAlgorithmName.SHA256
+);
+// Result: "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:O:Example%20Corp"
+
+// Works with self-signed certificates too
+var selfSignedCert = new X509Certificate2("self-signed.pfx", "password");
+string selfSignedDid = DidX509Utilities.GenerateDidX509Identifier(
+    selfSignedCert, 
+    selfSignedCert,  // Use same cert as root
+    HashAlgorithmName.SHA256
+);
+```
+
+#### Accessing and Modifying Active CWT Claims:
+
+```csharp
+// Create extender with defaults
+var certWithCwt = new X509CertificateWithCWTClaimsHeaderExtender(
+    signingKeyProvider
+);
+
+// Modify the active CWT claims extender
+certWithCwt.ActiveCWTClaimsExtender
+    .SetSubject("custom-subject")
+    .SetAudience("specific-audience")
+    .SetCustomClaim(200, "additional-metadata");
+
+// Use in signing
+byte[] signature = CoseHandler.Sign(
+    payload,
+    signingKeyProvider,
+    embedPayload: false,
+    headerExtender: certWithCwt
+);
+```
+
+#### Standard CWT Claim Methods:
+
+The `CWTClaimsHeaderExtender` class provides these methods:
+
+- **SetIssuer(string issuer)** - Set the issuer claim (label 1)
+- **SetSubject(string subject)** - Set the subject claim (label 2)
+- **SetAudience(string audience)** - Set the audience claim (label 3)
+- **SetExpirationTime(DateTimeOffset)** / **SetExpirationTime(long)** - Set expiration (label 4)
+- **SetNotBefore(DateTimeOffset)** / **SetNotBefore(long)** - Set not-before time (label 5)
+- **SetIssuedAt(DateTimeOffset)** / **SetIssuedAt(long)** - Set issued-at time (label 6)
+- **SetCwtId(byte[] cwtId)** - Set CWT ID claim (label 7)
+- **SetCustomClaim(int label, object value)** - Add custom claims with integer labels
+
+All methods return the extender instance for fluent chaining.
+
+For comprehensive SCITT documentation, see **[SCITTCompliance.md](./SCITTCompliance.md)**.
 
 
 ## CoseHandler.Validate

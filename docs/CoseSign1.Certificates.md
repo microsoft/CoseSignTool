@@ -9,6 +9,28 @@ Most of the common logic for CoseSign1Message object creation and handling with 
 The following classes are provide for creating a proper CoseSign1Message object which is signed by an X509Certificate2 object.
 ### [CertificateCoseSigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/CertificateCoseSigningKeyProvider.cs)
 This class contains all the common logic of any certificate which is used as a signing key provider for CoseSign1Message signing. It will ensure that the x5t, x5chain protected headers are populated prior to signing as well as provide the interface to either the ECDsa or the ECC key set.
+
+#### Virtual Issuer Property
+
+The base class provides a `public virtual string? Issuer` property that:
+- **Defaults to DID:x509**: Automatically generates a DID:x509 identifier from the certificate chain using `DidX509Utilities`
+- **Can be overridden**: Derived classes can override this property to provide custom issuer values (e.g., from certificate fields, configuration, or external sources)
+- **Used by CWT Claims**: The `X509CertificateWithCWTClaimsHeaderExtender` and related extension methods use this property as the default issuer claim
+- **Returns null on error**: If certificate chain cannot be accessed or DID:x509 generation fails, returns `null`
+
+```csharp
+// Base class provides DID:x509 by default
+var provider = new X509Certificate2CoseSigningKeyProvider(cert);
+string? issuer = provider.Issuer;  // "did:x509:0:sha256:..."
+
+// Derived classes can override for custom behavior
+public class CustomCertificateProvider : CertificateCoseSigningKeyProvider
+{
+    public override string? Issuer => "custom-issuer-from-config";
+    // ... other implementations
+}
+```
+
 Any derived class must implement all methods as described in each protected method.
 ### [Local/X509Certificate2CoseSigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Local/X509Certificate2CoseSigningKeyProvider.cs)
 This class is a concrete implementation of **CertificateCoseSigningKeyProvider** which operates on an existing X509Certificate2 object.  It leverages a instance of a [ICertificateChainBuilder](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Interfaces/ICertificateChainBuilder.cs) (specifically [X509ChainBuilder](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Local/X509ChainBuilder.cs) by default) to build the certificate chain for the certificate.
@@ -18,3 +40,212 @@ The following classes are provide for extracting certificate information from a 
 This C# extension class extends CoseSign1Message objects to provide the following functionality:
 * `CoseSign1Message.TryGetSigningCertificate` - TryGet pattern for the presence of a signing certificate in the x5t header value.
 * `CoseSign1Message.TryGetCertificateChain` - TryGet pattern for the certificate chain embedded in the x5chain header value.
+
+## SCITT Compliance and CWT Claims
+
+**CoseSign1.Certificates** provides comprehensive support for **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through CWT Claims and DID:x509 identifiers.
+
+### [X509CertificateWithCWTClaimsHeaderExtender](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/X509CertificateWithCWTClaimsHeaderExtender.cs)
+
+This class combines X.509 certificate headers with CWT Claims for SCITT-compliant signatures. It is **strongly-typed** to accept `CertificateCoseSigningKeyProvider` (and its derived classes), ensuring compile-time type safety. It chains together certificate-specific headers (X5T, X5Chain) with CWT Claims to automatically add both certificate information and claims to your signatures.
+
+#### Features:
+- **Automatic DID:x509 Generation**: Issuer claim is automatically derived from the certificate provider's `Issuer` property (defaults to DID:x509 from certificate chain)
+- **Extensible Issuer**: Derived certificate providers can override the `Issuer` property to provide custom issuer values
+- **Default Subject**: Subject defaults to `"unknown.intent"` if not specified
+- **Fluent API**: Access and modify CWT claims through the `ActiveCWTClaimsExtender` property
+- **Compile-time Safety**: Requires `CertificateCoseSigningKeyProvider` type, catching type mismatches at compile time
+
+#### Basic Usage:
+
+```csharp
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.Local;
+
+// Create signing key provider
+var cert = new X509Certificate2("mycert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Create SCITT-compliant header extender with defaults
+var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+// Issuer: DID:x509 from certificate chain
+// Subject: "unknown.intent"
+
+// Use with CoseSign1MessageBuilder
+var builder = new CoseSign1MessageBuilder()
+    .SetPayloadBytes(payloadBytes)
+    .UseHeaderExtender(headerExtender);
+
+byte[] signature = builder.Sign(signingKeyProvider);
+```
+
+#### Custom CWT Claims:
+
+```csharp
+using CoseSign1.Headers;
+
+// Create custom CWT claims
+var cwtClaims = new CWTClaimsHeaderExtender()
+    .SetSubject("software.release.v1.2.3")
+    .SetAudience("production-environment")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddMonths(6));
+
+// Create combined extender with custom claims
+var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(
+    signingKeyProvider,
+    cwtClaims
+);
+```
+
+#### Modifying Active Claims:
+
+```csharp
+// Create with defaults then modify
+var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+
+// Access and modify the active CWT claims
+headerExtender.ActiveCWTClaimsExtender
+    .SetSubject("custom-subject")
+    .SetCustomClaim(100, "custom-value");
+```
+
+### [CoseSigningKeyProviderExtensions](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Extensions/CoseSigningKeyProviderExtensions.cs)
+
+Extension methods for `CertificateCoseSigningKeyProvider` that provide easy SCITT compliance with certificate-based signing. These methods are **strongly-typed** to `CertificateCoseSigningKeyProvider` (and its derived classes) to ensure compile-time type safety.
+
+#### CreateHeaderExtenderWithCWTClaims:
+
+```csharp
+using CoseSign1.Certificates.Extensions;
+
+// Quick method to create SCITT-compliant header extender
+var headerExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(
+    issuer: null,     // Uses DID:x509 from certificate
+    subject: null,    // Uses "unknown.intent"
+    audience: null
+);
+
+// With custom values
+var customExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(
+    issuer: "did:example:custom",
+    subject: "software.build.v1.0",
+    audience: "production"
+);
+```
+
+### [DidX509Utilities](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Extensions/DidX509Utilities.cs)
+
+Utility class for generating **DID:x509 identifiers** from X.509 certificates following the [Microsoft DID:x509 specification](https://github.com/microsoft/did-x509/blob/main/specification.md).
+
+#### Features:
+- **Standards-Compliant**: Follows Microsoft DID:x509 specification
+- **Multiple Hash Algorithms**: Supports SHA-256, SHA-384, and SHA-512
+- **Automatic Encoding**: Properly encodes subject fields per RFC 3986
+
+#### DID:x509 Format:
+```
+did:x509:0:{algorithm}:{ca-fingerprint}::subject:{encoded-subject-fields}
+```
+
+Example:
+```
+did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:O:Example%20Corp
+```
+
+#### Usage:
+
+```csharp
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography;
+
+// From certificate chain
+List<X509Certificate2> chain = GetCertificateChain();
+string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
+    chain,
+    HashAlgorithmName.SHA256
+);
+
+// From individual certificates (leaf and root)
+var leafCert = chain[^1];  // Last certificate in chain
+var rootCert = chain[0];   // First certificate in chain
+string did = DidX509Utilities.GenerateDidX509Identifier(
+    leafCert,
+    rootCert,
+    HashAlgorithmName.SHA256
+);
+
+// Self-signed certificate (use same cert for both leaf and root)
+var selfSignedCert = new X509Certificate2("self-signed.pfx", "password");
+string selfSignedDid = DidX509Utilities.GenerateDidX509Identifier(
+    selfSignedCert,
+    selfSignedCert,
+    HashAlgorithmName.SHA256
+);
+
+// Using different hash algorithms
+string sha384Did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
+    chain,
+    HashAlgorithmName.SHA384
+);
+```
+
+#### Methods:
+
+- **GenerateDidX509IdentifierFromChain(List<X509Certificate2> chain, HashAlgorithmName hashAlgorithm)**
+  - Generates DID from a certificate chain
+  - Automatically handles self-signed certificates (single-certificate chains)
+  - Returns DID:x509 identifier string
+
+- **GenerateDidX509Identifier(X509Certificate2 leafCertificate, X509Certificate2 rootCertificate, HashAlgorithmName hashAlgorithm)**
+  - Generates DID from specific leaf and root certificates
+  - Use same certificate for both parameters to handle self-signed certificates
+  - Returns DID:x509 identifier string
+
+### Complete SCITT Example:
+
+```csharp
+using CoseSign1;
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates.Extensions;
+using CoseSign1.Headers;
+using System.Security.Cryptography;
+
+// Load certificate and create signing key provider
+var cert = new X509Certificate2("mycert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Generate DID:x509 identifier
+string did = DidX509Utilities.GenerateDidX509Identifier(
+    cert,
+    cert,  // Or use root cert from chain
+    HashAlgorithmName.SHA256
+);
+
+// Create custom CWT claims with all standard claims
+var cwtClaims = new CWTClaimsHeaderExtender()
+    .SetIssuer(did)  // Use generated DID
+    .SetSubject("software.release.v1.2.3")
+    .SetAudience("production-environment")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddYears(1))
+    .SetNotBefore(DateTimeOffset.UtcNow)
+    .SetIssuedAt(DateTimeOffset.UtcNow)
+    .SetCustomClaim(100, "build-metadata");
+
+// Create combined header extender
+var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(
+    signingKeyProvider,
+    cwtClaims
+);
+
+// Build and sign
+byte[] payload = File.ReadAllBytes("payload.txt");
+var builder = new CoseSign1MessageBuilder()
+    .SetPayloadBytes(payload)
+    .UseHeaderExtender(headerExtender);
+
+byte[] signature = builder.Sign(signingKeyProvider);
+File.WriteAllBytes("signature.cose", signature);
+```
+
+For comprehensive SCITT documentation, CLI usage, and additional examples, see **[SCITTCompliance.md](./SCITTCompliance.md)**.

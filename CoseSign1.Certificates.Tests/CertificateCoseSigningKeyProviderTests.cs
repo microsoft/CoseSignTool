@@ -351,4 +351,90 @@ public class CertificateCoseSigningKeyProviderTests
         keyChain.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that the Issuer property returns null for the base test class with empty certificate chain
+    /// </summary>
+    [Test]
+    public void TestIssuer_WithEmptyCertificateChain_ReturnsNull()
+    {
+        TestCertificateCoseSigningKeyProvider testObj = new();
+
+        // The Issuer property should return null because GetCertificateChain returns empty
+        string? issuer = testObj.Issuer;
+
+        issuer.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests that the Issuer property returns a DID:x509 identifier for a valid certificate chain
+    /// </summary>
+    [Test]
+    public void TestIssuer_WithValidCertificateChain_ReturnsDIDx509()
+    {
+        // Create a real certificate chain
+        X509Certificate2Collection certs = TestCertificateUtils.CreateTestChain();
+        X509Certificate2CoseSigningKeyProvider provider = new(certs[^1]);
+
+        // The Issuer property should return a DID:x509 identifier
+        string? issuer = provider.Issuer;
+
+        issuer.Should().NotBeNullOrEmpty();
+        issuer.Should().StartWith("did:x509:");
+
+        // Clean up certificates
+        foreach (var cert in certs)
+        {
+            cert.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that derived classes can override the Issuer property
+    /// </summary>
+    [Test]
+    public void TestIssuer_CanBeOverridden()
+    {
+        // Create a custom provider that overrides Issuer
+        TestCertificateProviderWithCustomIssuer provider = new("custom-issuer-value");
+
+        string? issuer = provider.Issuer;
+
+        issuer.Should().Be("custom-issuer-value");
+    }
+
+    /// <summary>
+    /// Helper class to test Issuer property override
+    /// </summary>
+    private class TestCertificateProviderWithCustomIssuer : CertificateCoseSigningKeyProvider
+    {
+        private readonly string _customIssuer;
+
+        public TestCertificateProviderWithCustomIssuer(string customIssuer) : base(null, null)
+        {
+            _customIssuer = customIssuer;
+        }
+
+        public override string? Issuer => _customIssuer;
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
+        {
+            return Enumerable.Empty<X509Certificate2>();
+        }
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override RSA? ProvideRSAKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
 }

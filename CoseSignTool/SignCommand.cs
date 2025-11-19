@@ -42,7 +42,17 @@ public class SignCommand : CoseCommand
         ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
         ["-iuh"] = "IntUnProtectedHeaders",
         ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
-        ["-suh"] = "StringUnProtectedHeaders"
+        ["-suh"] = "StringUnProtectedHeaders",
+        ["-CwtIssuer"] = "CwtIssuer",
+        ["-cwt-iss"] = "CwtIssuer",
+        ["-CwtSubject"] = "CwtSubject",
+        ["-cwt-sub"] = "CwtSubject",
+        ["-CwtAudience"] = "CwtAudience",
+        ["-cwt-aud"] = "CwtAudience",
+        ["-CwtClaims"] = "CwtClaims",
+        ["-cwt"] = "CwtClaims",
+        ["-EnableScittCompliance"] = "EnableScittCompliance",
+        ["-scitt"] = "EnableScittCompliance"
     };
 
     // Inherited default values
@@ -112,6 +122,37 @@ public class SignCommand : CoseCommand
     /// </summary>
     public List<CoseHeader<string>>? StringHeaders { get; set; }
 
+    /// <summary>
+    /// Optional. Gets or sets the CWT issuer (iss) claim for SCITT compliance.
+    /// If not specified and EnableScittCompliance is true, defaults to DID:x509 derived from the certificate.
+    /// </summary>
+    public string? CwtIssuer { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the CWT subject (sub) claim for SCITT compliance.
+    /// If not specified and EnableScittCompliance is true, defaults to "unknown.intent".
+    /// </summary>
+    public string? CwtSubject { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the CWT audience (aud) claim for SCITT compliance.
+    /// </summary>
+    public string? CwtAudience { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets additional custom CWT claims as a list of label:value pairs.
+    /// Labels can be integers (e.g., "100:value") or RFC 8392 claim names (e.g., "cti:abc123").
+    /// Multiple claims can be specified by repeating the argument.
+    /// Example: -cwt "cti:abc123" -cwt "100:custom-value" -cwt "exp:1735689600"
+    /// </summary>
+    public List<string>? CwtClaims { get; set; }
+
+    /// <summary>
+    /// Optional. If true, automatically adds SCITT-compliant CWT claims (issuer and subject) to the signature.
+    /// This is enabled by default for certificate-based signing.
+    /// </summary>
+    public bool EnableScittCompliance { get; set; } = true;
+
     #endregion
 
     /// <summary>
@@ -175,14 +216,52 @@ public class SignCommand : CoseCommand
         try
         {
             // Use shared header processing logic
-            CoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+            CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+
+            // Create the signing key provider with additional roots if available
+            var signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
+
+            // If SCITT compliance is enabled or CWT claims are specified, wrap the header extender with CWT claims
+            if (EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null)
+            {
+                // Create the X509 + CWT header extender using the convenient extension method
+                CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender cwtHeaderExtender = 
+                    signingKeyProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
+
+                // If audience is also specified, we need to customize further
+                if (CwtAudience != null)
+                {
+                    // Get the active CWT claims extender and add the audience
+                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
+                    if (certWithCwtExtender != null)
+                    {
+                        certWithCwtExtender.ActiveCWTClaimsExtender.SetAudience(CwtAudience);
+                    }
+                }
+
+                // Apply any custom CWT claims specified via CwtClaims
+                if (CwtClaims != null && CwtClaims.Count > 0)
+                {
+                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
+                    if (certWithCwtExtender != null)
+                    {
+                        ApplyCwtClaims(certWithCwtExtender.ActiveCWTClaimsExtender, CwtClaims);
+                    }
+                }
+
+                // If there was an existing header extender, chain them together
+                if (headerExtender != null)
+                {
+                    headerExtender = new CoseSign1.ChainedCoseHeaderExtender(new[] { cwtHeaderExtender, headerExtender });
+                }
+                else
+                {
+                    headerExtender = cwtHeaderExtender;
+                }
+            }
 
             // Sign the content.
-            // Create the signing key provider with additional roots if available
-            CoseSign1.Abstractions.Interfaces.ICoseSigningKeyProvider signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
-
-            // Write the signature to stream or file.
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);            // Write the signature to stream or file.
             if (PipeOutput)
             {
                 WriteToStdOut(signedBytes);
@@ -251,7 +330,148 @@ public class SignCommand : CoseCommand
             GetOptionHeadersFromCommandLine(provider, "StringUnProtectedHeaders", false, HeaderValueConverter<string>, StringHeaders);
         }
 
+        // CWT Claims options
+        CwtIssuer = GetOptionString(provider, nameof(CwtIssuer));
+        CwtSubject = GetOptionString(provider, nameof(CwtSubject));
+        CwtAudience = GetOptionString(provider, nameof(CwtAudience));
+        
+        // Custom CWT claims (can be specified multiple times)
+        if (provider.TryGet(nameof(CwtClaims), out string? cwtClaimsValue) && !string.IsNullOrWhiteSpace(cwtClaimsValue))
+        {
+            CwtClaims = new List<string> { cwtClaimsValue };
+            // Check for additional CWT claims with indexed keys (CwtClaims:0, CwtClaims:1, etc.)
+            int index = 1;
+            while (provider.TryGet($"{nameof(CwtClaims)}:{index}", out string? additionalClaim) && !string.IsNullOrWhiteSpace(additionalClaim))
+            {
+                CwtClaims.Add(additionalClaim);
+                index++;
+            }
+        }
+        
+        // Enable SCITT compliance by default
+        bool scittComplianceSet = provider.TryGet(nameof(EnableScittCompliance), out string? scittValue);
+        EnableScittCompliance = !scittComplianceSet || (bool.TryParse(scittValue, out bool scittResult) && scittResult);
+
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Parses and applies custom CWT claims from a list of label:value strings to the CWTClaimsHeaderExtender.
+    /// Supports both integer labels and RFC 8392 claim names.
+    /// </summary>
+    /// <param name="extender">The CWTClaimsHeaderExtender to apply claims to.</param>
+    /// <param name="claimStrings">A list of "label:value" strings.</param>
+    /// <exception cref="ArgumentException">Thrown when a claim string is invalid.</exception>
+    private static void ApplyCwtClaims(CoseSign1.Headers.CWTClaimsHeaderExtender extender, List<string> claimStrings)
+    {
+        foreach (string claimString in claimStrings)
+        {
+            // Split by colon separator
+            string[] parts = claimString.Split(':', 2);
+            if (parts.Length != 2)
+            {
+                throw new ArgumentException($"Invalid CWT claim format: '{claimString}'. Expected format: 'label:value'");
+            }
+
+            string label = parts[0].Trim();
+            string value = parts[1]; // Don't trim value - it might be intentional
+
+            // Try to parse label as integer first
+            if (int.TryParse(label, out int labelInt))
+            {
+                // Try to parse value as different types
+                if (int.TryParse(value, out int valueInt))
+                {
+                    // Integer value
+                    extender.SetCustomClaim(labelInt, valueInt);
+                }
+                else if (long.TryParse(value, out long valueLong))
+                {
+                    // Long value (for timestamps)
+                    extender.SetCustomClaim(labelInt, valueLong);
+                }
+                else
+                {
+                    // String value
+                    extender.SetCustomClaim(labelInt, value);
+                }
+            }
+            else
+            {
+                // Label is a name, try to map to known claims
+                switch (label.ToLowerInvariant())
+                {
+                    case "iss":
+                    case "issuer":
+                        extender.SetIssuer(value);
+                        break;
+                    case "sub":
+                    case "subject":
+                        extender.SetSubject(value);
+                        break;
+                    case "aud":
+                    case "audience":
+                        extender.SetAudience(value);
+                        break;
+                    case "exp":
+                    case "expirationtime":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset expDate))
+                        {
+                            extender.SetExpirationTime(expDate);
+                        }
+                        else if (long.TryParse(value, out long exp))
+                        {
+                            extender.SetExpirationTime(exp);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid expiration time value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "nbf":
+                    case "notbefore":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset nbfDate))
+                        {
+                            extender.SetNotBefore(nbfDate);
+                        }
+                        else if (long.TryParse(value, out long nbf))
+                        {
+                            extender.SetNotBefore(nbf);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid not-before value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "iat":
+                    case "issuedAt":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset iatDate))
+                        {
+                            extender.SetIssuedAt(iatDate);
+                        }
+                        else if (long.TryParse(value, out long iat))
+                        {
+                            extender.SetIssuedAt(iat);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid issued-at value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "cti":
+                    case "cwtid":
+                        // Convert string to UTF-8 bytes for CWT ID
+                        byte[] cwtIdBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                        extender.SetCWTID(cwtIdBytes);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unknown CWT claim name: '{label}'. Use an integer label or one of: iss, sub, aud, exp, nbf, iat, cti.");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -701,6 +921,25 @@ Options:
 Advanced Options:
     ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
+
+    Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
+        EnableScittCompliance /scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
+            (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
+
+        CwtIssuer /cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
+            compliance is enabled, defaults to a DID:x509 identifier derived from the signing certificate chain.
+
+        CwtSubject /cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
+            compliance is enabled, defaults to ""unknown.intent"".
+
+        CwtAudience /cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
+
+        CwtClaims /cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times for multiple claims.
+            Labels can be integers (e.g., ""100:custom-value"") or RFC 8392 claim names (iss, sub, aud, exp, nbf, iat, cti).
+            Timestamp claims (exp, nbf, iat) accept date/time strings (e.g., ""2024-12-31T23:59:59Z"") or Unix timestamps.
+            Examples: 
+                /cwt ""cti:abc123"" /cwt ""100:custom-value"" /cwt ""exp:2024-12-31T23:59:59Z""
+                /cwt ""iss:custom-issuer"" /cwt ""sub:custom-subject"" /cwt ""nbf:1735689600""
 
     Options to customize the headers in the signature:
         IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.

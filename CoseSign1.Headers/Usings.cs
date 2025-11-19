@@ -3,6 +3,7 @@
 
 global using System;
 global using System.Collections.Generic;
+global using System.Formats.Cbor;
 global using System.Security.Cryptography.Cose;
 global using System.Text.Json.Serialization;
 global using CoseSign1.Abstractions.Interfaces;

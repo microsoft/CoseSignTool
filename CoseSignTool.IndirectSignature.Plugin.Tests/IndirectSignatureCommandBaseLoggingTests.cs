@@ -191,7 +191,7 @@ public class IndirectSignatureCommandBaseLoggingTests
         });
 
         // Act
-        (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) = 
+        (X509Certificate2? certificate, _, PluginExitCode result) = 
             IndirectSignatureCommandBase.LoadSigningCertificate(configuration, logger);
 
         // Assert
@@ -213,7 +213,7 @@ public class IndirectSignatureCommandBaseLoggingTests
         });
 
         // Act
-        (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) = 
+        (X509Certificate2? certificate, _, PluginExitCode result) = 
             IndirectSignatureCommandBase.LoadSigningCertificate(configuration, logger);
 
         // Assert
@@ -232,7 +232,7 @@ public class IndirectSignatureCommandBaseLoggingTests
         });
 
         // Act & Assert - should not throw
-        (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) = 
+        (_, _, PluginExitCode result) = 
             IndirectSignatureCommandBase.LoadSigningCertificate(configuration, null);
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
     }
@@ -382,7 +382,7 @@ public class IndirectSignatureCommandBaseLoggingTests
         // Arrange
         MockLogger logger = new MockLogger();
         IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>());
-        CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new CancellationTokenSource();
         cts.Cancel();
         OperationCanceledException exception = new OperationCanceledException(cts.Token);
 

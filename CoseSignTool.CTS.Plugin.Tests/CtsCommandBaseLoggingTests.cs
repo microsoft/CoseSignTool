@@ -125,7 +125,7 @@ public class CtsCommandBaseLoggingTests
         try
         {
             // Act
-            (CoseSign1Message? message, byte[] signatureBytes, PluginExitCode result) = 
+            (CoseSign1Message? message, _, PluginExitCode result) = 
                 await TestCtsCommand.TestReadAndDecodeCoseMessage(tempFile, CancellationToken.None, logger);
 
             // Assert

@@ -184,10 +184,10 @@ public class AzureCtsTransparencyService : ITransparencyService
         {
             if (VerificationOptions.AuthorizedDomains?.Count > 0)
             {
-                LogVerbose?.Invoke($"Authorized domains: {string.Join(", ", VerificationOptions.AuthorizedDomains)}");
+                LogVerbose.Invoke($"Authorized domains: {string.Join(", ", VerificationOptions.AuthorizedDomains)}");
             }
-            LogVerbose?.Invoke($"Authorized receipt behavior: {VerificationOptions.AuthorizedReceiptBehavior}");
-            LogVerbose?.Invoke($"Unauthorized receipt behavior: {VerificationOptions.UnauthorizedReceiptBehavior}");
+            LogVerbose.Invoke($"Authorized receipt behavior: {VerificationOptions.AuthorizedReceiptBehavior}");
+            LogVerbose.Invoke($"Unauthorized receipt behavior: {VerificationOptions.UnauthorizedReceiptBehavior}");
         }
 
         // Ask CTS to verify the entry
@@ -226,12 +226,9 @@ public class AzureCtsTransparencyService : ITransparencyService
         {
             LogError?.Invoke($"Multiple verification failures occurred");
             
-            if (LogVerbose != null)
+            foreach (var innerEx in ex.InnerExceptions)
             {
-                foreach (var innerEx in ex.InnerExceptions)
-                {
-                    LogVerbose?.Invoke($"  - {innerEx.Message}");
-                }
+                LogVerbose?.Invoke($"  - {innerEx.Message}");
             }
             
             return Task.FromResult(false);

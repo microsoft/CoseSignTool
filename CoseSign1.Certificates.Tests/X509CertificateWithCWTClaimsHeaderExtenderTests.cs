@@ -366,4 +366,193 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
         // Cleanup
         DisposeCertificates(testChain);
     }
+
+    [Test]
+    public void Constructor_WithoutCustomClaims_CreatesDefaultClaims()
+    {
+        // Arrange
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = testChain[^1];
+        var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(null, leafCert, [.. testChain]);
+
+        // Act
+        var extender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+
+        // Assert
+        Assert.That(extender, Is.Not.Null);
+        Assert.That(extender.ActiveCWTClaimsExtender, Is.Not.Null);
+
+        // Cleanup
+        DisposeCertificates(testChain);
+    }
+
+    [Test]
+    public void Constructor_SingleParameterWithNullProvider_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            new X509CertificateWithCWTClaimsHeaderExtender(null!));
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithNullProtectedHeaders_ThrowsArgumentNullException()
+    {
+        // Arrange
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = testChain[^1];
+        var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(null, leafCert, [.. testChain]);
+        var extender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            extender.ExtendProtectedHeaders(null!));
+
+        // Cleanup
+        DisposeCertificates(testChain);
+    }
+
+    [Test]
+    public void ExtendUnProtectedHeaders_WithNullUnProtectedHeaders_ReturnsNewMap()
+    {
+        // Arrange
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = testChain[^1];
+        var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(null, leafCert, [.. testChain]);
+        var extender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+
+        // Act
+        CoseHeaderMap result = extender.ExtendUnProtectedHeaders(null);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<CoseHeaderMap>());
+
+        // Cleanup
+        DisposeCertificates(testChain);
+    }
+
+    [Test]
+    public void Constructor_WithProviderHavingNullIssuer_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        TestCertificateProviderWithNullIssuer provider = new(cert);
+
+        // Act & Assert
+        InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(() =>
+            new X509CertificateWithCWTClaimsHeaderExtender(provider));
+        
+        Assert.That(exception!.Message, Does.Contain("Failed to create default CWT claims"));
+
+        // Cleanup
+        cert.Dispose();
+    }
+
+    [Test]
+    public void Constructor_WithProviderHavingEmptyIssuer_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        TestCertificateProviderWithEmptyIssuer provider = new(cert);
+
+        // Act & Assert
+        InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(() =>
+            new X509CertificateWithCWTClaimsHeaderExtender(provider));
+        
+        Assert.That(exception!.Message, Does.Contain("Failed to create default CWT claims"));
+
+        // Cleanup
+        cert.Dispose();
+    }
+
+    [Test]
+    public void DefaultSubject_IsUnknownIntent()
+    {
+        // Assert
+        Assert.That(X509CertificateWithCWTClaimsHeaderExtender.DefaultSubject, Is.EqualTo("unknown.intent"));
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithNonNullCertHeaders_AddsThem()
+    {
+        // Arrange
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = testChain[^1];
+        var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(null, leafCert, [.. testChain]);
+        var extender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
+        var headers = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendProtectedHeaders(headers);
+
+        // Assert - should have X5T and X5Chain from certificate provider
+        Assert.That(headers.Count, Is.GreaterThan(1));
+
+        // Cleanup
+        DisposeCertificates(testChain);
+    }
+
+    [Test]
+    public void ExtendUnProtectedHeaders_WithProviderReturningUnprotectedHeaders_AddsThem()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        TestCertificateProviderWithUnprotectedHeaders provider = new(cert);
+        var extender = new X509CertificateWithCWTClaimsHeaderExtender(provider);
+        var headers = new CoseHeaderMap();
+
+        // Act
+        CoseHeaderMap result = extender.ExtendUnProtectedHeaders(headers);
+
+        // Assert - should have the custom unprotected header
+        Assert.That(result.ContainsKey(new CoseHeaderLabel(999)), Is.True);
+
+        // Cleanup
+        cert.Dispose();
+    }
+
+    /// <summary>
+    /// Helper test provider that returns null for Issuer
+    /// </summary>
+    private class TestCertificateProviderWithNullIssuer : X509Certificate2CoseSigningKeyProvider
+    {
+        public TestCertificateProviderWithNullIssuer(X509Certificate2 signingCertificate)
+            : base(signingCertificate)
+        {
+        }
+
+        public override string? Issuer => null;
+    }
+
+    /// <summary>
+    /// Helper test provider that returns empty string for Issuer
+    /// </summary>
+    private class TestCertificateProviderWithEmptyIssuer : X509Certificate2CoseSigningKeyProvider
+    {
+        public TestCertificateProviderWithEmptyIssuer(X509Certificate2 signingCertificate)
+            : base(signingCertificate)
+        {
+        }
+
+        public override string? Issuer => string.Empty;
+    }
+
+    /// <summary>
+    /// Helper test provider that returns unprotected headers
+    /// </summary>
+    private class TestCertificateProviderWithUnprotectedHeaders : X509Certificate2CoseSigningKeyProvider
+    {
+        public TestCertificateProviderWithUnprotectedHeaders(X509Certificate2 signingCertificate)
+            : base(signingCertificate)
+        {
+        }
+
+        protected override CoseHeaderMap? GetUnProtectedHeadersImplementation()
+        {
+            CoseHeaderMap headers = new();
+            headers.Add(new CoseHeaderLabel(999), CoseHeaderValue.FromString("test-value"));
+            return headers;
+        }
+    }
 }
+

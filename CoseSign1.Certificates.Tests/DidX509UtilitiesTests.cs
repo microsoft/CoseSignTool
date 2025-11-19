@@ -417,5 +417,204 @@ public class DidX509UtilitiesTests
         // Cleanup
         selfSignedCert.Dispose();
     }
+
+    [Test]
+    public void GenerateDidX509Identifier_WithUnsupportedHashAlgorithm_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = chain[^1];
+        X509Certificate2 rootCert = chain[0];
+        HashAlgorithmName unsupportedAlgorithm = HashAlgorithmName.MD5;
+
+        // Act & Assert
+        InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(() =>
+            DidX509Utilities.GenerateDidX509Identifier(leafCert, rootCert, unsupportedAlgorithm));
+        
+        Assert.That(exception!.Message, Does.Contain("Unsupported hash algorithm"));
+        Assert.That(exception.Message, Does.Contain("MD5"));
+
+        // Cleanup
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509IdentifierFromChain_WithNullChain_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            DidX509Utilities.GenerateDidX509IdentifierFromChain(null!));
+    }
+
+    [Test]
+    public void GenerateDidX509IdentifierFromChain_WithEmptyChain_ThrowsArgumentException()
+    {
+        // Arrange
+        var emptyChain = new List<X509Certificate2>();
+
+        // Act & Assert
+        ArgumentException? exception = Assert.Throws<ArgumentException>(() =>
+            DidX509Utilities.GenerateDidX509IdentifierFromChain(emptyChain));
+        
+        Assert.That(exception!.Message, Does.Contain("Certificate chain cannot be empty"));
+    }
+
+    [Test]
+    public void GenerateDidX509IdentifierFromChain_WithMultipleCertificates_UsesLeafAndRoot()
+    {
+        // Arrange
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(chain);
+
+        // Assert
+        Assert.That(did, Does.StartWith("did:x509:0:sha256:"));
+        Assert.That(did, Does.Contain("::subject:"));
+
+        // Cleanup
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509IdentifierFromChain_WithSHA512_UsesCorrectAlgorithm()
+    {
+        // Arrange
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(chain, HashAlgorithmName.SHA512);
+
+        // Assert
+        Assert.That(did, Does.StartWith("did:x509:0:sha512:"));
+
+        // Cleanup
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509Identifier_SubjectWithSpecialCharacters_PercentEncoded()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("Test@#$%");
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 rootCert = chain[0];
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509Identifier(cert, rootCert);
+
+        // Assert
+        string[] parts = did.Split(new[] { "::subject:" }, StringSplitOptions.None);
+        Assert.That(parts[1], Does.Contain("CN"));
+        
+        // Special characters should be percent-encoded
+        Assert.That(parts[1], Does.Contain("%"));
+
+        // Cleanup
+        cert.Dispose();
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509Identifier_SubjectWithColons_PercentEncoded()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("Test:Colon");
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 rootCert = chain[0];
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509Identifier(cert, rootCert);
+
+        // Assert
+        string[] parts = did.Split(new[] { "::subject:" }, StringSplitOptions.None);
+        
+        // Colons in values should be percent-encoded as %3A
+        Assert.That(parts[1], Does.Contain("CN"));
+
+        // Cleanup
+        cert.Dispose();
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509IdentifierFromChain_NullHashAlgorithm_UsesSHA256Default()
+    {
+        // Arrange
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(chain, null);
+
+        // Assert
+        Assert.That(did, Does.Contain("sha256"));
+
+        // Cleanup
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509Identifier_WithDefaultHashAlgorithm_UsesLowercaseAlgorithmName()
+    {
+        // Arrange
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 leafCert = chain[^1];
+        X509Certificate2 rootCert = chain[0];
+
+        // Act - pass null to use default
+        string did = DidX509Utilities.GenerateDidX509Identifier(leafCert, rootCert, null);
+
+        // Assert - should use lowercase 'sha256'
+        Assert.That(did, Does.Contain(":sha256:"));
+        Assert.That(did, Does.Not.Contain(":SHA256:"));
+
+        // Cleanup
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509Identifier_SubjectWithUnicodeCharacters_PercentEncoded()
+    {
+        // Arrange - create certificate with Unicode characters
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("Tëst");
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 rootCert = chain[0];
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509Identifier(cert, rootCert);
+
+        // Assert
+        string[] parts = did.Split(new[] { "::subject:" }, StringSplitOptions.None);
+        // Unicode should be percent-encoded
+        Assert.That(parts[1], Does.Contain("CN"));
+        Assert.That(parts[1], Does.Contain("%")); // Should have percent encoding
+
+        // Cleanup
+        cert.Dispose();
+        DisposeCertificates(chain);
+    }
+
+    [Test]
+    public void GenerateDidX509Identifier_SubjectWithHyphensDotsUnderscores_NotEncoded()
+    {
+        // Arrange - these characters should NOT be encoded
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("Test-Name.Value_123");
+        X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain();
+        X509Certificate2 rootCert = chain[0];
+
+        // Act
+        string did = DidX509Utilities.GenerateDidX509Identifier(cert, rootCert);
+
+        // Assert
+        string[] parts = did.Split(new[] { "::subject:" }, StringSplitOptions.None);
+        // These characters are allowed and should appear as-is in the CN value
+        Assert.That(parts[1], Does.Contain("CN"));
+        Assert.That(parts[1], Does.Contain("Test-Name.Value_123"));
+
+        // Cleanup
+        cert.Dispose();
+        DisposeCertificates(chain);
+    }
 }
+
 

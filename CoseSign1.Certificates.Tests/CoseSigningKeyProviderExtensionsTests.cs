@@ -192,7 +192,7 @@ public class CoseSigningKeyProviderExtensionsTests
         Action act = () => provider.CreateHeaderExtenderWithCWTClaims(null, "custom-subject");
         
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Certificate provider did not return a valid issuer value*");
+            .WithMessage("*Failed to create default CWT claims*");
 
         cert.Dispose();
     }
@@ -211,7 +211,7 @@ public class CoseSigningKeyProviderExtensionsTests
         Action act = () => provider.CreateHeaderExtenderWithCWTClaims(null, "custom-subject");
         
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Certificate provider did not return a valid issuer value*");
+            .WithMessage("*Failed to create default CWT claims*");
 
         cert.Dispose();
     }

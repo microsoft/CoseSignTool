@@ -12,6 +12,8 @@ global using CoseSign1;
 global using CoseSign1.Certificates;
 global using CoseSign1.Certificates.Extensions;
 global using CoseSign1.Certificates.Local;
+global using CoseSign1.Headers;
+global using CoseSign1.Headers.Extensions;
 global using CoseSign1.Tests.Common;
 global using CoseSignTool.Abstractions;
 global using CoseSignTool.IndirectSignature.Plugin;

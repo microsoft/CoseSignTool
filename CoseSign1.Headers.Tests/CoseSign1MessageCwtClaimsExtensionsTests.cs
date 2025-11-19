@@ -1,6 +1,7 @@
 using System;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
@@ -133,6 +134,23 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
         DisposeCertificates(certs);
     }
 
+    [Test]
+    public void TryGetCwtClaims_WithMalformedCborData_ReturnsFalse()
+    {
+        // Arrange - Create a message with invalid CBOR data in the CWT Claims header
+        var (message, certs) = CreateMessageWithMalformedCwtClaims();
+
+        // Act
+        bool result = message.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(claims, Is.Null);
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
     // Helper methods
     private (CoseSign1Message message, X509Certificate2Collection certs) CreateMessageWithCwtClaims()
     {
@@ -207,6 +225,47 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
         byte[] payload = new byte[] { 1, 2, 3 };
         byte[] signature = CoseHandler.Sign(payload, provider, embedSign: false, headerExtender: extender).ToArray();
         return (CoseSign1Message.DecodeSign1(signature), certs);
+    }
+
+    private (CoseSign1Message message, X509Certificate2Collection certs) CreateMessageWithMalformedCwtClaims()
+    {
+        var certs = TestCertificateUtils.CreateTestChain();
+        var provider = new X509Certificate2CoseSigningKeyProvider(certs[^1]);
+
+        // Create a custom header extender that adds malformed CBOR data
+        var malformedExtender = new MalformedCwtClaimsExtender();
+
+        byte[] payload = new byte[] { 1, 2, 3 };
+        byte[] signature = CoseHandler.Sign(payload, provider, embedSign: false, headerExtender: malformedExtender).ToArray();
+        return (CoseSign1Message.DecodeSign1(signature), certs);
+    }
+
+    // Helper class to inject malformed CBOR data
+    private class MalformedCwtClaimsExtender : ICoseHeaderExtender
+    {
+        public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap protectedHeaders)
+        {
+            // Add valid CBOR that will fail CwtClaims parsing
+            // Create a CBOR map with an unexpected structure (array instead of map for a claim value)
+            var writer = new System.Formats.Cbor.CborWriter();
+            writer.WriteStartMap(1);
+            writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+            // Write an array instead of a string, which will cause parsing to fail
+            writer.WriteStartArray(2);
+            writer.WriteInt32(123);
+            writer.WriteInt32(456);
+            writer.WriteEndArray();
+            writer.WriteEndMap();
+            
+            var malformedValue = CoseHeaderValue.FromEncodedValue(writer.Encode());
+            protectedHeaders[CWTClaimsHeaderLabels.CWTClaims] = malformedValue;
+            return protectedHeaders;
+        }
+
+        public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
+        {
+            return unProtectedHeaders ?? new CoseHeaderMap();
+        }
     }
 
     private void DisposeCertificates(X509Certificate2Collection certs)

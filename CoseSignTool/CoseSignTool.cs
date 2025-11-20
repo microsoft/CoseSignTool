@@ -14,6 +14,7 @@ public class CoseSignTool
 
     private static Verbs Verb = Verbs.Unknown;
     private static readonly Dictionary<string, IPluginCommand> PluginCommands = new();
+    private static readonly CertificateProviderPluginManager CertificateProviderManager = new();
 
     #region public methods
     /// <summary>
@@ -91,6 +92,7 @@ public class CoseSignTool
             // Only load plugins from the authorized "plugins" subdirectory
             string pluginsDirectory = Path.Join(executableDirectory, "plugins");
 
+            // Load command plugins
             IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
             
             foreach (ICoseSignToolPlugin plugin in plugins)
@@ -117,6 +119,9 @@ public class CoseSignTool
                     Console.Error.WriteLine($"Warning: Failed to initialize plugin '{plugin.Name}': {ex.Message}");
                 }
             }
+
+            // Load certificate provider plugins
+            CertificateProviderManager.DiscoverAndLoadPlugins(pluginsDirectory);
         }
         catch (Exception ex)
         {
@@ -265,6 +270,19 @@ public class CoseSignTool
             }
             usageBuilder.AppendLine();
             usageBuilder.AppendLine("For help with a specific plugin command, use: CoseSignTool <command> --help");
+        }
+
+        if (CertificateProviderManager.Providers.Count > 0)
+        {
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("Certificate Providers:");
+            foreach (KeyValuePair<string, ICertificateProviderPlugin> kvp in CertificateProviderManager.Providers.OrderBy(x => x.Key))
+            {
+                usageBuilder.AppendLine($"  {kvp.Key,-25} {kvp.Value.Description}");
+            }
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("To use a certificate provider with the sign command:");
+            usageBuilder.AppendLine("  CoseSignTool sign <payload> --cert-provider <provider-name> [provider-options]");
         }
 
         return usageBuilder.ToString();

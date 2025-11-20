@@ -173,6 +173,196 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     }
 
     /// <summary>
+    /// Tests that <see cref="AzureTrustedSigningCoseSigningKeyProvider.GetCertificateChain"/> caches the certificate chain
+    /// and only calls GetCertChain on the context once.
+    /// </summary>
+    [Test]
+    public void GetCertificateChain_CachesChainOnFirstCall()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        List<X509Certificate2> mockChain = CreateMockCertificateChain();
+        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(mockChain);
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act
+        List<X509Certificate2> result1 = InvokeProtectedWithReflection<IEnumerable<X509Certificate2>>(provider, "GetCertificateChain", X509ChainSortOrder.LeafFirst).ToList();
+        List<X509Certificate2> result2 = InvokeProtectedWithReflection<IEnumerable<X509Certificate2>>(provider, "GetCertificateChain", X509ChainSortOrder.LeafFirst).ToList();
+
+        // Assert
+        Assert.That(result1, Is.EqualTo(result2));
+        mockSignContext.Verify(context => context.GetCertChain(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="AzureTrustedSigningCoseSigningKeyProvider.GetSigningCertificate"/> caches the certificate
+    /// and only calls GetSigningCertificate on the context once.
+    /// </summary>
+    [Test]
+    public void GetSigningCertificate_CachesCertificateOnFirstCall()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        X509Certificate2 mockCertificate = TestCertificateUtils.CreateCertificate(nameof(GetSigningCertificate_CachesCertificateOnFirstCall));
+        mockSignContext.Setup(context => context.GetSigningCertificate(It.IsAny<CancellationToken>())).Returns(mockCertificate);
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act
+        X509Certificate2 result1 = InvokeProtectedWithReflection<X509Certificate2>(provider, "GetSigningCertificate");
+        X509Certificate2 result2 = InvokeProtectedWithReflection<X509Certificate2>(provider, "GetSigningCertificate");
+
+        // Assert
+        Assert.That(result1, Is.EqualTo(result2));
+        mockSignContext.Verify(context => context.GetSigningCertificate(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="AzureTrustedSigningCoseSigningKeyProvider.ProvideRSAKey"/> caches the RSA instance
+    /// and returns the same instance on subsequent calls.
+    /// </summary>
+    [Test]
+    public void ProvideRSAKey_CachesRSAInstanceOnFirstCall()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act
+        RSA result1 = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", false);
+        RSA result2 = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", false);
+
+        // Assert
+        Assert.That(result1, Is.Not.Null);
+        Assert.That(result2, Is.Not.Null);
+        Assert.That(result1, Is.SameAs(result2), "ProvideRSAKey should return the same cached instance");
+    }
+
+    /// <summary>
+    /// Tests that <see cref="AzureTrustedSigningCoseSigningKeyProvider.ProvideRSAKey"/> returns the same instance
+    /// regardless of the publicKey parameter value (caching ignores the parameter).
+    /// </summary>
+    [Test]
+    public void ProvideRSAKey_ReturnsSameCachedInstance_RegardlessOfPublicKeyParameter()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act
+        RSA result1 = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", false);
+        RSA result2 = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", true);
+
+        // Assert
+        Assert.That(result1, Is.Not.Null);
+        Assert.That(result2, Is.Not.Null);
+        Assert.That(result1, Is.SameAs(result2), "ProvideRSAKey should return the same cached instance regardless of publicKey parameter");
+    }
+
+    /// <summary>
+    /// Tests that <see cref="AzureTrustedSigningCoseSigningKeyProvider.GetCertificateChain"/> is thread-safe
+    /// and only calls GetCertChain once even under concurrent access.
+    /// </summary>
+    [Test]
+    public void GetCertificateChain_IsThreadSafe_UnderConcurrentAccess()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        List<X509Certificate2> mockChain = CreateMockCertificateChain();
+        int callCount = 0;
+        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                Interlocked.Increment(ref callCount);
+                Thread.Sleep(10); // Simulate some delay to increase chance of race condition
+                return mockChain;
+            });
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act - Run multiple threads concurrently
+        List<Task<List<X509Certificate2>>> tasks = new List<Task<List<X509Certificate2>>>();
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() =>
+                InvokeProtectedWithReflection<IEnumerable<X509Certificate2>>(provider, "GetCertificateChain", X509ChainSortOrder.LeafFirst).ToList()));
+        }
+        Task.WaitAll(tasks.ToArray());
+
+        // Assert
+        Assert.That(callCount, Is.EqualTo(1), "GetCertChain should only be called once despite concurrent access");
+        // Verify all tasks got the same chain
+        List<X509Certificate2> firstResult = tasks[0].Result;
+        foreach (Task<List<X509Certificate2>> task in tasks)
+        {
+            Assert.That(task.Result, Is.EqualTo(firstResult));
+        }
+    }
+
+    /// <summary>
+    /// Tests that GetCertificateChain correctly handles self-signed certificates (root certificates)
+    /// where Issuer equals Subject.
+    /// </summary>
+    [Test]
+    public void GetCertificateChain_HandlesRootCertificateCorrectly()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        // Create a certificate (CreateCertificate creates self-signed certs)
+        X509Certificate2 rootCert = TestCertificateUtils.CreateCertificate(nameof(GetCertificateChain_HandlesRootCertificateCorrectly));
+        List<X509Certificate2> chain = new List<X509Certificate2> { rootCert };
+        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(chain);
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act - Request RootFirst for a self-signed cert
+        List<X509Certificate2> resultRootFirst = InvokeProtectedWithReflection<IEnumerable<X509Certificate2>>(provider, "GetCertificateChain", X509ChainSortOrder.RootFirst).ToList();
+        
+        // Reset the chain cache by creating a new provider
+        provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+        
+        // Act - Request LeafFirst for a self-signed cert
+        List<X509Certificate2> resultLeafFirst = InvokeProtectedWithReflection<IEnumerable<X509Certificate2>>(provider, "GetCertificateChain", X509ChainSortOrder.LeafFirst).ToList();
+
+        // Assert - For self-signed cert, order should be reversed between RootFirst and LeafFirst
+        Assert.That(resultRootFirst.Count, Is.EqualTo(1));
+        Assert.That(resultLeafFirst.Count, Is.EqualTo(1));
+        Assert.That(resultRootFirst[0], Is.EqualTo(chain[0]));
+        Assert.That(resultLeafFirst[0], Is.EqualTo(chain[0]));
+    }
+
+    /// <summary>
+    /// Tests that ProvideECDsaKey with publicKey=true still throws NotSupportedException.
+    /// </summary>
+    [Test]
+    public void ProvideECDsaKey_ThrowsNotSupportedException_WithPublicKeyParameterTrue()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act & Assert
+        Assert.That(
+            () => InvokeProtectedWithReflection<ECDsa?>(provider, "ProvideECDsaKey", true),
+            Throws.TypeOf<TargetInvocationException>().With.InnerException.TypeOf<NotSupportedException>().And.InnerException.Message.Contains("ECDsa is not supported"));
+    }
+
+    /// <summary>
+    /// Tests that ProvideRSAKey works correctly with publicKey parameter set to true.
+    /// </summary>
+    [Test]
+    public void ProvideRSAKey_WorksWithPublicKeyParameterTrue()
+    {
+        // Arrange
+        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
+
+        // Act
+        RSA result = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", true);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<RSAAzSign>());
+    }
+
+    /// <summary>
     /// Helper method to create a mock certificate chain.
     /// </summary>
     /// <param name="testCallerName">The name of the test method calling this helper.</param>

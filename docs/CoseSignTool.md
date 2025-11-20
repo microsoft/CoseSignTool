@@ -43,8 +43,11 @@ The **Sign** command signs a file or stream.
 
 You will need to specify:
 * The payload content to sign. This may be a file specified with the **/Payload** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
-* A certificate to sign with. You can either use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate or use the **/PfxCertificate** option to point to a .pfx certificate file and a **/Password** to open the certificate file with if it is locked. The certificate must include a private key.
-  * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **/Thumbprint** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
+* A signing key provider. You have three options:
+  1. **Certificate Provider Plugin** (recommended for cloud/HSM signing): Use the **/CertProvider** or **/cp** option to specify a certificate provider plugin (e.g., `azure-trusted-signing`). See [Certificate Providers](#certificate-providers) section below.
+  2. **Local PFX Certificate**: Use the **/PfxCertificate** option to point to a .pfx certificate file and a **/Password** to open the certificate file with if it is locked. The certificate must include a private key.
+     * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **/Thumbprint** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
+  3. **Local Certificate Store**: Use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate. The certificate must include a private key.
 
 You may also want to specify:
 * Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
@@ -218,6 +221,91 @@ CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /ep /sf s
 ```
 
 When using these commands with a PFX file containing multiple certificates, CoseSignTool will automatically embed the complete certificate chain in the COSE signature, ensuring proper validation without requiring additional root certificates to be specified during validation.
+
+## Certificate Providers
+
+CoseSignTool supports an extensible **Certificate Provider Plugin Architecture** that allows you to use different signing key sources beyond local PFX files and certificate stores. This enables integration with cloud-based signing services, hardware security modules (HSMs), and other certificate providers.
+
+### Available Certificate Providers
+
+#### Azure Trusted Signing
+Microsoft's cloud-based signing service providing managed certificates, FIPS 140-2 Level 3 HSM-backed signing, and seamless Azure integration.
+
+**Parameters:**
+* **/CertProvider**, **/cp** - Set to `azure-trusted-signing` to use Azure Trusted Signing
+* **/ats-endpoint**, **/e** - Azure Trusted Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
+* **/ats-account-name**, **/a** - Azure Trusted Signing account name
+* **/ats-cert-profile-name**, **/p** - Certificate profile name within the account
+
+**Authentication:**
+Azure Trusted Signing uses Azure DefaultAzureCredential, which automatically tries:
+1. Environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`)
+2. Managed Identity (for Azure VMs/containers)
+3. Azure CLI (`az login`)
+4. Azure PowerShell (`Connect-AzAccount`)
+5. Visual Studio / VS Code
+
+**Examples:**
+
+```bash
+# Basic usage with Azure CLI authentication
+az login
+CoseSignTool sign /p payload.txt /sf signature.cose \
+  /cp azure-trusted-signing \
+  /ats-endpoint https://contoso.codesigning.azure.net \
+  /ats-account-name ContosoAccount \
+  /ats-cert-profile-name ContosoProfile
+```
+
+```bash
+# CI/CD with service principal (environment variables)
+export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+
+CoseSignTool sign /p payload.txt /sf signature.cose \
+  /cp azure-trusted-signing \
+  /ats-endpoint https://contoso.codesigning.azure.net \
+  /ats-account-name ContosoAccount \
+  /ats-cert-profile-name ContosoProfile
+```
+
+```bash
+# With SCITT compliance and embedded payload
+CoseSignTool sign /p payload.txt /sf payload.csm /ep \
+  /cp azure-trusted-signing \
+  /ats-endpoint https://contoso.codesigning.azure.net \
+  /ats-account-name ContosoAccount \
+  /ats-cert-profile-name ContosoProfile \
+  /cwt-sub "software.release.v2.0" \
+  /cwt "exp:2025-12-31T23:59:59Z"
+```
+
+```bash
+# Batch signing with piped input
+cat payload.txt | CoseSignTool sign /po \
+  /cp azure-trusted-signing \
+  /ats-endpoint https://contoso.codesigning.azure.net \
+  /ats-account-name ContosoAccount \
+  /ats-cert-profile-name ContosoProfile > signature.cose
+```
+
+### Creating Custom Certificate Providers
+
+You can create your own certificate provider plugins to integrate with custom HSMs, cloud services, or other signing infrastructure. See [CertificateProviders.md](./CertificateProviders.md) for comprehensive documentation on:
+- Implementing the `ICertificateProviderPlugin` interface
+- Creating signing key provider implementations
+- Deploying plugins for automatic discovery
+- Security best practices
+
+### List Available Providers
+
+To see all available certificate providers and their parameters:
+```bash
+CoseSignTool sign --help
+```
+
+For detailed certificate provider documentation, see **[CertificateProviders.md](./CertificateProviders.md)**.
 
 ## Validate
 The **Validate** command validates that a COSE signature is properly constructed, matches the signed payload, and roots to a valid certificate chain.

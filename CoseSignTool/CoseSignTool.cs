@@ -14,7 +14,7 @@ public class CoseSignTool
 
     private static Verbs Verb = Verbs.Unknown;
     private static readonly Dictionary<string, IPluginCommand> PluginCommands = new();
-    private static readonly CertificateProviderPluginManager CertificateProviderManager = new();
+    internal static readonly CertificateProviderPluginManager CertificateProviderManager = new();
 
     #region public methods
     /// <summary>

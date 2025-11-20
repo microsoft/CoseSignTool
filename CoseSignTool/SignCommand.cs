@@ -984,7 +984,7 @@ public class SignCommand : CoseCommand
     }
 
     /// <inheritdoc/>
-    public static new string Usage => $"{BaseUsageString}{UsageString}";
+    public static new string Usage => $"{BaseUsageString}{UsageString}{GetCertificateProviderUsageString()}";
 
     /// <summary>
     /// Command line usage specific to the SignInternal command.
@@ -1002,7 +1002,12 @@ Options:
         Default value is [payload file].cose for detached signatures or [payload file].csm for embedded.
         Required if neither PayloadFile or PipeOutput are set.
 
-    A signing certificate as either:
+    A signing certificate from one of the following sources:
+
+        Certificate Provider Plugin (--cert-provider / -cp): Use a certificate provider plugin such as Azure
+            Trusted Signing or custom HSM providers. See Certificate Providers section below for available providers.
+
+    --OR--
 
         PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
 
@@ -1073,4 +1078,44 @@ Advanced Options:
 
         UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.
 ";
+
+    /// <summary>
+    /// Gets the certificate provider usage documentation from loaded plugins.
+    /// </summary>
+    /// <returns>A formatted string containing certificate provider information, or empty string if none available.</returns>
+    private static string GetCertificateProviderUsageString()
+    {
+        if (CoseSignTool.CertificateProviderManager.Providers.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("Certificate Providers:");
+        sb.AppendLine("    The following certificate provider plugins are available for signing:");
+        sb.AppendLine();
+
+        foreach (KeyValuePair<string, ICertificateProviderPlugin> kvp in CoseSignTool.CertificateProviderManager.Providers.OrderBy(x => x.Key))
+        {
+            sb.AppendLine($"    {kvp.Key,-30} {kvp.Value.Description}");
+            
+            // Show provider options if available
+            IDictionary<string, string> providerOptions = kvp.Value.GetProviderOptions();
+            if (providerOptions != null && providerOptions.Count > 0)
+            {
+                sb.AppendLine($"        Usage: CoseSignTool sign <payload> --cert-provider {kvp.Key} [options]");
+                sb.AppendLine("        Options:");
+                foreach (KeyValuePair<string, string> option in providerOptions.OrderBy(x => x.Key))
+                {
+                    sb.AppendLine($"            {option.Key}");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        sb.AppendLine("    For detailed documentation on certificate providers, see: docs/CertificateProviders.md");
+        
+        return sb.ToString();
+    }
 }

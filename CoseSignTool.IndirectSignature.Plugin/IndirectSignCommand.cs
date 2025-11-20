@@ -4,6 +4,7 @@
 namespace CoseSignTool.IndirectSignature.Plugin;
 
 using CoseSign1.Abstractions.Interfaces;
+using System.Text;
 
 /// <summary>
 /// Command to create an indirect COSE Sign1 signature.
@@ -45,6 +46,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     public override string Usage => GetBaseUsage("indirect-sign", "sign") + 
                                    GetCertificateUsage() + 
                                    GetAdditionalOptionalArguments() + 
+                                   GetCertificateProviderInfo() +
                                    GetExamples();
 
     /// <inheritdoc/>
@@ -461,23 +463,96 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     /// </summary>
     private static string GetCertificateUsage()
     {
-        return $"{Environment.NewLine}" +
-               $"Certificate options (one required for signing):{Environment.NewLine}" +
-               $"  --pfx           Path to a private key certificate file (.pfx) to sign with{Environment.NewLine}" +
-               $"  --password      The password for the .pfx file if it has one{Environment.NewLine}" +
-               $"  --thumbprint    The SHA1 thumbprint of a certificate in the local certificate store{Environment.NewLine}" +
-               $"  --store-name    The name of the local certificate store (default: My){Environment.NewLine}" +
-               $"  --store-location The location of the local certificate store (default: CurrentUser){Environment.NewLine}" +
-               $"{Environment.NewLine}" +
-               $"SCITT compliance options:{Environment.NewLine}" +
-               $"  --enable-scitt  Enable SCITT compliance with CWT claims (default: true){Environment.NewLine}" +
-               $"  --cwt-issuer    CWT issuer claim. Defaults to DID:x509 from certificate{Environment.NewLine}" +
-               $"  --cwt-subject   CWT subject claim. Defaults to 'unknown.intent'{Environment.NewLine}" +
-               $"  --cwt-audience  CWT audience claim (optional){Environment.NewLine}" +
-               $"  --cwt-claims    Custom CWT claims as label:value pairs. Can be specified multiple times.{Environment.NewLine}" +
-               $"                  Labels: integers or RFC 8392 names (iss, sub, aud, exp, nbf, iat, cti).{Environment.NewLine}" +
-               $"                  Timestamps accept date/time strings or Unix timestamps.{Environment.NewLine}" +
-               $"                  Examples: --cwt-claims \"exp:2024-12-31T23:59:59Z\" --cwt-claims \"100:custom-value\"{Environment.NewLine}";
+        StringBuilder usage = new StringBuilder();
+        usage.AppendLine();
+        usage.AppendLine("Certificate options (one source required for signing):");
+        usage.AppendLine();
+        
+        // Add certificate provider options if any are available
+        usage.AppendLine("  Certificate Provider Plugin (recommended for cloud/HSM signing):");
+        usage.AppendLine("    --cert-provider   Use a certificate provider plugin (e.g., azure-trusted-signing)");
+        usage.AppendLine("                      See Certificate Providers section below for available providers");
+        usage.AppendLine();
+        usage.AppendLine("  --OR--");
+        usage.AppendLine();
+        usage.AppendLine("  Local PFX Certificate:");
+        usage.AppendLine("    --pfx             Path to a private key certificate file (.pfx) to sign with");
+        usage.AppendLine("    --password        The password for the .pfx file if it has one");
+        usage.AppendLine();
+        usage.AppendLine("  --OR--");
+        usage.AppendLine();
+        usage.AppendLine("  Local Certificate Store:");
+        usage.AppendLine("    --thumbprint      The SHA1 thumbprint of a certificate in the local certificate store");
+        usage.AppendLine("    --store-name      The name of the local certificate store (default: My)");
+        usage.AppendLine("    --store-location  The location of the local certificate store (default: CurrentUser)");
+        usage.AppendLine();
+        usage.AppendLine("SCITT compliance options:");
+        usage.AppendLine("  --enable-scitt    Enable SCITT compliance with CWT claims (default: true)");
+        usage.AppendLine("  --cwt-issuer      CWT issuer claim. Defaults to DID:x509 from certificate");
+        usage.AppendLine("  --cwt-subject     CWT subject claim. Defaults to 'unknown.intent'");
+        usage.AppendLine("  --cwt-audience    CWT audience claim (optional)");
+        usage.AppendLine("  --cwt-claims      Custom CWT claims as label:value pairs. Can be specified multiple times.");
+        usage.AppendLine("                    Labels: integers or RFC 8392 names (iss, sub, aud, exp, nbf, iat, cti).");
+        usage.AppendLine("                    Timestamps accept date/time strings or Unix timestamps.");
+        usage.AppendLine("                    Examples: --cwt-claims \"exp:2024-12-31T23:59:59Z\" --cwt-claims \"100:custom-value\"");
+        
+        return usage.ToString();
+    }
+
+    /// <summary>
+    /// Gets certificate provider information for help display.
+    /// </summary>
+    private static string GetCertificateProviderInfo()
+    {
+        // Try to access the certificate provider manager via reflection
+        // since we're in a plugin and don't have direct static access
+        Type? coseSignToolType = Type.GetType("CoseSignTool.CoseSignTool, CoseSignTool");
+        if (coseSignToolType == null)
+        {
+            return string.Empty;
+        }
+
+        System.Reflection.FieldInfo? managerField = coseSignToolType.GetField(
+            "CertificateProviderManager",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+        
+        if (managerField == null)
+        {
+            return string.Empty;
+        }
+
+        object? managerObj = managerField.GetValue(null);
+        if (managerObj is not CertificateProviderPluginManager manager || manager.Providers.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("Certificate Providers:");
+        sb.AppendLine("  The following certificate provider plugins are available:");
+        sb.AppendLine();
+
+        foreach (KeyValuePair<string, ICertificateProviderPlugin> kvp in manager.Providers.OrderBy(x => x.Key))
+        {
+            sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
+            
+            IDictionary<string, string> providerOptions = kvp.Value.GetProviderOptions();
+            if (providerOptions != null && providerOptions.Count > 0)
+            {
+                sb.AppendLine($"    Usage: CoseSignTool indirect-sign --payload <file> --signature <file> --cert-provider {kvp.Key} [options]");
+                sb.AppendLine("    Options:");
+                foreach (KeyValuePair<string, string> option in providerOptions.OrderBy(x => x.Key))
+                {
+                    sb.AppendLine($"      {option.Key}");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        sb.AppendLine("  For detailed documentation, see: docs/CertificateProviders.md");
+        
+        return sb.ToString();
     }
 
     /// <inheritdoc/>

@@ -133,7 +133,7 @@ var customExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(
 );
 ```
 
-### [DidX509Utilities](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Extensions/DidX509Utilities.cs)
+### [DidX509Generator](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Extensions/DidX509Generator.cs)
 
 Utility class for generating **DID:x509 identifiers** from X.509 certificates following the [Microsoft DID:x509 specification](https://github.com/microsoft/did-x509/blob/main/specification.md).
 
@@ -158,50 +158,47 @@ did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography;
 
+// Create generator instance
+var generator = new DidX509Generator();
+
 // From certificate chain
 List<X509Certificate2> chain = GetCertificateChain();
-string did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
-    chain,
-    HashAlgorithmName.SHA256
-);
+string did = generator.GenerateFromChain(chain);
 
 // From individual certificates (leaf and root)
 var leafCert = chain[^1];  // Last certificate in chain
 var rootCert = chain[0];   // First certificate in chain
-string did = DidX509Utilities.GenerateDidX509Identifier(
-    leafCert,
-    rootCert,
-    HashAlgorithmName.SHA256
-);
+string did = generator.Generate(leafCert, rootCert);
 
 // Self-signed certificate (use same cert for both leaf and root)
 // NOTE: Self-signed certificates are for testing/development only.
 // Production SCITT ledgers require certificates from trusted CAs.
 var selfSignedCert = new X509Certificate2("self-signed.pfx", "password");
-string selfSignedDid = DidX509Utilities.GenerateDidX509Identifier(
-    selfSignedCert,
-    selfSignedCert,
-    HashAlgorithmName.SHA256
-);
+string selfSignedDid = generator.Generate(selfSignedCert, selfSignedCert);
+
+// Validate DID:X509 format
+bool isValid = DidX509Generator.IsValidDidX509(did);
+```
 
 // Using different hash algorithms
 string sha384Did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
-    chain,
-    HashAlgorithmName.SHA384
-);
 ```
 
 #### Methods:
 
-- **GenerateDidX509IdentifierFromChain(List<X509Certificate2> chain, HashAlgorithmName hashAlgorithm)**
-  - Generates DID from a certificate chain
-  - Supports single-certificate chains (self-signed, for testing only)
-  - Returns DID:x509 identifier string
-
-- **GenerateDidX509Identifier(X509Certificate2 leafCertificate, X509Certificate2 rootCertificate, HashAlgorithmName hashAlgorithm)**
+- **Generate(X509Certificate2 leafCertificate, X509Certificate2 rootCertificate)**
   - Generates DID from specific leaf and root certificates
   - For self-signed certificates (testing only): use same certificate for both parameters
   - Returns DID:x509 identifier string
+
+- **GenerateFromChain(IEnumerable<X509Certificate2> certificates)**
+  - Generates DID from a certificate chain (leaf first order)
+  - Supports single-certificate chains (self-signed, for testing only)
+  - Returns DID:x509 identifier string
+
+- **IsValidDidX509(string did)** (static)
+  - Validates DID:x509 identifier format
+  - Returns true if valid, false otherwise
 
 ### Complete SCITT Example:
 

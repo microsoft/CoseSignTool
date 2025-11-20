@@ -1,17 +1,25 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Headers.Tests;
+namespace CoseSign1.Certificates.Tests;
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Headers.Helpers;
+using CoseSign1.Certificates.Extensions;
 using FluentAssertions;
 using NUnit.Framework;
 
 [TestFixture]
 public class DidX509GeneratorTests
 {
+    private DidX509Generator _generator = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _generator = new DidX509Generator();
+    }
+
     [Test]
     public void Generate_WithValidCertificates_ShouldReturnValidDid()
     {
@@ -20,7 +28,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
+        string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
         did.Should().NotBeNullOrEmpty();
@@ -35,7 +43,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        Action act = () => DidX509Generator.Generate(null!, rootCert);
+        Action act = () => _generator.Generate(null!, rootCert);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -49,7 +57,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 leafCert = CreateTestCertificate("CN=Leaf");
 
         // Act
-        Action act = () => DidX509Generator.Generate(leafCert, null!);
+        Action act = () => _generator.Generate(leafCert, null!);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -67,7 +75,7 @@ public class DidX509GeneratorTests
         string expectedHashHex = Convert.ToHexString(expectedHash).ToLowerInvariant();
 
         // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
+        string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
         did.Should().Contain(expectedHashHex);
@@ -81,7 +89,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
+        string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
         // Spaces and commas should be percent-encoded
@@ -97,7 +105,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
+        string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
         did.Should().Contain("%40"); // @ symbol
@@ -114,7 +122,7 @@ public class DidX509GeneratorTests
         X509Certificate2[] chain = new[] { leafCert, intermediateCert, rootCert };
 
         // Act
-        string did = DidX509Generator.GenerateFromChain(chain);
+        string did = _generator.GenerateFromChain(chain);
 
         // Assert
         did.Should().NotBeNullOrEmpty();
@@ -125,7 +133,7 @@ public class DidX509GeneratorTests
     public void GenerateFromChain_WithNullChain_ShouldThrowArgumentNullException()
     {
         // Act
-        Action act = () => DidX509Generator.GenerateFromChain(null!);
+        Action act = () => _generator.GenerateFromChain(null!);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -139,7 +147,7 @@ public class DidX509GeneratorTests
         X509Certificate2[] emptyChain = Array.Empty<X509Certificate2>();
 
         // Act
-        Action act = () => DidX509Generator.GenerateFromChain(emptyChain);
+        Action act = () => _generator.GenerateFromChain(emptyChain);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -154,7 +162,7 @@ public class DidX509GeneratorTests
         X509Certificate2[] chain = new[] { selfSigned };
 
         // Act
-        string did = DidX509Generator.GenerateFromChain(chain);
+        string did = _generator.GenerateFromChain(chain);
 
         // Assert
         did.Should().NotBeNullOrEmpty();
@@ -170,7 +178,7 @@ public class DidX509GeneratorTests
         X509Certificate2[] chain = new[] { leafCert, rootCert };
 
         // Act
-        string did = DidX509Generator.GenerateFromChain(chain);
+        string did = _generator.GenerateFromChain(chain);
 
         // Assert - Should generate valid DID
         did.Should().StartWith("did:x509:0:sha256:");
@@ -286,8 +294,8 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did1 = DidX509Generator.Generate(leafCert, rootCert);
-        string did2 = DidX509Generator.Generate(leafCert, rootCert);
+        string did1 = _generator.Generate(leafCert, rootCert);
+        string did2 = _generator.Generate(leafCert, rootCert);
 
         // Assert
         did1.Should().Be(did2);
@@ -302,8 +310,8 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert2 = CreateTestCertificate("CN=Root2");
 
         // Act
-        string did1 = DidX509Generator.Generate(leafCert, rootCert1);
-        string did2 = DidX509Generator.Generate(leafCert, rootCert2);
+        string did1 = _generator.Generate(leafCert, rootCert1);
+        string did2 = _generator.Generate(leafCert, rootCert2);
 
         // Assert
         did1.Should().NotBe(did2);
@@ -318,8 +326,8 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did1 = DidX509Generator.Generate(leafCert1, rootCert);
-        string did2 = DidX509Generator.Generate(leafCert2, rootCert);
+        string did1 = _generator.Generate(leafCert1, rootCert);
+        string did2 = _generator.Generate(leafCert2, rootCert);
 
         // Assert
         did1.Should().NotBe(did2);
@@ -333,7 +341,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        Action act = () => DidX509Generator.Generate(leafCert, rootCert);
+        Action act = () => _generator.Generate(leafCert, rootCert);
 
         // Assert
         act.Should().NotThrow();
@@ -347,7 +355,7 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
 
         // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
+        string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
         // These characters should appear unencoded
@@ -363,26 +371,6 @@ public class DidX509GeneratorTests
             rsa,
             HashAlgorithmName.SHA256,
             RSASignaturePadding.Pkcs1);
-
-        return request.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(1));
-    }
-
-    private X509Certificate2 CreateTestCertificateWithEku(string subject, params string[] ekuOids)
-    {
-        using RSA rsa = RSA.Create(2048);
-        CertificateRequest request = new CertificateRequest(
-            subject,
-            rsa,
-            HashAlgorithmName.SHA256,
-            RSASignaturePadding.Pkcs1);
-
-        // Add EKU extension
-        OidCollection oids = new OidCollection();
-        foreach (string oid in ekuOids)
-        {
-            oids.Add(new Oid(oid));
-        }
-        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(oids, critical: false));
 
         return request.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(1));
     }
@@ -405,168 +393,5 @@ public class DidX509GeneratorTests
                 critical: true));
 
         return request.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(1));
-    }
-
-    [Test]
-    public void Generate_WithStandardEkuOnly_ShouldUseSubjectFormat()
-    {
-        // Arrange - Certificate with only standard EKU (Code Signing)
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku("CN=Leaf", "1.3.6.1.5.5.7.3.3");
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert
-        did.Should().Contain("::subject:");
-        did.Should().NotContain("::eku:");
-    }
-
-    [Test]
-    public void Generate_WithNonStandardEku_ShouldUseEkuFormat()
-    {
-        // Arrange - Certificate with non-standard EKU
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku("CN=Leaf", "1.2.3.4.5");
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert
-        did.Should().Contain("::eku:");
-        did.Should().NotContain("::subject:");
-        did.Should().Contain("1.2.3.4.5");
-    }
-
-    [Test]
-    public void Generate_WithMixedEkus_ShouldUseEkuFormat()
-    {
-        // Arrange - Certificate with both standard and non-standard EKUs
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku(
-            "CN=Leaf",
-            "1.3.6.1.5.5.7.3.3",  // Code Signing (standard)
-            "1.2.3.4.5");         // Non-standard
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert
-        did.Should().Contain("::eku:");
-        did.Should().NotContain("::subject:");
-        did.Should().Contain("1.2.3.4.5");
-    }
-
-    [Test]
-    public void Generate_WithMultipleNonStandardEkus_ShouldUseLargestOid()
-    {
-        // Arrange - Certificate with multiple non-standard EKUs
-        // 1.9.8.7.6 is numerically larger than 1.2.3.4.5
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku(
-            "CN=Leaf",
-            "1.2.3.4.5",     // Smaller OID
-            "1.9.8.7.6");    // Largest OID (should be selected)
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert
-        did.Should().Contain("::eku:");
-        did.Should().Contain("1.9.8.7.6");
-        did.Should().NotContain("1.2.3.4.5");
-    }
-
-    [Test]
-    public void Generate_WithMultipleNonStandardEkus_ShouldSortByDepthThenLastArc()
-    {
-        // Arrange - Test sorting by: 1. depth (descending), 2. last arc (numerically descending)
-        // Expected order:
-        // 1. 1.1.1.1.1.1.1 (depth 6, last arc 1) - WINS due to highest depth
-        // 2. 1.11.99.100 (depth 3, last arc 100)
-        // 3. 2.1 (depth 1, last arc 1)
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku(
-            "CN=Leaf",
-            "1.3.6.1.5.5.7.3.3",   // Standard (ignored)
-            "2.1",                 // Depth 1 (lowest)
-            "1.11.99.100",         // Depth 3
-            "1.1.1.1.1.1.1");      // Depth 6 (highest) - should be selected
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert - Should use "1.1.1.1.1.1.1" because depth 6 > depth 3 > depth 1
-        did.Should().Contain("::eku:");
-        did.Should().Contain("1.1.1.1.1.1.1");
-        did.Should().NotContain("2.1");
-        did.Should().NotContain("1.11.99.100");
-    }
-
-    [Test]
-    public void Generate_WithSameDepthEkus_ShouldSortByLastArcDescending()
-    {
-        // Arrange - All OIDs have same depth, test last arc sorting (numerically descending)
-        // Expected order (all depth 3):
-        // 1. 1.2.3.999 (last arc 999) - WINS
-        // 2. 1.2.3.500 (last arc 500)
-        // 3. 1.2.3.100 (last arc 100)
-        using X509Certificate2 leafCert = CreateTestCertificateWithEku(
-            "CN=Leaf",
-            "1.3.6.1.5.5.7.3.3",   // Standard (ignored)
-            "1.2.3.100",           // Last arc 100
-            "1.2.3.500",           // Last arc 500
-            "1.2.3.999");          // Last arc 999 (highest) - should be selected
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert - Should use "1.2.3.999" because 999 > 500 > 100
-        did.Should().Contain("::eku:");
-        did.Should().Contain("1.2.3.999");
-        did.Should().NotContain("1.2.3.100");
-        did.Should().NotContain("1.2.3.500");
-    }
-
-    [Test]
-    public void Generate_WithNoEkuExtension_ShouldUseSubjectFormat()
-    {
-        // Arrange - Certificate without EKU extension
-        using X509Certificate2 leafCert = CreateTestCertificate("CN=Leaf");
-        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
-
-        // Act
-        string did = DidX509Generator.Generate(leafCert, rootCert);
-
-        // Assert
-        did.Should().Contain("::subject:");
-        did.Should().NotContain("::eku:");
-    }
-
-    [Test]
-    public void IsValidDidX509_WithEkuFormat_ShouldReturnTrue()
-    {
-        // Arrange
-        string validDid = "did:x509:0:sha256:" + new string('a', 64) + "::eku:1.2.3.4.5";
-
-        // Act
-        bool result = DidX509Generator.IsValidDidX509(validDid);
-
-        // Assert
-        result.Should().BeTrue();
-    }
-
-    [Test]
-    public void IsValidDidX509_WithSubjectFormat_ShouldReturnTrue()
-    {
-        // Arrange
-        string validDid = "did:x509:0:sha256:" + new string('a', 64) + "::subject:CN=Test";
-
-        // Act
-        bool result = DidX509Generator.IsValidDidX509(validDid);
-
-        // Assert
-        result.Should().BeTrue();
     }
 }

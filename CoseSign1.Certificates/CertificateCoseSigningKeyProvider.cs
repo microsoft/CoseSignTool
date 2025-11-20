@@ -3,11 +3,15 @@
 
 namespace CoseSign1.Certificates;
 
+using CoseSign1.Certificates.Extensions;
+
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
 public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider
 {
+    private static readonly DidX509Generator DefaultDidGenerator = new();
+
     /// <inheritdoc/>
     public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
 
@@ -36,7 +40,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
                 IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
                 
                 // Generate DID:x509 identifier from the chain
-                return DidX509Utilities.GenerateDidX509IdentifierFromChain(certChain, HashAlgorithm);
+                return DefaultDidGenerator.GenerateFromChain(certChain);
             }
             catch
             {

@@ -527,8 +527,34 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             return string.Empty;
         }
 
-        // Use the comprehensive documentation from CertificateProviderPluginManager
-        return Environment.NewLine + manager.GetProvidersUsageDocumentation();
+        // Build a simple provider list with reference to detailed help
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("  The following certificate provider plugins are available:");
+        sb.AppendLine();
+        
+        foreach (var kvp in manager.Providers)
+        {
+            sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
+            
+            // Show required parameters if available
+            var requiredKeys = kvp.Value.GetRequiredConfigurationKeys();
+            if (requiredKeys.Any())
+            {
+                sb.AppendLine($"    Usage: CoseSignTool indirect-sign --payload <file> --signature <file> --cert-provider {kvp.Key} [options]");
+                sb.AppendLine($"    Options:");
+                foreach (var key in requiredKeys)
+                {
+                    sb.AppendLine($"      --{key}");
+                }
+            }
+            sb.AppendLine();
+        }
+        
+        sb.AppendLine("  For detailed documentation, use: CoseSignTool help <provider-name>");
+        sb.AppendLine();
+        
+        return sb.ToString();
     }
 
     /// <inheritdoc/>

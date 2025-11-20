@@ -1090,7 +1090,27 @@ Advanced Options:
             return string.Empty;
         }
 
-        // Use the comprehensive documentation from CertificateProviderPluginManager
-        return Environment.NewLine + CoseSignTool.CertificateProviderManager.GetProvidersUsageDocumentation();
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("Certificate Providers:");
+        sb.AppendLine("======================");
+        sb.AppendLine();
+        sb.AppendLine("Available certificate provider plugins:");
+        
+        foreach (var kvp in CoseSignTool.CertificateProviderManager.Providers)
+        {
+            sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
+        }
+        
+        sb.AppendLine();
+        sb.AppendLine("To use a certificate provider, specify the --cert-provider option:");
+        sb.AppendLine("  --cert-provider <provider-name>");
+        sb.AppendLine("  -cp <provider-name>");
+        sb.AppendLine();
+        sb.AppendLine("For detailed information about a specific provider, use:");
+        sb.AppendLine("  CoseSignTool help <provider-name>");
+        sb.AppendLine();
+        
+        return sb.ToString();
     }
 }

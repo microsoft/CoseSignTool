@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors>CA1014</WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>CoseSignTool.AzureTrustedSigning.Plugin</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider" />
+    <PackageReference Include="Azure.Identity" />
+  </ItemGroup>
+
+</Project>

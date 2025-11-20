@@ -538,14 +538,14 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
             
             // Show required parameters if available
-            var requiredKeys = kvp.Value.GetRequiredConfigurationKeys();
-            if (requiredKeys.Any())
+            var providerOptions = kvp.Value.GetProviderOptions();
+            if (providerOptions.Any())
             {
                 sb.AppendLine($"    Usage: CoseSignTool indirect-sign --payload <file> --signature <file> --cert-provider {kvp.Key} [options]");
                 sb.AppendLine($"    Options:");
-                foreach (var key in requiredKeys)
+                foreach (var optionKey in providerOptions.Keys.Where(k => k.StartsWith("--")).Distinct())
                 {
-                    sb.AppendLine($"      --{key}");
+                    sb.AppendLine($"      {optionKey}");
                 }
             }
             sb.AppendLine();

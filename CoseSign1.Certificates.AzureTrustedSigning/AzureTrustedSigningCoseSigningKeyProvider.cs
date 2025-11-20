@@ -19,6 +19,7 @@ using System.Linq;
 public class AzureTrustedSigningCoseSigningKeyProvider : CertificateCoseSigningKeyProvider
 {
     private readonly AzSignContext SignContext;
+    private static readonly AzureTrustedSigningDidX509Generator AzureDidGenerator = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureTrustedSigningCoseSigningKeyProvider"/> class.
@@ -28,6 +29,35 @@ public class AzureTrustedSigningCoseSigningKeyProvider : CertificateCoseSigningK
     public AzureTrustedSigningCoseSigningKeyProvider(AzSignContext signContext)
     {
         SignContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
+    }
+
+    /// <summary>
+    /// Gets the issuer value for CWT Claims, using Azure Trusted Signing specific DID:X509:0 format.
+    /// If non-standard EKUs are present, returns DID:X509:0 with EKU suffix, otherwise uses parent class behavior.
+    /// </summary>
+    /// <remarks>
+    /// For Azure Trusted Signing certificates with non-standard EKUs, the format is:
+    /// did:x509:0:sha256:{rootHash}::eku:{deepestGreatestEku}
+    /// Otherwise, delegates to the base class implementation.
+    /// </remarks>
+    public override string? Issuer
+    {
+        get
+        {
+            try
+            {
+                // Get the certificate chain in leaf-first order
+                IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+                
+                // Generate DID:X509:0 identifier from the chain using Azure-specific generator
+                return AzureDidGenerator.GenerateFromChain(certChain);
+            }
+            catch
+            {
+                // If chain building or DID generation fails, fall back to base implementation
+                return base.Issuer;
+            }
+        }
     }
 
     private readonly object CertificateChainLock = new object();

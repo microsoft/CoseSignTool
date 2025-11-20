@@ -141,6 +141,7 @@ Utility class for generating **DID:x509 identifiers** from X.509 certificates fo
 - **Standards-Compliant**: Follows Microsoft DID:x509 specification
 - **Multiple Hash Algorithms**: Supports SHA-256, SHA-384, and SHA-512
 - **Automatic Encoding**: Properly encodes subject fields per RFC 3986
+- **Extensible**: Can be inherited to implement custom DID generation behaviors (e.g., Azure Trusted Signing's EKU-based format)
 
 #### DID:x509 Format:
 ```
@@ -151,6 +152,8 @@ Example:
 ```
 did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:O:Example%20Corp
 ```
+
+> **Note**: Azure Trusted Signing uses an enhanced format that includes EKU information for non-standard certificates. See [AzureTrustedSigningDidX509Generator](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningDidX509Generator.cs) and [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md#scitt-compliance-and-didx5090-support) for details.
 
 #### Usage:
 

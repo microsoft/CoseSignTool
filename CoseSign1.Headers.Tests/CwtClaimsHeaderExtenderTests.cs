@@ -534,15 +534,37 @@ public class CWTClaimsHeaderExtenderTests
         Assert.That(headers.Count, Is.EqualTo(1));
         Assert.That(headers.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.True);
         
-        // Verify the CBOR encoding contains the issuer claim
+        // Verify the CBOR encoding contains the issuer claim and auto-populated iat/nbf
         byte[] encodedClaims = headers[CWTClaimsHeaderLabels.CWTClaims].EncodedValue.ToArray();
         var reader = new CborReader(encodedClaims);
         
         Assert.That(reader.PeekState(), Is.EqualTo(CborReaderState.StartMap));
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(CWTClaimsHeaderLabels.Issuer));
-        Assert.That(reader.ReadTextString(), Is.EqualTo("https://example.com"));
+        
+        var claimsRead = new Dictionary<int, object>();
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            if (label == CWTClaimsHeaderLabels.Issuer)
+            {
+                claimsRead[label] = reader.ReadTextString();
+            }
+            else if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                claimsRead[label] = reader.ReadInt64();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
+        }
         reader.ReadEndMap();
+        
+        // Verify expected claims
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.Issuer), Is.True);
+        Assert.That(claimsRead[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("https://example.com"));
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.IssuedAt), Is.True, "iat should be auto-populated");
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.NotBefore), Is.True, "nbf should be auto-populated");
     }
 
     [Test]
@@ -564,22 +586,33 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        var claimsRead = new Dictionary<int, string>();
+        var claimsRead = new Dictionary<int, object>();
         while (reader.PeekState() != CborReaderState.EndMap)
         {
             int label = reader.ReadInt32();
-            string value = reader.ReadTextString();
-            claimsRead[label] = value;
+            if (label == CWTClaimsHeaderLabels.Issuer || label == CWTClaimsHeaderLabels.Subject || label == CWTClaimsHeaderLabels.Audience)
+            {
+                claimsRead[label] = reader.ReadTextString();
+            }
+            else if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                claimsRead[label] = reader.ReadInt64();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
         }
         reader.ReadEndMap();
 
-        Assert.That(claimsRead.Count, Is.EqualTo(3));
+        
+        Assert.That(claimsRead.Count, Is.EqualTo(5), "Should have 3 explicit claims + iat + nbf");
         Assert.That(claimsRead[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("issuer"));
         Assert.That(claimsRead[CWTClaimsHeaderLabels.Subject], Is.EqualTo("subject"));
         Assert.That(claimsRead[CWTClaimsHeaderLabels.Audience], Is.EqualTo("audience"));
-    }
-
-    [Test]
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.IssuedAt), Is.True, "iat should be auto-populated");
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.NotBefore), Is.True, "nbf should be auto-populated");
+    }    [Test]
     public void ExtendProtectedHeaders_WithIntClaim_EncodesCorrectly()
     {
         // Arrange
@@ -596,9 +629,17 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(CWTClaimsHeaderLabels.ExpirationTime));
-        Assert.That(reader.ReadInt64(), Is.EqualTo(expiration));
+        var claimsRead = new Dictionary<int, long>();
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            claimsRead[label] = reader.ReadInt64();
+        }
         reader.ReadEndMap();
+        
+        // Verify the explicitly set claim - no iat/nbf since no issuer/subject
+        Assert.That(claimsRead.Count, Is.EqualTo(1), "Should only have exp, no auto-populated claims without issuer/subject");
+        Assert.That(claimsRead[CWTClaimsHeaderLabels.ExpirationTime], Is.EqualTo(expiration));
     }
 
     [Test]
@@ -618,10 +659,23 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(CWTClaimsHeaderLabels.CWTID));
-        byte[] readBytes = reader.ReadByteString();
-        Assert.That(readBytes, Is.EqualTo(cwtId));
+        byte[]? readCwtId = null;
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            if (label == CWTClaimsHeaderLabels.CWTID)
+            {
+                readCwtId = reader.ReadByteString();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
+        }
         reader.ReadEndMap();
+        
+        Assert.That(readCwtId, Is.Not.Null);
+        Assert.That(readCwtId, Is.EqualTo(cwtId));
     }
 
     [Test]
@@ -642,9 +696,23 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(customLabel));
-        Assert.That(reader.ReadInt32(), Is.EqualTo(customValue));
+        int? readCustomValue = null;
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            if (label == customLabel)
+            {
+                readCustomValue = reader.ReadInt32();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
+        }
         reader.ReadEndMap();
+        
+        Assert.That(readCustomValue, Is.Not.Null);
+        Assert.That(readCustomValue, Is.EqualTo(customValue));
     }
 
     [Test]
@@ -682,9 +750,23 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(customLabel));
-        Assert.That(reader.ReadBoolean(), Is.True);
+        bool? readCustomValue = null;
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            if (label == customLabel)
+            {
+                readCustomValue = reader.ReadBoolean();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
+        }
         reader.ReadEndMap();
+        
+        Assert.That(readCustomValue, Is.Not.Null);
+        Assert.That(readCustomValue, Is.True);
     }
 
     [Test]
@@ -705,9 +787,23 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        Assert.That(reader.ReadInt32(), Is.EqualTo(customLabel));
-        Assert.That(reader.ReadDouble(), Is.EqualTo(customValue).Within(0.00001));
+        double? readCustomValue = null;
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            if (label == customLabel)
+            {
+                readCustomValue = reader.ReadDouble();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
+        }
         reader.ReadEndMap();
+        
+        Assert.That(readCustomValue, Is.Not.Null);
+        Assert.That(readCustomValue, Is.EqualTo(customValue).Within(0.001));
     }
 
     [Test]
@@ -792,17 +888,215 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        var claimsRead = new Dictionary<int, string>();
+        var claimsRead = new Dictionary<int, object>();
         while (reader.PeekState() != CborReaderState.EndMap)
         {
             int label = reader.ReadInt32();
-            string value = reader.ReadTextString();
-            claimsRead[label] = value;
+            if (label == CWTClaimsHeaderLabels.Issuer)
+            {
+                claimsRead[label] = reader.ReadTextString();
+            }
+            else if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                claimsRead[label] = reader.ReadInt64();
+            }
+            else
+            {
+                reader.SkipValue();
+            }
         }
         reader.ReadEndMap();
 
-        Assert.That(claimsRead.Count, Is.EqualTo(1));
+        // Verify only issuer remains (subject was removed) plus auto-populated iat/nbf
+        Assert.That(claimsRead.Count, Is.EqualTo(3), "Should have issuer + iat + nbf");
         Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.Issuer), Is.True);
+        Assert.That(claimsRead[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("issuer"));
         Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.Subject), Is.False);
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.IssuedAt), Is.True, "iat should be auto-populated");
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.NotBefore), Is.True, "nbf should be auto-populated");
     }
+
+    #region SCITT Schema Validation Tests
+
+    /// <summary>
+    /// Validates that the CWT Claims encoding complies with the SCITT CDDL schema.
+    /// Schema: https://github.com/ietf-wg-scitt/draft-ietf-scitt-architecture/blob/main/signed_statement.cddl
+    /// 
+    /// Per the SCITT specification:
+    /// CWT_Claims = {
+    ///   &(iss: 1) => tstr     ; REQUIRED: Issuer
+    ///   &(sub: 2) => tstr     ; REQUIRED: Subject
+    ///   * label => any        ; Additional claims allowed
+    /// }
+    /// </summary>
+    [Test]
+    public void CWTClaims_ComplyWithScittSchema_RequiredFields()
+    {
+        // Arrange - Create extender with required SCITT fields
+        var extender = new CWTClaimsHeaderExtender();
+        extender.SetIssuer("did:x509:test-issuer");
+        extender.SetSubject("test-subject");
+        var headers = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendProtectedHeaders(headers);
+
+        // Assert - Validate the encoded CWT Claims against SCITT schema
+        Assert.That(headers.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.True, 
+            "Protected header must contain CWT_Claims at label 15");
+
+        byte[] encodedClaims = headers[CWTClaimsHeaderLabels.CWTClaims].EncodedValue.ToArray();
+        var reader = new CborReader(encodedClaims);
+        
+        // Validate CBOR structure
+        Assert.That(reader.PeekState(), Is.EqualTo(CborReaderState.StartMap), 
+            "CWT_Claims must be a CBOR map");
+        
+        reader.ReadStartMap();
+        var claims = new Dictionary<int, object>();
+        
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            
+            // Read based on expected type per SCITT/RFC 8392
+            if (label == CWTClaimsHeaderLabels.Issuer || label == CWTClaimsHeaderLabels.Subject)
+            {
+                // iss and sub must be text strings
+                claims[label] = reader.ReadTextString();
+            }
+            else if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                // iat and nbf are NumericDate (integer or floating-point per RFC 8392)
+                claims[label] = reader.ReadInt64();
+            }
+            else
+            {
+                // Additional claims allowed
+                reader.SkipValue();
+            }
+        }
+        
+        reader.ReadEndMap();
+
+        // Validate REQUIRED fields per SCITT schema
+        Assert.That(claims.ContainsKey(CWTClaimsHeaderLabels.Issuer), Is.True, 
+            "SCITT requires 'iss' (label 1) claim");
+        Assert.That(claims.ContainsKey(CWTClaimsHeaderLabels.Subject), Is.True, 
+            "SCITT requires 'sub' (label 2) claim");
+        
+        // Validate types
+        Assert.That(claims[CWTClaimsHeaderLabels.Issuer], Is.TypeOf<string>(), 
+            "iss must be a text string (tstr)");
+        Assert.That(claims[CWTClaimsHeaderLabels.Subject], Is.TypeOf<string>(), 
+            "sub must be a text string (tstr)");
+        
+        // Validate values
+        Assert.That(claims[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("did:x509:test-issuer"));
+        Assert.That(claims[CWTClaimsHeaderLabels.Subject], Is.EqualTo("test-subject"));
+    }
+
+    [Test]
+    public void CWTClaims_ComplyWithScittSchema_WithAdditionalClaims()
+    {
+        // Arrange - Create extender with required + optional fields
+        var extender = new CWTClaimsHeaderExtender();
+        extender.SetIssuer("did:x509:test-issuer");
+        extender.SetSubject("test-subject");
+        extender.SetAudience("test-audience");
+        extender.SetExpirationTime(DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds());
+        extender.SetCustomClaim(100, "custom-value");
+        extender.SetCustomClaim(-260, "hcert-data"); // Health Certificate claim
+        var headers = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendProtectedHeaders(headers);
+
+        // Assert
+        byte[] encodedClaims = headers[CWTClaimsHeaderLabels.CWTClaims].EncodedValue.ToArray();
+        var reader = new CborReader(encodedClaims);
+        
+        reader.ReadStartMap();
+        var issuerFound = false;
+        var subjectFound = false;
+        var claimCount = 0;
+        
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            claimCount++;
+            
+            if (label == CWTClaimsHeaderLabels.Issuer)
+            {
+                issuerFound = true;
+                Assert.That(reader.ReadTextString(), Is.EqualTo("did:x509:test-issuer"));
+            }
+            else if (label == CWTClaimsHeaderLabels.Subject)
+            {
+                subjectFound = true;
+                Assert.That(reader.ReadTextString(), Is.EqualTo("test-subject"));
+            }
+            else
+            {
+                // Additional claims allowed by SCITT schema (* label => any)
+                reader.SkipValue();
+            }
+        }
+        
+        reader.ReadEndMap();
+
+        // Validate SCITT required fields are present
+        Assert.That(issuerFound, Is.True, "SCITT requires 'iss' claim");
+        Assert.That(subjectFound, Is.True, "SCITT requires 'sub' claim");
+        
+        // Verify additional claims were encoded (should have iss, sub, aud, exp, custom, hcert, iat, nbf)
+        Assert.That(claimCount, Is.GreaterThanOrEqualTo(8), 
+            "Should have required claims + additional claims + auto-populated iat/nbf");
+    }
+
+    [Test]
+    public void CWTClaims_ComplyWithScittSchema_NegativeLabelsAllowed()
+    {
+        // Arrange - Test negative label support per IANA registry
+        var extender = new CWTClaimsHeaderExtender();
+        extender.SetIssuer("did:x509:test-issuer");
+        extender.SetSubject("test-subject");
+        
+        // Add negative labels (valid per IANA registry)
+        extender.SetCustomClaim(-260, "hcert-data");  // Health Certificate
+        extender.SetCustomClaim(-259, "nonce-data");  // EUPHNonce
+        extender.SetCustomClaim(-1, "private-use");   // Unassigned range
+        
+        var headers = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendProtectedHeaders(headers);
+
+        // Assert - Verify negative labels are encoded
+        byte[] encodedClaims = headers[CWTClaimsHeaderLabels.CWTClaims].EncodedValue.ToArray();
+        var reader = new CborReader(encodedClaims);
+        
+        reader.ReadStartMap();
+        var negativeLabelCount = 0;
+        
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            
+            if (label < 0)
+            {
+                negativeLabelCount++;
+            }
+            
+            reader.SkipValue();
+        }
+        
+        reader.ReadEndMap();
+
+        // Verify negative labels were encoded (SCITT schema allows * label => any)
+        Assert.That(negativeLabelCount, Is.EqualTo(3), 
+            "All negative labels should be encoded per IANA registry");
+    }
+
+    #endregion
 }

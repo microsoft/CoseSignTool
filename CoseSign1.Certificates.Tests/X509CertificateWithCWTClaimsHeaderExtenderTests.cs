@@ -254,17 +254,28 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
         var reader = new System.Formats.Cbor.CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        var claims = new Dictionary<int, string>();
+        var stringClaims = new Dictionary<int, string>();
+        var intClaims = new Dictionary<int, long>();
         while (reader.PeekState() != System.Formats.Cbor.CborReaderState.EndMap)
         {
             int label = reader.ReadInt32();
-            string value = reader.ReadTextString();
-            claims[label] = value;
+            // iat and nbf are auto-populated as int64
+            if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                intClaims[label] = reader.ReadInt64();
+            }
+            else
+            {
+                stringClaims[label] = reader.ReadTextString();
+            }
         }
         reader.ReadEndMap();
 
-        Assert.That(claims[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("custom-issuer"));
-        Assert.That(claims[CWTClaimsHeaderLabels.Subject], Is.EqualTo("custom-subject"));
+        Assert.That(stringClaims[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("custom-issuer"));
+        Assert.That(stringClaims[CWTClaimsHeaderLabels.Subject], Is.EqualTo("custom-subject"));
+        // Verify iat and nbf were auto-populated
+        Assert.That(intClaims.ContainsKey(CWTClaimsHeaderLabels.IssuedAt), Is.True);
+        Assert.That(intClaims.ContainsKey(CWTClaimsHeaderLabels.NotBefore), Is.True);
 
         // Cleanup
         DisposeCertificates(testChain);
@@ -310,17 +321,28 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
         var reader = new System.Formats.Cbor.CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        var claimsFound = new Dictionary<int, string>();
+        var stringClaims = new Dictionary<int, string>();
+        var intClaims = new Dictionary<int, long>();
         while (reader.PeekState() != System.Formats.Cbor.CborReaderState.EndMap)
         {
             int label = reader.ReadInt32();
-            string value = reader.ReadTextString();
-            claimsFound[label] = value;
+            // iat and nbf are auto-populated as int64, but we only set audience (no auto-population without issuer/subject)
+            if (label == CWTClaimsHeaderLabels.IssuedAt || label == CWTClaimsHeaderLabels.NotBefore)
+            {
+                intClaims[label] = reader.ReadInt64();
+            }
+            else
+            {
+                stringClaims[label] = reader.ReadTextString();
+            }
         }
         reader.ReadEndMap();
 
-        Assert.That(claimsFound.ContainsKey(CWTClaimsHeaderLabels.Audience), Is.True);
-        Assert.That(claimsFound[CWTClaimsHeaderLabels.Audience], Is.EqualTo("test-audience"));
+        Assert.That(stringClaims.ContainsKey(CWTClaimsHeaderLabels.Audience), Is.True);
+        Assert.That(stringClaims[CWTClaimsHeaderLabels.Audience], Is.EqualTo("test-audience"));
+        // Verify iat and nbf WERE auto-populated (default extender has issuer and subject)
+        Assert.That(intClaims.ContainsKey(CWTClaimsHeaderLabels.IssuedAt), Is.True);
+        Assert.That(intClaims.ContainsKey(CWTClaimsHeaderLabels.NotBefore), Is.True);
 
         // Cleanup
         DisposeCertificates(testChain);

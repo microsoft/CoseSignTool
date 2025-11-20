@@ -7,18 +7,24 @@ namespace CoseSign1.Headers;
 
 /// <summary>
 /// A strongly-typed implementation of <see cref="ICoseHeaderExtender"/> for managing CWT (CBOR Web Token) Claims
-/// in COSE Sign1 messages. This class enables customization of CWT claims in the protected header (label 13)
+/// in COSE Sign1 messages. This class enables customization of CWT claims in the protected header (label 15)
 /// as required by SCITT (Supply Chain Integrity, Transparency, and Trust) specifications.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This extender adds CWT Claims to the protected headers as a CBOR map under label 13.
+/// This extender adds CWT Claims to the protected headers as a CBOR map under label 15 (per RFC 9597).
 /// CWT Claims are defined in RFC 8392 and include standard claims such as issuer (iss),
-/// subject (sub), audience (aud), and others.
+/// subject (sub), audience (aud), and timestamp claims (iat, nbf, exp).
 /// </para>
 /// <para>
 /// For SCITT compliance, the issuer and subject claims are typically required at minimum.
+/// The iat (Issued At) and nbf (Not Before) claims are automatically populated with the current
+/// Unix timestamp when issuer or subject is set, unless explicitly provided.
 /// See: https://ietf-wg-scitt.github.io/draft-ietf-scitt-architecture/
+/// </para>
+/// <para>
+/// This class supports all claim types including negative labels per the IANA CWT Claims Registry.
+/// Negative labels -256 to -1 are unassigned, -65536 to -257 require specification, and < -65536 are for private use.
 /// </para>
 /// <para>
 /// This class is designed to be chainable with other header extenders using <see cref="ChainedCoseHeaderExtender"/>.
@@ -279,6 +285,25 @@ public class CWTClaimsHeaderExtender : ICoseHeaderExtender
         {
             Trace.TraceWarning("CWTClaimsHeaderExtender: No claims to add to protected headers.");
             return protectedHeaders;
+        }
+
+        // Auto-populate iat (issued at) and nbf (not before) claims if not already present and if issuer or subject are set
+        // This ensures these claims are only added when CWT claims are being actively used
+        if (Claims.ContainsKey(CWTClaimsHeaderLabels.Issuer) || Claims.ContainsKey(CWTClaimsHeaderLabels.Subject))
+        {
+            long currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            
+            if (!Claims.ContainsKey(CWTClaimsHeaderLabels.IssuedAt))
+            {
+                Claims[CWTClaimsHeaderLabels.IssuedAt] = currentTimestamp;
+                Trace.TraceInformation($"CWTClaimsHeaderExtender: Auto-populated iat (issued at) claim with current timestamp: {currentTimestamp}");
+            }
+            
+            if (!Claims.ContainsKey(CWTClaimsHeaderLabels.NotBefore))
+            {
+                Claims[CWTClaimsHeaderLabels.NotBefore] = currentTimestamp;
+                Trace.TraceInformation($"CWTClaimsHeaderExtender: Auto-populated nbf (not before) claim with current timestamp: {currentTimestamp}");
+            }
         }
 
         // Encode the claims as a CBOR map

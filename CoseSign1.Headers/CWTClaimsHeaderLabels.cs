@@ -5,24 +5,27 @@ namespace CoseSign1.Headers;
 
 /// <summary>
 /// <see cref="CoseHeaderLabel"/> objects representing CBOR Web Token (CWT) Claims as defined in RFC 8392.
-/// These labels are used in the CWT Claims Set (label 13) according to the IANA COSE Header Parameters registry.
+/// These labels are used in the CWT Claims Set (label 15) according to RFC 9597 and the IANA COSE Header Parameters registry.
 /// </summary>
 /// <remarks>
-/// CWT Claims are defined in RFC 8392 and registered with IANA at:
+/// CWT Claims are defined in RFC 8392, and the CWT Claims header parameter (label 15) is defined in RFC 9597.
+/// See: https://www.rfc-editor.org/rfc/rfc9597.html
+/// IANA registries:
 /// https://www.iana.org/assignments/cose/cose.xhtml#header-parameters
 /// https://www.iana.org/assignments/cwt/cwt.xhtml
 /// </remarks>
 public static class CWTClaimsHeaderLabels
 {
     /// <summary>
-    /// The CWT Claims Set header label (label 13) as defined in the IANA COSE Header Parameters registry.
+    /// The CWT Claims Set header label (label 15) as defined in RFC 9597.
     /// This protected header contains a CBOR map of CWT claims.
     /// </summary>
     /// <remarks>
     /// This header is required by SCITT (Supply Chain Integrity, Transparency, and Trust) for submission
     /// to transparency services. See: https://ietf-wg-scitt.github.io/draft-ietf-scitt-architecture/
+    /// RFC 9597: https://www.rfc-editor.org/rfc/rfc9597.html
     /// </remarks>
-    public static readonly CoseHeaderLabel CWTClaims = new(13);
+    public static readonly CoseHeaderLabel CWTClaims = new(15);
 
     // Standard CWT Claim keys from RFC 8392
     // https://www.iana.org/assignments/cwt/cwt.xhtml

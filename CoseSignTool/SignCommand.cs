@@ -1090,32 +1090,7 @@ Advanced Options:
             return string.Empty;
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine();
-        sb.AppendLine("Certificate Providers:");
-        sb.AppendLine("    The following certificate provider plugins are available for signing:");
-        sb.AppendLine();
-
-        foreach (KeyValuePair<string, ICertificateProviderPlugin> kvp in CoseSignTool.CertificateProviderManager.Providers.OrderBy(x => x.Key))
-        {
-            sb.AppendLine($"    {kvp.Key,-30} {kvp.Value.Description}");
-            
-            // Show provider options if available
-            IDictionary<string, string> providerOptions = kvp.Value.GetProviderOptions();
-            if (providerOptions != null && providerOptions.Count > 0)
-            {
-                sb.AppendLine($"        Usage: CoseSignTool sign <payload> --cert-provider {kvp.Key} [options]");
-                sb.AppendLine("        Options:");
-                foreach (KeyValuePair<string, string> option in providerOptions.OrderBy(x => x.Key))
-                {
-                    sb.AppendLine($"            {option.Key}");
-                }
-                sb.AppendLine();
-            }
-        }
-
-        sb.AppendLine("    For detailed documentation on certificate providers, see: docs/CertificateProviders.md");
-        
-        return sb.ToString();
+        // Use the comprehensive documentation from CertificateProviderPluginManager
+        return Environment.NewLine + CoseSignTool.CertificateProviderManager.GetProvidersUsageDocumentation();
     }
 }

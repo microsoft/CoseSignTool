@@ -348,6 +348,125 @@ public class CertificateProviderPluginManagerTests
         Assert.IsTrue(manager.Providers.ContainsKey("test"));
     }
 
+    [TestMethod]
+    public void RegisterPlugin_WithNullProviderName_ShouldThrowArgumentException()
+    {
+        // Arrange
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
+        Mock<ICertificateProviderPlugin> mockPlugin = new Mock<ICertificateProviderPlugin>();
+        mockPlugin.Setup(p => p.ProviderName).Returns((string?)null);
+        mockPlugin.Setup(p => p.Description).Returns("Test");
+
+        // Act & Assert
+        ArgumentException ex = Assert.ThrowsException<ArgumentException>(() => manager.RegisterPlugin(mockPlugin.Object));
+        Assert.IsTrue(ex.Message.Contains("provider name"));
+    }
+
+    [TestMethod]
+    public void RegisterPlugin_WithEmptyProviderName_ShouldRegisterWithEmptyKey()
+    {
+        // Arrange
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
+        Mock<ICertificateProviderPlugin> mockPlugin = new Mock<ICertificateProviderPlugin>();
+        mockPlugin.Setup(p => p.ProviderName).Returns("");
+        mockPlugin.Setup(p => p.Description).Returns("Test");
+        mockPlugin.Setup(p => p.GetProviderOptions()).Returns(new Dictionary<string, string>());
+        mockPlugin.Setup(p => p.GetUsageDocumentation()).Returns("Test");
+
+        // Act
+        manager.RegisterPlugin(mockPlugin.Object);
+
+        // Assert - Empty string becomes empty string after ToLowerInvariant()
+        Assert.AreEqual(1, manager.Providers.Count);
+        Assert.IsTrue(manager.Providers.ContainsKey(""));
+    }
+
+    [TestMethod]
+    public void DiscoverAndLoadPlugins_WithEmptyDirectory_ShouldNotThrow()
+    {
+        // Arrange
+        Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
+
+        // Act & Assert - Should not throw
+        manager.DiscoverAndLoadPlugins("");
+        Assert.AreEqual(0, manager.Providers.Count);
+        mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("No plugins directory"))), Times.Once);
+    }
+
+    [TestMethod]
+    public void DiscoverAndLoadPlugins_WithWhitespaceDirectory_ShouldNotThrow()
+    {
+        // Arrange
+        Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
+
+        // Act & Assert - Should not throw
+        manager.DiscoverAndLoadPlugins("   ");
+        Assert.AreEqual(0, manager.Providers.Count);
+        mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("No plugins directory"))), Times.Once);
+    }
+
+    [TestMethod]
+    public void DiscoverAndLoadPlugins_WithNonExistentDirectory_ShouldLogVerbose()
+    {
+        // Arrange
+        Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
+        string nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        // Act
+        manager.DiscoverAndLoadPlugins(nonExistentPath);
+
+        // Assert
+        mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("does not exist"))), Times.Once);
+    }
+
+    [TestMethod]
+    public void DiscoverAndLoadPlugins_WithValidDirectory_ShouldLogDiscovery()
+    {
+        // Arrange
+        Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            // Act
+            manager.DiscoverAndLoadPlugins(tempDir);
+
+            // Assert
+            mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("Discovering certificate provider"))), Times.Once);
+            mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("Found") && s.Contains("potential plugin"))), Times.Once);
+            mockLogger.Verify(l => l.LogInformation(It.Is<string>(s => s.Contains("Loaded") && s.Contains("certificate provider plugin"))), Times.Once);
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void LoadPluginFromAssembly_WithValidAssembly_ShouldLogVerbose()
+    {
+        // Arrange
+        Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
+        CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
+        string assemblyPath = Assembly.GetExecutingAssembly().Location;
+
+        // Act
+        manager.LoadPluginFromAssembly(assemblyPath);
+
+        // Assert
+        mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("Loading plugins from"))), Times.Once);
+        mockLogger.Verify(l => l.LogVerbose(It.Is<string>(s => s.Contains("Registered certificate provider plugin"))), Times.AtLeastOnce);
+    }
+
     // Helper method to create a mock plugin
     private static Mock<ICertificateProviderPlugin> CreateMockPlugin(string name, string description)
     {

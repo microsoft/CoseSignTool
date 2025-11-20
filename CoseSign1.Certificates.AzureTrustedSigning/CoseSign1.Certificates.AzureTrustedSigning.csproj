@@ -2,7 +2,7 @@
 
 	<!--Build configuration-->
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2;net8.0</TargetFrameworks>
+		<TargetFrameworks>net8.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 
@@ -35,7 +35,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider" Version="0.1.48" />
+		<PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider" />
 	</ItemGroup>
 
 	<ItemGroup>

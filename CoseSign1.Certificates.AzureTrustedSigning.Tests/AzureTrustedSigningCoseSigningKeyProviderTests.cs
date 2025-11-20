@@ -113,7 +113,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         // Act & Assert
         Assert.That(
             () => InvokeProtectedWithReflection<X509Certificate2>(provider, "GetSigningCertificate"),
-            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("Signing certificate is not available"));
+            Throws.TypeOf<TargetInvocationException>().With.InnerException.TypeOf<InvalidOperationException>().And.InnerException.Message.Contains("Signing certificate is not available"));
     }
 
     /// <summary>
@@ -149,8 +149,8 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
 
         // Act & Assert
         Assert.That(
-            () => InvokeProtectedWithReflection<ECDsa?>(provider, "ProvideECDsaKey"),
-            Throws.TypeOf<NotSupportedException>().With.Message.Contains("ECDsa is not supported"));
+            () => InvokeProtectedWithReflection<ECDsa?>(provider, "ProvideECDsaKey", false),
+            Throws.TypeOf<TargetInvocationException>().With.InnerException.TypeOf<NotSupportedException>().And.InnerException.Message.Contains("ECDsa is not supported"));
     }
 
     /// <summary>
@@ -165,7 +165,7 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act
-        RSA result = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey");
+        RSA result = InvokeProtectedWithReflection<RSA?>(provider, "ProvideRSAKey", false);
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -207,7 +207,3 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         return (T)method.Invoke(provider, arguments);
     }
 }
-<<<<<<< HEAD
-
-=======
->>>>>>> 2533295 (Improve unit test documentation and structure)

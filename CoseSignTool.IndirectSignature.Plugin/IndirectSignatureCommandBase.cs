@@ -3,6 +3,8 @@
 
 namespace CoseSignTool.IndirectSignature.Plugin;
 
+using CoseSign1.Abstractions.Interfaces;
+
 /// <summary>
 /// Base class for indirect signature commands that provides common functionality
 /// for parameter validation, certificate loading, file operations, error handling, and result output.
@@ -32,7 +34,8 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
         { "password", "The password for the .pfx file if it has one" },
         { "thumbprint", "The SHA1 thumbprint of a certificate in the local certificate store" },
         { "store-name", "The name of the local certificate store (default: My)" },
-        { "store-location", "The location of the local certificate store (default: CurrentUser)" }
+        { "store-location", "The location of the local certificate store (default: CurrentUser)" },
+        { "cert-provider", "The name of the certificate provider plugin to use (optional)" }
     };
 
     /// <summary>
@@ -105,6 +108,107 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// <param name="logger">Optional logger for error reporting.</param>
     /// <returns>A tuple containing the certificate and any additional certificates, or null on failure.</returns>
     protected internal static (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) LoadSigningCertificate(IConfiguration configuration, IPluginLogger? logger = null)
+    {
+        // Check if a certificate provider is specified
+        string? certProvider = GetOptionalValue(configuration, "cert-provider");
+        if (!string.IsNullOrWhiteSpace(certProvider))
+        {
+            logger?.LogWarning("Certificate provider plugins are specified but not yet supported in indirect signature commands. " +
+                             "Use --pfx or --thumbprint for certificate-based signing.");
+            return (null, null, PluginExitCode.InvalidArgumentValue);
+        }
+
+        return LoadSigningCertificateFromLocal(configuration, logger);
+    }
+
+    /// <summary>
+    /// Loads a signing key provider from either a certificate provider plugin or local certificate.
+    /// </summary>
+    /// <param name="configuration">The configuration containing certificate/provider parameters.</param>
+    /// <param name="pluginManager">Optional certificate provider plugin manager for loading plugins.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
+    /// <returns>A tuple containing the key provider and exit code.</returns>
+    protected internal static (ICoseSigningKeyProvider? keyProvider, PluginExitCode result) LoadSigningKeyProvider(
+        IConfiguration configuration,
+        CertificateProviderPluginManager? pluginManager = null,
+        IPluginLogger? logger = null)
+    {
+        try
+        {
+            // Check if a certificate provider is specified
+            string? certProvider = GetOptionalValue(configuration, "cert-provider");
+            
+            if (!string.IsNullOrWhiteSpace(certProvider))
+            {
+                // Use certificate provider plugin
+                if (pluginManager == null)
+                {
+                    logger?.LogError($"Certificate provider '{certProvider}' was specified, but no certificate provider plugins are available.");
+                    return (null, PluginExitCode.InvalidArgumentValue);
+                }
+
+                ICertificateProviderPlugin? plugin = pluginManager.GetProvider(certProvider);
+                if (plugin == null)
+                {
+                    string availableProviders = pluginManager.Providers.Count > 0
+                        ? string.Join(", ", pluginManager.Providers.Keys)
+                        : "none";
+                    logger?.LogError($"Certificate provider '{certProvider}' not found. Available providers: {availableProviders}");
+                    return (null, PluginExitCode.InvalidArgumentValue);
+                }
+
+                if (!plugin.CanCreateProvider(configuration))
+                {
+                    logger?.LogError($"Certificate provider '{certProvider}' cannot create a provider with the given configuration. Required parameters may be missing.");
+                    return (null, PluginExitCode.MissingRequiredOption);
+                }
+
+                ICoseSigningKeyProvider keyProvider = plugin.CreateProvider(configuration, logger);
+                return (keyProvider, PluginExitCode.Success);
+            }
+            else
+            {
+                // Use local certificate (legacy behavior)
+                (X509Certificate2? cert, List<X509Certificate2>? additionalCerts, PluginExitCode result) = 
+                    LoadSigningCertificateFromLocal(configuration, logger);
+                
+                if (result != PluginExitCode.Success || cert == null)
+                {
+                    return (null, result);
+                }
+
+                ICoseSigningKeyProvider keyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(
+                    null, cert, additionalCerts);
+                return (keyProvider, PluginExitCode.Success);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogError($"Invalid argument: {ex.Message}");
+            logger?.LogException(ex);
+            return (null, PluginExitCode.InvalidArgumentValue);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogError($"Operation failed: {ex.Message}");
+            logger?.LogException(ex);
+            return (null, PluginExitCode.CertificateLoadFailure);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError($"Unexpected error loading signing key provider: {ex.Message}");
+            logger?.LogException(ex);
+            return (null, PluginExitCode.UnknownError);
+        }
+    }
+
+    /// <summary>
+    /// Loads a certificate from local sources (PFX file or certificate store).
+    /// </summary>
+    /// <param name="configuration">The configuration containing certificate parameters.</param>
+    /// <param name="logger">Optional logger for error reporting.</param>
+    /// <returns>A tuple containing the certificate, additional certificates, and exit code.</returns>
+    private static (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) LoadSigningCertificateFromLocal(IConfiguration configuration, IPluginLogger? logger = null)
     {
         try
         {

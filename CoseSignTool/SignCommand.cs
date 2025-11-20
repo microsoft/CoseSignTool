@@ -4,6 +4,7 @@
 namespace CoseSignTool;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions.Interfaces;
 
 /// <summary>
 /// Signs a file with a COSE signature based on passed in command line arguments.
@@ -52,7 +53,9 @@ public class SignCommand : CoseCommand
         ["-CwtClaims"] = "CwtClaims",
         ["-cwt"] = "CwtClaims",
         ["-EnableScittCompliance"] = "EnableScittCompliance",
-        ["-scitt"] = "EnableScittCompliance"
+        ["-scitt"] = "EnableScittCompliance",
+        ["-CertProvider"] = "CertProvider",
+        ["-cp"] = "CertProvider"
     };
 
     // Inherited default values
@@ -153,7 +156,23 @@ public class SignCommand : CoseCommand
     /// </summary>
     public bool EnableScittCompliance { get; set; } = true;
 
+    /// <summary>
+    /// Optional. Gets or sets the name of the certificate provider plugin to use for signing.
+    /// If not specified, uses local certificate loading (PFX or thumbprint).
+    /// </summary>
+    public string? CertProvider { get; set; }
+
     #endregion
+
+    /// <summary>
+    /// Internal field to store the configuration provider for plugin access.
+    /// </summary>
+    private CommandLineConfigurationProvider? ConfigurationProvider;
+
+    /// <summary>
+    /// Internal field to store the plugin manager for certificate providers.
+    /// </summary>
+    private CertificateProviderPluginManager? PluginManager;
 
     /// <summary>
     /// For test use only.
@@ -166,7 +185,17 @@ public class SignCommand : CoseCommand
     /// <param name="provider">A CommandLineConfigurationProvider that has loaded the command line arguments.</param>
     public SignCommand(CommandLineConfigurationProvider provider)
     {
+        ConfigurationProvider = provider;
         ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Sets the certificate provider plugin manager for this command instance.
+    /// </summary>
+    /// <param name="manager">The plugin manager to use for loading certificate providers.</param>
+    internal void SetCertificateProviderPluginManager(CertificateProviderPluginManager manager)
+    {
+        PluginManager = manager;
     }
 
     /// <summary>
@@ -186,14 +215,13 @@ public class SignCommand : CoseCommand
             return exitCode;
         }
 
-        // Get the signing certificate.
-        X509Certificate2 cert;
-        List<X509Certificate2>? additionalRoots;
+        // Get the signing key provider (either from certificate provider plugin or local certificate).
+        ICoseSigningKeyProvider signingKeyProvider;
         try
         {
-            (cert, additionalRoots) = LoadCert();
+            signingKeyProvider = LoadSigningKeyProvider();
         }
-        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
+        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException or ArgumentException or InvalidOperationException)
         {
             exitCode = ex is CoseSign1CertificateException ? ExitCode.StoreCertificateNotFound : ExitCode.CertificateLoadFailure;
             return CoseSignTool.Fail(exitCode, ex);
@@ -218,15 +246,14 @@ public class SignCommand : CoseCommand
             // Use shared header processing logic
             CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
-            // Create the signing key provider with additional roots if available
-            var signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
-
             // If SCITT compliance is enabled or CWT claims are specified, wrap the header extender with CWT claims
-            if (EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null)
+            // Note: CWT claims are only supported for certificate-based signing key providers
+            if ((EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null) &&
+                signingKeyProvider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
             {
                 // Create the X509 + CWT header extender using the convenient extension method
                 CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender cwtHeaderExtender = 
-                    signingKeyProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
+                    certProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
 
                 // If audience is also specified, we need to customize further
                 if (CwtAudience != null)
@@ -351,6 +378,9 @@ public class SignCommand : CoseCommand
         // Enable SCITT compliance by default
         bool scittComplianceSet = provider.TryGet(nameof(EnableScittCompliance), out string? scittValue);
         EnableScittCompliance = !scittComplianceSet || (bool.TryParse(scittValue, out bool scittResult) && scittResult);
+
+        // Certificate provider plugin
+        CertProvider = GetOptionString(provider, nameof(CertProvider));
 
         base.ApplyOptions(provider);
     }
@@ -563,6 +593,86 @@ public class SignCommand : CoseCommand
         }
 
         return (cert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Loads a signing key provider, either from a certificate provider plugin or from local certificates.
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance ready for signing operations.</returns>
+    /// <exception cref="ArgumentException">Thrown when certificate provider is specified but not found, or when configuration is invalid.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when certificate provider fails to create a provider.</exception>
+    /// <exception cref="FileNotFoundException">Thrown when a specified certificate file is not found.</exception>
+    /// <exception cref="CryptographicException">Thrown when certificate loading or validation fails.</exception>
+    /// <exception cref="CoseSign1CertificateException">Thrown when certificate store lookup fails.</exception>
+    internal ICoseSigningKeyProvider LoadSigningKeyProvider()
+    {
+        // If a certificate provider is specified, use it
+        if (!string.IsNullOrWhiteSpace(CertProvider))
+        {
+            return LoadSigningKeyProviderFromPlugin();
+        }
+
+        // Otherwise, use local certificate loading (legacy behavior)
+        return LoadSigningKeyProviderFromLocalCertificate();
+    }
+
+    /// <summary>
+    /// Loads a signing key provider from a certificate provider plugin.
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance from the plugin.</returns>
+    /// <exception cref="ArgumentException">Thrown when certificate provider is not found or cannot create provider.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when certificate provider fails during creation.</exception>
+    private ICoseSigningKeyProvider LoadSigningKeyProviderFromPlugin()
+    {
+        if (PluginManager == null)
+        {
+            throw new InvalidOperationException(
+                $"Certificate provider '{CertProvider}' was specified, but no certificate provider plugins are available. " +
+                "Ensure certificate provider plugins are installed and the plugins directory is correctly configured.");
+        }
+
+        ICertificateProviderPlugin? plugin = PluginManager.GetProvider(CertProvider!);
+        if (plugin == null)
+        {
+            string availableProviders = PluginManager.Providers.Count > 0
+                ? string.Join(", ", PluginManager.Providers.Keys)
+                : "none";
+            throw new ArgumentException(
+                $"Certificate provider '{CertProvider}' not found. Available providers: {availableProviders}");
+        }
+
+        // Convert the CommandLineConfigurationProvider to IConfiguration (explicit cast)
+        // CommandLineConfigurationProvider implements IConfigurationProvider, not IConfiguration
+        // We need to access it as IConfiguration through the ConfigurationRoot
+        if (ConfigurationProvider == null)
+        {
+            throw new InvalidOperationException("Configuration provider is not available.");
+        }
+
+        // Create an IConfiguration from the provider
+        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider> { ConfigurationProvider });
+
+        // Check if the plugin can create a provider with the given configuration
+        if (!plugin.CanCreateProvider(configuration))
+        {
+            throw new ArgumentException(
+                $"Certificate provider '{CertProvider}' cannot create a provider with the given configuration. " +
+                $"Required parameters may be missing. Use 'CoseSignTool help {CertProvider}' for usage information.");
+        }
+
+        // Create and return the provider
+        // Note: We could pass a logger here if we had one available
+        return plugin.CreateProvider(configuration, logger: null);
+    }
+
+    /// <summary>
+    /// Loads a signing key provider from local certificate (PFX or thumbprint).
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance using local certificates.</returns>
+    private ICoseSigningKeyProvider LoadSigningKeyProviderFromLocalCertificate()
+    {
+        (X509Certificate2 cert, List<X509Certificate2>? additionalRoots) = LoadCert();
+        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
     }
 
     /// <summary>

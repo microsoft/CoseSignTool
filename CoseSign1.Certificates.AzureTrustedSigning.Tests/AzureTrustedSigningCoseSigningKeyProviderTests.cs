@@ -396,7 +396,8 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
         Assert.That(issuer, Does.StartWith("did:x509:0:sha256:"));
         // Since test certs don't have non-standard EKUs, it should fall back to subject format
         // This tests that the Issuer property is accessible and returns a value
-        Assert.That(System.Text.RegularExpressions.Regex.IsMatch(issuer!, @"did:x509:0:sha256:[a-f0-9]{64}::(subject|eku):"), Is.True);
+        // Base64url hash is 43 characters for SHA256 (per RFC 4648 Section 5)
+        Assert.That(System.Text.RegularExpressions.Regex.IsMatch(issuer!, @"did:x509:0:sha256:[A-Za-z0-9_-]{43}::(subject|eku):"), Is.True);
     }
 
     /// <summary>

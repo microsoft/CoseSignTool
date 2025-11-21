@@ -175,12 +175,12 @@ public class AzureTrustedSigningDidX509GeneratorTests
 
         // Assert - Extract hash from DID and verify it's correct format
         Assert.That(did, Does.StartWith("did:x509:0:sha256:"));
-        Assert.That(Regex.IsMatch(did, @"did:x509:0:sha256:[a-f0-9]{64}::eku:1\.3\.6\.1\.4\.1\.311\.\d+\.\d+\.\d+"), Is.True);
+        Assert.That(Regex.IsMatch(did, @"did:x509:0:sha256:[A-Za-z0-9_-]{43}::eku:1\.3\.6\.1\.4\.1\.311\.\d+\.\d+\.\d+"), Is.True);
         
-        // The hash should be from the root cert (self-signed one)
-        string hashPart = did.Substring("did:x509:0:sha256:".Length, 64);
-        Assert.That(hashPart, Has.Length.EqualTo(64));
-        Assert.That(Regex.IsMatch(hashPart, "^[a-f0-9]{64}$"), Is.True);
+        // The hash should be from the root cert (self-signed one) in base64url format (43 chars for SHA256)
+        string hashPart = did.Substring("did:x509:0:sha256:".Length, 43);
+        Assert.That(hashPart, Has.Length.EqualTo(43));
+        Assert.That(Regex.IsMatch(hashPart, "^[A-Za-z0-9_-]{43}$"), Is.True);
     }
 
     [Test]
@@ -200,10 +200,10 @@ public class AzureTrustedSigningDidX509GeneratorTests
         Assert.That(did, Does.StartWith("did:x509:0:sha256:"));
         Assert.That(did, Does.Contain("::eku:"));
         
-        // The hash should be from a root cert in the chain
-        string hashPart = did.Substring("did:x509:0:sha256:".Length, 64);
-        Assert.That(hashPart, Has.Length.EqualTo(64));
-        Assert.That(Regex.IsMatch(hashPart, "^[a-f0-9]{64}$"), Is.True);
+        // The hash should be from a root cert in the chain in base64url format (43 chars for SHA256)
+        string hashPart = did.Substring("did:x509:0:sha256:".Length, 43);
+        Assert.That(hashPart, Has.Length.EqualTo(43));
+        Assert.That(Regex.IsMatch(hashPart, "^[A-Za-z0-9_-]{43}$"), Is.True);
     }
 
     [Test]

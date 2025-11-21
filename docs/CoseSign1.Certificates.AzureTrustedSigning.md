@@ -39,15 +39,20 @@ This class is a concrete implementation of `CertificateCoseSigningKeyProvider` t
 
 ## SCITT Compliance and DID:X509:0 Support
 
-Azure Trusted Signing certificates automatically support **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through an enhanced DID:X509:0 format that includes Extended Key Usage (EKU) information.
+Azure Trusted Signing certificates automatically support **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through an enhanced DID:X509:0 format that includes Extended Key Usage (EKU) information per the [DID:X509 specification](https://github.com/microsoft/did-x509/blob/main/specification.md#eku-policy).
 
 ### DID:X509:0 Format with EKU
 
 Azure Trusted Signing certificates include **Microsoft-specific EKUs** (Enhanced Key Usages starting with `1.3.6.1.4.1.311`) that identify the certificate's intended purpose. When these Microsoft EKUs are present, the `Issuer` property automatically generates an EKU-based DID identifier:
 
 ```
-did:x509:0:sha256:{rootHash}::eku:{deepestGreatestEku}
+did:x509:0:sha256:{base64url-hash}::eku:{oid}
 ```
+
+Where:
+- `{base64url-hash}` is the base64url-encoded root certificate fingerprint (43 characters for SHA256 per RFC 4648 Section 5)
+- `{oid}` is the EKU OID in dotted decimal notation (e.g., `1.3.6.1.4.1.311.10.3.13`)
+- The OID is NOT percent-encoded (just the raw OID string)
 
 #### Microsoft EKU Detection
 The generator detects any EKU starting with the **Microsoft reserved prefix `1.3.6.1.4.1.311`**. When Microsoft EKUs are present, an EKU-based DID is generated. When no Microsoft EKUs are found, the generator falls back to the standard subject-based DID format.
@@ -64,23 +69,27 @@ When multiple Microsoft EKUs are present in an Azure Trusted Signing certificate
 ### Implementation Details
 
 The Azure Trusted Signing provider uses [`AzureTrustedSigningDidX509Generator`](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningDidX509Generator.cs), which:
-- Extends the base `DidX509Generator` class
+- Extends the base `DidX509Generator` class and reuses its hash computation and formatting
+- Calls the base class once to generate the properly formatted DID with subject policy
 - Detects Microsoft EKUs (starting with `1.3.6.1.4.1.311`) in the leaf certificate
-- Generates EKU-based DID format when Microsoft EKUs are present
-- Falls back to subject-based format when no Microsoft EKUs are found
+- Replaces the `::subject:...` portion with `::eku:{oid}` when Microsoft EKUs are present
+- Returns the base implementation unchanged when no Microsoft EKUs are found
+- Ensures base64url encoding (43 characters for SHA256) per RFC 4648 Section 5
 - Provides virtual methods for customization if needed
 
 ### Example DID Formats
 
 **Without Microsoft EKUs (subject-based format):**
 ```
-did:x509:0:sha256:a1b2c3...::subject:CN%3DMyCompany%2CO%3DExample
+did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyCompany:O:Example
 ```
 
 **With Microsoft EKU (Azure Trusted Signing specific format):**
 ```
-did:x509:0:sha256:a1b2c3...::eku:1.3.6.1.4.1.311.10.3.100
+did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::eku:1.3.6.1.4.1.311.10.3.13
 ```
+
+Note the base64url-encoded hash is exactly 43 characters for SHA256 (not 64-character hex encoding).
 
 This enhanced format provides additional identity context for Azure Trusted Signing certificates, enabling better audit trails and certificate policy identification in SCITT-compliant systems.
 

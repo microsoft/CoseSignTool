@@ -72,13 +72,14 @@ public class DidX509GeneratorTests
         using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
         
         byte[] expectedHash = SHA256.HashData(rootCert.RawData);
-        string expectedHashHex = Convert.ToHexString(expectedHash).ToLowerInvariant();
+        string expectedHashBase64Url = Convert.ToBase64String(expectedHash)
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
         // Act
         string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
-        did.Should().Contain(expectedHashHex);
+        did.Should().Contain(expectedHashBase64Url);
     }
 
     [Test]
@@ -92,9 +93,12 @@ public class DidX509GeneratorTests
         string did = _generator.Generate(leafCert, rootCert);
 
         // Assert
-        // Spaces and commas should be percent-encoded
+        // Spaces should be percent-encoded, format is key:value:key:value
         did.Should().Contain("%20"); // Space
-        did.Should().Contain("%2C"); // Comma
+        did.Should().Contain("::subject:");
+        // DN parsing separates components, so no comma in the output
+        did.Should().Contain("CN:");
+        did.Should().Contain("O:");
     }
 
     [Test]
@@ -189,8 +193,8 @@ public class DidX509GeneratorTests
     [Test]
     public void IsValidDidX509_WithValidDid_ShouldReturnTrue()
     {
-        // Arrange
-        string validDid = "did:x509:0:sha256:" + new string('a', 64) + "::subject:CN=Test";
+        // Arrange - base64url SHA256 hash is 43 characters, subject format is key:value
+        string validDid = "did:x509:0:sha256:" + new string('a', 43) + "::subject:CN:Test";
 
         // Act
         bool result = DidX509Generator.IsValidDidX509(validDid);
@@ -212,7 +216,7 @@ public class DidX509GeneratorTests
     public void IsValidDidX509_WithInvalidPrefix_ShouldReturnFalse()
     {
         // Arrange
-        string invalidDid = "did:web:0:sha256:" + new string('a', 64) + "::subject:CN=Test";
+        string invalidDid = "did:web:0:sha256:" + new string('a', 43) + "::subject:CN:Test";
 
         // Act
         bool result = DidX509Generator.IsValidDidX509(invalidDid);
@@ -248,10 +252,10 @@ public class DidX509GeneratorTests
     }
 
     [Test]
-    public void IsValidDidX509_WithNonHexHash_ShouldReturnFalse()
+    public void IsValidDidX509_WithNonBase64UrlHash_ShouldReturnFalse()
     {
-        // Arrange - Contains non-hex character 'g'
-        string invalidDid = "did:x509:0:sha256:" + new string('g', 64) + "::subject:CN=Test";
+        // Arrange - Contains non-base64url character '+'
+        string invalidDid = "did:x509:0:sha256:" + new string('a', 42) + "+::subject:CN=Test";
 
         // Act
         bool result = DidX509Generator.IsValidDidX509(invalidDid);
@@ -263,8 +267,8 @@ public class DidX509GeneratorTests
     [Test]
     public void IsValidDidX509_WithUppercaseHash_ShouldReturnTrue()
     {
-        // Arrange
-        string validDid = "did:x509:0:sha256:" + new string('A', 64) + "::subject:CN=Test";
+        // Arrange - base64url is case-sensitive and supports A-Z
+        string validDid = "did:x509:0:sha256:" + new string('A', 43) + "::subject:CN:Test";
 
         // Act
         bool result = DidX509Generator.IsValidDidX509(validDid);
@@ -276,8 +280,8 @@ public class DidX509GeneratorTests
     [Test]
     public void IsValidDidX509_WithMixedCaseHash_ShouldReturnTrue()
     {
-        // Arrange
-        string validDid = "did:x509:0:sha256:aAbBcCdDeEfF0123456789" + new string('a', 42) + "::subject:CN=Test";
+        // Arrange - 43 characters total for base64url SHA256, subject format is key:value
+        string validDid = "did:x509:0:sha256:aAbBcCdDeEfF0123456789" + new string('a', 21) + "::subject:CN:Test";
 
         // Act
         bool result = DidX509Generator.IsValidDidX509(validDid);
@@ -360,6 +364,152 @@ public class DidX509GeneratorTests
         // Assert
         // These characters should appear unencoded
         did.Should().Contain("Test-Name_123");
+    }
+
+    [Test]
+    public void Generate_WithMultipleSubjectFields_ShouldFormatAsKeyValuePairs()
+    {
+        // Arrange - per spec: subject format is key:value:key:value
+        using X509Certificate2 leafCert = CreateTestCertificate("C=US, ST=California, L=San Francisco, O=GitHub, OU=Engineering, CN=Test User");
+        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
+
+        // Act
+        string did = _generator.Generate(leafCert, rootCert);
+
+        // Assert
+        did.Should().Contain("::subject:");
+        // Should contain key:value pairs with colons, not equals
+        did.Should().Contain("C:US");
+        // Note: Some fields like ST might be omitted or reordered by X500DistinguishedName
+        did.Should().Contain("L:San%20Francisco"); // Space encoded
+        did.Should().Contain("O:GitHub");
+        did.Should().Contain("OU:Engineering");
+        did.Should().Contain("CN:Test%20User");
+        // Should NOT contain '=' from DN format
+        did.Should().NotContain("C=");
+    }
+
+    [Test]
+    public void Generate_SubjectValueEncoding_ShouldOnlyAllowAlphanumericDashDotUnderscore()
+    {
+        // Arrange - per spec: allowed unencoded chars are ALPHA / DIGIT / "-" / "." / "_"
+        // Note: Tilde (~) is NOT allowed per DID:X509 spec (unlike RFC 3986)
+        using X509Certificate2 leafCert = CreateTestCertificate("CN=Test~User@Domain.com");
+        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
+
+        // Act
+        string did = _generator.Generate(leafCert, rootCert);
+
+        // Assert
+        // Tilde should be encoded (unlike standard RFC 3986)
+        did.Should().Contain("%7E"); // ~
+        // @ should be encoded
+        did.Should().Contain("%40"); // @
+        // Dot and hyphen in Domain.com should NOT be encoded
+        did.Should().Contain("Domain.com");
+    }
+
+    [Test]
+    public void IsValidDidX509_WithMultipleSubjectKeyValuePairs_ShouldReturnTrue()
+    {
+        // Arrange - multiple key:value pairs per spec
+        string validDid = "did:x509:0:sha256:" + new string('a', 43) + 
+                         "::subject:C:US:ST:California:O:GitHub:CN:TestUser";
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(validDid);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public void IsValidDidX509_WithOddNumberOfSubjectComponents_ShouldReturnFalse()
+    {
+        // Arrange - missing value for last key
+        string invalidDid = "did:x509:0:sha256:" + new string('a', 43) + 
+                           "::subject:CN:Test:O"; // O has no value
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(invalidDid);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidDidX509_WithEmptySubjectValue_ShouldReturnFalse()
+    {
+        // Arrange - empty subject policy
+        string invalidDid = "did:x509:0:sha256:" + new string('a', 43) + "::subject:";
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(invalidDid);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidDidX509_WithInvalidSubjectKey_ShouldReturnFalse()
+    {
+        // Arrange - 'XX' is not a valid label per spec
+        string invalidDid = "did:x509:0:sha256:" + new string('a', 43) + 
+                           "::subject:XX:Value";
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(invalidDid);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidDidX509_WithValidOIDKey_ShouldReturnTrue()
+    {
+        // Arrange - OID format (dotted decimal) is valid per spec
+        string validDid = "did:x509:0:sha256:" + new string('a', 43) + 
+                         "::subject:2.5.4.3:Value";
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(validDid);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public void IsValidDidX509_WithPercentEncodedValue_ShouldReturnTrue()
+    {
+        // Arrange - percent-encoded values are valid
+        string validDid = "did:x509:0:sha256:" + new string('a', 43) + 
+                         "::subject:CN:Test%20User:O:My%20Org";
+
+        // Act
+        bool result = DidX509Generator.IsValidDidX509(validDid);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public void Generate_MatchesSpecExample_Format()
+    {
+        // Arrange - Test against spec example format
+        // Example from spec: did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:ST:California:O:My%20Organisation
+        using X509Certificate2 leafCert = CreateTestCertificate("C=US, ST=California, O=My Organisation");
+        using X509Certificate2 rootCert = CreateTestCertificate("CN=Root");
+
+        // Act
+        string did = _generator.Generate(leafCert, rootCert);
+
+        // Assert
+        did.Should().StartWith("did:x509:0:sha256:");
+        did.Should().Contain("::subject:");
+        // Check all fields are present (order may vary based on X500DistinguishedName formatting)
+        did.Should().Contain("C:US");
+        did.Should().Contain("O:My%20Organisation");
+        // ST may or may not be present depending on certificate creation
     }
 
     // Helper method to create test certificates

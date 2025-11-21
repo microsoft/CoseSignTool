@@ -138,19 +138,27 @@ var customExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(
 Utility class for generating **DID:x509 identifiers** from X.509 certificates following the [Microsoft DID:x509 specification](https://github.com/microsoft/did-x509/blob/main/specification.md).
 
 #### Features:
-- **Standards-Compliant**: Follows Microsoft DID:x509 specification
+- **Standards-Compliant**: Follows Microsoft DID:x509 specification exactly
+- **Base64url Encoding**: Certificate hashes use base64url format (RFC 4648 Section 5)
+- **Subject Policy Format**: Uses key:value pairs separated by colons
+- **Proper Percent-Encoding**: Only ALPHA, DIGIT, '-', '.', '_' allowed unencoded (tilde NOT allowed)
 - **Multiple Hash Algorithms**: Supports SHA-256, SHA-384, and SHA-512
-- **Automatic Encoding**: Properly encodes subject fields per RFC 3986
 - **Extensible**: Can be inherited to implement custom DID generation behaviors (e.g., Azure Trusted Signing's EKU-based format)
 
 #### DID:x509 Format:
 ```
-did:x509:0:{algorithm}:{ca-fingerprint}::subject:{encoded-subject-fields}
+did:x509:0:{algorithm}:{base64url-hash}::subject:{key}:{value}:{key}:{value}...
 ```
+
+Where:
+- `{base64url-hash}` is the base64url-encoded certificate fingerprint (43 chars for SHA256)
+- `{key}:{value}` pairs represent subject DN fields (e.g., `C:US:O:GitHub:CN:User`)
+- Keys are standard labels (CN, L, ST, O, OU, C, STREET) or OIDs in dotted notation
+- Values are percent-encoded per spec
 
 Example:
 ```
-did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyOrg:O:Example%20Corp
+did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:O:GitHub:CN:User
 ```
 
 > **Note**: Azure Trusted Signing uses an enhanced format that includes EKU information for non-standard certificates. See [AzureTrustedSigningDidX509Generator](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningDidX509Generator.cs) and [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md#scitt-compliance-and-didx5090-support) for details.
@@ -191,16 +199,19 @@ string sha384Did = DidX509Utilities.GenerateDidX509IdentifierFromChain(
 
 - **Generate(X509Certificate2 leafCertificate, X509Certificate2 rootCertificate)**
   - Generates DID from specific leaf and root certificates
+  - Returns DID:x509 identifier with base64url hash and key:value subject format
   - For self-signed certificates (testing only): use same certificate for both parameters
-  - Returns DID:x509 identifier string
+  - Example output: `did:x509:0:sha256:WE4P5dd...::subject:C:US:O:GitHub:CN:User`
 
 - **GenerateFromChain(IEnumerable<X509Certificate2> certificates)**
   - Generates DID from a certificate chain (leaf first order)
   - Supports single-certificate chains (self-signed, for testing only)
-  - Returns DID:x509 identifier string
+  - Returns DID:x509 identifier with proper encoding
 
 - **IsValidDidX509(string did)** (static)
-  - Validates DID:x509 identifier format
+  - Validates DID:x509 identifier format per specification
+  - Checks base64url hash encoding (43 chars for SHA256)
+  - Validates subject policy format (key:value pairs)
   - Returns true if valid, false otherwise
 
 ### Complete SCITT Example:

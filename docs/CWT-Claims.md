@@ -33,16 +33,19 @@ When an issuer is not explicitly specified, CoseSignTool automatically generates
 CoseSignTool generates DID:X509 identifiers in the following format:
 
 ```
-did:x509:0:sha256:{rootCertHash}::subject:{encodedLeafSubject}
+did:x509:0:sha256:{rootCertHash}::subject:{key}:{value}:{key}:{value}...
 ```
 
 Where:
-- `{rootCertHash}` is the SHA256 hash of the root certificate in hex (lowercase)
-- `{encodedLeafSubject}` is the percent-encoded subject DN of the leaf certificate per RFC 3986
+- `{rootCertHash}` is the SHA256 hash of the root certificate in base64url encoding (per RFC 4648 Section 5)
+- `{key}:{value}` pairs represent the certificate's subject DN fields, where:
+  - Keys are standard labels (`CN`, `L`, `ST`, `O`, `OU`, `C`, `STREET`) or OIDs (dotted decimal notation)
+  - Values are percent-encoded using only `ALPHA`, `DIGIT`, `-`, `.`, and `_` as allowed unencoded characters
+  - Note: Tilde (`~`) is **NOT** allowed unencoded, unlike standard RFC 3986
 
 **Example**:
 ```
-did:x509:0:sha256:a1b2c3d4e5f6...::subject:CN%3DExample%20Corp%2COU%3DEngineering
+did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:ST:California:O:GitHub:CN:Example%20User
 ```
 
 **Note**: The DID:X509 specification supports additional query parameters beyond `::subject:`. See the [DID:X509 specification](https://github.com/microsoft/did-x509/blob/main/specification.md) for complete details. The `DidX509Generator` class can be inherited to implement custom DID generation behaviors.
@@ -293,7 +296,7 @@ Per SCITT specification, the issuer must:
 Examples of valid issuers:
 - `https://example.com/issuer`
 - `http://example.com/issuer`
-- `did:x509:0:sha256:abc123...::subject:CN=Test`
+- `did:x509:0:sha256:abc123...::subject:CN:Test`
 - `did:web:example.com`
 - `did:key:z6Mk...`
 

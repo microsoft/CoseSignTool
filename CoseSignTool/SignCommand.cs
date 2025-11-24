@@ -693,7 +693,7 @@ Options:
     PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
         to file.
 
-    EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the in COSE signature file.
+    EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the COSE signature file.
         Default behavior is 'detached signing', where the signature is in a separate file from the payload.
         Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
@@ -725,3 +725,4 @@ Advanced Options:
         UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.
 ";
 }
+

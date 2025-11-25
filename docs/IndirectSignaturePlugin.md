@@ -39,6 +39,27 @@ CoseSignTool indirect-sign --payload <payload-file> --signature <signature-file>
 - `--store-name`: The name of the local certificate store (default: My)
 - `--store-location`: The location of the local certificate store (default: CurrentUser)
 
+#### SCITT Compliance Options
+
+The indirect-sign command supports **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through CWT (CBOR Web Token) Claims. SCITT is enabled by default when signing with certificates.
+
+- `--enable-scitt`, `--scitt`: Enable or disable SCITT compliance (default: true)
+- `--cwt-issuer`, `--cwt-iss`: Set the issuer claim (if not specified, DID:x509 is automatically generated from certificate)
+- `--cwt-subject`, `--cwt-sub`: Set the subject claim (default: "unknown.intent")
+- `--cwt-audience`, `--cwt-aud`: Set the audience claim
+- `--cwt-claims`, `--cwt`: Add custom CWT claims in `label:value` format (can be specified multiple times)
+
+**Standard CWT Claim Labels:**
+- `iss` (1): Issuer - automatically set to DID:x509 from certificate chain
+- `sub` (2): Subject - defaults to "unknown.intent"
+- `aud` (3): Audience
+- `exp` (4): Expiration Time - accepts ISO 8601 date/time strings or Unix timestamps
+- `nbf` (5): Not Before - accepts ISO 8601 date/time strings or Unix timestamps
+- `iat` (6): Issued At - accepts ISO 8601 date/time strings or Unix timestamps
+- `cti` (7): CWT ID - unique identifier
+
+For comprehensive SCITT documentation, see [SCITTCompliance.md](./SCITTCompliance.md).
+
 #### Optional Arguments
 
 - `--output`: File path where signing result will be written (JSON format)
@@ -54,7 +75,7 @@ CoseSignTool indirect-sign --payload <payload-file> --signature <signature-file>
 #### Examples
 
 ```bash
-# Create indirect signature using PFX certificate
+# Create indirect signature using PFX certificate (SCITT enabled by default)
 CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx
 
 # Create indirect signature using certificate store
@@ -65,6 +86,24 @@ CoseSignTool indirect-sign --payload myfile.json --signature myfile.cose --pfx m
 
 # Create indirect signature with JSON output
 CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx --output result.json
+
+# SCITT-compliant indirect signature with custom subject
+CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx --cwt-subject "software.release.v1.0"
+
+# SCITT-compliant indirect signature with expiration
+CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx \
+  --cwt-subject "container.image.prod" \
+  --cwt-claims "exp:2025-12-31T23:59:59Z"
+
+# Full SCITT indirect signature with custom claims
+CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx \
+  --cwt-subject "document.approval" \
+  --cwt-audience "production-systems" \
+  --cwt-claims "exp:2025-06-30T23:59:59Z" \
+  --cwt-claims "100:build-metadata"
+
+# Disable SCITT compliance
+CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx --enable-scitt false
 ```
 
 ### `indirect-verify`
@@ -180,7 +219,7 @@ The plugin supports the **CoseHashEnvelope** format (recommended for new applica
 1. Computes a cryptographic hash of the payload using the specified hash algorithm
 2. Embeds the hash value in the COSE message content field
 3. Modifies the content type to include a "+cose-hash-envelope" suffix
-4. Creates a detached signature that can be verified against the original payload
+4. Creates an **embedded** COSE signature containing the hash structure (not the full payload)
 
 ### Content Type Modification
 
@@ -288,7 +327,7 @@ The indirect signature format created by this plugin is designed to be compatibl
 2. **PFX password errors**: Ensure correct password or try without password for unprotected files
 3. **File access errors**: Check file permissions and paths
 4. **Hash mismatch**: Ensure payload file hasn't been modified since signing
-5. **Certificate validation failures**: Use `--allow-untrusted` for testing with self-signed certificates
+5. **Certificate validation failures**: Use `--allow-untrusted` for testing with self-signed certificates (development/testing only - not for production)
 
 ### Debugging
 

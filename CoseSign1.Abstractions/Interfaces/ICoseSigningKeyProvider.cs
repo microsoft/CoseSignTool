@@ -39,6 +39,13 @@ public interface ICoseSigningKeyProvider
     public IReadOnlyList<AsymmetricAlgorithm> KeyChain { get; }
 
     /// <summary>
+    /// Gets the issuer identifier for this signing key provider.
+    /// For certificate-based providers, this typically returns a DID:X509 identifier derived from the certificate chain.
+    /// For other providers, this may return null or a provider-specific identifier.
+    /// </summary>
+    public string? Issuer { get; }
+
+    /// <summary>
     /// Returns the Protected Headers
     /// </summary>
     public CoseHeaderMap GetProtectedHeaders();

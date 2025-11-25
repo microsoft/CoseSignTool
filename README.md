@@ -8,24 +8,53 @@ CoseSignTool and CoseHandler support three commands/methods:
 2. Validate: Validates that a COSE signature is properly formed, has a valid certificate chain, and matches the source payload or its hash.
 3. Get: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
 
-Additionally, CoseSignTool supports a **Plugin System** that allows developers to extend the tool with custom commands and third-party integrations:
-- **Custom Commands**: Add specialized functionality for specific workflows
-- **Service Integration**: Connect with external services like Azure Code Transparency Service
-- **Enhanced Architecture**: Subdirectory-based plugin deployment with dependency isolation (v2.0+)
-- **Dependency Management**: Each plugin can use different versions of dependencies without conflicts
-- **Backward Compatibility**: Legacy flat plugin structure still supported
-- **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
+Additionally, CoseSignTool supports:
+- **Plugin System**: Extend the tool with custom commands and third-party integrations (Azure Code Transparency Service, etc.)
+- **Certificate Provider Plugins**: Use cloud-based signing services, HSMs, or custom certificate sources
+  - Built-in support for **Azure Trusted Signing** (Microsoft's managed signing service)
+  - Extensible architecture for custom certificate providers
+  - See [CertificateProviders.md](./docs/CertificateProviders.md) for details
 
 For plugin development, see:
 - [Plugins.md](./docs/Plugins.md) - Comprehensive plugin documentation
 - [PluginQuickStart.md](./docs/PluginQuickStart.md) - Quick start guide  
 - [PluginAPI.md](./docs/PluginAPI.md) - Complete API reference
 - [AzureCTS.md](./docs/AzureCTS.md) - Azure Code Transparency Service plugin documentation
+- [CertificateProviders.md](./docs/CertificateProviders.md) - Certificate provider plugin guide
 
 The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
 
 ## What is COSE?
 'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
+
+## SCITT Compliance
+CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through **CWT (CBOR Web Token) Claims** and **DID:x509 identifiers**. SCITT is an emerging IETF standard for creating transparent, verifiable supply chain signatures.
+
+### Key Features
+- **Automatic DID:x509 Generation**: Issuer identifiers are automatically derived from your certificate chain
+- **CWT Claims Support**: Include standardized claims (issuer, subject, audience, expiration, etc.) in your signatures
+- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates
+- **Fully Customizable**: Override defaults or add custom claims via CLI or programmatic API
+
+### Quick Example
+```bash
+# Basic SCITT-compliant signature (automatic DID:x509 issuer + default subject)
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
+
+# Custom SCITT signature with expiration
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
+  --cwt-subject "software.release.v1.0" \
+  --cwt-claims "exp:2025-12-31T23:59:59Z"
+
+# Using Azure Trusted Signing (cloud-based managed certificates)
+CoseSignTool sign -f payload.txt -s signature.cose \
+  --cert-provider azure-trusted-signing \
+  --ats-endpoint https://contoso.codesigning.azure.net \
+  --ats-account-name ContosoAccount \
+  --ats-cert-profile-name ContosoProfile
+```
+
+For complete documentation, see [SCITTCompliance.md](./docs/SCITTCompliance.md) and [CertificateProviders.md](./docs/CertificateProviders.md)
 
 ## Why would I use this?
 [The US Executive Order on Improving the Nation’s Cybersecurity of May 12, 2021](https://en.wikipedia.org/wiki/Software_supply_chain) requires an SBOM for any software or firmare product in use by the US government. This also includes the libraries and tools those products are built with. Even in consumer software, an SBOM helps you protect your customers from supply chain attacks by enabling you to quickly check the version numbers of all the products in your software supply chain.

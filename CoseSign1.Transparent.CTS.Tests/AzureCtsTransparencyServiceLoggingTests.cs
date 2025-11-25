@@ -79,7 +79,7 @@ public class AzureCtsTransparencyServiceLoggingTests
     }
 
     [Test]
-    public async Task MakeTransparentAsync_WithOperationFailure_LogsError()
+    public void MakeTransparentAsync_WithOperationFailure_LogsError()
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
@@ -104,7 +104,7 @@ public class AzureCtsTransparencyServiceLoggingTests
     }
 
     [Test]
-    public async Task MakeTransparentAsync_WithInvalidEntryId_LogsError()
+    public void MakeTransparentAsync_WithInvalidEntryId_LogsError()
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
@@ -167,7 +167,7 @@ public class AzureCtsTransparencyServiceLoggingTests
     }
 
     [Test]
-    public async Task VerifyTransparencyAsync_WithoutTransparencyHeader_LogsError()
+    public void VerifyTransparencyAsync_WithoutTransparencyHeader_LogsError()
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();

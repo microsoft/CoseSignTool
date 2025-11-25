@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--Build configuration-->
+	<PropertyGroup>
+		<TargetFrameworks>net8.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<!--Code style and static analysis-->
+	<PropertyGroup>
+		<Nullable>enable</Nullable>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+		<AnalysisLevel>latest</AnalysisLevel>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	</PropertyGroup>
+
+	<!--Strong name signing-->
+	<PropertyGroup>
+		<SignAssembly>True</SignAssembly>
+		<DelaySign>True</DelaySign>
+		<AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
+
+	<!--NuGet package configuration-->
+	<PropertyGroup>
+		<PackageId>$(MsBuildProjectName)</PackageId>
+		<PackageVersion>$(VersionNgt)</PackageVersion>
+		<Company>Microsoft</Company>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+		<PackageReadmeFile>readme.md</PackageReadmeFile>
+		<PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+		<Description>Azure Trusted Signing implementation for CoseCign1.Certificate provider.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+	</ItemGroup>
+
+</Project>

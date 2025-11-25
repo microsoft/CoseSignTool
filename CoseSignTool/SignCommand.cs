@@ -4,6 +4,7 @@
 namespace CoseSignTool;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions.Interfaces;
 
 /// <summary>
 /// Signs a file with a COSE signature based on passed in command line arguments.
@@ -42,7 +43,19 @@ public class SignCommand : CoseCommand
         ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
         ["-iuh"] = "IntUnProtectedHeaders",
         ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
-        ["-suh"] = "StringUnProtectedHeaders"
+        ["-suh"] = "StringUnProtectedHeaders",
+        ["-CwtIssuer"] = "CwtIssuer",
+        ["-cwt-iss"] = "CwtIssuer",
+        ["-CwtSubject"] = "CwtSubject",
+        ["-cwt-sub"] = "CwtSubject",
+        ["-CwtAudience"] = "CwtAudience",
+        ["-cwt-aud"] = "CwtAudience",
+        ["-CwtClaims"] = "CwtClaims",
+        ["-cwt"] = "CwtClaims",
+        ["-EnableScittCompliance"] = "EnableScittCompliance",
+        ["-scitt"] = "EnableScittCompliance",
+        ["-CertProvider"] = "CertProvider",
+        ["-cp"] = "CertProvider"
     };
 
     // Inherited default values
@@ -112,7 +125,54 @@ public class SignCommand : CoseCommand
     /// </summary>
     public List<CoseHeader<string>>? StringHeaders { get; set; }
 
+    /// <summary>
+    /// Optional. Gets or sets the CWT issuer (iss) claim for SCITT compliance.
+    /// If not specified and EnableScittCompliance is true, defaults to DID:x509 derived from the certificate.
+    /// </summary>
+    public string? CwtIssuer { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the CWT subject (sub) claim for SCITT compliance.
+    /// If not specified and EnableScittCompliance is true, defaults to "unknown.intent".
+    /// </summary>
+    public string? CwtSubject { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the CWT audience (aud) claim for SCITT compliance.
+    /// </summary>
+    public string? CwtAudience { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets additional custom CWT claims as a list of label:value pairs.
+    /// Labels can be integers (e.g., "100:value") or RFC 8392 claim names (e.g., "cti:abc123").
+    /// Multiple claims can be specified by repeating the argument.
+    /// Example: -cwt "cti:abc123" -cwt "100:custom-value" -cwt "exp:1735689600"
+    /// </summary>
+    public List<string>? CwtClaims { get; set; }
+
+    /// <summary>
+    /// Optional. If true, automatically adds SCITT-compliant CWT claims (issuer and subject) to the signature.
+    /// This is enabled by default for certificate-based signing.
+    /// </summary>
+    public bool EnableScittCompliance { get; set; } = true;
+
+    /// <summary>
+    /// Optional. Gets or sets the name of the certificate provider plugin to use for signing.
+    /// If not specified, uses local certificate loading (PFX or thumbprint).
+    /// </summary>
+    public string? CertProvider { get; set; }
+
     #endregion
+
+    /// <summary>
+    /// Internal field to store the configuration provider for plugin access.
+    /// </summary>
+    private readonly CommandLineConfigurationProvider? ConfigurationProvider;
+
+    /// <summary>
+    /// Internal field to store the plugin manager for certificate providers.
+    /// </summary>
+    private CertificateProviderPluginManager? PluginManager;
 
     /// <summary>
     /// For test use only.
@@ -125,7 +185,17 @@ public class SignCommand : CoseCommand
     /// <param name="provider">A CommandLineConfigurationProvider that has loaded the command line arguments.</param>
     public SignCommand(CommandLineConfigurationProvider provider)
     {
+        ConfigurationProvider = provider;
         ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Sets the certificate provider plugin manager for this command instance.
+    /// </summary>
+    /// <param name="manager">The plugin manager to use for loading certificate providers.</param>
+    internal void SetCertificateProviderPluginManager(CertificateProviderPluginManager manager)
+    {
+        PluginManager = manager;
     }
 
     /// <summary>
@@ -145,14 +215,13 @@ public class SignCommand : CoseCommand
             return exitCode;
         }
 
-        // Get the signing certificate.
-        X509Certificate2 cert;
-        List<X509Certificate2>? additionalRoots;
+        // Get the signing key provider (either from certificate provider plugin or local certificate).
+        ICoseSigningKeyProvider signingKeyProvider;
         try
         {
-            (cert, additionalRoots) = LoadCert();
+            signingKeyProvider = LoadSigningKeyProvider();
         }
-        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException)
+        catch (Exception ex) when (ex is CoseSign1CertificateException or FileNotFoundException or CryptographicException or ArgumentException or InvalidOperationException)
         {
             exitCode = ex is CoseSign1CertificateException ? ExitCode.StoreCertificateNotFound : ExitCode.CertificateLoadFailure;
             return CoseSignTool.Fail(exitCode, ex);
@@ -175,13 +244,52 @@ public class SignCommand : CoseCommand
         try
         {
             // Use shared header processing logic
-            CoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+            CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+
+            // If SCITT compliance is enabled or CWT claims are specified, wrap the header extender with CWT claims
+            // Note: CWT claims are only supported for certificate-based signing key providers
+            if ((EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null) &&
+                signingKeyProvider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+            {
+                // Create the X509 + CWT header extender using the convenient extension method
+                CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender cwtHeaderExtender = 
+                    certProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
+
+                // If audience is also specified, we need to customize further
+                if (CwtAudience != null)
+                {
+                    // Get the active CWT claims extender and add the audience
+                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
+                    if (certWithCwtExtender != null)
+                    {
+                        certWithCwtExtender.ActiveCWTClaimsExtender.SetAudience(CwtAudience);
+                    }
+                }
+
+                // Apply any custom CWT claims specified via CwtClaims
+                if (CwtClaims != null && CwtClaims.Count > 0)
+                {
+                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
+                    if (certWithCwtExtender != null)
+                    {
+                        ApplyCwtClaims(certWithCwtExtender.ActiveCWTClaimsExtender, CwtClaims);
+                    }
+                }
+
+                // If there was an existing header extender, chain them together
+                if (headerExtender != null)
+                {
+                    headerExtender = new CoseSign1.ChainedCoseHeaderExtender(new[] { cwtHeaderExtender, headerExtender });
+                }
+                else
+                {
+                    headerExtender = cwtHeaderExtender;
+                }
+            }
 
             // Sign the content.
-            // Create the signing key provider with additional roots if available
-            CoseSign1.Abstractions.Interfaces.ICoseSigningKeyProvider signingKeyProvider = new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
             ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
-
+            
             // Write the signature to stream or file.
             if (PipeOutput)
             {
@@ -251,7 +359,151 @@ public class SignCommand : CoseCommand
             GetOptionHeadersFromCommandLine(provider, "StringUnProtectedHeaders", false, HeaderValueConverter<string>, StringHeaders);
         }
 
+        // CWT Claims options
+        CwtIssuer = GetOptionString(provider, nameof(CwtIssuer));
+        CwtSubject = GetOptionString(provider, nameof(CwtSubject));
+        CwtAudience = GetOptionString(provider, nameof(CwtAudience));
+        
+        // Custom CWT claims (can be specified multiple times)
+        if (provider.TryGet(nameof(CwtClaims), out string? cwtClaimsValue) && !string.IsNullOrWhiteSpace(cwtClaimsValue))
+        {
+            CwtClaims = new List<string> { cwtClaimsValue };
+            // Check for additional CWT claims with indexed keys (CwtClaims:0, CwtClaims:1, etc.)
+            int index = 1;
+            while (provider.TryGet($"{nameof(CwtClaims)}:{index}", out string? additionalClaim) && !string.IsNullOrWhiteSpace(additionalClaim))
+            {
+                CwtClaims.Add(additionalClaim);
+                index++;
+            }
+        }
+        
+        // Enable SCITT compliance by default
+        bool scittComplianceSet = provider.TryGet(nameof(EnableScittCompliance), out string? scittValue);
+        EnableScittCompliance = !scittComplianceSet || (bool.TryParse(scittValue, out bool scittResult) && scittResult);
+
+        // Certificate provider plugin
+        CertProvider = GetOptionString(provider, nameof(CertProvider));
+
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Parses and applies custom CWT claims from a list of label:value strings to the CWTClaimsHeaderExtender.
+    /// Supports both integer labels and RFC 8392 claim names.
+    /// </summary>
+    /// <param name="extender">The CWTClaimsHeaderExtender to apply claims to.</param>
+    /// <param name="claimStrings">A list of "label:value" strings.</param>
+    /// <exception cref="ArgumentException">Thrown when a claim string is invalid.</exception>
+    private static void ApplyCwtClaims(CoseSign1.Headers.CWTClaimsHeaderExtender extender, List<string> claimStrings)
+    {
+        foreach (string claimString in claimStrings)
+        {
+            // Split by colon separator
+            string[] parts = claimString.Split(':', 2);
+            if (parts.Length != 2)
+            {
+                throw new ArgumentException($"Invalid CWT claim format: '{claimString}'. Expected format: 'label:value'");
+            }
+
+            string label = parts[0].Trim();
+            string value = parts[1]; // Don't trim value - it might be intentional
+
+            // Try to parse label as integer first
+            if (int.TryParse(label, out int labelInt))
+            {
+                // Try to parse value as different types
+                if (int.TryParse(value, out int valueInt))
+                {
+                    // Integer value
+                    extender.SetCustomClaim(labelInt, valueInt);
+                }
+                else if (long.TryParse(value, out long valueLong))
+                {
+                    // Long value (for timestamps)
+                    extender.SetCustomClaim(labelInt, valueLong);
+                }
+                else
+                {
+                    // String value
+                    extender.SetCustomClaim(labelInt, value);
+                }
+            }
+            else
+            {
+                // Label is a name, try to map to known claims
+                switch (label.ToLowerInvariant())
+                {
+                    case "iss":
+                    case "issuer":
+                        extender.SetIssuer(value);
+                        break;
+                    case "sub":
+                    case "subject":
+                        extender.SetSubject(value);
+                        break;
+                    case "aud":
+                    case "audience":
+                        extender.SetAudience(value);
+                        break;
+                    case "exp":
+                    case "expirationtime":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset expDate))
+                        {
+                            extender.SetExpirationTime(expDate);
+                        }
+                        else if (long.TryParse(value, out long exp))
+                        {
+                            extender.SetExpirationTime(exp);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid expiration time value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "nbf":
+                    case "notbefore":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset nbfDate))
+                        {
+                            extender.SetNotBefore(nbfDate);
+                        }
+                        else if (long.TryParse(value, out long nbf))
+                        {
+                            extender.SetNotBefore(nbf);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid not-before value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "iat":
+                    case "issuedAt":
+                        // Try parsing as DateTimeOffset first, then fall back to Unix timestamp
+                        if (DateTimeOffset.TryParse(value, out DateTimeOffset iatDate))
+                        {
+                            extender.SetIssuedAt(iatDate);
+                        }
+                        else if (long.TryParse(value, out long iat))
+                        {
+                            extender.SetIssuedAt(iat);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Invalid issued-at value: '{value}'. Expected a date/time string (e.g., '2024-12-31T23:59:59Z') or Unix timestamp (long integer).");
+                        }
+                        break;
+                    case "cti":
+                    case "cwtid":
+                        // Convert string to UTF-8 bytes for CWT ID
+                        byte[] cwtIdBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                        extender.SetCWTID(cwtIdBytes);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unknown CWT claim name: '{label}'. Use an integer label or one of: iss, sub, aud, exp, nbf, iat, cti.");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -343,6 +595,87 @@ public class SignCommand : CoseCommand
         }
 
         return (cert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Loads a signing key provider, either from a certificate provider plugin or from local certificates.
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance ready for signing operations.</returns>
+    /// <exception cref="ArgumentException">Thrown when certificate provider is specified but not found, or when configuration is invalid.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when certificate provider fails to create a provider.</exception>
+    /// <exception cref="FileNotFoundException">Thrown when a specified certificate file is not found.</exception>
+    /// <exception cref="CryptographicException">Thrown when certificate loading or validation fails.</exception>
+    /// <exception cref="CoseSign1CertificateException">Thrown when certificate store lookup fails.</exception>
+    internal ICoseSigningKeyProvider LoadSigningKeyProvider()
+    {
+        // If a certificate provider is specified, use it
+        if (!string.IsNullOrWhiteSpace(CertProvider))
+        {
+            return LoadSigningKeyProviderFromPlugin();
+        }
+
+        // Otherwise, use local certificate loading (legacy behavior)
+        return LoadSigningKeyProviderFromLocalCertificate();
+    }
+
+    /// <summary>
+    /// Loads a signing key provider from a certificate provider plugin.
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance from the plugin.</returns>
+    /// <exception cref="ArgumentException">Thrown when certificate provider is not found or cannot create provider.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when certificate provider fails during creation.</exception>
+    private ICoseSigningKeyProvider LoadSigningKeyProviderFromPlugin()
+    {
+        if (PluginManager == null)
+        {
+            throw new InvalidOperationException(
+                $"Certificate provider '{CertProvider}' was specified, but no certificate provider plugins are available. " +
+                "Ensure certificate provider plugins are installed and the plugins directory is correctly configured.");
+        }
+
+        ICertificateProviderPlugin? plugin = PluginManager.GetProvider(CertProvider!);
+        if (plugin == null)
+        {
+            string availableProviders = PluginManager.Providers.Count > 0
+                ? string.Join(", ", PluginManager.Providers.Keys)
+                : "none";
+            throw new ArgumentException(
+                $"Certificate provider '{CertProvider}' not found. Available providers: {availableProviders}");
+        }
+
+        // Convert the CommandLineConfigurationProvider to IConfiguration (explicit cast)
+        // CommandLineConfigurationProvider implements IConfigurationProvider, not IConfiguration
+        // We need to access it as IConfiguration through the ConfigurationRoot
+        if (ConfigurationProvider == null)
+        {
+            throw new InvalidOperationException("Configuration provider is not available.");
+        }
+
+        // Create an IConfiguration from the provider
+        using ConfigurationRoot configRoot = new ConfigurationRoot(new List<IConfigurationProvider> { ConfigurationProvider });
+        IConfiguration configuration = configRoot;
+
+        // Check if the plugin can create a provider with the given configuration
+        if (!plugin.CanCreateProvider(configuration))
+        {
+            throw new ArgumentException(
+                $"Certificate provider '{CertProvider}' cannot create a provider with the given configuration. " +
+                $"Required parameters may be missing. Use 'CoseSignTool help {CertProvider}' for usage information.");
+        }
+
+        // Create and return the provider
+        // Note: We could pass a logger here if we had one available
+        return plugin.CreateProvider(configuration, logger: null);
+    }
+
+    /// <summary>
+    /// Loads a signing key provider from local certificate (PFX or thumbprint).
+    /// </summary>
+    /// <returns>An ICoseSigningKeyProvider instance using local certificates.</returns>
+    private ICoseSigningKeyProvider LoadSigningKeyProviderFromLocalCertificate()
+    {
+        (X509Certificate2 cert, List<X509Certificate2>? additionalRoots) = LoadCert();
+        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
     }
 
     /// <summary>
@@ -654,16 +987,16 @@ public class SignCommand : CoseCommand
     }
 
     /// <inheritdoc/>
-    public static new string Usage => $"{BaseUsageString}{UsageString}";
+    public static new string Usage => $"{BaseUsageString}{UsageString}{GetCertificateProviderUsageString()}";
 
     /// <summary>
     /// Command line usage specific to the SignInternal command.
     /// Each line should have no more than 120 characters to avoid wrapping. Break is here:                            *V*
     /// </summary>
     protected new const string UsageString = @"
-Sign command: Signs the specified file or piped content with a detached or embedded signature.
-    A detached signature resides in a separate file and validates against the original content by hash match.
-    An embedded signature contains an encoded copy of the original payload. Not supported for payload of >2gb in size.
+Sign command: Signs the specified file or piped content with a detached or embedded COSE signature.
+    A detached signature resides in a separate file and validates against the original content when provided.
+    An embedded signature contains a copy of the original payload. Not supported for payload of >2gb in size.
 
 Options:
     PayloadFile / payload / p: Required, pipeable. The file or piped content to sign.
@@ -672,7 +1005,12 @@ Options:
         Default value is [payload file].cose for detached signatures or [payload file].csm for embedded.
         Required if neither PayloadFile or PipeOutput are set.
 
-    A signing certificate as either:
+    A signing certificate from one of the following sources:
+
+        Certificate Provider Plugin (--cert-provider / -cp): Use a certificate provider plugin such as Azure
+            Trusted Signing or custom HSM providers. See Certificate Providers section below for available providers.
+
+    --OR--
 
         PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
 
@@ -693,14 +1031,34 @@ Options:
     PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
         to file.
 
-    EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the in COSE signature file.
-        Default behavior is 'detached signing', where the signature is in a separate file from the payload.
-        Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
+    EmbedPayload / ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
+        Default behavior is 'detached signing', where the COSE signature file .Content property is empty, and to validate
+        the signature, the payload must be provided separately. When set to true, the payload is embedded in the signature
+        file. Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
 
 Advanced Options:
     ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
+
+    Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
+        EnableScittCompliance /scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
+            (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
+
+        CwtIssuer /cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
+            compliance is enabled, defaults to a DID:x509 identifier derived from the signing certificate chain.
+
+        CwtSubject /cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
+            compliance is enabled, defaults to ""unknown.intent"".
+
+        CwtAudience /cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
+
+        CwtClaims /cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times for multiple claims.
+            Labels can be integers (e.g., ""100:custom-value"") or RFC 8392 claim names (iss, sub, aud, exp, nbf, iat, cti).
+            Timestamp claims (exp, nbf, iat) accept date/time strings (e.g., ""2024-12-31T23:59:59Z"") or Unix timestamps.
+            Examples: 
+                /cwt ""cti:abc123"" /cwt ""100:custom-value"" /cwt ""exp:2024-12-31T23:59:59Z""
+                /cwt ""iss:custom-issuer"" /cwt ""sub:custom-subject"" /cwt ""nbf:1735689600""
 
     Options to customize the headers in the signature:
         IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.
@@ -724,4 +1082,39 @@ Advanced Options:
 
         UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.
 ";
+
+    /// <summary>
+    /// Gets the certificate provider usage documentation from loaded plugins.
+    /// </summary>
+    /// <returns>A formatted string containing certificate provider information, or empty string if none available.</returns>
+    private static string GetCertificateProviderUsageString()
+    {
+        if (CoseSignTool.CertificateProviderManager.Providers.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("Certificate Providers:");
+        sb.AppendLine("======================");
+        sb.AppendLine();
+        sb.AppendLine("Available certificate provider plugins:");
+        
+        foreach (var kvp in CoseSignTool.CertificateProviderManager.Providers)
+        {
+            sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
+        }
+        
+        sb.AppendLine();
+        sb.AppendLine("To use a certificate provider, specify the --cert-provider option:");
+        sb.AppendLine("  --cert-provider <provider-name>");
+        sb.AppendLine("  -cp <provider-name>");
+        sb.AppendLine();
+        sb.AppendLine("For detailed information about a specific provider, use:");
+        sb.AppendLine("  CoseSignTool help <provider-name>");
+        sb.AppendLine();
+        
+        return sb.ToString();
+    }
 }

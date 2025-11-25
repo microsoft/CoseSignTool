@@ -39,10 +39,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{36BAA2CE-A
 		docs\CoseHandler.md = docs\CoseHandler.md
 		docs\CoseIndirectSignature.md = docs\CoseIndirectSignature.md
 		docs\CoseSign1.Abstractions.md = docs\CoseSign1.Abstractions.md
+		docs\CoseSign1.Certificates.AzureTrustedSigning.md = docs\CoseSign1.Certificates.AzureTrustedSigning.md
 		docs\CoseSign1.Certificates.md = docs\CoseSign1.Certificates.md
 		CoseSign1.md = CoseSign1.md
-		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\CoseSign1.Transparent.md = docs\CoseSign1.Transparent.md
+		docs\CoseSignTool.md = docs\CoseSignTool.md
 		docs\SECURITY.md = docs\SECURITY.md
 		docs\STYLE.md = docs\STYLE.md
 		docs\SUPPORT.md = docs\SUPPORT.md
@@ -68,6 +69,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Headers", "CoseSi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoseSign1.Headers.Tests", "CoseSign1.Headers.Tests\CoseSign1.Headers.Tests.csproj", "{5181310A-CA82-4399-9197-86B468F7FCE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.AzureTrustedSigning", "CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj", "{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.AzureTrustedSigning.Tests", "CoseSign1.Certificates.AzureTrustedSigning.Tests\CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj", "{14C76799-55FD-4A17-AB97-5148912A2CB2}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent", "CoseSign1.Transparent\CoseSign1.Transparent.csproj", "{F01E36FD-EF26-4F61-B025-1E9C603047D3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.Tests", "CoseSign1.Transparent.Tests\CoseSign1.Transparent.Tests.csproj", "{033430CC-6D03-415A-A476-96A3922231D0}"
@@ -87,6 +92,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.IndirectSignature.Plugin", "CoseSignTool.IndirectSignature.Plugin\CoseSignTool.IndirectSignature.Plugin.csproj", "{C5A2F8E9-1D4B-4A3C-B9E5-7F8A9C2D4E6F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.IndirectSignature.Plugin.Tests", "CoseSignTool.IndirectSignature.Plugin.Tests\CoseSignTool.IndirectSignature.Plugin.Tests.csproj", "{B8D3E1F2-4C6A-9E7B-A5F3-8D2C1E9A6B4D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.AzureTrustedSigning.Plugin", "CoseSignTool.AzureTrustedSigning.Plugin\CoseSignTool.AzureTrustedSigning.Plugin.csproj", "{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -324,6 +331,38 @@ Global
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x64.Build.0 = Release|Any CPU
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x86.ActiveCfg = Release|Any CPU
 		{5181310A-CA82-4399-9197-86B468F7FCE9}.Release|x86.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x64.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Debug|x86.Build.0 = Debug|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|ARM64.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x64.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x64.Build.0 = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x86.ActiveCfg = Release|Any CPU
+		{F2AA73A9-E5AD-431A-83E7-4BCEFD5C7CCD}.Release|x86.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x64.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Debug|x86.Build.0 = Debug|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|ARM64.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x64.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x64.Build.0 = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x86.ActiveCfg = Release|Any CPU
+		{14C76799-55FD-4A17-AB97-5148912A2CB2}.Release|x86.Build.0 = Release|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F01E36FD-EF26-4F61-B025-1E9C603047D3}.Debug|ARM64.ActiveCfg = Debug|Any CPU
@@ -484,6 +523,22 @@ Global
 		{B8D3E1F2-4C6A-9E7B-A5F3-8D2C1E9A6B4D}.Release|x64.Build.0 = Release|Any CPU
 		{B8D3E1F2-4C6A-9E7B-A5F3-8D2C1E9A6B4D}.Release|x86.ActiveCfg = Release|Any CPU
 		{B8D3E1F2-4C6A-9E7B-A5F3-8D2C1E9A6B4D}.Release|x86.Build.0 = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|x64.Build.0 = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Debug|x86.Build.0 = Debug|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|ARM64.Build.0 = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|x64.ActiveCfg = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|x64.Build.0 = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|x86.ActiveCfg = Release|Any CPU
+		{D41AF01F-9174-4F29-A030-8BA2FF43E8D2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

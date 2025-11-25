@@ -79,26 +79,30 @@
         
         <MakeDir Directories="$(PluginSubDir)" />
         
-        <!-- Get list of files that exist in main application output (these are "shared" dependencies) -->
+        <!-- Get all plugin files for subdirectory isolation -->
         <ItemGroup>
-            <MainAppFiles Include="$(OutputPath)*.dll;$(OutputPath)*.exe" />
+            <AllPluginFiles Include="$(PluginSourceDir)\*.dll;$(PluginSourceDir)\*.exe;$(PluginSourceDir)\*.xml;$(PluginSourceDir)\*.pdb;$(PluginSourceDir)\*.json;$(PluginSourceDir)\*.runtimeconfig.json" />
         </ItemGroup>
         
-        <!-- Get all plugin files -->
-        <ItemGroup>
-            <AllPluginFiles Include="$(PluginSourceDir)\*.dll;$(PluginSourceDir)\*.exe;$(PluginSourceDir)\*.xml;$(PluginSourceDir)\*.pdb;$(PluginSourceDir)\*.json" />
-        </ItemGroup>
-        
-        <!-- Filter out shared dependencies - only copy files that don't exist in main app or are plugin-specific -->
+        <!-- For subdirectory isolation: Copy ALL plugin files to create self-contained plugin directories -->
+        <!-- Exclude only .NET framework assemblies (System.*, mscorlib, netstandard, Microsoft.CSharp, etc.) to avoid duplication -->
         <ItemGroup>
             <PluginSpecificFiles Include="@(AllPluginFiles)" 
-                Condition="!Exists('$(OutputPath)%(Filename)%(Extension)') OR $([System.String]::new('%(Filename)').StartsWith('$(PluginName)'))" />
+                Condition="!$([System.String]::new('%(Filename)').StartsWith('System.')) 
+                    AND '%(Filename)' != 'mscorlib' 
+                    AND '%(Filename)' != 'netstandard' 
+                    AND '%(Filename)' != 'Microsoft.CSharp' 
+                    AND '%(Filename)' != 'WindowsBase' 
+                    AND '%(Filename)' != 'Microsoft.VisualBasic' 
+                    AND '%(Filename)' != 'Microsoft.VisualBasic.Core' 
+                    AND '%(Filename)' != 'Microsoft.Win32.Primitives' 
+                    AND '%(Filename)' != 'Microsoft.Win32.Registry'" />
         </ItemGroup>
         
         <Copy SourceFiles="@(PluginSpecificFiles)" DestinationFolder="$(PluginSubDir)" Condition="Exists('$(PluginSourceDir)')" SkipUnchangedFiles="true" />
         
         <Message Text="Plugin '$(PluginName)' deployed to: $(PluginSubDir)" Importance="high" Condition="Exists('$(PluginSourceDir)')" />
-        <Message Text="Copied @(PluginSpecificFiles->Count()) plugin-specific files" Importance="high" Condition="'@(PluginSpecificFiles)' != ''" />
+        <Message Text="Copied @(PluginSpecificFiles->Count()) plugin-specific files for subdirectory isolation" Importance="high" Condition="'@(PluginSpecificFiles)' != ''" />
         <Warning Text="Plugin directory not found at: $(PluginSourceDir)" Condition="!Exists('$(PluginSourceDir)')" />
     </Target>
 

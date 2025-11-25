@@ -536,4 +536,325 @@ public class IndirectSignCommandTests
         Assert.AreEqual(PluginExitCode.Success, result);
         Assert.IsFalse(File.Exists(TestOutputPath), "Output file should not be created when no output path specified");
     }
+
+    [TestMethod]
+    public void IndirectSignCommand_Options_ShouldContainCWTClaimsOptions()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+
+        // Act
+        IDictionary<string, string> options = command.Options;
+
+        // Assert
+        Assert.IsTrue(options.ContainsKey("enable-scitt"));
+        Assert.IsTrue(options.ContainsKey("cwt-issuer"));
+        Assert.IsTrue(options.ContainsKey("cwt-subject"));
+        Assert.IsTrue(options.ContainsKey("cwt-audience"));
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCWTClaims_ShouldIncludeClaimsInSignature()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_cwt";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "did:example:issuer",
+            ["cwt-subject"] = "test.subject",
+            ["cwt-audience"] = "test-audience"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify CWT claims are in the signature
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims);
+            Assert.IsNotNull(claims);
+            Assert.AreEqual("did:example:issuer", claims.Issuer);
+            Assert.AreEqual("test.subject", claims.Subject);
+            Assert.AreEqual("test-audience", claims.Audience);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithScittDisabled_ShouldNotIncludeCWTClaims()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_no_scitt";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["enable-scitt"] = "false"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify CWT claims are NOT in the signature
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsFalse(hasClaims);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCustomCWTClaims_IntegerLabel_ShouldSucceed()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_custom_int";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = "100:custom-value"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify custom claim
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims);
+            Assert.IsNotNull(claims);
+            Assert.IsTrue(claims.CustomClaims.TryGetValue(100, out object? value));
+            Assert.AreEqual("custom-value", value);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCustomCWTClaims_LongValue_ShouldSucceed()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_custom_long";
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = $"101:{timestamp}"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify custom claim
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims);
+            Assert.IsNotNull(claims);
+            Assert.IsTrue(claims.CustomClaims.ContainsKey(101));
+            Assert.AreEqual(timestamp, claims.CustomClaims[101]);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCustomCWTClaims_NamedClaims_ShouldSucceed()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_named_claims";
+        var expirationDate = DateTimeOffset.UtcNow.AddMonths(6);
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = $"exp:{expirationDate:O}",
+            ["cwt-claims:1"] = $"nbf:{DateTimeOffset.UtcNow.AddDays(-1):O}",
+            ["cwt-claims:2"] = $"iat:{DateTimeOffset.UtcNow:O}"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify named claims
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims);
+            Assert.IsNotNull(claims);
+            Assert.IsNotNull(claims.ExpirationTime);
+            Assert.IsNotNull(claims.NotBefore);
+            Assert.IsNotNull(claims.IssuedAt);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCustomCWTClaims_InvalidFormat_ShouldFail()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = "invalid-format-no-colon"
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.UnknownError, result);
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCustomCWTClaims_UnknownName_ShouldFail()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = "unknown:value"
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.UnknownError, result);
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithCWTID_ShouldSucceed()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_cwtid";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["cwt-issuer"] = "test-issuer",
+            ["cwt-claims"] = "cti:test-cwt-id"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify CWT ID claim
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims);
+            Assert.IsNotNull(claims);
+            Assert.IsNotNull(claims.CwtId);
+            CollectionAssert.AreEqual(System.Text.Encoding.UTF8.GetBytes("test-cwt-id"), claims.CwtId);
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithInvalidSignatureVersion_ShouldFail()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = TestSignaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["signature-version"] = "INVALID"
+        });
+
+        // Act
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        // Assert
+        Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
+    }
 }

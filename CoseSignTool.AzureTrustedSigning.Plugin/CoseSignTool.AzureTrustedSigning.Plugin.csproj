@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors>CA1014</WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>CoseSignTool.AzureTrustedSigning.Plugin</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    
+    <!-- Plugin-specific properties to ensure all dependencies are copied for subdirectory isolation -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PreserveCompilationContext>true</PreserveCompilationContext>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    
+    <!-- Disable NuGet package generation for plugins -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj">
+      <Private>true</Private>
+      <ExcludeAssets>none</ExcludeAssets>
+      <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj">
+      <Private>true</Private>
+      <ExcludeAssets>none</ExcludeAssets>
+      <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider">
+      <Private>true</Private>
+    </PackageReference>
+    <PackageReference Include="Azure.Identity">
+      <Private>true</Private>
+    </PackageReference>
+    <PackageReference Include="Azure.Core">
+      <Private>true</Private>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Post-build event to copy all runtime dependencies for plugin isolation -->
+  <Target Name="CopyRuntimeDependencies" AfterTargets="Build">
+    <ItemGroup>
+      <!-- Get all runtime dependencies from deps.json -->
+      <RuntimeDeps Include="$(OutDir)*.dll" Exclude="$(OutDir)$(AssemblyName).dll;$(OutDir)CoseSign*.dll;$(OutDir)CoseHandler.dll;$(OutDir)CoseIndirectSignature.dll" />
+    </ItemGroup>
+    <Message Text="Plugin runtime dependencies ready for deployment" Importance="high" />
+  </Target>
+
+</Project>

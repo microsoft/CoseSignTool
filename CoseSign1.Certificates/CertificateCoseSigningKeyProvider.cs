@@ -3,11 +3,15 @@
 
 namespace CoseSign1.Certificates;
 
+using CoseSign1.Certificates.Extensions;
+
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
 public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider
 {
+    private static readonly DidX509Generator DefaultDidGenerator = new();
+
     /// <inheritdoc/>
     public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
 
@@ -16,6 +20,35 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
 
     /// <inheritdoc/>
     public virtual IReadOnlyList<AsymmetricAlgorithm> KeyChain => GetKeyChain();
+
+    /// <summary>
+    /// Gets the default issuer value for CWT Claims, derived from the certificate chain as a DID:x509 identifier.
+    /// This property can be overridden by derived classes to provide custom issuer logic.
+    /// </summary>
+    /// <remarks>
+    /// By default, this property returns a DID:x509 identifier generated from the leaf and root certificates
+    /// in the certificate chain. Derived classes can override this to provide alternative issuer values
+    /// (e.g., from certificate fields, configuration, or other sources).
+    /// </remarks>
+    public virtual string? Issuer
+    {
+        get
+        {
+            try
+            {
+                // Get the certificate chain in leaf-first order
+                IEnumerable<X509Certificate2> certChain = GetCertificateChain(X509ChainSortOrder.LeafFirst);
+                
+                // Generate DID:x509 identifier from the chain
+                return DefaultDidGenerator.GenerateFromChain(certChain);
+            }
+            catch
+            {
+                // If chain building or DID generation fails, return null
+                return null;
+            }
+        }
+    }
 
     /// <summary>
     /// An X509ChainBuilder instance to build the certificate chain. 

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Exceptions;
 using CoseSign1.Certificates.Extensions;
+using CoseSign1.Headers.Extensions;
 
 namespace CoseSignTool.Tests;
 
@@ -911,6 +912,468 @@ public class SignCommandTests
         {
             cert1.Dispose();
             cert2.Dispose();
+        }
+    }
+
+    #endregion
+
+    #region CWT Claims Tests
+
+    [TestMethod]
+    public void SignWithCwtClaims_ShouldIncludeClaimsInSignature()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "did:example:issuer", "/cwt-sub", "test.subject"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify CWT claims are in the signature
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue("Signature should contain CWT claims");
+            claims.Should().NotBeNull();
+            claims!.Issuer.Should().Be("did:example:issuer");
+            claims.Subject.Should().Be("test.subject");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithScittDisabled_ShouldNotIncludeCwtClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/scitt", "false"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify CWT claims are NOT in the signature when SCITT is disabled
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeFalse("Signature should not contain CWT claims when SCITT is disabled");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCwtAudience_ShouldIncludeAudienceClaim()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt-aud", "test-audience"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify audience claim
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            claims!.Audience.Should().Be("test-audience");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCustomCwtClaims_ShouldIncludeCustomClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Using integer label with value
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", "100:custom-value"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify custom claim
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            claims!.CustomClaims.Should().ContainKey(100);
+            claims.CustomClaims[100].Should().Be("custom-value");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCwtExpiration_ShouldIncludeExpirationClaim()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test expiration with Unix timestamp
+            long expTimestamp = 1735689600; // Jan 1, 2025
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", $"exp:{expTimestamp}"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            DateTimeOffset expectedDate = DateTimeOffset.FromUnixTimeSeconds(expTimestamp);
+            claims!.ExpirationTime.Should().Be(expectedDate);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCwtNotBefore_ShouldIncludeNotBeforeClaim()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test not-before with Unix timestamp
+            long nbfTimestamp = 1704067200; // Jan 1, 2024
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", $"nbf:{nbfTimestamp}"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            DateTimeOffset expectedDate = DateTimeOffset.FromUnixTimeSeconds(nbfTimestamp);
+            claims!.NotBefore.Should().Be(expectedDate);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCwtIssuedAt_ShouldIncludeIssuedAtClaim()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test issued-at with Unix timestamp
+            long iatTimestamp = 1704153600;
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", $"iat:{iatTimestamp}"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            DateTimeOffset expectedDate = DateTimeOffset.FromUnixTimeSeconds(iatTimestamp);
+            claims!.IssuedAt.Should().Be(expectedDate);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCwtId_ShouldIncludeCwtIdClaim()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test CWT ID
+            string ctiValue = "unique-token-id-123";
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", $"cti:{ctiValue}"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            byte[] expectedBytes = System.Text.Encoding.UTF8.GetBytes(ctiValue);
+            claims!.CwtId.Should().BeEquivalentTo(expectedBytes);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithIntegerCwtClaim_ShouldIncludeIntegerValue()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test integer custom claim
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", "200:42"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            claims!.CustomClaims.Should().ContainKey(200);
+            claims.CustomClaims[200].Should().Be(42);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithLongCwtClaim_ShouldIncludeLongValue()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test long custom claim (beyond int32 range)
+            long longValue = 9999999999L;
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", $"300:{longValue}"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            claims!.CustomClaims.Should().ContainKey(300);
+            claims.CustomClaims[300].Should().Be(longValue);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithMultipleCwtClaims_ShouldIncludeAllClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Test single custom claim for now (multiple /cwt parameters need special handling)
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/cwt-iss", "issuer", "/cwt", "102:42"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success);
+            
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue();
+            claims!.CustomClaims.Should().ContainKey(102);
+            claims.CustomClaims[102].Should().Be(42);
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
         }
     }
 

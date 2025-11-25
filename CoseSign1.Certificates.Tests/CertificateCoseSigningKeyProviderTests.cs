@@ -351,4 +351,481 @@ public class CertificateCoseSigningKeyProviderTests
         keyChain.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that the Issuer property returns null for the base test class with empty certificate chain
+    /// </summary>
+    [Test]
+    public void TestIssuer_WithEmptyCertificateChain_ReturnsNull()
+    {
+        TestCertificateCoseSigningKeyProvider testObj = new();
+
+        // The Issuer property should return null because GetCertificateChain returns empty
+        string? issuer = testObj.Issuer;
+
+        issuer.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests that the Issuer property returns a DID:x509 identifier for a valid certificate chain
+    /// </summary>
+    [Test]
+    public void TestIssuer_WithValidCertificateChain_ReturnsDIDx509()
+    {
+        // Create a real certificate chain
+        X509Certificate2Collection certs = TestCertificateUtils.CreateTestChain();
+        X509Certificate2CoseSigningKeyProvider provider = new(certs[^1]);
+
+        // The Issuer property should return a DID:x509 identifier
+        string? issuer = provider.Issuer;
+
+        issuer.Should().NotBeNullOrEmpty();
+        issuer.Should().StartWith("did:x509:");
+
+        // Clean up certificates
+        foreach (var cert in certs)
+        {
+            cert.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that derived classes can override the Issuer property
+    /// </summary>
+    [Test]
+    public void TestIssuer_CanBeOverridden()
+    {
+        // Create a custom provider that overrides Issuer
+        TestCertificateProviderWithCustomIssuer provider = new("custom-issuer-value");
+
+        string? issuer = provider.Issuer;
+
+        issuer.Should().Be("custom-issuer-value");
+    }
+
+    /// <summary>
+    /// Helper class to test Issuer property override
+    /// </summary>
+    private class TestCertificateProviderWithCustomIssuer : CertificateCoseSigningKeyProvider
+    {
+        private readonly string _customIssuer;
+
+        public TestCertificateProviderWithCustomIssuer(string customIssuer) : base(null, null)
+        {
+            _customIssuer = customIssuer;
+        }
+
+        public override string? Issuer => _customIssuer;
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
+        {
+            return Enumerable.Empty<X509Certificate2>();
+        }
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override RSA? ProvideRSAKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Helper class to test GetKeyChain when GetCertificateChain throws CoseSign1CertificateException
+    /// </summary>
+    private class TestCertificateCoseSigningKeyProviderWithException : CertificateCoseSigningKeyProvider
+    {
+        public TestCertificateCoseSigningKeyProviderWithException() : base(null, null) { }
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
+        {
+            throw new CoseSign1CertificateException("Test exception");
+        }
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override RSA? ProvideRSAKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Helper class to test GetKeyChain when GetCertificateChain throws ArgumentNullException
+    /// </summary>
+    private class TestCertificateCoseSigningKeyProviderWithArgumentNull : CertificateCoseSigningKeyProvider
+    {
+        public TestCertificateCoseSigningKeyProviderWithArgumentNull() : base(null, null) { }
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
+        {
+            throw new ArgumentNullException("test");
+        }
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override RSA? ProvideRSAKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Helper class to test AddRoots when ChainBuilder is null
+    /// Uses the parameterless constructor to avoid ChainBuilder initialization
+    /// </summary>
+    private class TestCertificateCoseSigningKeyProviderWithNullChainBuilder : CertificateCoseSigningKeyProvider
+    {
+        public TestCertificateCoseSigningKeyProviderWithNullChainBuilder() : base(HashAlgorithmName.SHA256)
+        {
+            // Uses the simple constructor that doesn't initialize ChainBuilder
+        }
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override RSA? ProvideRSAKey(bool publicKey = false)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Tests constructor with ICertificateChainBuilder and root certificates
+    /// </summary>
+    [Test]
+    public void TestConstructorWithChainBuilderAndRootCertificates()
+    {
+        // Create root certificates
+        using X509Certificate2 root1 = TestCertificateUtils.CreateCertificate("Root1");
+        using X509Certificate2 root2 = TestCertificateUtils.CreateCertificate("Root2");
+        List<X509Certificate2> rootCerts = new() { root1, root2 };
+
+        // Create mock provider with chain builder
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(
+            MockBehavior.Strict,
+            new X509ChainBuilder(),
+            HashAlgorithmName.SHA384,
+            rootCerts)
+        {
+            CallBase = true
+        };
+
+        // Verify properties are set correctly
+        testObj.Object.ChainBuilder.Should().NotBeNull();
+        testObj.Object.HashAlgorithm.Should().Be(HashAlgorithmName.SHA384);
+        testObj.Object.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(2);
+    }
+
+    /// <summary>
+    /// Tests constructor with null chain builder defaults to X509ChainBuilder
+    /// </summary>
+    [Test]
+    public void TestConstructorWithNullChainBuilderDefaultsToX509ChainBuilder()
+    {
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(
+            MockBehavior.Strict,
+            (ICertificateChainBuilder?)null,
+            HashAlgorithmName.SHA256,
+            (List<X509Certificate2>?)null)
+        {
+            CallBase = true
+        };
+
+        testObj.Object.ChainBuilder.Should().NotBeNull();
+        testObj.Object.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
+    }
+
+    /// <summary>
+    /// Tests constructor with empty root certificates list
+    /// </summary>
+    [Test]
+    public void TestConstructorWithEmptyRootCertificates()
+    {
+        List<X509Certificate2> rootCerts = new();
+
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(
+            MockBehavior.Strict,
+            new X509ChainBuilder(),
+            HashAlgorithmName.SHA256,
+            rootCerts)
+        {
+            CallBase = true
+        };
+
+        testObj.Object.ChainBuilder.Should().NotBeNull();
+        // Empty list should not clear or add to ExtraStore
+    }
+
+    /// <summary>
+    /// Tests AddRoots method with append=false (default)
+    /// </summary>
+    [Test]
+    public void TestAddRootsWithoutAppend()
+    {
+        using X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
+        List<X509Certificate2> existingRoots = new() { existingRoot };
+
+        X509Certificate2CoseSigningKeyProvider provider = new(existingRoot);
+
+        // Add initial roots
+        provider.AddRoots(existingRoots, false);
+        provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
+
+        // Add new roots without append (should clear existing)
+        using X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
+        using X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
+        List<X509Certificate2> newRoots = new() { newRoot1, newRoot2 };
+
+        provider.AddRoots(newRoots, false);
+        provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(2);
+    }
+
+    /// <summary>
+    /// Tests AddRoots method with append=true
+    /// </summary>
+    [Test]
+    public void TestAddRootsWithAppend()
+    {
+        using X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
+        List<X509Certificate2> existingRoots = new() { existingRoot };
+
+        X509Certificate2CoseSigningKeyProvider provider = new(existingRoot);
+
+        // Add initial roots
+        provider.AddRoots(existingRoots, false);
+        provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
+
+        // Add new roots with append (should add to existing)
+        using X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
+        using X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
+        List<X509Certificate2> newRoots = new() { newRoot1, newRoot2 };
+
+        provider.AddRoots(newRoots, true);
+        provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(3);
+    }
+
+    /// <summary>
+    /// Tests AddRoots throws when ChainBuilder is null
+    /// </summary>
+    [Test]
+    public void TestAddRootsThrowsWhenChainBuilderIsNull()
+    {
+        TestCertificateCoseSigningKeyProviderWithNullChainBuilder provider = new();
+
+        using X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
+        List<X509Certificate2> roots = new() { root };
+
+        Action act = () => provider.AddRoots(roots, false);
+        act.Should().Throw<ArgumentException>().WithMessage("*ChainBuilder*");
+    }
+
+    /// <summary>
+    /// Tests GetProtectedHeaders throws exception when signing certificate thumbprint doesn't match chain
+    /// </summary>
+    [Test]
+    public void TestGetProtectedHeadersThrowsOnThumbprintMismatch()
+    {
+        using X509Certificate2 signingCert = TestCertificateUtils.CreateCertificate("SigningCert");
+        using X509Certificate2 chainCert = TestCertificateUtils.CreateCertificate("DifferentCert");
+
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
+        {
+            CallBase = true
+        };
+
+        testObj.Protected().Setup<X509Certificate2>("GetSigningCertificate").Returns(signingCert);
+        testObj.Protected().Setup<IEnumerable<X509Certificate2>>("GetCertificateChain", X509ChainSortOrder.LeafFirst)
+               .Returns(new[] { chainCert }); // Different cert in chain
+
+        CoseSign1CertificateException? exception = Assert.Throws<CoseSign1CertificateException>(() => testObj.Object.GetProtectedHeaders());
+        exception!.Message.Should().Contain("must match the first item in the signing certificate chain list");
+        exception.Message.Should().Contain(signingCert.Thumbprint);
+        exception.Message.Should().Contain(chainCert.Thumbprint);
+    }
+
+    /// <summary>
+    /// Tests GetKeyChain with actual certificate chain (RSA certificates)
+    /// </summary>
+    [Test]
+    public void TestGetKeyChainWithRealCertificateChainRSA()
+    {
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(leafFirst: true);
+        X509Certificate2CoseSigningKeyProvider provider = new(testChain[^1]);
+
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = provider.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Count.Should().BeGreaterOrEqualTo(1);
+        
+        // All keys should be RSA
+        foreach (AsymmetricAlgorithm key in keyChain)
+        {
+            key.Should().BeAssignableTo<RSA>();
+        }
+
+        // Clean up
+        foreach (var cert in testChain)
+        {
+            cert.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests GetKeyChain with actual ECC certificate chain
+    /// </summary>
+    [Test]
+    public void TestGetKeyChainWithRealCertificateChainECC()
+    {
+        using X509Certificate2 leafCert = TestCertificateUtils.CreateCertificate("Leaf", useEcc: true);
+        X509Certificate2CoseSigningKeyProvider provider = new(leafCert);
+
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = provider.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Count.Should().BeGreaterOrEqualTo(1);
+        
+        // All keys should be ECDsa
+        foreach (AsymmetricAlgorithm key in keyChain)
+        {
+            key.Should().BeAssignableTo<ECDsa>();
+        }
+    }
+
+    /// <summary>
+    /// Tests GetKeyChain when GetCertificateChain throws CoseSign1CertificateException
+    /// </summary>
+    [Test]
+    public void TestGetKeyChainHandlesCoseSign1CertificateException()
+    {
+        TestCertificateCoseSigningKeyProviderWithException provider = new();
+
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = provider.KeyChain;
+
+        // Should return empty list when exception is thrown
+        keyChain.Should().NotBeNull();
+        keyChain.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Tests GetKeyChain handles ArgumentNullException gracefully
+    /// </summary>
+    [Test]
+    public void TestGetKeyChainHandlesArgumentNullException()
+    {
+        TestCertificateCoseSigningKeyProviderWithArgumentNull provider = new();
+
+        IReadOnlyList<AsymmetricAlgorithm> keyChain = provider.KeyChain;
+
+        keyChain.Should().NotBeNull();
+        keyChain.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Tests Issuer property handles exception during DID generation
+    /// </summary>
+    [Test]
+    public void TestIssuerHandlesExceptionDuringDIDGeneration()
+    {
+        TestCertificateCoseSigningKeyProviderWithException provider = new();
+
+        string? issuer = provider.Issuer;
+
+        issuer.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests Issuer property with valid certificate chain generates proper DID
+    /// </summary>
+    [Test]
+    public void TestIssuerWithValidChainGeneratesDID()
+    {
+        X509Certificate2Collection certs = TestCertificateUtils.CreateTestChain(leafFirst: true);
+        X509Certificate2CoseSigningKeyProvider provider = new(certs[^1]);
+
+        string? issuer = provider.Issuer;
+
+        issuer.Should().NotBeNullOrEmpty();
+        issuer.Should().StartWith("did:x509:");
+
+        foreach (var cert in certs)
+        {
+            cert.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests constructor with hashAlgorithm parameter
+    /// </summary>
+    [Test]
+    public void TestConstructorWithHashAlgorithmSHA384()
+    {
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(
+            MockBehavior.Strict,
+            HashAlgorithmName.SHA384)
+        {
+            CallBase = true
+        };
+
+        testObj.Object.HashAlgorithm.Should().Be(HashAlgorithmName.SHA384);
+    }
+
+    /// <summary>
+    /// Tests constructor with rootCertificates having non-zero count
+    /// </summary>
+    [Test]
+    public void TestConstructorWithRootCertificatesNonZeroCount()
+    {
+        X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
+        List<X509Certificate2> rootCerts = new() { root };
+
+        Mock<CertificateCoseSigningKeyProvider> testObj = new(
+            MockBehavior.Strict,
+            new X509ChainBuilder(),
+            HashAlgorithmName.SHA256,
+            rootCerts)
+        {
+            CallBase = true
+        };
+
+        testObj.Object.ChainBuilder.Should().NotBeNull();
+        testObj.Object.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
+
+        root.Dispose();
+    }
 }

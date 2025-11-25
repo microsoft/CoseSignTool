@@ -14,6 +14,7 @@ public class CoseSignTool
 
     private static Verbs Verb = Verbs.Unknown;
     private static readonly Dictionary<string, IPluginCommand> PluginCommands = new();
+    internal static readonly CertificateProviderPluginManager CertificateProviderManager = new();
 
     #region public methods
     /// <summary>
@@ -26,6 +27,16 @@ public class CoseSignTool
     {
         // Load plugins before processing commands
         LoadPlugins();
+
+        // Check for 'help <provider-name>' command first (before checking IsNullOrHelp)
+        // If it's just 'help' without a provider name, show general help
+        if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show help based on whether specific provider help is requested
+            return (int)(args.Length > 1 
+                ? ShowProviderHelp(args.Skip(1).ToArray())
+                : Usage(GetUsageString()));
+        }
 
         // Make sure we have a verb and at least one argument, and that neither of the first two arguments are help requests.
         if (args.Length == 0 || IsNullOrHelp(args[0]))
@@ -78,6 +89,73 @@ public class CoseSignTool
     private static bool IsNullOrHelp(string arg) => arg is null || arg.EndsWith('?') || arg.EndsWith("help", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Shows detailed help documentation for a specific certificate provider.
+    /// </summary>
+    /// <param name="args">The command arguments, where the first argument should be the provider name.</param>
+    /// <returns>An exit code indicating success or failure.</returns>
+    private static ExitCode ShowProviderHelp(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("Error: Provider name required. Usage: CoseSignTool help <provider-name>");
+            Console.Error.WriteLine();
+            
+            if (CertificateProviderManager.Providers.Count > 0)
+            {
+                Console.Error.WriteLine("Available certificate providers:");
+                foreach (string key in CertificateProviderManager.Providers.Keys)
+                {
+                    ICertificateProviderPlugin? provider = CertificateProviderManager.GetProvider(key);
+                    if (provider != null)
+                    {
+                        Console.Error.WriteLine($"  {key,-30} {provider.Description}");
+                    }
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine("No certificate provider plugins are currently loaded.");
+            }
+            
+            return ExitCode.MissingRequiredOption;
+        }
+
+        string providerName = args[0].ToLowerInvariant();
+        ICertificateProviderPlugin? plugin = CertificateProviderManager.GetProvider(providerName);
+        
+        if (plugin == null)
+        {
+            Console.Error.WriteLine($"Error: Certificate provider '{providerName}' not found.");
+            Console.Error.WriteLine();
+            
+            if (CertificateProviderManager.Providers.Count > 0)
+            {
+                Console.Error.WriteLine("Available certificate providers:");
+                foreach (string availableProvider in CertificateProviderManager.Providers.Keys)
+                {
+                    ICertificateProviderPlugin? provider = CertificateProviderManager.GetProvider(availableProvider);
+                    if (provider != null)
+                    {
+                        Console.Error.WriteLine($"  {availableProvider,-30} {provider.Description}");
+                    }
+                }
+            }
+            
+            return ExitCode.MissingRequiredOption;
+        }
+
+        // Display detailed provider documentation
+        Console.WriteLine();
+        Console.WriteLine($"Certificate Provider: {plugin.ProviderName}");
+        Console.WriteLine($"Description: {plugin.Description}");
+        Console.WriteLine();
+        Console.WriteLine(plugin.GetUsageDocumentation());
+        Console.WriteLine();
+        
+        return ExitCode.Success;
+    }
+
+    /// <summary>
     /// Loads plugins from the plugins directory and registers their commands.
     /// For security reasons, plugins are only loaded from the "plugins" subdirectory.
     /// </summary>
@@ -91,6 +169,7 @@ public class CoseSignTool
             // Only load plugins from the authorized "plugins" subdirectory
             string pluginsDirectory = Path.Join(executableDirectory, "plugins");
 
+            // Load command plugins
             IEnumerable<ICoseSignToolPlugin> plugins = PluginLoader.DiscoverPlugins(pluginsDirectory);
             
             foreach (ICoseSignToolPlugin plugin in plugins)
@@ -117,6 +196,9 @@ public class CoseSignTool
                     Console.Error.WriteLine($"Warning: Failed to initialize plugin '{plugin.Name}': {ex.Message}");
                 }
             }
+
+            // Load certificate provider plugins
+            CertificateProviderManager.DiscoverAndLoadPlugins(pluginsDirectory);
         }
         catch (Exception ex)
         {
@@ -265,6 +347,22 @@ public class CoseSignTool
             }
             usageBuilder.AppendLine();
             usageBuilder.AppendLine("For help with a specific plugin command, use: CoseSignTool <command> --help");
+        }
+
+        if (CertificateProviderManager.Providers.Count > 0)
+        {
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("Certificate Providers:");
+            foreach (KeyValuePair<string, ICertificateProviderPlugin> kvp in CertificateProviderManager.Providers.OrderBy(x => x.Key))
+            {
+                usageBuilder.AppendLine($"  {kvp.Key,-25} {kvp.Value.Description}");
+            }
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("To use a certificate provider with the sign command:");
+            usageBuilder.AppendLine("  CoseSignTool sign <payload> --cert-provider <provider-name> [provider-options]");
+            usageBuilder.AppendLine();
+            usageBuilder.AppendLine("For detailed information about a certificate provider:");
+            usageBuilder.AppendLine("  CoseSignTool help <provider-name>");
         }
 
         return usageBuilder.ToString();

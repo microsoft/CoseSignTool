@@ -95,8 +95,8 @@ public class AzureTrustedSigningCertificateProviderPlugin : ICertificateProvider
             // 3. Visual Studio credential
             // 4. Azure CLI credential
             // 5. Azure PowerShell credential
-            // 6. Interactive browser credential (if allowed)
             logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
+            // credscan-disable-next-line - DefaultAzureCredential is used for secure credential acquisition
             TokenCredential credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
             {
                 // Exclude interactive browser auth to avoid unexpected prompts in CI/CD

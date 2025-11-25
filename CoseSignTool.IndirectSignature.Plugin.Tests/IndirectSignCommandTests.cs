@@ -662,8 +662,8 @@ public class IndirectSignCommandTests
             bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
             Assert.IsTrue(hasClaims);
             Assert.IsNotNull(claims);
-            Assert.IsTrue(claims.CustomClaims.ContainsKey(100));
-            Assert.AreEqual("custom-value", claims.CustomClaims[100]);
+            Assert.IsTrue(claims.CustomClaims.TryGetValue(100, out object? value));
+            Assert.AreEqual("custom-value", value);
         }
         finally
         {

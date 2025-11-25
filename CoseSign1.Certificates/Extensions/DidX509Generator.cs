@@ -32,6 +32,14 @@ public class DidX509Generator
     private const string DidX509Prefix = "did:x509:0:sha256";
 
     /// <summary>
+    /// Known labels from the DID:X509 specification.
+    /// </summary>
+    private static readonly HashSet<string> KnownLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "CN", "L", "ST", "O", "OU", "C", "STREET"
+    };
+
+    /// <summary>
     /// Generates a DID:X509 identifier from a leaf certificate and root certificate.
     /// </summary>
     /// <param name="leafCertificate">The leaf certificate (end-entity certificate).</param>
@@ -187,12 +195,6 @@ public class DidX509Generator
     protected virtual List<(string Key, string Value)> ParseRFC4514DistinguishedName(string dn)
     {
         var components = new List<(string Key, string Value)>();
-        
-        // Known labels from the spec
-        var knownLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "CN", "L", "ST", "O", "OU", "C", "STREET"
-        };
 
         // Simple parser for RFC 4514 format
         // Format: key=value, key=value (comma-separated)
@@ -210,10 +212,10 @@ public class DidX509Generator
                 value = UnescapeRFC4514Value(value);
                 
                 // Only include known labels or OIDs (numeric dotted notation)
-                if (knownLabels.Contains(key) || IsOID(key))
+                if (KnownLabels.Contains(key) || IsOID(key))
                 {
                     // Normalize known labels to uppercase
-                    if (knownLabels.Contains(key))
+                    if (KnownLabels.Contains(key))
                     {
                         key = key.ToUpperInvariant();
                     }

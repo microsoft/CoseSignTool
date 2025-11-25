@@ -32,16 +32,10 @@ public class CoseSignTool
         // If it's just 'help' without a provider name, show general help
         if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
         {
-            if (args.Length > 1)
-            {
-                // Show detailed provider help
-                return (int)ShowProviderHelp(args.Skip(1).ToArray());
-            }
-            else
-            {
-                // Show general help
-                return (int)Usage(GetUsageString());
-            }
+            // Show help based on whether specific provider help is requested
+            return (int)(args.Length > 1 
+                ? ShowProviderHelp(args.Skip(1).ToArray())
+                : Usage(GetUsageString()));
         }
 
         // Make sure we have a verb and at least one argument, and that neither of the first two arguments are help requests.

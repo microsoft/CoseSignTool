@@ -167,7 +167,7 @@ public class SignCommand : CoseCommand
     /// <summary>
     /// Internal field to store the configuration provider for plugin access.
     /// </summary>
-    private CommandLineConfigurationProvider? ConfigurationProvider;
+    private readonly CommandLineConfigurationProvider? ConfigurationProvider;
 
     /// <summary>
     /// Internal field to store the plugin manager for certificate providers.
@@ -288,7 +288,9 @@ public class SignCommand : CoseCommand
             }
 
             // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);            // Write the signature to stream or file.
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
+            
+            // Write the signature to stream or file.
             if (PipeOutput)
             {
                 WriteToStdOut(signedBytes);
@@ -650,7 +652,8 @@ public class SignCommand : CoseCommand
         }
 
         // Create an IConfiguration from the provider
-        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider> { ConfigurationProvider });
+        using ConfigurationRoot configRoot = new ConfigurationRoot(new List<IConfigurationProvider> { ConfigurationProvider });
+        IConfiguration configuration = configRoot;
 
         // Check if the plugin can create a provider with the given configuration
         if (!plugin.CanCreateProvider(configuration))

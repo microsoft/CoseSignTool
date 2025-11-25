@@ -199,13 +199,11 @@ public static class CwtClaimsParser
                         $"Claim label {CWTClaimsHeaderLabels.Subject} is reserved for subject (sub). Use --cwt-subject instead.");
                 }
             }
-            else if (key is string strLabel)
+            else if (key is string strLabel && 
+                     (strLabel.Equals("iss", StringComparison.OrdinalIgnoreCase) ||
+                      strLabel.Equals("sub", StringComparison.OrdinalIgnoreCase)))
             {
-                if (strLabel.Equals("iss", StringComparison.OrdinalIgnoreCase) ||
-                    strLabel.Equals("sub", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new ArgumentException($"Claim label '{strLabel}' is reserved. Use --cwt-issuer or --cwt-subject instead.");
-                }
+                throw new ArgumentException($"Claim label '{strLabel}' is reserved. Use --cwt-issuer or --cwt-subject instead.");
             }
         }
     }

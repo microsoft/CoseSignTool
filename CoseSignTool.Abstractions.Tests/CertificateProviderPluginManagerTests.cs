@@ -326,7 +326,7 @@ public class CertificateProviderPluginManagerTests
     {
         // Arrange
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
-        string nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".dll");
+        string nonExistentFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.dll");
 
         // Act & Assert
         Assert.ThrowsException<FileNotFoundException>(() => manager.LoadPluginFromAssembly(nonExistentFile));
@@ -354,7 +354,7 @@ public class CertificateProviderPluginManagerTests
         // Arrange
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
         Mock<ICertificateProviderPlugin> mockPlugin = new Mock<ICertificateProviderPlugin>();
-        mockPlugin.Setup(p => p.ProviderName).Returns((string?)null);
+        mockPlugin.Setup(p => p.ProviderName).Returns<string?>(null);
         mockPlugin.Setup(p => p.Description).Returns("Test");
 
         // Act & Assert
@@ -413,7 +413,7 @@ public class CertificateProviderPluginManagerTests
         // Arrange
         Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
-        string nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string nonExistentPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
 
         // Act
         manager.DiscoverAndLoadPlugins(nonExistentPath);
@@ -428,7 +428,7 @@ public class CertificateProviderPluginManagerTests
         // Arrange
         Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
-        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
 
         try

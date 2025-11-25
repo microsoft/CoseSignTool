@@ -991,9 +991,9 @@ public class SignCommand : CoseCommand
     /// Each line should have no more than 120 characters to avoid wrapping. Break is here:                            *V*
     /// </summary>
     protected new const string UsageString = @"
-Sign command: Signs the specified file or piped content with a detached or embedded signature.
-    A detached signature resides in a separate file and validates against the original content by hash match.
-    An embedded signature contains an encoded copy of the original payload. Not supported for payload of >2gb in size.
+Sign command: Signs the specified file or piped content with a detached or embedded COSE signature.
+    A detached signature resides in a separate file and validates against the original content when provided.
+    An embedded signature contains a copy of the original payload. Not supported for payload of >2gb in size.
 
 Options:
     PayloadFile / payload / p: Required, pipeable. The file or piped content to sign.
@@ -1028,9 +1028,10 @@ Options:
     PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
         to file.
 
-    EmbedPayload / ep: Optional. If true, encrypts and embeds a copy of the payload in the in COSE signature file.
-        Default behavior is 'detached signing', where the signature is in a separate file from the payload.
-        Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
+    EmbedPayload / ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
+        Default behavior is 'detached signing', where the COSE signature file .Content property is empty, and to validate
+        the signature, the payload must be provided separately. When set to true, the payload is embedded in the signature
+        file. Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
 
 Advanced Options:

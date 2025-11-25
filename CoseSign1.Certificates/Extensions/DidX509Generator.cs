@@ -446,7 +446,7 @@ public class DidX509Generator
         }
 
         // Must contain ::subject: separator
-        if (!did.Contains("::subject:", StringComparison.OrdinalIgnoreCase))
+        if (did.IndexOf("::subject:", StringComparison.OrdinalIgnoreCase) == -1)
         {
             return false;
         }

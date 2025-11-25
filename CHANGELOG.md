@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.3...HEAD)
+
+**Merged pull requests:**
+
+- Users/jstatia/package upgrades [\#145](https://github.com/microsoft/CoseSignTool/pull/145) ([JeromySt](https://github.com/JeromySt))
+
 ## [v1.6.3](https://github.com/microsoft/CoseSignTool/tree/v1.6.3) (2025-08-05)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.5...v1.6.3)

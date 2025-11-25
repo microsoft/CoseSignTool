@@ -457,7 +457,7 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
     public void Constructor_WithProviderHavingNullIssuer_ThrowsInvalidOperationException()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         TestCertificateProviderWithNullIssuer provider = new(cert);
 
         // Act & Assert
@@ -465,16 +465,13 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
             new X509CertificateWithCWTClaimsHeaderExtender(provider));
         
         Assert.That(exception!.Message, Does.Contain("Failed to create default CWT claims"));
-
-        // Cleanup
-        cert.Dispose();
     }
 
     [Test]
     public void Constructor_WithProviderHavingEmptyIssuer_ThrowsInvalidOperationException()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         TestCertificateProviderWithEmptyIssuer provider = new(cert);
 
         // Act & Assert
@@ -482,9 +479,6 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
             new X509CertificateWithCWTClaimsHeaderExtender(provider));
         
         Assert.That(exception!.Message, Does.Contain("Failed to create default CWT claims"));
-
-        // Cleanup
-        cert.Dispose();
     }
 
     [Test]
@@ -518,7 +512,7 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
     public void ExtendUnProtectedHeaders_WithProviderReturningUnprotectedHeaders_AddsThem()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         TestCertificateProviderWithUnprotectedHeaders provider = new(cert);
         var extender = new X509CertificateWithCWTClaimsHeaderExtender(provider);
         var headers = new CoseHeaderMap();
@@ -528,9 +522,6 @@ public class X509CertificateWithCWTClaimsHeaderExtenderTests
 
         // Assert - should have the custom unprotected header
         Assert.That(result.ContainsKey(new CoseHeaderLabel(999)), Is.True);
-
-        // Cleanup
-        cert.Dispose();
     }
 
     /// <summary>

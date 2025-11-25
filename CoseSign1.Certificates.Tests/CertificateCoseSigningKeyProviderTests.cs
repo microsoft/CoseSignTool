@@ -532,8 +532,8 @@ public class CertificateCoseSigningKeyProviderTests
     public void TestConstructorWithChainBuilderAndRootCertificates()
     {
         // Create root certificates
-        X509Certificate2 root1 = TestCertificateUtils.CreateCertificate("Root1");
-        X509Certificate2 root2 = TestCertificateUtils.CreateCertificate("Root2");
+        using X509Certificate2 root1 = TestCertificateUtils.CreateCertificate("Root1");
+        using X509Certificate2 root2 = TestCertificateUtils.CreateCertificate("Root2");
         List<X509Certificate2> rootCerts = new() { root1, root2 };
 
         // Create mock provider with chain builder
@@ -550,10 +550,6 @@ public class CertificateCoseSigningKeyProviderTests
         testObj.Object.ChainBuilder.Should().NotBeNull();
         testObj.Object.HashAlgorithm.Should().Be(HashAlgorithmName.SHA384);
         testObj.Object.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(2);
-
-        // Clean up
-        root1.Dispose();
-        root2.Dispose();
     }
 
     /// <summary>
@@ -602,7 +598,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestAddRootsWithoutAppend()
     {
-        X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
+        using X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
         List<X509Certificate2> existingRoots = new() { existingRoot };
 
         X509Certificate2CoseSigningKeyProvider provider = new(existingRoot);
@@ -612,17 +608,12 @@ public class CertificateCoseSigningKeyProviderTests
         provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
 
         // Add new roots without append (should clear existing)
-        X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
-        X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
+        using X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
+        using X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
         List<X509Certificate2> newRoots = new() { newRoot1, newRoot2 };
 
         provider.AddRoots(newRoots, false);
         provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(2);
-
-        // Clean up
-        existingRoot.Dispose();
-        newRoot1.Dispose();
-        newRoot2.Dispose();
     }
 
     /// <summary>
@@ -631,7 +622,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestAddRootsWithAppend()
     {
-        X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
+        using X509Certificate2 existingRoot = TestCertificateUtils.CreateCertificate("ExistingRoot");
         List<X509Certificate2> existingRoots = new() { existingRoot };
 
         X509Certificate2CoseSigningKeyProvider provider = new(existingRoot);
@@ -641,17 +632,12 @@ public class CertificateCoseSigningKeyProviderTests
         provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
 
         // Add new roots with append (should add to existing)
-        X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
-        X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
+        using X509Certificate2 newRoot1 = TestCertificateUtils.CreateCertificate("NewRoot1");
+        using X509Certificate2 newRoot2 = TestCertificateUtils.CreateCertificate("NewRoot2");
         List<X509Certificate2> newRoots = new() { newRoot1, newRoot2 };
 
         provider.AddRoots(newRoots, true);
         provider.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(3);
-
-        // Clean up
-        existingRoot.Dispose();
-        newRoot1.Dispose();
-        newRoot2.Dispose();
     }
 
     /// <summary>
@@ -662,13 +648,11 @@ public class CertificateCoseSigningKeyProviderTests
     {
         TestCertificateCoseSigningKeyProviderWithNullChainBuilder provider = new();
 
-        X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
+        using X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
         List<X509Certificate2> roots = new() { root };
 
         Action act = () => provider.AddRoots(roots, false);
         act.Should().Throw<ArgumentException>().WithMessage("*ChainBuilder*");
-
-        root.Dispose();
     }
 
     /// <summary>
@@ -677,8 +661,8 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetProtectedHeadersThrowsOnThumbprintMismatch()
     {
-        X509Certificate2 signingCert = TestCertificateUtils.CreateCertificate("SigningCert");
-        X509Certificate2 chainCert = TestCertificateUtils.CreateCertificate("DifferentCert");
+        using X509Certificate2 signingCert = TestCertificateUtils.CreateCertificate("SigningCert");
+        using X509Certificate2 chainCert = TestCertificateUtils.CreateCertificate("DifferentCert");
 
         Mock<CertificateCoseSigningKeyProvider> testObj = new(MockBehavior.Strict)
         {
@@ -693,9 +677,6 @@ public class CertificateCoseSigningKeyProviderTests
         exception!.Message.Should().Contain("must match the first item in the signing certificate chain list");
         exception.Message.Should().Contain(signingCert.Thumbprint);
         exception.Message.Should().Contain(chainCert.Thumbprint);
-
-        signingCert.Dispose();
-        chainCert.Dispose();
     }
 
     /// <summary>
@@ -731,7 +712,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestGetKeyChainWithRealCertificateChainECC()
     {
-        X509Certificate2 leafCert = TestCertificateUtils.CreateCertificate("Leaf", useEcc: true);
+        using X509Certificate2 leafCert = TestCertificateUtils.CreateCertificate("Leaf", useEcc: true);
         X509Certificate2CoseSigningKeyProvider provider = new(leafCert);
 
         IReadOnlyList<AsymmetricAlgorithm> keyChain = provider.KeyChain;
@@ -744,8 +725,6 @@ public class CertificateCoseSigningKeyProviderTests
         {
             key.Should().BeAssignableTo<ECDsa>();
         }
-
-        leafCert.Dispose();
     }
 
     /// <summary>

@@ -52,7 +52,7 @@ public class AzureTrustedSigningCoseSigningKeyProvider : CertificateCoseSigningK
                 // Generate DID:X509:0 identifier from the chain using Azure-specific generator
                 return AzureDidGenerator.GenerateFromChain(certChain);
             }
-            catch
+            catch (Exception)
             {
                 // If chain building or DID generation fails, fall back to base implementation
                 return base.Issuer;

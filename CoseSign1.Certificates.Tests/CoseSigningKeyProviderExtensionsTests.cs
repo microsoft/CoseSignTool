@@ -31,15 +31,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithDefaultCWTClaims_ValidProvider_ReturnsExtender()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithDefaultCWTClaims();
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -63,15 +61,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCustomCWTClaims_NullCustomClaims_ReturnsExtenderWithDefaults()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithCustomCWTClaims(null);
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -80,7 +76,7 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCustomCWTClaims_WithCustomClaims_ReturnsExtender()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
         
         CWTClaimsHeaderExtender customClaims = new();
@@ -91,8 +87,6 @@ public class CoseSigningKeyProviderExtensionsTests
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -115,15 +109,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCWTClaims_BothNull_UsesDefaults()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithCWTClaims(null, null);
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -132,15 +124,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCWTClaims_CustomIssuerNullSubject_UsesDefaultSubject()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithCWTClaims("custom-issuer", null);
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -149,15 +139,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCWTClaims_NullIssuerCustomSubject_UsesProviderIssuer()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithCWTClaims(null, "custom-subject");
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -166,15 +154,13 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCWTClaims_CustomIssuerAndSubject_UsesCustomValues()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         X509Certificate2CoseSigningKeyProvider provider = new(cert);
 
         ICoseHeaderExtender extender = provider.CreateHeaderExtenderWithCWTClaims("custom-issuer", "custom-subject");
 
         extender.Should().NotBeNull();
         extender.Should().BeOfType<X509CertificateWithCWTClaimsHeaderExtender>();
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -185,7 +171,7 @@ public class CoseSigningKeyProviderExtensionsTests
     public void TestCreateHeaderExtenderWithCWTClaims_ProviderIssuerNull_ThrowsException()
     {
         // Create a provider with a simple certificate that won't have a chain
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         TestCertificateProviderWithNullIssuer provider = new(cert);
 
         // When issuer is null and provider doesn't provide one, it should throw
@@ -193,8 +179,6 @@ public class CoseSigningKeyProviderExtensionsTests
         
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Failed to create default CWT claims*");
-
-        cert.Dispose();
     }
 
     /// <summary>
@@ -204,7 +188,7 @@ public class CoseSigningKeyProviderExtensionsTests
     [Test]
     public void TestCreateHeaderExtenderWithCWTClaims_ProviderIssuerEmpty_ThrowsException()
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestCert");
         TestCertificateProviderWithEmptyIssuer provider = new(cert);
 
         // When issuer is null and provider provides empty string, it should throw
@@ -212,8 +196,6 @@ public class CoseSigningKeyProviderExtensionsTests
         
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Failed to create default CWT claims*");
-
-        cert.Dispose();
     }
 
     /// <summary>

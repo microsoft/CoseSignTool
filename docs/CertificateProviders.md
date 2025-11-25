@@ -398,6 +398,8 @@ namespace MyCompany.Hsm.Plugin
             _logger = logger;
         }
 
+        public string? Issuer => null;
+
         public X509Certificate2? GetSigningCertificate()
         {
             _logger?.LogInformation($"Retrieving certificate for key '{_keyLabel}' from HSM slot {_slot}");
@@ -422,6 +424,8 @@ namespace MyCompany.Hsm.Plugin
             
             return chain;
         }
+
+        public string? Issuer => null;
 
         public RSA? ProvideRSAKey(PublicKey? publicKey = null)
         {

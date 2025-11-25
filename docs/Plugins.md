@@ -590,6 +590,12 @@ public class YourCertProviderSigningKeyProvider : ICoseSigningKeyProvider
     public List<X509Certificate2>? AdditionalCertificates => null;
 
     /// <summary>
+    /// Gets the issuer identifier for this signing key provider (optional).
+    /// For certificate-based providers, this can be a DID:X509 identifier.
+    /// </summary>
+    public string? Issuer => null;
+
+    /// <summary>
     /// Retrieves the certificate from your HSM/service.
     /// </summary>
     private X509Certificate2 RetrieveCertificateFromService()

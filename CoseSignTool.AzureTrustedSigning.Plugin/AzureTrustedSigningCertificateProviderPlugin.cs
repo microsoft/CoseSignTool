@@ -96,7 +96,7 @@ public class AzureTrustedSigningCertificateProviderPlugin : ICertificateProvider
             // 4. Azure CLI credential
             // 5. Azure PowerShell credential
             logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            // credscan-disable-next-line - DefaultAzureCredential is appropriate for client libraries
+            // Justification: DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
             TokenCredential credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
             {
                 // Exclude interactive browser auth to avoid unexpected prompts in CI/CD

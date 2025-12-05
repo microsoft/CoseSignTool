@@ -209,9 +209,8 @@ public static class CoseHeaderExtensions
     /// <param name="label">The header label to format.</param>
     /// <returns>A string representation of the label (integer or string value), or "custom" if the value cannot be determined.</returns>
     /// <remarks>
-    /// This method uses reflection to access the internal backing fields of CoseHeaderLabel,
-    /// which stores either an integer or string value. If reflection fails or no value is found,
-    /// it returns "custom" as a fallback.
+    /// This method uses reflection to access the internal properties of CoseHeaderLabel:
+    /// LabelAsInt32 for integer labels and LabelAsString for string labels.
     /// </remarks>
     public static string ToLabelString(this CoseHeaderLabel label)
     {
@@ -222,38 +221,38 @@ public static class CoseHeaderExtensions
 
         try
         {
-            // Use reflection to access the internal label value
-            // CoseHeaderLabel has either an int or string backing field
-            System.Reflection.FieldInfo[] fields = label.GetType().GetFields(
-                System.Reflection.BindingFlags.Instance | 
-                System.Reflection.BindingFlags.NonPublic);
+            // Try to get LabelAsInt32 property
+            var labelAsInt32Property = label.GetType().GetProperty("LabelAsInt32", 
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             
-            foreach (var field in fields)
+            if (labelAsInt32Property != null)
             {
-                try
+                var intValue = labelAsInt32Property.GetValue(label);
+                if (intValue != null)
                 {
-                    object? value = field.GetValue(label);
-                    if (value != null)
-                    {
-                        // Return the first non-null field value as string
-                        return value.ToString() ?? "custom";
-                    }
+                    return intValue.ToString() ?? "custom";
                 }
-                catch (System.Reflection.TargetInvocationException)
+            }
+
+            // Try to get LabelAsString property
+            var labelAsStringProperty = label.GetType().GetProperty("LabelAsString",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            
+            if (labelAsStringProperty != null)
+            {
+                var stringValue = labelAsStringProperty.GetValue(label);
+                if (stringValue != null)
                 {
-                    // Skip this field and try the next one
-                    continue;
-                }
-                catch (NullReferenceException)
-                {
-                    // Skip this field and try the next one
-                    continue;
+                    return stringValue.ToString() ?? "custom";
                 }
             }
         }
-        catch (Exception ex) when (ex is System.Reflection.TargetException or System.ArgumentException or System.MemberAccessException)
+        catch (Exception ex) when (ex is System.Reflection.TargetException 
+                                    or System.Reflection.TargetInvocationException 
+                                    or System.ArgumentException 
+                                    or System.MemberAccessException)
         {
-            // If reflection fails due to access issues, fall back to a generic description
+            // If reflection fails, fall back to generic description
         }
         
         return "custom";

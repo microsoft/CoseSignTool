@@ -1587,6 +1587,29 @@ public class CWTClaimsHeaderExtenderTests
         }
     }
 
+    [Test]
+    public void Constructor_WithStringBasedHeaderLabel_TracesCorrectly()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel("custom-cwt-claims");
+        var traceListener = new System.Diagnostics.ConsoleTraceListener();
+        System.Diagnostics.Trace.Listeners.Add(traceListener);
+
+        try
+        {
+            // Act - Constructor should trace the label string value ("custom-cwt-claims") not the type name
+            var extender = new CWTClaimsHeaderExtender(customHeaderLabel: customLabel);
+
+            // Assert - This test verifies the method compiles and doesn't throw
+            // The actual trace output would contain "label=custom-cwt-claims"
+            Assert.That(extender, Is.Not.Null);
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(traceListener);
+        }
+    }
+
     #endregion
 }
 

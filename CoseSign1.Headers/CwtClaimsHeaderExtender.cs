@@ -109,7 +109,7 @@ public class CWTClaimsHeaderExtender : ICoseHeaderExtender
         this.preventMerge = preventMerge;
         this.headerPlacement = headerPlacement;
         this.customHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
-        Trace.TraceInformation($"CWTClaimsHeaderExtender: Initialized with no claims (preventMerge={preventMerge}, placement={headerPlacement}, label={FormatHeaderLabel(this.customHeaderLabel)}).");
+        Trace.TraceInformation($"CWTClaimsHeaderExtender: Initialized with no claims (preventMerge={preventMerge}, placement={headerPlacement}, label={this.customHeaderLabel.ToLabelString()}).");
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ public class CWTClaimsHeaderExtender : ICoseHeaderExtender
         this.preventMerge = preventMerge;
         this.headerPlacement = headerPlacement;
         this.customHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
-        Trace.TraceInformation($"CWTClaimsHeaderExtender: Initialized with claims from CwtClaims object (preventMerge={preventMerge}, placement={headerPlacement}, label={FormatHeaderLabel(this.customHeaderLabel)}).");
+        Trace.TraceInformation($"CWTClaimsHeaderExtender: Initialized with claims from CwtClaims object (preventMerge={preventMerge}, placement={headerPlacement}, label={this.customHeaderLabel.ToLabelString()}).");
     }
 
     /// <summary>
@@ -422,38 +422,5 @@ public class CWTClaimsHeaderExtender : ICoseHeaderExtender
         Claims.NotBefore ??= currentTime;
 
         return Claims;
-    }
-
-    /// <summary>
-    /// Formats a CoseHeaderLabel for human-readable output using reflection.
-    /// </summary>
-    /// <param name="label">The header label to format.</param>
-    /// <returns>A string representation of the label (integer or string value).</returns>
-    private static string FormatHeaderLabel(CoseHeaderLabel label)
-    {
-        try
-        {
-            // Use reflection to access the internal label value
-            // CoseHeaderLabel has either an int or string backing field
-            System.Reflection.FieldInfo[] fields = label.GetType().GetFields(
-                System.Reflection.BindingFlags.Instance | 
-                System.Reflection.BindingFlags.NonPublic);
-            
-            foreach (var field in fields)
-            {
-                object? value = field.GetValue(label);
-                if (value != null)
-                {
-                    // Return the first non-null field value as string
-                    return value.ToString() ?? "unknown";
-                }
-            }
-        }
-        catch (Exception ex) when (ex is System.Reflection.TargetException or System.ArgumentException or System.MemberAccessException)
-        {
-            // If reflection fails due to access issues, fall back to a generic description
-        }
-        
-        return "custom";
     }
 }

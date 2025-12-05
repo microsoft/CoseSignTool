@@ -203,7 +203,61 @@ public static class CoseHeaderExtensions
         return headerMap;
     }
 
+    /// <summary>
+    /// Formats a CoseHeaderLabel for human-readable output using reflection.
+    /// </summary>
+    /// <param name="label">The header label to format.</param>
+    /// <returns>A string representation of the label (integer or string value), or "custom" if the value cannot be determined.</returns>
+    /// <remarks>
+    /// This method uses reflection to access the internal backing fields of CoseHeaderLabel,
+    /// which stores either an integer or string value. If reflection fails or no value is found,
+    /// it returns "custom" as a fallback.
+    /// </remarks>
+    public static string ToLabelString(this CoseHeaderLabel label)
+    {
+        if (label == null)
+        {
+            return "null";
+        }
 
+        try
+        {
+            // Use reflection to access the internal label value
+            // CoseHeaderLabel has either an int or string backing field
+            System.Reflection.FieldInfo[] fields = label.GetType().GetFields(
+                System.Reflection.BindingFlags.Instance | 
+                System.Reflection.BindingFlags.NonPublic);
+            
+            foreach (var field in fields)
+            {
+                try
+                {
+                    object? value = field.GetValue(label);
+                    if (value != null)
+                    {
+                        // Return the first non-null field value as string
+                        return value.ToString() ?? "custom";
+                    }
+                }
+                catch (System.Reflection.TargetInvocationException)
+                {
+                    // Skip this field and try the next one
+                    continue;
+                }
+                catch (NullReferenceException)
+                {
+                    // Skip this field and try the next one
+                    continue;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is System.Reflection.TargetException or System.ArgumentException or System.MemberAccessException)
+        {
+            // If reflection fails due to access issues, fall back to a generic description
+        }
+        
+        return "custom";
+    }
 
     /// <summary>
     /// Creates a CoseHeaderValue from the given value based on its type.

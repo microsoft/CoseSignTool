@@ -88,4 +88,62 @@ public sealed partial class IndirectSignatureFactory
             ? contentType
             : $"{contentType}+cose-hash-v";
     }
+
+    /// <summary>
+    /// Async version of CreateIndirectSignatureWithChecksInternalCoseHashVFormat that uses async factory methods.
+    /// </summary>
+    private async Task<object> CreateIndirectSignatureWithChecksInternalCoseHashVFormatAsync(
+        bool returnBytes,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType,
+        Stream? streamPayload = null,
+        ReadOnlyMemory<byte>? bytePayload = null,
+        bool payloadHashed = false,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        CoseHashV hash;
+        string extendedContentType = ExtendContentTypeCoseHashV(contentType);
+        if (!payloadHashed)
+        {
+            hash = streamPayload != null
+                                 ? new CoseHashV(InternalCoseHashAlgorithm, streamPayload)
+                                 : new CoseHashV(InternalCoseHashAlgorithm, bytePayload!.Value);
+        }
+        else
+        {
+            byte[] rawHash = streamPayload != null
+                                           ? streamPayload.GetBytes()
+                                           : bytePayload!.Value.ToArray();
+
+            if (rawHash.Length != HashLength)
+            {
+                throw new ArgumentException($"{nameof(payloadHashed)} is set, but payload length {rawHash.Length} does not correspond to the hash size for {InternalHashAlgorithmName} of {HashLength}.");
+            }
+
+            hash = new CoseHashV
+            {
+                Algorithm = InternalCoseHashAlgorithm,
+                HashValue = rawHash
+            };
+        }
+
+        return returnBytes
+               // return the raw bytes if asked
+               ? await InternalMessageFactory.CreateCoseSign1MessageBytesAsync(
+                    hash.Serialize(),
+                    signingKeyProvider,
+                    embedPayload: true,
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+               // return the CoseSign1Message object
+               : await InternalMessageFactory.CreateCoseSign1MessageAsync(
+                    hash.Serialize(),
+                    signingKeyProvider,
+                    embedPayload: true,
+                    contentType: extendedContentType,
+                    headerExtender: headerExtender,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
 }

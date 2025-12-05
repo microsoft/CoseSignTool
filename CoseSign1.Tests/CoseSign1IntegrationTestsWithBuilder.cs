@@ -38,10 +38,12 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // There should be 4 ProtectedHeaders.
-        // First one is the algo header provided by Cosesigner. The second and third are from the Default ProtectedHeaders provided by CertificateCoseSignerKeyProvider
-        // The last is the Content Type header provided by the user.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 4);
+        // There should be 5 ProtectedHeaders.
+        // First one is the algo header provided by Cosesigner. 
+        // Second and third are from the Default ProtectedHeaders provided by CertificateCoseSignerKeyProvider
+        // Fourth is the CWT Claims header (automatically added for SCITT compliance)
+        // Fifth is the Content Type header provided by the user.
+        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
 
         response.UnprotectedHeaders.Should().BeEmpty();
     }
@@ -79,8 +81,9 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // The count of protected headers should be 5.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
+        // The count of protected headers should be 6.
+        // Algo header + 2 default headers from provider + CWT claims header + content type + custom header
+        response.ProtectedHeaders.Should().HaveCount(c => c == 6);
         response.ProtectedHeaders.First().Key.Should().Be(CoseHeaderLabel.Algorithm); // this is the algo header added by the CoseSigner
 
         // Count of Unprotected headers should be 1.

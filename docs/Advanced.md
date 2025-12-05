@@ -1,5 +1,146 @@
 ## Advanced usage and the CoseSign1 libraries
 
+#### Asynchronous Signing APIs
+
+CoseSign1 provides async methods for signing operations, particularly useful for:
+- Large payloads streamed from disk or network
+- Integration with async/await patterns
+- Cancellation token support for long-running operations
+- Better resource utilization in async contexts
+
+**Available Async Methods:**
+
+1. **CoseSign1MessageFactory.CreateCoseSign1MessageAsync** - Creates a `CoseSign1Message` asynchronously
+2. **CoseSign1MessageFactory.CreateCoseSign1MessageBytesAsync** - Creates signature bytes asynchronously
+3. **CoseSign1MessageBuilder.BuildAsync** - Builder pattern with async support
+
+**Example: Async Signing with Stream**
+
+```csharp
+using CoseSign1;
+using CoseSign1.Certificates.Local;
+using System.IO;
+using System.Threading;
+
+// Setup
+var cert = new X509Certificate2("cert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+var factory = new CoseSign1MessageFactory();
+
+// Open a large file as a stream
+using var payloadStream = File.OpenRead("large-payload.bin");
+
+// Sign asynchronously with cancellation support
+var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+CoseSign1Message signature = await factory.CreateCoseSign1MessageAsync(
+    payload: payloadStream,
+    signingKeyProvider: signingKeyProvider,
+    embedPayload: false,
+    contentType: "application/octet-stream",
+    headerExtender: null,
+    cancellationToken: cts.Token);
+
+// Or get signature bytes directly
+ReadOnlyMemory<byte> signatureBytes = await factory.CreateCoseSign1MessageBytesAsync(
+    payload: payloadStream,
+    signingKeyProvider: signingKeyProvider,
+    embedPayload: false,
+    cancellationToken: cts.Token);
+```
+
+**Example: Async Builder Pattern**
+
+```csharp
+using CoseSign1;
+using CoseSign1.Headers;
+
+// Create a builder
+var builder = new CoseSign1MessageBuilder(signingKeyProvider)
+    .SetContentType("application/json")
+    .SetEmbedPayload(false);
+
+// Sign from stream asynchronously
+using var payloadStream = File.OpenRead("data.json");
+CoseSign1Message signature = await builder.BuildAsync(
+    payloadStream,
+    cancellationToken: CancellationToken.None);
+```
+
+**Example: Async with CWT Claims**
+
+```csharp
+using CoseSign1;
+using CoseSign1.Headers;
+
+// Setup CWT claims extender (merges with automatic defaults)
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetSubject("software.release.v2.0")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddYears(1));
+
+// Async sign with custom claims
+using var payloadStream = File.OpenRead("release.tar.gz");
+
+ReadOnlyMemory<byte> signature = await factory.CreateCoseSign1MessageBytesAsync(
+    payload: payloadStream,
+    signingKeyProvider: signingKeyProvider,
+    embedPayload: false,
+    contentType: "application/gzip",
+    headerExtender: cwtExtender,
+    cancellationToken: CancellationToken.None);
+
+File.WriteAllBytes("release.tar.gz.cose", signature.ToArray());
+```
+
+**Method Signatures:**
+
+```csharp
+// Factory methods
+Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+    ReadOnlyMemory<byte> payload,
+    ICoseSigningKeyProvider signingKeyProvider,
+    bool embedPayload = false,
+    string contentType = "application/cose",
+    ICoseHeaderExtender? headerExtender = null,
+    CancellationToken cancellationToken = default);
+
+Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+    Stream payload,
+    ICoseSigningKeyProvider signingKeyProvider,
+    bool embedPayload = false,
+    string contentType = "application/cose",
+    ICoseHeaderExtender? headerExtender = null,
+    CancellationToken cancellationToken = default);
+
+Task<ReadOnlyMemory<byte>> CreateCoseSign1MessageBytesAsync(
+    ReadOnlyMemory<byte> payload,
+    ICoseSigningKeyProvider signingKeyProvider,
+    bool embedPayload = false,
+    string contentType = "application/cose",
+    ICoseHeaderExtender? headerExtender = null,
+    CancellationToken cancellationToken = default);
+
+Task<ReadOnlyMemory<byte>> CreateCoseSign1MessageBytesAsync(
+    Stream payload,
+    ICoseSigningKeyProvider signingKeyProvider,
+    bool embedPayload = false,
+    string contentType = "application/cose",
+    ICoseHeaderExtender? headerExtender = null,
+    CancellationToken cancellationToken = default);
+
+// Builder method
+Task<CoseSign1Message> BuildAsync(
+    Stream payloadStream,
+    CancellationToken cancellationToken = default);
+```
+
+**Notes:**
+- Async methods support both byte array and Stream payloads
+- Stream payloads enable true async I/O for large files
+- Cancellation tokens allow graceful cancellation of long operations
+- All async methods work with CWT claims and header extenders
+- Detached signatures use `SignDetachedAsync` internally for efficient streaming
+
 #### SCITT Compliance
 CoseSignTool provides comprehensive support for **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through CWT (CBOR Web Token) Claims and DID:x509 identifiers. SCITT compliance is automatically enabled when signing with certificates, adding cryptographically-protected claims about the issuer, subject, and other metadata to your signatures.
 

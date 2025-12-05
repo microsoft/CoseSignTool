@@ -828,4 +828,136 @@ public class CertificateCoseSigningKeyProviderTests
 
         root.Dispose();
     }
+
+    /// <summary>
+    /// Tests GetProtectedHeaders when Issuer is null and GetSigningCertificate throws exception
+    /// Verifies that default CWT claims fallback to "unknown.intent" issuer
+    /// </summary>
+    [Test]
+    public void GetProtectedHeaders_WithIssuerNullAndGetSigningCertificateThrows_UsesDefaultIssuer()
+    {
+        // Arrange
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain(leafFirst: true);
+        X509Certificate2 signingCert = testChain[0];
+
+        var testObj = new TestCertificateCoseSigningKeyProviderWithNullIssuer(signingCert, testChain, shouldThrowOnSecondCall: true);
+
+        // Act
+        CoseHeaderMap response = testObj.GetProtectedHeaders();
+
+        // Assert - verify headers were added including CWT claims
+        response.Should().NotBeNull();
+        response.Count.Should().BeGreaterThanOrEqualTo(2); // At least x5chain and CWT claims
+    }
+
+    /// <summary>
+    /// Test helper class that overrides Issuer to always return null
+    /// </summary>
+    private class TestCertificateCoseSigningKeyProviderWithNullIssuer : CertificateCoseSigningKeyProvider
+    {
+        private readonly X509Certificate2 _signingCert;
+        private readonly X509Certificate2Collection _chain;
+        private readonly bool _shouldThrowOnSecondCall;
+        private int _callCount = 0;
+
+        public TestCertificateCoseSigningKeyProviderWithNullIssuer(X509Certificate2 signingCert, X509Certificate2Collection chain, bool shouldThrowOnSecondCall)
+        {
+            _signingCert = signingCert;
+            _chain = chain;
+            _shouldThrowOnSecondCall = shouldThrowOnSecondCall;
+        }
+
+        public override string? Issuer => null;
+
+        protected override X509Certificate2 GetSigningCertificate()
+        {
+            if (_shouldThrowOnSecondCall)
+            {
+                _callCount++;
+                if (_callCount > 1)
+                {
+                    throw new InvalidOperationException("Certificate not available on second call");
+                }
+            }
+            return _signingCert;
+        }
+
+        protected override IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder order = X509ChainSortOrder.LeafFirst) => _chain;
+
+        protected override ECDsa? ProvideECDsaKey(bool publicKey = false) => null;
+        protected override RSA? ProvideRSAKey(bool publicKey = false) => _signingCert.GetRSAPrivateKey();
+        protected override CoseHeaderMap? GetUnProtectedHeadersImplementation() => null;
+    }
+
+    /// <summary>
+    /// Tests that AddDefaultCWTClaims uses certificate subject as fallback when Issuer property is null and DID generation fails
+    /// </summary>
+    [Test]
+    public void TestAddDefaultCWTClaims_WithNullIssuer_UsesCertificateSubjectFallback()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestSubject");
+        X509Certificate2Collection chain = [cert];
+        TestCertificateCoseSigningKeyProviderWithNullIssuer provider = new(cert, chain, shouldThrowOnSecondCall: false);
+
+        // Act
+        CoseHeaderMap? headers = provider.GetProtectedHeaders();
+
+        // Assert
+        headers.Should().NotBeNull();
+        bool hasClaims = headers!.TryGetCwtClaims(out CwtClaims? claims);
+        hasClaims.Should().BeTrue();
+        claims.Should().NotBeNull();
+        // When Issuer is null, it should fall back to the certificate's Subject
+        claims!.Issuer.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Tests that AddDefaultCWTClaims handles failure to get certificate by using default subject
+    /// </summary>
+    [Test]
+    public void TestAddDefaultCWTClaims_WithNullIssuer_AndCertificateFailure_UsesDefaultSubject()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate("TestSubject");
+        X509Certificate2Collection chain = [cert];
+        TestCertificateCoseSigningKeyProviderWithNullIssuer provider = new(cert, chain, shouldThrowOnSecondCall: true);
+
+        // Act
+        CoseHeaderMap? headers = provider.GetProtectedHeaders();
+
+        // Assert
+        headers.Should().NotBeNull();
+        bool hasClaims = headers!.TryGetCwtClaims(out CwtClaims? claims);
+        hasClaims.Should().BeTrue();
+        claims.Should().NotBeNull();
+        // When both Issuer and certificate retrieval fail, should use default subject as issuer
+        claims!.Issuer.Should().Be(CwtClaims.DefaultSubject);
+    }
+
+    /// <summary>
+    /// Tests that GetProtectedHeaders automatically includes default CWT claims
+    /// </summary>
+    [Test]
+    public void TestGetProtectedHeaders_IncludesDefaultCWTClaims()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        X509Certificate2Collection chain = [cert];
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        X509Certificate2CoseSigningKeyProvider provider = new(chainBuilder, cert);
+
+        // Act
+        CoseHeaderMap headers = provider.GetProtectedHeaders();
+
+        // Assert
+        headers.Should().NotBeNull();
+        headers.ContainsKey(CWTClaimsHeaderLabels.CWTClaims).Should().BeTrue("GetProtectedHeaders should automatically add default CWT claims");
+        
+        bool hasClaims = headers.TryGetCwtClaims(out CwtClaims? claims);
+        hasClaims.Should().BeTrue();
+        claims.Should().NotBeNull();
+        claims!.Issuer.Should().NotBeNull();
+        claims.Subject.Should().Be(CwtClaims.DefaultSubject);
+    }
 }

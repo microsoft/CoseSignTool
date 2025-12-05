@@ -3,6 +3,8 @@
 
 namespace CoseSign1;
 
+using System.Threading;
+
 /// <summary>
 /// Factory class that creates a CoseSign1Message object.
 /// </summary>
@@ -146,5 +148,64 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             throw new ArgumentOutOfRangeException(null, "The payload to sign is empty.");
         }
     }
-}
 
+    /// <inheritdoc/>
+    public async Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+        ReadOnlyMemory<byte> payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedPayload = false,
+        string contentType = DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Wrap byte array in MemoryStream to enable true async signing path
+        using MemoryStream payloadStream = new(payload.ToArray());
+        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+    }
+
+    /// <inheritdoc/>
+    public async Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedPayload = false,
+        string contentType = DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payload, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+    }
+
+    /// <inheritdoc/>
+    public async Task<ReadOnlyMemory<byte>> CreateCoseSign1MessageBytesAsync(
+        ReadOnlyMemory<byte> payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedPayload = false,
+        string contentType = DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Wrap byte array in MemoryStream to enable true async signing path
+        using MemoryStream payloadStream = new(payload.ToArray());
+        return await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ReadOnlyMemory<byte>> CreateCoseSign1MessageBytesAsync(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedPayload = false,
+        string contentType = DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
+        ThrowIfEmpty(payload);
+
+        // Wrap in Task.Run with cancellation token to enable cancellation support
+        return embedPayload ?
+            await Task.Run(() => CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload), signer), cancellationToken).ConfigureAwait(false) :
+            await Task.Run(async () => await CoseSign1Message.SignDetachedAsync(payload, signer).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+    }
+}

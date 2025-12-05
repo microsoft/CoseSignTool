@@ -184,6 +184,10 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
         value = CoseHeaderValue.FromEncodedValue(cborWriter.Encode());
         protectedHeaders.Add(CertificateCoseHeaderLabels.X5Chain, value);
 
+        // Automatically add default CWT claims for SCITT compliance
+        // These will be merged with any user-provided CWT claims later in the signing flow
+        AddDefaultCWTClaims(protectedHeaders);
+
         return protectedHeaders;
     }
 
@@ -212,5 +216,57 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
 
         roots.ForEach(c => store.Add(c));
     }
-}
 
+    /// <summary>
+    /// Adds default CWT claims to the protected headers for SCITT compliance.
+    /// These default claims will be merged with any user-provided CWT claims during the signing process.
+    /// </summary>
+    /// <param name="protectedHeaders">The header map to add CWT claims to.</param>
+    private void AddDefaultCWTClaims(CoseHeaderMap protectedHeaders)
+    {
+        try
+        {
+            // Get the issuer from the certificate (DID:x509 or custom override)
+            string? issuer = Issuer;
+            if (string.IsNullOrEmpty(issuer))
+            {
+                // Fallback to the leaf certificate's subject if DID generation fails
+                try
+                {
+                    X509Certificate2 signingCert = GetSigningCertificate();
+                    issuer = signingCert?.Subject;
+                    Trace.TraceInformation($"CertificateCoseSigningKeyProvider: Using leaf certificate subject as issuer: '{issuer}'");
+                }
+                catch
+                {
+                    // If we can't get the certificate subject either, use the default
+                    Trace.TraceWarning("CertificateCoseSigningKeyProvider: Unable to determine issuer for default CWT claims. Using fallback.");
+                    issuer = CwtClaims.DefaultSubject;
+                }
+            }
+
+            // Create a CWT claims extender with default values
+            var cwtExtender = new CWTClaimsHeaderExtender()
+                .SetIssuer(issuer)
+                .SetSubject(CwtClaims.DefaultSubject);
+
+            // Extend the protected headers with default CWT claims
+            // Note: These are added at the provider level, but any user-provided CWT claims
+            // from header extenders will be merged later, with user values taking precedence
+            var extendedHeaders = cwtExtender.ExtendProtectedHeaders(protectedHeaders);
+            
+            // Copy the extended headers back (the CWT claims header will be added)
+            foreach (var header in extendedHeaders)
+            {
+                protectedHeaders[header.Key] = header.Value;
+            }
+
+            Trace.TraceInformation($"CertificateCoseSigningKeyProvider: Added default CWT claims (issuer='{issuer}', subject='{CwtClaims.DefaultSubject}') for SCITT compliance.");
+        }
+        catch (Exception ex)
+        {
+            Trace.TraceWarning($"CertificateCoseSigningKeyProvider: Failed to add default CWT claims: {ex.Message}. Continuing without defaults.");
+            // Don't throw - allow signing to continue. User-provided CWT claims can still be added via header extenders.
+        }
+    }
+}

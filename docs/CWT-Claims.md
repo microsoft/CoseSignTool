@@ -4,7 +4,13 @@
 
 CWT (CBOR Web Token) Claims are cryptographically protected assertions about a signed payload that are embedded in the COSE (CBOR Object Signing and Encryption) protected headers. This is a requirement for SCITT (Supply Chain Integrity, Transparency and Trust) compliance.
 
-CoseSignTool implements CWT Claims as a first-class feature, making them as easy to use as other header types (protected, unprotected, raw).
+CoseSignTool implements CWT Claims as a first-class feature with automatic defaults and extensive customization:
+
+- **Automatic Defaults**: Certificate-based signing automatically adds CWT claims (issuer from DID:x509, subject as "unknown.intent")
+- **Smart Merging**: Custom claims intelligently merge with defaults, allowing selective overrides
+- **Flexible Placement**: Choose protected (default), unprotected, or both header sections
+- **Custom Labels**: Use non-standard header labels for advanced scenarios
+- **Type Safety**: Strongly-typed API with `DateTimeOffset` for timestamps
 
 ## Standards Compliance
 
@@ -17,12 +23,14 @@ CoseSignTool implements CWT Claims as a first-class feature, making them as easy
 
 CWT Claims in SCITT-compliant signatures include at minimum:
 
-- **iss (issuer)** - Label 1: A URI identifying who issued the signature (1-8192 characters)
-- **sub (subject)** - Label 2: A string identifying the subject of the signature
-- **iat (issued at)** - Label 6: Unix timestamp when the signature was created (auto-populated)
-- **nbf (not before)** - Label 5: Unix timestamp when the signature becomes valid (auto-populated)
+- **iss (issuer)** - Label 1: A URI identifying who issued the signature (auto-generated as DID:x509 from certificate)
+- **sub (subject)** - Label 2: A string identifying the subject of the signature (defaults to "unknown.intent")
+- **iat (issued at)** - Label 6: Timestamp when the signature was created (auto-populated as `DateTimeOffset`)
+- **nbf (not before)** - Label 5: Timestamp when the signature becomes valid (auto-populated as `DateTimeOffset`)
 
-These claims are embedded in COSE protected header label 15 (per RFC 9597) as a CBOR map. The `iat` and `nbf` claims are automatically populated with the current timestamp when issuer or subject is set.
+These claims are embedded in COSE protected header label 15 (per RFC 9597) as a CBOR map. When using certificate-based signing, these claims are **automatically added** by the certificate provider. The `iat` and `nbf` claims are auto-populated with the current timestamp.
+
+**Note**: Timestamp properties are stored as `DateTimeOffset?` in the API (not Unix `long` timestamps), providing better timezone and date handling support.
 
 ## DID:X509 Identifiers
 
@@ -52,35 +60,52 @@ did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:ST:C
 
 ## Using CWT Claims in SignCommand
 
-### Basic Usage (Auto-generated DID:X509)
+### Automatic SCITT Compliance (Default Behavior)
 
-The simplest way to add CWT Claims is to let CoseSignTool auto-generate the issuer from your certificate:
+When signing with a certificate, CWT Claims are **automatically included** with default values:
+
+```bash
+CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx
+```
+
+This automatically includes:
+- **Issuer**: Auto-generated DID:X509 from your certificate chain
+- **Subject**: "unknown.intent" (default value)
+- **Issued At**: Current timestamp
+- **Not Before**: Current timestamp
+
+### Basic Usage (Custom Subject)
+
+Override the default subject with your own value:
 
 ```bash
 CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --cwt-subject "myapp-v1.0"
 ```
 
 This will:
-1. Build the certificate chain
-2. Generate a DID:X509 identifier from the chain
-3. Use the DID:X509 as the issuer (iss)
-4. Use "myapp-v1.0" as the subject (sub)
+1. Use auto-generated DID:X509 as the issuer (iss)
+2. Use "myapp-v1.0" as the subject (sub), overriding the default
+3. Auto-populate iat and nbf timestamps
 
 ### Explicit Issuer
 
-You can specify a custom issuer URI:
+You can override the auto-generated DID:X509 issuer with a custom issuer URI:
 
 ```bash
 CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --cwt-issuer https://example.com/issuer --cwt-subject "myapp-v1.0"
 ```
 
-### Issuer Only (Empty Subject)
+This overrides the default DID:X509 issuer while keeping other defaults.
 
-Subject defaults to an empty string if not specified:
+### Custom Issuer with Default Subject
+
+If you don't specify a subject, it defaults to "unknown.intent":
 
 ```bash
 CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --cwt-issuer https://example.com/issuer
 ```
+
+This uses your custom issuer but keeps the default subject value.
 
 ### With Certificate Store
 
@@ -176,19 +201,45 @@ This creates CWT Claims with:
 
 ## Programmatic Usage
 
-### Using CwtClaimsHeaderExtender
+### Automatic Default Claims
+
+When using certificate-based signing, CWT claims are **automatically added** by the certificate provider:
+
+```csharp
+using CoseSign1;
+using CoseSign1.Abstractions.Interfaces;
+using CoseSign1.Certificates.Local;
+
+// Certificate provider automatically adds default CWT claims
+var cert = new X509Certificate2("cert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Sign with automatic defaults (issuer from DID:x509, subject="unknown.intent")
+ReadOnlyMemory<byte> signature = CoseHandler.Sign(
+    payloadStream,
+    signingKeyProvider,
+    embedPayload: false,
+    signatureFile,
+    contentType: "application/cose"
+);
+// Result includes automatic CWT claims in protected headers
+```
+
+### Using CWTClaimsHeaderExtender to Override Defaults
 
 ```csharp
 using CoseSign1.Headers;
 using CoseSign1.Abstractions.Interfaces;
 
-// Create CWT Claims header extender
-ICoseHeaderExtender cwtExtender = new CwtClaimsHeaderExtender(
-    issuer: "https://example.com/issuer",
-    subject: "myapp-v1.0"
-);
+// Create CWT Claims header extender to override defaults
+// Your values will merge with and override the automatic defaults
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetIssuer("https://example.com/issuer")  // Overrides DID:x509
+    .SetSubject("myapp-v1.0")  // Overrides "unknown.intent"
+    .SetAudience("https://api.example.com")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddMonths(6));
 
-// Use with CoseHandler
+// Sign with custom claims that merge with defaults
 ReadOnlyMemory<byte> signature = CoseHandler.Sign(
     payloadStream,
     signingKeyProvider,
@@ -199,61 +250,91 @@ ReadOnlyMemory<byte> signature = CoseHandler.Sign(
 );
 ```
 
-### Using CwtClaimsBuilder (Fluent API)
+### Constructor Options
+
+```csharp
+using CoseSign1.Headers;
+
+// Default: Merge with existing claims in protected headers
+var cwtExtender = new CWTClaimsHeaderExtender();
+
+// Prevent merging - throws if claims already exist
+var cwtExtender = new CWTClaimsHeaderExtender(preventMerge: true);
+
+// Place claims in unprotected headers (not recommended for SCITT)
+var cwtExtender = new CWTClaimsHeaderExtender(
+    headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly);
+
+// Place claims in both protected and unprotected headers
+var cwtExtender = new CWTClaimsHeaderExtender(
+    headerPlacement: CwtClaimsHeaderPlacement.Both);
+
+// Use custom header label instead of default label 15
+var customLabel = new CoseHeaderLabel(999);
+var cwtExtender = new CWTClaimsHeaderExtender(
+    customHeaderLabel: customLabel);
+
+// Combine all options
+var cwtExtender = new CWTClaimsHeaderExtender(
+    preventMerge: false,
+    headerPlacement: CwtClaimsHeaderPlacement.ProtectedOnly,
+    customHeaderLabel: new CoseHeaderLabel(888));
+```
+
+### Fluent API with DateTimeOffset
 
 ```csharp
 using CoseSign1.Headers;
 
 // Build CWT Claims with fluent API
-ICoseHeaderExtender cwtExtender = new CwtClaimsBuilder()
-    .WithIssuer("https://example.com/issuer")
-    .WithSubject("myapp-v1.0")
-    .WithClaim(3, "audience-value")  // Add custom claims
-    .WithClaim(4, 1234567890)        // exp claim
-    .Build();
+// Note: Timestamp methods accept DateTimeOffset (not Unix long)
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetIssuer("https://example.com/issuer")
+    .SetSubject("myapp-v1.0")
+    .SetAudience("production")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddYears(1))  // DateTimeOffset
+    .SetNotBefore(DateTimeOffset.UtcNow)  // DateTimeOffset
+    .SetIssuedAt(DateTimeOffset.UtcNow)  // DateTimeOffset
+    .SetCustomClaim(100, "build-12345")
+    .SetCustomClaim(101, 42)
+    .SetCustomClaim(102, true);
+
+// Or use Unix timestamps (automatically converted to DateTimeOffset)
+var cwtExtender2 = new CWTClaimsHeaderExtender()
+    .SetExpirationTime(1735689600L);  // Converted to DateTimeOffset internally
 ```
 
-### Generating DID:X509
+### Reading Claims with Custom Labels
 
 ```csharp
-using CoseSign1.Certificates.Extensions;
-using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Headers.Extensions;
+using System.Security.Cryptography.Cose;
 
-// Create a generator instance
-var generator = new DidX509Generator();
+// Read from default label (15)
+byte[] signatureBytes = File.ReadAllBytes("signature.cose");
+CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
 
-// From certificate chain
-X509Certificate2 leafCert = /* your leaf certificate */;
-X509Certificate2 rootCert = /* your root certificate */;
-string did = generator.Generate(leafCert, rootCert);
-
-// From certificate collection
-X509Certificate2Collection chain = /* your certificate chain */;
-string did = generator.GenerateFromChain(chain);
-
-// Validate DID:X509
-bool isValid = DidX509Generator.IsValidDidX509(did);
-```
-
-### Custom DID Generation
-
-You can inherit from `DidX509Generator` to customize the DID generation behavior:
-
-```csharp
-public class CustomDidGenerator : DidX509Generator
+if (message.TryGetCwtClaims(out CwtClaims? claims))
 {
-    protected override string EncodeSubject(string subject)
-    {
-        // Custom subject encoding logic
-        return base.EncodeSubject(subject);
-    }
+    Console.WriteLine($"Issuer: {claims.Issuer}");
+    Console.WriteLine($"Subject: {claims.Subject}");
+    
+    // Timestamp properties are DateTimeOffset, not long
+    if (claims.ExpirationTime.HasValue)
+        Console.WriteLine($"Expires: {claims.ExpirationTime.Value:o}");
+}
 
-    protected override byte[] ComputeRootCertificateHash(X509Certificate2 rootCertificate)
-    {
-        // Use a different hash algorithm
-        using var sha384 = SHA384.Create();
-        return sha384.ComputeHash(rootCertificate.RawData);
-    }
+// Read from custom label
+var customLabel = new CoseHeaderLabel(999);
+if (message.TryGetCwtClaims(out CwtClaims? customClaims, headerLabel: customLabel))
+{
+    Console.WriteLine($"Custom label issuer: {customClaims.Issuer}");
+}
+
+// Read from unprotected headers
+if (message.TryGetCwtClaims(out CwtClaims? unprotectedClaims, useUnprotectedHeaders: true))
+{
+    Console.WriteLine($"Unprotected issuer: {unprotectedClaims.Issuer}");
 }
 ```
 
@@ -261,19 +342,21 @@ public class CustomDidGenerator : DidX509Generator
 
 ```csharp
 using CoseSign1;
+using CoseSign1.Headers;
 
-// Create multiple header extenders
-ICoseHeaderExtender cwtExtender = new CwtClaimsHeaderExtender(issuer, subject);
+// Create CWT claims extender (will merge with automatic defaults)
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetSubject("myapp-v1.0")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddMonths(6));
+
+// Create custom header extender
 ICoseHeaderExtender customExtender = /* your custom headers */;
 
-// Chain them together
-ICoseHeaderExtender combined = new ChainedCoseHeaderExtender(new[] 
-{ 
-    cwtExtender, 
-    customExtender 
-});
+// Chain them together - note the namespace is CoseSign1.Headers
+ICoseHeaderExtender combined = new CoseSign1.Headers.ChainedCoseHeaderExtender(
+    new[] { cwtExtender, customExtender });
 
-// Use combined extender
+// Sign with chained extenders
 ReadOnlyMemory<byte> signature = CoseHandler.Sign(
     payloadStream,
     signingKeyProvider,
@@ -322,15 +405,37 @@ Common errors and solutions:
 
 ## Best Practices
 
-1. **Use DID:X509 for certificate-based issuers**: The auto-generated DID:X509 provides cryptographic proof of the issuer's identity based on the certificate chain.
+1. **Leverage Automatic Defaults**: Certificate-based signing automatically includes SCITT-compliant CWT claims. Only override when you need specific values.
 
-2. **Meaningful subjects**: Use subject values that identify what was signed (e.g., "application-v1.0.0", "release-2024-11-18").
+2. **Use DID:X509 for certificate-based issuers**: The auto-generated DID:X509 provides cryptographic proof of the issuer's identity. Override only if required.
 
-3. **Consistent issuer URIs**: Use consistent issuer URIs across your organization for easy verification.
+3. **Meaningful subjects**: Override the default "unknown.intent" subject with values that identify what was signed:
+   - "application-v1.0.0"
+   - "release-2024-11-18"
+   - "container-image-production"
 
-4. **Embed additional claims**: Use the fluent API to add custom claims like audience, expiration, or custom metadata.
+4. **Use DateTimeOffset**: The API uses `DateTimeOffset` for all timestamps (not Unix `long`), providing better timezone handling.
 
-5. **Chain headers appropriately**: Place CWT Claims extender first in the chain to ensure they're processed before other headers.
+5. **Protected headers for production**: Default placement is protected headers (cryptographically signed). Only use unprotected headers for non-critical metadata.
+
+6. **Prevent unintended merging**: Use `preventMerge: true` when you want to ensure exclusive control:
+   ```csharp
+   var cwtExtender = new CWTClaimsHeaderExtender(preventMerge: true)
+       .SetIssuer("my-issuer")
+       .SetSubject("my-subject");
+   ```
+
+7. **Custom labels for multi-tenancy**: Use custom header labels when you need multiple independent claim sets:
+   ```csharp
+   var tenant1 = new CWTClaimsHeaderExtender(customHeaderLabel: new CoseHeaderLabel(100));
+   var tenant2 = new CWTClaimsHeaderExtender(customHeaderLabel: new CoseHeaderLabel(200));
+   ```
+
+8. **Check for default state**: Use `IsDefault()` to determine if only defaults are present:
+   ```csharp
+   if (claims.IsDefault())
+       Console.WriteLine("Only default claims present");
+   ```
 
 ## See Also
 

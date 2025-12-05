@@ -186,20 +186,19 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="coseHeaderExtender">Optional header extender to add custom headers to the COSE message.</param>
     /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureAsync(
+    public async Task<CoseSign1Message> CreateIndirectSignatureAsync(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
         ICoseHeaderExtender? coseHeaderExtender = null) =>
-            Task.FromResult(
-                (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                    returnBytes: false,
-                    signingKeyProvider: signingKeyProvider,
-                    contentType: contentType,
-                    streamPayload: payload,
-                    signatureVersion: signatureVersion,
-                    headerExtender: coseHeaderExtender));
+            (CoseSign1Message)await CreateIndirectSignatureWithChecksInternalAsync(
+                returnBytes: false,
+                signingKeyProvider: signingKeyProvider,
+                contentType: contentType,
+                streamPayload: payload,
+                signatureVersion: signatureVersion,
+                headerExtender: coseHeaderExtender).ConfigureAwait(false);
 
     /// <summary>
     /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -212,21 +211,20 @@ public sealed partial class IndirectSignatureFactory
     /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<CoseSign1Message> CreateIndirectSignatureFromHashAsync(
+    public async Task<CoseSign1Message> CreateIndirectSignatureFromHashAsync(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
         ICoseHeaderExtender? coseHeaderExtender = null) =>
-            Task.FromResult(
-                (CoseSign1Message)CreateIndirectSignatureWithChecksInternal(
-                    returnBytes: false,
-                    signingKeyProvider: signingKeyProvider,
-                    contentType: contentType,
-                    streamPayload: rawHash,
-                    payloadHashed: true,
-                    signatureVersion: signatureVersion,
-                    headerExtender: coseHeaderExtender));
+            (CoseSign1Message)await CreateIndirectSignatureWithChecksInternalAsync(
+                returnBytes: false,
+                signingKeyProvider: signingKeyProvider,
+                contentType: contentType,
+                streamPayload: rawHash,
+                payloadHashed: true,
+                signatureVersion: signatureVersion,
+                headerExtender: coseHeaderExtender).ConfigureAwait(false);
     #endregion
     #endregion
 
@@ -410,21 +408,20 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="coseHeaderExtender">Optional header extender to add custom headers to the COSE message.</param>
     /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesAsync(
+    public async Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesAsync(
         Stream payload,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
         ICoseHeaderExtender? coseHeaderExtender = null) =>
-            Task.FromResult(
-                (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                    returnBytes: true,
-                    signingKeyProvider: signingKeyProvider,
-                    contentType: contentType,
-                    streamPayload: payload,
-                    payloadHashed: false,
-                    signatureVersion: signatureVersion,
-                    headerExtender: coseHeaderExtender));
+            (ReadOnlyMemory<byte>)await CreateIndirectSignatureWithChecksInternalAsync(
+                returnBytes: true,
+                signingKeyProvider: signingKeyProvider,
+                contentType: contentType,
+                streamPayload: payload,
+                payloadHashed: false,
+                signatureVersion: signatureVersion,
+                headerExtender: coseHeaderExtender).ConfigureAwait(false);
 
     /// <summary>
     /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -437,21 +434,20 @@ public sealed partial class IndirectSignatureFactory
     /// <returns>A Task which when completed returns a byte[] representation of a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
-    public Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesFromHashAsync(
+    public async Task<ReadOnlyMemory<byte>> CreateIndirectSignatureBytesFromHashAsync(
         Stream rawHash,
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
         ICoseHeaderExtender? coseHeaderExtender = null) =>
-            Task.FromResult(
-                (ReadOnlyMemory<byte>)CreateIndirectSignatureWithChecksInternal(
-                    returnBytes: true,
-                    signingKeyProvider: signingKeyProvider,
-                    contentType: contentType,
-                    streamPayload: rawHash,
-                    payloadHashed: true,
-                    signatureVersion: signatureVersion,
-                    headerExtender: coseHeaderExtender));
+            (ReadOnlyMemory<byte>)await CreateIndirectSignatureWithChecksInternalAsync(
+                returnBytes: true,
+                signingKeyProvider: signingKeyProvider,
+                contentType: contentType,
+                streamPayload: rawHash,
+                payloadHashed: true,
+                signatureVersion: signatureVersion,
+                headerExtender: coseHeaderExtender).ConfigureAwait(false);
     #endregion
     #endregion
 }

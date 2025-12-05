@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
@@ -37,6 +40,10 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
     [Test]
     public void TryGetCwtClaims_WithNoClaims_ReturnsFalse()
     {
+        // NOTE: This test has been updated to reflect that CertificateCoseSigningKeyProvider
+        // now automatically adds default CWT claims (issuer and subject) for SCITT compliance.
+        // Therefore, certificate-based signatures will always have CWT claims present.
+        
         // Arrange
         var (message, certs) = CreateMessageWithoutCwtClaims();
 
@@ -44,8 +51,12 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
         bool result = message.TryGetCwtClaims(out CwtClaims? claims);
 
         // Assert
-        Assert.That(result, Is.False);
-        Assert.That(claims, Is.Null);
+        // CWT claims are now automatically added for certificate-based signing
+        Assert.That(result, Is.True);
+        Assert.That(claims, Is.Not.Null);
+        // Default claims should include issuer (DID:x509) and subject (unknown.intent)
+        Assert.That(claims!.Issuer, Is.Not.Null.And.Not.Empty);
+        Assert.That(claims.Subject, Is.EqualTo(CwtClaims.DefaultSubject));
 
         // Cleanup
         DisposeCertificates(certs);
@@ -275,4 +286,134 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
             cert.Dispose();
         }
     }
+
+    #region Custom Header Label Tests
+
+    [Test]
+    public void TryGetCwtClaims_WithCustomLabel_RetrievesFromProtectedHeaders()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(999);
+        var extender = new CustomLabelCwtClaimsExtender(customLabel, "custom-issuer", "custom-subject");
+        var (message, certs) = CreateMessageWithCustomLabelClaims(extender);
+
+        // Act
+        bool result = message.TryGetCwtClaims(out CwtClaims? claims, useUnprotectedHeaders: false, headerLabel: customLabel);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(claims, Is.Not.Null);
+        Assert.That(claims!.Issuer, Is.EqualTo("custom-issuer"));
+        Assert.That(claims.Subject, Is.EqualTo("custom-subject"));
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithCustomLabel_BothLabelsCanCoexist()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(888);
+        var extender = new CustomLabelCwtClaimsExtender(customLabel, "custom-issuer", "custom-subject");
+        var (message, certs) = CreateMessageWithCustomLabelClaims(extender);
+
+        // Act - Get claims from both labels
+        bool defaultResult = message.TryGetCwtClaims(out CwtClaims? defaultClaims);
+        bool customResult = message.TryGetCwtClaims(out CwtClaims? customClaims, headerLabel: customLabel);
+
+        // Assert - Both should exist but have different values
+        Assert.That(defaultResult, Is.True, "Default label claims should exist (added by certificate provider)");
+        Assert.That(defaultClaims, Is.Not.Null);
+        Assert.That(customResult, Is.True, "Custom label claims should exist");
+        Assert.That(customClaims, Is.Not.Null);
+        
+        // Custom claims should have the values we set
+        Assert.That(customClaims!.Issuer, Is.EqualTo("custom-issuer"));
+        Assert.That(customClaims!.Subject, Is.EqualTo("custom-subject"));
+        
+        // Default claims should have different values (from certificate provider)
+        Assert.That(defaultClaims!.Issuer, Is.Not.EqualTo("custom-issuer"), "Default and custom labels have independent values");
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithWrongCustomLabel_ReturnsFalse()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(777);
+        var wrongLabel = new CoseHeaderLabel(666);
+        var extender = new CustomLabelCwtClaimsExtender(customLabel, "test-issuer", "test-subject");
+        var (message, certs) = CreateMessageWithCustomLabelClaims(extender);
+
+        // Act
+        bool result = message.TryGetCwtClaims(out CwtClaims? claims, useUnprotectedHeaders: false, headerLabel: wrongLabel);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(claims, Is.Null);
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithNullCustomLabel_UsesDefaultLabel()
+    {
+        // Arrange
+        var (message, certs) = CreateMessageWithCwtClaims();
+
+        // Act
+        bool result = message.TryGetCwtClaims(out CwtClaims? claims, useUnprotectedHeaders: false, headerLabel: null);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(claims, Is.Not.Null);
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
+    // Helper class for custom label testing
+    private class CustomLabelCwtClaimsExtender : ICoseHeaderExtender
+    {
+        private readonly CoseHeaderLabel CustomLabel;
+        private readonly string Issuer;
+        private readonly string Subject;
+
+        public CustomLabelCwtClaimsExtender(CoseHeaderLabel customLabel, string issuer, string subject)
+        {
+            CustomLabel = customLabel;
+            Issuer = issuer;
+            Subject = subject;
+        }
+
+        public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap protectedHeaders)
+        {
+            var extender = new CWTClaimsHeaderExtender(customHeaderLabel: CustomLabel)
+                .SetIssuer(Issuer)
+                .SetSubject(Subject);
+            return extender.ExtendProtectedHeaders(protectedHeaders);
+        }
+
+        public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
+        {
+            return unProtectedHeaders ?? new CoseHeaderMap();
+        }
+    }
+
+    private (CoseSign1Message Message, X509Certificate2Collection Certs) CreateMessageWithCustomLabelClaims(ICoseHeaderExtender extender)
+    {
+        var certs = TestCertificateUtils.CreateTestChain();
+        var provider = new X509Certificate2CoseSigningKeyProvider(certs[^1]);
+
+        byte[] payload = new byte[] { 1, 2, 3 };
+        byte[] signature = CoseHandler.Sign(payload, provider, embedSign: false, headerExtender: extender).ToArray();
+        return (CoseSign1Message.DecodeSign1(signature), certs);
+    }
+
+    #endregion
 }
+

@@ -598,6 +598,11 @@ public class IndirectSignCommandTests
     [TestMethod]
     public async Task IndirectSignCommand_Execute_WithScittDisabled_ShouldNotIncludeCWTClaims()
     {
+        // NOTE: This test has been updated to reflect that certificate-based signing now
+        // automatically adds default CWT claims (issuer and subject) even when SCITT is disabled.
+        // The enable-scitt flag controls additional SCITT-specific behavior but does not disable
+        // the base CWT claims functionality.
+        
         // Arrange
         IndirectSignCommand command = new IndirectSignCommand();
         string signaturePath = TestSignaturePath + "_no_scitt";
@@ -618,12 +623,17 @@ public class IndirectSignCommandTests
             Assert.AreEqual(PluginExitCode.Success, result);
             Assert.IsTrue(File.Exists(signaturePath));
 
-            // Verify CWT claims are NOT in the signature
+            // Verify CWT claims are present (default claims from certificate provider)
             byte[] signatureBytes = File.ReadAllBytes(signaturePath);
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
 
             bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
-            Assert.IsFalse(hasClaims);
+            Assert.IsTrue(hasClaims, "Signature should contain default CWT claims from certificate provider");
+            Assert.IsNotNull(claims);
+            // Default claims should include issuer (DID:x509) and subject (unknown.intent)
+            Assert.IsNotNull(claims!.Issuer);
+            Assert.IsTrue(claims.Issuer.Length > 0, "Default issuer should be set from certificate");
+            Assert.AreEqual("unknown.intent", claims.Subject, "Default subject should be set");
         }
         finally
         {

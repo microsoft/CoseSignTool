@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Headers.Extensions;
 
+using System.Diagnostics;
+
 /// <summary>
 /// Extension methods for working with COSE headers.
 /// </summary>
@@ -109,6 +111,99 @@ public static class CoseHeaderExtensions
 
         return targetMap;
     }
+
+    /// <summary>
+    /// Extracts and parses CWT claims from a CoseHeaderMap.
+    /// </summary>
+    /// <param name="headerMap">The header map to extract CWT claims from.</param>
+    /// <param name="claims">When this method returns, contains the extracted CWT claims if successful; otherwise, null.</param>
+    /// <param name="headerLabel">Optional custom header label to use instead of the default CWT Claims label (15). If not specified, uses CWTClaimsHeaderLabels.CWTClaims.</param>
+    /// <returns>true if CWT claims were found and successfully parsed; otherwise, false.</returns>
+    public static bool TryGetCwtClaims(this CoseHeaderMap headerMap, out CwtClaims? claims, CoseHeaderLabel? headerLabel = null)
+    {
+        claims = null;
+        
+        CoseHeaderLabel label = headerLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+        
+        if (headerMap == null || !headerMap.TryGetValue(label, out CoseHeaderValue cwtClaimsValue))
+        {
+            return false;
+        }
+
+        try
+        {
+            byte[] claimsBytes = cwtClaimsValue.EncodedValue.ToArray();
+            claims = CwtClaims.FromCborBytes(claimsBytes);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Merges CWT claims into a CoseHeaderMap, combining with any existing CWT claims.
+    /// User-provided claims override existing defaults.
+    /// </summary>
+    /// <param name="headerMap">The header map to merge CWT claims into.</param>
+    /// <param name="newClaims">The new claims to merge in.</param>
+    /// <param name="logOverrides">Whether to log when user values override defaults.</param>
+    /// <param name="headerLabel">Optional custom header label to use instead of the default CWT Claims label (15). If not specified, uses CWTClaimsHeaderLabels.CWTClaims.</param>
+    /// <returns>The updated header map with merged CWT claims.</returns>
+    public static CoseHeaderMap MergeCwtClaims(this CoseHeaderMap headerMap, CwtClaims newClaims, bool logOverrides = true, CoseHeaderLabel? headerLabel = null)
+    {
+        if (headerMap == null)
+        {
+            throw new ArgumentNullException(nameof(headerMap));
+        }
+
+        if (newClaims == null)
+        {
+            return headerMap;
+        }
+
+        // Get existing claims if any
+        headerMap.TryGetCwtClaims(out CwtClaims? existingClaims, headerLabel);
+
+        // Merge claims: existing claims as base, new claims override
+        CwtClaims mergedClaims = existingClaims?.Merge(newClaims, logOverrides) ?? newClaims;
+
+        // Set the merged claims
+        headerMap.SetCwtClaims(mergedClaims, headerLabel);
+        return headerMap;
+    }
+
+    /// <summary>
+    /// Sets CWT claims in a CoseHeaderMap, encoding them as CBOR.
+    /// </summary>
+    /// <param name="headerMap">The header map to set CWT claims in.</param>
+    /// <param name="claims">The claims to encode and set.</param>
+    /// <param name="headerLabel">Optional custom header label to use instead of the default CWT Claims label (15). If not specified, uses CWTClaimsHeaderLabels.CWTClaims.</param>
+    /// <returns>The updated header map.</returns>
+    public static CoseHeaderMap SetCwtClaims(this CoseHeaderMap headerMap, CwtClaims claims, CoseHeaderLabel? headerLabel = null)
+    {
+        if (headerMap == null)
+        {
+            throw new ArgumentNullException(nameof(headerMap));
+        }
+
+        if (claims == null)
+        {
+            return headerMap;
+        }
+
+        CoseHeaderLabel label = headerLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+
+        // Use CwtClaims.ToCborBytes to encode
+        byte[] cborBytes = claims.ToCborBytes();
+        CoseHeaderValue cwtClaimsValue = CoseHeaderValue.FromEncodedValue(cborBytes);
+        headerMap[label] = cwtClaimsValue;
+
+        return headerMap;
+    }
+
+
 
     /// <summary>
     /// Creates a CoseHeaderValue from the given value based on its type.

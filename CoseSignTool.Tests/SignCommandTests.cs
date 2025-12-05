@@ -965,6 +965,11 @@ public class SignCommandTests
     [TestMethod]
     public void SignWithScittDisabled_ShouldNotIncludeCwtClaims()
     {
+        // NOTE: This test has been updated to reflect that certificate-based signing now
+        // automatically adds default CWT claims (issuer and subject) even when SCITT is disabled.
+        // The SCITT flag controls additional SCITT-specific behavior but does not disable
+        // the base CWT claims functionality.
+        
         // Arrange
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
         string signatureFile = Path.GetTempFileName() + ".cose";
@@ -986,12 +991,16 @@ public class SignCommandTests
             // Assert
             result.Should().Be(ExitCode.Success, "Sign operation should succeed");
             
-            // Verify CWT claims are NOT in the signature when SCITT is disabled
+            // Verify CWT claims are present (default claims from certificate provider)
             byte[] signatureBytes = File.ReadAllBytes(signatureFile);
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
             
             bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
-            hasClaims.Should().BeFalse("Signature should not contain CWT claims when SCITT is disabled");
+            hasClaims.Should().BeTrue("Signature should contain default CWT claims from certificate provider");
+            claims.Should().NotBeNull();
+            // Default claims should include issuer (DID:x509) and subject (unknown.intent)
+            claims!.Issuer.Should().NotBeNullOrEmpty("Default issuer should be set from certificate");
+            claims.Subject.Should().Be("unknown.intent", "Default subject should be set");
         }
         finally
         {

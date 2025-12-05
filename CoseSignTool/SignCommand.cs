@@ -244,50 +244,55 @@ public class SignCommand : CoseCommand
         try
         {
             // Use shared header processing logic
-            CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+            ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
-            // If SCITT compliance is enabled or CWT claims are specified, wrap the header extender with CWT claims
-            // Note: CWT claims are only supported for certificate-based signing key providers
-            if ((EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null) &&
+            // If CWT claims customization is requested (issuer, subject, audience, or custom claims)
+            // create a CWT header extender to override the defaults provided by the certificate provider
+            if ((CwtIssuer != null || CwtSubject != null || CwtAudience != null || (CwtClaims != null && CwtClaims.Count > 0)) &&
                 signingKeyProvider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
             {
-                // Create the X509 + CWT header extender using the convenient extension method
-                CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender cwtHeaderExtender = 
-                    certProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
+                // Create a CWT claims extender with user-specified values
+                // This will merge with and override the automatic defaults from CertificateCoseSigningKeyProvider
+                CWTClaimsHeaderExtender cwtCustomizer = new();
 
-                // If audience is also specified, we need to customize further
+                // Override issuer if specified
+                if (CwtIssuer != null)
+                {
+                    cwtCustomizer.SetIssuer(CwtIssuer);
+                }
+
+                // Override subject if specified
+                if (CwtSubject != null)
+                {
+                    cwtCustomizer.SetSubject(CwtSubject);
+                }
+
+                // Add audience if specified
                 if (CwtAudience != null)
                 {
-                    // Get the active CWT claims extender and add the audience
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        certWithCwtExtender.ActiveCWTClaimsExtender.SetAudience(CwtAudience);
-                    }
+                    cwtCustomizer.SetAudience(CwtAudience);
                 }
 
                 // Apply any custom CWT claims specified via CwtClaims
                 if (CwtClaims != null && CwtClaims.Count > 0)
                 {
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        ApplyCwtClaims(certWithCwtExtender.ActiveCWTClaimsExtender, CwtClaims);
-                    }
+                    ApplyCwtClaims(cwtCustomizer, CwtClaims);
                 }
 
-                // If there was an existing header extender, chain them together
+                // Chain the CWT customizer with any existing header extender
                 if (headerExtender != null)
                 {
-                    headerExtender = new CoseSign1.ChainedCoseHeaderExtender(new[] { cwtHeaderExtender, headerExtender });
+                    headerExtender = new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { cwtCustomizer, headerExtender });
                 }
                 else
                 {
-                    headerExtender = cwtHeaderExtender;
+                    headerExtender = cwtCustomizer;
                 }
             }
 
             // Sign the content.
+            // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims (issuer/subject)
+            // for SCITT compliance. Any user-provided values via headerExtender will override the defaults.
             ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
             
             // Write the signature to stream or file.

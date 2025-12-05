@@ -19,7 +19,9 @@ A builder pattern implementation operating over [**ICoseSign1MessageFactory**](h
 ## [CoseSign1MessageFactory](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageFactory.cs) Usage
 An example of creating a [CoseSign1Message](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.cose.cosesign1message) via the Factory pattern is provided below.
 **Note** The example uses the [CoseSign1.Certificates.Local](https://github.com/microsoft/CoseSignTool/tree/main/CoseSign1.Certificates/Local) [SigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Local/X509Certificate2CoseSigningKeyProvider.cs) for illustrative purposes only.
-```
+
+### Synchronous API
+```csharp
 using CoseSign1;
 using CoseSign1.Certificates.Local;
 
@@ -34,10 +36,58 @@ CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(
             contentType: ContentTypeConstants.Cose);
 ```
 
+### Async API
+The factory also provides async methods for all operations, particularly useful when:
+- Working with streams
+- Integrating with cloud-based signing services
+- Need cancellation support
+- Operating in async contexts
+
+```csharp
+using CoseSign1;
+using CoseSign1.Certificates.Local;
+
+...
+
+// Async signing with byte array payload
+byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+X509Certificate2CoseSigningKeyProvider coseSigningKeyProvider = new(...);
+CancellationToken cancellationToken = ...; // Optional
+
+CoseSign1Message response = await coseSign1MessageFactory.CreateCoseSign1MessageAsync(
+            payload: testPayload,
+            signingKeyProvider: coseSigningKeyProvider,
+            embedPayload: true,
+            contentType: ContentTypeConstants.Cose,
+            cancellationToken: cancellationToken);
+
+// Async signing with stream payload
+using Stream payloadStream = File.OpenRead("large-file.bin");
+
+CoseSign1Message streamResponse = await coseSign1MessageFactory.CreateCoseSign1MessageAsync(
+            payload: payloadStream,
+            signingKeyProvider: coseSigningKeyProvider,
+            embedPayload: false,
+            contentType: ContentTypeConstants.Cose,
+            cancellationToken: cancellationToken);
+
+// Get bytes directly instead of CoseSign1Message object
+byte[] signatureBytes = await coseSign1MessageFactory.CreateCoseSign1MessageBytesAsync(
+            payload: testPayload,
+            signingKeyProvider: coseSigningKeyProvider,
+            embedPayload: false,
+            contentType: ContentTypeConstants.Cose,
+            cancellationToken: cancellationToken);
+```
+
+See [Advanced.md](./docs/Advanced.md) for more details on async patterns.
+
 ## [CoseSign1MessageBuilder](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageBuilder.cs) Usage
 An example of creating a [CoseSign1Message](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.cose.cosesign1message) via the builder pattern is provided below.
 **Note** The example uses the [CoseSign1.Certificates.Local](https://github.com/microsoft/CoseSignTool/tree/main/CoseSign1.Certificates/Local) [SigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/Local/X509Certificate2CoseSigningKeyProvider.cs) for illustrative purposes only.
-```
+
+### Synchronous API
+```csharp
 using CoseSign1;
 using CoseSign1.Certificates.Local;
 
@@ -45,9 +95,31 @@ using CoseSign1.Certificates.Local;
 
 byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
 X509Certificate2CoseSigningKeyProvider coseSigningKeyProvider = new(...);
-CoseSign1MessageBuilder CoseSign1Builder = new(coseSigingKeyProvider);
+CoseSign1MessageBuilder CoseSign1Builder = new(coseSigningKeyProvider);
 CoseSign1Message response = CoseSign1Builder.SetPayloadBytes(testPayload)
                                             .SetContentType(ContentTypeConstants.Cose)
                                             .ExtendCoseHeader(mockedHeaderExtender.Object)
                                             .Build();
 ```
+
+### Async API
+The builder also supports async building with cancellation:
+
+```csharp
+using CoseSign1;
+using CoseSign1.Certificates.Local;
+
+...
+
+byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+X509Certificate2CoseSigningKeyProvider coseSigningKeyProvider = new(...);
+CancellationToken cancellationToken = ...; // Optional
+
+CoseSign1MessageBuilder CoseSign1Builder = new(coseSigningKeyProvider);
+CoseSign1Message response = await CoseSign1Builder.SetPayloadBytes(testPayload)
+                                                   .SetContentType(ContentTypeConstants.Cose)
+                                                   .ExtendCoseHeader(mockedHeaderExtender.Object)
+                                                   .BuildAsync(cancellationToken);
+```
+
+See [Advanced.md](./docs/Advanced.md) for more details on async patterns.

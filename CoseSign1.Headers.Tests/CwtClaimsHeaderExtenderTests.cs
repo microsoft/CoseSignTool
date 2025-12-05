@@ -13,6 +13,43 @@ using NUnit.Framework;
 [TestFixture]
 public class CWTClaimsHeaderExtenderTests
 {
+    private static byte[] ConvertDictionaryToCborBytes(Dictionary<int, object> dictionary)
+    {
+        var writer = new CborWriter();
+        writer.WriteStartMap(dictionary.Count);
+        
+        foreach (var kvp in dictionary)
+        {
+            writer.WriteInt32(kvp.Key);
+            
+            switch (kvp.Value)
+            {
+                case string str:
+                    writer.WriteTextString(str);
+                    break;
+                case long l:
+                    writer.WriteInt64(l);
+                    break;
+                case int i:
+                    writer.WriteInt32(i);
+                    break;
+                case byte[] bytes:
+                    writer.WriteByteString(bytes);
+                    break;
+                case bool b:
+                    writer.WriteBoolean(b);
+                    break;
+                case double d:
+                    writer.WriteDouble(d);
+                    break;
+                default:
+                    throw new NotSupportedException($"Type {kvp.Value.GetType()} is not supported");
+            }
+        }
+        
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
     [Test]
     public void Constructor_CreatesEmptyClaimsCollection()
     {
@@ -21,9 +58,9 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(extender, Is.Not.Null);
-        Assert.That(extender.AllClaims.Count, Is.EqualTo(0));
+        Assert.That(extender.CustomClaims.Count, Is.EqualTo(0));
         Assert.That(extender.Issuer, Is.Null);
-        Assert.That(extender.Subject, Is.Null);
+        Assert.That(extender.Subject, Is.EqualTo("unknown.intent")); // Default subject
         Assert.That(extender.Audience, Is.Null);
         Assert.That(extender.ExpirationTime, Is.Null);
         Assert.That(extender.NotBefore, Is.Null);
@@ -43,129 +80,123 @@ public class CWTClaimsHeaderExtenderTests
         };
 
         // Act
-        var extender = new CWTClaimsHeaderExtender(claims);
+        var cwtClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims));
+        var extender = new CWTClaimsHeaderExtender(cwtClaims);
 
         // Assert
-        Assert.That(extender.AllClaims.Count, Is.EqualTo(3));
+        Assert.That(extender.CustomClaims.Count, Is.EqualTo(0));
         Assert.That(extender.Issuer, Is.EqualTo("test-issuer"));
         Assert.That(extender.Subject, Is.EqualTo("test-subject"));
-        Assert.That(extender.ExpirationTime, Is.EqualTo(1234567890L));
+        Assert.That(extender.ExpirationTime!.Value.ToUnixTimeSeconds(), Is.EqualTo(1234567890L));
     }
 
     [Test]
-    public void Properties_WithNonStringIssuer_ReturnsNull()
+    public void Properties_WithNonStringIssuer_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.Issuer, 123 } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.Issuer, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonStringSubject_ReturnsNull()
+    public void Properties_WithNonStringSubject_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.Subject, 123 } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.Subject, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonStringAudience_ReturnsNull()
+    public void Properties_WithNonStringAudience_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.Audience, 123 } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.Audience, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonLongExpirationTime_ReturnsNull()
+    public void Properties_WithNonLongExpirationTime_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.ExpirationTime, "not a long" } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.ExpirationTime, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonLongNotBefore_ReturnsNull()
+    public void Properties_WithNonLongNotBefore_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.NotBefore, "not a long" } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.NotBefore, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonLongIssuedAt_ReturnsNull()
+    public void Properties_WithNonLongIssuedAt_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.IssuedAt, "not a long" } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.IssuedAt, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void Properties_WithNonByteArrayCWTID_ReturnsNull()
+    public void Properties_WithNonByteArrayCWTID_ThrowsWhenParsing()
     {
         // Arrange
         var claims = new Dictionary<int, object>
         {
             { CWTClaimsHeaderLabels.CWTID, "not a byte array" } // Wrong type
         };
-        var extender = new CWTClaimsHeaderExtender(claims);
 
-        // Act & Assert
-        Assert.That(extender.CWTID, Is.Null);
+        // Act & Assert - CwtClaims.FromCborBytes will throw when encountering wrong type
+        Assert.Throws<InvalidOperationException>(() => CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claims)));
     }
 
     [Test]
-    public void AllClaims_ReturnsReadOnlyDictionary()
+    public void CustomClaims_ReturnsReadOnlyDictionary()
     {
         // Arrange
         var extender = new CWTClaimsHeaderExtender();
-        extender.SetIssuer("test-issuer");
-        extender.SetSubject("test-subject");
+        extender.SetCustomClaim(100, "custom-value-1");
+        extender.SetCustomClaim(101, "custom-value-2");
 
         // Act
-        var allClaims = extender.AllClaims;
+        var customClaims = extender.CustomClaims;
 
         // Assert
-        Assert.That(allClaims, Is.InstanceOf<IReadOnlyDictionary<int, object>>());
-        Assert.That(allClaims.Count, Is.EqualTo(2));
-        Assert.That(allClaims[CWTClaimsHeaderLabels.Issuer], Is.EqualTo("test-issuer"));
-        Assert.That(allClaims[CWTClaimsHeaderLabels.Subject], Is.EqualTo("test-subject"));
+        Assert.That(customClaims, Is.InstanceOf<IReadOnlyDictionary<int, object>>());
+        Assert.That(customClaims.Count, Is.EqualTo(2));
+        Assert.That(customClaims[100], Is.EqualTo("custom-value-1"));
+        Assert.That(customClaims[101], Is.EqualTo("custom-value-2"));
     }
 
     [Test]
@@ -188,7 +219,6 @@ public class CWTClaimsHeaderExtenderTests
         // Assert
         Assert.That(result, Is.SameAs(extender));
         Assert.That(extender.Issuer, Is.EqualTo(issuer));
-        Assert.That(extender.AllClaims[CWTClaimsHeaderLabels.Issuer], Is.EqualTo(issuer));
     }
 
     [Test]
@@ -310,7 +340,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.ExpirationTime, Is.EqualTo(expiration));
+        Assert.That(extender.ExpirationTime!.Value.ToUnixTimeSeconds(), Is.EqualTo(expiration));
     }
 
     [Test]
@@ -325,7 +355,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.ExpirationTime, Is.EqualTo(expiration.ToUnixTimeSeconds()));
+        Assert.That(extender.ExpirationTime!.Value.ToUnixTimeSeconds(), Is.EqualTo(expiration.ToUnixTimeSeconds()));
     }
 
     [Test]
@@ -340,7 +370,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.NotBefore, Is.EqualTo(notBefore));
+        Assert.That(extender.NotBefore!.Value.ToUnixTimeSeconds(), Is.EqualTo(notBefore));
     }
 
     [Test]
@@ -355,7 +385,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.NotBefore, Is.EqualTo(notBefore.ToUnixTimeSeconds()));
+        Assert.That(extender.NotBefore!.Value.ToUnixTimeSeconds(), Is.EqualTo(notBefore.ToUnixTimeSeconds()));
     }
 
     [Test]
@@ -370,7 +400,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.IssuedAt, Is.EqualTo(issuedAt));
+        Assert.That(extender.IssuedAt!.Value.ToUnixTimeSeconds(), Is.EqualTo(issuedAt));
     }
 
     [Test]
@@ -385,7 +415,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.IssuedAt, Is.EqualTo(issuedAt.ToUnixTimeSeconds()));
+        Assert.That(extender.IssuedAt!.Value.ToUnixTimeSeconds(), Is.EqualTo(issuedAt.ToUnixTimeSeconds()));
     }
 
     [Test]
@@ -438,7 +468,7 @@ public class CWTClaimsHeaderExtenderTests
 
         // Assert
         Assert.That(result, Is.SameAs(extender));
-        Assert.That(extender.AllClaims[customLabel], Is.EqualTo(customValue));
+        Assert.That(extender.CustomClaims[customLabel], Is.EqualTo(customValue));
     }
 
     [Test]
@@ -464,21 +494,22 @@ public class CWTClaimsHeaderExtenderTests
         extender.SetCustomClaim(customLabel, customValue);
 
         // Assert
-        Assert.That(extender.AllClaims[customLabel], Is.EqualTo(customValue));
+        Assert.That(extender.CustomClaims[customLabel], Is.EqualTo(customValue));
     }
 
     [Test]
-    public void RemoveClaim_WithExistingClaim_ReturnsTrue()
+    public void RemoveClaim_WithExistingCustomClaim_ReturnsTrue()
     {
         // Arrange
         var extender = new CWTClaimsHeaderExtender();
-        extender.SetIssuer("issuer");
+        extender.SetCustomClaim(100, "custom-value");
 
         // Act
-        bool result = extender.RemoveClaim(CWTClaimsHeaderLabels.Issuer);
+        bool result = extender.RemoveClaim(100);
 
         // Assert
         Assert.That(result, Is.True);
+        Assert.That(extender.CustomClaims.ContainsKey(100), Is.False);
     }
 
     [Test]
@@ -506,7 +537,7 @@ public class CWTClaimsHeaderExtenderTests
     }
 
     [Test]
-    public void ExtendProtectedHeaders_WithNoClaims_DoesNotAddHeader()
+    public void ExtendProtectedHeaders_WithNoClaims_DoesNotAddHeaders()
     {
         // Arrange
         var extender = new CWTClaimsHeaderExtender();
@@ -515,8 +546,9 @@ public class CWTClaimsHeaderExtenderTests
         // Act
         extender.ExtendProtectedHeaders(headers);
 
-        // Assert
+        // Assert - With only default subject (no real claims), headers should not be added
         Assert.That(headers.Count, Is.EqualTo(0));
+        Assert.That(headers.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.False);
     }
 
     [Test]
@@ -629,17 +661,26 @@ public class CWTClaimsHeaderExtenderTests
         var reader = new CborReader(encodedClaims);
         
         reader.ReadStartMap();
-        var claimsRead = new Dictionary<int, long>();
+        var claimsRead = new Dictionary<int, object>();
         while (reader.PeekState() != CborReaderState.EndMap)
         {
             int label = reader.ReadInt32();
-            claimsRead[label] = reader.ReadInt64();
+            var state = reader.PeekState();
+            if (state == CborReaderState.TextString)
+            {
+                claimsRead[label] = reader.ReadTextString();
+            }
+            else
+            {
+                claimsRead[label] = reader.ReadInt64();
+            }
         }
         reader.ReadEndMap();
         
-        // Verify the explicitly set claim - no iat/nbf since no issuer/subject
-        Assert.That(claimsRead.Count, Is.EqualTo(1), "Should only have exp, no auto-populated claims without issuer/subject");
+        // Verify the explicitly set claim plus default subject and auto-populated iat/nbf
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.ExpirationTime), Is.True);
         Assert.That(claimsRead[CWTClaimsHeaderLabels.ExpirationTime], Is.EqualTo(expiration));
+        Assert.That(claimsRead.ContainsKey(CWTClaimsHeaderLabels.Subject), Is.True, "Default subject should be present");
     }
 
     [Test]
@@ -716,21 +757,12 @@ public class CWTClaimsHeaderExtenderTests
     }
 
     [Test]
+    [Ignore("Unsupported types are now handled during CBOR parsing, not during ExtendProtectedHeaders")]
     public void ExtendProtectedHeaders_WithUnsupportedClaimType_ThrowsInvalidOperationException()
     {
-        // Arrange
-        var extender = new CWTClaimsHeaderExtender();
-        var unsupportedValue = new object(); // Plain object is not supported
-        var claims = new Dictionary<int, object>
-        {
-            { 100, unsupportedValue }
-        };
-        extender = new CWTClaimsHeaderExtender(claims);
-        var headers = new CoseHeaderMap();
-
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => extender.ExtendProtectedHeaders(headers));
-        Assert.That(ex!.Message, Does.Contain("Unsupported claim value type"));
+        // This test is no longer applicable with the new CwtClaims API
+        // as unsupported types would cause issues during ConvertDictionaryToCborBytes
+        // or CwtClaims.FromCborBytes, not during ExtendProtectedHeaders
     }
 
     [Test]
@@ -1099,4 +1131,391 @@ public class CWTClaimsHeaderExtenderTests
     }
 
     #endregion
+
+    #region PreventMerge Tests
+
+    [Test]
+    public void Constructor_WithPreventMergeTrue_StoresFlag()
+    {
+        // Arrange & Act
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true);
+
+        // Assert
+        Assert.That(extender, Is.Not.Null);
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithPreventMergeFalse_MergesSuccessfully()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        headers.SetCwtClaims(existingClaims);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: false);
+        extender.SetSubject("new-subject");
+
+        // Act
+        var result = extender.ExtendProtectedHeaders(headers);
+
+        // Assert
+        result.TryGetCwtClaims(out CwtClaims? finalClaims);
+        Assert.That(finalClaims, Is.Not.Null);
+        Assert.That(finalClaims!.Issuer, Is.EqualTo("existing-issuer"));
+        Assert.That(finalClaims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithPreventMergeTrueAndExistingClaims_ThrowsException()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        headers.SetCwtClaims(existingClaims);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true);
+        extender.SetIssuer("new-issuer");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => 
+            extender.ExtendProtectedHeaders(headers));
+        Assert.That(ex!.Message, Does.Contain("CWT claims already exist"));
+        Assert.That(ex.Message, Does.Contain("preventMerge"));
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithPreventMergeTrueAndNoClaims_Succeeds()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true);
+        extender.SetIssuer("new-issuer");
+        extender.SetSubject("new-subject");
+
+        // Act
+        var result = extender.ExtendProtectedHeaders(headers);
+
+        // Assert
+        result.TryGetCwtClaims(out CwtClaims? finalClaims);
+        Assert.That(finalClaims, Is.Not.Null);
+        Assert.That(finalClaims!.Issuer, Is.EqualTo("new-issuer"));
+        Assert.That(finalClaims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    [Test]
+    public void ExtendUnProtectedHeaders_WithPreventMergeTrueAndExistingClaims_ThrowsException()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        headers.SetCwtClaims(existingClaims);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true, headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly);
+        extender.SetIssuer("new-issuer");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => 
+            extender.ExtendUnProtectedHeaders(headers));
+        Assert.That(ex!.Message, Does.Contain("CWT claims already exist"));
+        Assert.That(ex.Message, Does.Contain("preventMerge"));
+    }
+
+    #endregion
+
+    #region HeaderPlacement Tests
+
+    [Test]
+    public void Constructor_WithProtectedOnlyPlacement_UsesDefault()
+    {
+        // Arrange & Act
+        var extender = new CWTClaimsHeaderExtender(headerPlacement: CwtClaimsHeaderPlacement.ProtectedOnly);
+        extender.SetIssuer("test-issuer");
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        extender.ExtendProtectedHeaders(protectedHeaders);
+        extender.ExtendUnProtectedHeaders(unprotectedHeaders);
+
+        // Assert
+        Assert.That(protectedHeaders.TryGetCwtClaims(out CwtClaims? protectedClaims), Is.True);
+        Assert.That(protectedClaims!.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(unprotectedHeaders.TryGetCwtClaims(out _), Is.False);
+    }
+
+    [Test]
+    public void Constructor_WithUnprotectedOnlyPlacement_AddsToUnprotectedOnly()
+    {
+        // Arrange & Act
+        var extender = new CWTClaimsHeaderExtender(headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly);
+        extender.SetIssuer("test-issuer");
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        extender.ExtendProtectedHeaders(protectedHeaders);
+        extender.ExtendUnProtectedHeaders(unprotectedHeaders);
+
+        // Assert
+        Assert.That(protectedHeaders.TryGetCwtClaims(out _), Is.False);
+        Assert.That(unprotectedHeaders.TryGetCwtClaims(out CwtClaims? unprotectedClaims), Is.True);
+        Assert.That(unprotectedClaims!.Issuer, Is.EqualTo("test-issuer"));
+    }
+
+    [Test]
+    public void Constructor_WithBothPlacement_AddsToBothHeaders()
+    {
+        // Arrange & Act
+        var extender = new CWTClaimsHeaderExtender(headerPlacement: CwtClaimsHeaderPlacement.Both);
+        extender.SetIssuer("test-issuer");
+        extender.SetSubject("test-subject");
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        extender.ExtendProtectedHeaders(protectedHeaders);
+        extender.ExtendUnProtectedHeaders(unprotectedHeaders);
+
+        // Assert
+        Assert.That(protectedHeaders.TryGetCwtClaims(out CwtClaims? protectedClaims), Is.True);
+        Assert.That(protectedClaims!.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(protectedClaims.Subject, Is.EqualTo("test-subject"));
+        
+        Assert.That(unprotectedHeaders.TryGetCwtClaims(out CwtClaims? unprotectedClaims), Is.True);
+        Assert.That(unprotectedClaims!.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(unprotectedClaims.Subject, Is.EqualTo("test-subject"));
+    }
+
+    [Test]
+    public void Constructor_WithCwtClaimsAndPreventMerge_StoresBothOptions()
+    {
+        // Arrange
+        var claimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "initial-issuer" } };
+        var claims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claimsDict));
+
+        // Act
+        var extender = new CWTClaimsHeaderExtender(claims, preventMerge: true, headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly);
+        var headers = new CoseHeaderMap();
+        extender.ExtendUnProtectedHeaders(headers);
+
+        // Assert
+        Assert.That(headers.TryGetCwtClaims(out CwtClaims? result), Is.True);
+        Assert.That(result!.Issuer, Is.EqualTo("initial-issuer"));
+    }
+
+    [Test]
+    public void HeaderPlacement_BothWithPreventMerge_EnforcesOnBothHeaders()
+    {
+        // Arrange
+        var protectedHeaders = new CoseHeaderMap();
+        var existingProtectedClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "protected-issuer" } };
+        var existingProtectedClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingProtectedClaimsDict));
+        protectedHeaders.SetCwtClaims(existingProtectedClaims);
+
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true, headerPlacement: CwtClaimsHeaderPlacement.Both);
+        extender.SetSubject("new-subject");
+
+        // Act & Assert - Should throw on protected headers
+        Assert.Throws<InvalidOperationException>(() => 
+            extender.ExtendProtectedHeaders(protectedHeaders));
+    }
+
+    [Test]
+    public void HeaderPlacement_BothWithPreventMerge_EnforcesOnUnprotectedToo()
+    {
+        // Arrange
+        var protectedHeaders = new CoseHeaderMap();
+
+        var unprotectedHeaders = new CoseHeaderMap();
+        var existingUnprotectedClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "unprotected-issuer" } };
+        var existingUnprotectedClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingUnprotectedClaimsDict));
+        unprotectedHeaders.SetCwtClaims(existingUnprotectedClaims);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true, headerPlacement: CwtClaimsHeaderPlacement.Both);
+        extender.SetSubject("new-subject");
+
+        // Act
+        extender.ExtendProtectedHeaders(protectedHeaders); // Should succeed (no existing claims)
+
+        // Assert - Should throw on unprotected headers
+        Assert.Throws<InvalidOperationException>(() => 
+            extender.ExtendUnProtectedHeaders(unprotectedHeaders));
+    }
+
+    [Test]
+    public void HeaderPlacement_UnprotectedOnlyWithMerge_MergesInUnprotectedHeaders()
+    {
+        // Arrange
+        var unprotectedHeaders = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        unprotectedHeaders.SetCwtClaims(existingClaims);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: false, headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly);
+        extender.SetSubject("new-subject");
+
+        // Act
+        var result = extender.ExtendUnProtectedHeaders(unprotectedHeaders);
+
+        // Assert
+        result.TryGetCwtClaims(out CwtClaims? finalClaims);
+        Assert.That(finalClaims, Is.Not.Null);
+        Assert.That(finalClaims!.Issuer, Is.EqualTo("existing-issuer"));
+        Assert.That(finalClaims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    #endregion
+
+    #region CustomHeaderLabel Tests
+
+    [Test]
+    public void Constructor_WithCustomHeaderLabel_UsesCustomLabel()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(999);
+        var extender = new CWTClaimsHeaderExtender(customHeaderLabel: customLabel);
+        extender.SetIssuer("test-issuer");
+
+        var headers = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendProtectedHeaders(headers);
+
+        // Assert - Should be at custom label, not default
+        Assert.That(headers.TryGetValue(customLabel, out _), Is.True);
+        Assert.That(headers.TryGetValue(CWTClaimsHeaderLabels.CWTClaims, out _), Is.False);
+        Assert.That(headers.TryGetCwtClaims(out CwtClaims? claims, customLabel), Is.True);
+        Assert.That(claims!.Issuer, Is.EqualTo("test-issuer"));
+    }
+
+    [Test]
+    public void SetCwtClaims_WithCustomLabel_StoresAtCustomLabel()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(888);
+        var claimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "custom-issuer" } };
+        var claims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claimsDict));
+        var headers = new CoseHeaderMap();
+
+        // Act
+        headers.SetCwtClaims(claims, customLabel);
+
+        // Assert
+        Assert.That(headers.TryGetValue(customLabel, out _), Is.True);
+        Assert.That(headers.TryGetCwtClaims(out CwtClaims? retrievedClaims, customLabel), Is.True);
+        Assert.That(retrievedClaims!.Issuer, Is.EqualTo("custom-issuer"));
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithCustomLabel_RetrievesFromCustomLabel()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(777);
+        var claimsDict = new Dictionary<int, object> 
+        { 
+            { CWTClaimsHeaderLabels.Issuer, "custom-issuer" },
+            { CWTClaimsHeaderLabels.Subject, "custom-subject" }
+        };
+        var claims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claimsDict));
+        var headers = new CoseHeaderMap();
+        headers.SetCwtClaims(claims, customLabel);
+
+        // Act
+        bool result = headers.TryGetCwtClaims(out CwtClaims? retrievedClaims, customLabel);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(retrievedClaims, Is.Not.Null);
+        Assert.That(retrievedClaims!.Issuer, Is.EqualTo("custom-issuer"));
+        Assert.That(retrievedClaims.Subject, Is.EqualTo("custom-subject"));
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithWrongLabel_ReturnsFalse()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(666);
+        var wrongLabel = new CoseHeaderLabel(555);
+        var claimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "test-issuer" } };
+        var claims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claimsDict));
+        var headers = new CoseHeaderMap();
+        headers.SetCwtClaims(claims, customLabel);
+
+        // Act
+        bool result = headers.TryGetCwtClaims(out CwtClaims? retrievedClaims, wrongLabel);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(retrievedClaims, Is.Null);
+    }
+
+    [Test]
+    public void ExtendProtectedHeaders_WithCustomLabel_PreventsMergeAtCustomLabel()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(444);
+        var headers = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        headers.SetCwtClaims(existingClaims, customLabel);
+
+        var extender = new CWTClaimsHeaderExtender(preventMerge: true, customHeaderLabel: customLabel);
+        extender.SetIssuer("new-issuer");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => 
+            extender.ExtendProtectedHeaders(headers));
+        Assert.That(ex!.Message, Does.Contain("CWT claims already exist"));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithCustomLabel_MergesAtCustomLabel()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(333);
+        var headers = new CoseHeaderMap();
+        var existingClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "existing-issuer" } };
+        var existingClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(existingClaimsDict));
+        headers.SetCwtClaims(existingClaims, customLabel);
+
+        var newClaimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Subject, "new-subject" } };
+        var newClaims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(newClaimsDict));
+
+        // Act
+        headers.MergeCwtClaims(newClaims, logOverrides: false, headerLabel: customLabel);
+
+        // Assert
+        headers.TryGetCwtClaims(out CwtClaims? mergedClaims, customLabel);
+        Assert.That(mergedClaims, Is.Not.Null);
+        Assert.That(mergedClaims!.Issuer, Is.EqualTo("existing-issuer"));
+        Assert.That(mergedClaims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    [Test]
+    public void CustomHeaderLabel_UnprotectedHeaders_WorksCorrectly()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(222);
+        var extender = new CWTClaimsHeaderExtender(
+            headerPlacement: CwtClaimsHeaderPlacement.UnprotectedOnly, 
+            customHeaderLabel: customLabel);
+        extender.SetIssuer("unprotected-issuer");
+
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        // Act
+        extender.ExtendUnProtectedHeaders(unprotectedHeaders);
+
+        // Assert
+        Assert.That(unprotectedHeaders.TryGetCwtClaims(out CwtClaims? claims, customLabel), Is.True);
+        Assert.That(claims!.Issuer, Is.EqualTo("unprotected-issuer"));
+    }
+
+    #endregion
 }
+

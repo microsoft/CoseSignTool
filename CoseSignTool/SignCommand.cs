@@ -246,10 +246,10 @@ public class SignCommand : CoseCommand
             // Use shared header processing logic
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
-            // If CWT claims customization is requested (issuer, subject, audience, or custom claims)
-            // create a CWT header extender to override the defaults provided by the certificate provider
-            if ((CwtIssuer != null || CwtSubject != null || CwtAudience != null || (CwtClaims != null && CwtClaims.Count > 0)) &&
-                signingKeyProvider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+            // If CWT claims customization is requested, create a CWT extender
+            // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
+            // We only need to create a customizer if the user wants to override defaults
+            if (CwtIssuer != null || CwtSubject != null || CwtAudience != null || (CwtClaims != null && CwtClaims.Count > 0))
             {
                 // Create a CWT claims extender with user-specified values
                 // This will merge with and override the automatic defaults from CertificateCoseSigningKeyProvider
@@ -290,9 +290,7 @@ public class SignCommand : CoseCommand
                 }
             }
 
-            // Sign the content.
-            // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims (issuer/subject)
-            // for SCITT compliance. Any user-provided values via headerExtender will override the defaults.
+            // Generate the COSE signature.
             ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
             
             // Write the signature to stream or file.

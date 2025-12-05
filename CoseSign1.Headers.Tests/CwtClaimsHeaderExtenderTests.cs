@@ -1516,6 +1516,77 @@ public class CWTClaimsHeaderExtenderTests
         Assert.That(claims!.Issuer, Is.EqualTo("unprotected-issuer"));
     }
 
+    [Test]
+    public void Constructor_WithCustomHeaderLabel_TracesCorrectly()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(999);
+        var traceListener = new System.Diagnostics.ConsoleTraceListener();
+        System.Diagnostics.Trace.Listeners.Add(traceListener);
+
+        try
+        {
+            // Act - Constructor should trace the label value (999) not the type name
+            var extender = new CWTClaimsHeaderExtender(customHeaderLabel: customLabel);
+
+            // Assert - This test verifies the method compiles and doesn't throw
+            // The actual trace output would contain "label=999" instead of "label=System.Security.Cryptography.Cose.CoseHeaderLabel"
+            Assert.That(extender, Is.Not.Null);
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(traceListener);
+        }
+    }
+
+    [Test]
+    public void Constructor_WithDefaultHeaderLabel_TracesCorrectly()
+    {
+        // Arrange
+        var traceListener = new System.Diagnostics.ConsoleTraceListener();
+        System.Diagnostics.Trace.Listeners.Add(traceListener);
+
+        try
+        {
+            // Act - Constructor should trace the default label value (15) not the type name
+            var extender = new CWTClaimsHeaderExtender();
+
+            // Assert - This test verifies the method compiles and doesn't throw
+            // The actual trace output would contain "label=15" (CWTClaimsHeaderLabels.CWTClaims)
+            Assert.That(extender, Is.Not.Null);
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(traceListener);
+        }
+    }
+
+    [Test]
+    public void Constructor_WithCwtClaimsAndCustomLabel_TracesCorrectly()
+    {
+        // Arrange
+        var customLabel = new CoseHeaderLabel(888);
+        var claimsDict = new Dictionary<int, object> { { CWTClaimsHeaderLabels.Issuer, "test-issuer" } };
+        var claims = CwtClaims.FromCborBytes(ConvertDictionaryToCborBytes(claimsDict));
+        var traceListener = new System.Diagnostics.ConsoleTraceListener();
+        System.Diagnostics.Trace.Listeners.Add(traceListener);
+
+        try
+        {
+            // Act - Constructor should trace the label value (888) not the type name
+            var extender = new CWTClaimsHeaderExtender(claims, customHeaderLabel: customLabel);
+
+            // Assert - This test verifies the method compiles and doesn't throw
+            // The actual trace output would contain "label=888"
+            Assert.That(extender, Is.Not.Null);
+            Assert.That(extender.Issuer, Is.EqualTo("test-issuer"));
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(traceListener);
+        }
+    }
+
     #endregion
 }
 

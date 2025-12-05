@@ -965,10 +965,8 @@ public class SignCommandTests
     [TestMethod]
     public void SignWithScittDisabled_ShouldNotIncludeCwtClaims()
     {
-        // NOTE: This test has been updated to reflect that certificate-based signing now
-        // automatically adds default CWT claims (issuer and subject) even when SCITT is disabled.
-        // The SCITT flag controls additional SCITT-specific behavior but does not disable
-        // the base CWT claims functionality.
+        // NOTE: This test verifies the new behavior where disabling SCITT compliance
+        // prevents automatic addition of default CWT claims.
         
         // Arrange
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
@@ -991,16 +989,13 @@ public class SignCommandTests
             // Assert
             result.Should().Be(ExitCode.Success, "Sign operation should succeed");
             
-            // Verify CWT claims are present (default claims from certificate provider)
+            // Verify NO CWT claims are present when SCITT is disabled
             byte[] signatureBytes = File.ReadAllBytes(signatureFile);
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
             
             bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
-            hasClaims.Should().BeTrue("Signature should contain default CWT claims from certificate provider");
-            claims.Should().NotBeNull();
-            // Default claims should include issuer (DID:x509) and subject (unknown.intent)
-            claims!.Issuer.Should().NotBeNullOrEmpty("Default issuer should be set from certificate");
-            claims.Subject.Should().Be("unknown.intent", "Default subject should be set");
+            hasClaims.Should().BeFalse("Signature should NOT contain CWT claims when SCITT compliance is disabled");
+            claims.Should().BeNull("No CWT claims should be present");
         }
         finally
         {
@@ -1386,5 +1381,190 @@ public class SignCommandTests
         }
     }
 
+    /// <summary>
+    /// Tests that when SCITT compliance is disabled AND no custom CWT claims are specified,
+    /// no CWT claims are present in the signature (regression test).
+    /// </summary>
+    [TestMethod]
+    public void SignWithScittDisabledAndNoCwtClaims_ShouldNotIncludeAnyCwtClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Disable SCITT and don't specify any custom CWT claims
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/scitt", "false"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify NO CWT claims whatsoever are present in the signature
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeFalse("Signature should NOT contain any CWT claims when SCITT is disabled and no custom claims specified");
+            claims.Should().BeNull("No CWT claims should be present in the signature");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that when SCITT compliance is disabled but custom CWT claims ARE specified,
+    /// the custom CWT claims are still included.
+    /// </summary>
+    [TestMethod]
+    public void SignWithScittDisabledButCustomCwtClaims_ShouldIncludeOnlyCustomClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Disable SCITT but provide custom CWT claims
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/scitt", "false", "/cwt-iss", "custom-issuer", "/cwt-sub", "custom-subject"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify that custom CWT claims are present (user overrides are honored even with SCITT disabled)
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue("Signature should contain custom CWT claims specified by user");
+            claims.Should().NotBeNull();
+            claims!.Issuer.Should().Be("custom-issuer", "Custom issuer should be present");
+            claims.Subject.Should().Be("custom-subject", "Custom subject should be present");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that when SCITT compliance is enabled (default), default CWT claims are included.
+    /// </summary>
+    [TestMethod]
+    public void SignWithScittEnabledDefault_ShouldIncludeDefaultCwtClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Don't specify /scitt flag (should default to true)
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify default CWT claims are present
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue("Signature should contain default CWT claims when SCITT is enabled by default");
+            claims.Should().NotBeNull();
+            claims!.Issuer.Should().NotBeNullOrEmpty("Default issuer (DID:x509) should be present");
+            claims.Subject.Should().Be("unknown.intent", "Default subject should be present");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that when SCITT compliance is explicitly enabled, default CWT claims are included.
+    /// </summary>
+    [TestMethod]
+    public void SignWithScittExplicitlyEnabled_ShouldIncludeDefaultCwtClaims()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+
+        try
+        {
+            // Act - Explicitly enable SCITT
+            string[] args = ["sign", "/p", payloadFile, "/pfx", PrivateKeyCertFileSelfSigned, 
+                            "/sf", signatureFile, "/scitt", "true"];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed");
+            
+            // Verify default CWT claims are present
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            
+            bool hasClaims = message.TryGetCwtClaims(out CoseSign1.Headers.CwtClaims? claims);
+            hasClaims.Should().BeTrue("Signature should contain default CWT claims when SCITT is explicitly enabled");
+            claims.Should().NotBeNull();
+            claims!.Issuer.Should().NotBeNullOrEmpty("Default issuer (DID:x509) should be present");
+            claims.Subject.Should().Be("unknown.intent", "Default subject should be present");
+        }
+        finally
+        {
+            if (File.Exists(payloadFile))
+                File.Delete(payloadFile);
+            if (File.Exists(signatureFile))
+                File.Delete(signatureFile);
+        }
+    }
+
     #endregion
 }
+

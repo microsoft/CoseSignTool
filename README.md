@@ -39,8 +39,9 @@ CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)*
 ### Key Features
 - **Automatic DID:x509 Generation**: Issuer identifiers are automatically derived from your certificate chain
 - **CWT Claims Support**: Include standardized claims (issuer, subject, audience, expiration, etc.) in your signatures
-- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates
+- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates (can be disabled with `--enable-scitt false`)
 - **Fully Customizable**: Override defaults or add custom claims via CLI or programmatic API
+- **Opt-Out Available**: Disable automatic CWT claims when not needed for your use case
 
 ### Quick Example
 ```bash
@@ -52,6 +53,10 @@ CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
 CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
   --cwt-subject "software.release.v1.0" \
   --cwt-claims "4=1735689600"  # exp: Jan 1, 2025
+
+# Disable SCITT compliance (no automatic CWT claims)
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
+  --enable-scitt false
 
 # Using Azure Trusted Signing (cloud-based signing)
 CoseSignTool sign -f payload.txt -s signature.cose \

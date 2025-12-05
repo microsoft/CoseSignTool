@@ -6,7 +6,7 @@ CWT (CBOR Web Token) Claims are cryptographically protected assertions about a s
 
 CoseSignTool implements CWT Claims as a first-class feature with automatic defaults and extensive customization:
 
-- **Automatic Defaults**: Certificate-based signing automatically adds CWT claims (issuer from DID:x509, subject as "unknown.intent")
+- **Optional Automatic Defaults**: Certificate-based signing automatically adds CWT claims by default (issuer from DID:x509, subject as "unknown.intent"), but can be disabled via `EnableScittCompliance` property or `--enable-scitt false` flag
 - **Smart Merging**: Custom claims intelligently merge with defaults, allowing selective overrides
 - **Flexible Placement**: Choose protected (default), unprotected, or both header sections
 - **Custom Labels**: Use non-standard header labels for advanced scenarios
@@ -28,9 +28,11 @@ CWT Claims in SCITT-compliant signatures include at minimum:
 - **iat (issued at)** - Label 6: Timestamp when the signature was created (auto-populated as `DateTimeOffset`)
 - **nbf (not before)** - Label 5: Timestamp when the signature becomes valid (auto-populated as `DateTimeOffset`)
 
-These claims are embedded in COSE protected header label 15 (per RFC 9597) as a CBOR map. When using certificate-based signing, these claims are **automatically added** by the certificate provider. The `iat` and `nbf` claims are auto-populated with the current timestamp.
+These claims are embedded in COSE protected header label 15 (per RFC 9597) as a CBOR map. When using certificate-based signing, these claims are **automatically added by default** by the certificate provider (controlled by the `EnableScittCompliance` property, which defaults to `true`). The `iat` and `nbf` claims are auto-populated with the current timestamp.
 
 **Note**: Timestamp properties are stored as `DateTimeOffset?` in the API (not Unix `long` timestamps), providing better timezone and date handling support.
+
+**Disabling Automatic Claims**: If your use case doesn't require SCITT compliance, you can disable automatic CWT claims. See the [Disabling SCITT Compliance](#disabling-scitt-compliance) section below.
 
 ## DID:X509 Identifiers
 
@@ -62,7 +64,7 @@ did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:ST:C
 
 ### Automatic SCITT Compliance (Default Behavior)
 
-When signing with a certificate, CWT Claims are **automatically included** with default values:
+When signing with a certificate, CWT Claims are **automatically included by default** with default values (this can be disabled via `--enable-scitt false`):
 
 ```bash
 CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx
@@ -122,6 +124,30 @@ CWT Claims work alongside traditional headers:
 ```bash
 CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --cwt-subject "myapp-v1.0" --int-protected-headers version=1,build=1234 --string-protected-headers environment=production
 ```
+
+### Disabling SCITT Compliance
+
+If your use case doesn't require SCITT compliance, you can disable automatic CWT claims:
+
+```bash
+# Disable SCITT - no automatic CWT claims will be added
+CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --enable-scitt false
+```
+
+When SCITT compliance is disabled:
+- **No default CWT claims** are automatically added (no issuer, subject, timestamps)
+- **Custom CWT claims still work** - you can still add explicit claims via `--cwt-issuer`, `--cwt-subject`, or `--cwt-claims`
+- The signature is still valid COSE, just without the automatic SCITT metadata
+
+```bash
+# SCITT disabled but custom claims still work
+CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx \
+  --enable-scitt false \
+  --cwt-subject "custom-subject" \
+  --cwt-claims "100=custom-value"
+```
+
+For more information on SCITT compliance control, see [SCITTCompliance.md](./SCITTCompliance.md).
 
 ### Adding Additional CWT Claims
 
@@ -203,14 +229,14 @@ This creates CWT Claims with:
 
 ### Automatic Default Claims
 
-When using certificate-based signing, CWT claims are **automatically added** by the certificate provider:
+When using certificate-based signing, CWT claims are **automatically added by default** by the certificate provider (controlled via the `EnableScittCompliance` property):
 
 ```csharp
 using CoseSign1;
 using CoseSign1.Abstractions.Interfaces;
 using CoseSign1.Certificates.Local;
 
-// Certificate provider automatically adds default CWT claims
+// Certificate provider automatically adds default CWT claims by default
 var cert = new X509Certificate2("cert.pfx", "password");
 var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
 
@@ -405,7 +431,7 @@ Common errors and solutions:
 
 ## Best Practices
 
-1. **Leverage Automatic Defaults**: Certificate-based signing automatically includes SCITT-compliant CWT claims. Only override when you need specific values.
+1. **Leverage Automatic Defaults**: Certificate-based signing automatically includes SCITT-compliant CWT claims by default. Set `EnableScittCompliance = false` if you don't need SCITT compliance, or only override specific claims when you need custom values.
 
 2. **Use DID:X509 for certificate-based issuers**: The auto-generated DID:X509 provides cryptographic proof of the issuer's identity. Override only if required.
 

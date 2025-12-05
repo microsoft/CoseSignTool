@@ -23,7 +23,7 @@ The `CWTClaimsHeaderExtender` class provides strongly-typed methods for adding C
 #### Features:
 - **Fluent API**: Chain method calls for easy claim configuration
 - **Type Safety**: Strongly-typed methods for all standard CWT claims with `DateTimeOffset` properties
-- **Automatic Defaults**: Certificate providers automatically add default CWT claims (issuer from DID:x509, subject as "unknown.intent")
+- **Optional Automatic Defaults**: Certificate providers automatically add default CWT claims by default (issuer from DID:x509, subject as "unknown.intent"), but can be disabled via `EnableScittCompliance` property
 - **Smart Merging**: Merge user-provided claims with defaults, or prevent merging with `preventMerge` flag
 - **Flexible Placement**: Control whether claims go in protected, unprotected, or both header sections
 - **Custom Header Labels**: Use non-standard header labels instead of the default label 15
@@ -329,7 +329,7 @@ var customExtender = new MyCustomHeaderExtender();
 var chainedExtender = new CoseSign1.Headers.ChainedCoseHeaderExtender(
     new[] { cwtExtender, customExtender });
 
-// Certificate providers automatically add default CWT claims
+// Certificate providers automatically add default CWT claims by default (unless EnableScittCompliance is set to false)
 // Your custom extender will merge with those defaults
 var builder = new CoseSign1MessageBuilder(signingKeyProvider)
     .SetPayloadBytes(payload)
@@ -340,7 +340,7 @@ CoseSign1Message message = builder.Build();
 
 ## Best Practices
 
-1. **Leverage Automatic Defaults**: Certificate providers automatically add default CWT claims (issuer as DID:x509, subject as "unknown.intent"). Only override if you need custom values.
+1. **Leverage Automatic Defaults**: Certificate providers automatically add default CWT claims by default (issuer as DID:x509, subject as "unknown.intent"). Set `EnableScittCompliance = false` on the provider if you don't need SCITT compliance, or only override specific claims if you need custom values.
 
 2. **Use DateTimeOffset**: Timestamp properties (`ExpirationTime`, `NotBefore`, `IssuedAt`) are `DateTimeOffset?` for better timezone support.
 
@@ -375,14 +375,14 @@ CoseSign1Message message = builder.Build();
 
 ## SCITT Compliance
 
-For SCITT (Supply Chain Integrity, Transparency, and Trust) compliance, certificate-based signing automatically includes default CWT claims:
+For SCITT (Supply Chain Integrity, Transparency, and Trust) compliance, certificate-based signing **automatically includes default CWT claims by default** (controlled via the `EnableScittCompliance` property):
 
 ```csharp
 using CoseSign1;
 using CoseSign1.Headers;
 using CoseSign1.Certificates.Local;
 
-// Automatic SCITT compliance - certificate provider adds default claims
+// Automatic SCITT compliance - certificate provider adds default claims by default
 var cert = new X509Certificate2("mycert.pfx", "password");
 var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
 

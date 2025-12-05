@@ -56,6 +56,13 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     public ICertificateChainBuilder? ChainBuilder { get; }
 
     /// <summary>
+    /// Gets or sets whether SCITT (Supply Chain Integrity, Transparency, and Trust) compliance is enabled.
+    /// When true (default), automatically adds default CWT claims (issuer and subject) to the signature.
+    /// When false, no default CWT claims are added (user-specified CWT claims can still be added via header extenders).
+    /// </summary>
+    public bool EnableScittCompliance { get; set; } = true;
+
+    /// <summary>
     /// Abstraction to Get the Signing Certificate from the Derived Class Instance
     /// </summary>
     /// <returns>X509Certificate2 instance</returns>
@@ -184,9 +191,12 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
         value = CoseHeaderValue.FromEncodedValue(cborWriter.Encode());
         protectedHeaders.Add(CertificateCoseHeaderLabels.X5Chain, value);
 
-        // Automatically add default CWT claims for SCITT compliance
+        // Automatically add default CWT claims for SCITT compliance if enabled
         // These will be merged with any user-provided CWT claims later in the signing flow
-        AddDefaultCWTClaims(protectedHeaders);
+        if (EnableScittCompliance)
+        {
+            AddDefaultCWTClaims(protectedHeaders);
+        }
 
         return protectedHeaders;
     }

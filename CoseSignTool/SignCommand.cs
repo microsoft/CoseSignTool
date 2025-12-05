@@ -668,7 +668,15 @@ public class SignCommand : CoseCommand
 
         // Create and return the provider
         // Note: We could pass a logger here if we had one available
-        return plugin.CreateProvider(configuration, logger: null);
+        ICoseSigningKeyProvider provider = plugin.CreateProvider(configuration, logger: null);
+        
+        // If the provider is a certificate-based provider, set the EnableScittCompliance flag
+        if (provider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+        {
+            certProvider.EnableScittCompliance = EnableScittCompliance;
+        }
+        
+        return provider;
     }
 
     /// <summary>
@@ -678,7 +686,11 @@ public class SignCommand : CoseCommand
     private ICoseSigningKeyProvider LoadSigningKeyProviderFromLocalCertificate()
     {
         (X509Certificate2 cert, List<X509Certificate2>? additionalRoots) = LoadCert();
-        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
+        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(
+            certificateChainBuilder: null,
+            signingCertificate: cert,
+            rootCertificates: additionalRoots,
+            enableScittCompliance: EnableScittCompliance);
     }
 
     /// <summary>

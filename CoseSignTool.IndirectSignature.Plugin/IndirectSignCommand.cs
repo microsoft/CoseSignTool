@@ -240,7 +240,11 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             // Create signing key provider
             logger.LogVerbose($"Using certificate: {certificate.Subject}");
             logger.LogVerbose($"Certificate thumbprint: {certificate.Thumbprint}");
-            X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(certificate);
+            X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(
+                signingCertificate: certificate,
+                hashAlgorithm: hashAlgorithm,
+                rootCertificates: additionalCertificates,
+                enableScittCompliance: enableScitt);
 
             // Create header extender from configuration
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(configuration);
@@ -250,7 +254,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             }
 
             // If CWT claims customization is requested, create a CWT extender
-            // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
+            // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically adds default CWT claims
             // We only need to create a customizer if the user wants to override defaults
             if (!string.IsNullOrEmpty(cwtIssuer) || !string.IsNullOrEmpty(cwtSubject) || !string.IsNullOrEmpty(cwtAudience) || (cwtClaims != null && cwtClaims.Count > 0))
             {
@@ -304,7 +308,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             using IndirectSignatureFactory factory = new IndirectSignatureFactory(hashAlgorithm);
             
             // Create the indirect signature with optional header extender
-            // Note: CertificateCoseSigningKeyProvider automatically includes default CWT claims for SCITT compliance
+            // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically includes default CWT claims
             logger.LogVerbose("Creating indirect signature...");
             CoseSign1Message indirectSignature = factory.CreateIndirectSignature(
                 payload: payload,

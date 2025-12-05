@@ -142,7 +142,7 @@ Task<CoseSign1Message> BuildAsync(
 - Detached signatures use `SignDetachedAsync` internally for efficient streaming
 
 #### SCITT Compliance
-CoseSignTool provides comprehensive support for **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through CWT (CBOR Web Token) Claims and DID:x509 identifiers. SCITT compliance is automatically enabled when signing with certificates, adding cryptographically-protected claims about the issuer, subject, and other metadata to your signatures.
+CoseSignTool provides comprehensive support for **SCITT (Supply Chain Integrity, Transparency, and Trust)** compliance through CWT (CBOR Web Token) Claims and DID:x509 identifiers. SCITT compliance is **automatically enabled by default** when signing with certificates, adding cryptographically-protected claims about the issuer, subject, and other metadata to your signatures. This can be disabled via the `EnableScittCompliance` property (set to `false`) or the `--enable-scitt false` CLI flag if SCITT compliance is not required.
 
 For complete documentation on SCITT features, including:
 - CWT Claims (issuer, subject, audience, expiration, custom claims)

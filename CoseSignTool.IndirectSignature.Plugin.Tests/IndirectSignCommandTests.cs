@@ -598,10 +598,8 @@ public class IndirectSignCommandTests
     [TestMethod]
     public async Task IndirectSignCommand_Execute_WithScittDisabled_ShouldNotIncludeCWTClaims()
     {
-        // NOTE: This test has been updated to reflect that certificate-based signing now
-        // automatically adds default CWT claims (issuer and subject) even when SCITT is disabled.
-        // The enable-scitt flag controls additional SCITT-specific behavior but does not disable
-        // the base CWT claims functionality.
+        // NOTE: This test verifies the new behavior where disabling SCITT compliance
+        // prevents automatic addition of default CWT claims.
         
         // Arrange
         IndirectSignCommand command = new IndirectSignCommand();
@@ -623,17 +621,13 @@ public class IndirectSignCommandTests
             Assert.AreEqual(PluginExitCode.Success, result);
             Assert.IsTrue(File.Exists(signaturePath));
 
-            // Verify CWT claims are present (default claims from certificate provider)
+            // Verify NO CWT claims are present when SCITT is disabled
             byte[] signatureBytes = File.ReadAllBytes(signaturePath);
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
 
             bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
-            Assert.IsTrue(hasClaims, "Signature should contain default CWT claims from certificate provider");
-            Assert.IsNotNull(claims);
-            // Default claims should include issuer (DID:x509) and subject (unknown.intent)
-            Assert.IsNotNull(claims!.Issuer);
-            Assert.IsTrue(claims.Issuer.Length > 0, "Default issuer should be set from certificate");
-            Assert.AreEqual("unknown.intent", claims.Subject, "Default subject should be set");
+            Assert.IsFalse(hasClaims, "Signature should NOT contain CWT claims when SCITT compliance is disabled");
+            Assert.IsNull(claims, "No CWT claims should be present");
         }
         finally
         {
@@ -849,6 +843,164 @@ public class IndirectSignCommandTests
     }
 
     [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithScittDisabledAndNoCwtClaims_ShouldNotIncludeAnyCwtClaims()
+    {
+        // Arrange - Regression test to ensure no CWT claims when SCITT disabled and no custom claims
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_scitt_disabled_no_claims";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["enable-scitt"] = "false"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify NO CWT claims whatsoever are present in the signature
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsFalse(hasClaims, "Signature should NOT contain any CWT claims when SCITT is disabled and no custom claims specified");
+            Assert.IsNull(claims, "No CWT claims should be present in the signature");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithScittDisabledButCustomCwtClaims_ShouldIncludeOnlyCustomClaims()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_scitt_disabled_custom_claims";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["enable-scitt"] = "false",
+            ["cwt-issuer"] = "custom-issuer",
+            ["cwt-subject"] = "custom-subject"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify that custom CWT claims are present (user overrides are honored even with SCITT disabled)
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims, "Signature should contain custom CWT claims specified by user");
+            Assert.IsNotNull(claims);
+            Assert.AreEqual("custom-issuer", claims!.Issuer, "Custom issuer should be present");
+            Assert.AreEqual("custom-subject", claims.Subject, "Custom subject should be present");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithScittEnabledDefault_ShouldIncludeDefaultCwtClaims()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_scitt_enabled_default";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath
+            // Note: not specifying enable-scitt, should default to true
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify default CWT claims are present
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims, "Signature should contain default CWT claims when SCITT is enabled by default");
+            Assert.IsNotNull(claims);
+            Assert.IsNotNull(claims!.Issuer);
+            Assert.IsTrue(claims.Issuer.Length > 0, "Default issuer (DID:x509) should be present");
+            Assert.AreEqual("unknown.intent", claims.Subject, "Default subject should be present");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithScittExplicitlyEnabled_ShouldIncludeDefaultCwtClaims()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_scitt_explicitly_enabled";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["enable-scitt"] = "true"
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify default CWT claims are present
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+
+            bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
+            Assert.IsTrue(hasClaims, "Signature should contain default CWT claims when SCITT is explicitly enabled");
+            Assert.IsNotNull(claims);
+            Assert.IsNotNull(claims!.Issuer);
+            Assert.IsTrue(claims.Issuer.Length > 0, "Default issuer (DID:x509) should be present");
+            Assert.AreEqual("unknown.intent", claims.Subject, "Default subject should be present");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
     public async Task IndirectSignCommand_Execute_WithInvalidSignatureVersion_ShouldFail()
     {
         // Arrange
@@ -868,3 +1020,4 @@ public class IndirectSignCommandTests
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
     }
 }
+

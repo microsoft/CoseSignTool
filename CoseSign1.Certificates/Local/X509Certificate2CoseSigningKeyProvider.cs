@@ -18,16 +18,19 @@ public class X509Certificate2CoseSigningKeyProvider : CertificateCoseSigningKeyP
     /// <paramref name="signingCertificate"/>.</param>
     /// <param name="signingCertificate">The <see cref="X509Certificate2"/> certificate used to perform signing operations with.</param>
     /// <param name="rootCertificates">Optional root certificates to chain the signing certificate to.</param>
+    /// <param name="enableScittCompliance">Optional. If true (default), automatically adds SCITT-compliant CWT claims (issuer and subject) to the signature.</param>
     public X509Certificate2CoseSigningKeyProvider(
         ICertificateChainBuilder? certificateChainBuilder,
         X509Certificate2 signingCertificate,
-        List<X509Certificate2>? rootCertificates = null)
+        List<X509Certificate2>? rootCertificates = null,
+        bool enableScittCompliance = true)
         : base (
               certificateChainBuilder ?? new X509ChainBuilder() { ChainPolicy = CreateChainPolicyForSigning(rootCertificates) },
               hashAlgorithm: null,
               rootCertificates)
     {
         SigningCertificate = signingCertificate ?? throw new ArgumentNullException(nameof(signingCertificate));
+        EnableScittCompliance = enableScittCompliance;
     }
 
     /// <summary>
@@ -36,16 +39,19 @@ public class X509Certificate2CoseSigningKeyProvider : CertificateCoseSigningKeyP
     /// <param name="signingCertificate">Signing Cert of type X509Certificate2.</param>
     /// <param name="hashAlgorithm">Hash Algorithm From Base Clas.s</param>
     /// <param name="rootCertificates">Optional root certificates to chain the signing certificate to.</param>
+    /// <param name="enableScittCompliance">Optional. If true (default), automatically adds SCITT-compliant CWT claims (issuer and subject) to the signature.</param>
     /// <exception cref="ArgumentNullException">Throws Exception if SigningCertificate is null.</exception>
     public X509Certificate2CoseSigningKeyProvider(X509Certificate2 signingCertificate,
         HashAlgorithmName? hashAlgorithm = null,
-        List<X509Certificate2>? rootCertificates = null)
+        List<X509Certificate2>? rootCertificates = null,
+        bool enableScittCompliance = true)
         : base(
               new X509ChainBuilder() { ChainPolicy = CreateChainPolicyForSigning(rootCertificates) },
               hashAlgorithm,
               rootCertificates)
     {
         SigningCertificate = signingCertificate ?? throw new ArgumentNullException(nameof(signingCertificate));
+        EnableScittCompliance = enableScittCompliance;
     }
 
     protected static X509ChainPolicy CreateChainPolicyForSigning(List<X509Certificate2>? roots = null)

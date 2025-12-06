@@ -1188,9 +1188,9 @@ The CoseSignTool includes a reference implementation for Azure Code Transparency
 
 ### Quick Start
 
-The Azure CTS plugin provides two main commands:
-- `cts_register` - Register signatures with Azure CTS
-- `cts_verify` - Verify signatures against Azure CTS
+The Microsoft's Signing Transparency (MST) plugin provides two main commands:
+- `mst_register` - Register signatures with Microsoft's Signing Transparency (MST)
+- `mst_verify` - Verify signatures against Microsoft's Signing Transparency (MST)
 
 ### Plugin Structure
 ```
@@ -1204,31 +1204,31 @@ CoseSignTool.MST.Plugin/
 ### Usage Examples
 
 ```bash
-# Register a signature with Azure CTS using default environment variable
-export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register \
+# Register a signature with Microsoft's Signing Transparency (MST) using default environment variable
+export MST_TOKEN="your-access-token"
+CoseSignTool mst_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose
 
-# Register a signature with Azure CTS using custom environment variable
-export MY_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register \
+# Register a signature with Microsoft's Signing Transparency (MST) using custom environment variable
+export MY_MST_TOKEN="your-access-token"
+CoseSignTool mst_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --token-env-var MY_CTS_TOKEN
+    --token-env-var MY_MST_TOKEN
 
-# Verify a signature with Azure CTS
-export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
+# Verify a signature with Microsoft's Signing Transparency (MST)
+export MST_TOKEN="your-access-token"
+CoseSignTool mst_verify \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --receipt receipt.json
 
 # Using Azure DefaultCredential when no token is provided
-CoseSignTool cts_register \
+CoseSignTool mst_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose
@@ -1240,7 +1240,7 @@ The MST plugin supports multiple authentication methods with the following prior
 
 1. **Environment Variable Token**: Uses an access token from an environment variable
    - `--token-env-var` specifies the environment variable name
-   - If not specified, defaults to `AZURE_CTS_TOKEN`
+   - If not specified, defaults to `MST_TOKEN`
    - This is the recommended approach for CI/CD environments
 
 2. **Azure DefaultCredential**: Falls back to Azure DefaultCredential when no token is found
@@ -1251,8 +1251,8 @@ The MST plugin supports multiple authentication methods with the following prior
 
 ```bash
 # Using default environment variable
-export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
+export MST_TOKEN="your-access-token"
+CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
 
 # Using custom environment variable
 export MY_CUSTOM_TOKEN="your-access-token"
@@ -1260,7 +1260,7 @@ CoseSignTool mst_register --endpoint https://your-mst-instance.azure.com --paylo
 
 # Using Azure DefaultCredential (no token environment variable set)
 # Requires Azure CLI login, managed identity, or other Azure credential
-CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
+CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
 ```
 
 ### Certificate Provider Plugin: Azure Trusted Signing
@@ -1459,3 +1459,4 @@ When contributing plugins or improvements to the plugin system:
 5. **Backwards Compatibility**: Avoid breaking changes to the plugin API
 
 For more information, see the main [CONTRIBUTING.md](CONTRIBUTING.md) guide.
+

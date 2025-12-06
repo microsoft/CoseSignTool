@@ -18,7 +18,7 @@ public abstract class CtsCommandBase : PluginCommandBase
     protected static readonly Dictionary<string, string> CommonOptions = new()
     {
         { "endpoint", "The Microsoft's Signing Transparency (MST) service endpoint URL" },
-        { "token-env", "The name of the environment variable containing the access token (default: AZURE_CTS_TOKEN)" },
+        { "token-env", "The name of the environment variable containing the access token (default: MST_TOKEN)" },
         { "payload", "The file path to the payload file" },
         { "signature", "The file path to the COSE Sign1 signature file" },
         { "output", "The file path where the result will be written (optional)" },
@@ -312,7 +312,7 @@ public abstract class CtsCommandBase : PluginCommandBase
                $"{Environment.NewLine}" +
                $"Optional arguments:{Environment.NewLine}" +
                $"  --token-env     Name of environment variable containing access token{Environment.NewLine}" +
-               $"                  (default: AZURE_CTS_TOKEN, uses default Azure credential if not specified){Environment.NewLine}" +
+               $"                  (default: MST_TOKEN, uses default Azure credential if not specified){Environment.NewLine}" +
                $"  --output        File path where {verb} result will be written{Environment.NewLine}";
     }
 
@@ -329,3 +329,4 @@ public abstract class CtsCommandBase : PluginCommandBase
         return string.Empty;
     }
 }
+

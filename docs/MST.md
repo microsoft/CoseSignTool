@@ -27,7 +27,7 @@ Set an access token in an environment variable:
 
 ```bash
 # Using the default environment variable
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 
 # Using a custom environment variable
 export MY_MST_TOKEN="your-access-token"
@@ -67,7 +67,7 @@ CoseSignTool mst_register [OPTIONS]
 - `--signature` - Path to the COSE Sign1 signature file
 
 #### Optional Options
-- `--token-env-var` - Environment variable name containing the access token (default: `AZURE_CTS_TOKEN`)
+- `--token-env-var` - Environment variable name containing the access token (default: `MST_TOKEN`)
 - `--output` - Output file path for the registration result
 - `--timeout` - Operation timeout in seconds (default: 30)
 
@@ -75,7 +75,7 @@ CoseSignTool mst_register [OPTIONS]
 
 **Using default environment variable:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_register \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -103,7 +103,7 @@ CoseSignTool mst_register \
 
 **With output file:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_register \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -126,7 +126,7 @@ CoseSignTool mst_verify [OPTIONS]
 - `--signature` - Path to the COSE Sign1 signature file
 
 #### Optional Options
-- `--token-env-var` - Environment variable name containing the access token (default: `AZURE_CTS_TOKEN`)
+- `--token-env-var` - Environment variable name containing the access token (default: `MST_TOKEN`)
 - `--output` - Output file path for the verification result
 - `--receipt` - Path to a specific receipt file to use for verification
 - `--timeout` - Operation timeout in seconds (default: 30)
@@ -148,7 +148,7 @@ CoseSignTool mst_verify [OPTIONS]
 
 **Basic verification:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -157,7 +157,7 @@ CoseSignTool mst_verify \
 
 **With receipt output:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -167,7 +167,7 @@ CoseSignTool mst_verify \
 
 **With authorized domain verification:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -178,7 +178,7 @@ CoseSignTool mst_verify \
 
 **With custom receipt behaviors:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -190,7 +190,7 @@ CoseSignTool mst_verify \
 
 **With verbose logging:**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -200,7 +200,7 @@ CoseSignTool mst_verify \
 
 **With quiet mode (errors only):**
 ```bash
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_verify \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
@@ -246,7 +246,7 @@ jobs:
     
     - name: Register with MST
       env:
-        AZURE_CTS_TOKEN: ${{ secrets.AZURE_CTS_TOKEN }}
+        MST_TOKEN: ${{ secrets.MST_TOKEN }}
         AZURE_TOKEN_CREDENTIALS: "prod"  # Exclude developer credentials in production
       run: |
         ./CoseSignTool mst_register \
@@ -265,7 +265,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  AZURE_CTS_TOKEN: $(azure-cts-token)  # Set in Azure DevOps Library
+  MST_TOKEN: $(azure-cts-token)  # Set in Azure DevOps Library
   AZURE_TOKEN_CREDENTIALS: "prod"  # Exclude developer credentials in production
 
 steps:
@@ -449,7 +449,7 @@ The plugin returns specific exit codes for different scenarios:
 ```
 Error: Azure.Identity.CredentialUnavailableException: DefaultAzureCredential failed to retrieve a token
 ```
-- Ensure `AZURE_CTS_TOKEN` is set, or authenticate with Azure CLI (`az login`)
+- Ensure `MST_TOKEN` is set, or authenticate with Azure CLI (`az login`)
 - Check that the token has appropriate permissions for the CTS service
 
 **Connection Timeout:**
@@ -527,3 +527,4 @@ For issues and questions:
 ## License
 
 This plugin is licensed under the MIT License. See [LICENSE](../LICENSE) for details.
+

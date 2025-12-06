@@ -17,7 +17,7 @@ internal static class CodeTransparencyClientHelper
     /// </summary>
     /// <param name="endpoint">The Azure Code Transparency Service endpoint URL.</param>
     /// <param name="tokenEnvVarName">Optional name of the environment variable containing the access token. 
-    /// If not specified, defaults to "AZURE_CTS_TOKEN". If the environment variable is not set, 
+    /// If not specified, defaults to "MST_TOKEN". If the environment variable is not set, 
     /// uses DefaultAzureCredential.</param>
     /// <param name="cancellationToken">Cancellation token for async operations.</param>
     /// <returns>A configured CodeTransparencyClient instance.</returns>
@@ -26,8 +26,8 @@ internal static class CodeTransparencyClientHelper
     {
         Uri uri = new Uri(endpoint);
 
-        // Use the specified environment variable name or default to AZURE_CTS_TOKEN
-        string envVarName = tokenEnvVarName ?? "AZURE_CTS_TOKEN";
+        // Use the specified environment variable name or default to MST_TOKEN
+        string envVarName = tokenEnvVarName ?? "MST_TOKEN";
         string? token = Environment.GetEnvironmentVariable(envVarName);
 
         if (!string.IsNullOrEmpty(token))
@@ -48,3 +48,4 @@ internal static class CodeTransparencyClientHelper
         return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token));
     }
 }
+

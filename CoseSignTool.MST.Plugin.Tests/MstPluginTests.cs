@@ -426,7 +426,7 @@ public class CodeTransparencyClientHelperTests
     public async Task CreateClientAsync_WithTokenFromDefaultEnvironmentVariable_CreatesClient()
     {
         // Arrange
-        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", TestToken);
+        Environment.SetEnvironmentVariable("MST_TOKEN", TestToken);
         try
         {
             // Act
@@ -438,7 +438,7 @@ public class CodeTransparencyClientHelperTests
         finally
         {
             // Cleanup
-            Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+            Environment.SetEnvironmentVariable("MST_TOKEN", null);
         }
     }
 
@@ -466,7 +466,7 @@ public class CodeTransparencyClientHelperTests
     public async Task CreateClientAsync_WithoutTokenEnvironmentVariable_UsesDefaultCredential()
     {
         // Arrange
-        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+        Environment.SetEnvironmentVariable("MST_TOKEN", null);
         Environment.SetEnvironmentVariable(TestEnvVarName, null);
 
         try
@@ -518,3 +518,4 @@ public class CodeTransparencyClientHelperTests
         }
     }
 }
+

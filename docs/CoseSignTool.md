@@ -23,7 +23,7 @@ CoseSignTool includes a powerful plugin architecture that allows developers to e
 CoseSignTool --help
 
 # Use a plugin command (example: Azure CTS)
-export AZURE_CTS_TOKEN="your-access-token"
+export MST_TOKEN="your-access-token"
 CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.txt --signature file.txt.cose
 ```
 
@@ -341,3 +341,4 @@ You may also want to specify:
 * **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, **/AllowUntrusted**, and **/AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get /?* for the complete command line usage.
+

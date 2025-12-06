@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin.Tests;
+namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
-/// Tests for the AzureCtsPlugin class.
+/// Tests for the MstPlugin class.
 /// </summary>
 [TestClass]
-public class AzureCtsPluginTests
+public class MstPluginTests
 {
     [TestMethod]
-    public void AzureCtsPlugin_Properties_ReturnCorrectValues()
+    public void MstPlugin_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Assert
         Assert.AreEqual("Microsoft's Signing Transparency", plugin.Name);
@@ -27,20 +27,20 @@ public class AzureCtsPluginTests
     }
 
     [TestMethod]
-    public void AzureCtsPlugin_Initialize_DoesNotThrow()
+    public void MstPlugin_Initialize_DoesNotThrow()
     {
         // Arrange
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Act & Assert
         plugin.Initialize(); // Should not throw
     }
 
     [TestMethod]
-    public void AzureCtsPlugin_Commands_AreCorrectTypes()
+    public void MstPlugin_Commands_AreCorrectTypes()
     {
         // Arrange & Act
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Assert
         IPluginCommand? registerCommand = plugin.Commands.FirstOrDefault(c => c.Name == "mst_register");

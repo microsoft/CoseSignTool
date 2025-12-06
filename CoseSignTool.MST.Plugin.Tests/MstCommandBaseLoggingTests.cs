@@ -4,13 +4,13 @@
 using Azure.Security.CodeTransparency;
 using System.Security.Cryptography.Cose;
 
-namespace CoseSignTool.CTS.Plugin.Tests;
+namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
-/// Tests for logging behavior in CtsCommandBase.
+/// Tests for logging behavior in MstCommandBase.
 /// </summary>
 [TestClass]
-public class CtsCommandBaseLoggingTests
+public class MstCommandBaseLoggingTests
 {
     /// <summary>
     /// Mock logger to capture logging calls.
@@ -61,7 +61,7 @@ public class CtsCommandBaseLoggingTests
         });
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestValidateCommonParameters(configuration, out int timeout, logger);
+        PluginExitCode result = TestMstCommand.TestValidateCommonParameters(configuration, out int timeout, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -78,7 +78,7 @@ public class CtsCommandBaseLoggingTests
         });
 
         // Act & Assert - should not throw
-        PluginExitCode result = TestCtsCommand.TestValidateCommonParameters(configuration, out int timeout, null);
+        PluginExitCode result = TestMstCommand.TestValidateCommonParameters(configuration, out int timeout, null);
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
     }
 
@@ -93,7 +93,7 @@ public class CtsCommandBaseLoggingTests
         };
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestValidateFilePaths(filePaths, logger);
+        PluginExitCode result = TestMstCommand.TestValidateFilePaths(filePaths, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
@@ -110,7 +110,7 @@ public class CtsCommandBaseLoggingTests
         };
 
         // Act & Assert - should not throw
-        PluginExitCode result = TestCtsCommand.TestValidateFilePaths(filePaths, null);
+        PluginExitCode result = TestMstCommand.TestValidateFilePaths(filePaths, null);
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
     }
 
@@ -126,7 +126,7 @@ public class CtsCommandBaseLoggingTests
         {
             // Act
             (CoseSign1Message? message, _, PluginExitCode result) = 
-                await TestCtsCommand.TestReadAndDecodeCoseMessage(tempFile, CancellationToken.None, logger);
+                await TestMstCommand.TestReadAndDecodeCoseMessage(tempFile, CancellationToken.None, logger);
 
             // Assert
             Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
@@ -151,7 +151,7 @@ public class CtsCommandBaseLoggingTests
         {
             // Act & Assert - should not throw
             (CoseSign1Message? message, byte[] signatureBytes, PluginExitCode result) = 
-                await TestCtsCommand.TestReadAndDecodeCoseMessage(tempFile, CancellationToken.None, null);
+                await TestMstCommand.TestReadAndDecodeCoseMessage(tempFile, CancellationToken.None, null);
             Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
         }
         finally
@@ -171,7 +171,7 @@ public class CtsCommandBaseLoggingTests
         try
         {
             // Act
-            await TestCtsCommand.TestWriteJsonResult(outputPath, testData, CancellationToken.None, logger);
+            await TestMstCommand.TestWriteJsonResult(outputPath, testData, CancellationToken.None, logger);
 
             // Assert
             Assert.IsTrue(File.Exists(outputPath));
@@ -196,7 +196,7 @@ public class CtsCommandBaseLoggingTests
         try
         {
             // Act & Assert - should not throw
-            await TestCtsCommand.TestWriteJsonResult(outputPath, testData, CancellationToken.None, null);
+            await TestMstCommand.TestWriteJsonResult(outputPath, testData, CancellationToken.None, null);
             Assert.IsTrue(File.Exists(outputPath));
         }
         finally
@@ -217,7 +217,7 @@ public class CtsCommandBaseLoggingTests
         ArgumentNullException exception = new ArgumentNullException("testParam");
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.MissingRequiredOption, result);
@@ -233,7 +233,7 @@ public class CtsCommandBaseLoggingTests
         FileNotFoundException exception = new FileNotFoundException("Test file not found");
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UserSpecifiedFileNotFound, result);
@@ -251,7 +251,7 @@ public class CtsCommandBaseLoggingTests
         OperationCanceledException exception = new OperationCanceledException(cts.Token);
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, cts.Token, logger);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, cts.Token, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UnknownError, result);
@@ -270,7 +270,7 @@ public class CtsCommandBaseLoggingTests
         OperationCanceledException exception = new OperationCanceledException();
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UnknownError, result);
@@ -286,7 +286,7 @@ public class CtsCommandBaseLoggingTests
         Exception exception = new Exception("Generic error message");
 
         // Act
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, logger);
 
         // Assert
         Assert.AreEqual(PluginExitCode.UnknownError, result);
@@ -301,7 +301,7 @@ public class CtsCommandBaseLoggingTests
         Exception exception = new Exception("Test error");
 
         // Act & Assert - should not throw
-        PluginExitCode result = TestCtsCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, null);
+        PluginExitCode result = TestMstCommand.TestHandleCommonException(exception, configuration, CancellationToken.None, null);
         Assert.AreEqual(PluginExitCode.UnknownError, result);
     }
 
@@ -309,7 +309,7 @@ public class CtsCommandBaseLoggingTests
     public void CreateTimeoutCancellationToken_CreatesValidToken()
     {
         // Arrange & Act
-        using CancellationTokenSource result = TestCtsCommand.TestCreateTimeoutCancellationToken(5, CancellationToken.None);
+        using CancellationTokenSource result = TestMstCommand.TestCreateTimeoutCancellationToken(5, CancellationToken.None);
 
         // Assert
         Assert.IsNotNull(result);
@@ -324,7 +324,7 @@ public class CtsCommandBaseLoggingTests
         cts.Cancel();
 
         // Act
-        using CancellationTokenSource result = TestCtsCommand.TestCreateTimeoutCancellationToken(5, cts.Token);
+        using CancellationTokenSource result = TestMstCommand.TestCreateTimeoutCancellationToken(5, cts.Token);
 
         // Assert
         Assert.IsTrue(result.IsCancellationRequested);
@@ -334,7 +334,7 @@ public class CtsCommandBaseLoggingTests
     public void PrintOperationStatus_WithAllParameters_LogsCorrectly()
     {
         // Arrange
-        TestCtsCommand command = new TestCtsCommand();
+        TestMstCommand command = new TestMstCommand();
         MockLogger logger = new MockLogger { Level = LogLevel.Verbose };
         command.SetLogger(logger);
 
@@ -354,7 +354,7 @@ public class CtsCommandBaseLoggingTests
     public void PrintOperationStatus_WithoutAdditionalInfo_LogsCorrectly()
     {
         // Arrange
-        TestCtsCommand command = new TestCtsCommand();
+        TestMstCommand command = new TestMstCommand();
         MockLogger logger = new MockLogger { Level = LogLevel.Verbose };
         command.SetLogger(logger);
 
@@ -376,7 +376,7 @@ public class CtsCommandBaseLoggingTests
         });
 
         // Act
-        string? result = TestCtsCommand.TestGetOptionalValue(configuration, "test-key");
+        string? result = TestMstCommand.TestGetOptionalValue(configuration, "test-key");
 
         // Assert
         Assert.AreEqual("test-value", result);
@@ -389,7 +389,7 @@ public class CtsCommandBaseLoggingTests
         IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>());
 
         // Act
-        string? result = TestCtsCommand.TestGetOptionalValue(configuration, "missing-key", "default-value");
+        string? result = TestMstCommand.TestGetOptionalValue(configuration, "missing-key", "default-value");
 
         // Assert
         Assert.AreEqual("default-value", result);
@@ -405,7 +405,7 @@ public class CtsCommandBaseLoggingTests
         });
 
         // Act
-        string result = TestCtsCommand.TestGetRequiredValue(configuration, "test-key");
+        string result = TestMstCommand.TestGetRequiredValue(configuration, "test-key");
 
         // Assert
         Assert.AreEqual("test-value", result);
@@ -419,7 +419,7 @@ public class CtsCommandBaseLoggingTests
 
         // Act & Assert
         Assert.ThrowsException<ArgumentNullException>(() => 
-            TestCtsCommand.TestGetRequiredValue(configuration, "missing-key"));
+            TestMstCommand.TestGetRequiredValue(configuration, "missing-key"));
     }
 
     private static IConfiguration CreateConfiguration(Dictionary<string, string?> values)
@@ -430,9 +430,9 @@ public class CtsCommandBaseLoggingTests
     }
 
     /// <summary>
-    /// Test wrapper to access protected static methods in CtsCommandBase.
+    /// Test wrapper to access protected static methods in MstCommandBase.
     /// </summary>
-    private class TestCtsCommand : CtsCommandBase
+    private class TestMstCommand : MstCommandBase
     {
         public override string Name => "test";
         public override string Description => "Test";
@@ -480,3 +480,4 @@ public class CtsCommandBaseLoggingTests
             => GetRequiredValue(configuration, key);
     }
 }
+

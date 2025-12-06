@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Microsoft's Signing Transparency (MST) plugin for CoseSignTool.
 /// </summary>
-public class AzureCtsPlugin : ICoseSignToolPlugin
+public class MstPlugin : ICoseSignToolPlugin
 {
     private readonly List<IPluginCommand> _commands;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureCtsPlugin"/> class.
+    /// Initializes a new instance of the <see cref="MstPlugin"/> class.
     /// </summary>
-    public AzureCtsPlugin()
+    public MstPlugin()
     {
         _commands = new List<IPluginCommand>
         {

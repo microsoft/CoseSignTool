@@ -18,8 +18,8 @@ using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Interfaces;
 using CoseSign1.Tests.Common;
-using CoseSign1.Transparent.CTS;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Extensions;
 using Moq;
 

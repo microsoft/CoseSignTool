@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 using System.Text.Json;
 using System.Security.Cryptography.Cose;
@@ -10,7 +10,7 @@ using System.Security.Cryptography.Cose;
 /// Base class for Microsoft's Signing Transparency (MST) commands that provides common functionality
 /// for parameter validation, file operations, error handling, and result output.
 /// </summary>
-public abstract class CtsCommandBase : PluginCommandBase
+public abstract class MstCommandBase : PluginCommandBase
 {
     /// <summary>
     /// Common command options shared across all MST commands.

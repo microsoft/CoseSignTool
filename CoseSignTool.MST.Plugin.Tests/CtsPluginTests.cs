@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin.Tests;
+namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
 /// Tests for the AzureCtsPlugin class.

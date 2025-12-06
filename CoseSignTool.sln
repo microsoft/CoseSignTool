@@ -77,17 +77,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent", "Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.Tests", "CoseSign1.Transparent.Tests\CoseSign1.Transparent.Tests.csproj", "{033430CC-6D03-415A-A476-96A3922231D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS.Tests", "CoseSign1.Transparent.CTS.Tests\CoseSign1.Transparent.CTS.Tests.csproj", "{DDDE7449-C4C6-4BA0-A815-0BD532CFA331}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.MST.Tests", "CoseSign1.Transparent.MST.Tests\CoseSign1.Transparent.MST.Tests.csproj", "{DDDE7449-C4C6-4BA0-A815-0BD532CFA331}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.CTS", "CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj", "{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.MST", "CoseSign1.Transparent.MST\CoseSign1.Transparent.MST.csproj", "{A9F5FBE2-C980-0ACD-E02C-49C4640D227E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.Abstractions", "CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj", "{4559C1F2-91B0-469E-8B02-F3029F27DB3D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.CTS.Plugin", "CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj", "{25D44857-FFBD-4D53-B6B2-A02BC339B0B3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.MST.Plugin", "CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj", "{25D44857-FFBD-4D53-B6B2-A02BC339B0B3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.Abstractions.Tests", "CoseSignTool.Abstractions.Tests\CoseSignTool.Abstractions.Tests.csproj", "{AB5053FF-D55D-4665-99ED-17E32FEDEE90}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.CTS.Plugin.Tests", "CoseSignTool.CTS.Plugin.Tests\CoseSignTool.CTS.Plugin.Tests.csproj", "{0F06B8D8-D30B-4FB7-BDD1-434B6C14ADB1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.MST.Plugin.Tests", "CoseSignTool.MST.Plugin.Tests\CoseSignTool.MST.Plugin.Tests.csproj", "{0F06B8D8-D30B-4FB7-BDD1-434B6C14ADB1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.IndirectSignature.Plugin", "CoseSignTool.IndirectSignature.Plugin\CoseSignTool.IndirectSignature.Plugin.csproj", "{C5A2F8E9-1D4B-4A3C-B9E5-7F8A9C2D4E6F}"
 EndProject

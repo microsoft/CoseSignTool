@@ -9,4 +9,4 @@ global using Microsoft.Extensions.Configuration;
 global using CoseSignTool.Abstractions;
 global using Azure;
 global using Azure.Security.CodeTransparency;
-global using CoseSign1.Transparent.CTS.Extensions;
+global using CoseSign1.Transparent.MST.Extensions;

@@ -348,7 +348,7 @@ jobs:
           "CoseSign1.Certificates/CoseSign1.Certificates.csproj"
           "CoseSign1.Headers/CoseSign1.Headers.csproj"
           "CoseSign1.Transparent/CoseSign1.Transparent.csproj"
-          "CoseSign1.Transparent.CTS/CoseSign1.Transparent.CTS.csproj"
+          "CoseSign1.Transparent.MST/CoseSign1.Transparent.MST.csproj"
           "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
         )
         

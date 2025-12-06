@@ -1,7 +1,7 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS.Extensions;
+namespace CoseSign1.Transparent.MST.Extensions;
 
 using System;
 using System.Formats.Cbor;
@@ -29,8 +29,8 @@ public static class BinaryDataExtensions
     /// If the key is found, its corresponding value is returned as a string.
     /// If the data is not valid CBOR or does not contain the "EntryId" key, the method returns <c>false</c>.
     /// </remarks>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="ctsResponse"/> is <c>null</c>.</exception>
-    public static bool TryGetCtsEntryId(this BinaryData binaryData, out string? entryId)
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="binaryData"/> is <c>null</c>.</exception>
+    public static bool TryGetMstEntryId(this BinaryData binaryData, out string? entryId)
     {
         entryId = string.Empty;
 
@@ -73,3 +73,4 @@ public static class BinaryDataExtensions
         return false;
     }
 }
+

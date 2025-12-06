@@ -1,19 +1,21 @@
-# Azure Code Transparency Service Plugin
+# Microsoft's Signing Transparency (MST) Plugin
 
-The Azure Code Transparency Service (CTS) plugin provides integration with Azure's Code Transparency Service for registering and verifying COSE Sign1 signatures. This plugin demonstrates advanced authentication patterns and service integration capabilities.
+The Microsoft's Signing Transparency (MST) plugin provides integration with Microsoft's Signing Transparency service for registering and verifying COSE Sign1 signatures. This plugin demonstrates advanced authentication patterns and service integration capabilities.
+
+> **Learn More**: Read the [announcement blog post](https://azure.microsoft.com/en-us/blog/enhancing-software-supply-chain-security-with-microsofts-signing-transparency/) for more information about Microsoft's Signing Transparency.
 
 ## Overview
 
-The Azure CTS plugin (`CoseSignTool.CTS.Plugin`) extends CoseSignTool with commands to interact with Azure Code Transparency Service:
+The MST plugin (`CoseSignTool.CTS.Plugin`) extends CoseSignTool with commands to interact with Microsoft's Signing Transparency service:
 
-- `cts_register` - Register a COSE Sign1 signature with Azure CTS
-- `cts_verify` - Verify a COSE Sign1 signature against Azure CTS
+- `mst_register` - Register a COSE Sign1 signature with MST
+- `mst_verify` - Verify a COSE Sign1 signature against MST
 
 ## Installation
 
-The Azure CTS plugin is automatically included with CoseSignTool releases using the enhanced subdirectory architecture for dependency isolation. No additional installation is required.
+The MST plugin is automatically included with CoseSignTool releases using the enhanced subdirectory architecture for dependency isolation. No additional installation is required.
 
-**Plugin Location:** The plugin is deployed to `plugins/CoseSignTool.CTS.Plugin/` with all its Azure dependencies isolated in the subdirectory, preventing conflicts with other plugins or the main application.
+**Plugin Location:** The plugin is deployed to `plugins/CoseSignTool.MST.Plugin/` with all its Azure dependencies isolated in the subdirectory, preventing conflicts with other plugins or the main application.
 
 ## Authentication
 
@@ -28,7 +30,7 @@ Set an access token in an environment variable:
 export AZURE_CTS_TOKEN="your-access-token"
 
 # Using a custom environment variable
-export MY_CTS_TOKEN="your-access-token"
+export MY_MST_TOKEN="your-access-token"
 ```
 
 ### 2. Azure DefaultCredential (Fallback)
@@ -50,13 +52,13 @@ export AZURE_TOKEN_CREDENTIALS="prod"
 
 ## Commands
 
-### cts_register
+### mst_register
 
-Register a COSE Sign1 signature with Azure Code Transparency Service.
+Register a COSE Sign1 signature with Microsoft's Signing Transparency service.
 
 #### Syntax
 ```bash
-CoseSignTool cts_register [OPTIONS]
+CoseSignTool mst_register [OPTIONS]
 ```
 
 #### Required Options
@@ -74,27 +76,27 @@ CoseSignTool cts_register [OPTIONS]
 **Using default environment variable:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_register \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose
 ```
 
 **Using custom environment variable:**
 ```bash
-export MY_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register \
-    --endpoint https://your-cts-instance.azure.com \
+export MY_MST_TOKEN="your-access-token"
+CoseSignTool mst_register \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --token-env-var MY_CTS_TOKEN
+    --token-env-var MY_MST_TOKEN
 ```
 
 **Using Azure DefaultCredential:**
 ```bash
 # Requires az login or other Azure authentication
-CoseSignTool cts_register \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_register \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose
 ```
@@ -102,20 +104,20 @@ CoseSignTool cts_register \
 **With output file:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_register \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --output registration-result.json
 ```
 
-### cts_verify
+### mst_verify
 
-Verify a COSE Sign1 signature against Azure Code Transparency Service.
+Verify a COSE Sign1 signature against Microsoft's Signing Transparency service.
 
 #### Syntax
 ```bash
-CoseSignTool cts_verify [OPTIONS]
+CoseSignTool mst_verify [OPTIONS]
 ```
 
 #### Required Options
@@ -147,8 +149,8 @@ CoseSignTool cts_verify [OPTIONS]
 **Basic verification:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose
 ```
@@ -156,8 +158,8 @@ CoseSignTool cts_verify \
 **With receipt output:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --receipt transparency-receipt.cose
@@ -166,8 +168,8 @@ CoseSignTool cts_verify \
 **With authorized domain verification:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --authorized-domains example.com,trusted.azure.com \
@@ -177,8 +179,8 @@ CoseSignTool cts_verify \
 **With custom receipt behaviors:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --authorized-domains mycompany.com \
@@ -189,8 +191,8 @@ CoseSignTool cts_verify \
 **With verbose logging:**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --verbose
@@ -199,8 +201,8 @@ CoseSignTool cts_verify \
 **With quiet mode (errors only):**
 ```bash
 export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_verify \
-    --endpoint https://your-cts-instance.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
     --quiet
@@ -211,7 +213,7 @@ CoseSignTool cts_verify \
 ### GitHub Actions
 
 ```yaml
-name: Sign and Register with Azure CTS
+name: Sign and Register with MST
 
 on:
   push:
@@ -242,13 +244,13 @@ jobs:
           --p12-password ${{ secrets.SIGNING_CERT_PASSWORD }} \
           --output myfile.txt.cose
     
-    - name: Register with Azure CTS
+    - name: Register with MST
       env:
         AZURE_CTS_TOKEN: ${{ secrets.AZURE_CTS_TOKEN }}
         AZURE_TOKEN_CREDENTIALS: "prod"  # Exclude developer credentials in production
       run: |
-        ./CoseSignTool cts_register \
-          --endpoint https://your-cts-instance.azure.com \
+        ./CoseSignTool mst_register \
+          --endpoint https://your-mst-instance.azure.com \
           --payload myfile.txt \
           --signature myfile.txt.cose
 ```
@@ -288,25 +290,25 @@ steps:
   displayName: 'Sign file'
 
 - bash: |
-    ./CoseSignTool cts_register \
-      --endpoint https://your-cts-instance.azure.com \
+    ./CoseSignTool mst_register \
+      --endpoint https://your-mst-instance.azure.com \
       --payload myfile.txt \
       --signature myfile.txt.cose
-  displayName: 'Register with Azure CTS'
+  displayName: 'Register with MST'
 ```
 
 ## Best Practices
 
 ### Logging and Diagnostics
 
-The Azure CTS plugin provides three logging levels to help diagnose issues:
+The MST plugin provides three logging levels to help diagnose issues:
 
 #### Normal Mode (Default)
 Shows operation status and results:
 ```bash
-CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose
+CoseSignTool mst_verify --endpoint https://... --payload file.txt --signature file.txt.cose
 # Output:
-# Verifying COSE Sign1 message with Azure CTS...
+# Verifying COSE Sign1 message with MST...
 # Verification result: VALID
 ```
 
@@ -320,16 +322,16 @@ Shows detailed diagnostic information including:
 - Detailed exception information including stack traces
 
 ```bash
-CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose --verbose
+CoseSignTool mst_verify --endpoint https://... --payload file.txt --signature file.txt.cose --verbose
 # Output:
-# [VERBOSE] Starting CTS operation
+# [VERBOSE] Starting MST operation
 # [VERBOSE] Endpoint: https://...
 # [VERBOSE] Starting transparency verification
 # [VERBOSE] Transparency header found in message
 # [VERBOSE] Authorized domains: example.com
 # [VERBOSE] Calling CodeTransparencyClient.VerifyTransparentStatement
 # [VERBOSE] Transparency verification succeeded
-# Verifying COSE Sign1 message with Azure CTS...
+# Verifying COSE Sign1 message with MST...
 # Verification result: VALID
 ```
 
@@ -342,7 +344,7 @@ CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature fi
 #### Quiet Mode
 Suppresses all output except errors:
 ```bash
-CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature file.txt.cose --quiet
+CoseSignTool mst_verify --endpoint https://... --payload file.txt --signature file.txt.cose --quiet
 # Only errors are shown, ideal for scripting and automation
 ```
 
@@ -354,11 +356,11 @@ CoseSignTool cts_verify --endpoint https://... --payload file.txt --signature fi
 
 ### Verification Options
 
-The `cts_verify` command supports advanced verification options to control how receipts from different issuer domains are validated:
+The `mst_verify` command supports advanced verification options to control how receipts from different issuer domains are validated:
 
 #### Authorized Domains
 Specify a list of trusted issuer domains using `--authorized-domains`. This is useful when you want to:
-- Enforce that receipts come from specific, trusted CTS instances
+- Enforce that receipts come from specific, trusted MST instances
 - Validate multi-tenant scenarios where different domains may issue receipts
 - Implement security policies requiring specific issuer verification
 
@@ -383,19 +385,19 @@ Example:
 
 **Scenario 1: Require specific trusted domain**
 ```bash
-CoseSignTool cts_verify \
-    --endpoint https://your-cts.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst.azure.com \
     --payload file.txt \
     --signature file.txt.cose \
-    --authorized-domains your-cts.azure.com \
+    --authorized-domains your-mst.azure.com \
     --authorized-receipt-behavior RequireAll \
     --unauthorized-receipt-behavior FailIfPresent
 ```
 
 **Scenario 2: Accept any of multiple trusted sources**
 ```bash
-CoseSignTool cts_verify \
-    --endpoint https://your-cts.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst.azure.com \
     --payload file.txt \
     --signature file.txt.cose \
     --authorized-domains primary.azure.com,backup.azure.com \
@@ -405,8 +407,8 @@ CoseSignTool cts_verify \
 
 **Scenario 3: Require all trusted domains with no unauthorized receipts**
 ```bash
-CoseSignTool cts_verify \
-    --endpoint https://your-cts.azure.com \
+CoseSignTool mst_verify \
+    --endpoint https://your-mst.azure.com \
     --payload file.txt \
     --signature file.txt.cose \
     --authorized-domains primary.azure.com,secondary.azure.com \
@@ -455,14 +457,14 @@ Error: Azure.Identity.CredentialUnavailableException: DefaultAzureCredential fai
 Error: The operation timed out after 30 seconds
 ```
 - Increase timeout with `--timeout 60`
-- Check network connectivity to the Azure CTS endpoint
+- Check network connectivity to the MST endpoint
 
 **Invalid Endpoint:**
 ```
 Error: The endpoint URL is not valid
 ```
-- Verify the endpoint URL format: `https://your-cts-instance.azure.com`
-- Ensure the CTS service is accessible from your network
+- Verify the endpoint URL format: `https://your-mst-instance.azure.com`
+- Ensure the MST service is accessible from your network
 
 **Production Authentication Issues:**
 ```
@@ -483,7 +485,7 @@ export AZURE_CORE_DIAGNOSTICS_LOGGING_ENABLED=true
 
 ### Plugin Architecture
 
-The Azure CTS plugin is built using:
+The MST plugin is built using:
 - **CoseSignTool.Abstractions** - Base plugin interfaces
 - **Azure.Identity** - Azure authentication library
 - **Azure.Core** - Azure SDK core functionality
@@ -493,18 +495,18 @@ The Azure CTS plugin is built using:
 
 The plugin source code is available in the CoseSignTool repository:
 ```
-CoseSignTool.CTS.Plugin/
-├── AzureCtsPlugin.cs              # Main plugin class
-├── CtsCommandBase.cs              # Base command functionality
+CoseSignTool.MST.Plugin/
+├── MstPlugin.cs              # Main plugin class
+├── MstCommandBase.cs              # Base command functionality
 ├── RegisterCommand.cs             # Register command implementation
 ├── VerifyCommand.cs              # Verify command implementation
 ├── CodeTransparencyClientHelper.cs # Authentication helper
-└── CoseSignTool.CTS.Plugin.csproj
+└── CoseSignTool.MST.Plugin.csproj
 ```
 
 ### Contributing
 
-To contribute to the Azure CTS plugin:
+To contribute to the MST plugin:
 
 1. Fork the repository
 2. Create a feature branch
@@ -519,7 +521,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 For issues and questions:
 - **Plugin Issues**: [GitHub Issues](https://github.com/microsoft/CoseSignTool/issues)
-- **Azure CTS Service**: Azure support channels
+- **MST Service**: Azure support channels
 - **Documentation**: [CoseSignTool Documentation](https://github.com/microsoft/CoseSignTool/tree/main/docs)
 
 ## License

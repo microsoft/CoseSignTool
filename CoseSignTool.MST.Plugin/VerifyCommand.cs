@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.Extensions;
@@ -10,7 +10,7 @@ using System.Security.Cryptography.Cose;
 /// <summary>
 /// Command to verify a COSE Sign1 message with Microsoft's Signing Transparency (MST).
 /// </summary>
-public class VerifyCommand : CtsCommandBase
+public class VerifyCommand : MstCommandBase
 {
     private static readonly Dictionary<string, string> VerifyOptions = 
         CommonOptions.Concat(new Dictionary<string, string>
@@ -86,7 +86,7 @@ public class VerifyCommand : CtsCommandBase
         
         // Create the transparency service with verification options and logging
         CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = 
-            new CoseSign1.Transparent.CTS.AzureCtsTransparencyService(
+            new CoseSign1.Transparent.MST.MstTransparencyService(
                 client, 
                 verificationOptions, 
                 null,

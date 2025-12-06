@@ -9,7 +9,7 @@ CoseSignTool and CoseHandler support three commands/methods:
 3. Get: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
 
 Additionally, CoseSignTool supports:
-- **Plugin System**: Extend the tool with custom commands and third-party integrations (Azure Code Transparency Service, etc.)
+- **Plugin System**: Extend the tool with custom commands and third-party integrations (Microsoft's Signing Transparency, etc.)
 - **Certificate Provider Plugins**: Use cloud-based signing services, HSMs, or custom certificate sources
   - Built-in support for **Azure Trusted Signing** (Microsoft's managed signing service)
   - Extensible architecture for custom certificate providers
@@ -19,7 +19,7 @@ For plugin development, see:
 - [Plugins.md](./docs/Plugins.md) - Comprehensive plugin documentation
 - [PluginQuickStart.md](./docs/PluginQuickStart.md) - Quick start guide  
 - [PluginAPI.md](./docs/PluginAPI.md) - Complete API reference
-- [AzureCTS.md](./docs/AzureCTS.md) - Azure Code Transparency Service plugin documentation
+- [MST.md](./docs/MST.md) - Microsoft's Signing Transparency plugin documentation
 - [CertificateProviders.md](./docs/CertificateProviders.md) - Certificate provider plugin guide
 
 The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)

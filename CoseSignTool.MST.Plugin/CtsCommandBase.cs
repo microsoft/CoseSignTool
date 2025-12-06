@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 using System.Text.Json;
 using System.Security.Cryptography.Cose;

@@ -16,7 +16,7 @@ The plugin system enables:
 CoseSignTool supports two types of plugins:
 
 ### 1. Command Plugins (`ICoseSignToolPlugin`)
-Add new top-level commands to CoseSignTool (e.g., `cts_register`, `indirect-sign`). These plugins:
+Add new top-level commands to CoseSignTool (e.g., `mst_register`, `indirect-sign`). These plugins:
 - Provide standalone commands with their own parameters and behavior
 - Are executed as: `CoseSignTool <command-name> [options]`
 - Integrate with the main command dispatcher
@@ -169,7 +169,7 @@ The CoseSignTool CI/CD pipeline automatically discovers and packages **any proje
 ```
 
 #### ✅ **Examples of Auto-Packaged Projects:**
-- `CoseSignTool.CTS.Plugin.csproj` → Automatically built and deployed
+- `CoseSignTool.MST.Plugin.csproj` → Automatically built and deployed
 - `CoseSignTool.IndirectSignature.Plugin.csproj` → Automatically built and deployed  
 - `YourCompany.CustomSigning.Plugin.csproj` → **Would be automatically built and deployed**
 - `AzureKeyVault.Integration.Plugin.csproj` → **Would be automatically built and deployed**
@@ -1139,7 +1139,7 @@ Plugins are automatically included in the help system:
 CoseSignTool --help
 # Output:
 #   Plugin Commands:
-#     cts_register    Register a COSE Sign1 message with Azure Code Transparency Service
+#     mst_register    Register a COSE Sign1 message with Microsoft's Signing Transparency (MST)
 #     indirect-sign   Creates an indirect COSE Sign1 signature for a payload file
 
 # Plugin command help
@@ -1194,11 +1194,11 @@ The Azure CTS plugin provides two main commands:
 
 ### Plugin Structure
 ```
-CoseSignTool.CTS.Plugin/
-├── AzureCtsPlugin.cs           # Main plugin class
+CoseSignTool.MST.Plugin/
+├── MstPlugin.cs           # Main plugin class
 ├── RegisterCommand.cs          # Command to register signatures
 ├── VerifyCommand.cs           # Command to verify signatures
-└── CoseSignTool.CTS.Plugin.csproj
+└── CoseSignTool.MST.Plugin.csproj
 ```
 
 ### Usage Examples
@@ -1236,7 +1236,7 @@ CoseSignTool cts_register \
 
 ### Authentication
 
-The Azure CTS plugin supports multiple authentication methods with the following priority:
+The MST plugin supports multiple authentication methods with the following priority:
 
 1. **Environment Variable Token**: Uses an access token from an environment variable
    - `--token-env-var` specifies the environment variable name
@@ -1256,7 +1256,7 @@ CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --paylo
 
 # Using custom environment variable
 export MY_CUSTOM_TOKEN="your-access-token"
-CoseSignTool cts_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose --token-env-var MY_CUSTOM_TOKEN
+CoseSignTool mst_register --endpoint https://your-mst-instance.azure.com --payload file.txt --signature file.cose --token-env-var MY_CUSTOM_TOKEN
 
 # Using Azure DefaultCredential (no token environment variable set)
 # Requires Azure CLI login, managed identity, or other Azure credential

@@ -3,22 +3,22 @@
 
 using System;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.CTS;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Interfaces;
 using Moq;
 using NUnit.Framework;
 
-namespace CoseSign1.Transparent.CTS.Tests;
+namespace CoseSign1.Transparent.MST.Tests;
 
 /// <summary>
-/// Unit tests for the <see cref="AzureCtsTransparencyServiceExtensions"/> class.
+/// Unit tests for the <see cref="MstTransparencyServiceExtensions"/> class.
 /// </summary>
 [TestFixture]
-public class AzureCtsTransparencyServiceExtensionsTests
+public class MstTransparencyServiceExtensionsTests
 {
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyServiceExtensions.ToCoseSign1TransparencyService"/> method
+    /// Tests the <see cref="MstTransparencyServiceExtensions.ToCoseSign1TransparencyService"/> method
     /// to ensure it throws an <see cref="ArgumentNullException"/> when the input client is null.
     /// </summary>
     [Test]
@@ -34,7 +34,7 @@ public class AzureCtsTransparencyServiceExtensionsTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyServiceExtensions.ToCoseSign1TransparencyService"/> method
+    /// Tests the <see cref="MstTransparencyServiceExtensions.ToCoseSign1TransparencyService"/> method
     /// to ensure it returns a valid <see cref="ITransparencyService"/> instance when the input client is valid.
     /// </summary>
     [Test]
@@ -48,6 +48,7 @@ public class AzureCtsTransparencyServiceExtensionsTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.InstanceOf<AzureCtsTransparencyService>());
+        Assert.That(result, Is.InstanceOf<MstTransparencyService>());
     }
 }
+

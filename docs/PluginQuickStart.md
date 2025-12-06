@@ -321,7 +321,7 @@ cat greeting.txt
 Now that you have a basic plugin working:
 
 1. **Read the full [Plugins.md](Plugins.md) documentation** for comprehensive details
-2. **Study the Azure CTS Plugin** (`CoseSignTool.CTS.Plugin`) for a real-world example
+2. **Study the MST Plugin** (`CoseSignTool.CTS.Plugin`) for a real-world example
 3. **Add error handling** for edge cases and invalid inputs
 4. **Implement validation** for required parameters
 5. **Add unit tests** for your plugin commands

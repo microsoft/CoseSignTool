@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 using System.Security.Cryptography.Cose;
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Command to register a COSE Sign1 message with Microsoft's Signing Transparency (MST).
 /// </summary>
-public class RegisterCommand : CtsCommandBase
+public class RegisterCommand : MstCommandBase
 {
     /// <inheritdoc/>
     public override string Name => "mst_register";

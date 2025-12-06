@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS;
+namespace CoseSign1.Transparent.MST;
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Extensions;
 using CoseSign1.Transparent.Interfaces;
 

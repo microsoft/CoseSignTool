@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS.Extensions;
+namespace CoseSign1.Transparent.MST.Extensions;
 
 using System;
 using Azure.Security.CodeTransparency;

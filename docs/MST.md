@@ -6,7 +6,7 @@ The Microsoft's Signing Transparency (MST) plugin provides integration with Micr
 
 ## Overview
 
-The MST plugin (`CoseSignTool.CTS.Plugin`) extends CoseSignTool with commands to interact with Microsoft's Signing Transparency service:
+The MST plugin (`CoseSignTool.MST.Plugin`) extends CoseSignTool with commands to interact with Microsoft's Signing Transparency service:
 
 - `mst_register` - Register a COSE Sign1 signature with MST
 - `mst_verify` - Verify a COSE Sign1 signature against MST

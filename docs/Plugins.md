@@ -1184,7 +1184,7 @@ Plugin commands receive configuration through the standard .NET `IConfiguration`
 
 The CoseSignTool includes a reference implementation for Azure Code Transparency Service integration.
 
-> **📖 Complete Documentation**: For comprehensive Azure CTS plugin documentation, including detailed authentication options, CI/CD integration examples, and troubleshooting, see [AzureCTS.md](AzureCTS.md).
+> **📖 Complete Documentation**: For comprehensive MST plugin documentation, including detailed authentication options, CI/CD integration examples, and troubleshooting, see [MST.md](MST.md).
 
 ### Quick Start
 

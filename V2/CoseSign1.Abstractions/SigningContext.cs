@@ -1,39 +1,72 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace CoseSign1.Abstractions;
 
 /// <summary>
 /// Context information for a signing operation.
-/// Contains the payload and per-operation metadata.
-/// This is passed to header contributors at sign-time.
+/// Contains the payload (as stream or bytes) and per-operation metadata.
+/// This is passed to the signing service and header contributors at sign-time.
 /// </summary>
 public class SigningContext
 {
+    private readonly Stream? _payloadStream;
+    private readonly ReadOnlyMemory<byte> _payloadBytes;
+
     /// <summary>
-    /// Initializes a new instance of the <see cref="SigningContext"/> class.
+    /// Initializes a new instance of the <see cref="SigningContext"/> class with a stream payload.
     /// </summary>
     public SigningContext(
-        byte[] payload,
-        string? contentType = null,
+        Stream payloadStream,
+        string contentType,
         IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
-        Payload = payload ?? throw new ArgumentNullException(nameof(payload));
-        ContentType = contentType;
+        _payloadStream = payloadStream ?? throw new ArgumentNullException(nameof(payloadStream));
+        ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
         AdditionalHeaderContributors = additionalHeaderContributors;
         AdditionalContext = additionalContext;
+        HasStream = true;
     }
 
     /// <summary>
-    /// Gets the payload to be signed.
+    /// Initializes a new instance of the <see cref="SigningContext"/> class with byte payload.
     /// </summary>
-    public byte[] Payload { get; }
+    public SigningContext(
+        ReadOnlyMemory<byte> payloadBytes,
+        string contentType,
+        IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
+        IDictionary<string, object>? additionalContext = null)
+    {
+        _payloadBytes = payloadBytes;
+        ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
+        AdditionalHeaderContributors = additionalHeaderContributors;
+        AdditionalContext = additionalContext;
+        HasStream = false;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this context contains a stream payload (true) or byte payload (false).
+    /// </summary>
+    public bool HasStream { get; }
+
+    /// <summary>
+    /// Gets the payload stream to be signed.
+    /// Only valid when <see cref="HasStream"/> is true.
+    /// </summary>
+    public Stream PayloadStream => _payloadStream ?? throw new InvalidOperationException("Context contains byte payload, not stream. Check HasStream property.");
     
     /// <summary>
-    /// Gets the optional content type of the payload (e.g., "application/json").
-    /// May be used by header contributors or for validation.
+    /// Gets the payload bytes to be signed.
+    /// Only valid when <see cref="HasStream"/> is false.
     /// </summary>
-    public string? ContentType { get; }
+    public ReadOnlyMemory<byte> PayloadBytes => HasStream ? throw new InvalidOperationException("Context contains stream payload, not bytes. Check HasStream property.") : _payloadBytes;
+
+    /// <summary>
+    /// Gets the content type of the payload (e.g., "application/json").
+    /// </summary>
+    public string ContentType { get; }
     
     /// <summary>
     /// Gets additional header contributors to apply for this specific operation.

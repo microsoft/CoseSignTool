@@ -1,11 +1,15 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
 
-namespace CoseSign1;
+namespace CoseSign1.Direct;
 
 /// <summary>
 /// Factory for creating direct COSE signatures.
@@ -27,6 +31,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="DirectSignatureFactory"/> class.
+    /// Protected parameterless constructor for mocking frameworks like Moq.
+    /// </summary>
+    protected DirectSignatureFactory()
+    {
+        _signingService = null!;
+    }
+
+    /// <summary>
     /// Creates a COSE Sign1 message from a ReadOnlySpan payload and returns it as bytes.
     /// This is the core synchronous implementation that all other sync methods delegate to.
     /// Uses ReadOnlySpan to avoid unnecessary array allocations.
@@ -40,7 +53,11 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
-        if (contentType == null) throw new ArgumentNullException(nameof(contentType));
+        if (contentType == null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
         ThrowIfDisposed();
 
         options ??= new DirectSignatureOptions();
@@ -48,25 +65,32 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         // Use SpanOwner to rent from ArrayPool - provides both Span and Memory views
         using var owner = SpanOwner<byte>.Allocate(payload.Length);
         payload.CopyTo(owner.Span);
-        
+
         // Get Memory<byte> from the owner via DangerousGetArray() and wrap it
         var segment = owner.DangerousGetArray();
-        if (segment.Array == null) throw new InvalidOperationException("Failed to get underlying array");
+        if (segment.Array == null)
+        {
+            throw new InvalidOperationException("Failed to get underlying array");
+        }
+
         var payloadMemory = new ReadOnlyMemory<byte>(segment.Array, segment.Offset, payload.Length);
-        
+
+        // Create combined header contributors list with ContentTypeHeaderContributor first
+        var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+
         // Create context with bytes - using pooled memory
         var context = new SigningContext(
             payloadMemory,
             contentType,
-            options.AdditionalHeaderContributors,
+            headerContributors,
             options.AdditionalContext);
 
         var signer = _signingService.GetCoseSigner(context);
 
         // Use the original payload span and AdditionalData span - no additional allocations
         ReadOnlySpan<byte> additionalDataSpan = options.AdditionalData.Span;
-        
-        return options.EmbedPayload 
+
+        return options.EmbedPayload
             ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
             : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
     }
@@ -83,8 +107,16 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
-        if (payload == null) throw new ArgumentNullException(nameof(payload));
-        if (contentType == null) throw new ArgumentNullException(nameof(contentType));
+        if (payload == null)
+        {
+            throw new ArgumentNullException(nameof(payload));
+        }
+
+        if (contentType == null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
         ThrowIfDisposed();
 
         // Delegate to ReadOnlySpan overload for zero-copy implementation
@@ -106,16 +138,27 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payloadStream == null) throw new ArgumentNullException(nameof(payloadStream));
-        if (contentType == null) throw new ArgumentNullException(nameof(contentType));
+        if (payloadStream == null)
+        {
+            throw new ArgumentNullException(nameof(payloadStream));
+        }
+
+        if (contentType == null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
         ThrowIfDisposed();
 
         options ??= new DirectSignatureOptions();
 
+        // Create combined header contributors list with ContentTypeHeaderContributor first
+        var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+
         var context = new SigningContext(
             payloadStream,
             contentType,
-            options.AdditionalHeaderContributors,
+            headerContributors,
             options.AdditionalContext);
 
         var signer = _signingService.GetCoseSigner(context);
@@ -123,13 +166,13 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         // Get pooled arrays for both payload (if embedded) and additional data
         byte[] payloadArray;
         byte[]? additionalDataArray = null;
-        
-        using var payloadOwner = options.EmbedPayload 
-            ? MemoryOwner<byte>.Allocate((int)payloadStream.Length) 
+
+        using var payloadOwner = options.EmbedPayload
+            ? MemoryOwner<byte>.Allocate((int)payloadStream.Length)
             : default;
-            
-        using var additionalDataOwner = options.AdditionalData.IsEmpty 
-            ? default 
+
+        using var additionalDataOwner = options.AdditionalData.IsEmpty
+            ? default
             : MemoryOwner<byte>.Allocate(options.AdditionalData.Length);
 
         // Read payload if embedded
@@ -189,7 +232,11 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payload == null) throw new ArgumentNullException(nameof(payload));
+        if (payload == null)
+        {
+            throw new ArgumentNullException(nameof(payload));
+        }
+
         ThrowIfDisposed();
 
         // Delegate to stream overload
@@ -304,30 +351,34 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     }
 
     /// <summary>
+    /// Creates a combined list of header contributors with ContentTypeHeaderContributor first.
+    /// </summary>
+    private static IReadOnlyList<IHeaderContributor> CreateHeaderContributorsList(IReadOnlyList<IHeaderContributor>? additionalContributors)
+    {
+        var contentTypeContributor = new ContentTypeHeaderContributor();
+        
+        if (additionalContributors == null || additionalContributors.Count == 0)
+        {
+            return new[] { contentTypeContributor };
+        }
+        
+        var combined = new List<IHeaderContributor>(additionalContributors.Count + 1)
+        {
+            contentTypeContributor
+        };
+        combined.AddRange(additionalContributors);
+        
+        return combined;
+    }
+
+    /// <summary>
     /// Disposes the factory and the underlying signing service.
     /// </summary>
     public void Dispose()
     {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Releases the unmanaged resources used by the <see cref="DirectSignatureFactory"/> and optionally releases the managed resources.
-    /// </summary>
-    /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
         if (!_disposed)
         {
-            if (disposing)
-            {
-                // Dispose managed resources
-                _signingService?.Dispose();
-            }
-
-            // Dispose unmanaged resources here if any
-
+            _signingService?.Dispose();
             _disposed = true;
         }
     }

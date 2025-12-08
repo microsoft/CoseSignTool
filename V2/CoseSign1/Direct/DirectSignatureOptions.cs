@@ -1,6 +1,9 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using CoseSign1.Abstractions;
 
-namespace CoseSign1;
+namespace CoseSign1.Direct;
 
 /// <summary>
 /// Options specific to direct signature operations.
@@ -11,5 +14,5 @@ public class DirectSignatureOptions : SigningOptions
     /// Gets or sets whether to embed the payload in the signature.
     /// Default is true (embedded payload).
     /// </summary>
-    public bool EmbedPayload { get; set; } = true;
+    public virtual bool EmbedPayload { get; set; } = true;
 }

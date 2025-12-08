@@ -1,6 +1,10 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Text;
+using CoseSign1.Direct;
 using Moq;
 using NUnit.Framework;
 
@@ -13,16 +17,12 @@ namespace CoseSign1.Tests;
 public class DirectSignatureFactoryTests
 {
     private Mock<ISigningService> _mockSigningService = null!;
-    private Mock<ISigningKey> _mockSigningKey = null!;
 
     [SetUp]
     public void SetUp()
     {
         _mockSigningService = new Mock<ISigningService>();
-        _mockSigningKey = new Mock<ISigningKey>();
-    }
-
-    [Test]
+    }    [Test]
     public void Constructor_WithNullSigningService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
@@ -104,7 +104,10 @@ public class DirectSignatureFactoryTests
 
         // Assert
         Assert.That(capturedContext, Is.Not.Null);
-        Assert.That(capturedContext!.AdditionalHeaderContributors, Is.EqualTo(contributors));
+        Assert.That(capturedContext!.AdditionalHeaderContributors, Is.Not.Null);
+        Assert.That(capturedContext!.AdditionalHeaderContributors!.Count, Is.EqualTo(2)); // ContentTypeHeaderContributor + 1 additional
+        Assert.That(capturedContext!.AdditionalHeaderContributors![0], Is.TypeOf<ContentTypeHeaderContributor>());
+        Assert.That(capturedContext!.AdditionalHeaderContributors![1], Is.EqualTo(contributors[0]));
     }
 
     [Test]

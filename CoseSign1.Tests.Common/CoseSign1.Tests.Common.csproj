@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <IsPublishable>false</IsPublishable>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
@@ -13,10 +13,6 @@
     <ItemGroup>
         <!-- Because this is a test project, don't run code coverage -->
         <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
     </ItemGroup>
 
 </Project>

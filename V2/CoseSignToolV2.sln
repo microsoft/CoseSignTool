@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1", "CoseSign1\Cose
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates", "CoseSign1.Certificates\CoseSign1.Certificates.csproj", "{DD2F16AD-8C1D-426A-9D06-7AA8DDCC38DF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Tests.Common", "CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj", "{A7C3E8F1-1234-5678-9ABC-DEF123456789}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Abstractions.Tests", "CoseSign1.Abstractions.Tests\CoseSign1.Abstractions.Tests.csproj", "{9B8121C9-EC6E-4087-A9CC-19A524D1A2E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Tests", "CoseSign1.Tests\CoseSign1.Tests.csproj", "{9767675D-322B-4A5B-95DE-87DD79E1F600}"
@@ -61,6 +63,18 @@ Global
 		{DD2F16AD-8C1D-426A-9D06-7AA8DDCC38DF}.Release|x64.Build.0 = Release|Any CPU
 		{DD2F16AD-8C1D-426A-9D06-7AA8DDCC38DF}.Release|x86.ActiveCfg = Release|Any CPU
 		{DD2F16AD-8C1D-426A-9D06-7AA8DDCC38DF}.Release|x86.Build.0 = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|x64.Build.0 = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Debug|x86.Build.0 = Debug|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|x64.ActiveCfg = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|x64.Build.0 = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|x86.ActiveCfg = Release|Any CPU
+		{A7C3E8F1-1234-5678-9ABC-DEF123456789}.Release|x86.Build.0 = Release|Any CPU
 		{9B8121C9-EC6E-4087-A9CC-19A524D1A2E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9B8121C9-EC6E-4087-A9CC-19A524D1A2E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9B8121C9-EC6E-4087-A9CC-19A524D1A2E1}.Debug|x64.ActiveCfg = Debug|Any CPU

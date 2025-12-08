@@ -14,7 +14,7 @@
     <!-- Core System.Security.Cryptography packages -->
     <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.0" />
     <!-- Runtime packages -->
-    <PackageVersion Include="System.Runtime.Caching" Version="9.0.0" />
+    <PackageVersion Include="System.Runtime.Caching" Version="10.0.0" />
     <!-- High Performance packages -->
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.3.2" />
   </ItemGroup>

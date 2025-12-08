@@ -18,6 +18,7 @@ namespace CoseSign1.Direct;
 /// </summary>
 public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOptions>, IDisposable
 {
+    private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private readonly ISigningService _signingService;
     private bool _disposed;
 
@@ -355,16 +356,14 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// </summary>
     private static IReadOnlyList<IHeaderContributor> CreateHeaderContributorsList(IReadOnlyList<IHeaderContributor>? additionalContributors)
     {
-        var contentTypeContributor = new ContentTypeHeaderContributor();
-        
         if (additionalContributors == null || additionalContributors.Count == 0)
         {
-            return new[] { contentTypeContributor };
+            return new[] { ContentTypeContributor };
         }
         
         var combined = new List<IHeaderContributor>(additionalContributors.Count + 1)
         {
-            contentTypeContributor
+            ContentTypeContributor
         };
         combined.AddRange(additionalContributors);
         

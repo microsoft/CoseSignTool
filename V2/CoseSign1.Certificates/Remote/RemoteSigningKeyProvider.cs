@@ -179,34 +179,25 @@ public class RemoteSigningKeyProvider : ISigningKey
         // RSA: 1.2.840.113549.1.1.1
         if (publicKeyOid == "1.2.840.113549.1.1.1")
         {
-            using var rsa = cert.GetRSAPublicKey();
-            if (rsa != null)
-            {
-                var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
-                return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
-            }
+            var rsa = _certificateSource.GetRemoteRsa();
+            var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
+            return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
         }
 
         // ECDSA: 1.2.840.10045.2.1
         if (publicKeyOid == "1.2.840.10045.2.1")
         {
-            using var ecdsa = cert.GetECDsaPublicKey();
-            if (ecdsa != null)
-            {
-                var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
-                return new CoseKey(ecdsa, hashAlgorithm);
-            }
+            var ecdsa = _certificateSource.GetRemoteECDsa();
+            var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
+            return new CoseKey(ecdsa, hashAlgorithm);
         }
 
         // ML-DSA
         if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
         {
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
-            using var mldsa = cert.GetMLDsaPublicKey();
-            if (mldsa != null)
-            {
-                return new CoseKey(mldsa);
-            }
+            var mldsa = _certificateSource.GetRemoteMLDsa();
+            return new CoseKey(mldsa);
 #pragma warning restore SYSLIB5006
         }
 

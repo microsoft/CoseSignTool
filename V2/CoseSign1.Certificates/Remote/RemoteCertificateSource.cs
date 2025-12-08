@@ -190,4 +190,80 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
 
         throw new NotSupportedException($"Unable to determine key size for certificate with algorithm {cert.GetKeyAlgorithm()}");
     }
+
+    /// <summary>
+    /// Creates a RemoteRsa instance for COSE signing operations.
+    /// This wraps the public key but delegates signing to abstract remote methods.
+    /// </summary>
+    /// <returns>A RemoteRsa instance configured for this certificate.</returns>
+    internal RSA GetRemoteRsa()
+    {
+        var cert = GetSigningCertificate();
+        using var publicRsa = cert.GetRSAPublicKey();
+        
+        if (publicRsa == null)
+        {
+            throw new InvalidOperationException("Certificate does not contain an RSA public key.");
+        }
+
+        var parameters = publicRsa.ExportParameters(includePrivateParameters: false);
+        return new RemoteRsa(this, parameters);
+    }
+
+    /// <summary>
+    /// Creates a RemoteECDsa instance for COSE signing operations.
+    /// This wraps the public key but delegates signing to abstract remote methods.
+    /// </summary>
+    /// <returns>A RemoteECDsa instance configured for this certificate.</returns>
+    internal ECDsa GetRemoteECDsa()
+    {
+        var cert = GetSigningCertificate();
+        using var publicEcdsa = cert.GetECDsaPublicKey();
+        
+        if (publicEcdsa == null)
+        {
+            throw new InvalidOperationException("Certificate does not contain an ECDsa public key.");
+        }
+
+        var parameters = publicEcdsa.ExportParameters(includePrivateParameters: false);
+        return new RemoteECDsa(this, parameters);
+    }
+
+    /// <summary>
+    /// Creates a RemoteMLDsa instance for COSE signing operations.
+    /// This wraps the public key but delegates signing to abstract remote methods.
+    /// </summary>
+    /// <returns>A RemoteMLDsa instance configured for this certificate.</returns>
+#pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
+    internal MLDsa GetRemoteMLDsa()
+    {
+        var cert = GetSigningCertificate();
+        
+        // Determine security level from OID first
+        var oid = cert.PublicKey.Oid.Value;
+        var securityLevel = oid switch
+        {
+            "2.16.840.1.101.3.4.3.17" => 44,
+            "2.16.840.1.101.3.4.3.18" => 65,
+            "2.16.840.1.101.3.4.3.19" => 87,
+            _ => 44 // Default
+        };
+        
+        // Get the public key size based on security level (in bytes)
+        var publicKeySize = securityLevel switch
+        {
+            44 => 1312,  // ML-DSA-44 public key size
+            65 => 1952,  // ML-DSA-65 public key size
+            87 => 2592,  // ML-DSA-87 public key size
+            _ => 1952
+        };
+        
+        // Export public key from certificate
+        var publicKey = new byte[publicKeySize];
+        var publicKeyData = cert.PublicKey.EncodedKeyValue.RawData;
+        Array.Copy(publicKeyData, publicKey, Math.Min(publicKeyData.Length, publicKeySize));
+        
+        return new RemoteMLDsa(this, publicKey, securityLevel);
+    }
+#pragma warning restore SYSLIB5006
 }

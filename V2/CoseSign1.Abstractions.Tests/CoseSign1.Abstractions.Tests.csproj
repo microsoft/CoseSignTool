@@ -13,6 +13,11 @@
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Analyzers" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="System.Security.Cryptography.Cose" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

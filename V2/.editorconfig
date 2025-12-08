@@ -1,0 +1,13 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csx,vb,vbx}]
+indent_size = 4
+indent_style = space
+
+# IDE0073: Require file header
+dotnet_diagnostic.IDE0073.severity = none

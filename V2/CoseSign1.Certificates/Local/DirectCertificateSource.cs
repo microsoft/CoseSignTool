@@ -11,11 +11,9 @@ namespace CoseSign1.Certificates.Local;
 /// Certificate source that wraps a directly provided X509Certificate2 with chain support.
 /// The chain is managed through an <see cref="ICertificateChainBuilder"/>.
 /// </summary>
-public class DirectCertificateSource : ICertificateSource
+public class DirectCertificateSource : CertificateSourceBase
 {
     private readonly X509Certificate2 _certificate;
-    private readonly ICertificateChainBuilder _chainBuilder;
-    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of DirectCertificateSource with an explicit chain.
@@ -23,9 +21,14 @@ public class DirectCertificateSource : ICertificateSource
     /// </summary>
     /// <param name="certificate">The signing certificate</param>
     /// <param name="certificateChain">The complete certificate chain including the signing certificate</param>
-    public DirectCertificateSource(X509Certificate2 certificate, IReadOnlyList<X509Certificate2> certificateChain)
-        : this(certificate, new ExplicitCertificateChainBuilder(certificateChain))
+    /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder.</param>
+    public DirectCertificateSource(
+        X509Certificate2 certificate, 
+        IReadOnlyList<X509Certificate2> certificateChain,
+        ICertificateChainBuilder? chainBuilder = null)
+        : base(certificateChain, chainBuilder)
     {
+        _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
     }
 
     /// <summary>
@@ -34,35 +37,21 @@ public class DirectCertificateSource : ICertificateSource
     /// <param name="certificate">The signing certificate</param>
     /// <param name="chainBuilder">Chain builder to construct the certificate chain</param>
     public DirectCertificateSource(X509Certificate2 certificate, ICertificateChainBuilder chainBuilder)
+        : base(chainBuilder)
     {
         _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
-        _chainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
     }
 
     /// <inheritdoc/>
-    public X509Certificate2 GetSigningCertificate() => _certificate;
+    public override X509Certificate2 GetSigningCertificate() => _certificate;
 
     /// <inheritdoc/>
-    public bool HasPrivateKey => _certificate.HasPrivateKey;
+    public override bool HasPrivateKey => _certificate.HasPrivateKey;
 
     /// <inheritdoc/>
-    public ICertificateChainBuilder GetChainBuilder() => _chainBuilder;
-
-    /// <inheritdoc/>
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (_chainBuilder is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-
         // Don't dispose the certificate - caller owns it
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        base.Dispose(disposing);
     }
 }

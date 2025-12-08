@@ -1,0 +1,166 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Runtime.Versioning;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Interfaces;
+
+namespace CoseSign1.Certificates.Local;
+
+/// <summary>
+/// Certificate source that retrieves certificates from Windows certificate stores.
+/// Supports finding certificates by thumbprint, subject name, or custom predicate.
+/// Uses X509ChainBuilder for automatic chain building from system trust stores.
+/// This class is intended for use on Windows systems.
+/// </summary>
+/// <remarks>
+/// On non-Windows systems, the Windows certificate store is not available.
+/// </remarks>
+public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
+{
+    private readonly X509Certificate2 _certificate;
+    private readonly X509Store? _store;
+
+    /// <summary>
+    /// Initializes a new instance by finding a certificate by thumbprint.
+    /// </summary>
+    /// <param name="thumbprint">Certificate thumbprint (hex string)</param>
+    /// <param name="storeName">Certificate store name</param>
+    /// <param name="storeLocation">Certificate store location</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    public WindowsCertificateStoreCertificateSource(
+        string thumbprint,
+        StoreName storeName = StoreName.My,
+        StoreLocation storeLocation = StoreLocation.CurrentUser,
+        ICertificateChainBuilder? chainBuilder = null)
+        : this(
+            (store) => FindCertificateByThumbprint(store, thumbprint) 
+                ?? throw new InvalidOperationException($"Certificate with thumbprint '{thumbprint}' not found in {storeLocation}\\{storeName}"),
+            storeName,
+            storeLocation,
+            chainBuilder)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance by finding a certificate by subject name.
+    /// </summary>
+    /// <param name="subjectName">Certificate subject name (or part of it)</param>
+    /// <param name="storeName">Certificate store name</param>
+    /// <param name="storeLocation">Certificate store location</param>
+    /// <param name="validOnly">If true, only returns valid certificates</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    public WindowsCertificateStoreCertificateSource(
+        string subjectName,
+        StoreName storeName,
+        StoreLocation storeLocation,
+        bool validOnly,
+        ICertificateChainBuilder? chainBuilder = null)
+        : this(
+            (store) => FindCertificateBySubjectName(store, subjectName, validOnly)
+                ?? throw new InvalidOperationException($"Certificate with subject name containing '{subjectName}' not found in {storeLocation}\\{storeName}"),
+            storeName,
+            storeLocation,
+            chainBuilder)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance with a custom certificate finder predicate.
+    /// </summary>
+    /// <param name="predicate">Predicate to find the desired certificate</param>
+    /// <param name="storeName">Certificate store name</param>
+    /// <param name="storeLocation">Certificate store location</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    public WindowsCertificateStoreCertificateSource(
+        Func<X509Certificate2, bool> predicate,
+        StoreName storeName = StoreName.My,
+        StoreLocation storeLocation = StoreLocation.CurrentUser,
+        ICertificateChainBuilder? chainBuilder = null)
+        : this(
+            (store) => store.Certificates.Cast<X509Certificate2>().FirstOrDefault(predicate)
+                ?? throw new InvalidOperationException($"No certificate matching the predicate found in {storeLocation}\\{storeName}"),
+            storeName,
+            storeLocation,
+            chainBuilder)
+    {
+    }
+
+    /// <summary>
+    /// Private constructor that performs the actual store access and certificate retrieval.
+    /// </summary>
+    private WindowsCertificateStoreCertificateSource(
+        Func<X509Store, X509Certificate2> certificateFinder,
+        StoreName storeName,
+        StoreLocation storeLocation,
+        ICertificateChainBuilder? chainBuilder)
+        : base(chainBuilder ?? new X509ChainBuilder())
+    {
+        _store = new X509Store(storeName, storeLocation);
+        _store.Open(OpenFlags.ReadOnly);
+        _certificate = certificateFinder(_store);
+    }
+
+    /// <inheritdoc/>
+    public override X509Certificate2 GetSigningCertificate() => _certificate;
+
+    /// <inheritdoc/>
+    public override bool HasPrivateKey => _certificate.HasPrivateKey;
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _store?.Dispose();
+            // Don't dispose _certificate - it's owned by the store
+        }
+        base.Dispose(disposing);
+    }
+
+    private static X509Certificate2? FindCertificateByThumbprint(X509Store store, string thumbprint)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
+#else
+        if (string.IsNullOrWhiteSpace(thumbprint)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(thumbprint)); }
+#endif
+        
+        // Normalize thumbprint (remove spaces, colons, make uppercase)
+        var normalizedThumbprint = thumbprint
+            .Replace(" ", "")
+            .Replace(":", "")
+            .ToUpperInvariant();
+
+        return store.Certificates
+            .Cast<X509Certificate2>()
+            .FirstOrDefault(c => c.Thumbprint.Equals(normalizedThumbprint, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static X509Certificate2? FindCertificateBySubjectName(
+        X509Store store,
+        string subjectName,
+        bool validOnly)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
+#else
+        if (string.IsNullOrWhiteSpace(subjectName)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(subjectName)); }
+#endif
+        
+        var candidates = store.Certificates
+            .Cast<X509Certificate2>()
+            .Where(c => c.Subject.Contains(subjectName, StringComparison.OrdinalIgnoreCase));
+
+        if (validOnly)
+        {
+            var now = DateTime.Now;
+            candidates = candidates.Where(c => c.NotBefore <= now && c.NotAfter >= now);
+        }
+
+        // Prefer certificates with private keys
+        return candidates.FirstOrDefault(c => c.HasPrivateKey)
+            ?? candidates.FirstOrDefault();
+    }
+}

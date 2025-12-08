@@ -6,13 +6,35 @@ namespace CoseSign1.Tests.Common;
 
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
+using System.Collections.Concurrent;
 
 /// <summary>
 /// Class used to create in-memory certificates and certificate chains used for UnitTesting.
 /// </summary>
 public static class TestCertificateUtils
 {
+    // Thread-safe dictionary to store ML-DSA private keys associated with certificates
+    // Key: certificate thumbprint, Value: ML-DSA private key
+    private static readonly ConcurrentDictionary<string, MLDsa> s_mldsaKeys = new();
+
+    /// <summary>
+    /// Gets the ML-DSA private key associated with a certificate, if one exists.
+    /// </summary>
+    /// <param name="certificate">The certificate to look up.</param>
+    /// <returns>The ML-DSA key if found, null otherwise.</returns>
+    internal static MLDsa? GetMLDsaKey(X509Certificate2 certificate)
+    {
+        if (certificate == null)
+        {
+            return null;
+        }
+            
+        s_mldsaKeys.TryGetValue(certificate.Thumbprint, out MLDsa? key);
+        return key;
+    }
+
     /// <summary>
     /// Creates a certificate with a given subject name, optionally signed by an issuing certificate.
     /// </summary>
@@ -213,6 +235,208 @@ public static class TestCertificateUtils
         issuerWithPrivateKey.Dispose();
 
         return returnValue;
+    }
+
+    /// <summary>
+    /// Creates an ECDSA certificate for testing.
+    /// </summary>
+    /// <param name="subjectName">The subject name of the certificate.</param>
+    /// <param name="keySize">The key size (default 256).</param>
+    /// <returns>An ECDSA certificate with private key.</returns>
+    public static X509Certificate2 CreateECDsaCertificate(
+        [CallerMemberName] string subjectName = "ECDSATest",
+        int keySize = 256)
+    {
+        return CreateCertificate(subjectName, useEcc: true, keySize: keySize);
+    }
+
+    /// <summary>
+    /// Creates a certificate with custom validity dates.
+    /// </summary>
+    /// <param name="subjectName">The subject name of the certificate.</param>
+    /// <param name="notBefore">Start of validity period.</param>
+    /// <param name="notAfter">End of validity period.</param>
+    /// <returns>A certificate with specified validity dates.</returns>
+    public static X509Certificate2 CreateCertificate(
+        string subjectName,
+        DateTime notBefore,
+        DateTime notAfter)
+    {
+        var duration = notAfter - DateTime.UtcNow;
+        return CreateCertificate(subjectName, duration: duration);
+    }
+
+    /// <summary>
+    /// Creates an ML-DSA Post-Quantum Cryptography certificate for testing.
+    /// </summary>
+    /// <param name="subjectName">The subject name of the certificate.</param>
+    /// <param name="issuingCa">(Optional) The issuing CA if present to sign this certificate, self-signed otherwise.</param>
+    /// <param name="mlDsaParameterSet">The ML-DSA parameter set to use (44, 65, or 87). Default is 65.</param>
+    /// <param name="duration">(Optional) How long the certificate should be valid for after it is created. Default value is one year.</param>
+    /// <returns>An <see cref="X509Certificate2"/> object for use in PQC testing.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method creates real ML-DSA certificates using the .NET 10 MLDsa class and CertificateRequest API.
+    /// The certificates can be used for actual PQC signing operations and testing.
+    /// </para>
+    /// <para>
+    /// ML-DSA (Module-Lattice-Based Digital Signature Algorithm) is a NIST-standardized post-quantum signature algorithm.
+    /// Parameter sets: ML-DSA-44 (2560 bits), ML-DSA-65 (4032 bits), ML-DSA-87 (4896 bits).
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when mlDsaParameterSet is not 44, 65, or 87.</exception>
+    public static X509Certificate2 CreateMLDsaCertificate(
+        [CallerMemberName] string subjectName = "none",
+        X509Certificate2? issuingCa = null,
+        int mlDsaParameterSet = 65,
+        TimeSpan? duration = null)
+    {
+        // Validate ML-DSA parameter set and get the algorithm
+        MLDsaAlgorithm algorithm = mlDsaParameterSet switch
+        {
+            44 => MLDsaAlgorithm.MLDsa44,
+            65 => MLDsaAlgorithm.MLDsa65,
+            87 => MLDsaAlgorithm.MLDsa87,
+            _ => throw new ArgumentOutOfRangeException(nameof(mlDsaParameterSet),
+                "ML-DSA parameter set must be 44, 65, or 87")
+        };
+
+        // Generate ML-DSA key pair
+        MLDsa mldsaKey = MLDsa.GenerateKey(algorithm);
+
+        // Create certificate request with ML-DSA key
+        CertificateRequest request = new($"CN={subjectName}", mldsaKey);
+
+        // Set basic certificate constraints
+        request.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(true, true, 12, true));
+
+        // Key usage: Digital Signature
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(
+                X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.DigitalSignature,
+                true));
+
+        if (issuingCa != null)
+        {
+            // Set the AuthorityKeyIdentifier
+            byte[] issuerSubjectKey = issuingCa.Extensions.First(x => x is X509SubjectKeyIdentifierExtension)?.RawData 
+                ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not have a ""Subject Key Identifier"" extension present");
+            ArraySegment<byte> segment = new(issuerSubjectKey, 2, issuerSubjectKey.Length - 2);
+            byte[] authorityKeyIdentifier = new byte[segment.Count + 4];
+            authorityKeyIdentifier[0] = 0x30;
+            authorityKeyIdentifier[1] = 0x16;
+            authorityKeyIdentifier[2] = 0x80;
+            authorityKeyIdentifier[3] = 0x14;
+            segment.CopyTo(authorityKeyIdentifier, 4);
+            request.CertificateExtensions.Add(new X509Extension("2.5.29.35", authorityKeyIdentifier, false));
+        }
+
+        // Add SAN
+        SubjectAlternativeNameBuilder sanBuilder = new();
+        string dnsName = subjectName.Replace(":", "").Replace(" ", "");
+        if (dnsName.Length > 40)
+        {
+            dnsName = dnsName[..39];
+        }
+        sanBuilder.AddDnsName(dnsName);
+        X509Extension sanExtension = sanBuilder.Build();
+        request.CertificateExtensions.Add(sanExtension);
+
+        // Enhanced key usages
+        OidCollection oids =
+        [
+            new Oid("1.3.6.1.5.5.7.3.2"), // TLS Client auth
+            new Oid("1.3.6.1.5.5.7.3.1")  // TLS Server auth
+        ];
+        request.CertificateExtensions.Add(
+            new X509EnhancedKeyUsageExtension(oids, false));
+
+        // Add subject key identifier
+        request.CertificateExtensions.Add(
+            new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+        // Certificate expiry
+        DateTimeOffset notbefore = DateTimeOffset.UtcNow.AddDays(-1);
+        if (issuingCa != null && notbefore < issuingCa.NotBefore)
+        {
+            notbefore = new DateTimeOffset(issuingCa.NotBefore);
+        }
+        DateTimeOffset notafter =
+            duration is not null ? DateTimeOffset.UtcNow.Add(duration.Value) :
+            DateTimeOffset.UtcNow.AddDays(365);
+        if (issuingCa != null && notafter > issuingCa.NotAfter)
+        {
+            notafter = new DateTimeOffset(issuingCa.NotAfter);
+        }
+
+        // cert serial is the epoch/unix timestamp
+        DateTime epoch = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        long unixTime = Convert.ToInt64((DateTime.UtcNow - epoch).TotalSeconds);
+        byte[] serial = BitConverter.GetBytes(unixTime);
+
+        X509Certificate2 generatedCertificate;
+        if (issuingCa != null)
+        {
+            // Get the issuer's ML-DSA key
+            MLDsa? issuerKey = GetMLDsaKey(issuingCa);
+            if (issuerKey == null)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot sign with ML-DSA issuer certificate: private key not found for certificate with thumbprint {issuingCa.Thumbprint}");
+            }
+
+            // Use custom signature generator for ML-DSA signing
+            MLDsaX509SignatureGenerator generator = new(issuerKey);
+            generatedCertificate = request.Create(issuingCa.SubjectName, generator, notbefore, notafter, serial);
+        }
+        else
+        {
+            generatedCertificate = request.CreateSelfSigned(notbefore, notafter);
+        }
+
+        // Store the ML-DSA key for this certificate so it can be used as an issuer later
+        s_mldsaKeys[generatedCertificate.Thumbprint] = mldsaKey;
+
+        return generatedCertificate;
+    }
+
+    /// <summary>
+    /// Determines if a certificate uses the ML-DSA algorithm.
+    /// </summary>
+    /// <param name="certificate">The certificate to check.</param>
+    /// <returns>True if the certificate uses ML-DSA algorithm, false otherwise.</returns>
+    /// <remarks>
+    /// Checks the certificate's public key algorithm OID to determine if it's ML-DSA.
+    /// ML-DSA OIDs: 2.16.840.1.101.3.4.3.17 (ML-DSA-44), 2.16.840.1.101.3.4.3.18 (ML-DSA-65), 2.16.840.1.101.3.4.3.19 (ML-DSA-87)
+    /// </remarks>
+    public static bool IsMLDsaCertificate(X509Certificate2 certificate)
+    {
+        string? oid = certificate.PublicKey.Oid?.Value;
+        return oid != null && (
+            oid == "2.16.840.1.101.3.4.3.17" ||
+            oid == "2.16.840.1.101.3.4.3.18" ||
+            oid == "2.16.840.1.101.3.4.3.19");
+    }
+
+    /// <summary>
+    /// Extracts the ML-DSA parameter set from an ML-DSA certificate.
+    /// </summary>
+    /// <param name="certificate">The ML-DSA certificate.</param>
+    /// <returns>The parameter set (44, 65, or 87) or null if not an ML-DSA certificate.</returns>
+    /// <remarks>
+    /// Parses the certificate's public key algorithm OID to determine the parameter set.
+    /// </remarks>
+    public static int? GetMLDsaParameterSet(X509Certificate2 certificate)
+    {
+        string? oid = certificate.PublicKey.Oid?.Value;
+        return oid switch
+        {
+            "2.16.840.1.101.3.4.3.17" => 44,
+            "2.16.840.1.101.3.4.3.18" => 65,
+            "2.16.840.1.101.3.4.3.19" => 87,
+            _ => null
+        };
     }
 
 }

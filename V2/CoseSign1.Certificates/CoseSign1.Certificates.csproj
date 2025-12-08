@@ -44,6 +44,11 @@
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
     </ItemGroup>
 
+    <!--Exclude net10.0-only files from netstandard2.0-->
+    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+        <Compile Remove="Local\LinuxCertificateStoreCertificateSource.cs" />
+    </ItemGroup>
+
     <!--Files to include in the package-->
     <ItemGroup>
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />

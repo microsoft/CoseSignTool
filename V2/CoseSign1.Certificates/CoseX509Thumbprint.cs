@@ -59,14 +59,30 @@ public class CoseX509Thumbprint
         
         byte[] hash = hashAlgorithm.Name switch
         {
+#if NET5_0_OR_GREATER
             nameof(SHA256) => SHA256.HashData(cert.RawData),
             nameof(SHA384) => SHA384.HashData(cert.RawData),
             nameof(SHA512) => SHA512.HashData(cert.RawData),
+#else
+            nameof(SHA256) => ComputeHash(cert.RawData, SHA256.Create()),
+            nameof(SHA384) => ComputeHash(cert.RawData, SHA384.Create()),
+            nameof(SHA512) => ComputeHash(cert.RawData, SHA512.Create()),
+#endif
             _ => throw new ArgumentException($"Hash algorithm {hashAlgorithm} is not supported for COSE X509 thumbprints.", nameof(hashAlgorithm))
         };
         
         Thumbprint = hash;
     }
+
+#if !NET5_0_OR_GREATER
+    private static byte[] ComputeHash(byte[] data, HashAlgorithm algorithm)
+    {
+        using (algorithm)
+        {
+            return algorithm.ComputeHash(data);
+        }
+    }
+#endif
 
     /// <summary>
     /// Serializes the thumbprint to CBOR format.

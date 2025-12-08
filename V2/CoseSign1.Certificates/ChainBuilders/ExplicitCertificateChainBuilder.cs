@@ -45,7 +45,11 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// <exception cref="ArgumentException">Thrown when <paramref name="certificateChain"/> is empty.</exception>
     public ExplicitCertificateChainBuilder(IReadOnlyList<X509Certificate2> certificateChain)
     {
+#if NET5_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(certificateChain);
+#else
+        if (certificateChain == null) { throw new ArgumentNullException(nameof(certificateChain)); }
+#endif
         if (certificateChain.Count == 0)
         {
             throw new ArgumentException("Certificate chain cannot be empty.", nameof(certificateChain));
@@ -106,7 +110,11 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// </remarks>
     public bool Build(X509Certificate2 certificate)
     {
+#if NET5_0_OR_GREATER
         ObjectDisposedException.ThrowIf(_disposed, this);
+#else
+        if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+#endif
 
         // Delegate to X509ChainBuilder which will:
         // - Find the correct chain order

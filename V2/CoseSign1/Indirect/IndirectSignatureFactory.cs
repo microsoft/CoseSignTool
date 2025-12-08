@@ -115,7 +115,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
-        // Compute hash of payload
+        // Compute hash of payload using the hash algorithm specified in options
+        // Note: This is the hash of the CONTENT. The signature itself may use a different
+        // hash algorithm determined by the signing key in DirectSignatureFactory.
         using var owner = SpanOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
         var hashSpan = owner.Span;
 
@@ -245,6 +247,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         options ??= new IndirectSignatureOptions();
 
         // Compute hash of stream using MemoryOwner for pooled memory
+        // Note: This is the hash of the CONTENT. The signature itself may use a different
+        // hash algorithm determined by the signing key in DirectSignatureFactory.
         using var hashOwner = MemoryOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
         var hashMemory = hashOwner.Memory;
 

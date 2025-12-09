@@ -1,16 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Text;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Validation.Tests;
+namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
-public class SignatureValidationTests
+public class CertificateSignatureValidationTests
 {
     private static readonly byte[] TestPayload = Encoding.UTF8.GetBytes("test payload for validation");
 

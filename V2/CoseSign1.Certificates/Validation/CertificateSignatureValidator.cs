@@ -32,6 +32,16 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
                 "NULL_INPUT");
         }
 
+        // This validator only works with embedded signatures (Content != null)
+        // For detached signatures, use CertificateDetachedSignatureValidator
+        if (input.Content == null)
+        {
+            return ValidationResult.Failure(
+                nameof(CertificateSignatureValidator),
+                "Message has no embedded content. Use CertificateDetachedSignatureValidator for detached signatures.",
+                "DETACHED_CONTENT_NOT_SUPPORTED");
+        }
+
         bool isValid = input.VerifySignature(payload: null, _allowUnprotectedHeaders);
 
         if (!isValid)

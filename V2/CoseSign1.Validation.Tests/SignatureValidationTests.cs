@@ -244,4 +244,31 @@ public class SignatureValidationTests
         Assert.That(result.Failures[0].Message, Is.EqualTo("First failure"));
         Assert.That(secondValidatorCalled, Is.EqualTo(0), "Second validator should not have been called");
     }
+
+    [Test]
+    public void CertificateSignatureValidator_WithDetachedSignature_Fails()
+    {
+        // Arrange
+        using var cert = TestCertificateUtils.CreateCertificate(nameof(CertificateSignatureValidator_WithDetachedSignature_Fails), useEcc: true);
+        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
+        using var factory = new DirectSignatureFactory(signingService);
+
+        var options = new DirectSignatureOptions { EmbedPayload = false };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json", options);
+        var message = CoseMessage.DecodeSign1(messageBytes);
+
+        var validator = CoseValidatorBuilder
+            .ForMessage()
+            .ValidateCertificateSignature()
+            .Build();
+
+        // Act
+        var result = validator.Validate(message);
+
+        // Assert
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.EqualTo(1));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("DETACHED_CONTENT_NOT_SUPPORTED"));
+        Assert.That(message.Content, Is.Null, "Expected detached content");
+    }
 }

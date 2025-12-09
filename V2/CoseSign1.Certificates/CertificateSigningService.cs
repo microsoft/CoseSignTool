@@ -3,6 +3,9 @@
 
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
+using CoseSign1.Headers;
+using CoseSign1.Certificates.Extensions;
+using DIDx509;
 
 namespace CoseSign1.Certificates;
 
@@ -12,9 +15,10 @@ namespace CoseSign1.Certificates;
 /// Thread-safe: All operations are stateless or use proper locking.
 /// Per V3 architecture: Keys are acquired dynamically within GetCoseSigner().
 /// </summary>
-public abstract class CertificateSigningService : ISigningService
+public abstract class CertificateSigningService : ISigningService<CertificateSigningOptions>
 {
     private static readonly CertificateHeaderContributor CertificateContributor = new();
+    private static readonly DidX509Generator DidGenerator = new();
     private bool _disposed;
     private readonly SigningServiceMetadata _serviceMetadata;
     private readonly bool _isRemote;
@@ -43,14 +47,26 @@ public abstract class CertificateSigningService : ISigningService
     public SigningServiceMetadata ServiceMetadata => _serviceMetadata;
 
     /// <summary>
+    /// Creates a new instance of CertificateSigningOptions appropriate for certificate-based signing.
+    /// Allows callers to configure certificate-specific settings like SCITT compliance without
+    /// knowing the concrete service type.
+    /// </summary>
+    /// <returns>A new CertificateSigningOptions instance.</returns>
+    public virtual CertificateSigningOptions CreateSigningOptions()
+    {
+        return new CertificateSigningOptions();
+    }
+
+    /// <summary>
     /// Creates a CoseSigner for the signing operation with appropriate headers.
     /// This is the final template method that orchestrates the signing process.
     /// 
     /// Process:
     /// 1. Acquires signing key dynamically via GetSigningKey(context)
     /// 2. Gets CoseKey from signing key
-    /// 3. Builds protected and unprotected headers using contributors
-    /// 4. Returns CoseSigner with CoseKey + headers
+    /// 3. Checks for SCITT compliance and adds CWT claims if needed
+    /// 4. Builds protected and unprotected headers using contributors
+    /// 5. Returns CoseSigner with CoseKey + headers
     /// </summary>
     /// <param name="context">The signing context.</param>
     /// <returns>A CoseSigner ready to sign the message.</returns>
@@ -82,6 +98,14 @@ public abstract class CertificateSigningService : ISigningService
         CertificateContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
         CertificateContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
 
+        // Check for SCITT compliance and add CWT claims if requested
+        if (context.TryGetCertificateOptions(out var certOptions) && certOptions.EnableScittCompliance)
+        {
+            var cwtContributor = CreateScittCwtClaimsContributor(certOptions, signingKey);
+            cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
+            cwtContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
+        }
+
         // Then apply any additional header contributors from context
         if (context.AdditionalHeaderContributors != null)
         {
@@ -97,6 +121,50 @@ public abstract class CertificateSigningService : ISigningService
             coseKey,
             protectedHeaders: protectedHeaders,
             unprotectedHeaders: unprotectedHeaders.Count > 0 ? unprotectedHeaders : null);
+    }
+
+    /// <summary>
+    /// Creates a CwtClaimsHeaderContributor for SCITT compliance.
+    /// Uses custom claims if provided, otherwise generates default claims with DID:x509 issuer.
+    /// </summary>
+    private static CwtClaimsHeaderContributor CreateScittCwtClaimsContributor(
+        CertificateSigningOptions options,
+        ISigningKey signingKey)
+    {
+        CwtClaims claims;
+
+        if (options.CustomCwtClaims != null)
+        {
+            // Use custom claims provided by caller
+            claims = options.CustomCwtClaims;
+        }
+        else
+        {
+            // Generate default SCITT-compliant claims
+            var now = DateTimeOffset.UtcNow;
+            
+            // Cast to ICertificateSigningKey to access certificate chain
+            if (signingKey is not ICertificateSigningKey certKey)
+            {
+                throw new InvalidOperationException("SCITT compliance requires a certificate-based signing key");
+            }
+
+            var certificateChain = certKey.GetCertificateChain(X509ChainSortOrder.LeafFirst);
+            
+            // Generate DID:x509 issuer from certificate chain
+            string issuer = DidGenerator.GenerateFromChain(certificateChain);
+
+            claims = new CwtClaims
+            {
+                Issuer = issuer,
+                Subject = CwtClaims.DefaultSubject, // "unknown.intent"
+                IssuedAt = now,
+                NotBefore = now
+            };
+        }
+
+        // Create contributor with claims - always use protected headers for SCITT compliance
+        return new CwtClaimsHeaderContributor(claims, CwtClaimsHeaderPlacement.ProtectedOnly);
     }
 
     /// <summary>

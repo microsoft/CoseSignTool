@@ -19,14 +19,14 @@ namespace CoseSign1.Direct;
 public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOptions>, IDisposable
 {
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
-    private readonly ISigningService _signingService;
+    private readonly ISigningService<SigningOptions> _signingService;
     private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DirectSignatureFactory"/> class.
     /// </summary>
     /// <param name="signingService">The signing service to use for creating signatures.</param>
-    public DirectSignatureFactory(ISigningService signingService)
+    public DirectSignatureFactory(ISigningService<SigningOptions> signingService)
     {
         _signingService = signingService ?? throw new ArgumentNullException(nameof(signingService));
     }
@@ -54,6 +54,24 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
+        return CreateCoseSign1MessageBytes(payload, contentType, options, serviceOptions: null);
+    }
+
+    /// <summary>
+    /// Creates a COSE Sign1 message from a ReadOnlySpan payload and returns it as bytes.
+    /// Allows passing service-specific options per signing operation.
+    /// </summary>
+    /// <param name="payload">The payload to sign.</param>
+    /// <param name="contentType">The content type of the payload (e.g., "application/json").</param>
+    /// <param name="options">Optional signing options. If null, default options are used.</param>
+    /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
+    /// <returns>The COSE Sign1 message as a byte array.</returns>
+    public virtual byte[] CreateCoseSign1MessageBytes(
+        ReadOnlySpan<byte> payload,
+        string contentType,
+        DirectSignatureOptions? options,
+        SigningOptions? serviceOptions)
+    {
         if (contentType == null)
         {
             throw new ArgumentNullException(nameof(contentType));
@@ -79,12 +97,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         // Create combined header contributors list with ContentTypeHeaderContributor first
         var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
 
+        // Merge service options into additional context if provided
+        var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
+
         // Create context with bytes - using pooled memory
         var context = new SigningContext(
             payloadMemory,
             contentType,
             headerContributors,
-            options.AdditionalContext);
+            additionalContext);
 
         var signer = _signingService.GetCoseSigner(context);
 
@@ -108,6 +129,24 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
+        return CreateCoseSign1MessageBytes(payload, contentType, options, serviceOptions: null);
+    }
+
+    /// <summary>
+    /// Creates a COSE Sign1 message from a byte array payload and returns it as bytes.
+    /// Allows passing service-specific options per signing operation.
+    /// </summary>
+    /// <param name="payload">The payload to sign.</param>
+    /// <param name="contentType">The content type of the payload (e.g., "application/json").</param>
+    /// <param name="options">Optional signing options. If null, default options are used.</param>
+    /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
+    /// <returns>The COSE Sign1 message as a byte array.</returns>
+    public virtual byte[] CreateCoseSign1MessageBytes(
+        byte[] payload,
+        string contentType,
+        DirectSignatureOptions? options,
+        SigningOptions? serviceOptions)
+    {
         if (payload == null)
         {
             throw new ArgumentNullException(nameof(payload));
@@ -120,8 +159,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
-        // Delegate to ReadOnlySpan overload for zero-copy implementation
-        return CreateCoseSign1MessageBytes(new ReadOnlySpan<byte>(payload), contentType, options);
+        // Delegate to ReadOnlySpan overload for actual implementation
+        return CreateCoseSign1MessageBytes(new ReadOnlySpan<byte>(payload), contentType, options, serviceOptions);
     }
 
     /// <summary>
@@ -137,6 +176,26 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         Stream payloadStream,
         string contentType,
         DirectSignatureOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, serviceOptions: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Creates a COSE Sign1 message from a stream payload and returns it as bytes.
+    /// Allows passing service-specific options per signing operation.
+    /// </summary>
+    /// <param name="payloadStream">The payload stream to sign.</param>
+    /// <param name="contentType">The content type of the payload (e.g., "application/octet-stream").</param>
+    /// <param name="options">Optional signing options. If null, default options are used.</param>
+    /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The COSE Sign1 message as a byte array.</returns>
+    public virtual async Task<byte[]> CreateCoseSign1MessageBytesAsync(
+        Stream payloadStream,
+        string contentType,
+        DirectSignatureOptions? options,
+        SigningOptions? serviceOptions,
         CancellationToken cancellationToken = default)
     {
         if (payloadStream == null)
@@ -156,11 +215,14 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         // Create combined header contributors list with ContentTypeHeaderContributor first
         var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
 
+        // Merge service options into additional context if provided
+        var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
+
         var context = new SigningContext(
             payloadStream,
             contentType,
             headerContributors,
-            options.AdditionalContext);
+            additionalContext);
 
         var signer = _signingService.GetCoseSigner(context);
 
@@ -352,13 +414,36 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     }
 
     /// <summary>
-    /// Creates a combined list of header contributors with ContentTypeHeaderContributor first.
+    /// Merges service-specific options into the additional context dictionary.
     /// </summary>
-    private static IReadOnlyList<IHeaderContributor> CreateHeaderContributorsList(IReadOnlyList<IHeaderContributor>? additionalContributors)
+    private static Dictionary<string, object>? MergeServiceOptions(
+        IDictionary<string, object>? existingContext,
+        SigningOptions? serviceOptions)
+    {
+        if (serviceOptions == null)
+        {
+            return existingContext as Dictionary<string, object>;
+        }
+
+        var context = existingContext != null 
+            ? new Dictionary<string, object>(existingContext) 
+            : new Dictionary<string, object>();
+
+        // Store service options using the type name as the key
+        var key = serviceOptions.GetType().Name;
+        context[key] = serviceOptions;
+
+        return context;
+    }
+
+    /// <summary>
+    /// Creates a list of header contributors with ContentTypeHeaderContributor first.
+    /// </summary>
+    private static List<IHeaderContributor> CreateHeaderContributorsList(IReadOnlyList<IHeaderContributor>? additionalContributors)
     {
         if (additionalContributors == null || additionalContributors.Count == 0)
         {
-            return new[] { ContentTypeContributor };
+            return new List<IHeaderContributor> { ContentTypeContributor };
         }
         
         var combined = new List<IHeaderContributor>(additionalContributors.Count + 1)

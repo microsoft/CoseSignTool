@@ -16,12 +16,12 @@ namespace CoseSign1.Tests;
 [TestFixture]
 public class DirectSignatureFactoryTests
 {
-    private Mock<ISigningService> _mockSigningService = null!;
+    private Mock<ISigningService<SigningOptions>> _mockSigningService = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _mockSigningService = new Mock<ISigningService>();
+        _mockSigningService = new Mock<ISigningService<SigningOptions>>();
     }    [Test]
     public void Constructor_WithNullSigningService_ShouldThrowArgumentNullException()
     {

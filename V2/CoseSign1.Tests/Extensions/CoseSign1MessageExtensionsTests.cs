@@ -3,8 +3,13 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Direct;
 using CoseSign1.Extensions;
 using CoseSign1.Indirect.Extensions;
+using CoseSign1.Tests.Common;
 
 namespace CoseSign1.Tests.Extensions;
 
@@ -14,20 +19,61 @@ namespace CoseSign1.Tests.Extensions;
 [TestFixture]
 public class CoseSign1MessageExtensionsTests
 {
-    private static CoseSign1Message CreateTestMessage(CoseHeaderMap headers)
+    private static readonly byte[] TestPayload = "test"u8.ToArray();
+
+    /// <summary>
+    /// Creates a test COSE Sign1 message using proper signing infrastructure.
+    /// </summary>
+    /// <param name="payload">The payload to sign.</param>
+    /// <param name="headers">Optional headers to include.</param>
+    /// <returns>A properly signed CoseSign1Message.</returns>
+    private static CoseSign1Message CreateTestMessage(byte[] payload, CoseHeaderMap? headers = null)
     {
-        using var key = ECDsa.Create();
-        byte[] signedBytes = CoseSign1Message.SignDetached("test"u8.ToArray(), key, HashAlgorithmName.SHA256, headers);
-        return CoseMessage.DecodeSign1(signedBytes);
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using LocalCertificateSigningService signingService = new(cert, new[] { cert });
+        using DirectSignatureFactory factory = new(signingService);
+
+        DirectSignatureOptions? options = headers != null
+            ? new DirectSignatureOptions { AdditionalHeaderContributors = [new CustomHeaderContributor(headers)] }
+            : null;
+
+        byte[] messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/json", options);
+        return CoseMessage.DecodeSign1(messageBytes);
+    }
+
+    /// <summary>
+    /// Custom header contributor to add arbitrary headers for testing.
+    /// </summary>
+    private class CustomHeaderContributor : IHeaderContributor
+    {
+        private readonly CoseHeaderMap _headers;
+
+        public CustomHeaderContributor(CoseHeaderMap headers)
+        {
+            _headers = headers;
+        }
+
+        public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
+
+        public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+        {
+            foreach (var (label, value) in _headers)
+            {
+                headers[label] = value;
+            }
+        }
+
+        public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+        {
+            // Not used in these tests
+        }
     }
 
     [Test]
     public void TryGetContentType_WithDirectSignature_ReturnsHeaderThree()
     {
         // Arrange
-        var headers = new CoseHeaderMap();
-        headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json"));
-        var message = CreateTestMessage(headers);
+        var message = CreateTestMessage(TestPayload);
 
         // Act
         bool result = message.TryGetContentType(out string? contentType);
@@ -43,12 +89,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json+hash-sha256"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         bool result = message.TryGetContentType(out string? contentType);
@@ -64,12 +105,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json+cose-hash-v"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         bool result = message.TryGetContentType(out string? contentType);
@@ -86,12 +122,7 @@ public class CoseSign1MessageExtensionsTests
         var headers = new CoseHeaderMap();
         headers.Add(new CoseHeaderLabel(258), CoseHeaderValue.FromInt32(-16)); // PayloadHashAlg
         headers.Add(new CoseHeaderLabel(259), CoseHeaderValue.FromString("application/octet-stream")); // PreimageContentType
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         bool result = message.TryGetContentType(out string? contentType);
@@ -116,14 +147,7 @@ public class CoseSign1MessageExtensionsTests
     public void GetSignatureFormat_WithDirectSignature_ReturnsDirect()
     {
         // Arrange
-        var headers = new CoseHeaderMap();
-        headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload);
 
         // Act
         var format = message.GetSignatureFormat();
@@ -138,12 +162,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json+hash-sha384"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         var format = message.GetSignatureFormat();
@@ -158,12 +177,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/vnd.example+cose-hash-v"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         var format = message.GetSignatureFormat();
@@ -178,12 +192,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(new CoseHeaderLabel(258), CoseHeaderValue.FromInt32(-16)); // PayloadHashAlg
-        
-        var message = CoseSign1Message.SignDetached(
-            "hash"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage("hash"u8.ToArray(), headers);
 
         // Act
         var format = message.GetSignatureFormat();
@@ -198,12 +207,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("text/plain"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload, headers);
 
         // Act
         bool result = message.TryGetHeader(CoseHeaderLabel.ContentType, out string? value);
@@ -216,22 +220,18 @@ public class CoseSign1MessageExtensionsTests
     [Test]
     public void TryGetHeader_Int_WithProtectedHeader_ReturnsValue()
     {
-        // Arrange
+        // Arrange - Use a custom label that doesn't conflict with signing
+        var customLabel = new CoseHeaderLabel(1234); // Custom label
         var headers = new CoseHeaderMap();
-        headers.Add(CoseHeaderLabel.Algorithm, CoseHeaderValue.FromInt32(-7)); // ES256
-        
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        headers.Add(customLabel, CoseHeaderValue.FromInt32(42));
+        var message = CreateTestMessage(TestPayload, headers);
 
         // Act
-        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out int value);
+        bool result = message.TryGetHeader(customLabel, out int value);
 
         // Assert
         Assert.That(result, Is.True);
-        Assert.That(value, Is.EqualTo(-7));
+        Assert.That(value, Is.EqualTo(42));
     }
 
     [Test]
@@ -241,12 +241,7 @@ public class CoseSign1MessageExtensionsTests
         var testBytes = new byte[] { 1, 2, 3, 4 };
         var headers = new CoseHeaderMap();
         headers.Add(CoseHeaderLabel.KeyIdentifier, CoseHeaderValue.FromBytes(testBytes));
-        
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload, headers);
 
         // Act
         bool result = message.TryGetHeader(CoseHeaderLabel.KeyIdentifier, out ReadOnlyMemory<byte> value);
@@ -260,15 +255,10 @@ public class CoseSign1MessageExtensionsTests
     public void TryGetHeader_WithMissingHeader_ReturnsFalse()
     {
         // Arrange
-        var headers = new CoseHeaderMap();
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload);
 
         // Act
-        bool result = message.TryGetHeader(CoseHeaderLabel.ContentType, out string? value);
+        bool result = message.TryGetHeader(new CoseHeaderLabel(999), out string? value);
 
         // Assert
         Assert.That(result, Is.False);
@@ -290,14 +280,7 @@ public class CoseSign1MessageExtensionsTests
     public void HasHeader_WithExistingProtectedHeader_ReturnsTrue()
     {
         // Arrange
-        var headers = new CoseHeaderMap();
-        headers.Add(CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json"));
-        
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload);
 
         // Act
         bool result = message.HasHeader(CoseHeaderLabel.ContentType);
@@ -310,15 +293,10 @@ public class CoseSign1MessageExtensionsTests
     public void HasHeader_WithMissingHeader_ReturnsFalse()
     {
         // Arrange
-        var headers = new CoseHeaderMap();
-        var message = CoseSign1Message.SignDetached(
-            "test"u8.ToArray(),
-            ECDsa.Create(),
-            HashAlgorithmName.SHA256,
-            headers);
+        var message = CreateTestMessage(TestPayload);
 
         // Act
-        bool result = message.HasHeader(CoseHeaderLabel.ContentType);
+        bool result = message.HasHeader(new CoseHeaderLabel(999));
 
         // Assert
         Assert.That(result, Is.False);

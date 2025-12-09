@@ -45,7 +45,7 @@ public class ISigningKeyTests
         // Assert
         Assert.That(signingServiceProperty, Is.Not.Null);
         Assert.That(signingServiceProperty!.CanRead, Is.True, "SigningService should be readable");
-        Assert.That(signingServiceProperty.PropertyType, Is.EqualTo(typeof(ISigningService)), "SigningService should be ISigningService type");
+        Assert.That(signingServiceProperty.PropertyType, Is.EqualTo(typeof(ISigningService<SigningOptions>)), "SigningService should be ISigningService<SigningOptions> type");
     }
 
     [Test]

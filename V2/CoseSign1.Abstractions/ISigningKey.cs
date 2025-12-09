@@ -34,5 +34,5 @@ public interface ISigningKey : IDisposable
     /// Gets the signing service that owns this key.
     /// Allows access to service-level metadata that may be needed for header contribution.
     /// </summary>
-    ISigningService SigningService { get; }
+    ISigningService<SigningOptions> SigningService { get; }
 }

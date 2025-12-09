@@ -17,7 +17,7 @@ public class CertificateSigningKey : ICertificateSigningKey
 {
     private readonly ICertificateSource _certificateSource;
     private readonly ISigningKeyProvider _signingKeyProvider;
-    private readonly ISigningService _signingService;
+    private readonly ISigningService<SigningOptions> _signingService;
     private CoseKey? _coseKey;
     private readonly object _coseKeyLock = new();
     private bool _disposed;
@@ -31,7 +31,7 @@ public class CertificateSigningKey : ICertificateSigningKey
     public CertificateSigningKey(
         ICertificateSource certificateSource,
         ISigningKeyProvider signingKeyProvider,
-        ISigningService signingService)
+        ISigningService<SigningOptions> signingService)
     {
         _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
         _signingKeyProvider = signingKeyProvider ?? throw new ArgumentNullException(nameof(signingKeyProvider));
@@ -83,7 +83,7 @@ public class CertificateSigningKey : ICertificateSigningKey
     public SigningKeyMetadata Metadata => GetMetadata();
 
     /// <inheritdoc/>
-    public ISigningService SigningService => _signingService;
+    public ISigningService<SigningOptions> SigningService => _signingService;
 
     private SigningKeyMetadata GetMetadata()
     {

@@ -18,19 +18,19 @@ namespace CoseSign1.Tests;
 [TestFixture]
 public class IndirectSignatureFactoryTests
 {
-    private Mock<ISigningService> _mockSigningService = null!;
+    private Mock<ISigningService<SigningOptions>> _mockSigningService = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _mockSigningService = new Mock<ISigningService>();
+        _mockSigningService = new Mock<ISigningService<SigningOptions>>();
     }
 
     [Test]
     public void Constructor_WithNullSigningService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new IndirectSignatureFactory((ISigningService)null!));
+        Assert.Throws<ArgumentNullException>(() => new IndirectSignatureFactory((ISigningService<SigningOptions>)null!));
     }
 
     [Test]

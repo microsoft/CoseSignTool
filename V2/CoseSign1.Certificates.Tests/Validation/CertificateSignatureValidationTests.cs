@@ -26,8 +26,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()
             .Build();
 
@@ -43,8 +43,8 @@ public class CertificateSignatureValidationTests
     public void SignatureValidator_WithNullMessage_Fails()
     {
         // Arrange
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()
             .Build();
 
@@ -68,8 +68,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()
             .Build();
 
@@ -93,8 +93,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json", options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature(TestPayload)
             .Build();
 
@@ -120,8 +120,8 @@ public class CertificateSignatureValidationTests
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         byte[] wrongPayload = Encoding.UTF8.GetBytes("wrong payload");
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature(wrongPayload)
             .Build();
 
@@ -145,8 +145,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature(TestPayload)  // Using detached validator with embedded content
             .Build();
 
@@ -170,8 +170,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()
             .AddValidator(msg => ValidationResult.Success("CustomValidator"))
             .Build();
@@ -195,8 +195,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()  // This will pass
             .AddValidator(msg => ValidationResult.Failure("CustomValidator1", "Custom failure"))  // This will fail
             .AddValidator(msg => ValidationResult.Failure("CustomValidator2", "Another failure"))  // This will also fail
@@ -225,8 +225,8 @@ public class CertificateSignatureValidationTests
 
         int secondValidatorCalled = 0;
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .AddValidator(msg => ValidationResult.Failure("FirstValidator", "First failure"))
             .AddValidator(msg =>
             {
@@ -258,8 +258,8 @@ public class CertificateSignatureValidationTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json", options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
-        var validator = CoseValidatorBuilder
-            .ForMessage()
+        var validator = Cose.Sign1Message()
+            
             .ValidateCertificateSignature()
             .Build();
 

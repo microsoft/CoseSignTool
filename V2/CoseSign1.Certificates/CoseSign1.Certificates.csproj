@@ -4,6 +4,7 @@
     <PropertyGroup>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <LangVersion>latest</LangVersion>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
     </PropertyGroup>
 
     <!--Code style and static analysis-->
@@ -44,6 +45,8 @@
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
         <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
         <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+        <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+        <ProjectReference Include="..\DIDx509\DIDx509.csproj" />
     </ItemGroup>
 
     <!--Exclude net10.0-only files from netstandard2.0-->

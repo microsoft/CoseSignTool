@@ -24,8 +24,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <summary>
     /// Initializes a new instance of the <see cref="IndirectSignatureFactory"/> class.
     /// </summary>
-    /// <param name="signingService">The signing service to use for creating signatures.</param>
-    public IndirectSignatureFactory(ISigningService signingService)
+    /// <param name="signingService">The signing service to use for signature creation.</param>
+    public IndirectSignatureFactory(ISigningService<SigningOptions> signingService)
     {
         _directFactory = new DirectSignatureFactory(signingService);
     }
@@ -60,6 +60,24 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         string contentType,
         IndirectSignatureOptions? options = null)
     {
+        return CreateCoseSign1MessageBytes(payload, contentType, options, serviceOptions: null);
+    }
+
+    /// <summary>
+    /// Creates a COSE Sign1 message with indirect signature from a byte array payload and returns it as bytes.
+    /// Allows passing service-specific options per signing operation.
+    /// </summary>
+    /// <param name="payload">The payload to hash and sign.</param>
+    /// <param name="contentType">The content type of the payload (e.g., "application/json").</param>
+    /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
+    /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
+    /// <returns>The COSE Sign1 message as a byte array.</returns>
+    public virtual byte[] CreateCoseSign1MessageBytes(
+        byte[] payload,
+        string contentType,
+        IndirectSignatureOptions? options,
+        SigningOptions? serviceOptions)
+    {
         if (payload == null)
         {
             throw new ArgumentNullException(nameof(payload));
@@ -73,7 +91,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         ThrowIfDisposed();
 
         // Delegate to ReadOnlySpan overload
-        return CreateCoseSign1MessageBytes(new ReadOnlySpan<byte>(payload), contentType, options);
+        return CreateCoseSign1MessageBytes(new ReadOnlySpan<byte>(payload), contentType, options, serviceOptions);
     }
 
     /// <summary>
@@ -88,6 +106,24 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         string contentType,
         IndirectSignatureOptions? options = null)
     {
+        return CreateCoseSign1MessageBytes(payload, contentType, options, serviceOptions: null);
+    }
+
+    /// <summary>
+    /// Creates a COSE Sign1 message with indirect signature from a ReadOnlySpan payload and returns it as bytes.
+    /// Allows passing service-specific options per signing operation.
+    /// </summary>
+    /// <param name="payload">The payload to hash and sign.</param>
+    /// <param name="contentType">The content type of the payload (e.g., "application/json").</param>
+    /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
+    /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
+    /// <returns>The COSE Sign1 message as a byte array.</returns>
+    public virtual byte[] CreateCoseSign1MessageBytes(
+        ReadOnlySpan<byte> payload,
+        string contentType,
+        IndirectSignatureOptions? options,
+        SigningOptions? serviceOptions)
+    {
         if (contentType == null)
         {
             throw new ArgumentNullException(nameof(contentType));
@@ -95,7 +131,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         ThrowIfDisposed();
 
-        return HashAndSign(payload, contentType, options);
+        return HashAndSign(payload, contentType, options, serviceOptions);
     }
 
     /// <summary>
@@ -104,7 +140,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     private byte[] HashAndSign(
         ReadOnlySpan<byte> payload,
         string contentType,
-        IndirectSignatureOptions? options = null)
+        IndirectSignatureOptions? options = null,
+        SigningOptions? serviceOptions = null)
     {
         if (contentType == null)
         {
@@ -148,8 +185,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             EmbedPayload = true  // Embed the hash (not the original payload)
         };
 
-        // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
-        return _directFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions);
+        // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor), passing serviceOptions through
+        return _directFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
     }
 
     /// <summary>

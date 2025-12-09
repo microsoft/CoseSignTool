@@ -25,7 +25,7 @@ public class RemoteSigningKeyProvider : ISigningKey
     /// </summary>
     /// <param name="certificateSource">The remote certificate source that provides the signing operations.</param>
     /// <param name="signingService">The signing service that owns this key.</param>
-    public RemoteSigningKeyProvider(RemoteCertificateSource certificateSource, ISigningService signingService)
+    public RemoteSigningKeyProvider(RemoteCertificateSource certificateSource, ISigningService<SigningOptions> signingService)
     {
 #if NET5_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(certificateSource);
@@ -43,7 +43,7 @@ public class RemoteSigningKeyProvider : ISigningKey
     public SigningKeyMetadata Metadata => _metadata.Value;
 
     /// <inheritdoc/>
-    public ISigningService SigningService { get; }
+    public ISigningService<SigningOptions> SigningService { get; }
 
     /// <inheritdoc/>
     public CoseKey GetCoseKey()

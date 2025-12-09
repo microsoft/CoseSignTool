@@ -598,7 +598,7 @@ public class DirectCertificateSourceTests
 }
 
 // Mock classes to support integration tests
-internal class MockSigningService : ISigningService
+internal class MockSigningService : ISigningService<SigningOptions>
 {
     private readonly bool _isRemote;
     
@@ -613,6 +613,11 @@ internal class MockSigningService : ISigningService
     public CoseSigner GetCoseSigner(SigningContext context)
     {
         throw new NotImplementedException("Mock service does not support GetCoseSigner");
+    }
+    
+    public SigningOptions CreateSigningOptions()
+    {
+        return new SigningOptions();
     }
     
     public void Dispose() { }

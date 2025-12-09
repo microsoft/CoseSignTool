@@ -18,7 +18,6 @@ namespace CoseSign1.Certificates;
 public abstract class CertificateSigningService : ISigningService<CertificateSigningOptions>
 {
     private static readonly CertificateHeaderContributor CertificateContributor = new();
-    private static readonly DidX509Generator DidGenerator = new();
     private bool _disposed;
     private readonly SigningServiceMetadata _serviceMetadata;
     private readonly bool _isRemote;
@@ -151,8 +150,9 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
 
             var certificateChain = certKey.GetCertificateChain(X509ChainSortOrder.LeafFirst);
             
-            // Generate DID:x509 issuer from certificate chain
-            string issuer = DidGenerator.GenerateFromChain(certificateChain);
+            // Generate DID:x509 issuer from certificate chain using extension method
+            var leafCert = certificateChain.First();
+            string issuer = leafCert.GetDidWithRoot(certificateChain);
 
             claims = new CwtClaims
             {

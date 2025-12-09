@@ -43,6 +43,9 @@ public static class TestCertificateUtils
     /// <param name="useEcc">(Optional) True for ECC certificates, false (default) for RSA certificates.</param>
     /// <param name="keySize">(Optional) The optional key size for the cert being created.</param>
     /// <param name="duration">(Optional) How long the certificate should be valid for after it is created. Default value is one year.</param>
+    /// <param name="addLifetimeEku">(Optional) If true, adds the lifetime signing EKU.</param>
+    /// <param name="customEkus">(Optional) Custom EKU OIDs to add instead of the default TLS EKUs. If provided, default EKUs are not added.</param>
+    /// <param name="customSans">(Optional) Custom SAN entries as tuples of (type, value) where type is "dns", "email", or "uri". If provided, default DNS SAN is not added.</param>
     /// <returns>An <see cref="X509Certificate2"/> object for use in testing.</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     public static X509Certificate2 CreateCertificate(
@@ -51,7 +54,9 @@ public static class TestCertificateUtils
         bool useEcc = false,
         int? keySize = null,
         TimeSpan? duration = null,
-        bool addLifetimeEku = false)
+        bool addLifetimeEku = false,
+        string[]? customEkus = null,
+        (string type, string value)[]? customSans = null)
     {
         using AsymmetricAlgorithm algo = useEcc ? ECDsa.Create() : RSA.Create();
         algo.KeySize = keySize ?? (useEcc ? 256 : 2048);
@@ -95,28 +100,68 @@ public static class TestCertificateUtils
             segment.CopyTo(authorityKeyIdentifier, 4);
             request.CertificateExtensions.Add(new X509Extension("2.5.29.35", authorityKeyIdentifier, false));
         }
-        // DPS samples create certs with the device name as a SAN name
-        // in addition to the subject name
+        
+        // Subject Alternative Names
         SubjectAlternativeNameBuilder sanBuilder = new();
-        string dnsName = subjectName.Replace(":", "").Replace(" ", "");
-        if (dnsName.Length > 40)
+        if (customSans != null && customSans.Length > 0)
         {
-            dnsName = dnsName[..39];
+            // Use custom SANs provided by caller
+            foreach (var (type, value) in customSans)
+            {
+                switch (type.ToLowerInvariant())
+                {
+                    case "dns":
+                        sanBuilder.AddDnsName(value);
+                        break;
+                    case "email":
+                        sanBuilder.AddEmailAddress(value);
+                        break;
+                    case "uri":
+                        sanBuilder.AddUri(new Uri(value));
+                        break;
+                    default:
+                        throw new ArgumentException($"Unsupported SAN type: {type}", nameof(customSans));
+                }
+            }
         }
-        sanBuilder.AddDnsName(dnsName);
+        else
+        {
+            // Use default DNS SAN based on subject name
+            string dnsName = subjectName.Replace(":", "").Replace(" ", "");
+            if (dnsName.Length > 40)
+            {
+                dnsName = dnsName[..39];
+            }
+            sanBuilder.AddDnsName(dnsName);
+        }
         X509Extension sanExtension = sanBuilder.Build();
         request.CertificateExtensions.Add(sanExtension);
 
         // Enhanced key usages
-        OidCollection oids =
-        [
-            new Oid("1.3.6.1.5.5.7.3.2"), // TLS Client auth
-            new Oid("1.3.6.1.5.5.7.3.1")  // TLS Server auth
-        ];
-
-        if (addLifetimeEku)
+        OidCollection oids;
+        
+        if (customEkus != null && customEkus.Length > 0)
         {
-            oids.Add(new("1.3.6.1.4.1.311.10.3.13"));  // Lifetime EKU
+            // Use custom EKUs provided by caller
+            oids = new OidCollection();
+            foreach (string ekuOid in customEkus)
+            {
+                oids.Add(new Oid(ekuOid));
+            }
+        }
+        else
+        {
+            // Use default EKUs
+            oids =
+            [
+                new Oid("1.3.6.1.5.5.7.3.2"), // TLS Client auth
+                new Oid("1.3.6.1.5.5.7.3.1")  // TLS Server auth
+            ];
+
+            if (addLifetimeEku)
+            {
+                oids.Add(new("1.3.6.1.4.1.311.10.3.13"));  // Lifetime EKU
+            }
         }
 
         request.CertificateExtensions.Add(

@@ -2,23 +2,24 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.Extensions;
+using CoseSign1.Validation;
 
-namespace CoseSign1.Validation.Signature;
+namespace CoseSign1.Certificates.Validation;
 
 /// <summary>
-/// Validates a detached COSE signature with the provided payload.
+/// Validates a detached COSE signature using the certificate from x5t/x5chain headers.
 /// </summary>
-public sealed class DetachedSignatureValidator : IValidator<CoseSign1Message>
+public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
 {
     private readonly ReadOnlyMemory<byte> _payload;
     private readonly bool _allowUnprotectedHeaders;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DetachedSignatureValidator"/> class.
+    /// Initializes a new instance of the <see cref="CertificateDetachedSignatureValidator"/> class.
     /// </summary>
     /// <param name="payload">The detached payload to verify against.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public DetachedSignatureValidator(byte[] payload, bool allowUnprotectedHeaders = false)
+    public CertificateDetachedSignatureValidator(byte[] payload, bool allowUnprotectedHeaders = false)
     {
         if (payload == null)
         {
@@ -30,11 +31,11 @@ public sealed class DetachedSignatureValidator : IValidator<CoseSign1Message>
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DetachedSignatureValidator"/> class.
+    /// Initializes a new instance of the <see cref="CertificateDetachedSignatureValidator"/> class.
     /// </summary>
     /// <param name="payload">The detached payload to verify against.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public DetachedSignatureValidator(ReadOnlyMemory<byte> payload, bool allowUnprotectedHeaders = false)
+    public CertificateDetachedSignatureValidator(ReadOnlyMemory<byte> payload, bool allowUnprotectedHeaders = false)
     {
         _payload = payload;
         _allowUnprotectedHeaders = allowUnprotectedHeaders;
@@ -45,7 +46,7 @@ public sealed class DetachedSignatureValidator : IValidator<CoseSign1Message>
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(DetachedSignatureValidator),
+                nameof(CertificateDetachedSignatureValidator),
                 "Input message is null",
                 "NULL_INPUT");
         }
@@ -53,7 +54,7 @@ public sealed class DetachedSignatureValidator : IValidator<CoseSign1Message>
         if (input.Content != null)
         {
             return ValidationResult.Failure(
-                nameof(DetachedSignatureValidator),
+                nameof(CertificateDetachedSignatureValidator),
                 "Message has embedded content but detached signature validator was used",
                 "UNEXPECTED_EMBEDDED_CONTENT");
         }
@@ -63,12 +64,12 @@ public sealed class DetachedSignatureValidator : IValidator<CoseSign1Message>
         if (!isValid)
         {
             return ValidationResult.Failure(
-                nameof(DetachedSignatureValidator),
+                nameof(CertificateDetachedSignatureValidator),
                 "Detached signature verification failed",
                 "SIGNATURE_INVALID");
         }
 
-        return ValidationResult.Success(nameof(DetachedSignatureValidator));
+        return ValidationResult.Success(nameof(CertificateDetachedSignatureValidator));
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

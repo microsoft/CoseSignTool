@@ -7,9 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--Strong name signing-->
+  <PropertyGroup>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
-    <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <PackageReference Include="System.Security.Cryptography.Cose" />
   </ItemGroup>
 
 </Project>

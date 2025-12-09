@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using CoseSign1.Validation.Signature;
 
 namespace CoseSign1.Validation.Tests;
 
@@ -27,7 +27,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature()
+            .ValidateCertificateSignature()
             .Build();
 
         // Act
@@ -44,7 +44,7 @@ public class SignatureValidationTests
         // Arrange
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature()
+            .ValidateCertificateSignature()
             .Build();
 
         // Act
@@ -69,7 +69,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature()
+            .ValidateCertificateSignature()
             .Build();
 
         // Act
@@ -94,7 +94,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature(TestPayload)
+            .ValidateCertificateSignature(TestPayload)
             .Build();
 
         // Act
@@ -121,7 +121,7 @@ public class SignatureValidationTests
         byte[] wrongPayload = Encoding.UTF8.GetBytes("wrong payload");
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature(wrongPayload)
+            .ValidateCertificateSignature(wrongPayload)
             .Build();
 
         // Act
@@ -146,7 +146,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature(TestPayload)  // Using detached validator with embedded content
+            .ValidateCertificateSignature(TestPayload)  // Using detached validator with embedded content
             .Build();
 
         // Act
@@ -171,7 +171,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature()
+            .ValidateCertificateSignature()
             .AddValidator(msg => ValidationResult.Success("CustomValidator"))
             .Build();
 
@@ -196,7 +196,7 @@ public class SignatureValidationTests
 
         var validator = CoseValidatorBuilder
             .ForMessage()
-            .ValidateSignature()  // This will pass
+            .ValidateCertificateSignature()  // This will pass
             .AddValidator(msg => ValidationResult.Failure("CustomValidator1", "Custom failure"))  // This will fail
             .AddValidator(msg => ValidationResult.Failure("CustomValidator2", "Another failure"))  // This will also fail
             .Build();

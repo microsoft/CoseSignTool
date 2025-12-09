@@ -1,10 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Buffers;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using System.Threading;
+using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
+using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 
 namespace CoseSign1.Indirect;
@@ -22,12 +29,21 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     private bool _disposed;
 
     /// <summary>
+    /// Gets the transparency providers configured for this factory.
+    /// These providers will be applied to all signed messages unless disabled per-operation.
+    /// </summary>
+    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => _directFactory.TransparencyProviders;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="IndirectSignatureFactory"/> class.
     /// </summary>
     /// <param name="signingService">The signing service to use for signature creation.</param>
-    public IndirectSignatureFactory(ISigningService<SigningOptions> signingService)
+    /// <param name="transparencyProviders">Optional transparency providers to apply to all signed messages. Can be overridden per-operation.</param>
+    public IndirectSignatureFactory(
+        ISigningService<SigningOptions> signingService,
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null) :
+        this(new DirectSignatureFactory(signingService, transparencyProviders))
     {
-        _directFactory = new DirectSignatureFactory(signingService);
     }
 
     /// <summary>

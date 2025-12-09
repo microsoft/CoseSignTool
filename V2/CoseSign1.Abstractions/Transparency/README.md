@@ -144,15 +144,26 @@ else
 }
 ```
 
-### Example 4: Check for Transparency
+### Example 4: Check for Transparency (Provider-Specific)
 
 ```csharp
-// Quick heuristic check
-if (message.HasTransparencyProof())
+using CoseSign1.Transparent.CTS.Extensions;
+
+// Provider-specific extensions check for specific proof types
+if (message.HasCtsReceipt())
 {
-    Console.WriteLine("Message appears to have transparency proof");
+    Console.WriteLine("Message has Azure CTS receipt");
+    
+    // Extract receipt details
+    var receiptInfo = message.GetCtsReceiptInfo();
+    Console.WriteLine($"Entry ID: {receiptInfo.EntryId}");
+    Console.WriteLine($"Timestamp: {receiptInfo.Timestamp}");
 }
 ```
+
+**Note:** The core abstractions don't include `HasTransparencyProof()` because proof formats
+are provider-specific. Each provider package implements its own extension methods for
+checking and extracting transparency metadata.
 
 ## Implementing a Custom Provider
 

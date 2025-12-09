@@ -4,10 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
+using CoseSign1.Abstractions.Transparency;
 
 namespace CoseSign1.Direct;
 
@@ -20,15 +22,26 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 {
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private readonly ISigningService<SigningOptions> _signingService;
+    private readonly IReadOnlyList<ITransparencyProvider>? _transparencyProviders;
     private bool _disposed;
+
+    /// <summary>
+    /// Gets the transparency providers configured for this factory.
+    /// These providers will be applied to all signed messages unless disabled per-operation.
+    /// </summary>
+    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => _transparencyProviders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DirectSignatureFactory"/> class.
     /// </summary>
     /// <param name="signingService">The signing service to use for creating signatures.</param>
-    public DirectSignatureFactory(ISigningService<SigningOptions> signingService)
+    /// <param name="transparencyProviders">Optional transparency providers to apply to all signed messages. Can be overridden per-operation.</param>
+    public DirectSignatureFactory(
+        ISigningService<SigningOptions> signingService,
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null)
     {
         _signingService = signingService ?? throw new ArgumentNullException(nameof(signingService));
+        _transparencyProviders = transparencyProviders;
     }
 
     /// <summary>
@@ -374,7 +387,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         CancellationToken cancellationToken = default)
     {
         var messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        var message = CoseMessage.DecodeSign1(messageBytes);
+        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -392,7 +406,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         CancellationToken cancellationToken = default)
     {
         var messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        var message = CoseMessage.DecodeSign1(messageBytes);
+        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -410,7 +425,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         CancellationToken cancellationToken = default)
     {
         var messageBytes = await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        var message = CoseMessage.DecodeSign1(messageBytes);
+        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -453,6 +469,69 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         combined.AddRange(additionalContributors);
         
         return combined;
+    }
+
+    /// <summary>
+    /// Applies transparency proofs to the message using the factory-configured providers.
+    /// Chains through multiple providers in sequence, each augmenting the message headers.
+    /// </summary>
+    /// <param name="message">The signed COSE message to augment with transparency proofs.</param>
+    /// <param name="options">The signing options that may disable transparency for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The message with transparency proofs applied (may be the same instance or a new one).</returns>
+    protected virtual async Task<CoseSign1Message> ApplyTransparencyProofsAsync(
+        CoseSign1Message message,
+        SigningOptions? options,
+        CancellationToken cancellationToken)
+    {
+        // Check if transparency is disabled for this operation
+        if (options?.DisableTransparency == true)
+        {
+            return message;
+        }
+
+        // No transparency providers configured at factory level - return message as-is
+        if (_transparencyProviders == null || _transparencyProviders.Count == 0)
+        {
+            return message;
+        }
+
+        var currentMessage = message;
+        var errors = new List<string>();
+
+        // Chain through each provider in sequence
+        foreach (var provider in _transparencyProviders)
+        {
+            try
+            {
+                currentMessage = await provider.AddTransparencyProofAsync(currentMessage, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var error = $"Transparency provider '{provider.ProviderName}' failed: {ex.Message}";
+                errors.Add(error);
+
+                // If configured to fail on transparency errors, throw immediately
+                if (options.FailOnTransparencyError)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed to add transparency proof. {error}",
+                        ex);
+                }
+
+                // Otherwise, continue with remaining providers (best-effort mode)
+            }
+        }
+
+        // If we collected errors but didn't fail fast, log a warning
+        // (In production, consider using ILogger here if available via DI)
+        if (errors.Any() && !options.FailOnTransparencyError)
+        {
+            // Best-effort mode: some providers failed but we're continuing
+            // Could log to ILogger here if the factory supported it
+        }
+
+        return currentMessage;
     }
 
     /// <summary>

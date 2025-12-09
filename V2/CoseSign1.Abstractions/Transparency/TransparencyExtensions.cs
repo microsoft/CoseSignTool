@@ -11,6 +11,18 @@ namespace CoseSign1.Abstractions.Transparency;
 /// <summary>
 /// Extension methods for working with transparent COSE Sign1 messages.
 /// </summary>
+/// <remarks>
+/// Provider-specific packages (e.g., CoseSign1.Transparent.CTS) should add their own
+/// extension methods for checking the presence of specific transparency proofs.
+/// For example:
+/// <code>
+/// // In CoseSign1.Transparent.CTS:
+/// public static bool HasCtsReceipt(this CoseSign1Message message)
+/// {
+///     return message.UnprotectedHeaders?.TryGetValue(CtsHeaderLabel, out _) == true;
+/// }
+/// </code>
+/// </remarks>
 public static class TransparencyExtensions
 {
     /// <summary>
@@ -20,6 +32,17 @@ public static class TransparencyExtensions
     /// <param name="provider">The transparency provider to use for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The validation result.</returns>
+    /// <example>
+    /// <code>
+    /// var ctsProvider = new AzureCtsTransparencyProvider(client);
+    /// var result = await message.VerifyTransparencyAsync(ctsProvider);
+    /// 
+    /// if (result.IsValid)
+    /// {
+    ///     Console.WriteLine($"Valid {result.ProviderName} proof");
+    /// }
+    /// </code>
+    /// </example>
     public static Task<TransparencyValidationResult> VerifyTransparencyAsync(
         this CoseSign1Message message,
         ITransparencyProvider provider,
@@ -39,31 +62,51 @@ public static class TransparencyExtensions
     }
 
     /// <summary>
-    /// Checks if a COSE Sign1 message has a transparency proof.
+    /// Verifies transparency proofs in a COSE Sign1 message using multiple providers.
     /// </summary>
-    /// <param name="message">The COSE Sign1 message to check.</param>
-    /// <param name="providerName">Optional provider name to check for specific transparency type.</param>
-    /// <returns>True if the message appears to have a transparency proof; otherwise, false.</returns>
-    /// <remarks>
-    /// This is a heuristic check based on common header patterns. For definitive verification,
-    /// use <see cref="VerifyTransparencyAsync"/>.
-    /// </remarks>
-    public static bool HasTransparencyProof(this CoseSign1Message message, string? providerName = null)
+    /// <param name="message">The COSE Sign1 message to verify.</param>
+    /// <param name="providers">The transparency providers to use for verification.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of validation results, one per provider.</returns>
+    /// <example>
+    /// <code>
+    /// var providers = new ITransparencyProvider[]
+    /// {
+    ///     new AzureCtsTransparencyProvider(ctsClient),
+    ///     new CertificateTransparencyProvider(sctClient)
+    /// };
+    /// 
+    /// var results = await message.VerifyTransparencyAsync(providers);
+    /// 
+    /// foreach (var result in results)
+    /// {
+    ///     Console.WriteLine($"{result.ProviderName}: {(result.IsValid ? "Valid" : "Invalid")}");
+    /// }
+    /// </code>
+    /// </example>
+    public static async Task<IReadOnlyList<TransparencyValidationResult>> VerifyTransparencyAsync(
+        this CoseSign1Message message,
+        IReadOnlyList<ITransparencyProvider> providers,
+        CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
             throw new ArgumentNullException(nameof(message));
         }
 
-        // Check for common transparency headers in unprotected headers
-        // Most transparency services add receipts/proofs to unprotected headers
+        if (providers == null)
+        {
+            throw new ArgumentNullException(nameof(providers));
+        }
+
+        var results = new List<TransparencyValidationResult>(providers.Count);
         
-        // Common header labels for transparency:
-        // - Custom labels for CTS, SCT, etc.
-        // - Look for "receipt", "proof", "transparency" in header keys
-        
-        // Implementation note: Specific header checks depend on the transparency service
-        // This is a placeholder for common patterns
-        return message.UnprotectedHeaders?.Count > 0;
+        foreach (var provider in providers)
+        {
+            var result = await provider.VerifyTransparencyProofAsync(message, cancellationToken).ConfigureAwait(false);
+            results.Add(result);
+        }
+
+        return results;
     }
 }

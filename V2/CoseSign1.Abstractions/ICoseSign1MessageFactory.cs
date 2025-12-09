@@ -2,10 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
+using CoseSign1.Abstractions.Transparency;
 
 namespace CoseSign1.Abstractions;
 
@@ -16,6 +18,11 @@ namespace CoseSign1.Abstractions;
 public interface ICoseSign1MessageFactory<TOptions> : IDisposable
     where TOptions : SigningOptions
 {
+    /// <summary>
+    /// Gets the transparency providers configured for this factory.
+    /// These providers will be applied to all signed messages unless disabled per-operation.
+    /// </summary>
+    IReadOnlyList<ITransparencyProvider>? TransparencyProviders { get; }
     /// <summary>
     /// Creates a COSE Sign1 message from a byte array payload and returns it as bytes.
     /// </summary>

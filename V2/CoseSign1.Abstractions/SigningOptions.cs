@@ -32,28 +32,26 @@ public class SigningOptions
     public ReadOnlyMemory<byte> AdditionalData { get; set; } = ReadOnlyMemory<byte>.Empty;
 
     /// <summary>
-    /// Gets or sets the transparency provider to use for adding transparency proof(s)
-    /// to the signed message.
+    /// Gets or sets a value indicating whether to disable transparency for this specific operation.
     /// </summary>
     /// <remarks>
-    /// When set, the factory will automatically call the transparency provider after signing
-    /// to augment the message with verifiable transparency proof(s). This enables creating
-    /// transparent messages in a single operation.
+    /// When true, transparency providers configured at the factory level will be skipped
+    /// for this operation only. This allows selective opt-out of transparency on a per-operation basis.
     /// 
-    /// If null, no transparency proof is added (default behavior).
+    /// Default: false (use factory-configured transparency providers)
     /// 
-    /// Example usage:
+    /// Example - disable transparency for a specific operation:
     /// <code>
     /// var options = new SigningOptions
     /// {
-    ///     TransparencyProvider = new AzureCtsTransparencyProvider(ctsClient)
+    ///     DisableTransparency = true  // Skip transparency for this operation
     /// };
     /// 
-    /// // Creates a signed + transparent message in one call!
+    /// // Factory has transparency configured, but this message won't have transparency proof
     /// var message = await factory.CreateCoseSign1MessageAsync(payload, contentType, options);
     /// </code>
     /// </remarks>
-    public ITransparencyProvider? TransparencyProvider { get; set; }
+    public bool DisableTransparency { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to fail the entire operation

@@ -1,0 +1,341 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Formats.Cbor;
+
+namespace CoseSign1.Certificates.Extensions;
+
+/// <summary>
+/// Extension methods for extracting certificates from CoseSign1Message.
+/// Modernized from V1 with simpler, stateless implementations.
+/// </summary>
+public static class CoseSign1MessageCertificateExtensions
+{
+    /// <summary>
+    /// Extracts the signing certificate from x5t header + x5chain.
+    /// The signing certificate is identified by matching the x5t (certificate thumbprint)
+    /// against the certificates in the x5chain.
+    /// </summary>
+    public static bool TryGetSigningCertificate(
+        this CoseSign1Message message,
+        out X509Certificate2? certificate,
+        bool allowUnprotected = false)
+    {
+        certificate = null;
+
+        if (message == null)
+        {
+            return false;
+        }
+
+        // Get the certificate chain
+        if (!message.TryGetCertificateChain(out X509Certificate2Collection? chain, allowUnprotected))
+        {
+            return false;
+        }
+
+        // Get the thumbprint
+        if (!message.TryGetCertificateThumbprint(out CoseX509Thumbprint? thumbprint, allowUnprotected))
+        {
+            return false;
+        }
+
+        // Find the certificate in the chain that matches the thumbprint
+        foreach (var cert in chain)
+        {
+            if (thumbprint.Match(cert))
+            {
+                certificate = cert;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts certificate chain from x5chain header (33).
+    /// </summary>
+    public static bool TryGetCertificateChain(
+        this CoseSign1Message message,
+        out X509Certificate2Collection? chain,
+        bool allowUnprotected = false)
+    {
+        chain = null;
+
+        if (message == null)
+        {
+            return false;
+        }
+
+        var label = CertificateHeaderContributor.HeaderLabels.X5Chain;
+        var headers = allowUnprotected
+            ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
+            : message.ProtectedHeaders;
+
+        foreach (var kvp in headers)
+        {
+            if (kvp.Key.Equals(label))
+            {
+                try
+                {
+                    var reader = new CborReader(kvp.Value.EncodedValue);
+                    var certificates = new List<X509Certificate2>();
+
+                    if (reader.PeekState() == CborReaderState.ByteString)
+                    {
+                        // Single certificate
+                        var certBytes = reader.ReadByteString();
+#if NET10_0_OR_GREATER
+                        certificates.Add(X509CertificateLoader.LoadCertificate(certBytes));
+#else
+                        certificates.Add(new X509Certificate2(certBytes));
+#endif
+                    }
+                    else if (reader.PeekState() == CborReaderState.StartArray)
+                    {
+                        // Array of certificates
+                        int? certCount = reader.ReadStartArray();
+                        for (int i = 0; certCount == null || i < certCount; i++)
+                        {
+                            if (reader.PeekState() == CborReaderState.EndArray)
+                            {
+                                break;
+                            }
+
+                            var certBytes = reader.ReadByteString();
+#if NET10_0_OR_GREATER
+                            certificates.Add(X509CertificateLoader.LoadCertificate(certBytes));
+#else
+                            certificates.Add(new X509Certificate2(certBytes));
+#endif
+                        }
+                        reader.ReadEndArray();
+                    }
+                    else
+                    {
+                        return false;
+                    }
+
+                    chain = new X509Certificate2Collection(certificates.ToArray());
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts extra certificates from x5bag header (32).
+    /// </summary>
+    public static bool TryGetExtraCertificates(
+        this CoseSign1Message message,
+        out X509Certificate2Collection? certificates,
+        bool allowUnprotected = false)
+    {
+        certificates = null;
+
+        if (message == null)
+        {
+            return false;
+        }
+
+        var label = CertificateHeaderContributor.HeaderLabels.X5Bag;
+        var headers = allowUnprotected
+            ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
+            : message.ProtectedHeaders;
+
+        foreach (var kvp in headers)
+        {
+            if (kvp.Key.Equals(label))
+            {
+                try
+                {
+                    var reader = new CborReader(kvp.Value.EncodedValue);
+                    var certList = new List<X509Certificate2>();
+
+                    if (reader.PeekState() == CborReaderState.ByteString)
+                    {
+                        // Single certificate
+                        var certBytes = reader.ReadByteString();
+#if NET10_0_OR_GREATER
+                        certList.Add(X509CertificateLoader.LoadCertificate(certBytes));
+#else
+                        certList.Add(new X509Certificate2(certBytes));
+#endif
+                    }
+                    else if (reader.PeekState() == CborReaderState.StartArray)
+                    {
+                        // Array of certificates
+                        int? certCount = reader.ReadStartArray();
+                        for (int i = 0; certCount == null || i < certCount; i++)
+                        {
+                            if (reader.PeekState() == CborReaderState.EndArray)
+                            {
+                                break;
+                            }
+
+                            var certBytes = reader.ReadByteString();
+#if NET10_0_OR_GREATER
+                            certList.Add(X509CertificateLoader.LoadCertificate(certBytes));
+#else
+                            certList.Add(new X509Certificate2(certBytes));
+#endif
+                        }
+                        reader.ReadEndArray();
+                    }
+                    else
+                    {
+                        return false;
+                    }
+
+                    certificates = new X509Certificate2Collection(certList.ToArray());
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts thumbprint from x5t header (34).
+    /// </summary>
+    public static bool TryGetCertificateThumbprint(
+        this CoseSign1Message message,
+        out CoseX509Thumbprint? thumbprint,
+        bool allowUnprotected = false)
+    {
+        thumbprint = null;
+
+        if (message == null)
+        {
+            return false;
+        }
+
+        var label = CertificateHeaderContributor.HeaderLabels.X5T;
+        var headers = allowUnprotected
+            ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
+            : message.ProtectedHeaders;
+
+        foreach (var kvp in headers)
+        {
+            if (kvp.Key.Equals(label))
+            {
+                try
+                {
+                    var reader = new CborReader(kvp.Value.EncodedValue);
+                    thumbprint = CoseX509Thumbprint.Deserialize(reader);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Verifies the COSE signature using the signing certificate from the message.
+    /// Automatically detects and uses the appropriate algorithm (RSA, ECDsa, or ML-DSA).
+    /// </summary>
+    /// <param name="message">The COSE Sign1 message to verify</param>
+    /// <param name="payload">The detached payload bytes (required only for detached signatures where message.Content is null)</param>
+    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup</param>
+    /// <returns>True if the signature is valid, false otherwise</returns>
+    public static bool VerifySignature(
+        this CoseSign1Message message,
+        byte[]? payload = null,
+        bool allowUnprotected = false)
+    {
+        if (message == null)
+        {
+            return false;
+        }
+
+        if (!message.TryGetSigningCertificate(out X509Certificate2? certificate, allowUnprotected))
+        {
+            return false;
+        }
+
+        var coseKey = CreateVerificationCoseKey(certificate);
+        if (coseKey == null)
+        {
+            return false;
+        }
+
+        // If message has embedded content, use VerifyEmbedded
+        // Otherwise, payload is required for detached verification
+        if (message.Content != null)
+        {
+            return message.VerifyEmbedded(coseKey);
+        }
+
+        if (payload == null || payload.Length == 0)
+        {
+            return false;
+        }
+
+        return message.VerifyDetached(coseKey, payload);
+    }
+
+    /// <summary>
+    /// Creates a CoseKey for verification from a certificate's public key.
+    /// Supports RSA, ECDsa, and ML-DSA algorithms.
+    /// </summary>
+    private static CoseKey? CreateVerificationCoseKey(X509Certificate2 certificate)
+    {
+        // Try RSA first
+        var rsa = certificate.GetRSAPublicKey();
+        if (rsa != null)
+        {
+            // Determine hash algorithm based on key size
+            var hashAlgorithm = rsa.KeySize switch
+            {
+                >= 4096 => HashAlgorithmName.SHA512, // PS512
+                >= 3072 => HashAlgorithmName.SHA384, // PS384
+                _ => HashAlgorithmName.SHA256        // PS256
+            };
+            return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
+        }
+
+        // Try ECDsa
+        var ecdsa = certificate.GetECDsaPublicKey();
+        if (ecdsa != null)
+        {
+            // Determine hash algorithm based on curve size
+            var hashAlgorithm = ecdsa.KeySize switch
+            {
+                521 => HashAlgorithmName.SHA512, // ES512 (P-521)
+                384 => HashAlgorithmName.SHA384, // ES384 (P-384)
+                _ => HashAlgorithmName.SHA256    // ES256 (P-256)
+            };
+            return new CoseKey(ecdsa, hashAlgorithm);
+        }
+
+#pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
+        // Try ML-DSA (Post-Quantum)
+        var mlDsa = certificate.GetMLDsaPublicKey();
+        if (mlDsa != null)
+        {
+            return new CoseKey(mlDsa);
+        }
+#pragma warning restore SYSLIB5006
+
+        return null;
+    }
+
+
+}

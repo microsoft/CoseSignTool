@@ -42,6 +42,7 @@
     <!--Project references-->
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+        <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
     </ItemGroup>
 
     <!--Exclude net10.0-only files from netstandard2.0-->

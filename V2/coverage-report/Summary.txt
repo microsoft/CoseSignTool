@@ -1,0 +1,91 @@
+Summary
+  Generated on: 12/9/2025 - 5:17:29 PM
+  Parser: Cobertura
+  Assemblies: 5
+  Classes: 62
+  Files: 60
+  Line coverage: 51.5%
+  Covered lines: 1798
+  Uncovered lines: 1689
+  Coverable lines: 3487
+  Total lines: 8359
+  Branch coverage: 44.7% (517 of 1155)
+  Covered branches: 517
+  Total branches: 1155
+  Method coverage: 59.6% (256 of 429)
+  Full method coverage: 47% (202 of 429)
+  Covered methods: 256
+  Fully covered methods: 202
+  Total methods: 429
+
+CoseSign1                                                                   78.3%
+  CoseSign1.Direct.ContentTypeHeaderContributor                              100%
+  CoseSign1.Direct.DirectSignatureFactory                                   80.6%
+  CoseSign1.Direct.DirectSignatureOptions                                    100%
+  CoseSign1.Extensions.CoseSign1MessageExtensions                           50.4%
+  CoseSign1.Indirect.CoseHashEnvelopeHeaderContributor                       100%
+  CoseSign1.Indirect.CoseHashEnvelopeHeaderContributor.HeaderLabels          100%
+  CoseSign1.Indirect.Extensions.CoseSign1MessageIndirectExtensions          69.6%
+  CoseSign1.Indirect.IndirectSignatureFactory                               84.1%
+  CoseSign1.Indirect.IndirectSignatureOptions                                100%
+
+CoseSign1.Abstractions                                                      57.3%
+  CoseSign1.Abstractions.HeaderContributorContext                            100%
+  CoseSign1.Abstractions.SigningContext                                     93.3%
+  CoseSign1.Abstractions.SigningKeyMetadata                                  100%
+  CoseSign1.Abstractions.SigningOptions                                       80%
+  CoseSign1.Abstractions.SigningServiceMetadata                              100%
+  CoseSign1.Abstractions.Transparency.TransparencyExtensions                   0%
+  CoseSign1.Abstractions.Transparency.TransparencyValidationResult             0%
+
+CoseSign1.Certificates                                                      54.1%
+  CoseSign1.Certificates.CertificateHeaderContributor                       68.5%
+  CoseSign1.Certificates.CertificateHeaderContributor.HeaderLabels           100%
+  CoseSign1.Certificates.CertificateSigningKey                              87.7%
+  CoseSign1.Certificates.CertificateSigningOptions                             0%
+  CoseSign1.Certificates.CertificateSigningService                          61.1%
+  CoseSign1.Certificates.CertificateSourceBase                               100%
+  CoseSign1.Certificates.ChainBuilders.ExplicitCertificateChainBuilder      88.7%
+  CoseSign1.Certificates.ChainBuilders.X509ChainBuilder                      100%
+  CoseSign1.Certificates.CoseX509Thumbprint                                 93.1%
+  CoseSign1.Certificates.Exceptions.CoseX509FormatException                 33.3%
+  CoseSign1.Certificates.Extensions.CborWriterExtensions                    40.9%
+  CoseSign1.Certificates.Extensions.CertificateSigningOptionsExtensions       50%
+  CoseSign1.Certificates.Extensions.CoseSign1MessageCertificateExtensions   76.2%
+  CoseSign1.Certificates.Local.DirectCertificateSource                       100%
+  CoseSign1.Certificates.Local.DirectSigningKeyProvider                     82.1%
+  CoseSign1.Certificates.Local.LinuxCertificateStoreCertificateSource       87.4%
+  CoseSign1.Certificates.Local.LocalCertificateSigningService               86.3%
+  CoseSign1.Certificates.Local.PfxCertificateSource                          100%
+  CoseSign1.Certificates.Local.WindowsCertificateStoreCertificateSource     93.5%
+  CoseSign1.Certificates.Remote.RemoteCertificateSource                        0%
+  CoseSign1.Certificates.Remote.RemoteECDsa                                    0%
+  CoseSign1.Certificates.Remote.RemoteMLDsa                                    0%
+  CoseSign1.Certificates.Remote.RemoteRsa                                      0%
+  CoseSign1.Certificates.Remote.RemoteSigningKeyProvider                       0%
+  CoseSign1.Certificates.Validation.CertificateChainValidator                  0%
+  CoseSign1.Certificates.Validation.CertificateCommonNameValidator          54.5%
+  CoseSign1.Certificates.Validation.CertificateDetachedSignatureValidator   60.5%
+  CoseSign1.Certificates.Validation.CertificateExpirationValidator          62.5%
+  CoseSign1.Certificates.Validation.CertificateKeyUsageValidator               0%
+  CoseSign1.Certificates.Validation.CertificatePredicateValidator           55.2%
+  CoseSign1.Certificates.Validation.CertificateSignatureValidator           65.5%
+  CoseSign1.Certificates.Validation.CertificateValidationBuilder            55.5%
+  CoseSign1.Certificates.Validation.CertificateValidationExtensions         18.1%
+  CoseSign1.Certificates.Validation.SignatureValidationExtensions           66.6%
+  CoseSign1.Certificates.Validation.SignatureValidator                         0%
+
+CoseSign1.Headers                                                              0%
+  CoseSign1.Headers.CwtClaims                                                  0%
+  CoseSign1.Headers.CwtClaimsHeaderContributor                                 0%
+  CoseSign1.Headers.CWTClaimsHeaderLabels                                      0%
+  CoseSign1.Headers.Extensions.CoseHeaderMapCwtClaimsExtensions                0%
+
+CoseSign1.Validation                                                        72.3%
+  CoseSign1.Validation.CompositeValidator                                   68.4%
+  CoseSign1.Validation.Cose                                                  100%
+  CoseSign1.Validation.CoseMessageValidationBuilder                         67.8%
+  CoseSign1.Validation.FunctionValidator                                      45%
+  CoseSign1.Validation.ValidationBuilderContext                              100%
+  CoseSign1.Validation.ValidationFailure                                      40%
+  CoseSign1.Validation.ValidationResult                                      100%

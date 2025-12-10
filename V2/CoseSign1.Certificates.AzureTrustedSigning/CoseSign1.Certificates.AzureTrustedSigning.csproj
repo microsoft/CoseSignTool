@@ -8,6 +8,7 @@
 
 	<!--Code style and static analysis-->
 	<PropertyGroup>
+		<EnablePreviewFeatures>True</EnablePreviewFeatures>
 		<Nullable>enable</Nullable>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -24,12 +25,14 @@
 
 	<!--NuGet package configuration-->
 	<PropertyGroup>
-		<PackageId>$(MSBuildProjectName)</PackageId>
+		<PackageId>$(MSBuildProjectName).V2</PackageId>
+		<PackageVersion>$(VersionNgt)</PackageVersion>
 		<Company>Microsoft</Company>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<Description>Azure Trusted Signing remote signing service for COSE Sign1 V2 architecture.</Description>
+		<PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
+		<Description>V2 Azure Trusted Signing remote signing service for COSE Sign1 with FIPS 140-2 Level 3 HSM-backed keys.</Description>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -39,11 +42,6 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
 		<ProjectReference Include="..\DIDx509\DIDx509.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
-		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>

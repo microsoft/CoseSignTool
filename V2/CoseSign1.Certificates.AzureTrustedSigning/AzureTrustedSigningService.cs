@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Azure.Core;
 using Azure.Developer.TrustedSigning.CryptoProvider;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Interfaces;
 
 namespace CoseSign1.Certificates.AzureTrustedSigning;
 
@@ -18,18 +20,19 @@ namespace CoseSign1.Certificates.AzureTrustedSigning;
 /// - Support for RSA and ECDSA algorithms
 /// - Compliance with industry standards (SCITT, etc.)
 /// 
-/// This service is thread-safe and can be used across multiple signing operations.
-/// The underlying AzSignContext is provided by the caller and should be disposed by the caller.
+/// This service is thread-safe and can be reused across multiple signing operations.
+/// The AzSignContext is created once and reused for the lifetime of this service.
 /// </remarks>
 public class AzureTrustedSigningService : CertificateSigningService
 {
+    private readonly AzSignContext _signContext;
     private readonly AzureTrustedSigningCertificateSource _certificateSource;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureTrustedSigningService"/> class.
     /// </summary>
-    /// <param name="signContext">The Azure Trusted Signing context from the SDK.</param>
-    /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder.</param>
+    /// <param name="signContext">The Azure Trusted Signing context from the SDK. This will be reused across operations.</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, uses the certificate chain from Azure.</param>
     /// <param name="serviceMetadata">Optional service metadata. If null, creates default metadata.</param>
     public AzureTrustedSigningService(
         AzSignContext signContext,
@@ -37,12 +40,8 @@ public class AzureTrustedSigningService : CertificateSigningService
         SigningServiceMetadata? serviceMetadata = null)
         : base(isRemote: true, serviceMetadata ?? CreateDefaultMetadata())
     {
-        if (signContext == null)
-        {
-            throw new ArgumentNullException(nameof(signContext));
-        }
-
-        _certificateSource = new AzureTrustedSigningCertificateSource(signContext, chainBuilder);
+        _signContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
+        _certificateSource = new AzureTrustedSigningCertificateSource(_signContext, chainBuilder);
     }
 
     /// <summary>
@@ -51,9 +50,9 @@ public class AzureTrustedSigningService : CertificateSigningService
     private static SigningServiceMetadata CreateDefaultMetadata()
     {
         return new SigningServiceMetadata(
-            name: "AzureTrustedSigning",
+            serviceName: "AzureTrustedSigning",
             description: "Microsoft Azure Trusted Signing service with FIPS 140-2 Level 3 HSM-backed keys",
-            additionalMetadata: new Dictionary<string, object>
+            additionalData: new Dictionary<string, object>
             {
                 ["ServiceType"] = "Remote",
                 ["Provider"] = "Microsoft",
@@ -63,14 +62,14 @@ public class AzureTrustedSigningService : CertificateSigningService
 
     /// <summary>
     /// Gets the signing key for the current context.
-    /// Azure Trusted Signing uses a single key per signing profile, so this returns the same key for all contexts.
+    /// Returns the same certificate source instance for all operations (Azure Trusted Signing uses a single key per profile).
     /// </summary>
-    /// <param name="context">The signing context (not used for Azure Trusted Signing).</param>
+    /// <param name="context">The signing context.</param>
     /// <returns>An ISigningKey that provides access to the Azure Trusted Signing key operations.</returns>
     protected override ISigningKey GetSigningKey(SigningContext context)
     {
         // Azure Trusted Signing uses a single key per signing profile
-        // The RemoteSigningKeyProvider will handle the actual signing operations
+        // Return a signing key provider that wraps our reusable certificate source
         return new Remote.RemoteSigningKeyProvider(_certificateSource, this);
     }
 

@@ -49,8 +49,8 @@ public static class ScittExtensions
         var claims = new CwtClaims
         {
             Issuer = issuer,
-            IssuedAt = now.ToUnixTimeSeconds(),
-            NotBefore = now.ToUnixTimeSeconds()
+            IssuedAt = now,
+            NotBefore = now
         };
 
         // Enable SCITT compliance with custom claims

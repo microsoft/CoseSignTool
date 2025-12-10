@@ -1,15 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--Build configuration-->
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!--Code style and static analysis-->
+  <PropertyGroup>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>CoseSign1.Headers</RootNamespace>
+  </PropertyGroup>
+
+  <!--Strong name signing-->
+  <PropertyGroup>
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageId>$(MsBuildProjectName).V2</PackageId>
+    <PackageVersion>$(VersionNgt)</PackageVersion>
+    <Company>Microsoft</Company>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
+    <Description>V2 CWT Claims and header contributors for COSE Sign1 messages.</Description>
   </PropertyGroup>
 
   <ItemGroup>

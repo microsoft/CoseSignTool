@@ -108,7 +108,79 @@ var message = await factory.CreateCoseSign1MessageAsync(payload, contentType);
 
 ## Verification
 
-### Verify MST Receipt
+### Using the MST Receipt Validator
+
+The `MstReceiptValidator` provides a standardized way to validate MST receipts using the V2 validator pattern:
+
+```csharp
+using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Validation;
+
+// Create the validator
+var validator = new MstReceiptValidator(mstClient);
+
+// Validate a message
+var result = await validator.ValidateAsync(message);
+
+if (result.IsValid)
+{
+    Console.WriteLine($"MST receipt is valid!");
+    // Access metadata
+    var providerName = result.Metadata["ProviderName"];
+    Console.WriteLine($"Verified by: {providerName}");
+}
+else
+{
+    Console.WriteLine("MST receipt validation failed:");
+    foreach (var failure in result.Failures)
+    {
+        Console.WriteLine($"  - {failure.Message} (Code: {failure.ErrorCode})");
+    }
+}
+```
+
+### With Verification Options
+
+```csharp
+var verificationOptions = new CodeTransparencyVerificationOptions
+{
+    AuthorizedDomains = new List<string> { "contoso.com" },
+    AuthorizedReceiptBehavior = ReceiptValidationBehavior.Require
+};
+
+var validator = new MstReceiptValidator(
+    mstClient,
+    verificationOptions);
+
+var result = await validator.ValidateAsync(message);
+```
+
+### Composing Validators
+
+Combine MST receipt validation with other validators:
+
+```csharp
+using CoseSign1.Validation;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Transparent.MST.Validation;
+
+var validators = new IValidator<CoseSign1Message>[]
+{
+    new SignatureValidator(),                    // Verify signature
+    new CertificateChainValidator(),             // Verify certificate chain
+    new MstReceiptValidator(mstClient)           // Verify MST receipt
+};
+
+var compositeValidator = new CompositeValidator(validators);
+var result = await compositeValidator.ValidateAsync(message);
+
+if (!result.IsValid)
+{
+    Console.WriteLine($"Validation failed by: {result.ValidatorName}");
+}
+```
+
+### Verify MST Receipt (Lower-Level API)
 
 ```csharp
 using CoseSign1.Abstractions.Transparency;

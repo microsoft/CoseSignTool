@@ -9,7 +9,7 @@ This package provides a remote signing service implementation for [Azure Trusted
 - **Secure Key Storage**: FIPS 140-2 Level 3 HSM-backed keys
 - **Certificate Management**: Automated certificate lifecycle management
 - **Compliance**: Built-in support for industry standards (SCITT, etc.)
-- **Algorithms**: RSA and ECDSA signing operations
+- **Algorithms**: RSA signing operations (ECDSA not currently supported by Azure SDK)
 
 ## Installation
 
@@ -20,27 +20,30 @@ dotnet add package CoseSign1.Certificates.AzureTrustedSigning
 ## Prerequisites
 
 1. **Azure Trusted Signing Account**: Set up an Azure Trusted Signing account and certificate profile
-2. **Azure SDK**: This package uses `Azure.Developer.TrustedSigning.CryptoProvider`
+2. **Azure SDK**: This package uses `Azure.Developer.TrustedSigning.CryptoProvider` (version 0.1.60)
 3. **Authentication**: Configure Azure credentials (service principal, managed identity, or interactive)
+4. **Target Framework**: Requires .NET 8.0 or later (Azure SDK requirement)
 
 ## Quick Start
 
 ### Basic Usage
 
 ```csharp
-using Azure.Developer.TrustedSigning.CryptoProvider;
+using Azure.Identity;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.AzureTrustedSigning;
 using CoseSign1;
 
-// 1. Create Azure Trusted Signing context
-var signContext = new AzSignContext(
-    endpointUrl: "https://your-account.azure-trusted-signing.net",
-    certProfileName: "YourCertificateProfile",
-    tokenCredential: new DefaultAzureCredential());
+// 1. Configure Azure Trusted Signing parameters
+var endpointUrl = "https://your-account.azure-trusted-signing.net";
+var certificateProfile = "YourCertificateProfile";
+var credential = new DefaultAzureCredential();
 
 // 2. Create the signing service
-using var signingService = new AzureTrustedSigningService(signContext);
+using var signingService = new AzureTrustedSigningService(
+    endpointUrl,
+    certificateProfile,
+    credential);
 
 // 3. Create a factory with the signing service
 var factory = new DirectSignatureFactory(signingService);
@@ -59,13 +62,23 @@ Console.WriteLine($"Signature valid: {isValid}");
 Azure Trusted Signing certificates include Microsoft-specific EKU extensions that enable proper SCITT compliance:
 
 ```csharp
+using Azure.Identity;
+using CoseSign1.Certificates.AzureTrustedSigning;
 using CoseSign1.Certificates.AzureTrustedSigning.Extensions;
 
 // Create signing service
-using var signingService = new AzureTrustedSigningService(signContext);
+using var signingService = new AzureTrustedSigningService(
+    "https://your-account.azure-trusted-signing.net",
+    "YourCertificateProfile",
+    new DefaultAzureCredential());
 
 // Get the certificate chain for DID:X509 generation
-var certSource = new AzureTrustedSigningCertificateSource(signContext);
+// Note: This creates a temporary AzSignContext just to fetch the cert chain
+using var tempContext = new AzSignContext(
+    "https://your-account.azure-trusted-signing.net",
+    "YourCertificateProfile",
+    new DefaultAzureCredential());
+using var certSource = new AzureTrustedSigningCertificateSource(tempContext);
 var certChain = certSource.GetCertificateChain();
 
 // Configure options for SCITT compliance
@@ -103,6 +116,7 @@ var options = signingService.CreateSigningOptions()
 Combine Azure Trusted Signing with transparency providers (e.g., MST):
 
 ```csharp
+using Azure.Identity;
 using CoseSign1.Transparent.MST;
 
 // Create transparency provider
@@ -110,8 +124,13 @@ var mstProvider = new MstTransparencyProvider(
     serviceUrl: "https://your-mst-service.azure.net",
     credential: new DefaultAzureCredential());
 
+// Create signing service
+using var signingService = new AzureTrustedSigningService(
+    "https://your-account.azure-trusted-signing.net",
+    "YourCertificateProfile",
+    new DefaultAzureCredential());
+
 // Create factory with both signing service and transparency
-using var signingService = new AzureTrustedSigningService(signContext);
 var factory = new DirectSignatureFactory(
     signingService,
     transparencyProviders: new[] { mstProvider });
@@ -145,9 +164,17 @@ The library automatically:
 Manual DID generation:
 
 ```csharp
+using Azure.Identity;
 using CoseSign1.Certificates.AzureTrustedSigning;
 
+// Create a temporary context to fetch certificate chain
+using var tempContext = new AzSignContext(
+    "https://your-account.azure-trusted-signing.net",
+    "YourCertificateProfile",
+    new DefaultAzureCredential());
+using var certSource = new AzureTrustedSigningCertificateSource(tempContext);
 var certChain = certSource.GetCertificateChain();
+
 string did = AzureTrustedSigningDidX509.Generate(certChain);
 Console.WriteLine($"DID:X509 Identifier: {did}");
 ```
@@ -168,6 +195,13 @@ This package integrates with the V2 architecture pattern:
 │   (ISigningService)                 │
 │   - IsRemote = true                 │
 │   - GetCoseSigner()                 │
+│   - Stores: endpoint, profile, cred │
+└────────────┬────────────────────────┘
+             │ Creates per operation
+             ▼
+┌─────────────────────────────────────┐
+│   AzSignContext (Azure SDK)         │
+│   - Per-operation instance          │
 └────────────┬────────────────────────┘
              │
              ▼
@@ -180,18 +214,18 @@ This package integrates with the V2 architecture pattern:
              │
              ▼
 ┌─────────────────────────────────────┐
-│   Azure SDK (AzSignContext)         │
-│   - Remote HSM operations           │
-│   - Certificate management          │
+│   Azure HSMs (FIPS 140-2 L3)        │
+│   - Remote signing operations       │
 └─────────────────────────────────────┘
 ```
 
 Key design principles:
+- **Service-level config**: Endpoint, profile, and credential stored once
+- **Per-operation context**: New AzSignContext created for each signing operation
 - **Remote operations**: All signing happens in Azure HSMs
 - **Certificate management**: Automatic chain building
-- **Lazy initialization**: Certificates fetched on first use
 - **Thread-safe**: Can be used across multiple operations
-- **Disposable**: Proper resource cleanup
+- **Disposable**: Proper resource cleanup per operation
 
 ## Supported Algorithms
 
@@ -256,16 +290,23 @@ var signingService = new AzureTrustedSigningService(
 
 ## Best Practices
 
-1. **Reuse Service Instances**: `AzureTrustedSigningService` is thread-safe and can be reused
-2. **Dispose Properly**: Always dispose of the service when done
-3. **Cache Credentials**: Reuse `TokenCredential` instances
-4. **Monitor Costs**: Each signing operation calls Azure Trusted Signing APIs
-5. **Use SCITT**: Enable SCITT compliance for supply chain security
+1. **Reuse Service Instances**: `AzureTrustedSigningService` is thread-safe and can be reused across operations
+2. **Per-Operation Contexts**: `AzSignContext` is created per signing operation automatically
+3. **Dispose Properly**: Always dispose of the service when done (disposes per-operation resources)
+4. **Cache Credentials**: Reuse `TokenCredential` instances (e.g., `DefaultAzureCredential`)
+5. **Monitor Costs**: Each signing operation calls Azure Trusted Signing APIs
+6. **Use SCITT**: Enable SCITT compliance for supply chain security
 
 ## Migration from V1
 
 V1 pattern (two-step):
 ```csharp
+// V1: Create context
+var signContext = new AzSignContext(
+    endpointUrl: "https://your-account.azure-trusted-signing.net",
+    certProfileName: "YourCertificateProfile",
+    tokenCredential: new DefaultAzureCredential());
+
 // V1: Get key provider
 var keyProvider = new AzureTrustedSigningCoseSigningKeyProvider(signContext);
 
@@ -276,8 +317,11 @@ var message = signer.CreateCoseSign1Message(payload);
 
 V2 pattern (integrated):
 ```csharp
-// V2: Create signing service
-using var signingService = new AzureTrustedSigningService(signContext);
+// V2: Create signing service (reusable, creates contexts per operation)
+using var signingService = new AzureTrustedSigningService(
+    "https://your-account.azure-trusted-signing.net",
+    "YourCertificateProfile",
+    new DefaultAzureCredential());
 
 // V2: Create factory and sign
 var factory = new DirectSignatureFactory(signingService);
@@ -291,6 +335,7 @@ var message = await factory.CreateCoseSign1MessageAsync(payload);
 ```
 
 Key improvements in V2:
+- Service stores configuration, creates contexts per operation (better resource management)
 - Single-call pattern for signed + transparent messages
 - Cleaner separation of concerns
 - Better async support

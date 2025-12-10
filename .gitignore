@@ -52,6 +52,11 @@ Generated\ Files/
 TestResult.xml
 nunit-*.xml
 
+# Code Coverage
+coverage-report/
+coverage.cobertura.xml
+*.coverage
+
 # Build Results of an ATL Project
 [Dd]ebugPS/
 [Rr]eleasePS/

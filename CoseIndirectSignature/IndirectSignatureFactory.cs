@@ -173,6 +173,85 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     }
 
     /// <summary>
+    /// Async version of CreateIndirectSignatureWithChecksInternal that uses async factory methods.
+    /// </summary>
+    /// <param name="returnBytes">True if ReadOnlyMemory{byte} form of CoseSign1Message is to be returned, False for a proper CoseSign1Message</param>
+    /// <param name="signingKeyProvider">The signing key provider used for COSE signing operations.</param>
+    /// <param name="contentType">The user specified content type.</param>
+    /// <param name="streamPayload">If not null, then Stream API's on the CoseSign1MessageFactory are used.</param>
+    /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
+    /// <param name="payloadHashed">True if the payload represents the raw hash</param>
+    /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
+    /// <param name="headerExtender">An optional <see cref="ICoseHeaderExtender"/> to extend the protected headers of the CoseSign1Message.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
+    /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
+    /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
+    /// <exception cref="ArgumentException">payloadHashed is set, but hash size does not correspond to any known hash algorithms</exception>
+    private async Task<object> CreateIndirectSignatureWithChecksInternalAsync(
+        bool returnBytes,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType,
+        IndirectSignatureVersion signatureVersion,
+        Stream? streamPayload = null,
+        ReadOnlyMemory<byte>? bytePayload = null,
+        bool payloadHashed = false,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            throw new ArgumentNullException(nameof(contentType), "A content type must be specified");
+        }
+
+        if (streamPayload is null && !bytePayload.HasValue || // both are empty
+            streamPayload is not null && bytePayload.HasValue)    // both are specified
+        {
+            throw new ArgumentNullException("payload", "Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null");
+        }
+
+        switch(signatureVersion)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            case IndirectSignatureVersion.Direct:
+#pragma warning restore CS0618 // Type or member is obsolete
+                return await CreateIndirectSignatureWithChecksInternalDirectFormatAsync(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed,
+                            headerExtender,
+                            cancellationToken).ConfigureAwait(false);
+#pragma warning disable CS0618 // Type or member is obsolete
+            case IndirectSignatureVersion.CoseHashV:
+#pragma warning restore CS0618 // Type or member is obsolete
+                return await CreateIndirectSignatureWithChecksInternalCoseHashVFormatAsync(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed,
+                            headerExtender,
+                            cancellationToken).ConfigureAwait(false);
+            case IndirectSignatureVersion.CoseHashEnvelope:
+                return await CreateIndirectSignatureWithChecksInternalCoseHashEnvelopeFormatAsync(
+                            returnBytes,
+                            signingKeyProvider,
+                            contentType,
+                            streamPayload,
+                            bytePayload,
+                            payloadHashed,
+                            headerExtender,
+                            cancellationToken).ConfigureAwait(false);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(signatureVersion), "Unknown signature version");
+        }
+    }
+
+    /// <summary>
     /// Get the hash algorithm from the specified CoseHashAlgorithm.
     /// </summary>
     /// <param name="algorithm">The CoseHashAlgorithm to get a hashing type from.</param>

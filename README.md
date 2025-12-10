@@ -4,16 +4,18 @@ CoseSignTool is a platform-agnostic command line application to create and valid
 CoseHandler is a .NET library of static functions that mirror the functionality of CoseSignTool. Or to put it more accurately, CoseSignTool is a command line shell for CoseHandler.
 
 CoseSignTool and CoseHandler support three commands/methods:
-1. Sign: Creates a COSE signature for a file or stream. This signature is saved in a separate file from the source payload, but you may optionally include a copy of the source payload in the signature file.
-2. Validate: Validates that a COSE signature is properly formed, has a valid certificate chain, and matches the source payload or its hash.
-3. Get: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
+1. **Sign**: Creates a COSE signature for a file or stream. This signature is saved in a separate file from the source payload, but you may optionally include a copy of the source payload in the signature file.
+2. **Validate**: Validates that a COSE signature is properly formed, has a valid certificate chain, and matches the source payload or its hash.
+3. **Get**: Reads the source payload from a COSE signature and returns the original text, or writes it to file or console.
 
 Additionally, CoseSignTool supports:
-- **Plugin System**: Extend the tool with custom commands and third-party integrations (Azure Code Transparency Service, etc.)
+- **Plugin System**: Extend the tool with custom commands and third-party integrations (Azure Code Transparency Service, indirect signatures, etc.)
 - **Certificate Provider Plugins**: Use cloud-based signing services, HSMs, or custom certificate sources
   - Built-in support for **Azure Trusted Signing** (Microsoft's managed signing service)
   - Extensible architecture for custom certificate providers
   - See [CertificateProviders.md](./docs/CertificateProviders.md) for details
+- **SCITT Compliance**: Automatic CWT (CBOR Web Token) Claims with DID:x509 identifiers for supply chain transparency
+- **Async APIs**: Full async/await support for signing operations with streams and cancellation tokens
 
 For plugin development, see:
 - [Plugins.md](./docs/Plugins.md) - Comprehensive plugin documentation
@@ -22,7 +24,11 @@ For plugin development, see:
 - [AzureCTS.md](./docs/AzureCTS.md) - Azure Code Transparency Service plugin documentation
 - [CertificateProviders.md](./docs/CertificateProviders.md) - Certificate provider plugin guide
 
-The CoseSign1, CoseSign1.Abstractions, and CoseSign1.Certicates libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios.](./docs/Advanced.md)
+The **CoseSign1**, **CoseSign1.Abstractions**, **CoseSign1.Certificates**, and **CoseSign1.Headers** libraries provide the underlying functionality for CoseSignTool and CoseHandler, and can be called directly for [more advanced scenarios](./docs/Advanced.md), including:
+- Custom header extenders for CWT Claims (SCITT compliance)
+- Async signing operations with streams
+- Custom certificate chain validation
+- Indirect signatures for large payloads
 
 ## What is COSE?
 'COSE' refers to [CBOR Object Signing and Encryption](https://www.iana.org/assignments/cose/cose.xhtml), which is the de-facto standard for signing [Software Bills of Materials (SBOM)](https://www.cisa.gov/sbom). It is also used to provide secure authentication for web and Internet Of Things(IOT) application, and is suitable for signing scripts and other text content. CBOR refers to the [Concise Binary Object Representation](https://datatracker.ietf.org/wg/cbor/about/) Internet standard.
@@ -33,20 +39,26 @@ CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)*
 ### Key Features
 - **Automatic DID:x509 Generation**: Issuer identifiers are automatically derived from your certificate chain
 - **CWT Claims Support**: Include standardized claims (issuer, subject, audience, expiration, etc.) in your signatures
-- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates
+- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates (can be disabled with `--enable-scitt false`)
 - **Fully Customizable**: Override defaults or add custom claims via CLI or programmatic API
+- **Opt-Out Available**: Disable automatic CWT claims when not needed for your use case
 
 ### Quick Example
 ```bash
-# Basic SCITT-compliant signature (automatic DID:x509 issuer + default subject)
+# Basic SCITT-compliant signature
+# Automatically includes: DID:x509 issuer, default subject, timestamps
 CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
 
-# Custom SCITT signature with expiration
+# Custom SCITT signature with specific subject and expiration
 CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
   --cwt-subject "software.release.v1.0" \
-  --cwt-claims "exp:2025-12-31T23:59:59Z"
+  --cwt-claims "4=1735689600"  # exp: Jan 1, 2025
 
-# Using Azure Trusted Signing (cloud-based managed certificates)
+# Disable SCITT compliance (no automatic CWT claims)
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
+  --enable-scitt false
+
+# Using Azure Trusted Signing (cloud-based signing)
 CoseSignTool sign -f payload.txt -s signature.cose \
   --cert-provider azure-trusted-signing \
   --ats-endpoint https://contoso.codesigning.azure.net \
@@ -112,9 +124,38 @@ A tool for signing, validating, and getting payload from Cose signatures.
 ### Using in .NET
 Download a specific version from [releases](https://github.com/microsoft/CoseSignTool/releases). There will be a fully signed version on NuGet.org soon, but this is [just a pre-release](#state-of-the-project), so there's only the open source version available for now.
 
-If you have the option of calling it from a .NET application, go to [CoseHandler.md](./docs/CoseHandler.md)
-You can also use [indirect signatures](./docs/CoseIndirectSignature.md), where the signature can be validated against a hash of the payload content instead of requiring the full payload.
-For advanced topics such as time stamping, see [Advanced](./docs/Advanced.md)
+**Key Libraries and Documentation:**
+- **[CoseHandler.md](./docs/CoseHandler.md)** - High-level API for signing and validation
+- **[CoseSign1.Headers.md](./docs/CoseSign1.Headers.md)** - CWT Claims and custom header extenders for SCITT compliance
+- **[CoseIndirectSignature.md](./docs/CoseIndirectSignature.md)** - Indirect signatures for large payloads
+- **[Advanced.md](./docs/Advanced.md)** - Async APIs, timestamps, and advanced scenarios
+- **[CoseSign1.md](./CoseSign1.md)** - Factory and builder pattern APIs
+
+**Quick Start Example:**
+```csharp
+using CoseSign1;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Headers;
+
+// Certificate-based signing with automatic SCITT compliance
+var cert = new X509Certificate2("cert.pfx", "password");
+var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Automatic CWT claims (issuer from DID:x509, subject="unknown.intent")
+byte[] payload = File.ReadAllBytes("payload.bin");
+var factory = new CoseSign1MessageFactory();
+CoseSign1Message signature = factory.CreateCoseSign1Message(
+    payload, signingKeyProvider, embedPayload: false);
+
+// Or customize CWT claims
+var cwtExtender = new CWTClaimsHeaderExtender()
+    .SetSubject("myapp.v1.0")
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddYears(1));
+
+CoseSign1Message customSignature = factory.CreateCoseSign1Message(
+    payload, signingKeyProvider, embedPayload: false, 
+    headerExtender: cwtExtender);
+```
 
 ## How do I make this better?
 You would like to help? Great!
@@ -123,26 +164,21 @@ First [check to make sure the work isn't already planned](#state-of-the-project)
 * If you would like to contribute actual code to the repo or comment on the pull requests of others, read our [contributor guidelines](./docs/CONTRIBUTING.md) and [style guidelines](./docs/STYLE.md), and then make your contribution.
 
 ## State of the project
-This is an alpha release, so there are some planned features that are not yet in the product, and you may encounter some bugs. If you do, please [report them here.](https://github.com/microsoft/CoseSignTool/issues)
+This project is actively maintained and ready for production use. While we continue to add features and improvements, the core functionality is stable and well-tested.
 
-The planned work is currently tracked only in an internal Microsoft ADO instance but will be moved to Github Issues soon. In the meantime, here is some of the work currently planned.
+The work tracking has been moved to [GitHub Issues](https://github.com/microsoft/CoseSignTool/issues). Here are some areas of ongoing development:
 
-#### New features
-* Enable specifying a mandatory cert chain root for validation
-* Simplify digest signing scenario
-* Support batch operations in CoseSignTool to reduce file and cert store reads
-* Publish single file version of CoseSignTool
+#### Planned Features
+* Enhanced batch operations for improved performance
+* Additional certificate provider integrations
+* Extended SCITT features and compliance options
+* Performance optimizations for large-scale signing operations
 
-#### Security, performance, and reliability improvements
-* Cache certificate store reads for faster performance
-* Ensure type safety on cert store and file reads
-* Investigate specific compilation by platform for possible performance gains
-* Expand code coverage in unit and integration tests
-* Enable secure strings for manual password entry
-
-#### Other
-* Move work item tracking to public Github repo
-* Re-organize the CoseSignTool unit tests for better readability
+#### Ongoing Improvements
+* Expanding test coverage across all platforms
+* Performance profiling and optimization
+* Documentation enhancements
+* Community-requested features
 
 ## Requirements
 CoseSignTool runs on .NET 8. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.

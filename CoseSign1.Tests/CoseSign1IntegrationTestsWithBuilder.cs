@@ -38,10 +38,17 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // There should be 4 ProtectedHeaders.
-        // First one is the algo header provided by Cosesigner. The second and third are from the Default ProtectedHeaders provided by CertificateCoseSignerKeyProvider
-        // The last is the Content Type header provided by the user.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 4);
+        // Verify all expected headers are present:
+        // 1. Algorithm header (from CoseSigner)
+        // 2-3. Default headers from CertificateCoseSigningKeyProvider (X5Chain, X5T)
+        // 4. CWT Claims header (automatically added for SCITT compliance)
+        // 5. Content Type header
+        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
+        response.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.Algorithm);
+        response.ProtectedHeaders.Should().ContainKey(CertificateCoseHeaderLabels.X5Chain);
+        response.ProtectedHeaders.Should().ContainKey(CertificateCoseHeaderLabels.X5T);
+        response.ProtectedHeaders.Should().ContainKey(CWTClaimsHeaderLabels.CWTClaims);
+        response.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.ContentType);
 
         response.UnprotectedHeaders.Should().BeEmpty();
     }
@@ -79,13 +86,25 @@ public class CoseSign1IntegrationTestsWithBuilder
         response.Should().BeOfType<CoseSign1Message>();
         response.ProtectedHeaders.Should().NotBeNull();
 
-        // The count of protected headers should be 5.
-        response.ProtectedHeaders.Should().HaveCount(c => c == 5);
-        response.ProtectedHeaders.First().Key.Should().Be(CoseHeaderLabel.Algorithm); // this is the algo header added by the CoseSigner
+        // Verify all expected headers are present:
+        // 1. Algorithm header (from CoseSigner)
+        // 2-3. Default headers from provider (X5Chain, X5T)
+        // 4. CWT Claims header (automatically added for SCITT compliance)
+        // 5. Content Type header
+        // 6. Custom header from TestHeaderExtender
+        response.ProtectedHeaders.Should().HaveCount(c => c == 6);
+        response.ProtectedHeaders.First().Key.Should().Be(CoseHeaderLabel.Algorithm);
+        response.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.Algorithm);
+        response.ProtectedHeaders.Should().ContainKey(CertificateCoseHeaderLabels.X5Chain);
+        response.ProtectedHeaders.Should().ContainKey(CertificateCoseHeaderLabels.X5T);
+        response.ProtectedHeaders.Should().ContainKey(CWTClaimsHeaderLabels.CWTClaims);
+        response.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.ContentType);
 
-        // Count of Unprotected headers should be 1.
+        // Verify unprotected headers contains the custom header from TestHeaderExtender
         response.UnprotectedHeaders.Should().NotBeNull();
         response.UnprotectedHeaders.Should().HaveCount(c => c == 1);
+        CoseHeaderLabel expectedUnprotectedLabel = new("test-header-label1");
+        response.UnprotectedHeaders.Should().ContainKey(expectedUnprotectedLabel);
     }
 
     /// <summary>

@@ -247,4 +247,159 @@ public class CoseSign1MessageFactoryTests
 
         exceptionText.Message.Should().Be("Signing key provider is not provided.");
     }
+
+    #region Async Method Tests
+
+    /// <summary>
+    /// Tests CreateCoseSign1MessageAsync with byte array payload - should complete synchronously
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageAsync_WithByteArray()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayload = Encoding.ASCII.GetBytes("Async test payload!");
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        // Act
+        CoseSign1Message result = await factory.CreateCoseSign1MessageAsync(
+            testPayload, keyProvider, embedPayload: false, cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.Algorithm);
+    }
+
+    /// <summary>
+    /// Tests CreateCoseSign1MessageAsync with stream payload - should use true async
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageAsync_WithStream()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayloadBytes = Encoding.ASCII.GetBytes("Async stream test!");
+        MemoryStream payloadStream = new(testPayloadBytes);
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        // Act
+        CoseSign1Message result = await factory.CreateCoseSign1MessageAsync(
+            payloadStream, keyProvider, embedPayload: false, cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.ProtectedHeaders.Should().ContainKey(CoseHeaderLabel.Algorithm);
+    }
+
+    /// <summary>
+    /// Tests CreateCoseSign1MessageBytesAsync with byte array payload
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageBytesAsync_WithByteArray()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayload = Encoding.ASCII.GetBytes("Async bytes test!");
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        // Act
+        ReadOnlyMemory<byte> result = await factory.CreateCoseSign1MessageBytesAsync(
+            testPayload, keyProvider, embedPayload: false, cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Length.Should().BeGreaterThan(0);
+        
+        // Decode and verify
+        CoseSign1Message message = CoseMessage.DecodeSign1(result.ToArray());
+        message.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Tests CreateCoseSign1MessageBytesAsync with stream payload
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageBytesAsync_WithStream()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayloadBytes = Encoding.ASCII.GetBytes("Async stream bytes test!");
+        MemoryStream payloadStream = new(testPayloadBytes);
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        // Act
+        ReadOnlyMemory<byte> result = await factory.CreateCoseSign1MessageBytesAsync(
+            payloadStream, keyProvider, embedPayload: false, cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Length.Should().BeGreaterThan(0);
+        
+        // Decode and verify
+        CoseSign1Message message = CoseMessage.DecodeSign1(result.ToArray());
+        message.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Tests async methods with custom header extender
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageAsync_WithHeaderExtender()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayload = Encoding.ASCII.GetBytes("Test with header extender!");
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        Mock<ICoseHeaderExtender> mockedHeaderExtender = new();
+        CoseHeaderLabel testLabel = new("custom-header");
+        CoseHeaderMap testHeaders = new() { { testLabel, "custom-value" } };
+        
+        mockedHeaderExtender.Setup(x => x.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(testHeaders);
+        mockedHeaderExtender.Setup(x => x.ExtendUnProtectedHeaders(It.IsAny<CoseHeaderMap>())).Returns(new CoseHeaderMap());
+
+        // Act
+        CoseSign1Message result = await factory.CreateCoseSign1MessageAsync(
+            testPayload, keyProvider, embedPayload: false, headerExtender: mockedHeaderExtender.Object,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        mockedHeaderExtender.Verify(x => x.ExtendProtectedHeaders(It.IsAny<CoseHeaderMap>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that async methods with embed=true work correctly
+    /// </summary>
+    [Test]
+    public async Task TestCreateCoseSign1MessageAsync_WithEmbedPayload()
+    {
+        // Arrange
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        byte[] testPayloadBytes = Encoding.ASCII.GetBytes("Embedded payload test!");
+        MemoryStream payloadStream = new(testPayloadBytes);
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, testCert);
+        CoseSign1MessageFactory factory = new();
+
+        // Act
+        CoseSign1Message result = await factory.CreateCoseSign1MessageAsync(
+            payloadStream, keyProvider, embedPayload: true, cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Content.Should().NotBeNull();
+        result.Content!.Value.ToArray().Should().BeEquivalentTo(testPayloadBytes);
+    }
+
+    #endregion
 }
+

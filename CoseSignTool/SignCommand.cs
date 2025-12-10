@@ -244,51 +244,64 @@ public class SignCommand : CoseCommand
         try
         {
             // Use shared header processing logic
-            CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
+            ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
-            // If SCITT compliance is enabled or CWT claims are specified, wrap the header extender with CWT claims
-            // Note: CWT claims are only supported for certificate-based signing key providers
-            if ((EnableScittCompliance || CwtIssuer != null || CwtSubject != null || CwtAudience != null) &&
-                signingKeyProvider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+            // If CWT claims customization is requested, create a CWT extender
+            // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
+            // We only need to create a customizer if the user wants to override defaults
+            if (CwtIssuer != null || CwtSubject != null || CwtAudience != null || (CwtClaims != null && CwtClaims.Count > 0))
             {
-                // Create the X509 + CWT header extender using the convenient extension method
-                CoseSign1.Abstractions.Interfaces.ICoseHeaderExtender cwtHeaderExtender = 
-                    certProvider.CreateHeaderExtenderWithCWTClaims(CwtIssuer, CwtSubject);
+                // Create a CWT claims extender with user-specified values
+                // This will merge with and override the automatic defaults from CertificateCoseSigningKeyProvider
+                CWTClaimsHeaderExtender cwtCustomizer = new();
 
-                // If audience is also specified, we need to customize further
+                // Override issuer if specified
+                if (CwtIssuer != null)
+                {
+                    cwtCustomizer.SetIssuer(CwtIssuer);
+                }
+
+                // Override subject if specified
+                if (CwtSubject != null)
+                {
+                    cwtCustomizer.SetSubject(CwtSubject);
+                }
+
+                // Add audience if specified
                 if (CwtAudience != null)
                 {
-                    // Get the active CWT claims extender and add the audience
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        certWithCwtExtender.ActiveCWTClaimsExtender.SetAudience(CwtAudience);
-                    }
+                    cwtCustomizer.SetAudience(CwtAudience);
                 }
 
                 // Apply any custom CWT claims specified via CwtClaims
                 if (CwtClaims != null && CwtClaims.Count > 0)
                 {
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        ApplyCwtClaims(certWithCwtExtender.ActiveCWTClaimsExtender, CwtClaims);
-                    }
+                    ApplyCwtClaims(cwtCustomizer, CwtClaims);
                 }
 
-                // If there was an existing header extender, chain them together
+                // Chain the CWT customizer with any existing header extender
                 if (headerExtender != null)
                 {
-                    headerExtender = new CoseSign1.ChainedCoseHeaderExtender(new[] { cwtHeaderExtender, headerExtender });
+                    headerExtender = new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { cwtCustomizer, headerExtender });
                 }
                 else
                 {
-                    headerExtender = cwtHeaderExtender;
+                    headerExtender = cwtCustomizer;
                 }
             }
 
-            // Sign the content.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
+            // Create a cancellation token with timeout (default 30 seconds from MaxWaitTime)
+            using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
+            
+            // Generate the COSE signature asynchronously with cancellation support.
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.SignAsync(
+                payloadStream, 
+                signingKeyProvider, 
+                EmbedPayload, 
+                SignatureFile, 
+                ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, 
+                headerExtender,
+                timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
             
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -665,7 +678,15 @@ public class SignCommand : CoseCommand
 
         // Create and return the provider
         // Note: We could pass a logger here if we had one available
-        return plugin.CreateProvider(configuration, logger: null);
+        ICoseSigningKeyProvider provider = plugin.CreateProvider(configuration, logger: null);
+        
+        // If the provider is a certificate-based provider, set the EnableScittCompliance flag
+        if (provider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+        {
+            certProvider.EnableScittCompliance = EnableScittCompliance;
+        }
+        
+        return provider;
     }
 
     /// <summary>
@@ -675,7 +696,11 @@ public class SignCommand : CoseCommand
     private ICoseSigningKeyProvider LoadSigningKeyProviderFromLocalCertificate()
     {
         (X509Certificate2 cert, List<X509Certificate2>? additionalRoots) = LoadCert();
-        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(null, cert, additionalRoots);
+        return new CoseSign1.Certificates.Local.X509Certificate2CoseSigningKeyProvider(
+            certificateChainBuilder: null,
+            signingCertificate: cert,
+            rootCertificates: additionalRoots,
+            enableScittCompliance: EnableScittCompliance);
     }
 
     /// <summary>

@@ -8,6 +8,8 @@ global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
 global using System.Text;
+global using CoseSign1.Headers;
+global using CoseSign1.Headers.Extensions;
 global using System.Threading;
 global using CoseSign1.Abstractions;
 global using CoseSign1.Abstractions.Interfaces;

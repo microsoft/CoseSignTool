@@ -15,6 +15,7 @@ global using System.Runtime.Serialization;
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
 global using System.Text.RegularExpressions;
+global using System.Threading;
 global using System.Threading.Tasks;
 global using CoseIndirectSignature.Exceptions;
 global using CoseIndirectSignature.Extensions;

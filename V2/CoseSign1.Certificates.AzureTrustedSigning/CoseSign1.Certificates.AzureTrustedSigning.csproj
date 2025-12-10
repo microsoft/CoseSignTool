@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--Build configuration-->
+	<PropertyGroup>
+		<TargetFrameworks>net10.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<!--Code style and static analysis-->
+	<PropertyGroup>
+		<Nullable>enable</Nullable>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+		<AnalysisLevel>latest</AnalysisLevel>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	</PropertyGroup>
+
+	<!--Strong name signing-->
+	<PropertyGroup>
+		<SignAssembly>True</SignAssembly>
+		<DelaySign>True</DelaySign>
+		<AssemblyOriginatorKeyFile>..\..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
+
+	<!--NuGet package configuration-->
+	<PropertyGroup>
+		<PackageId>$(MSBuildProjectName)</PackageId>
+		<Company>Microsoft</Company>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Description>Azure Trusted Signing remote signing service for COSE Sign1 V2 architecture.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+		<ProjectReference Include="..\DIDx509\DIDx509.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+</Project>

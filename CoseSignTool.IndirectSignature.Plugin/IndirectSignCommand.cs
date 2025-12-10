@@ -311,8 +311,9 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically includes default CWT claims
             logger.LogVerbose("Creating indirect signature...");
             // Use async method to support cancellation via the cancellationToken
+            using MemoryStream payloadStream = new(payload);
             CoseSign1Message indirectSignature = await factory.CreateIndirectSignatureAsync(
-                payload: new MemoryStream(payload),
+                payload: payloadStream,
                 signingKeyProvider: signingKeyProvider,
                 contentType: contentType,
                 signatureVersion: signatureVersion,

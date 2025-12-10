@@ -359,7 +359,7 @@ public class CwtClaimsTests
 
         // Assert
         Assert.That(claims.Issuer, Is.Null);
-        Assert.That(claims.Subject, Is.Null);
+        Assert.That(claims.Subject, Is.EqualTo(CwtClaims.DefaultSubject));
         Assert.That(claims.Audience, Is.Null);
         Assert.That(claims.ExpirationTime, Is.Null);
         Assert.That(claims.NotBefore, Is.Null);

@@ -356,8 +356,8 @@ public static class CoseHandler
         CancellationToken cancellationToken = default)
     {
         // Validate that we have exactly one form of payload input.
-        _ = CountOfDefined(payloadBytes, payloadStream, payloadFile) == 1 ? true
-            : throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
+        _ = CountOfDefined(payloadBytes, payloadStream, payloadFile) == 1
+            || throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
 
         try
         {

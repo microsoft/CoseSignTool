@@ -22,13 +22,11 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Running tests with coverage collection..." -ForegroundColor Yellow
-# Collect coverage using dotnet-coverage
+# Collect coverage using dotnet-coverage - test all projects (auto-discovers test projects)
 dotnet-coverage collect --output coverage.cobertura.xml --output-format cobertura "dotnet test --no-build"
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Test execution failed!" -ForegroundColor Red
-    exit 1
-}
+# Continue even if tests fail to generate coverage report
+$testExitCode = $LASTEXITCODE
 
 Write-Host ""
 Write-Host "Generating coverage report..." -ForegroundColor Yellow
@@ -63,9 +61,16 @@ Write-Host "Gap: $([math]::Round(95 - $lineCoverageNum, 1))%" -ForegroundColor $
 if ($lineCoverageNum -lt 95) {
     Write-Host ""
     Write-Host "Coverage is below target. Review coverage-report\index.html for details." -ForegroundColor Yellow
+    if ($testExitCode -ne 0) {
+        Write-Host "Note: Some tests failed during execution." -ForegroundColor Yellow
+    }
     exit 1
 } else {
     Write-Host ""
     Write-Host "Coverage target achieved!" -ForegroundColor Green
+    if ($testExitCode -ne 0) {
+        Write-Host "Warning: Coverage target met but some tests failed." -ForegroundColor Yellow
+        exit 1
+    }
     exit 0
 }

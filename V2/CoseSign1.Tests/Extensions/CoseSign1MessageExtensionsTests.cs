@@ -311,4 +311,348 @@ public class CoseSign1MessageExtensionsTests
         // Assert
         Assert.That(result, Is.False);
     }
+
+    #region Unprotected Header Tests
+
+    [Test]
+    public void TryGetHeader_String_WithUnprotectedHeader_AllowedTrue_ReturnsValue()
+    {
+        // Arrange - Create a message and manually add unprotected header
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5000);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromString("unprotected-value"));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out string? value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo("unprotected-value"));
+    }
+
+    [Test]
+    public void TryGetHeader_String_WithUnprotectedHeader_AllowedFalse_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5001);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromString("unprotected-value"));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out string? value, allowUnprotected: false);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.Null);
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithUnprotectedHeader_AllowedTrue_ReturnsValue()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5002);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromInt32(99));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out int value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithUnprotectedHeader_AllowedFalse_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5003);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromInt32(99));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out int value, allowUnprotected: false);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithUnprotectedHeader_AllowedTrue_ReturnsValue()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5004);
+        var testBytes = new byte[] { 0xAA, 0xBB, 0xCC };
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromBytes(testBytes));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out ReadOnlyMemory<byte> value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value.ToArray(), Is.EqualTo(testBytes));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithUnprotectedHeader_AllowedFalse_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5005);
+        var testBytes = new byte[] { 0xDD, 0xEE, 0xFF };
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromBytes(testBytes));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out ReadOnlyMemory<byte> value, allowUnprotected: false);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void HasHeader_WithUnprotectedHeader_AllowedTrue_ReturnsTrue()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5006);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromString("test"));
+
+        // Act
+        bool result = message.HasHeader(testLabel, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void HasHeader_WithUnprotectedHeader_AllowedFalse_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5007);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromString("test"));
+
+        // Act
+        bool result = message.HasHeader(testLabel, allowUnprotected: false);
+
+        // Assert
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void TryGetHeader_ProtectedTakesPrecedenceOverUnprotected()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5008);
+        
+        // Add to both protected (via creation) and unprotected
+        var headers = new CoseHeaderMap();
+        headers.Add(testLabel, CoseHeaderValue.FromString("protected-value"));
+        message = CreateTestMessage(TestPayload, headers);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromString("unprotected-value"));
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out string? value, allowUnprotected: true);
+
+        // Assert - Should return protected value
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo("protected-value"));
+    }
+
+    #endregion
+
+    #region Type Conversion Error Tests
+
+    [Test]
+    public void TryGetHeader_String_WithIntValue_ReturnsFalse()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5100);
+        headers.Add(testLabel, CoseHeaderValue.FromInt32(42));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act - Try to get as string
+        bool result = message.TryGetHeader(testLabel, out string? value);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.Null);
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithStringValue_ReturnsFalse()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5101);
+        headers.Add(testLabel, CoseHeaderValue.FromString("not-a-number"));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act - Try to get as int
+        bool result = message.TryGetHeader(testLabel, out int value);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithStringValue_ReturnsFalse()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5102);
+        headers.Add(testLabel, CoseHeaderValue.FromString("not-bytes"));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act - Try to get as bytes
+        bool result = message.TryGetHeader(testLabel, out ReadOnlyMemory<byte> value);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_String_WithIntValue_FromUnprotected_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5103);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromInt32(123));
+
+        // Act - Try to get as string from unprotected
+        bool result = message.TryGetHeader(testLabel, out string? value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.Null);
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithBytesValue_FromUnprotected_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5104);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromBytes(new byte[] { 1, 2, 3 }));
+
+        // Act - Try to get as int from unprotected
+        bool result = message.TryGetHeader(testLabel, out int value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithIntValue_FromUnprotected_ReturnsFalse()
+    {
+        // Arrange
+        var message = CreateTestMessage(TestPayload);
+        var testLabel = new CoseHeaderLabel(5105);
+        message.UnprotectedHeaders.Add(testLabel, CoseHeaderValue.FromInt32(456));
+
+        // Act - Try to get as bytes from unprotected
+        bool result = message.TryGetHeader(testLabel, out ReadOnlyMemory<byte> value, allowUnprotected: true);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(value.Length, Is.EqualTo(0));
+    }
+
+    #endregion
+
+    #region Additional Edge Cases
+
+    [Test]
+    public void TryGetHeader_String_WithEmptyString_ReturnsTrue()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5200);
+        headers.Add(testLabel, CoseHeaderValue.FromString(string.Empty));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out string? value);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithEmptyBytes_ReturnsTrue()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5201);
+        headers.Add(testLabel, CoseHeaderValue.FromBytes(Array.Empty<byte>()));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out ReadOnlyMemory<byte> value);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithZero_ReturnsTrue()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5202);
+        headers.Add(testLabel, CoseHeaderValue.FromInt32(0));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out int value);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithNegativeValue_ReturnsTrue()
+    {
+        // Arrange
+        var headers = new CoseHeaderMap();
+        var testLabel = new CoseHeaderLabel(5203);
+        headers.Add(testLabel, CoseHeaderValue.FromInt32(-42));
+        var message = CreateTestMessage(TestPayload, headers);
+
+        // Act
+        bool result = message.TryGetHeader(testLabel, out int value);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo(-42));
+    }
+
+    [Test]
+    public void TryGetContentType_WithMissingContentTypeHeader_ReturnsFalse()
+    {
+        // Arrange - Create a minimalist message without content type
+        var testMessage = new byte[] { 0xd2, 0x84, 0x40, 0xa0, 0x40, 0x40 }; // Minimal COSE_Sign1 without content type
+        var message = CoseMessage.DecodeSign1(testMessage);
+
+        // Act
+        bool result = message.TryGetContentType(out string? contentType);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(contentType, Is.Null);
+    }
+
+    #endregion
 }
+

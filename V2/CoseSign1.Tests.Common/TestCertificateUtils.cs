@@ -76,10 +76,10 @@ public static class TestCertificateUtils
         request.CertificateExtensions.Add(
             new X509BasicConstraintsExtension(true, true, 12, true));
 
-        // Key usage: Digital Signature and Key Encipherment
+        // Key usage: Digital Signature and Key Cert Sign (for both CA and leaf certs)
         request.CertificateExtensions.Add(
             new X509KeyUsageExtension(
-                X509KeyUsageFlags.KeyCertSign,
+                X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.DigitalSignature,
                 true));
 
         if (issuingCa != null)
@@ -195,10 +195,13 @@ public static class TestCertificateUtils
         X509Certificate2? generatedCertificate = null;
         if (issuingCa != null)
         {
-            generatedCertificate = request.Create(issuingCa, notbefore, notafter, serial);
-            return useEcc
-                ? generatedCertificate.CopyWithPrivateKey((ECDsa)algo)
-                : generatedCertificate.CopyWithPrivateKey((RSA)algo);
+            using (var certWithoutKey = request.Create(issuingCa, notbefore, notafter, serial))
+            {
+                generatedCertificate = useEcc
+                    ? certWithoutKey.CopyWithPrivateKey((ECDsa)algo)
+                    : certWithoutKey.CopyWithPrivateKey((RSA)algo);
+            }
+            return generatedCertificate;
         }
         else
         {

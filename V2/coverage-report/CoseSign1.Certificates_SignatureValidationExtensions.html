@@ -36,16 +36,16 @@
 <div class="card">
 <div class="card-header">Line coverage</div>
 <div class="card-body">
-<div class="large cardpercentagebar cardpercentagebar33">66%</div>
+<div class="large cardpercentagebar cardpercentagebar0">100%</div>
 <div class="table">
 <table>
 <tr>
 <th>Covered lines:</th>
-<td class="limit-width right" title="6">6</td>
+<td class="limit-width right" title="9">9</td>
 </tr>
 <tr>
 <th>Uncovered lines:</th>
-<td class="limit-width right" title="3">3</td>
+<td class="limit-width right" title="0">0</td>
 </tr>
 <tr>
 <th>Coverable lines:</th>
@@ -57,7 +57,7 @@
 </tr>
 <tr>
 <th>Line coverage:</th>
-<td class="limit-width right" title="6 of 9">66.6%</td>
+<td class="limit-width right" title="9 of 9">100%</td>
 </tr>
 </table>
 </div>
@@ -109,7 +109,7 @@
 <tbody>
 <tr><td title="ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, bool)"><a href="#file0_line24" class="navigatetohash">ValidateCertificateSignature(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, byte[], bool)"><a href="#file0_line39" class="navigatetohash">ValidateCertificateSignature(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)"><a href="#file0_line54" class="navigatetohash">ValidateCertificateSignature(...)</a></td><td>100%</td><td>2</td><td>1</td><td>0%</td></tr>
+<tr><td title="ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)"><a href="#file0_line54" class="navigatetohash">ValidateCertificateSignature(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 </tbody>
 </table>
 </div>
@@ -172,20 +172,20 @@
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line51"></a><code>51</code></td><td></td><td class="lightgray"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;this&nbsp;ICoseMessageValidationBuilder&nbsp;builder,</code></td></tr>
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line52"></a><code>52</code></td><td></td><td class="lightgray"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ReadOnlyMemory&lt;byte&gt;&nbsp;detachedPayload,</code></td></tr>
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line53"></a><code>53</code></td><td></td><td class="lightgray"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool&nbsp;allowUnprotectedHeaders&nbsp;=&nbsp;false)</code></td></tr>
-<tr class="coverableline" title="Not covered (0 visits)" data-coverage="{'AllTestMethods': {'VC': '0', 'LVS': 'red'}}"><td class="red">&nbsp;</td><td class="leftmargin rightmargin right">0</td><td class="rightmargin right"><a id="file0_line54"></a><code>54</code></td><td></td><td class="lightred"><code>&nbsp;&nbsp;&nbsp;&nbsp;{</code></td></tr>
-<tr class="coverableline" title="Not covered (0 visits)" data-coverage="{'AllTestMethods': {'VC': '0', 'LVS': 'red'}}"><td class="red">&nbsp;</td><td class="leftmargin rightmargin right">0</td><td class="rightmargin right"><a id="file0_line55"></a><code>55</code></td><td></td><td class="lightred"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;builder.AddValidator(new&nbsp;CertificateDetachedSignatureValidator(detachedPayload,&nbsp;allowUnprotectedHeaders))</code></td></tr>
-<tr class="coverableline" title="Not covered (0 visits)" data-coverage="{'AllTestMethods': {'VC': '0', 'LVS': 'red'}}"><td class="red">&nbsp;</td><td class="leftmargin rightmargin right">0</td><td class="rightmargin right"><a id="file0_line56"></a><code>56</code></td><td></td><td class="lightred"><code>&nbsp;&nbsp;&nbsp;&nbsp;}</code></td></tr>
+<tr class="coverableline" title="Covered (1 visits)" data-coverage="{'AllTestMethods': {'VC': '1', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">1</td><td class="rightmargin right"><a id="file0_line54"></a><code>54</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;{</code></td></tr>
+<tr class="coverableline" title="Covered (1 visits)" data-coverage="{'AllTestMethods': {'VC': '1', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">1</td><td class="rightmargin right"><a id="file0_line55"></a><code>55</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;builder.AddValidator(new&nbsp;CertificateDetachedSignatureValidator(detachedPayload,&nbsp;allowUnprotectedHeaders))</code></td></tr>
+<tr class="coverableline" title="Covered (1 visits)" data-coverage="{'AllTestMethods': {'VC': '1', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">1</td><td class="rightmargin right"><a id="file0_line56"></a><code>56</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;}</code></td></tr>
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line57"></a><code>57</code></td><td></td><td class="lightgray"><code>}</code></td></tr>
 </tbody>
 </table>
 </div>
-<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />12/9/2025 - 5:17:29 PM<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
+<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />12/10/2025 - 2:39:02 PM<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
 <div class="containerright">
 <div class="containerrightfixed">
 <h1>Methods/Properties</h1>
 <a href="#file0_line24" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, bool)"><i class="icon-cube"></i>ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, bool)</a><br />
 <a href="#file0_line39" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, byte[], bool)"><i class="icon-cube"></i>ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, byte[], bool)</a><br />
-<a href="#file0_line54" class="navigatetohash percentagebar percentagebar0" title="Line coverage: 0% - ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)"><i class="icon-cube"></i>ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)</a><br />
+<a href="#file0_line54" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)"><i class="icon-cube"></i>ValidateCertificateSignature(CoseSign1.Validation.ICoseMessageValidationBuilder, System.ReadOnlyMemory&lt;byte&gt;, bool)</a><br />
 <br/></div>
 </div></div>
 <script type="text/javascript">

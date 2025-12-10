@@ -216,10 +216,10 @@ var assemblies = [
       { "name": "CoseSign1.Direct.ContentTypeHeaderContributor", "rp": "CoseSign1_ContentTypeHeaderContributor.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 52, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Direct.DirectSignatureFactory", "rp": "CoseSign1_DirectSignatureFactory.html", "cl": 171, "ucl": 41, "cal": 212, "tl": 556, "cb": 47, "tb": 66, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Direct.DirectSignatureOptions", "rp": "CoseSign1_DirectSignatureOptions.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Extensions.CoseSign1MessageExtensions", "rp": "CoseSign1_CoseSign1MessageExtensions.html", "cl": 51, "ucl": 50, "cal": 101, "tl": 214, "cb": 20, "tb": 36, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Extensions.CoseSign1MessageExtensions", "rp": "CoseSign1_CoseSign1MessageExtensions.html", "cl": 95, "ucl": 6, "cal": 101, "tl": 214, "cb": 34, "tb": 36, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Indirect.CoseHashEnvelopeHeaderContributor", "rp": "CoseSign1_CoseHashEnvelopeHeaderContributor.html", "cl": 58, "ucl": 0, "cal": 58, "tl": 129, "cb": 20, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Indirect.CoseHashEnvelopeHeaderContributor.HeaderLabels", "rp": "CoseSign1_HeaderLabels.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 129, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Indirect.Extensions.CoseSign1MessageIndirectExtensions", "rp": "CoseSign1_CoseSign1MessageIndirectExtensions.html", "cl": 39, "ucl": 17, "cal": 56, "tl": 154, "cb": 17, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Indirect.Extensions.CoseSign1MessageIndirectExtensions", "rp": "CoseSign1_CoseSign1MessageIndirectExtensions.html", "cl": 52, "ucl": 4, "cal": 56, "tl": 154, "cb": 24, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Indirect.IndirectSignatureFactory", "rp": "CoseSign1_IndirectSignatureFactory.html", "cl": 159, "ucl": 30, "cal": 189, "tl": 539, "cb": 39, "tb": 56, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Indirect.IndirectSignatureOptions", "rp": "CoseSign1_IndirectSignatureOptions.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 25, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
@@ -229,68 +229,95 @@ var assemblies = [
       { "name": "CoseSign1.Abstractions.HeaderContributorContext", "rp": "CoseSign1.Abstractions_HeaderContributorContext.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 99, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Abstractions.SigningContext", "rp": "CoseSign1.Abstractions_SigningContext.html", "cl": 28, "ucl": 2, "cal": 30, "tl": 84, "cb": 3, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Abstractions.SigningKeyMetadata", "rp": "CoseSign1.Abstractions_SigningKeyMetadata.html", "cl": 26, "ucl": 0, "cal": 26, "tl": 94, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Abstractions.SigningOptions", "rp": "CoseSign1.Abstractions_SigningOptions.html", "cl": 4, "ucl": 1, "cal": 5, "tl": 67, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Abstractions.SigningOptions", "rp": "CoseSign1.Abstractions_SigningOptions.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 67, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Abstractions.SigningServiceMetadata", "rp": "CoseSign1.Abstractions_SigningServiceMetadata.html", "cl": 17, "ucl": 0, "cal": 17, "tl": 54, "cb": 5, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Abstractions.Transparency.TransparencyExtensions", "rp": "CoseSign1.Abstractions_TransparencyExtensions.html", "cl": 0, "ucl": 24, "cal": 24, "tl": 112, "cb": 0, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Abstractions.Transparency.TransparencyValidationResult", "rp": "CoseSign1.Abstractions_TransparencyValidationResult.html", "cl": 0, "ucl": 34, "cal": 34, "tl": 85, "cb": 0, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Abstractions.Transparency.TransparencyExtensions", "rp": "CoseSign1.Abstractions_TransparencyExtensions.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 112, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Abstractions.Transparency.TransparencyValidationResult", "rp": "CoseSign1.Abstractions_TransparencyValidationResult.html", "cl": 34, "ucl": 0, "cal": 34, "tl": 85, "cb": 1, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
   {
     "name": "CoseSign1.Certificates",
     "classes": [
-      { "name": "CoseSign1.Certificates.CertificateHeaderContributor", "rp": "CoseSign1.Certificates_CertificateHeaderContributor.html", "cl": 24, "ucl": 11, "cal": 35, "tl": 111, "cb": 7, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.CertificateHeaderContributor", "rp": "CoseSign1.Certificates_CertificateHeaderContributor.html", "cl": 35, "ucl": 0, "cal": 35, "tl": 111, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.CertificateHeaderContributor.HeaderLabels", "rp": "CoseSign1.Certificates_HeaderLabels.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 111, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.CertificateSigningKey", "rp": "CoseSign1.Certificates_CertificateSigningKey.html", "cl": 115, "ucl": 16, "cal": 131, "tl": 230, "cb": 42, "tb": 54, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.CertificateSigningOptions", "rp": "CoseSign1.Certificates_CertificateSigningOptions.html", "cl": 0, "ucl": 2, "cal": 2, "tl": 63, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.CertificateSigningService", "rp": "CoseSign1.Certificates_CertificateSigningService.html", "cl": 52, "ucl": 33, "cal": 85, "tl": 220, "cb": 16, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.CertificateSigningKey", "rp": "CoseSign1.Certificates_CertificateSigningKey.html", "cl": 117, "ucl": 14, "cal": 131, "tl": 230, "cb": 43, "tb": 54, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.CertificateSigningOptions", "rp": "CoseSign1.Certificates_CertificateSigningOptions.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 63, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.CertificateSigningService", "rp": "CoseSign1.Certificates_CertificateSigningService.html", "cl": 52, "ucl": 33, "cal": 85, "tl": 220, "cb": 17, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.CertificateSourceBase", "rp": "CoseSign1.Certificates_CertificateSourceBase.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 77, "cb": 9, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.ChainBuilders.ExplicitCertificateChainBuilder", "rp": "CoseSign1.Certificates_ExplicitCertificateChainBuilder.html", "cl": 55, "ucl": 7, "cal": 62, "tl": 154, "cb": 12, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.ChainBuilders.X509ChainBuilder", "rp": "CoseSign1.Certificates_X509ChainBuilder.html", "cl": 52, "ucl": 0, "cal": 52, "tl": 137, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.ChainBuilders.X509ChainBuilder", "rp": "CoseSign1.Certificates_X509ChainBuilder.html", "cl": 61, "ucl": 15, "cal": 76, "tl": 173, "cb": 9, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.CoseX509Thumbprint", "rp": "CoseSign1.Certificates_CoseX509Thumbprint.html", "cl": 95, "ucl": 7, "cal": 102, "tl": 204, "cb": 29, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Exceptions.CoseX509FormatException", "rp": "CoseSign1.Certificates_CoseX509FormatException.html", "cl": 3, "ucl": 6, "cal": 9, "tl": 34, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Extensions.CborWriterExtensions", "rp": "CoseSign1.Certificates_CborWriterExtensions.html", "cl": 9, "ucl": 13, "cal": 22, "tl": 55, "cb": 4, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Extensions.CertificateSigningOptionsExtensions", "rp": "CoseSign1.Certificates_CertificateSigningOptionsExtensions.html", "cl": 6, "ucl": 6, "cal": 12, "tl": 42, "cb": 2, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Extensions.CoseSign1MessageCertificateExtensions", "rp": "CoseSign1.Certificates_CoseSign1MessageCertificateExtensions.html", "cl": 135, "ucl": 42, "cal": 177, "tl": 341, "cb": 56, "tb": 80, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Exceptions.CoseX509FormatException", "rp": "CoseSign1.Certificates_CoseX509FormatException.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 34, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Extensions.CborWriterExtensions", "rp": "CoseSign1.Certificates_CborWriterExtensions.html", "cl": 22, "ucl": 0, "cal": 22, "tl": 55, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Extensions.CertificateSigningOptionsExtensions", "rp": "CoseSign1.Certificates_CertificateSigningOptionsExtensions.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 42, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Extensions.CoseSign1MessageCertificateExtensions", "rp": "CoseSign1.Certificates_CoseSign1MessageCertificateExtensions.html", "cl": 168, "ucl": 9, "cal": 177, "tl": 341, "cb": 74, "tb": 80, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.Local.DirectCertificateSource", "rp": "CoseSign1.Certificates_DirectCertificateSource.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 57, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Local.DirectSigningKeyProvider", "rp": "CoseSign1.Certificates_DirectSigningKeyProvider.html", "cl": 46, "ucl": 10, "cal": 56, "tl": 114, "cb": 18, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Local.DirectSigningKeyProvider", "rp": "CoseSign1.Certificates_DirectSigningKeyProvider.html", "cl": 52, "ucl": 4, "cal": 56, "tl": 114, "cb": 22, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.Local.LinuxCertificateStoreCertificateSource", "rp": "CoseSign1.Certificates_LinuxCertificateStoreCertificateSource.html", "cl": 160, "ucl": 23, "cal": 183, "tl": 343, "cb": 58, "tb": 62, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.Local.LocalCertificateSigningService", "rp": "CoseSign1.Certificates_LocalCertificateSigningService.html", "cl": 38, "ucl": 6, "cal": 44, "tl": 99, "cb": 13, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.Local.PfxCertificateSource", "rp": "CoseSign1.Certificates_PfxCertificateSource.html", "cl": 40, "ucl": 0, "cal": 40, "tl": 140, "cb": 8, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Certificates.Local.WindowsCertificateStoreCertificateSource", "rp": "CoseSign1.Certificates_WindowsCertificateStoreCertificateSource.html", "cl": 58, "ucl": 4, "cal": 62, "tl": 166, "cb": 15, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Remote.RemoteCertificateSource", "rp": "CoseSign1.Certificates_RemoteCertificateSource.html", "cl": 0, "ucl": 76, "cal": 76, "tl": 269, "cb": 0, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Remote.RemoteECDsa", "rp": "CoseSign1.Certificates_RemoteECDsa.html", "cl": 0, "ucl": 47, "cal": 47, "tl": 93, "cb": 0, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Remote.RemoteMLDsa", "rp": "CoseSign1.Certificates_RemoteMLDsa.html", "cl": 0, "ucl": 52, "cal": 52, "tl": 108, "cb": 0, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Remote.RemoteRsa", "rp": "CoseSign1.Certificates_RemoteRsa.html", "cl": 0, "ucl": 31, "cal": 31, "tl": 72, "cb": 0, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Remote.RemoteSigningKeyProvider", "rp": "CoseSign1.Certificates_RemoteSigningKeyProvider.html", "cl": 0, "ucl": 124, "cal": 124, "tl": 206, "cb": 0, "tb": 54, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateChainValidator", "rp": "CoseSign1.Certificates_CertificateChainValidator.html", "cl": 0, "ucl": 155, "cal": 155, "tl": 243, "cb": 0, "tb": 62, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateCommonNameValidator", "rp": "CoseSign1.Certificates_CertificateCommonNameValidator.html", "cl": 24, "ucl": 20, "cal": 44, "tl": 84, "cb": 6, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateDetachedSignatureValidator", "rp": "CoseSign1.Certificates_CertificateDetachedSignatureValidator.html", "cl": 23, "ucl": 15, "cal": 38, "tl": 79, "cb": 6, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateExpirationValidator", "rp": "CoseSign1.Certificates_CertificateExpirationValidator.html", "cl": 30, "ucl": 18, "cal": 48, "tl": 92, "cb": 7, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateKeyUsageValidator", "rp": "CoseSign1.Certificates_CertificateKeyUsageValidator.html", "cl": 0, "ucl": 92, "cal": 92, "tl": 161, "cb": 0, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificatePredicateValidator", "rp": "CoseSign1.Certificates_CertificatePredicateValidator.html", "cl": 21, "ucl": 17, "cal": 38, "tl": 73, "cb": 4, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateSignatureValidator", "rp": "CoseSign1.Certificates_CertificateSignatureValidator.html", "cl": 19, "ucl": 10, "cal": 29, "tl": 62, "cb": 4, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateValidationBuilder", "rp": "CoseSign1.Certificates_CertificateValidationBuilder.html", "cl": 25, "ucl": 20, "cal": 45, "tl": 91, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.CertificateValidationExtensions", "rp": "CoseSign1.Certificates_CertificateValidationExtensions.html", "cl": 6, "ucl": 27, "cal": 33, "tl": 180, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.SignatureValidationExtensions", "rp": "CoseSign1.Certificates_SignatureValidationExtensions.html", "cl": 6, "ucl": 3, "cal": 9, "tl": 57, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Certificates.Validation.SignatureValidator", "rp": "CoseSign1.Certificates_SignatureValidator.html", "cl": 0, "ucl": 23, "cal": 23, "tl": 52, "cb": 0, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Remote.RemoteCertificateSource", "rp": "CoseSign1.Certificates_RemoteCertificateSource.html", "cl": 57, "ucl": 19, "cal": 76, "tl": 269, "cb": 19, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Remote.RemoteECDsa", "rp": "CoseSign1.Certificates_RemoteECDsa.html", "cl": 45, "ucl": 2, "cal": 47, "tl": 93, "cb": 21, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Remote.RemoteMLDsa", "rp": "CoseSign1.Certificates_RemoteMLDsa.html", "cl": 14, "ucl": 38, "cal": 52, "tl": 108, "cb": 8, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Remote.RemoteRsa", "rp": "CoseSign1.Certificates_RemoteRsa.html", "cl": 31, "ucl": 0, "cal": 31, "tl": 72, "cb": 9, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Remote.RemoteSigningKeyProvider", "rp": "CoseSign1.Certificates_RemoteSigningKeyProvider.html", "cl": 99, "ucl": 25, "cal": 124, "tl": 206, "cb": 34, "tb": 54, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateChainValidator", "rp": "CoseSign1.Certificates_CertificateChainValidator.html", "cl": 121, "ucl": 34, "cal": 155, "tl": 243, "cb": 48, "tb": 62, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateCommonNameValidator", "rp": "CoseSign1.Certificates_CertificateCommonNameValidator.html", "cl": 34, "ucl": 10, "cal": 44, "tl": 84, "cb": 8, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateDetachedSignatureValidator", "rp": "CoseSign1.Certificates_CertificateDetachedSignatureValidator.html", "cl": 38, "ucl": 0, "cal": 38, "tl": 79, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateExpirationValidator", "rp": "CoseSign1.Certificates_CertificateExpirationValidator.html", "cl": 43, "ucl": 5, "cal": 48, "tl": 92, "cb": 9, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateKeyUsageValidator", "rp": "CoseSign1.Certificates_CertificateKeyUsageValidator.html", "cl": 73, "ucl": 19, "cal": 92, "tl": 161, "cb": 19, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificatePredicateValidator", "rp": "CoseSign1.Certificates_CertificatePredicateValidator.html", "cl": 33, "ucl": 5, "cal": 38, "tl": 73, "cb": 9, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateSignatureValidator", "rp": "CoseSign1.Certificates_CertificateSignatureValidator.html", "cl": 29, "ucl": 0, "cal": 29, "tl": 62, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateValidationBuilder", "rp": "CoseSign1.Certificates_CertificateValidationBuilder.html", "cl": 43, "ucl": 2, "cal": 45, "tl": 91, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.CertificateValidationExtensions", "rp": "CoseSign1.Certificates_CertificateValidationExtensions.html", "cl": 27, "ucl": 6, "cal": 33, "tl": 180, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.SignatureValidationExtensions", "rp": "CoseSign1.Certificates_SignatureValidationExtensions.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 57, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Certificates.Validation.SignatureValidator", "rp": "CoseSign1.Certificates_SignatureValidator.html", "cl": 18, "ucl": 5, "cal": 23, "tl": 52, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
   {
     "name": "CoseSign1.Headers",
     "classes": [
-      { "name": "CoseSign1.Headers.CwtClaims", "rp": "CoseSign1.Headers_CwtClaims.html", "cl": 0, "ucl": 277, "cal": 277, "tl": 468, "cb": 0, "tb": 125, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Headers.CwtClaimsHeaderContributor", "rp": "CoseSign1.Headers_CwtClaimsHeaderContributor.html", "cl": 0, "ucl": 208, "cal": 208, "tl": 479, "cb": 0, "tb": 56, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Headers.CWTClaimsHeaderLabels", "rp": "CoseSign1.Headers_CWTClaimsHeaderLabels.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 98, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Headers.Extensions.CoseHeaderMapCwtClaimsExtensions", "rp": "CoseSign1.Headers_CoseHeaderMapCwtClaimsExtensions.html", "cl": 0, "ucl": 36, "cal": 36, "tl": 98, "cb": 0, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Headers.CwtClaims", "rp": "CoseSign1.Headers_CwtClaims.html", "cl": 277, "ucl": 0, "cal": 277, "tl": 468, "cb": 124, "tb": 125, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Headers.CwtClaimsHeaderContributor", "rp": "CoseSign1.Headers_CwtClaimsHeaderContributor.html", "cl": 205, "ucl": 3, "cal": 208, "tl": 479, "cb": 54, "tb": 56, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Headers.CWTClaimsHeaderLabels", "rp": "CoseSign1.Headers_CWTClaimsHeaderLabels.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 98, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Headers.Extensions.CoseHeaderMapCwtClaimsExtensions", "rp": "CoseSign1.Headers_CoseHeaderMapCwtClaimsExtensions.html", "cl": 36, "ucl": 0, "cal": 36, "tl": 98, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
   {
     "name": "CoseSign1.Validation",
     "classes": [
-      { "name": "CoseSign1.Validation.CompositeValidator", "rp": "CoseSign1.Validation_CompositeValidator.html", "cl": 63, "ucl": 29, "cal": 92, "tl": 159, "cb": 27, "tb": 42, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Validation.CompositeValidator", "rp": "CoseSign1.Validation_CompositeValidator.html", "cl": 92, "ucl": 0, "cal": 92, "tl": 159, "cb": 42, "tb": 42, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Validation.Cose", "rp": "CoseSign1.Validation_Cose.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 19, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Validation.CoseMessageValidationBuilder", "rp": "CoseSign1.Validation_CoseMessageValidationBuilder.html", "cl": 19, "ucl": 9, "cal": 28, "tl": 54, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Validation.FunctionValidator", "rp": "CoseSign1.Validation_FunctionValidator.html", "cl": 9, "ucl": 11, "cal": 20, "tl": 41, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Validation.CoseMessageValidationBuilder", "rp": "CoseSign1.Validation_CoseMessageValidationBuilder.html", "cl": 23, "ucl": 5, "cal": 28, "tl": 54, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Validation.FunctionValidator", "rp": "CoseSign1.Validation_FunctionValidator.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 41, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Validation.ValidationBuilderContext", "rp": "CoseSign1.Validation_ValidationBuilderContext.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 28, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CoseSign1.Validation.ValidationFailure", "rp": "CoseSign1.Validation_ValidationFailure.html", "cl": 2, "ucl": 3, "cal": 5, "tl": 35, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CoseSign1.Validation.ValidationFailure", "rp": "CoseSign1.Validation_ValidationFailure.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 35, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CoseSign1.Validation.ValidationResult", "rp": "CoseSign1.Validation_ValidationResult.html", "cl": 37, "ucl": 0, "cal": 37, "tl": 89, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+    ]},
+  {
+    "name": "DIDx509",
+    "classes": [
+      { "name": "DIDx509.Builder.DidX509Builder", "rp": "DIDx509_DidX509Builder.html", "cl": 182, "ucl": 7, "cal": 189, "tl": 346, "cb": 76, "tb": 84, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.CertificateChain.CertificateChainConverter", "rp": "DIDx509_CertificateChainConverter.html", "cl": 153, "ucl": 70, "cal": 223, "tl": 380, "cb": 52, "tb": 126, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.DidX509Constants", "rp": "DIDx509_DidX509Constants.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 152, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.CertificateChainModel", "rp": "DIDx509_CertificateChainModel.html", "cl": 18, "ucl": 4, "cal": 22, "tl": 64, "cb": 6, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.CertificateExtensions", "rp": "DIDx509_CertificateExtensions.html", "cl": 38, "ucl": 0, "cal": 38, "tl": 85, "cb": 22, "tb": 22, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.CertificateFingerprints", "rp": "DIDx509_CertificateFingerprints.html", "cl": 21, "ucl": 1, "cal": 22, "tl": 60, "cb": 8, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.CertificateInfo", "rp": "DIDx509_CertificateInfo.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 55, "cb": 5, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.DidX509ParsedIdentifier", "rp": "DIDx509_DidX509ParsedIdentifier.html", "cl": 30, "ucl": 0, "cal": 30, "tl": 78, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.DidX509Policy", "rp": "DIDx509_DidX509Policy.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 37, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.DidX509ValidationResult", "rp": "DIDx509_DidX509ValidationResult.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 70, "cb": 1, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.SubjectAlternativeName", "rp": "DIDx509_SubjectAlternativeName.html", "cl": 36, "ucl": 1, "cal": 37, "tl": 96, "cb": 20, "tb": 22, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Models.X509Name", "rp": "DIDx509_X509Name.html", "cl": 28, "ucl": 0, "cal": 28, "tl": 95, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Parsing.DidX509Parser", "rp": "DIDx509_DidX509Parser.html", "cl": 156, "ucl": 19, "cal": 175, "tl": 306, "cb": 89, "tb": 98, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Parsing.PercentEncoding", "rp": "DIDx509_PercentEncoding.html", "cl": 65, "ucl": 5, "cal": 70, "tl": 125, "cb": 44, "tb": 52, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Resolution.DidDocument", "rp": "DIDx509_DidDocument.html", "cl": 39, "ucl": 0, "cal": 39, "tl": 125, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Resolution.DidX509Resolver", "rp": "DIDx509_DidX509Resolver.html", "cl": 80, "ucl": 22, "cal": 102, "tl": 193, "cb": 15, "tb": 28, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Resolution.VerificationMethod", "rp": "DIDx509_VerificationMethod.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 125, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Validation.DidX509Validator", "rp": "DIDx509_DidX509Validator.html", "cl": 73, "ucl": 18, "cal": 91, "tl": 204, "cb": 27, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Validation.EkuPolicyValidator", "rp": "DIDx509_EkuPolicyValidator.html", "cl": 19, "ucl": 0, "cal": 19, "tl": 178, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Validation.FulcioIssuerPolicyValidator", "rp": "DIDx509_FulcioIssuerPolicyValidator.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 178, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Validation.SanPolicyValidator", "rp": "DIDx509_SanPolicyValidator.html", "cl": 21, "ucl": 0, "cal": 21, "tl": 178, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.Validation.SubjectPolicyValidator", "rp": "DIDx509_SubjectPolicyValidator.html", "cl": 19, "ucl": 6, "cal": 25, "tl": 178, "cb": 8, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DIDx509.X509Certificate2Extensions", "rp": "DIDx509_X509Certificate2Extensions.html", "cl": 209, "ucl": 21, "cal": 230, "tl": 623, "cb": 91, "tb": 112, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -305,70 +332,22 @@ var riskHotspotMetrics = [
 
 var riskHotspots = [
   {
+    "assembly": "DIDx509", "class": "DIDx509.CertificateChain.CertificateChainConverter", "reportPath": "DIDx509_CertificateChainConverter.html", "methodName": "MapOidToLabel(string)", "methodShortName": "MapOidToLabel(...)", "fileIndex": 0, "line": 244,
+    "metrics": [
+      { "value": 192, "exceeded": true },
+      { "value": 32, "exceeded": true },
+    ]},
+  {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Validation.CertificateChainValidator", "reportPath": "CoseSign1.Certificates_CertificateChainValidator.html", "methodName": "Validate(System.Security.Cryptography.Cose.CoseSign1Message)", "methodShortName": "Validate(...)", "fileIndex": 0, "line": 100,
     "metrics": [
-      { "value": 3422, "exceeded": true },
+      { "value": 186, "exceeded": true },
       { "value": 58, "exceeded": true },
     ]},
   {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "ToCborBytes()", "methodShortName": "ToCborBytes()", "fileIndex": 0, "line": 215,
+    "assembly": "DIDx509", "class": "DIDx509.CertificateChain.CertificateChainConverter", "reportPath": "DIDx509_CertificateChainConverter.html", "methodName": "UnescapeRFC4514Value(string)", "methodShortName": "UnescapeRFC4514Value(...)", "fileIndex": 0, "line": 194,
     "metrics": [
-      { "value": 1806, "exceeded": true },
-      { "value": 42, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteSigningKeyProvider", "reportPath": "CoseSign1.Certificates_RemoteSigningKeyProvider.html", "methodName": "CreateMetadata()", "methodShortName": "CreateMetadata()", "fileIndex": 0, "line": 82,
-    "metrics": [
-      { "value": 1332, "exceeded": true },
-      { "value": 36, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "FromCborBytes(byte[])", "methodShortName": "FromCborBytes(...)", "fileIndex": 0, "line": 99,
-    "metrics": [
-      { "value": 650, "exceeded": true },
-      { "value": 25, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "ToString()", "methodShortName": "ToString()", "fileIndex": 0, "line": 414,
-    "metrics": [
-      { "value": 506, "exceeded": true },
-      { "value": 22, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "Merge(CoseSign1.Headers.CwtClaims)", "methodShortName": "Merge(...)", "fileIndex": 0, "line": 357,
-    "metrics": [
-      { "value": 342, "exceeded": true },
-      { "value": 18, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteECDsa", "reportPath": "CoseSign1.Certificates_RemoteECDsa.html", "methodName": ".ctor(CoseSign1.Certificates.Remote.RemoteCertificateSource, System.Security.Cryptography.ECParameters)", "methodShortName": ".ctor(...)", "fileIndex": 0, "line": 19,
-    "metrics": [
-      { "value": 210, "exceeded": true },
-      { "value": 14, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "IsDefault()", "methodShortName": "IsDefault()", "fileIndex": 0, "line": 339,
-    "metrics": [
-      { "value": 210, "exceeded": true },
-      { "value": 14, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteCertificateSource", "reportPath": "CoseSign1.Certificates_RemoteCertificateSource.html", "methodName": "GetKeySize()", "methodShortName": "GetKeySize()", "fileIndex": 0, "line": 152,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteCertificateSource", "reportPath": "CoseSign1.Certificates_RemoteCertificateSource.html", "methodName": "GetRemoteMLDsa()", "methodShortName": "GetRemoteMLDsa()", "fileIndex": 0, "line": 239,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteSigningKeyProvider", "reportPath": "CoseSign1.Certificates_RemoteSigningKeyProvider.html", "methodName": "CreateCoseKeyForRemote()", "methodShortName": "CreateCoseKeyForRemote()", "fileIndex": 0, "line": 175,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
+      { "value": 170, "exceeded": true },
+      { "value": 16, "exceeded": true },
     ]},
   {
     "assembly": "CoseSign1", "class": "CoseSign1.Direct.DirectSignatureFactory", "reportPath": "CoseSign1_DirectSignatureFactory.html", "methodName": "ApplyTransparencyProofsAsync()", "methodShortName": "ApplyTransparencyProofsAsync()", "fileIndex": 0, "line": 486,
@@ -377,49 +356,25 @@ var riskHotspots = [
       { "value": 16, "exceeded": true },
     ]},
   {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteMLDsa", "reportPath": "CoseSign1.Certificates_RemoteMLDsa.html", "methodName": ".ctor(CoseSign1.Certificates.Remote.RemoteCertificateSource, byte[], int)", "methodShortName": ".ctor(...)", "fileIndex": 0, "line": 20,
+    "assembly": "DIDx509", "class": "DIDx509.CertificateChain.CertificateChainConverter", "reportPath": "DIDx509_CertificateChainConverter.html", "methodName": "IsHexDigit(char)", "methodShortName": "IsHexDigit(...)", "fileIndex": 0, "line": 236,
     "metrics": [
       { "value": 110, "exceeded": true },
       { "value": 10, "exceeded": false },
     ]},
   {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Validation.CertificateKeyUsageValidator", "reportPath": "CoseSign1.Certificates_CertificateKeyUsageValidator.html", "methodName": "ValidateEnhancedKeyUsage(System.Security.Cryptography.X509Certificates.X509Certificate2, System.Security.Cryptography.Oid)", "methodShortName": "ValidateEnhancedKeyUsage(...)", "fileIndex": 0, "line": 126,
+    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteSigningKeyProvider", "reportPath": "CoseSign1.Certificates_RemoteSigningKeyProvider.html", "methodName": "CreateMetadata()", "methodShortName": "CreateMetadata()", "fileIndex": 0, "line": 82,
     "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
+      { "value": 70, "exceeded": true },
+      { "value": 36, "exceeded": true },
     ]},
   {
-    "assembly": "CoseSign1.Validation", "class": "CoseSign1.Validation.CompositeValidator", "reportPath": "CoseSign1.Validation_CompositeValidator.html", "methodName": "ValidateAsync()", "methodShortName": "ValidateAsync()", "fileIndex": 0, "line": 93,
+    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteCertificateSource", "reportPath": "CoseSign1.Certificates_RemoteCertificateSource.html", "methodName": "GetKeySize()", "methodShortName": "GetKeySize()", "fileIndex": 0, "line": 152,
     "metrics": [
-      { "value": 103, "exceeded": true },
-      { "value": 22, "exceeded": true },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Validation.CertificateKeyUsageValidator", "reportPath": "CoseSign1.Certificates_CertificateKeyUsageValidator.html", "methodName": "Validate(System.Security.Cryptography.Cose.CoseSign1Message)", "methodShortName": "Validate(...)", "fileIndex": 0, "line": 65,
-    "metrics": [
-      { "value": 72, "exceeded": true },
-      { "value": 8, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaimsHeaderContributor", "reportPath": "CoseSign1.Headers_CwtClaimsHeaderContributor.html", "methodName": "BuildFinalClaims()", "methodShortName": "BuildFinalClaims()", "fileIndex": 0, "line": 456,
-    "metrics": [
-      { "value": 72, "exceeded": true },
-      { "value": 8, "exceeded": false },
+      { "value": 44, "exceeded": true },
+      { "value": 12, "exceeded": false },
     ]},
   {
     "assembly": "CoseSign1", "class": "CoseSign1.Indirect.IndirectSignatureFactory", "reportPath": "CoseSign1_IndirectSignatureFactory.html", "methodName": "GetHashAlgorithmName(System.Security.Cryptography.HashAlgorithmName)", "methodShortName": "GetHashAlgorithmName(...)", "fileIndex": 0, "line": 528,
-    "metrics": [
-      { "value": 42, "exceeded": true },
-      { "value": 6, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Abstractions", "class": "CoseSign1.Abstractions.Transparency.TransparencyExtensions", "reportPath": "CoseSign1.Abstractions_TransparencyExtensions.html", "methodName": "VerifyTransparencyAsync()", "methodShortName": "VerifyTransparencyAsync()", "fileIndex": 0, "line": 91,
-    "metrics": [
-      { "value": 42, "exceeded": true },
-      { "value": 6, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Remote.RemoteECDsa", "reportPath": "CoseSign1.Certificates_RemoteECDsa.html", "methodName": "SignHash(byte[])", "methodShortName": "SignHash(...)", "fileIndex": 0, "line": 58,
     "metrics": [
       { "value": 42, "exceeded": true },
       { "value": 6, "exceeded": false },
@@ -431,22 +386,22 @@ var riskHotspots = [
       { "value": 6, "exceeded": false },
     ]},
   {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaimsHeaderContributor", "reportPath": "CoseSign1.Headers_CwtClaimsHeaderContributor.html", "methodName": "WithTimestamps(System.Nullable<System.DateTimeOffset>, System.Nullable<System.DateTimeOffset>, System.Nullable<System.DateTimeOffset>)", "methodShortName": "WithTimestamps(...)", "fileIndex": 0, "line": 281,
+    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "ToCborBytes()", "methodShortName": "ToCborBytes()", "fileIndex": 0, "line": 215,
+    "metrics": [
+      { "value": 42, "exceeded": true },
+      { "value": 42, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.CertificateChain.CertificateChainConverter", "reportPath": "DIDx509_CertificateChainConverter.html", "methodName": "ParseFulcioExtension(System.Security.Cryptography.X509Certificates.X509Extension)", "methodShortName": "ParseFulcioExtension(...)", "fileIndex": 0, "line": 361,
     "metrics": [
       { "value": 42, "exceeded": true },
       { "value": 6, "exceeded": false },
     ]},
   {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.Extensions.CoseHeaderMapCwtClaimsExtensions", "reportPath": "CoseSign1.Headers_CoseHeaderMapCwtClaimsExtensions.html", "methodName": "TryGetCwtClaims(System.Security.Cryptography.Cose.CoseHeaderMap, out CoseSign1.Headers.CwtClaims, System.Nullable<System.Security.Cryptography.Cose.CoseHeaderLabel>)", "methodShortName": "TryGetCwtClaims(...)", "fileIndex": 0, "line": 25,
+    "assembly": "DIDx509", "class": "DIDx509.X509Certificate2Extensions", "reportPath": "DIDx509_X509Certificate2Extensions.html", "methodName": "GetDidWithRootAndSan(System.Security.Cryptography.X509Certificates.X509Certificate2, System.Collections.Generic.IEnumerable<System.Security.Cryptography.X509Certificates.X509Certificate2>, string, string)", "methodShortName": "GetDidWithRootAndSan(...)", "fileIndex": 0, "line": 257,
     "metrics": [
-      { "value": 42, "exceeded": true },
-      { "value": 6, "exceeded": false },
-    ]},
-  {
-    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.Extensions.CoseHeaderMapCwtClaimsExtensions", "reportPath": "CoseSign1.Headers_CoseHeaderMapCwtClaimsExtensions.html", "methodName": "SetCwtClaims(System.Security.Cryptography.Cose.CoseHeaderMap, CoseSign1.Headers.CwtClaims, System.Nullable<System.Security.Cryptography.Cose.CoseHeaderLabel>)", "methodShortName": "SetCwtClaims(...)", "fileIndex": 0, "line": 62,
-    "metrics": [
-      { "value": 42, "exceeded": true },
-      { "value": 6, "exceeded": false },
+      { "value": 41, "exceeded": true },
+      { "value": 30, "exceeded": true },
     ]},
   {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.CertificateSigningKey", "reportPath": "CoseSign1.Certificates_CertificateSigningKey.html", "methodName": "GetMetadata()", "methodShortName": "GetMetadata()", "fileIndex": 0, "line": 89,
@@ -455,10 +410,34 @@ var riskHotspots = [
       { "value": 36, "exceeded": true },
     ]},
   {
-    "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Extensions.CborWriterExtensions", "reportPath": "CoseSign1.Certificates_CborWriterExtensions.html", "methodName": "EncodeCertList(System.Formats.Cbor.CborWriter, System.Collections.Generic.IEnumerable<System.Security.Cryptography.X509Certificates.X509Certificate2>)", "methodShortName": "EncodeCertList(...)", "fileIndex": 0, "line": 20,
+    "assembly": "DIDx509", "class": "DIDx509.Parsing.DidX509Parser", "reportPath": "DIDx509_DidX509Parser.html", "methodName": "Parse(string)", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 23,
     "metrics": [
-      { "value": 31, "exceeded": true },
-      { "value": 10, "exceeded": false },
+      { "value": 39, "exceeded": true },
+      { "value": 36, "exceeded": true },
+    ]},
+  {
+    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "FromCborBytes(byte[])", "methodShortName": "FromCborBytes(...)", "fileIndex": 0, "line": 99,
+    "metrics": [
+      { "value": 25, "exceeded": false },
+      { "value": 25, "exceeded": true },
+    ]},
+  {
+    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "ToString()", "methodShortName": "ToString()", "fileIndex": 0, "line": 414,
+    "metrics": [
+      { "value": 22, "exceeded": false },
+      { "value": 22, "exceeded": true },
+    ]},
+  {
+    "assembly": "CoseSign1.Validation", "class": "CoseSign1.Validation.CompositeValidator", "reportPath": "CoseSign1.Validation_CompositeValidator.html", "methodName": "ValidateAsync()", "methodShortName": "ValidateAsync()", "fileIndex": 0, "line": 93,
+    "metrics": [
+      { "value": 22, "exceeded": false },
+      { "value": 22, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.X509Certificate2Extensions", "reportPath": "DIDx509_X509Certificate2Extensions.html", "methodName": "SelectEku(System.Security.Cryptography.X509Certificates.X509Certificate2, DIDx509.EkuPreference, string)", "methodShortName": "SelectEku(...)", "fileIndex": 0, "line": 328,
+    "metrics": [
+      { "value": 22, "exceeded": false },
+      { "value": 22, "exceeded": true },
     ]},
   {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Local.LinuxCertificateStoreCertificateSource", "reportPath": "CoseSign1.Certificates_LinuxCertificateStoreCertificateSource.html", "methodName": "FindCertificateBySubjectName(System.Collections.Generic.IEnumerable<string>, string, bool)", "methodShortName": "FindCertificateBySubjectName(...)", "fileIndex": 0, "line": 225,
@@ -469,13 +448,37 @@ var riskHotspots = [
   {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Extensions.CoseSign1MessageCertificateExtensions", "reportPath": "CoseSign1.Certificates_CoseSign1MessageCertificateExtensions.html", "methodName": "TryGetCertificateChain(System.Security.Cryptography.Cose.CoseSign1Message, out System.Security.Cryptography.X509Certificates.X509Certificate2Collection, bool)", "methodShortName": "TryGetCertificateChain(...)", "fileIndex": 0, "line": 63,
     "metrics": [
-      { "value": 19, "exceeded": false },
+      { "value": 18, "exceeded": false },
       { "value": 18, "exceeded": true },
     ]},
   {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.Extensions.CoseSign1MessageCertificateExtensions", "reportPath": "CoseSign1.Certificates_CoseSign1MessageCertificateExtensions.html", "methodName": "TryGetExtraCertificates(System.Security.Cryptography.Cose.CoseSign1Message, out System.Security.Cryptography.X509Certificates.X509Certificate2Collection, bool)", "methodShortName": "TryGetExtraCertificates(...)", "fileIndex": 0, "line": 140,
     "metrics": [
-      { "value": 28, "exceeded": false },
+      { "value": 18, "exceeded": false },
+      { "value": 18, "exceeded": true },
+    ]},
+  {
+    "assembly": "CoseSign1.Headers", "class": "CoseSign1.Headers.CwtClaims", "reportPath": "CoseSign1.Headers_CwtClaims.html", "methodName": "Merge(CoseSign1.Headers.CwtClaims)", "methodShortName": "Merge(...)", "fileIndex": 0, "line": 357,
+    "metrics": [
+      { "value": 18, "exceeded": false },
+      { "value": 18, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.Parsing.DidX509Parser", "reportPath": "DIDx509_DidX509Parser.html", "methodName": "IsValidBase64Url(string)", "methodShortName": "IsValidBase64Url(...)", "fileIndex": 0, "line": 260,
+    "metrics": [
+      { "value": 18, "exceeded": false },
+      { "value": 18, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.Parsing.PercentEncoding", "reportPath": "DIDx509_PercentEncoding.html", "methodName": "Decode(string)", "methodShortName": "Decode(...)", "fileIndex": 0, "line": 54,
+    "metrics": [
+      { "value": 18, "exceeded": false },
+      { "value": 18, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.Validation.DidX509Validator", "reportPath": "DIDx509_DidX509Validator.html", "methodName": "Validate(string, System.Collections.Generic.IEnumerable<System.Security.Cryptography.X509Certificates.X509Certificate2>, bool, bool)", "methodShortName": "Validate(...)", "fileIndex": 0, "line": 33,
+    "metrics": [
+      { "value": 19, "exceeded": false },
       { "value": 18, "exceeded": true },
     ]},
   {
@@ -487,11 +490,23 @@ var riskHotspots = [
   {
     "assembly": "CoseSign1.Certificates", "class": "CoseSign1.Certificates.CertificateHeaderContributor", "reportPath": "CoseSign1.Certificates_CertificateHeaderContributor.html", "methodName": "ContributeProtectedHeaders(System.Security.Cryptography.Cose.CoseHeaderMap, CoseSign1.Abstractions.HeaderContributorContext)", "methodShortName": "ContributeProtectedHeaders(...)", "fileIndex": 0, "line": 55,
     "metrics": [
-      { "value": 26, "exceeded": false },
+      { "value": 16, "exceeded": false },
       { "value": 16, "exceeded": true },
     ]},
   {
     "assembly": "CoseSign1.Validation", "class": "CoseSign1.Validation.CompositeValidator", "reportPath": "CoseSign1.Validation_CompositeValidator.html", "methodName": "Validate(System.Security.Cryptography.Cose.CoseSign1Message)", "methodShortName": "Validate(...)", "fileIndex": 0, "line": 38,
+    "metrics": [
+      { "value": 16, "exceeded": false },
+      { "value": 16, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.CertificateChain.CertificateChainConverter", "reportPath": "DIDx509_CertificateChainConverter.html", "methodName": "ParseSanExtension(System.Security.Cryptography.X509Certificates.X509Extension)", "methodShortName": "ParseSanExtension(...)", "fileIndex": 0, "line": 311,
+    "metrics": [
+      { "value": 23, "exceeded": false },
+      { "value": 16, "exceeded": true },
+    ]},
+  {
+    "assembly": "DIDx509", "class": "DIDx509.Parsing.PercentEncoding", "reportPath": "DIDx509_PercentEncoding.html", "methodName": "IsDidX509AllowedCharacter(char)", "methodShortName": "IsDidX509AllowedCharacter(...)", "fileIndex": 0, "line": 110,
     "metrics": [
       { "value": 16, "exceeded": false },
       { "value": 16, "exceeded": true },

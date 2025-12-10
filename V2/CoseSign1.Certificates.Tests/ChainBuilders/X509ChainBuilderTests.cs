@@ -29,7 +29,7 @@ public class X509ChainBuilderTests
         using var builder = new X509ChainBuilder(policy);
 
         Assert.That(builder, Is.Not.Null);
-        Assert.That(builder.ChainPolicy, Is.SameAs(policy));
+        Assert.That(builder.ChainPolicy.RevocationMode, Is.EqualTo(policy.RevocationMode));
     }
 
     [Test]

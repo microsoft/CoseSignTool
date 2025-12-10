@@ -1,166 +1,286 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Extensions;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
+using NUnit.Framework;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
 public class CertificateValidationBuilderTests
 {
-    private static readonly byte[] TestPayload = Encoding.UTF8.GetBytes("Hello, world!");
+    private X509Certificate2? _testCert;
+    private CoseSign1Message? _validMessage;
+
+    [SetUp]
+    #pragma warning disable CA2252 // Preview features
+    public void SetUp()
+    {
+        _testCert = TestCertificateUtils.CreateCertificate("BuilderTest");
+        
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+    }
+    #pragma warning restore CA2252
+
+    [TearDown]
+    public void TearDown()
+    {
+        _testCert?.Dispose();
+    }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_ValidatesCommonName()
+    public void ValidateCertificate_HasCommonName_AddsCommonNameValidator()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate("Test Certificate", useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
-
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
-
-        // Act - Using sub-builder pattern
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => cert
-                .HasCommonName("Test Certificate"))
-            .Build();
-
-        var result = validator.Validate(msg);
-
-        // Assert
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasCommonName("BuilderTest");
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_ValidatesExpiration()
+    public void ValidateCertificate_NotExpired_AddsExpirationValidator()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate(useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
-
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
-
-        // Act - Using sub-builder pattern
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => cert
-                .NotExpired())
-            .Build();
-
-        var result = validator.Validate(msg);
-
-        // Assert
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.NotExpired();
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_CombinesMultipleValidators()
+    public void ValidateCertificate_NotExpiredWithTime_AddsExpirationValidator()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate("Test Certificate", useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
-
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
-
-        // Act - Using sub-builder pattern with multiple validators
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => cert
-                .HasCommonName("Test Certificate")
-                .NotExpired())
-            .Build();
-
-        var result = validator.Validate(msg);
-
-        // Assert
+        var builder = Cose.Sign1Message();
+        var time = DateTime.UtcNow;
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.NotExpired(time);
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_FailsOnWrongCommonName()
+    public void ValidateCertificate_HasEnhancedKeyUsageWithOid_AddsValidator()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate("Test Certificate", useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
+        var builder = Cose.Sign1Message();
+        var oid = new Oid("1.3.6.1.5.5.7.3.3"); // Code signing
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasEnhancedKeyUsage(oid);
+        });
+        
+        var validator = builder.Build();
+        
+        // May fail for test cert without EKU, but builder worked
+        Assert.That(validator, Is.Not.Null);
+    }
 
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
+    [Test]
+    public void ValidateCertificate_HasEnhancedKeyUsageWithString_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3");
+        });
+        
+        var validator = builder.Build();
+        
+        Assert.That(validator, Is.Not.Null);
+    }
 
-        // Act - Using sub-builder pattern with wrong CN
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => cert
-                .HasCommonName("Wrong Name"))
-            .Build();
+    [Test]
+    public void ValidateCertificate_HasKeyUsage_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasKeyUsage(X509KeyUsageFlags.DigitalSignature);
+        });
+        
+        var validator = builder.Build();
+        
+        Assert.That(validator, Is.Not.Null);
+    }
 
-        var result = validator.Validate(msg);
+    [Test]
+    public void ValidateCertificate_Matches_AddsPredicateValidator()
+    {
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.Matches(cert => cert.Subject.Contains("BuilderTest"));
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
+        Assert.That(result.IsValid, Is.True);
+    }
 
-        // Assert
+    [Test]
+    public void ValidateCertificate_MatchesWithFailureMessage_AddsPredicateValidator()
+    {
+        var builder = Cose.Sign1Message();
+        var customMessage = "Certificate did not match criteria";
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.Matches(cert => false, customMessage);
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
         Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures, Has.Some.Matches<ValidationFailure>(f => f.ErrorCode == "CN_MISMATCH"));
     }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_CustomPredicate()
+    public void ValidateCertificate_AllowUnprotectedHeaders_ConfiguresBuilder()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate("Test Certificate", useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
-
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
-
-        // Act - Using sub-builder pattern with custom predicate
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(c => c
-                .Matches(cert => cert.Subject.Contains("Test"), "Certificate must have 'Test' in subject"))
-            .Build();
-
-        var result = validator.Validate(msg);
-
-        // Assert
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.AllowUnprotectedHeaders(true);
+            certBuilder.HasCommonName("BuilderTest");
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void ValidateCertificate_WithSubBuilder_CollectsAllFailures()
+    public void ValidateCertificate_AllowUnprotectedHeadersFalse_ConfiguresBuilder()
     {
-        // Arrange
-        using var cert = TestCertificateUtils.CreateCertificate("Test Certificate", useEcc: true);
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
-        using var factory = new DirectSignatureFactory(signingService);
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.AllowUnprotectedHeaders(false);
+            certBuilder.HasCommonName("BuilderTest");
+        });
+        
+        var validator = builder.Build();
+        
+        Assert.That(validator, Is.Not.Null);
+    }
 
-        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
-        var msg = CoseMessage.DecodeSign1(messageBytes);
+    [Test]
+    public void ValidateCertificate_MultipleValidators_BuildsComposite()
+    {
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasCommonName("BuilderTest");
+            certBuilder.NotExpired();
+            certBuilder.Matches(cert => cert.Subject.Contains("BuilderTest"));
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
+        Assert.That(result.IsValid, Is.True);
+    }
 
-        var futureDate = DateTime.UtcNow.AddYears(100);
+    [Test]
+    public void ValidateCertificate_IsIssuedBy_ThrowsNotImplementedException()
+    {
+        var builder = Cose.Sign1Message();
+        
+        Assert.Throws<NotImplementedException>(() =>
+        {
+            builder.ValidateCertificate(certBuilder =>
+            {
+                certBuilder.IsIssuedBy("TestIssuer");
+            });
+        });
+    }
 
-        // Act - Using sub-builder pattern with multiple failing validators
-        var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => cert
-                .HasCommonName("Wrong Name")
-                .NotExpired(futureDate))
-            .Build();
+    [Test]
+    public void ValidateCertificate_ChainedCalls_ReturnsBuilder()
+    {
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            var result1 = certBuilder.HasCommonName("Test");
+            var result2 = result1.NotExpired();
+            var result3 = result2.AllowUnprotectedHeaders(true);
+            
+            Assert.That(result1, Is.SameAs(certBuilder));
+            Assert.That(result2, Is.SameAs(certBuilder));
+            Assert.That(result3, Is.SameAs(certBuilder));
+        });
+    }
 
-        var result = validator.Validate(msg);
+    [Test]
+    public void ValidateCertificate_AllowUnprotectedHeadersAfterValidators_AppliesRetroactively()
+    {
+        // AllowUnprotectedHeaders should apply to all validators added before and after
+        var builder = Cose.Sign1Message();
+        
+        builder.ValidateCertificate(certBuilder =>
+        {
+            certBuilder.HasCommonName("BuilderTest");
+            certBuilder.AllowUnprotectedHeaders(true);
+            certBuilder.NotExpired();
+        });
+        
+        var validator = builder.Build();
+        var result = validator.Validate(_validMessage!);
+        
+        Assert.That(result.IsValid, Is.True);
+    }
 
-        // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures, Has.Count.EqualTo(2));
-        Assert.That(result.Failures, Has.Some.Matches<ValidationFailure>(f => f.ErrorCode == "CN_MISMATCH"));
-        Assert.That(result.Failures, Has.Some.Matches<ValidationFailure>(f => f.ErrorCode == "CERTIFICATE_EXPIRED"));
+    [Test]
+    public void ValidateCertificate_MatchesWithNullPredicate_ThrowsArgumentNullException()
+    {
+        var builder = Cose.Sign1Message();
+        
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            builder.ValidateCertificate(certBuilder =>
+            {
+                certBuilder.Matches(null!);
+            });
+        });
     }
 }

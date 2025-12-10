@@ -305,7 +305,7 @@ public class X509Certificate2ExtensionsTests : DIDx509TestBase
         var chain = new[] { leaf, intermediate, root };
 
         // Act
-        string did = leaf.GetDidWithCertAtLocationInChain(chain, ^1); // Root (last)
+        string did = leaf.GetDidWithCertAtLocationInChain(chain, chain.Length - 1); // Root (last)
 
         // Assert
         AssertDidStructure(did, "sha256", root, "subject");

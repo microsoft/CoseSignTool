@@ -48,10 +48,46 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 #else
         if (chainPolicy == null) { throw new ArgumentNullException(nameof(chainPolicy)); }
 #endif
-        _chain = new X509Chain
+        _chain = new X509Chain();
+        
+        // Create a new policy to avoid any shared state issues
+        _chain.ChainPolicy.RevocationMode = chainPolicy.RevocationMode;
+        _chain.ChainPolicy.RevocationFlag = chainPolicy.RevocationFlag;
+        _chain.ChainPolicy.VerificationFlags = chainPolicy.VerificationFlags;
+        _chain.ChainPolicy.UrlRetrievalTimeout = chainPolicy.UrlRetrievalTimeout;
+        
+        // Copy application policies if any
+        if (chainPolicy.ApplicationPolicy.Count > 0)
         {
-            ChainPolicy = chainPolicy
-        };
+            foreach (var oid in chainPolicy.ApplicationPolicy)
+            {
+                _chain.ChainPolicy.ApplicationPolicy.Add(oid);
+            }
+        }
+        
+        // Copy certificate policies if any
+        if (chainPolicy.CertificatePolicy.Count > 0)
+        {
+            foreach (var oid in chainPolicy.CertificatePolicy)
+            {
+                _chain.ChainPolicy.CertificatePolicy.Add(oid);
+            }
+        }
+        
+        // Copy extra store if any
+        if (chainPolicy.ExtraStore.Count > 0)
+        {
+            _chain.ChainPolicy.ExtraStore.AddRange(chainPolicy.ExtraStore);
+        }
+
+#if NET5_0_OR_GREATER
+        // Copy trust mode and custom trust store if applicable
+        _chain.ChainPolicy.TrustMode = chainPolicy.TrustMode;
+        if (chainPolicy.CustomTrustStore.Count > 0)
+        {
+            _chain.ChainPolicy.CustomTrustStore.AddRange(chainPolicy.CustomTrustStore);
+        }
+#endif
     }
 
     /// <inheritdoc/>

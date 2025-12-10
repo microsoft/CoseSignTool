@@ -18,5 +18,7 @@
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
     <!-- High Performance packages -->
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.3.2" />
+    <!-- Azure packages -->
+    <PackageVersion Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.5" />
   </ItemGroup>
 </Project>

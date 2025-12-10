@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation", "CoseSign1.Validation\CoseSign1.Validation.csproj", "{D2E3EBEA-9A2F-4D71-A155-B1CDEF64B4A1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Transparent.MST", "CoseSign1.Transparent.MST\CoseSign1.Transparent.MST.csproj", "{540B7C5C-F30A-4936-9FCA-B902B2575922}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{D2E3EBEA-9A2F-4D71-A155-B1CDEF64B4A1}.Release|x64.Build.0 = Release|Any CPU
 		{D2E3EBEA-9A2F-4D71-A155-B1CDEF64B4A1}.Release|x86.ActiveCfg = Release|Any CPU
 		{D2E3EBEA-9A2F-4D71-A155-B1CDEF64B4A1}.Release|x86.Build.0 = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|x64.Build.0 = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Debug|x86.Build.0 = Debug|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|Any CPU.Build.0 = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|x64.ActiveCfg = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|x64.Build.0 = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|x86.ActiveCfg = Release|Any CPU
+		{540B7C5C-F30A-4936-9FCA-B902B2575922}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

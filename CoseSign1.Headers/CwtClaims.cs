@@ -24,7 +24,7 @@ public sealed class CwtClaims
     /// Gets the subject claim (sub, label 2).
     /// Default value is "unknown.intent" when not explicitly set.
     /// </summary>
-    public string? Subject { get; internal set; } = DefaultSubject;
+    public string Subject { get; internal set; } = DefaultSubject;
 
     /// <summary>
     /// Gets the audience claim (aud, label 3).
@@ -197,7 +197,7 @@ public sealed class CwtClaims
         return new CwtClaims
         {
             Issuer = issuer,
-            Subject = subject,
+            Subject = subject ?? DefaultSubject,  // Use default if not present in CBOR
             Audience = audience,
             ExpirationTime = expirationTime,
             NotBefore = notBefore,

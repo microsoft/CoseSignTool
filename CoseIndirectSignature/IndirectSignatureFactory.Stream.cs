@@ -184,6 +184,7 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <param name="coseHeaderExtender">Optional header extender to add custom headers to the COSE message.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     public async Task<CoseSign1Message> CreateIndirectSignatureAsync(
@@ -191,14 +192,16 @@ public sealed partial class IndirectSignatureFactory
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
-        ICoseHeaderExtender? coseHeaderExtender = null) =>
+        ICoseHeaderExtender? coseHeaderExtender = null,
+        CancellationToken cancellationToken = default) =>
             (CoseSign1Message)await CreateIndirectSignatureWithChecksInternalAsync(
                 returnBytes: false,
                 signingKeyProvider: signingKeyProvider,
                 contentType: contentType,
                 streamPayload: payload,
                 signatureVersion: signatureVersion,
-                headerExtender: coseHeaderExtender).ConfigureAwait(false);
+                headerExtender: coseHeaderExtender,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.
@@ -208,6 +211,7 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="contentType">A media type string following https://datatracker.ietf.org/doc/html/rfc6838.</param>
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <param name="coseHeaderExtender">Optional header extender to add custom headers to the COSE message.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentException">Hash size does not correspond to any known hash algorithms</exception>
@@ -216,7 +220,8 @@ public sealed partial class IndirectSignatureFactory
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType,
         IndirectSignatureVersion signatureVersion,
-        ICoseHeaderExtender? coseHeaderExtender = null) =>
+        ICoseHeaderExtender? coseHeaderExtender = null,
+        CancellationToken cancellationToken = default) =>
             (CoseSign1Message)await CreateIndirectSignatureWithChecksInternalAsync(
                 returnBytes: false,
                 signingKeyProvider: signingKeyProvider,
@@ -224,7 +229,8 @@ public sealed partial class IndirectSignatureFactory
                 streamPayload: rawHash,
                 payloadHashed: true,
                 signatureVersion: signatureVersion,
-                headerExtender: coseHeaderExtender).ConfigureAwait(false);
+                headerExtender: coseHeaderExtender,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
     #endregion
     #endregion
 

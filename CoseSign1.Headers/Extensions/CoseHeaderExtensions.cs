@@ -4,12 +4,17 @@
 namespace CoseSign1.Headers.Extensions;
 
 using System.Diagnostics;
+using System.Reflection;
 
 /// <summary>
 /// Extension methods for working with COSE headers.
 /// </summary>
 public static class CoseHeaderExtensions
 {
+    /// <summary>
+    /// Constant for unknown or custom header label representation.
+    /// </summary>
+    private const string CustomLabelString = "custom";
     /// <summary>
     /// Converts a collection of CoseHeader{T} to a CoseHeaderMap.
     /// </summary>
@@ -151,6 +156,10 @@ public static class CoseHeaderExtensions
     /// <param name="logOverrides">Whether to log when user values override defaults.</param>
     /// <param name="headerLabel">Optional custom header label to use instead of the default CWT Claims label (15). If not specified, uses CWTClaimsHeaderLabels.CWTClaims.</param>
     /// <returns>The updated header map with merged CWT claims.</returns>
+    /// <remarks>
+    /// TODO: Replace logOverrides boolean with ILogger-based logging controlled by standard log levels.
+    /// This will allow better integration with the logging infrastructure and removal of this condition.
+    /// </remarks>
     public static CoseHeaderMap MergeCwtClaims(this CoseHeaderMap headerMap, CwtClaims newClaims, bool logOverrides = true, CoseHeaderLabel? headerLabel = null)
     {
         if (headerMap == null)
@@ -223,39 +232,39 @@ public static class CoseHeaderExtensions
         {
             // Try to get LabelAsInt32 property
             var labelAsInt32Property = label.GetType().GetProperty("LabelAsInt32", 
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic);
             
             if (labelAsInt32Property != null)
             {
                 var intValue = labelAsInt32Property.GetValue(label);
                 if (intValue != null)
                 {
-                    return intValue.ToString() ?? "custom";
+                    return intValue.ToString() ?? CustomLabelString;
                 }
             }
 
             // Try to get LabelAsString property
             var labelAsStringProperty = label.GetType().GetProperty("LabelAsString",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic);
             
             if (labelAsStringProperty != null)
             {
                 var stringValue = labelAsStringProperty.GetValue(label);
                 if (stringValue != null)
                 {
-                    return stringValue.ToString() ?? "custom";
+                    return stringValue.ToString() ?? CustomLabelString;
                 }
             }
         }
-        catch (Exception ex) when (ex is System.Reflection.TargetException 
-                                    or System.Reflection.TargetInvocationException 
-                                    or System.ArgumentException 
-                                    or System.MemberAccessException)
+        catch (Exception ex) when (ex is TargetException 
+                                    or TargetInvocationException 
+                                    or ArgumentException 
+                                    or MemberAccessException)
         {
             // If reflection fails, fall back to generic description
         }
         
-        return "custom";
+        return CustomLabelString;
     }
 
     /// <summary>

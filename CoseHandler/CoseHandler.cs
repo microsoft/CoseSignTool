@@ -317,6 +317,75 @@ public static class CoseHandler
             payloadStream?.HardDispose(payloadFile);
         }
     }
+
+    /// <summary>
+    /// Asynchronously signs the payload content with the supplied signing key provider and returns a ReadOnlyMemory object containing the COSE signature.
+    /// </summary>
+    /// <param name="payload">A Stream containing the file content to sign.</param>
+    /// <param name="signingKeyProvider">An ICoseSigningKeyProvider that contains the signing certificate and hash information.</param>
+    /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
+    /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
+    /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
+    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
+    /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
+    /// <exception cref="CryptographicException">The signing certificate is null or invalid.</exception>
+    public static async Task<ReadOnlyMemory<byte>> SignAsync(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedSign = false,
+        FileInfo? signatureFile = null,
+        string contentType = CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+        => await SignInternalAsync(
+            payloadBytes: null, payloadStream: payload, payloadFile: null,
+            signingKeyProvider, embedSign, signatureFile, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<ReadOnlyMemory<byte>> SignInternalAsync(
+        byte[]? payloadBytes,
+        Stream? payloadStream,
+        FileInfo? payloadFile,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedSign,
+        FileInfo? signatureFile,
+        string contentType,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Validate that we have exactly one form of payload input.
+        _ = CountOfDefined(payloadBytes, payloadStream, payloadFile) == 1 ? true
+            : throw new ArgumentException("Exactly one form of payload input must be provided: Byte[], Stream, or FileInfo.");
+
+        try
+        {
+            // Read payload file to stream if provided.
+            payloadStream ??= payloadFile?.GetStreamBasic(30);
+
+            // Sign the payload asynchronously.
+            ReadOnlyMemory<byte> signedBytes =
+                !payloadBytes.IsNullOrEmpty() ?
+                    await Factory.CreateCoseSign1MessageBytesAsync(payloadBytes, signingKeyProvider, embedSign, contentType, headerExtender, cancellationToken).ConfigureAwait(false) :
+                payloadStream is not null ?
+                    await Factory.CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedSign, contentType, headerExtender, cancellationToken).ConfigureAwait(false) :
+                    throw new ArgumentException("Payload not provided.");
+
+            // Write to file if requested.
+            if (signatureFile is not null)
+            {
+                // netstandard2.0 doesn't have File.WriteAllBytesAsync, so wrap synchronous call in Task.Run
+                await Task.Run(() => File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray()), cancellationToken).ConfigureAwait(false);
+            }
+
+            return signedBytes;
+        }
+        finally
+        {
+            payloadStream?.HardDispose(payloadFile);
+        }
+    }
     #endregion
 
     #region Validate Overloads

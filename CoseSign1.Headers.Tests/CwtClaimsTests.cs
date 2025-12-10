@@ -381,7 +381,6 @@ public class CwtClaimsTests
         writer.WriteEndMap();
         byte[] cborBytes = writer.Encode();
 
-
         // Act
         var claims = CwtClaims.FromCborBytes(cborBytes);
 

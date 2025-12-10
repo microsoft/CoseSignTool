@@ -86,11 +86,17 @@ public sealed partial class IndirectSignatureFactory
         ICoseHeaderExtender? headerExtender = null,
         CancellationToken cancellationToken = default)
     {
+        // Check for cancellation before starting expensive hash computation
+        cancellationToken.ThrowIfCancellationRequested();
+        
         ReadOnlyMemory<byte> hash;
         HashAlgorithmName algoName = InternalHashAlgorithmName;
 
         if (!payloadHashed)
         {
+            // Note: HashAlgorithm.ComputeHashAsync is not available in netstandard2.0
+            // For better async support in the future, consider targeting net6.0+ where
+            // ComputeHashAsync is available on specific hash algorithm implementations
             hash = streamPayload != null
                                  ? InternalHashAlgorithm.ComputeHash(streamPayload)
                                  : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());

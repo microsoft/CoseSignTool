@@ -290,8 +290,18 @@ public class SignCommand : CoseCommand
                 }
             }
 
-            // Generate the COSE signature.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(payloadStream, signingKeyProvider, EmbedPayload, SignatureFile, ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, headerExtender);
+            // Create a cancellation token with timeout (default 30 seconds from MaxWaitTime)
+            using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
+            
+            // Generate the COSE signature asynchronously with cancellation support.
+            ReadOnlyMemory<byte> signedBytes = CoseHandler.SignAsync(
+                payloadStream, 
+                signingKeyProvider, 
+                EmbedPayload, 
+                SignatureFile, 
+                ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, 
+                headerExtender,
+                timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
             
             // Write the signature to stream or file.
             if (PipeOutput)

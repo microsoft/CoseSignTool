@@ -310,12 +310,14 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             // Create the indirect signature with optional header extender
             // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically includes default CWT claims
             logger.LogVerbose("Creating indirect signature...");
-            CoseSign1Message indirectSignature = factory.CreateIndirectSignature(
-                payload: payload,
+            // Use async method to support cancellation via the cancellationToken
+            CoseSign1Message indirectSignature = await factory.CreateIndirectSignatureAsync(
+                payload: new MemoryStream(payload),
                 signingKeyProvider: signingKeyProvider,
                 contentType: contentType,
                 signatureVersion: signatureVersion,
-                coseHeaderExtender: headerExtender);
+                coseHeaderExtender: headerExtender,
+                cancellationToken: cancellationToken);
 
             // Encode and write signature to file
             byte[] signatureBytes = indirectSignature.Encode();

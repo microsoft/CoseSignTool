@@ -30,8 +30,8 @@
         <Company>Microsoft</Company>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-        <PackageReadmeFile>readme.md</PackageReadmeFile>
-        <PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
         <Description>V2 Abstractions and classes required to extend or enhance Microsoft.CoseSign1.Abstractions for all certificate based signing with dynamic key acquisition.</Description>
     </PropertyGroup>
 
@@ -57,9 +57,9 @@
     <!--Files to include in the package-->
     <ItemGroup>
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
-        <None Include="..\readme.md" Pack="true" PackagePath="\" />
-        <None Include="..\ChangeLog.md" Pack="true" PackagePath="\" />
-        <None Include="..\docs\*.md" Pack="true" PackagePath="\docs\" />
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="..\CHANGELOG.md" Pack="true" PackagePath="\" />
+        <None Include="..\docs\packages\certificates.md" Pack="true" PackagePath="\docs\" />
         <None Include="\bin\Release\net10.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\net10.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
     </ItemGroup>
 </Project>

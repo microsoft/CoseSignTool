@@ -45,4 +45,12 @@
     <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
   </ItemGroup>
 
+  <!--Files to include in the package-->
+  <ItemGroup>
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\CHANGELOG.md" Pack="true" PackagePath="\" />
+    <None Include="..\docs\packages\headers.md" Pack="true" PackagePath="\docs\" />
+  </ItemGroup>
+
 </Project>

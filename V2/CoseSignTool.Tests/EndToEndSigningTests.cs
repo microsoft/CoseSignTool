@@ -171,7 +171,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for direct signing");
 
             // Act - Sign with direct signature type
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type direct");
+            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));

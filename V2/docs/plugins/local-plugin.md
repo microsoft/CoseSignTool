@@ -28,7 +28,7 @@ CoseSignTool sign-pfx <payload> --pfx <path> [--password <password>] [options]
 | `--password` | No | Password for the PFX file |
 | `--output`, `-o` | No | Output path for signature file |
 | `--detached`, `-d` | No | Create detached signature |
-| `--signature-type`, `-t` | No | Signature type: direct, embedded, indirect |
+| `--signature-type`, `-t` | No | Signature type: detached, embedded, indirect |
 | `--content-type`, `-c` | No | MIME type of payload |
 
 **Examples**:
@@ -36,8 +36,8 @@ CoseSignTool sign-pfx <payload> --pfx <path> [--password <password>] [options]
 # Sign with PFX file
 CoseSignTool sign-pfx document.json --pfx cert.pfx --password mypassword
 
-# Create detached indirect signature
-CoseSignTool sign-pfx document.json --pfx cert.pfx -d -t indirect
+# Create indirect signature (SCITT-compliant, payload referenced by hash)
+CoseSignTool sign-pfx document.json --pfx cert.pfx -t indirect
 
 # Specify output file
 CoseSignTool sign-pfx document.json --pfx cert.pfx -o signed.cose

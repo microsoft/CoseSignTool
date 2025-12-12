@@ -394,8 +394,8 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             
-            // Sign with 'direct' type and detached flag
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type direct --detached");
+            // Sign with 'detached' type and detached flag
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached --detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act

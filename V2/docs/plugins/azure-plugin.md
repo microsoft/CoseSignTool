@@ -36,7 +36,7 @@ CoseSignTool sign-azure <payload> --ats-endpoint <url> --ats-account-name <name>
 | `--ats-cert-profile-name` | Yes | Name of the certificate profile to use |
 | `--output`, `-o` | No | Output path for signature file |
 | `--detached`, `-d` | No | Create detached signature |
-| `--signature-type`, `-t` | No | Signature type: direct, embedded, indirect |
+| `--signature-type`, `-t` | No | Signature type: detached, embedded, indirect |
 | `--content-type`, `-c` | No | MIME type of payload |
 
 **Examples**:

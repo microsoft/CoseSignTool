@@ -302,7 +302,7 @@ public class ExtendedHandlerTests
             var exitCode = rootCommand.Invoke(
                 $"sign-ephemeral \"{tempPayload}\" " +
                 $"--output \"{customOutput}\" " +
-                "--signature-type direct " +
+                "--signature-type detached " +
                 "--content-type application/json " +
                 "--quiet");
 

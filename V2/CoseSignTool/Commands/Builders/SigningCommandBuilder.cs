@@ -83,9 +83,8 @@ public class SigningCommandBuilder
         var detachedOption = new Option<bool>(
             name: "--detached",
             description: "Create a detached signature (payload not embedded in signature).\n" +
-                        "  - When set: Signature only contains cryptographic signature\n" +
-                        "  - When unset: Signature embeds the payload (default for 'direct' and 'embedded' types)\n" +
-                        "  Note: 'indirect' signature type is always detached");
+                        "  Only applies to 'embedded' signature type (overrides to detached).\n" +
+                        "  Has no effect on 'detached' or 'indirect' types.");
         detachedOption.AddAlias("-d");
 
         // Signature type option - indirect is default
@@ -93,10 +92,10 @@ public class SigningCommandBuilder
             name: "--signature-type",
             getDefaultValue: () => "indirect",
             description: "Signature generation strategy (default: indirect):\n" +
-                        "  direct   - Sign the payload directly, embed payload unless --detached\n" +
-                        "  embedded - Sign the payload directly, always embed payload (ignores --detached)\n" +
-                        "  indirect - Sign a hash of the payload (always detached, most efficient)");
-        signatureTypeOption.FromAmong("direct", "embedded", "indirect");
+                        "  detached - Sign the payload directly, do not embed payload in signature\n" +
+                        "  embedded - Sign the payload directly, embed payload in signature\n" +
+                        "  indirect - Sign a hash envelope of the payload (SCITT-compliant, most efficient)");
+        signatureTypeOption.FromAmong("detached", "embedded", "indirect");
         signatureTypeOption.AddAlias("-t");
 
         // Standard content-type option
@@ -262,7 +261,7 @@ public class SigningCommandBuilder
                         signingService, payloadStream, contentType, detached, cancellationToken),
                     "embedded" => await CreateDirectSignatureAsync(
                         signingService, payloadStream, contentType, embedPayload: true, cancellationToken),
-                    "direct" => await CreateDirectSignatureAsync(
+                    "detached" => await CreateDirectSignatureAsync(
                         signingService, payloadStream, contentType, !detached, cancellationToken),
                     _ => throw new InvalidOperationException($"Unknown signature type: {signatureType}")
                 };

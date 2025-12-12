@@ -25,7 +25,7 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         _resolver = new AssemblyDependencyResolver(pluginPath);
         _pluginDirectory = pluginDirectory;
-        
+
         // Hook the Resolving event to provide fallback when default context can't find assembly
         this.Resolving += OnResolving;
     }

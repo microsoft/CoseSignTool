@@ -256,16 +256,16 @@ public class CertificateSignatureValidatorAdditionalTests
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        
+
         // COSE_Sign1 CBOR structure: Array with 4 elements [protected, unprotected, payload, signature]
         // To create detached signature, we need to replace payload element with null (0xF6)
         // Parse the CBOR manually and replace the payload bytes
-        
+
         // Simple approach: Find the payload in the byte array and replace with CBOR null
         // The payload is the 3rd element in the array
         // For a small payload like [1,2,3,4,5], it appears as: 0x45 (byte string of length 5) followed by the 5 bytes
         // We'll replace this with 0xF6 (CBOR null)
-        
+
         // Find the pattern: look for the payload bytes
         for (int i = 0; i < messageBytes.Length - 6; i++)
         {
@@ -281,11 +281,11 @@ public class CertificateSignatureValidatorAdditionalTests
                 Array.Copy(messageBytes, 0, detachedBytes, 0, i);
                 detachedBytes[i] = 0xF6; // CBOR null
                 Array.Copy(messageBytes, i + 6, detachedBytes, i + 1, messageBytes.Length - i - 6);
-                
+
                 return CoseSign1Message.DecodeSign1(detachedBytes);
             }
         }
-        
+
         // If we couldn't find/modify, just return original (test will handle appropriately)
         return CoseSign1Message.DecodeSign1(messageBytes);
     }
@@ -298,7 +298,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        
+
         // Tamper with the signature bytes to make it invalid
         // The COSE_Sign1 structure is: [protected, unprotected, payload, signature]
         // We'll flip some bits in the signature portion
@@ -309,7 +309,7 @@ public class CertificateSignatureValidatorAdditionalTests
             messageBytes[messageBytes.Length - 5] ^= 0xFF;
             messageBytes[messageBytes.Length - 2] ^= 0xFF;
         }
-        
+
         // Decode the tampered message
         return CoseSign1Message.DecodeSign1(messageBytes);
     }

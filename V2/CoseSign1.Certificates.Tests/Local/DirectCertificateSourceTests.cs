@@ -188,7 +188,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("RSA2048Test", keySize: 2048);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         // Create signing key provider and CertificateSigningKey
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
@@ -212,7 +212,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("RSA3072Test", keySize: 3072);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -234,7 +234,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("RSA4096Test", keySize: 4096);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -256,7 +256,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("ECDSA256Test", useEcc: true, keySize: 256);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -278,7 +278,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("ECDSA384Test", useEcc: true, keySize: 384);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -300,7 +300,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("ECDSA521Test", useEcc: true, keySize: 521);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -321,10 +321,10 @@ public class DirectCertificateSourceTests
         // Arrange: Create certificate and strip private key
         using var fullCert = TestCertificateUtils.CreateCertificate("PublicOnlyTest", keySize: 2048);
         using var publicOnly = X509CertificateLoader.LoadCertificate(fullCert.Export(X509ContentType.Cert));
-        
+
         var chain = new[] { publicOnly };
         using var source = new DirectCertificateSource(publicOnly, chain);
-        
+
         // Note: DirectSigningKeyProvider requires private key, so use mock
         using var mockKeyProvider = new MockSigningKeyProvider(publicOnly, isRemote: false);
         using var mockService = new MockSigningService(false);
@@ -346,7 +346,7 @@ public class DirectCertificateSourceTests
         using var cert = TestCertificateUtils.CreateCertificate("CacheTest", keySize: 2048);
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
-        
+
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -370,15 +370,15 @@ public class DirectCertificateSourceTests
         using var cert2048 = TestCertificateUtils.CreateCertificate("RSA2048", keySize: 2048);
         using var cert3072 = TestCertificateUtils.CreateCertificate("RSA3072", keySize: 3072);
         using var cert4096 = TestCertificateUtils.CreateCertificate("RSA4096", keySize: 4096);
-        
+
         using var source2048 = new DirectCertificateSource(cert2048, new[] { cert2048 });
         using var source3072 = new DirectCertificateSource(cert3072, new[] { cert3072 });
         using var source4096 = new DirectCertificateSource(cert4096, new[] { cert4096 });
-        
+
         using var provider2048 = new DirectSigningKeyProvider(cert2048);
         using var provider3072 = new DirectSigningKeyProvider(cert3072);
         using var provider4096 = new DirectSigningKeyProvider(cert4096);
-        
+
         using var mockService = new MockSigningService(false);
         using var key2048 = new CertificateSigningKey(source2048, provider2048, mockService);
         using var key3072 = new CertificateSigningKey(source3072, provider3072, mockService);
@@ -393,7 +393,7 @@ public class DirectCertificateSourceTests
         Assert.That(metadata2048.CoseAlgorithmId, Is.EqualTo(-37)); // PS256
         Assert.That(metadata3072.CoseAlgorithmId, Is.EqualTo(-38)); // PS384
         Assert.That(metadata4096.CoseAlgorithmId, Is.EqualTo(-39)); // PS512
-        
+
         Assert.That(metadata2048.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA256));
         Assert.That(metadata3072.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA384));
         Assert.That(metadata4096.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA512));
@@ -405,13 +405,13 @@ public class DirectCertificateSourceTests
         // Arrange: One RSA and one ECDSA certificate
         using var rsaCert = TestCertificateUtils.CreateCertificate("RSATest", useEcc: false, keySize: 2048);
         using var ecdsaCert = TestCertificateUtils.CreateCertificate("ECDSATest", useEcc: true, keySize: 256);
-        
+
         using var rsaSource = new DirectCertificateSource(rsaCert, new[] { rsaCert });
         using var ecdsaSource = new DirectCertificateSource(ecdsaCert, new[] { ecdsaCert });
-        
+
         using var rsaProvider = new DirectSigningKeyProvider(rsaCert);
         using var ecdsaProvider = new DirectSigningKeyProvider(ecdsaCert);
-        
+
         using var mockService = new MockSigningService(false);
         using var rsaKey = new CertificateSigningKey(rsaSource, rsaProvider, mockService);
         using var ecdsaKey = new CertificateSigningKey(ecdsaSource, ecdsaProvider, mockService);
@@ -423,7 +423,7 @@ public class DirectCertificateSourceTests
         // Assert: Different key types detected
         Assert.That(rsaMetadata.KeyType, Is.EqualTo(CryptographicKeyType.RSA));
         Assert.That(ecdsaMetadata.KeyType, Is.EqualTo(CryptographicKeyType.ECDsa));
-        
+
         Assert.That(rsaMetadata.CoseAlgorithmId, Is.EqualTo(-37)); // PS256
         Assert.That(ecdsaMetadata.CoseAlgorithmId, Is.EqualTo(-7)); // ES256
     }
@@ -433,16 +433,16 @@ public class DirectCertificateSourceTests
     {
         // Arrange: Create two signing keys - one local, one simulated remote
         using var cert = TestCertificateUtils.CreateCertificate("RemoteFlagTest", keySize: 2048);
-        
+
         using var sourceLocal = new DirectCertificateSource(cert, new[] { cert });
         using var sourceRemote = new DirectCertificateSource(cert, new[] { cert });
-        
+
         using var providerLocal = new MockSigningKeyProvider(cert, isRemote: false);
         using var providerRemote = new MockSigningKeyProvider(cert, isRemote: true);
-        
+
         using var serviceLocal = new MockSigningService(false);
         using var serviceRemote = new MockSigningService(true);
-        
+
         using var keyLocal = new CertificateSigningKey(sourceLocal, providerLocal, serviceLocal);
         using var keyRemote = new CertificateSigningKey(sourceRemote, providerRemote, serviceRemote);
 
@@ -453,7 +453,7 @@ public class DirectCertificateSourceTests
         // Assert: IsRemote flag correctly reflects provider state
         Assert.That(localMetadata.IsRemote, Is.False);
         Assert.That(remoteMetadata.IsRemote, Is.True);
-        
+
         // Other metadata should be identical
         Assert.That(localMetadata.CoseAlgorithmId, Is.EqualTo(remoteMetadata.CoseAlgorithmId));
         Assert.That(localMetadata.KeyType, Is.EqualTo(remoteMetadata.KeyType));
@@ -466,7 +466,7 @@ public class DirectCertificateSourceTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44Test", mlDsaParameterSet: 44);
         var chain = new[] { mldsaCert };
         using var source = new DirectCertificateSource(mldsaCert, chain);
-        
+
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -490,7 +490,7 @@ public class DirectCertificateSourceTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65Test", mlDsaParameterSet: 65);
         var chain = new[] { mldsaCert };
         using var source = new DirectCertificateSource(mldsaCert, chain);
-        
+
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -514,7 +514,7 @@ public class DirectCertificateSourceTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87Test", mlDsaParameterSet: 87);
         var chain = new[] { mldsaCert };
         using var source = new DirectCertificateSource(mldsaCert, chain);
-        
+
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -538,7 +538,7 @@ public class DirectCertificateSourceTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("RemoteMLDSATest", mlDsaParameterSet: 65);
         var chain = new[] { mldsaCert };
         using var source = new DirectCertificateSource(mldsaCert, chain);
-        
+
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: true);
         using var mockService = new MockSigningService(true);
         using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
@@ -559,15 +559,15 @@ public class DirectCertificateSourceTests
         using var rsaCert = TestCertificateUtils.CreateCertificate("RSAComparison", useEcc: false, keySize: 2048);
         using var ecdsaCert = TestCertificateUtils.CreateCertificate("ECDSAComparison", useEcc: true, keySize: 256);
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSAComparison", mlDsaParameterSet: 65);
-        
+
         using var rsaSource = new DirectCertificateSource(rsaCert, new[] { rsaCert });
         using var ecdsaSource = new DirectCertificateSource(ecdsaCert, new[] { ecdsaCert });
         using var mldsaSource = new DirectCertificateSource(mldsaCert, new[] { mldsaCert });
-        
+
         using var rsaProvider = new DirectSigningKeyProvider(rsaCert);
         using var ecdsaProvider = new DirectSigningKeyProvider(ecdsaCert);
         using var mldsaProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
-        
+
         using var mockService = new MockSigningService(false);
         using var rsaKey = new CertificateSigningKey(rsaSource, rsaProvider, mockService);
         using var ecdsaKey = new CertificateSigningKey(ecdsaSource, ecdsaProvider, mockService);
@@ -582,12 +582,12 @@ public class DirectCertificateSourceTests
         Assert.That(rsaMetadata.KeyType, Is.EqualTo(CryptographicKeyType.RSA));
         Assert.That(ecdsaMetadata.KeyType, Is.EqualTo(CryptographicKeyType.ECDsa));
         Assert.That(mldsaMetadata.KeyType, Is.EqualTo(CryptographicKeyType.MLDSA));
-        
+
         // Each has different COSE algorithm
         Assert.That(rsaMetadata.CoseAlgorithmId, Is.EqualTo(-37)); // PS256
         Assert.That(ecdsaMetadata.CoseAlgorithmId, Is.EqualTo(-7)); // ES256
         Assert.That(mldsaMetadata.CoseAlgorithmId, Is.EqualTo(-49)); // ML-DSA-65
-        
+
         // All are local
         Assert.That(rsaMetadata.IsRemote, Is.False);
         Assert.That(ecdsaMetadata.IsRemote, Is.False);
@@ -601,25 +601,25 @@ public class DirectCertificateSourceTests
 internal class MockSigningService : ISigningService<SigningOptions>
 {
     private readonly bool _isRemote;
-    
+
     public MockSigningService(bool isRemote)
     {
         _isRemote = isRemote;
     }
-    
+
     public bool IsRemote => _isRemote;
     public SigningServiceMetadata ServiceMetadata => new SigningServiceMetadata("MockService", "Test service");
-    
+
     public CoseSigner GetCoseSigner(SigningContext context)
     {
         throw new NotImplementedException("Mock service does not support GetCoseSigner");
     }
-    
+
     public SigningOptions CreateSigningOptions()
     {
         return new SigningOptions();
     }
-    
+
     public void Dispose() { }
 }
 
@@ -627,15 +627,15 @@ internal class MockSigningKeyProvider : ISigningKeyProvider
 {
     private readonly X509Certificate2 _certificate;
     private readonly bool _isRemote;
-    
+
     public MockSigningKeyProvider(X509Certificate2 certificate, bool isRemote)
     {
         _certificate = certificate;
         _isRemote = isRemote;
     }
-    
+
     public bool IsRemote => _isRemote;
-    
+
     public CoseKey GetCoseKey()
     {
         // Return a basic CoseKey for testing
@@ -644,15 +644,15 @@ internal class MockSigningKeyProvider : ISigningKeyProvider
         {
             return new CoseKey(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
         }
-        
+
         using var ecdsa = _certificate.GetECDsaPublicKey();
         if (ecdsa != null)
         {
             return new CoseKey(ecdsa, HashAlgorithmName.SHA256);
         }
-        
+
         throw new InvalidOperationException("Certificate must have RSA or ECDSA key");
     }
-    
+
     public void Dispose() { }
 }

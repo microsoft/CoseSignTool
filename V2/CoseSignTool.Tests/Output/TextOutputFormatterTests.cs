@@ -145,8 +145,3 @@ public class TextOutputFormatterTests
         Assert.That(lines.Count(), Is.EqualTo(3));
     }
 }
-
-
-
-
-

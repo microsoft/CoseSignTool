@@ -73,7 +73,7 @@ public static class CoseHeaderMapCwtClaimsExtensions
         CoseHeaderLabel label = headerLabel ?? CWTClaimsHeaderLabels.CWTClaims;
         byte[] cborBytes = claims.ToCborBytes();
         CoseHeaderValue value = CoseHeaderValue.FromEncodedValue(cborBytes);
-        
+
         headerMap[label] = value;
     }
 

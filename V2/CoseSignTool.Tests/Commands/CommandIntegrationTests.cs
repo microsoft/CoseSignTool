@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Commands;
 using System.CommandLine;
+using CoseSignTool.Commands;
 
 namespace CoseSignTool.Tests.Commands;
 
@@ -205,8 +205,3 @@ public class CommandIntegrationTests
         }
     }
 }
-
-
-
-
-

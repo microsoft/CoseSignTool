@@ -442,28 +442,28 @@ public class CwtClaimsAdditionalTests
         // Arrange
         var writer = new CborWriter();
         writer.WriteStartMap(7);
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
         writer.WriteTextString("issuer");
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.Subject);
         writer.WriteTextString("subject");
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.Audience);
         writer.WriteTextString("audience");
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.ExpirationTime);
         writer.WriteInt64(1735689600); // 2025-01-01 00:00:00 UTC
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.NotBefore);
         writer.WriteInt64(1704067200); // 2024-01-01 00:00:00 UTC
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.IssuedAt);
         writer.WriteInt64(1719878400); // 2024-07-02 00:00:00 UTC
-        
+
         writer.WriteInt32(CWTClaimsHeaderLabels.CWTID);
         writer.WriteByteString(new byte[] { 0x01, 0x02, 0x03, 0x04 });
-        
+
         writer.WriteEndMap();
         var cborBytes = writer.Encode();
 

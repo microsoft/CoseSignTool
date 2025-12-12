@@ -3,9 +3,9 @@
 
 using System.Runtime.Versioning;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
@@ -39,7 +39,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         ICertificateChainBuilder? chainBuilder = null,
         ILogger<WindowsCertificateStoreCertificateSource>? logger = null)
         : this(
-            (store, log) => FindCertificateByThumbprint(store, thumbprint, log) 
+            (store, log) => FindCertificateByThumbprint(store, thumbprint, log)
                 ?? throw new InvalidOperationException($"Certificate with thumbprint '{thumbprint}' not found in {storeLocation}\\{storeName}"),
             storeName,
             storeLocation,
@@ -179,7 +179,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
 #else
         if (string.IsNullOrWhiteSpace(thumbprint)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(thumbprint)); }
 #endif
-        
+
         // Normalize thumbprint (remove spaces, colons, make uppercase)
         var normalizedThumbprint = thumbprint
             .Replace(" ", "")
@@ -223,7 +223,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             "Searching for certificate by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}",
             subjectName,
             validOnly);
-        
+
         var candidates = store.Certificates
             .Cast<X509Certificate2>()
             .Where(c => c.Subject.Contains(subjectName, StringComparison.OrdinalIgnoreCase));

@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Commands.Handlers;
-using CoseSignTool.Output;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
+using CoseSignTool.Commands.Handlers;
+using CoseSignTool.Output;
 
 namespace CoseSignTool.Tests.Commands.Handlers;
 
@@ -193,7 +193,7 @@ public class VerifyCommandHandlerTests
     {
         var command = new Command("verify");
         var signatureArg = new Argument<FileInfo?>("signature");
-        
+
         command.AddArgument(signatureArg);
 
         var args = signature != null ? $"verify \"{signature.FullName}\"" : "verify";
@@ -422,8 +422,3 @@ public class VerifyCommandHandlerTests
         }
     }
 }
-
-
-
-
-

@@ -260,7 +260,7 @@ public class CertificateExpirationValidatorTests
         Assert.That(result.Metadata["CertificateThumbprint"].ToString(), Is.Not.Empty);
     }
 
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     private CoseSign1Message CreateSignedMessage()
     {
         using var cert = TestCertificateUtils.CreateCertificate("ExpirationTest");
@@ -270,5 +270,5 @@ public class CertificateExpirationValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         return CoseMessage.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 }

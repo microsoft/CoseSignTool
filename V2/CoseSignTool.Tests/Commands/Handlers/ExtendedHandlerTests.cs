@@ -353,8 +353,3 @@ public class ExtendedHandlerTests
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 }
-
-
-
-
-

@@ -145,14 +145,14 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
             StoreLocation.CurrentUser);
 
         var cert = source.GetSigningCertificate();
-        
+
         // Only proceed if the certificate has a private key
         if (!cert.HasPrivateKey)
         {
             Assert.Inconclusive("Certificate does not have private key accessible in this context");
             return;
         }
-        
+
         var chainBuilder = source.GetChainBuilder();
         using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
 
@@ -172,4 +172,3 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
         source.Dispose(); // Should not throw
     }
 }
-

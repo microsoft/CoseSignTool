@@ -39,7 +39,7 @@ public class VerifyCommandHandler
             // Get bound values from the parse result
             var parseResult = context.ParseResult;
             var commandResult = parseResult.CommandResult;
-            
+
             // Find the signature argument
             FileInfo? signature = null;
             foreach (var arg in commandResult.Command.Arguments)
@@ -50,7 +50,7 @@ public class VerifyCommandHandler
                     break;
                 }
             }
-            
+
             if (signature == null || !signature.Exists)
             {
                 _formatter.WriteError($"Signature file not found: {signature?.FullName ?? "null"}");

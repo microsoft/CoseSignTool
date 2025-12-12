@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.CommandLine;
 using CoseSignTool.Commands;
 using CoseSignTool.Configuration;
 using Microsoft.Extensions.Logging;
-using System.CommandLine;
 
 namespace CoseSignTool;
 
@@ -40,10 +40,10 @@ public static class Program
 
             // Parse for global --additional-plugin-dir option before building commands
             var additionalPluginDirs = ExtractAdditionalPluginDirectories(ref args);
-            
+
             var rootCommand = CreateRootCommand(additionalPluginDirs);
             var result = rootCommand.Invoke(args);
-            
+
             logger.LogDebug("CoseSignTool exiting with code {ExitCode}", result);
 
             // Map System.CommandLine exit codes to our ExitCode enum

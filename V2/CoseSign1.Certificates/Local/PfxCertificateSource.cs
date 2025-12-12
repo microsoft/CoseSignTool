@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;

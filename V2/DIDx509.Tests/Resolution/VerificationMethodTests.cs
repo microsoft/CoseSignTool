@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using DIDx509.Resolution;
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using DIDx509.Resolution;
+using NUnit.Framework;
 
 namespace DIDx509.Tests.Resolution;
 
@@ -34,7 +34,7 @@ public class VerificationMethodTests
     public void Constructor_WithNullId_ThrowsArgumentNullException()
     {
         var jwk = new Dictionary<string, object>();
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new VerificationMethod(null!, "JsonWebKey2020", "did:x509:0:test", jwk));
     }
 
@@ -42,7 +42,7 @@ public class VerificationMethodTests
     public void Constructor_WithNullType_ThrowsArgumentNullException()
     {
         var jwk = new Dictionary<string, object>();
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new VerificationMethod("did:x509:0:test#key-1", null!, "did:x509:0:test", jwk));
     }
 
@@ -50,14 +50,14 @@ public class VerificationMethodTests
     public void Constructor_WithNullController_ThrowsArgumentNullException()
     {
         var jwk = new Dictionary<string, object>();
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new VerificationMethod("did:x509:0:test#key-1", "JsonWebKey2020", null!, jwk));
     }
 
     [Test]
     public void Constructor_WithNullPublicKeyJwk_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new VerificationMethod("did:x509:0:test#key-1", "JsonWebKey2020", "did:x509:0:test", null!));
     }
 

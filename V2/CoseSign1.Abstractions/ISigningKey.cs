@@ -23,13 +23,13 @@ public interface ISigningKey : IDisposable
     /// </summary>
     /// <returns>A CoseKey ready for signing operations</returns>
     CoseKey GetCoseKey();
-    
+
     /// <summary>
     /// Gets metadata about the signing key.
     /// Used by signing service to determine algorithm, create header contributors, etc.
     /// </summary>
     SigningKeyMetadata Metadata { get; }
-    
+
     /// <summary>
     /// Gets the signing service that owns this key.
     /// Allows access to service-level metadata that may be needed for header contribution.

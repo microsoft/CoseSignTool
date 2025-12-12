@@ -47,7 +47,7 @@ internal sealed class RemoteMLDsa : MLDsa
             "SHA-512" => HashAlgorithmName.SHA512,
             _ => HashAlgorithmName.SHA256
         };
-        
+
         var signature = _certificateSource.SignDataWithMLDsa(hash.ToArray(), hashAlgName);
         signature.CopyTo(destination);
     }

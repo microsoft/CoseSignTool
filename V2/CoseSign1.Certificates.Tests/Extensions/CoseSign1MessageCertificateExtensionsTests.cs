@@ -48,7 +48,7 @@ public class CoseSign1MessageCertificateExtensionsTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
-        
+
         var headers = new CoseHeaderMap();
         // Add x5chain header (label 33) with single certificate
         var writer = new CborWriter();
@@ -75,7 +75,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         var chain = TestCertificateUtils.CreateTestChain("Test", useEcc: true, keySize: 256, leafFirst: true);
         using var testCert = chain[0];
         using var issuerCert = chain[1];
-        
+
         var headers = new CoseHeaderMap();
         // Add x5chain header with array of certificates
         var writer = new CborWriter();
@@ -120,7 +120,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         // Arrange
         using var issuerCert = TestCertificateUtils.CreateCertificate();
         var headers = new CoseHeaderMap();
-        
+
         // Add x5bag header (label 32)
         var writer = new CborWriter();
         writer.WriteStartArray(1);
@@ -148,7 +148,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         using var testCert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         // Add x5t header (label 34)
         var writer = new CborWriter();
         thumbprint.Serialize(writer);
@@ -174,7 +174,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         using var testCert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         // Add x5t header
         var thumbprintWriter = new CborWriter();
         thumbprint.Serialize(thumbprintWriter);
@@ -206,7 +206,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         using var issuerCert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         // Add x5t header
         var thumbprintWriter = new CborWriter();
         thumbprint.Serialize(thumbprintWriter);
@@ -243,7 +243,7 @@ public class CoseSign1MessageCertificateExtensionsTests
 
         var thumbprint = new CoseX509Thumbprint(rsaCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         var thumbprintWriter = new CborWriter();
         thumbprint.Serialize(thumbprintWriter);
         headers.Add(CertificateHeaderContributor.HeaderLabels.X5T, CoseHeaderValue.FromEncodedValue(thumbprintWriter.Encode()));
@@ -261,7 +261,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         // Assert
         Assert.That(result, Is.True);
         Assert.That(publicKey, Is.Not.Null);
-        
+
         rsaCert.Dispose();
     }
 
@@ -272,7 +272,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(TryGetPublicKey_WithECDsaCertificate_ReturnsECDsaKey), useEcc: true);
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         var thumbprintWriter = new CborWriter();
         thumbprint.Serialize(thumbprintWriter);
         headers.Add(CertificateHeaderContributor.HeaderLabels.X5T, CoseHeaderValue.FromEncodedValue(thumbprintWriter.Encode()));
@@ -348,7 +348,7 @@ public class CoseSign1MessageCertificateExtensionsTests
         // Act & Assert - Should fail without payload
         Assert.That(message.Content, Is.Null, "Expected detached content");
         Assert.That(message.VerifySignature(), Is.False, "Should fail without payload for detached signature");
-        
+
         // Should succeed with payload
         Assert.That(message.VerifySignature(TestPayload), Is.True, "Should succeed with payload for detached signature");
     }
@@ -423,7 +423,7 @@ public class CoseSign1MessageCertificateExtensionsTests
 
         // Assert
         Assert.That(result, Is.True);
-        
+
         rsaCert.Dispose();
     }
 
@@ -451,5 +451,3 @@ public class CoseSign1MessageCertificateExtensionsTests
         Assert.That(result, Is.False, "Should fail when no signing certificate is available");
     }
 }
-
-

@@ -3,9 +3,9 @@
 
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Logging;
 using CoseSign1.Headers;
-using CoseSign1.Certificates.Extensions;
 using DIDx509;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -110,7 +110,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         var unprotectedHeaders = new CoseHeaderMap();
 
         // Note: Algorithm header is automatically added by CoseSign1Message.Sign()
-        
+
         // Create header contributor context for all contributors
         var contributorContext = new HeaderContributorContext(context, signingKey);
 
@@ -169,7 +169,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         {
             // Generate default SCITT-compliant claims
             var now = DateTimeOffset.UtcNow;
-            
+
             // Cast to ICertificateSigningKey to access certificate chain
             if (signingKey is not ICertificateSigningKey certKey)
             {
@@ -177,7 +177,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
             }
 
             var certificateChain = certKey.GetCertificateChain(X509ChainSortOrder.LeafFirst);
-            
+
             // Generate DID:x509 issuer from certificate chain using extension method
             var leafCert = certificateChain.First();
             string issuer = leafCert.GetDidWithRoot(certificateChain);

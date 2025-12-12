@@ -28,19 +28,19 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     /// <param name="context">The signing context (payload info, custom headers, etc.)</param>
     /// <returns>A CoseSigner ready to sign the message</returns>
     CoseSigner GetCoseSigner(SigningContext context);
-    
+
     /// <summary>
     /// Creates a new instance of the signing options appropriate for this signing service.
     /// The type is declared by the generic parameter TSigningOptions.
     /// </summary>
     /// <returns>A new instance of the service-specific signing options.</returns>
     TSigningOptions CreateSigningOptions();
-    
+
     /// <summary>
     /// Gets a value indicating whether this is a remote signing service.
     /// </summary>
     bool IsRemote { get; }
-    
+
     /// <summary>
     /// Gets metadata about the signing service.
     /// Used by header contributors to make service-level decisions.

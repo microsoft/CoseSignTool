@@ -62,8 +62,3 @@ public class OutputFormatterFactoryTests
         Assert.That(formatter, Is.InstanceOf<TextOutputFormatter>());
     }
 }
-
-
-
-
-

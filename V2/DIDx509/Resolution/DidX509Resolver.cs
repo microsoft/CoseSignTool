@@ -3,13 +3,13 @@
 
 namespace DIDx509.Resolution;
 
-using DIDx509.Models;
-using DIDx509.Validation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using DIDx509.Models;
+using DIDx509.Validation;
 
 /// <summary>
 /// Resolves DID:X509 identifiers to DID Documents according to the specification.
@@ -33,7 +33,7 @@ public static class DidX509Resolver
     {
         // Step 1-6: Validate DID against certificate chain
         var validationResult = DidX509Validator.Validate(did, certificates, validateChain, checkRevocation);
-        
+
         if (!validationResult.IsValid)
         {
             throw new InvalidOperationException(
@@ -89,7 +89,7 @@ public static class DidX509Resolver
             if (assertionMethod == null && keyAgreement == null)
             {
                 throw new InvalidOperationException(
-                    DidX509Constants.ErrorInvalidKeyUsage + 
+                    DidX509Constants.ErrorInvalidKeyUsage +
                     ": Certificate has key usage extension but neither digitalSignature nor keyAgreement is set");
             }
         }
@@ -141,7 +141,7 @@ public static class DidX509Resolver
             }
 
             var parameters = rsa.ExportParameters(false);
-            
+
             jwk[DidX509Constants.JwkKeyKty] = DidX509Constants.JwkKtyRsa;
             jwk[DidX509Constants.JwkKeyN] = Base64UrlEncode(parameters.Modulus!);
             jwk[DidX509Constants.JwkKeyE] = Base64UrlEncode(parameters.Exponent!);
@@ -155,7 +155,7 @@ public static class DidX509Resolver
             }
 
             var parameters = ecdsa.ExportParameters(false);
-            
+
             jwk[DidX509Constants.JwkKeyKty] = DidX509Constants.JwkKtyEc;
             jwk[DidX509Constants.JwkKeyCrv] = GetCurveName(parameters.Curve);
             jwk[DidX509Constants.JwkKeyX] = Base64UrlEncode(parameters.Q.X!);

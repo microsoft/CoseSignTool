@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 #pragma warning disable CA2252 // Preview Features
 
@@ -101,7 +101,7 @@ public class RemoteECDsaTests
         using var ecdsa = cert.GetECDsaPublicKey()!;
         var parameters = ecdsa.ExportParameters(false);
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
-        
+
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -111,7 +111,7 @@ public class RemoteECDsaTests
         // Assert
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
-        
+
         // Verify signature is valid
         using var publicEcdsa = cert.GetECDsaPublicKey()!;
         bool isValid = publicEcdsa.VerifyHash(hash, signature);
@@ -127,7 +127,7 @@ public class RemoteECDsaTests
         using var ecdsa = cert.GetECDsaPublicKey()!;
         var parameters = ecdsa.ExportParameters(false);
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
-        
+
         var hash = new byte[32]; // SHA256 hash length
         RandomNumberGenerator.Fill(hash);
 
@@ -148,7 +148,7 @@ public class RemoteECDsaTests
         using var ecdsa = cert.GetECDsaPublicKey()!;
         var parameters = ecdsa.ExportParameters(false);
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
-        
+
         var hash = new byte[48]; // SHA384 hash length
         RandomNumberGenerator.Fill(hash);
 
@@ -169,7 +169,7 @@ public class RemoteECDsaTests
         using var ecdsa = cert.GetECDsaPublicKey()!;
         var parameters = ecdsa.ExportParameters(false);
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
-        
+
         var hash = new byte[64]; // SHA512 hash length
         RandomNumberGenerator.Fill(hash);
 
@@ -192,7 +192,7 @@ public class RemoteECDsaTests
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
 
         // Act & Assert
-        var ex = Assert.Throws<NotSupportedException>(() => 
+        var ex = Assert.Throws<NotSupportedException>(() =>
             remoteEcdsa.VerifyHash(new byte[32], new byte[64]));
         Assert.That(ex!.Message, Does.Contain("Verification should be performed using public key directly"));
     }
@@ -208,7 +208,7 @@ public class RemoteECDsaTests
         using var remoteEcdsa = new RemoteECDsa(source, parameters);
 
         // Act & Assert
-        var ex = Assert.Throws<NotSupportedException>(() => 
+        var ex = Assert.Throws<NotSupportedException>(() =>
             remoteEcdsa.GenerateKey(ECCurve.NamedCurves.nistP256));
         Assert.That(ex!.Message, Does.Contain("Key generation is not supported"));
     }

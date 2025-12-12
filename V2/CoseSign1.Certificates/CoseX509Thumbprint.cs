@@ -63,7 +63,7 @@ public class CoseX509Thumbprint
         }
 
         HashId = coseId;
-        
+
         byte[] hash = hashAlgorithm.Name switch
         {
 #if NET5_0_OR_GREATER
@@ -77,7 +77,7 @@ public class CoseX509Thumbprint
 #endif
             _ => throw new ArgumentException($"Hash algorithm {hashAlgorithm} is not supported for COSE X509 thumbprints.", nameof(hashAlgorithm))
         };
-        
+
         Thumbprint = hash;
     }
 
@@ -198,7 +198,7 @@ public class CoseX509Thumbprint
         writer.WriteInt32(HashId);
         writer.WriteByteString(Thumbprint.Span);
         writer.WriteEndArray();
-        
+
         return writer.Encode();
     }
 }

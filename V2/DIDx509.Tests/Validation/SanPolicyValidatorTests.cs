@@ -372,11 +372,11 @@ public class SanPolicyValidatorTests
         var leaf = testChain[0];
         var intermediate = testChain[1];
         var root = testChain[2];
-        
+
         var leafInfo = CreateCertInfoWithSan(leaf, sans);
         var intermediateInfo = CreateCertInfoNoExtensions(intermediate);
         var rootInfo = CreateCertInfoNoExtensions(root);
-        
+
         return new CertificateChainModel(new[] { leafInfo, intermediateInfo, rootInfo });
     }
 
@@ -386,7 +386,7 @@ public class SanPolicyValidatorTests
         var issuer = ParseName(cert.IssuerName);
         var subject = ParseName(cert.SubjectName);
         var extensions = new CertificateExtensions(eku: null, san: sans, fulcioIssuer: null);
-        
+
         return new CertificateInfo(fingerprints, issuer, subject, extensions, cert);
     }
 
@@ -396,7 +396,7 @@ public class SanPolicyValidatorTests
         var issuer = ParseName(cert.IssuerName);
         var subject = ParseName(cert.SubjectName);
         var extensions = new CertificateExtensions(eku: null, san: null, fulcioIssuer: null);
-        
+
         return new CertificateInfo(fingerprints, issuer, subject, extensions, cert);
     }
 
@@ -405,12 +405,12 @@ public class SanPolicyValidatorTests
         using var sha256 = SHA256.Create();
         using var sha384 = SHA384.Create();
         using var sha512 = SHA512.Create();
-        
+
         var certBytes = cert.RawData;
         var fp256 = Convert.ToHexString(sha256.ComputeHash(certBytes)).ToLowerInvariant();
         var fp384 = Convert.ToHexString(sha384.ComputeHash(certBytes)).ToLowerInvariant();
         var fp512 = Convert.ToHexString(sha512.ComputeHash(certBytes)).ToLowerInvariant();
-        
+
         return new CertificateFingerprints(fp256, fp384, fp512);
     }
 
@@ -419,7 +419,7 @@ public class SanPolicyValidatorTests
         // Simple parser - just extract CN
         var dict = new Dictionary<string, string>();
         string nameStr = name.Name;
-        
+
         // Very basic parsing - in real code use proper X500 parser
         if (nameStr.Contains("CN="))
         {
@@ -428,7 +428,7 @@ public class SanPolicyValidatorTests
             string cn = end > start ? nameStr.Substring(start, end - start) : nameStr.Substring(start);
             dict["CN"] = cn.Trim();
         }
-        
+
         return new X509Name(dict);
     }
 

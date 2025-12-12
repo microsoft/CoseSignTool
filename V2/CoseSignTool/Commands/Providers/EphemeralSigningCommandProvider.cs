@@ -67,7 +67,7 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
         // Create signing service with ephemeral certificate
         var chainBuilder = new X509ChainBuilder(logger: chainBuilderLogger);
         var signingService = new LocalCertificateSigningService(cert, chainBuilder, signingServiceLogger);
-        
+
         return await Task.FromResult(signingService);
     }
 }

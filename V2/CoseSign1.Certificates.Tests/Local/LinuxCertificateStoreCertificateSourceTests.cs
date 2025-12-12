@@ -41,7 +41,7 @@ public class LinuxCertificateStoreCertificateSourceTests
     public void Cleanup()
     {
         _testCert?.Dispose();
-        
+
         if (_testCertDirectory != null && Directory.Exists(_testCertDirectory))
         {
             Directory.Delete(_testCertDirectory, recursive: true);
@@ -227,13 +227,13 @@ public class LinuxCertificateStoreCertificateSourceTests
                 _keyFilePath!);
 
             var cert = source.GetSigningCertificate();
-            
+
             if (!cert.HasPrivateKey)
             {
                 Assert.Inconclusive("Certificate does not have private key accessible in this context");
                 return;
             }
-            
+
             var chainBuilder = source.GetChainBuilder();
             using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
 
@@ -375,7 +375,7 @@ public class LinuxCertificateStoreCertificateSourceTests
         var expiredCert = TestCertificateUtils.CreateCertificate(
             "ExpiredTest",
             duration: expiredDuration);
-        
+
         var expiredPath = Path.Combine(_testCertDirectory!, "expired.pem");
         File.WriteAllText(expiredPath, expiredCert.ExportCertificatePem());
 
@@ -414,7 +414,7 @@ public class LinuxCertificateStoreCertificateSourceTests
 
         var ex = Assert.Throws<ArgumentException>(() =>
             new LinuxCertificateStoreCertificateSource(_certFilePath!, invalidKeyPath));
-        
+
         Assert.That(ex.Message, Does.Contain("No supported key formats were found"));
     }
 
@@ -425,9 +425,9 @@ public class LinuxCertificateStoreCertificateSourceTests
         var ecdsaCert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
         var ecdsaCertPath = Path.Combine(_testCertDirectory!, "ecdsa.crt");
         var ecdsaKeyPath = Path.Combine(_testCertDirectory!, "ecdsa.key");
-        
+
         File.WriteAllText(ecdsaCertPath, ecdsaCert.ExportCertificatePem());
-        
+
         // Export private key in PEM format
         var ecdsaKey = ecdsaCert.GetECDsaPrivateKey()!;
         var keyPem = ecdsaKey.ExportPkcs8PrivateKeyPem();
@@ -478,7 +478,7 @@ public class LinuxCertificateStoreCertificateSourceTests
     public void Constructor_WithNonExistentStorePath_SkipsPath()
     {
         var nonExistentPath = Path.Combine(_testCertDirectory!, "nonexistent");
-        
+
         // Should not throw, just skip the non-existent path
         Assert.Throws<InvalidOperationException>(() =>
             new LinuxCertificateStoreCertificateSource(
@@ -590,12 +590,12 @@ public class LinuxCertificateStoreCertificateSourceTests
         // Create two certificates with same subject, one with private key accessible
         var cert1 = TestCertificateUtils.CreateCertificate("MultiTest");
         var cert2 = TestCertificateUtils.CreateCertificate("MultiTest");
-        
+
         // Write both to disk (cert1 without key file, cert2 with key file)
         var cert1Path = Path.Combine(_testCertDirectory!, "multi1.pem");
         var cert2Path = Path.Combine(_testCertDirectory!, "multi2.pem");
         var cert2KeyPath = Path.Combine(_testCertDirectory!, "multi2.key");
-        
+
         File.WriteAllText(cert1Path, cert1.ExportCertificatePem());
         File.WriteAllText(cert2Path, cert2.ExportCertificatePem());
         File.WriteAllText(cert2KeyPath, cert2.GetRSAPrivateKey()!.ExportRSAPrivateKeyPem());
@@ -650,7 +650,7 @@ public class LinuxCertificateStoreCertificateSourceTests
 
             var cert1 = source.GetSigningCertificate();
             var cert2 = source.GetSigningCertificate();
-            
+
             Assert.That(cert1, Is.SameAs(cert2));
         }
         catch (PlatformNotSupportedException)

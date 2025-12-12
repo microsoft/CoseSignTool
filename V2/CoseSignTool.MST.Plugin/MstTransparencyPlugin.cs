@@ -52,11 +52,11 @@ public class MstTransparencyPlugin : IPlugin
     public void RegisterCommands(Command rootCommand)
     {
         var verifyMstCommand = new Command("verify-mst", "Verify a COSE signature against Microsoft Signing Transparency service");
-        
+
         var signatureArgument = new Argument<FileInfo>(
             name: "signature",
             description: "Path to the COSE Sign1 signature file");
-        
+
         var endpointOption = new Option<string?>(
             name: "--endpoint",
             description: "MST service endpoint URL (optional)");
@@ -121,9 +121,9 @@ public class MstTransparencyPlugin : IPlugin
             if (!string.IsNullOrEmpty(endpoint))
             {
                 var client = new CodeTransparencyClient(new Uri(endpoint));
-                
+
                 _formatter.WriteInfo($"Verifying against MST service: {endpoint}");
-                
+
                 // Note: Actual verification would require the CodeTransparencyClient verification methods
                 // For now, we just confirm the receipt is present
                 _formatter.WriteSuccess("MST receipt verification would be performed here");

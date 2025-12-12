@@ -16,24 +16,24 @@ namespace CoseSign1.Certificates.Tests.Remote;
 public class RemoteSigningTests
 {
     [Test]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void RemoteCertificateSource_HasPrivateKey_AlwaysReturnsTrue()
     {
         var cert = TestCertificateUtils.CreateCertificate("RemoteTest");
         using var source = new TestRemoteCertificateSource(cert);
-        
+
         Assert.That(source.HasPrivateKey, Is.True);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
     public void RemoteCertificateSource_Constructor_WithDefaultChainBuilder_CreatesInstance()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
-        
+
         Assert.That(source, Is.Not.Null);
     }
 
@@ -41,24 +41,24 @@ public class RemoteSigningTests
     public void RemoteCertificateSource_Constructor_WithCustomChainBuilder_UsesCustomBuilder()
     {
         var customBuilder = new X509ChainBuilder();
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("Test");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert, customBuilder);
-        
+
         Assert.That(source, Is.Not.Null);
     }
 
     [Test]
     public void RemoteCertificateSource_SignDataWithRsa_ValidData_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var signature = source.SignDataWithRsa(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -66,13 +66,13 @@ public class RemoteSigningTests
     [Test]
     public async Task RemoteCertificateSource_SignDataWithRsaAsync_ValidData_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var signature = await source.SignDataWithRsaAsync(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -80,13 +80,13 @@ public class RemoteSigningTests
     [Test]
     public void RemoteCertificateSource_SignHashWithRsa_ValidHash_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var hash = SHA256.HashData(new byte[] { 1, 2, 3 });
         var signature = source.SignHashWithRsa(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -94,13 +94,13 @@ public class RemoteSigningTests
     [Test]
     public async Task RemoteCertificateSource_SignHashWithRsaAsync_ValidHash_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var hash = SHA256.HashData(new byte[] { 1, 2, 3 });
         var signature = await source.SignHashWithRsaAsync(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -108,13 +108,13 @@ public class RemoteSigningTests
     [Test]
     public void RemoteCertificateSource_SignDataWithEcdsa_ValidData_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var signature = source.SignDataWithEcdsa(data, HashAlgorithmName.SHA256);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -122,13 +122,13 @@ public class RemoteSigningTests
     [Test]
     public async Task RemoteCertificateSource_SignDataWithEcdsaAsync_ValidData_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var signature = await source.SignDataWithEcdsaAsync(data, HashAlgorithmName.SHA256);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -136,13 +136,13 @@ public class RemoteSigningTests
     [Test]
     public void RemoteCertificateSource_SignHashWithEcdsa_ValidHash_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var hash = SHA256.HashData(new byte[] { 1, 2, 3 });
         var signature = source.SignHashWithEcdsa(hash);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -150,13 +150,13 @@ public class RemoteSigningTests
     [Test]
     public async Task RemoteCertificateSource_SignHashWithEcdsaAsync_ValidHash_ReturnsSignature()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var hash = SHA256.HashData(new byte[] { 1, 2, 3 });
         var signature = await source.SignHashWithEcdsaAsync(hash);
-        
+
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
     }
@@ -164,13 +164,13 @@ public class RemoteSigningTests
     [Test]
     public void RemoteSigningKeyProvider_Constructor_WithValidParameters_CreatesInstance()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
         using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
-        
+
         Assert.That(provider, Is.Not.Null);
         Assert.That(provider.Metadata, Is.Not.Null);
         Assert.That(provider.SigningService, Is.EqualTo(mockSigningService));
@@ -179,46 +179,46 @@ public class RemoteSigningTests
     [Test]
     public void RemoteSigningKeyProvider_GetCoseKey_ReturnsValidKey()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
         using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
-        
+
         var coseKey = provider.GetCoseKey();
-        
+
         Assert.That(coseKey, Is.Not.Null);
     }
 
     [Test]
     public void RemoteSigningKeyProvider_GetCoseKey_CalledTwice_ReturnsSameInstance()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
         using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
-        
+
         var coseKey1 = provider.GetCoseKey();
         var coseKey2 = provider.GetCoseKey();
-        
+
         Assert.That(coseKey1, Is.SameAs(coseKey2));
     }
 
     [Test]
     public void RemoteSigningKeyProvider_Metadata_ContainsKeyInformation()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
         using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
-        
+
         var metadata = provider.Metadata;
-        
+
         Assert.That(metadata.IsRemote, Is.True);
         Assert.That(metadata.KeyType, Is.EqualTo(CryptographicKeyType.RSA));
     }
@@ -226,13 +226,13 @@ public class RemoteSigningTests
     [Test]
     public void RemoteSigningKeyProvider_Dispose_CanBeCalledMultipleTimes()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
         var provider = new RemoteSigningKeyProvider(source, mockSigningService);
-        
+
         provider.Dispose();
         Assert.DoesNotThrow(() => provider.Dispose());
     }

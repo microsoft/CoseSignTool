@@ -132,7 +132,7 @@ public class SigningCommandBuilder
         command.SetHandler(async (InvocationContext context) =>
         {
             var exitCode = await HandleSigningCommandAsync(
-                context, 
+                context,
                 provider,
                 payloadArgument,
                 outputOption,
@@ -210,7 +210,7 @@ public class SigningCommandBuilder
             // This prevents hanging indefinitely when waiting for stdin input
             using var stdinTimeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                context.GetCancellationToken(), 
+                context.GetCancellationToken(),
                 stdinTimeoutCts.Token);
             var cancellationToken = linkedCts.Token;
 
@@ -239,10 +239,10 @@ public class SigningCommandBuilder
                 }
                 // Open file with FileOptions.SequentialScan for better performance on large files
                 payloadStream = new FileStream(
-                    payloadPath!, 
-                    FileMode.Open, 
-                    FileAccess.Read, 
-                    FileShare.Read, 
+                    payloadPath!,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
                     bufferSize: 81920, // 80KB buffer for large file streaming
                     FileOptions.SequentialScan | FileOptions.Asynchronous);
             }
@@ -284,7 +284,7 @@ public class SigningCommandBuilder
                 using var stdoutLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                     context.GetCancellationToken(),
                     stdoutTimeoutCts.Token);
-                
+
                 await using var stdout = Console.OpenStandardOutput();
                 await WriteToStreamChunkedAsync(stdout, signatureBytes, stdoutLinkedCts.Token);
             }
@@ -454,4 +454,3 @@ public class SigningCommandBuilder
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 }
-

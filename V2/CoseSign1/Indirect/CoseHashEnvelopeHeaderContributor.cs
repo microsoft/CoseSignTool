@@ -77,7 +77,7 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
             nameof(SHA512) => -44, // COSE algorithm -44 = SHA-512
             _ => throw new NotSupportedException($"Hash algorithm {_hashAlgorithm.Name} is not supported")
         };
-        
+
         // Add or update PayloadHashAlg (258)
         if (headers.ContainsKey(HeaderLabels.PayloadHashAlg))
         {

@@ -3,11 +3,11 @@
 
 namespace DIDx509;
 
-using DIDx509.Builder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using DIDx509.Builder;
 
 /// <summary>
 /// Preference for selecting Extended Key Usage (EKU) OID when generating DIDs.
@@ -79,7 +79,7 @@ public static class X509Certificate2Extensions
         IEnumerable<X509Certificate2> chain,
         string hashAlgorithm = DidX509Constants.HashAlgorithmSha256)
     {
-        return certificate.GetDidWithCertAtLocationInChain(chain, chain.Count()-1, hashAlgorithm);
+        return certificate.GetDidWithCertAtLocationInChain(chain, chain.Count() - 1, hashAlgorithm);
     }
 
     /// <summary>
@@ -357,26 +357,26 @@ public static class X509Certificate2Extensions
         {
             EkuPreference.First => ekus[0],
             EkuPreference.MostSpecific => ekus.OrderByDescending(oid => oid.Split('.').Length).First(),
-            EkuPreference.Largest => ekus.OrderByDescending(oid => oid, 
+            EkuPreference.Largest => ekus.OrderByDescending(oid => oid,
                 Comparer<string>.Create((a, b) =>
                 {
                     var aParts = a.Split('.');
                     var bParts = b.Split('.');
                     int maxLen = Math.Max(aParts.Length, bParts.Length);
-                    
+
                     // Compare each segment numerically from left to right
                     for (int i = 0; i < maxLen; i++)
                     {
                         long aVal = i < aParts.Length && long.TryParse(aParts[i], out long aTemp) ? aTemp : 0;
                         long bVal = i < bParts.Length && long.TryParse(bParts[i], out long bTemp) ? bTemp : 0;
-                        
+
                         int cmp = aVal.CompareTo(bVal);
                         if (cmp != 0)
                         {
                             return cmp;
                         }
                     }
-                    
+
                     return 0;
                 })).First(),
             EkuPreference.MostSpecificAndLargest => ekus

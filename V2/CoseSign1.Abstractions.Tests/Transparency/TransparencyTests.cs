@@ -117,14 +117,14 @@ public class TransparencyExtensionsTests
     public void SetUp()
     {
         _mockProvider = new Mock<ITransparencyProvider>();
-        
+
         // Create a COSE Sign1 message using the factory with TestCertificateUtils
         var cert = TestCertificateUtils.CreateCertificate("CN=Test");
         var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(cert, chainBuilder);
         var factory = new Direct.DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
-        
+
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         _message = CoseSign1Message.DecodeSign1(messageBytes);
     }

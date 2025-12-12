@@ -3,10 +3,10 @@
 
 namespace DIDx509.Validation;
 
-using DIDx509.Models;
-using DIDx509.Parsing;
 using System.Collections.Generic;
 using System.Linq;
+using DIDx509.Models;
+using DIDx509.Parsing;
 
 /// <summary>
 /// Validates the "subject" policy against a certificate chain.
@@ -38,7 +38,7 @@ internal static class SubjectPolicyValidator
         foreach (var kvp in requiredAttributes)
         {
             string? actualValue = leafSubject.GetAttribute(kvp.Key);
-            
+
             if (actualValue == null)
             {
                 errors.Add($"Subject policy validation failed: Required attribute '{kvp.Key}' not found in leaf certificate subject");
@@ -166,7 +166,7 @@ internal static class FulcioIssuerPolicyValidator
 
         // The policy value should match the issuer URL without the "https://" prefix
         string expectedUrl = DidX509Constants.ProtocolHttps + requiredIssuerSuffix;
-        
+
         if (!string.Equals(leafExtensions.FulcioIssuer, expectedUrl, System.StringComparison.Ordinal))
         {
             errors.Add($"Fulcio issuer policy validation failed: Expected '{expectedUrl}', got '{leafExtensions.FulcioIssuer}'");

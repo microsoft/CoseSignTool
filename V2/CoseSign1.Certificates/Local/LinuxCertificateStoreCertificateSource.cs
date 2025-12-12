@@ -4,9 +4,9 @@
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
@@ -162,7 +162,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         // Load certificate and private key separately, then combine them
         var cert = X509CertificateLoader.LoadCertificateFromFile(certificateFilePath);
         var keyPem = File.ReadAllText(privateKeyFilePath);
-        
+
         // Try to parse as RSA key first, then EC if that fails
         try
         {
@@ -196,7 +196,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                 throw new InvalidOperationException($"Unable to import private key from {privateKeyFilePath}. The key format is not supported or the key is invalid.", ex);
             }
         }
-        
+
         // Dispose the certificate without private key since we created a new one with the key
         cert.Dispose();
     }
@@ -353,13 +353,13 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         {
             var now = DateTime.Now;
             var validCandidates = candidates.Where(c => c.NotBefore <= now && c.NotAfter >= now).ToList();
-            
+
             // Dispose invalid candidates
             foreach (var invalid in candidates.Except(validCandidates))
             {
                 invalid.Dispose();
             }
-            
+
             candidates = validCandidates;
             logger?.LogTrace(
                 new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
@@ -369,7 +369,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
 
         // Prefer certificates with private keys
         var result = candidates.FirstOrDefault(c => c.HasPrivateKey) ?? candidates.FirstOrDefault();
-        
+
         // Dispose the ones we're not using
         foreach (var cert in candidates.Where(c => c != result))
         {
@@ -454,7 +454,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     private static IEnumerable<string> EnumerateCertificateFiles(string directory)
     {
         var extensions = new[] { ".pem", ".crt", ".cer" };
-        
+
         foreach (var ext in extensions)
         {
             foreach (var file in Directory.EnumerateFiles(directory, $"*{ext}", SearchOption.TopDirectoryOnly))

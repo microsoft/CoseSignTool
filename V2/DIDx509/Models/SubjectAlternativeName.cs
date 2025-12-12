@@ -27,7 +27,7 @@ public sealed class SubjectAlternativeName
     {
         Type = type ?? throw new ArgumentNullException(nameof(type));
         Value = value ?? throw new ArgumentNullException(nameof(value));
-        
+
         // Validate type and value combination
         switch (type.ToLowerInvariant())
         {

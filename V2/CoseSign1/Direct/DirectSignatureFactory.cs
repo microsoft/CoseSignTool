@@ -491,8 +491,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             return existingContext as Dictionary<string, object>;
         }
 
-        var context = existingContext != null 
-            ? new Dictionary<string, object>(existingContext) 
+        var context = existingContext != null
+            ? new Dictionary<string, object>(existingContext)
             : new Dictionary<string, object>();
 
         // Store service options using the type name as the key
@@ -511,13 +511,13 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         {
             return new List<IHeaderContributor> { ContentTypeContributor };
         }
-        
+
         var combined = new List<IHeaderContributor>(additionalContributors.Count + 1)
         {
             ContentTypeContributor
         };
         combined.AddRange(additionalContributors);
-        
+
         return combined;
     }
 

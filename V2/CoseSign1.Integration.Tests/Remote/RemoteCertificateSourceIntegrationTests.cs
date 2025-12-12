@@ -28,7 +28,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var signingCert = chain[0];
         var directCertSource = new DirectCertificateSource(signingCert, chain.Cast<X509Certificate2>().ToArray());
         var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-        
+
         using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
@@ -49,7 +49,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var signingCert = chain[0];
         var directCertSource = new DirectCertificateSource(signingCert, chain.Cast<X509Certificate2>().ToArray());
         var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-        
+
         using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
@@ -69,7 +69,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var signingCert = TestCertificateUtils.CreateMLDsaCertificate("RemoteMLDSA-Test", mlDsaParameterSet: 44);
         var directCertSource = new DirectCertificateSource(signingCert, new[] { signingCert });
         var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-        
+
         using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, new[] { signingCert });
         using var factory = new DirectSignatureFactory(signingService);
 
@@ -94,7 +94,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var signingCert = chain[0];
             var directCertSource = new DirectCertificateSource(signingCert, chain.Cast<X509Certificate2>().ToArray());
             var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-            
+
             using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, chain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(signingService);
 
@@ -127,7 +127,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var signingCert = chain[0];
             var directCertSource = new DirectCertificateSource(signingCert, chain.Cast<X509Certificate2>().ToArray());
             var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-            
+
             using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, chain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(signingService);
 
@@ -177,7 +177,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var signingCert = TestCertificateUtils.CreateMLDsaCertificate($"RemoteMLDSA{level}-Test", mlDsaParameterSet: paramSet);
             var directCertSource = new DirectCertificateSource(signingCert, new[] { signingCert });
             var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-            
+
             using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, new[] { signingCert });
             using var factory = new DirectSignatureFactory(signingService);
 
@@ -198,7 +198,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var signingCert = chain[0];
         var directCertSource = new DirectCertificateSource(signingCert, chain.Cast<X509Certificate2>().ToArray());
         var remoteCertSource = new TestRemoteCertificateSource(directCertSource);
-        
+
         using var signingService = new DirectSigningRemoteCertificateSigningService(signingCert, remoteCertSource, chain.Cast<X509Certificate2>().ToArray());
 
         // Assert

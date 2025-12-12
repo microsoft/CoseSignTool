@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Local.Plugin;
 using System.CommandLine;
+using CoseSignTool.Local.Plugin;
 
 namespace CoseSignTool.Local.Plugin.Tests;
 

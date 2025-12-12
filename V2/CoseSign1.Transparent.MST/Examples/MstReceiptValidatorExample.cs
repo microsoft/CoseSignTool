@@ -8,11 +8,11 @@
 // receipt and that the receipt validates against the MST service.
 
 using System;
+using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 // using Azure.Identity;  // Uncomment when Azure.Identity is available
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST.Validation;
-using System.Security.Cryptography.Cose;
 
 namespace CoseSign1.Transparent.MST.Examples;
 
@@ -27,7 +27,7 @@ public static class MstReceiptValidatorExample
         // var credential = new DefaultAzureCredential();  // Uncomment when Azure.Identity is available
         var mstClient = new CodeTransparencyClient(
             new Uri("https://your-mst-instance.azure.net"));
-            // credential);  // Uncomment when Azure.Identity is available
+        // credential);  // Uncomment when Azure.Identity is available
 
         // Create validator
         var validator = new MstReceiptValidator(mstClient);
@@ -41,7 +41,7 @@ public static class MstReceiptValidatorExample
         if (result.IsValid)
         {
             Console.WriteLine("✓ MST receipt is valid!");
-            
+
             // Access validation metadata
             if (result.Metadata.ContainsKey("ProviderName"))
             {
@@ -74,17 +74,17 @@ public static class MstReceiptValidatorExample
         // var credential = new DefaultAzureCredential();  // Uncomment when Azure.Identity is available
         var mstClient = new CodeTransparencyClient(
             new Uri("https://your-mst-instance.azure.net"));
-            // credential);  // Uncomment when Azure.Identity is available
+        // credential);  // Uncomment when Azure.Identity is available
 
         // Configure verification behavior
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
             // Only accept receipts from these authorized domains
             AuthorizedDomains = new[] { "contoso.com", "fabrikam.com" }.ToList()
-            
+
             // Require receipts from authorized domains
             // AuthorizedReceiptBehavior = ReceiptValidationBehavior.Require,  // TODO: Check actual API
-            
+
             // Allow but don't require receipts from other domains
             // UnauthorizedReceiptBehavior = ReceiptValidationBehavior.Allow  // TODO: Check actual API
         };
@@ -118,7 +118,7 @@ public static class MstReceiptValidatorExample
         // var credential = new DefaultAzureCredential();  // Uncomment when Azure.Identity is available
         var mstClient = new CodeTransparencyClient(
             new Uri("https://your-mst-instance.azure.net"));
-            // credential);  // Uncomment when Azure.Identity is available
+        // credential);  // Uncomment when Azure.Identity is available
         var mstValidator = new MstReceiptValidator(mstClient);
 
         // Combine with other validators (example - not all types may be available)
@@ -162,7 +162,7 @@ public static class MstReceiptValidatorExample
         // var credential = new DefaultAzureCredential();  // Uncomment when Azure.Identity is available
         var mstClient = new CodeTransparencyClient(
             new Uri("https://your-mst-instance.azure.net"));
-            // credential);  // Uncomment when Azure.Identity is available
+        // credential);  // Uncomment when Azure.Identity is available
         var validator = new MstReceiptValidator(mstClient);
 
         // Message without MST receipt
@@ -190,7 +190,7 @@ public static class MstReceiptValidatorExample
         // var credential = new DefaultAzureCredential();  // Uncomment when Azure.Identity is available
         var mstClient = new CodeTransparencyClient(
             new Uri("https://your-mst-instance.azure.net"));
-            // credential);  // Uncomment when Azure.Identity is available
+        // credential);  // Uncomment when Azure.Identity is available
         var validator = new MstReceiptValidator(mstClient);
 
         try

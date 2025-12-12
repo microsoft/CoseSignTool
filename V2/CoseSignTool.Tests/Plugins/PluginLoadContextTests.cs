@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Plugins;
 using System.Reflection;
+using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Tests.Plugins;
 
@@ -84,8 +84,3 @@ public class PluginLoadContextTests
         Assert.That(loadedAssembly.Location, Is.EqualTo(assemblyPath));
     }
 }
-
-
-
-
-

@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Commands;
 using System.CommandLine;
+using CoseSignTool.Commands;
 
 namespace CoseSignTool.Tests;
 
@@ -37,7 +37,7 @@ public class EndToEndSigningTests
 
             // Note: Verify may fail since signature is from ephemeral cert (not trusted)
             // This tests that the command runs and returns an expected exit code
-            Assert.That(verifyExitCode == (int)ExitCode.Success || 
+            Assert.That(verifyExitCode == (int)ExitCode.Success ||
                         verifyExitCode == (int)ExitCode.VerificationFailed ||
                         verifyExitCode == (int)ExitCode.UntrustedCertificate,
                         $"Unexpected exit code: {verifyExitCode}");
@@ -432,8 +432,3 @@ public class EndToEndSigningTests
         }
     }
 }
-
-
-
-
-

@@ -17,11 +17,11 @@ public class AdditionalValidatorTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("ValidatorTest");
-        
+
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -29,7 +29,7 @@ public class AdditionalValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -61,7 +61,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateCommonNameValidator("ValidatorTest");
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -70,7 +70,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateCommonNameValidator("WrongName");
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.False);
     }
 
@@ -79,7 +79,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateCommonNameValidator("Test");
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
     }
 
@@ -88,7 +88,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateCommonNameValidator("ValidatorTest");
         var result = await validator.ValidateAsync(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -104,7 +104,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateExpirationValidator();
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -113,7 +113,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateExpirationValidator();
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
     }
 
@@ -122,7 +122,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateExpirationValidator();
         var result = await validator.ValidateAsync(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -144,22 +144,22 @@ public class AdditionalValidatorTests
     {
         // For detached signatures, the message doesn't contain the payload
         // So we need to create a detached message
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("DetachedTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
-        
+
         // Create detached signature (payload not embedded)
         var options = new DirectSignatureOptions { EmbedPayload = false };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
         var message = CoseSign1Message.DecodeSign1(messageBytes);
-        
+
         var validator = new CertificateDetachedSignatureValidator(payload);
         var result = validator.Validate(message);
-        
+
         Assert.That(result.IsValid, Is.True);
         cert.Dispose();
     }
@@ -169,7 +169,7 @@ public class AdditionalValidatorTests
     {
         var validator = new CertificateDetachedSignatureValidator(new byte[] { 1, 2, 3 });
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
     }
 
@@ -177,21 +177,21 @@ public class AdditionalValidatorTests
     public async Task CertificateDetachedSignatureValidator_ValidateAsync_CompletesSuccessfully()
     {
         // Create detached signature
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("DetachedAsyncTest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
-        
+
         var options = new DirectSignatureOptions { EmbedPayload = false };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
         var message = CoseSign1Message.DecodeSign1(messageBytes);
-        
+
         var validator = new CertificateDetachedSignatureValidator(payload);
         var result = await validator.ValidateAsync(message);
-        
+
         Assert.That(result.IsValid, Is.True);
         cert.Dispose();
     }

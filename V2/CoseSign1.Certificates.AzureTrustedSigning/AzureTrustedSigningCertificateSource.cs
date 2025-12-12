@@ -79,7 +79,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
             // Get the certificate from Azure Trusted Signing SDK
             _signingCertificate = _signContext.GetSigningCertificate()
                 ?? throw new InvalidOperationException("Azure Trusted Signing did not return a signing certificate.");
-            
+
             return _signingCertificate;
         }
     }
@@ -90,7 +90,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     public override byte[] SignDataWithRsa(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         if (data == null) { throw new ArgumentNullException(nameof(data)); }
-        
+
         var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
         return rsa.SignData(data, hashAlgorithm, padding);
     }
@@ -99,7 +99,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     public override async Task<byte[]> SignDataWithRsaAsync(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding, CancellationToken cancellationToken = default)
     {
         if (data == null) { throw new ArgumentNullException(nameof(data)); }
-        
+
         var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
         // Note: RSA.SignData is synchronous, but we wrap it for async pattern consistency
         return await Task.Run(() => rsa.SignData(data, hashAlgorithm, padding), cancellationToken).ConfigureAwait(false);
@@ -109,7 +109,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     public override byte[] SignHashWithRsa(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         if (hash == null) { throw new ArgumentNullException(nameof(hash)); }
-        
+
         var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
         return rsa.SignHash(hash, hashAlgorithm, padding);
     }
@@ -118,7 +118,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     public override async Task<byte[]> SignHashWithRsaAsync(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding, CancellationToken cancellationToken = default)
     {
         if (hash == null) { throw new ArgumentNullException(nameof(hash)); }
-        
+
         var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
         return await Task.Run(() => rsa.SignHash(hash, hashAlgorithm, padding), cancellationToken).ConfigureAwait(false);
     }

@@ -3,13 +3,13 @@
 
 namespace DIDx509.Validation;
 
-using DIDx509.CertificateChain;
-using DIDx509.Models;
-using DIDx509.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using DIDx509.CertificateChain;
+using DIDx509.Models;
+using DIDx509.Parsing;
 
 /// <summary>
 /// Validates DID:X509 identifiers against X.509 certificate chains.
@@ -140,12 +140,12 @@ public static class DidX509Validator
         {
             // Build the chain
             using var chain = new X509Chain();
-            
+
             // Configure chain building
             chain.ChainPolicy.RevocationMode = checkRevocation
                 ? X509RevocationMode.Online
                 : X509RevocationMode.NoCheck;
-            
+
             chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EndCertificateOnly;
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
 

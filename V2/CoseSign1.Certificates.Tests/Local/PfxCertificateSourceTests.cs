@@ -45,7 +45,7 @@ public class PfxCertificateSourceTests
     public void Constructor_WithNonExistentFile_ThrowsFileNotFoundException()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.pfx");
-        
+
         Assert.Throws<FileNotFoundException>(() => new PfxCertificateSource(nonExistentPath));
     }
 
@@ -65,7 +65,7 @@ public class PfxCertificateSourceTests
         var password = "correctpassword";
         File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        Assert.Throws<System.Security.Cryptography.CryptographicException>(() => 
+        Assert.Throws<System.Security.Cryptography.CryptographicException>(() =>
             new PfxCertificateSource(_tempPfxPath, "wrongpassword"));
     }
 

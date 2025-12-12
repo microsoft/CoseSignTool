@@ -46,11 +46,6 @@
         <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
     </ItemGroup>
 
-    <!--Exclude validators that have circular dependency with CoseSign1.Certificates-->
-    <ItemGroup>
-        <Compile Remove="Validation\**\*" />
-    </ItemGroup>
-
     <!--Files to include in the package-->
     <ItemGroup>
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />

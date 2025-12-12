@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.CommandLine.Invocation;
-using CoseSignTool.Output;
 using CoseSignTool.Inspection;
+using CoseSignTool.Output;
 
 namespace CoseSignTool.Commands.Handlers;
 
@@ -39,7 +39,7 @@ public class InspectCommandHandler
             // Get bound values from the parse result
             var parseResult = context.ParseResult;
             var commandResult = parseResult.CommandResult;
-            
+
             // Find the file argument
             FileInfo? file = null;
             foreach (var arg in commandResult.Command.Arguments)
@@ -50,7 +50,7 @@ public class InspectCommandHandler
                     break;
                 }
             }
-            
+
             if (file == null || !file.Exists)
             {
                 _formatter.WriteError($"File not found: {file?.FullName ?? "null"}");

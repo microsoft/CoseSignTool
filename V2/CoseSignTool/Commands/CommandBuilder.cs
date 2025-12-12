@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.CommandLine;
+using System.CommandLine.Help;
 using CoseSign1.Abstractions.Transparency;
-using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Commands.Builders;
+using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Commands.Providers;
 using CoseSignTool.Output;
 using CoseSignTool.Plugins;
 using Microsoft.Extensions.Logging;
-using System.CommandLine;
-using System.CommandLine.Help;
 
 namespace CoseSignTool.Commands;
 
@@ -71,11 +71,11 @@ public class CommandBuilder
             name: "--verbosity",
             getDefaultValue: () => 1,
             description: "Set logging verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace)");
-        
+
         var vvOption = new Option<bool>(
             name: "-vv",
             description: "Enable debug logging (equivalent to --verbosity 3)");
-        
+
         var vvvOption = new Option<bool>(
             name: "-vvv",
             description: "Enable trace logging (equivalent to --verbosity 4)");
@@ -116,7 +116,7 @@ public class CommandBuilder
     /// Loads plugins and registers their commands.
     /// </summary>
     private static void LoadPlugins(
-        RootCommand rootCommand, 
+        RootCommand rootCommand,
         IEnumerable<string>? additionalPluginDirectories,
         out IReadOnlyList<ITransparencyProvider> transparencyProviders)
     {

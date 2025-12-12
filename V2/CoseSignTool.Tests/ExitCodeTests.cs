@@ -138,8 +138,3 @@ public class ExitCodeTests
         Assert.That(code, Is.EqualTo(ExitCode.SigningFailed));
     }
 }
-
-
-
-
-

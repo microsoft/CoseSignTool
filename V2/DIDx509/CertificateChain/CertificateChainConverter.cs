@@ -3,13 +3,13 @@
 
 namespace DIDx509.CertificateChain;
 
-using DIDx509.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using DIDx509.Models;
 
 /// <summary>
 /// Converts X.509 certificate chains to the DID:X509 JSON data model.
@@ -314,7 +314,7 @@ public static class CertificateChainConverter
         // Parse SAN extension raw data
         // The format is a sequence of [tag, length, value] triplets
         // Tag 1 = rfc822Name (email), Tag 2 = dNSName, Tag 6 = uniformResourceIdentifier, Tag 4 = directoryName
-        
+
         try
         {
             // Use the formatted string representation as a fallback
@@ -324,7 +324,7 @@ public static class CertificateChainConverter
             foreach (var line in lines)
             {
                 string trimmed = line.Trim();
-                
+
                 if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
                 {
                     string value = trimmed.Substring("DNS Name=".Length);
@@ -363,7 +363,7 @@ public static class CertificateChainConverter
         {
             // The extension value is typically a UTF8 string
             string value = Encoding.UTF8.GetString(extension.RawData);
-            
+
             // Skip ASN.1 tag and length bytes if present (typically first 2 bytes)
             if (value.Length > 2 && (value[0] < 32 || value[0] > 126))
             {

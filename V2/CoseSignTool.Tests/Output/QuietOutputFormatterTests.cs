@@ -81,8 +81,3 @@ public class QuietOutputFormatterTests
         formatter.EndSection();
     }
 }
-
-
-
-
-

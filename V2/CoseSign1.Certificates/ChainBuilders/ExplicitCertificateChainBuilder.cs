@@ -3,8 +3,8 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

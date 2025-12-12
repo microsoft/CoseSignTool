@@ -44,7 +44,7 @@ public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
     {
         var thumbprint = options["thumbprint"] as string
             ?? throw new InvalidOperationException("Thumbprint is required");
-        
+
         var storePaths = options.TryGetValue("store-paths", out var paths) ? paths as string[] : null;
         var searchPaths = storePaths?.AsEnumerable() ?? LinuxCertificateStoreCertificateSource.DefaultCertificateStorePaths;
 

@@ -15,17 +15,17 @@ public enum HeaderMergeStrategy
     /// This is the safest default behavior.
     /// </summary>
     Fail,
-    
+
     /// <summary>
     /// Skip adding the header if it already exists (keep existing value).
     /// </summary>
     KeepExisting,
-    
+
     /// <summary>
     /// Replace the existing header value with the new one.
     /// </summary>
     Replace,
-    
+
     /// <summary>
     /// Allow the contributor to decide based on the existing value.
     /// The contributor's Contribute method will be called and can inspect existing headers.
@@ -52,7 +52,7 @@ public class HeaderContributorContext
     /// Gets the signing context (payload, content type, etc.).
     /// </summary>
     public SigningContext SigningContext { get; }
-    
+
     /// <summary>
     /// Gets the signing key being used for the operation.
     /// Contributors can access key metadata via SigningKey.Metadata.
@@ -74,7 +74,7 @@ public interface IHeaderContributor
     /// Default behavior should be Fail for safety.
     /// </summary>
     HeaderMergeStrategy MergeStrategy { get; }
-    
+
     /// <summary>
     /// Contributes protected headers. Called at sign-time with full context.
     /// MUST be thread-safe - may be called concurrently from multiple threads.
@@ -85,7 +85,7 @@ public interface IHeaderContributor
     /// <param name="headers">The header map to contribute to. May already contain headers.</param>
     /// <param name="context">Context including signing context and signing key (which provides metadata).</param>
     void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context);
-    
+
     /// <summary>
     /// Contributes unprotected headers. Called at sign-time with full context.
     /// MUST be thread-safe - may be called concurrently from multiple threads.

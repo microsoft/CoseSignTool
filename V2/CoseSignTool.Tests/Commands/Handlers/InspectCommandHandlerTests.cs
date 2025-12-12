@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Commands.Handlers;
-using CoseSignTool.Output;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
+using CoseSignTool.Commands.Handlers;
+using CoseSignTool.Output;
 
 namespace CoseSignTool.Tests.Commands.Handlers;
 
@@ -193,7 +193,7 @@ public class InspectCommandHandlerTests
     {
         var command = new Command("inspect");
         var fileArg = new Argument<FileInfo?>("file");
-        
+
         command.AddArgument(fileArg);
 
         var args = file != null ? $"inspect \"{file.FullName}\"" : "inspect";
@@ -406,8 +406,3 @@ public class InspectCommandHandlerTests
         }
     }
 }
-
-
-
-
-

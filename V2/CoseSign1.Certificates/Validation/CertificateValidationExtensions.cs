@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Local;
-using CoseSign1.Validation;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Validation;
 
@@ -26,7 +26,7 @@ public static class CertificateValidationExtensions
     {
         var certBuilder = new CertificateValidationBuilder();
         configure(certBuilder);
-        
+
         // Build certificate validator and add to main builder
         var validator = certBuilder.Build();
         return builder.AddValidator(validator);

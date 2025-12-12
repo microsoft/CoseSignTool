@@ -31,7 +31,7 @@ public static class CoseSign1MessageIndirectExtensions
         }
 
         // Check content-type header for indirect signature markers
-        if (message.TryGetHeader(CoseHeaderLabel.ContentType, out string? contentType) && 
+        if (message.TryGetHeader(CoseHeaderLabel.ContentType, out string? contentType) &&
             !string.IsNullOrEmpty(contentType))
         {
             if (CoseHashVPattern.IsMatch(contentType))

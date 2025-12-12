@@ -59,7 +59,7 @@ public class SigningContext
     /// Only valid when <see cref="HasStream"/> is true.
     /// </summary>
     public Stream PayloadStream => _payloadStream ?? throw new InvalidOperationException("Context contains byte payload, not stream. Check HasStream property.");
-    
+
     /// <summary>
     /// Gets the payload bytes to be signed.
     /// Only valid when <see cref="HasStream"/> is false.
@@ -70,13 +70,13 @@ public class SigningContext
     /// Gets the content type of the payload (e.g., "application/json").
     /// </summary>
     public string ContentType { get; }
-    
+
     /// <summary>
     /// Gets additional header contributors to apply for this specific operation.
     /// Applied after the signing service's required contributors.
     /// </summary>
     public IReadOnlyList<IHeaderContributor>? AdditionalHeaderContributors { get; }
-    
+
     /// <summary>
     /// Gets additional context for custom header contributors.
     /// </summary>

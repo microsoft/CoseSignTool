@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Output;
 using System.Text.Json;
+using CoseSignTool.Output;
 
 namespace CoseSignTool.Tests.Output;
 
@@ -179,8 +179,3 @@ public class JsonOutputFormatterTests
         Assert.That(doc.RootElement.GetArrayLength(), Is.EqualTo(4));
     }
 }
-
-
-
-
-

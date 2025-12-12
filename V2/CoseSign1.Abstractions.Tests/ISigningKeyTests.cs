@@ -57,7 +57,7 @@ public class ISigningKeyTests
         // Assert
         Assert.That(getCoseKeyMethod, Is.Not.Null, "Should have GetCoseKey method");
         Assert.That(getCoseKeyMethod!.ReturnType, Is.EqualTo(typeof(CoseKey)), "GetCoseKey should return CoseKey");
-        
+
         var parameters = getCoseKeyMethod.GetParameters();
         Assert.That(parameters.Length, Is.EqualTo(0), "GetCoseKey should have no parameters");
     }
@@ -70,7 +70,7 @@ public class ISigningKeyTests
 
         // Assert
         Assert.That(typeof(IDisposable).IsAssignableFrom(type), Is.True, "ISigningKey should implement IDisposable");
-        
+
         // Verify Dispose is in the interface map
         var interfaces = type.GetInterfaces();
         Assert.That(interfaces, Does.Contain(typeof(IDisposable)), "ISigningKey should explicitly inherit IDisposable");

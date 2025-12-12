@@ -23,7 +23,7 @@ public class DirectCertificateSource : CertificateSourceBase
     /// <param name="certificateChain">The complete certificate chain including the signing certificate</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder.</param>
     public DirectCertificateSource(
-        X509Certificate2 certificate, 
+        X509Certificate2 certificate,
         IReadOnlyList<X509Certificate2> certificateChain,
         ICertificateChainBuilder? chainBuilder = null)
         : base(certificateChain, chainBuilder)

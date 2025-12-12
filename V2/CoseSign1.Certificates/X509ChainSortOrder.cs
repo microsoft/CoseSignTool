@@ -12,7 +12,7 @@ public enum X509ChainSortOrder
     /// When specified, the root will be the first element.
     /// </summary>
     RootFirst,
-    
+
     /// <summary>
     /// When specified, the leaf will be the first element.
     /// </summary>

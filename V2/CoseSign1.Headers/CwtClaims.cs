@@ -214,7 +214,7 @@ public sealed class CwtClaims
     public byte[] ToCborBytes()
     {
         var writer = new CborWriter();
-        
+
         // Count all non-null claims
         int claimCount = CustomClaims.Count;
         if (Issuer != null)

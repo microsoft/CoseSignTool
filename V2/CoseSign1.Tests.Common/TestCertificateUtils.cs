@@ -4,11 +4,11 @@
 
 namespace CoseSign1.Tests.Common;
 
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
-using System.Collections.Concurrent;
 
 /// <summary>
 /// Class used to create in-memory certificates and certificate chains used for UnitTesting.
@@ -30,7 +30,7 @@ public static class TestCertificateUtils
         {
             return null;
         }
-            
+
         s_mldsaKeys.TryGetValue(certificate.Thumbprint, out MLDsa? key);
         return key;
     }
@@ -100,7 +100,7 @@ public static class TestCertificateUtils
             segment.CopyTo(authorityKeyIdentifier, 4);
             request.CertificateExtensions.Add(new X509Extension("2.5.29.35", authorityKeyIdentifier, false));
         }
-        
+
         // Subject Alternative Names
         SubjectAlternativeNameBuilder sanBuilder = new();
         if (customSans != null && customSans.Length > 0)
@@ -139,7 +139,7 @@ public static class TestCertificateUtils
 
         // Enhanced key usages
         OidCollection oids;
-        
+
         if (customEkus != null && customEkus.Length > 0)
         {
             // Use custom EKUs provided by caller
@@ -368,7 +368,7 @@ public static class TestCertificateUtils
         if (issuingCa != null)
         {
             // Set the AuthorityKeyIdentifier
-            byte[] issuerSubjectKey = issuingCa.Extensions.First(x => x is X509SubjectKeyIdentifierExtension)?.RawData 
+            byte[] issuerSubjectKey = issuingCa.Extensions.First(x => x is X509SubjectKeyIdentifierExtension)?.RawData
                 ?? throw new ArgumentOutOfRangeException(nameof(issuingCa), @"Issuing CA did not have a ""Subject Key Identifier"" extension present");
             ArraySegment<byte> segment = new(issuerSubjectKey, 2, issuerSubjectKey.Length - 2);
             byte[] authorityKeyIdentifier = new byte[segment.Count + 4];
@@ -488,4 +488,3 @@ public static class TestCertificateUtils
     }
 
 }
-

@@ -70,7 +70,7 @@ public static class CoseSign1MessageExtensions
             {
                 // The receipts are stored as a CBOR array of byte strings
                 var reader = new CborReader(value.EncodedValue);
-                
+
                 if (reader.PeekState() != CborReaderState.StartArray)
                 {
                     return receiptBytes;

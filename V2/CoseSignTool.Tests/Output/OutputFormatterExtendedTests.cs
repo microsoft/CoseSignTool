@@ -346,8 +346,3 @@ public class OutputFormatterExtendedTests
 
     #endregion
 }
-
-
-
-
-

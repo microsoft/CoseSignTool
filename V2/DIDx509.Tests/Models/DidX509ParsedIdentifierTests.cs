@@ -41,7 +41,7 @@ public class DidX509ParsedIdentifierTests
         var policies = new[] { new DidX509Policy("subject", "CN:Test") };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new DidX509ParsedIdentifier(null!, "0", "sha256", "fingerprint", policies));
     }
 
@@ -52,7 +52,7 @@ public class DidX509ParsedIdentifierTests
         var policies = new[] { new DidX509Policy("subject", "CN:Test") };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new DidX509ParsedIdentifier("did", null!, "sha256", "fingerprint", policies));
     }
 
@@ -63,7 +63,7 @@ public class DidX509ParsedIdentifierTests
         var policies = new[] { new DidX509Policy("subject", "CN:Test") };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new DidX509ParsedIdentifier("did", "0", null!, "fingerprint", policies));
     }
 
@@ -74,7 +74,7 @@ public class DidX509ParsedIdentifierTests
         var policies = new[] { new DidX509Policy("subject", "CN:Test") };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new DidX509ParsedIdentifier("did", "0", "sha256", null!, policies));
     }
 
@@ -82,7 +82,7 @@ public class DidX509ParsedIdentifierTests
     public void Constructor_WithNullPolicies_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new DidX509ParsedIdentifier("did", "0", "sha256", "fingerprint", null!));
     }
 

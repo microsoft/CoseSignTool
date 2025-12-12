@@ -53,7 +53,7 @@ public static class DidX509Constants
     public const string OidOrganizationalUnitName = "2.5.4.11";
     public const string OidCountryName = "2.5.4.6";
     public const string OidStreetAddress = "2.5.4.9";
-    
+
     // Fulcio extension OID
     public const string OidFulcioIssuer = "1.3.6.1.4.1.57264.1.1";
 

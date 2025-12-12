@@ -51,7 +51,7 @@ public class ConfigurationLoader
     public IConfigurationRoot Build()
     {
         var builder = new ConfigurationBuilder();
-        
+
         foreach (var action in _builderActions)
         {
             action(builder);

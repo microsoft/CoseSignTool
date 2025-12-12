@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Formats.Cbor;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-using System.Formats.Cbor;
-using System.Security.Cryptography.X509Certificates;
 
 namespace CoseSign1.Certificates.Tests.Extensions;
 
@@ -19,7 +19,7 @@ public class CborWriterExtensionsTests
         var certs = new List<X509Certificate2>();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             ((CborWriter)null!).EncodeCertList(certs));
     }
 
@@ -30,7 +30,7 @@ public class CborWriterExtensionsTests
         var writer = new CborWriter();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             writer.EncodeCertList(null!));
     }
 
@@ -96,19 +96,19 @@ public class CborWriterExtensionsTests
             // Assert
             Assert.That(encoded.Length, Is.GreaterThan(0));
             var reader = new CborReader(encoded);
-            
+
             // Should be an array
             var arrayLength = reader.ReadStartArray();
             Assert.That(arrayLength, Is.EqualTo(2));
-            
+
             // First cert
             var cert1Data = reader.ReadByteString();
             Assert.That(cert1Data, Is.EqualTo(cert1.RawData));
-            
+
             // Second cert
             var cert2Data = reader.ReadByteString();
             Assert.That(cert2Data, Is.EqualTo(cert2.RawData));
-            
+
             reader.ReadEndArray();
         }
         finally
@@ -138,11 +138,11 @@ public class CborWriterExtensionsTests
             var reader = new CborReader(encoded);
             var arrayLength = reader.ReadStartArray();
             Assert.That(arrayLength, Is.EqualTo(3));
-            
+
             reader.ReadByteString(); // cert1
             reader.ReadByteString(); // cert2
             reader.ReadByteString(); // cert3
-            
+
             reader.ReadEndArray();
         }
         finally

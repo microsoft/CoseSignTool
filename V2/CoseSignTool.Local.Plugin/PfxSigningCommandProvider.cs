@@ -43,7 +43,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
 
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var pfxFile = options["pfx"] as FileInfo 
+        var pfxFile = options["pfx"] as FileInfo
             ?? throw new InvalidOperationException("PFX file is required");
         var pfxPassword = options.TryGetValue("pfx-password", out var pwd) ? pwd as string : null;
 
@@ -70,7 +70,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
 
         // Create and return signing service
         _signingService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
-        
+
         return await Task.FromResult(_signingService);
     }
 

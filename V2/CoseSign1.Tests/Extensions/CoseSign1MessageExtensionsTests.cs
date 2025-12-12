@@ -448,7 +448,7 @@ public class CoseSign1MessageExtensionsTests
         // Arrange
         var message = CreateTestMessage(TestPayload);
         var testLabel = new CoseHeaderLabel(5008);
-        
+
         // Add to both protected (via creation) and unprotected
         var headers = new CoseHeaderMap();
         headers.Add(testLabel, CoseHeaderValue.FromString("protected-value"));
@@ -655,4 +655,3 @@ public class CoseSign1MessageExtensionsTests
 
     #endregion
 }
-

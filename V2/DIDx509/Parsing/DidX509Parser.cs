@@ -3,10 +3,10 @@
 
 namespace DIDx509.Parsing;
 
-using DIDx509.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using DIDx509.Models;
 
 /// <summary>
 /// Parses DID:X509 identifiers according to the specification.

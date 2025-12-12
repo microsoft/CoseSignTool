@@ -179,7 +179,7 @@ public class CoseInspectionService
         if (payload.HasValue && payload.Value.Length > 0)
         {
             _formatter.WriteKeyValue("  Size", $"{payload.Value.Length:N0} bytes");
-            
+
             // Try to detect if it's text
             if (IsLikelyText(payload.Value.Span))
             {
@@ -208,14 +208,14 @@ public class CoseInspectionService
         _formatter.WriteInfo("Signature:");
         var encoded = message.Encode();
         _formatter.WriteKeyValue("  Total Size", $"{encoded.Length:N0} bytes");
-        
+
         // Try to extract certificate chain from unprotected headers (x5chain is label 33)
         var x5chainLabel = new CoseHeaderLabel(33);
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
             _formatter.WriteInfo("  Certificate Chain found in unprotected headers");
         }
-        
+
         // Check protected headers too
         if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
         {

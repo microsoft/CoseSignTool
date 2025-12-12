@@ -3,11 +3,11 @@
 
 namespace DIDx509.Resolution;
 
-using DIDx509.Models;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using DIDx509.Models;
 
 /// <summary>
 /// Represents a DID Document according to W3C DID Core specification.

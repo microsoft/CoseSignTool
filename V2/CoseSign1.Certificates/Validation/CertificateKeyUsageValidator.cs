@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Extensions;
-using CoseSign1.Validation;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Extensions;
+using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Validation;
 

@@ -115,7 +115,7 @@ public class ExplicitCertificateChainBuilderTests
 
         Assert.That(result, Is.True, () => string.Join("; ", builder.ChainStatus.Select(s => s.StatusInformation)));
         Assert.That(builder.ChainElements, Has.Count.EqualTo(3));
-        
+
         // Verify the chain is in correct order: leaf -> intermediate -> root
         var chainArray = builder.ChainElements.ToArray();
         Assert.That(chainArray[0].Thumbprint, Is.EqualTo(certs[2].Thumbprint)); // leaf

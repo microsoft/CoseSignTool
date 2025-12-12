@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 #pragma warning disable CA2252 // Preview Features
 
@@ -103,7 +103,7 @@ public class RemoteRsaTests
         using var rsa = cert.GetRSAPublicKey()!;
         var parameters = rsa.ExportParameters(false);
         using var remoteRsa = new RemoteRsa(source, parameters);
-        
+
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -113,7 +113,7 @@ public class RemoteRsaTests
         // Assert
         Assert.That(signature, Is.Not.Null);
         Assert.That(signature.Length, Is.GreaterThan(0));
-        
+
         // Verify signature is valid
         using var publicRsa = cert.GetRSAPublicKey()!;
         bool isValid = publicRsa.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
@@ -129,11 +129,11 @@ public class RemoteRsaTests
         using var rsa = cert.GetRSAPublicKey()!;
         var parameters = rsa.ExportParameters(false);
         using var remoteRsa = new RemoteRsa(source, parameters);
-        
+
         var hash = new byte[32];
 
         // Act & Assert
-        var ex = Assert.Throws<CryptographicException>(() => 
+        var ex = Assert.Throws<CryptographicException>(() =>
             remoteRsa.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
         Assert.That(ex!.Message, Does.Contain("Only PSS padding is supported"));
     }
@@ -149,7 +149,7 @@ public class RemoteRsaTests
         using var remoteRsa = new RemoteRsa(source, parameters);
 
         // Act & Assert
-        var ex = Assert.Throws<NotSupportedException>(() => 
+        var ex = Assert.Throws<NotSupportedException>(() =>
             remoteRsa.Decrypt(new byte[10], RSAEncryptionPadding.OaepSHA256));
         Assert.That(ex!.Message, Does.Contain("Decryption is not supported"));
     }
@@ -165,7 +165,7 @@ public class RemoteRsaTests
         using var remoteRsa = new RemoteRsa(source, parameters);
 
         // Act & Assert
-        var ex = Assert.Throws<NotSupportedException>(() => 
+        var ex = Assert.Throws<NotSupportedException>(() =>
             remoteRsa.Encrypt(new byte[10], RSAEncryptionPadding.OaepSHA256));
         Assert.That(ex!.Message, Does.Contain("Encryption is not supported"));
     }

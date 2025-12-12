@@ -72,7 +72,7 @@ public class XmlOutputFormatter : IOutputFormatter
     {
         var root = new XElement("CoseSignToolOutput", _messages);
         var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), root);
-        
+
         // Write to string first to avoid encoding issues with console output
         var settings = new XmlWriterSettings
         {
@@ -81,13 +81,13 @@ public class XmlOutputFormatter : IOutputFormatter
             OmitXmlDeclaration = false,
             Encoding = System.Text.Encoding.UTF8
         };
-        
+
         using var stringWriter = new StringWriter();
         using (var writer = XmlWriter.Create(stringWriter, settings))
         {
             doc.WriteTo(writer);
         }
-        
+
         _output.WriteLine(stringWriter.ToString());
     }
 }

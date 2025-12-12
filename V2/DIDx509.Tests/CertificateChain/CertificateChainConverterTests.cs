@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using DIDx509.CertificateChain;
 using DIDx509.Models;
 using NUnit.Framework;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 namespace DIDx509.Tests.CertificateChain;
 
@@ -223,7 +223,7 @@ public class CertificateChainConverterTests
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=Test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert1 = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        
+
         var req2 = new CertificateRequest("CN=Test2", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert2 = req2.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
@@ -267,7 +267,7 @@ public class CertificateChainConverterTests
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=Test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-            new OidCollection { 
+            new OidCollection {
                 new Oid("1.3.6.1.5.5.7.3.1"), // Server Authentication
                 new Oid("1.3.6.1.5.5.7.3.2")  // Client Authentication
             },
@@ -333,9 +333,9 @@ public class CertificateChainConverterTests
         // Assert - Parser may not capture all SAN types perfectly, just verify it parses at least some
         Assert.That(result.Chain[0].Extensions.San, Is.Not.Null);
         Assert.That(result.Chain[0].Extensions.San!.Count, Is.GreaterThan(0));
-        
+
         // Verify that at least one SAN entry is parsed
-        var hasExpectedTypes = result.Chain[0].Extensions.San.Any(s => 
+        var hasExpectedTypes = result.Chain[0].Extensions.San.Any(s =>
             s.Type == "dns" || s.Type == "email" || s.Type == "uri");
         Assert.That(hasExpectedTypes, Is.True);
     }
@@ -357,7 +357,7 @@ public class CertificateChainConverterTests
         // Assert
         Assert.That(result.Chain[0].Subject.Attributes, Is.Not.Null);
         // The parser should handle the escaped comma
-        Assert.That(result.Chain[0].Subject.Attributes.ContainsKey("CN") || 
+        Assert.That(result.Chain[0].Subject.Attributes.ContainsKey("CN") ||
                      result.Chain[0].Subject.Attributes.ContainsKey("cn"), Is.True);
     }
 
@@ -366,7 +366,7 @@ public class CertificateChainConverterTests
     {
         // Arrange - Create cert with complex DN
         using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest("CN=Test, OU=Engineering, O=Test Corp, L=Seattle, ST=WA, C=US", 
+        var req = new CertificateRequest("CN=Test, OU=Engineering, O=Test Corp, L=Seattle, ST=WA, C=US",
             rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert1 = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
@@ -379,7 +379,7 @@ public class CertificateChainConverterTests
         // Assert
         var attrs = result.Chain[0].Subject.Attributes;
         Assert.That(attrs.Count, Is.GreaterThanOrEqualTo(3)); // Should have at least CN, O, C
-        
+
         // Check case-insensitive access
         string? cnValue = attrs.ContainsKey("CN") ? attrs["CN"] : (attrs.ContainsKey("cn") ? attrs["cn"] : null);
         Assert.That(cnValue, Is.Not.Null);
@@ -398,7 +398,7 @@ public class CertificateChainConverterTests
 
         // Assert - Should have readable labels, not OIDs
         // Common labels: CN, O, OU, C, L, ST, STREET
-        bool hasLabels = attrs.Keys.Any(k => 
+        bool hasLabels = attrs.Keys.Any(k =>
             k.Equals("CN", StringComparison.OrdinalIgnoreCase) ||
             k.Equals("O", StringComparison.OrdinalIgnoreCase) ||
             k.Equals("C", StringComparison.OrdinalIgnoreCase));
@@ -416,7 +416,7 @@ public class CertificateChainConverterTests
         var result = CertificateChainConverter.Convert(certs);
 
         // Assert - Different certs should have different fingerprints
-        Assert.That(result.Chain[0].Fingerprints.Sha256, 
+        Assert.That(result.Chain[0].Fingerprints.Sha256,
                           Is.Not.EqualTo(result.Chain[1].Fingerprints.Sha256));
     }
 
@@ -431,11 +431,11 @@ public class CertificateChainConverterTests
         var result = CertificateChainConverter.Convert(certs);
 
         // Assert
-        Assert.That(result.Chain[0].Fingerprints.Sha256, 
+        Assert.That(result.Chain[0].Fingerprints.Sha256,
                        Is.EqualTo(result.Chain[1].Fingerprints.Sha256));
-        Assert.That(result.Chain[0].Fingerprints.Sha384, 
+        Assert.That(result.Chain[0].Fingerprints.Sha384,
                        Is.EqualTo(result.Chain[1].Fingerprints.Sha384));
-        Assert.That(result.Chain[0].Fingerprints.Sha512, 
+        Assert.That(result.Chain[0].Fingerprints.Sha512,
                        Is.EqualTo(result.Chain[1].Fingerprints.Sha512));
     }
 
@@ -457,13 +457,13 @@ public class CertificateChainConverterTests
         var result = CertificateChainConverter.Convert(new[] { cert1, cert2, cert3 });
 
         // Assert - Order should be preserved
-        string? cn1 = result.Chain[0].Subject.Attributes.ContainsKey("CN") ? 
+        string? cn1 = result.Chain[0].Subject.Attributes.ContainsKey("CN") ?
                      result.Chain[0].Subject.Attributes["CN"] :
                      result.Chain[0].Subject.Attributes["cn"];
-        string? cn2 = result.Chain[1].Subject.Attributes.ContainsKey("CN") ? 
+        string? cn2 = result.Chain[1].Subject.Attributes.ContainsKey("CN") ?
                      result.Chain[1].Subject.Attributes["CN"] :
                      result.Chain[1].Subject.Attributes["cn"];
-        string? cn3 = result.Chain[2].Subject.Attributes.ContainsKey("CN") ? 
+        string? cn3 = result.Chain[2].Subject.Attributes.ContainsKey("CN") ?
                      result.Chain[2].Subject.Attributes["CN"] :
                      result.Chain[2].Subject.Attributes["cn"];
 

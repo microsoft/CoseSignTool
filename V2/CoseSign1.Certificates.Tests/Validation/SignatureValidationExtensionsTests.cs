@@ -19,11 +19,11 @@ public class SignatureValidationExtensionsTests
     private byte[]? _payload;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
-        
+
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -31,7 +31,7 @@ public class SignatureValidationExtensionsTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(_payload, "application/test");
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -43,9 +43,9 @@ public class SignatureValidationExtensionsTests
     public void ValidateCertificateSignature_AddsValidator()
     {
         var builder = Cose.Sign1Message();
-        
+
         var result = builder.ValidateCertificateSignature();
-        
+
         Assert.That(result, Is.SameAs(builder));
     }
 
@@ -53,9 +53,9 @@ public class SignatureValidationExtensionsTests
     public void ValidateCertificateSignature_WithAllowUnprotectedHeaders_AddsValidator()
     {
         var builder = Cose.Sign1Message();
-        
+
         var result = builder.ValidateCertificateSignature(allowUnprotectedHeaders: true);
-        
+
         Assert.That(result, Is.SameAs(builder));
     }
 
@@ -64,9 +64,9 @@ public class SignatureValidationExtensionsTests
     {
         var builder = Cose.Sign1Message();
         var payload = new byte[] { 1, 2, 3 };
-        
+
         var result = builder.ValidateCertificateSignature(payload);
-        
+
         Assert.That(result, Is.SameAs(builder));
     }
 
@@ -75,9 +75,9 @@ public class SignatureValidationExtensionsTests
     {
         var builder = Cose.Sign1Message();
         var payload = new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3 });
-        
+
         var result = builder.ValidateCertificateSignature(payload);
-        
+
         Assert.That(result, Is.SameAs(builder));
     }
 
@@ -86,10 +86,10 @@ public class SignatureValidationExtensionsTests
     {
         var builder = Cose.Sign1Message()
             .ValidateCertificateSignature();
-        
+
         var validator = builder.Build();
         var validationResult = validator.Validate(_validMessage!);
-        
+
         Assert.That(validationResult.IsValid, Is.True);
     }
 
@@ -98,10 +98,10 @@ public class SignatureValidationExtensionsTests
     {
         var builder = Cose.Sign1Message()
             .ValidateCertificateSignature(allowUnprotectedHeaders: true);
-        
+
         var validator = builder.Build();
         var validationResult = validator.Validate(_validMessage!);
-        
+
         Assert.That(validationResult.IsValid, Is.True);
     }
 }

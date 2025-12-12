@@ -19,7 +19,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -39,7 +39,7 @@ public class DidX509BuilderTests : DIDx509TestBase
     {
         // Arrange
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var attributes = new Dictionary<string, string> { { "CN", "Test" } };
         var builder = new DidX509Builder()
             .WithCaCertificate(root)
@@ -58,7 +58,7 @@ public class DidX509BuilderTests : DIDx509TestBase
     {
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithSubjectFromCertificate();
@@ -77,7 +77,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root);
@@ -96,7 +96,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -117,7 +117,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -138,7 +138,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -188,7 +188,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var attributes = new Dictionary<string, string>
         {
             { "CN", "Test User" },
@@ -243,7 +243,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Test User, O=Test Org");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -279,7 +279,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -300,7 +300,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -321,7 +321,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -386,7 +386,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -437,7 +437,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -457,7 +457,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -493,7 +493,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf, O=Org");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -518,7 +518,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         using var intermediate = CreateTestCertificate("CN=Intermediate");
         using var root = CreateSelfSignedCertificate("CN=Root");
         var chain = new[] { leaf, intermediate, root };
-        
+
         var builder = new DidX509Builder()
             .WithCertificateChain(chain)
             .WithSubjectFromCertificate();
@@ -590,7 +590,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         // Act
         string did = new DidX509Builder()
             .WithLeafCertificate(leaf)
@@ -612,7 +612,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder1 = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -637,7 +637,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Test@User, O=My Org");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         var builder = new DidX509Builder()
             .WithLeafCertificate(leaf)
             .WithCaCertificate(root)
@@ -657,7 +657,7 @@ public class DidX509BuilderTests : DIDx509TestBase
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
         using var root = CreateSelfSignedCertificate("CN=Root");
-        
+
         byte[] expectedHash = SHA256.HashData(root.RawData);
         string expectedHashBase64Url = Convert.ToBase64String(expectedHash)
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');

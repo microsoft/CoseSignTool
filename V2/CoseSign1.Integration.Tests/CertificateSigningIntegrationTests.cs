@@ -53,7 +53,7 @@ public class CertificateSigningIntegrationTests
         Assert.That(message.Content, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
         Assert.That(message.ProtectedHeaders.ContainsKey(CoseHeaderLabel.Algorithm), Is.True);
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-37)); // PS256
     }
@@ -74,7 +74,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-38)); // PS384
     }
@@ -95,7 +95,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-39)); // PS512
     }
@@ -117,10 +117,10 @@ public class CertificateSigningIntegrationTests
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content, Is.Not.Null, "Indirect signature should embed the hash");
         Assert.That(message.Content!.Value.Length, Is.EqualTo(32), "Should contain SHA256 hash (32 bytes)");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-37)); // PS256
-        
+
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
         Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), Is.True);
     }
@@ -142,7 +142,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(48), "Should contain SHA384 hash (48 bytes)");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-38)); // PS384
     }
@@ -164,7 +164,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(64), "Should contain SHA512 hash (64 bytes)");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-39)); // PS512
     }
@@ -189,7 +189,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-7)); // ES256
     }
@@ -210,7 +210,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-35)); // ES384
     }
@@ -231,7 +231,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-36)); // ES512
     }
@@ -252,10 +252,10 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(32), "Should contain SHA256 hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-7)); // ES256
-        
+
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
         Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), Is.True);
     }
@@ -277,7 +277,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(48), "Should contain SHA384 hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-35)); // ES384
     }
@@ -299,7 +299,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(64), "Should contain SHA512 hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-36)); // ES512
     }
@@ -325,7 +325,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-48)); // ML-DSA-44
     }
@@ -347,7 +347,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-49)); // ML-DSA-65
     }
@@ -369,7 +369,7 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-50)); // ML-DSA-87
     }
@@ -391,10 +391,10 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(32), "ML-DSA-44 uses SHA256, should contain 32-byte hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-48)); // ML-DSA-44
-        
+
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
         Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), Is.True);
     }
@@ -417,10 +417,10 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(48), "ML-DSA-65 uses SHA384, should contain 48-byte hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-49)); // ML-DSA-65
-        
+
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
         Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), Is.True);
     }
@@ -443,10 +443,10 @@ public class CertificateSigningIntegrationTests
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content!.Value.Length, Is.EqualTo(64), "ML-DSA-87 uses SHA512, should contain 64-byte hash");
-        
+
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-50)); // ML-DSA-87
-        
+
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
         Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), Is.True);
     }
@@ -496,7 +496,7 @@ public class CertificateSigningIntegrationTests
         Assert.That(results["RSA2048"], Is.EqualTo(-37)); // PS256
         Assert.That(results["ECDSA-P256"], Is.EqualTo(-7)); // ES256
         Assert.That(results["MLDSA44"], Is.EqualTo(-48)); // ML-DSA-44
-        
+
         // Verify all distinct
         Assert.That(results.Values.Distinct().Count(), Is.EqualTo(3));
     }
@@ -507,12 +507,12 @@ public class CertificateSigningIntegrationTests
         // Arrange & Act - Verify all algorithms work with indirect signatures
         var algorithms = new[] { "RSA2048", "ECDSA-P256", "MLDSA44" };
         var payloadHashAlgLabel = new CoseHeaderLabel(258);
-        
+
         foreach (var algorithm in algorithms)
         {
             X509Certificate2? cert = null;
             List<X509Certificate2>? chain = null;
-            
+
             try
             {
                 if (algorithm == "RSA2048")
@@ -533,18 +533,18 @@ public class CertificateSigningIntegrationTests
                     var tempChain = TestCertificateUtils.CreateTestChain("MLDSA-Indirect-CrossAlgo-Chain", useEcc: false, leafFirst: true);
                     chain = new List<X509Certificate2> { cert, tempChain[1], tempChain[2] };
                 }
-                
+
                 using var service = new LocalCertificateSigningService(cert, chain);
                 using var factory = new IndirectSignatureFactory(service);
-                
+
                 var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
                 var message = CoseMessage.DecodeSign1(messageBytes);
-                
+
                 // Assert
                 Assert.That(message, Is.Not.Null, $"{algorithm} should produce valid message");
-                Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel), 
+                Assert.That(message.ProtectedHeaders.ContainsKey(payloadHashAlgLabel),
                     Is.True, $"{algorithm} should include PayloadHashAlg header (258)");
-                Assert.That(message.Content!.Value.Length, Is.EqualTo(32), 
+                Assert.That(message.Content!.Value.Length, Is.EqualTo(32),
                     $"{algorithm} should embed SHA256 hash (all use SHA256 for 2048/P-256/44)");
             }
             finally

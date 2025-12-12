@@ -19,11 +19,11 @@ public class SignatureValidatorTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("SignatureValidatorTest");
-        
+
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -31,7 +31,7 @@ public class SignatureValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -58,7 +58,7 @@ public class SignatureValidatorTests
     {
         var validator = new SignatureValidator();
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(SignatureValidator)));
         Assert.That(result.Failures.Any(e => e.ErrorCode == "NULL_INPUT"), Is.True);
@@ -69,7 +69,7 @@ public class SignatureValidatorTests
     {
         var validator = new SignatureValidator();
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(SignatureValidator)));
     }
@@ -79,7 +79,7 @@ public class SignatureValidatorTests
     {
         var validator = new SignatureValidator(allowUnprotectedHeaders: true);
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -88,7 +88,7 @@ public class SignatureValidatorTests
     {
         var validator = new SignatureValidator();
         var result = await validator.ValidateAsync(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -98,26 +98,26 @@ public class SignatureValidatorTests
         var validator = new SignatureValidator();
         using var cts = new CancellationTokenSource();
         var result = await validator.ValidateAsync(_validMessage!, cts.Token);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
     public void Validate_WithECDsaCertificate_ValidatesSuccessfully()
     {
-        #pragma warning disable CA2252
+#pragma warning disable CA2252
         var ecdsaCert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        #pragma warning restore CA2252
+#pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(ecdsaCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         var message = CoseSign1Message.DecodeSign1(messageBytes);
-        
+
         var validator = new SignatureValidator();
         var result = validator.Validate(message);
-        
+
         Assert.That(result.IsValid, Is.True);
         ecdsaCert.Dispose();
     }

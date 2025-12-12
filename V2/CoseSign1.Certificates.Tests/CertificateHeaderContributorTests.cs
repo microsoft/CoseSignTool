@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
@@ -11,7 +12,6 @@ using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-using System.IO;
 
 namespace CoseSign1.Certificates.Tests;
 
@@ -54,7 +54,7 @@ public class CertificateHeaderContributorTests
         var context = new HeaderContributorContext(signingContext, mockKey);
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => 
+        var ex = Assert.Throws<ArgumentNullException>(() =>
             contributor.ContributeProtectedHeaders(null!, context));
         Assert.That(ex.ParamName, Is.EqualTo("headers"));
     }
@@ -67,7 +67,7 @@ public class CertificateHeaderContributorTests
         var headers = new CoseHeaderMap();
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => 
+        var ex = Assert.Throws<ArgumentNullException>(() =>
             contributor.ContributeProtectedHeaders(headers, null!));
         Assert.That(ex.ParamName, Is.EqualTo("context"));
     }
@@ -101,7 +101,7 @@ public class CertificateHeaderContributorTests
         var context = new HeaderContributorContext(signingContext, mockKey);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => 
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             contributor.ContributeProtectedHeaders(headers, context));
         Assert.That(ex.Message, Does.Contain("Signing certificate is not provided"));
     }
@@ -120,7 +120,7 @@ public class CertificateHeaderContributorTests
         var context = new HeaderContributorContext(signingContext, mockKey);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => 
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             contributor.ContributeProtectedHeaders(headers, context));
         Assert.That(ex.Message, Does.Contain("signing certificate thumbprint"));
         Assert.That(ex.Message, Does.Contain("must match the first item"));
@@ -140,7 +140,7 @@ public class CertificateHeaderContributorTests
         var context = new HeaderContributorContext(signingContext, mockKey);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => 
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             contributor.ContributeProtectedHeaders(headers, context));
         Assert.That(ex.Message, Does.Contain("must match the first item"));
     }
@@ -164,7 +164,7 @@ public class CertificateHeaderContributorTests
         var x5tHeader = headers[CertificateHeaderContributor.HeaderLabels.X5T];
         var encodedValue = x5tHeader.EncodedValue;
         Assert.That(encodedValue.Length, Is.GreaterThan(0));
-        
+
         // Verify it can be deserialized as CBOR
         var reader = new CborReader(encodedValue);
         Assert.DoesNotThrow(() => reader.ReadStartArray());
@@ -189,7 +189,7 @@ public class CertificateHeaderContributorTests
         var x5chainHeader = headers[CertificateHeaderContributor.HeaderLabels.X5Chain];
         var encodedValue = x5chainHeader.EncodedValue;
         Assert.That(encodedValue.Length, Is.GreaterThan(0));
-        
+
         // Verify it can be deserialized as CBOR array
         var reader = new CborReader(encodedValue);
         Assert.DoesNotThrow(() => reader.ReadStartArray());
@@ -265,7 +265,7 @@ public class CertificateHeaderContributorTests
 
         // Assert
         Assert.That(headers.Count, Is.EqualTo(2));
-        
+
         // Verify both headers are present and have valid CBOR data
         var x5t = headers[CertificateHeaderContributor.HeaderLabels.X5T];
         var x5chain = headers[CertificateHeaderContributor.HeaderLabels.X5Chain];

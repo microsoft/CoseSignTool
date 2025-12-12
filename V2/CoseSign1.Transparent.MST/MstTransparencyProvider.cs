@@ -101,8 +101,8 @@ public class MstTransparencyProvider : ITransparencyProvider
         // Submit to MST service
         _logVerbose?.Invoke($"[{ProviderName}] Submitting to transparency service...");
         Operation<BinaryData> operation = await _client.CreateEntryAsync(
-            WaitUntil.Completed, 
-            content, 
+            WaitUntil.Completed,
+            content,
             cancellationToken).ConfigureAwait(false);
 
         // Check if the operation was successful
@@ -128,7 +128,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         // Retrieve the transparent statement with embedded receipts
         _logVerbose?.Invoke($"[{ProviderName}] Retrieving transparent statement...");
         Response<BinaryData> transparentStatement = await _client.GetEntryStatementAsync(
-            entryId, 
+            entryId,
             cancellationToken).ConfigureAwait(false);
 
         _logVerbose?.Invoke($"[{ProviderName}] Statement size: {transparentStatement.Value.ToArray().Length} bytes");
@@ -182,12 +182,12 @@ public class MstTransparencyProvider : ITransparencyProvider
         {
             _logVerbose?.Invoke($"[{ProviderName}] Calling VerifyTransparentStatement");
             CodeTransparencyClient.VerifyTransparentStatement(
-                message.Encode(), 
-                _verificationOptions, 
+                message.Encode(),
+                _verificationOptions,
                 _clientOptions);
-            
+
             _logVerbose?.Invoke($"[{ProviderName}] Verification succeeded");
-            
+
             return Task.FromResult(TransparencyValidationResult.Success(
                 ProviderName,
                 new Dictionary<string, object>

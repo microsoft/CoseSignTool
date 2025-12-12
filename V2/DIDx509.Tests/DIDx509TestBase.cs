@@ -3,9 +3,9 @@
 
 namespace DIDx509.Tests;
 
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-using System.Security.Cryptography.X509Certificates;
 
 /// <summary>
 /// Test parameter for certificate algorithm types.
@@ -54,7 +54,7 @@ public abstract class DIDx509TestBase
     protected static X509Certificate2[] CreateTestChain(CertAlgorithm algorithm = CertAlgorithm.RSA)
     {
         bool useEcc = algorithm == CertAlgorithm.ECDSA;
-        
+
         if (algorithm == CertAlgorithm.MLDsa)
         {
             // Create ML-DSA chain manually
@@ -63,7 +63,7 @@ public abstract class DIDx509TestBase
             X509Certificate2 leaf = TestCertificateUtils.CreateMLDsaCertificate("Test Leaf", intermediate);
             return [leaf, intermediate, root];
         }
-        
+
         var collection = TestCertificateUtils.CreateTestChain(useEcc: useEcc, leafFirst: true);
         return [collection[0], collection[1], collection[2]];
     }
@@ -85,7 +85,7 @@ public abstract class DIDx509TestBase
             "sha512" => System.Security.Cryptography.SHA512.HashData(cert.RawData),
             _ => throw new System.ArgumentException($"Unsupported hash algorithm: {hashAlgorithm}")
         };
-        
+
         return System.Convert.ToBase64String(hash)
             .Replace('+', '-')
             .Replace('/', '_')
@@ -98,7 +98,7 @@ public abstract class DIDx509TestBase
     protected static void AssertDidContainsCertHash(string did, X509Certificate2 cert, string hashAlgorithm = "sha256")
     {
         string expectedHash = GetCertHashBase64Url(cert, hashAlgorithm);
-        Assert.That(did, Does.Contain(expectedHash), 
+        Assert.That(did, Does.Contain(expectedHash),
             $"DID should contain the Base64URL-encoded {hashAlgorithm} hash of the certificate");
     }
 
@@ -125,10 +125,10 @@ public abstract class DIDx509TestBase
         if (expectedPolicy != null)
         {
             Assert.That(did, Does.Contain($"::{expectedPolicy}:"));
-            
+
             if (expectedPolicyValue != null)
             {
-            Assert.That(did, Does.Contain(expectedPolicyValue));
+                Assert.That(did, Does.Contain(expectedPolicyValue));
             }
         }
     }

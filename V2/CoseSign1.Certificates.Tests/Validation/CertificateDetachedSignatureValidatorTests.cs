@@ -17,13 +17,13 @@ public class CertificateDetachedSignatureValidatorTests
     private byte[]? _payload;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
         _payload = new byte[] { 1, 2, 3, 4, 5 };
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -87,7 +87,7 @@ public class CertificateDetachedSignatureValidatorTests
     public void Constructor_WithNullPayload_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new CertificateDetachedSignatureValidator((byte[])null!));
     }
 
@@ -127,7 +127,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         // Create message with embedded payload (not detached)
         var embeddedPayload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(embeddedPayload, "application/test");
@@ -152,7 +152,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         // Create detached signature
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
@@ -175,7 +175,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         // Create detached signature with one payload
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(originalPayload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
@@ -202,7 +202,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -224,11 +224,11 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         // Create large payload (1MB)
         var largePayload = new byte[1024 * 1024];
         Random.Shared.NextBytes(largePayload);
-        
+
         var messageBytes = factory.CreateCoseSign1MessageBytes(largePayload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
@@ -248,7 +248,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -269,7 +269,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -290,7 +290,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -327,7 +327,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(originalPayload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -350,7 +350,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -372,7 +372,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(originalPayload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -396,7 +396,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(originalPayload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -420,7 +420,7 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", new DirectSignatureOptions { EmbedPayload = false });
         var message = CoseSign1Message.DecodeSign1(messageBytes);
@@ -445,9 +445,9 @@ public class CertificateDetachedSignatureValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        
+
         var payload = new byte[] { 1, 2, 3, 4, 5 };
-        
+
         // Create messages with different content types
         var message1 = CoseSign1Message.DecodeSign1(
             factory.CreateCoseSign1MessageBytes(payload, "application/json", new DirectSignatureOptions { EmbedPayload = false }));
@@ -465,4 +465,3 @@ public class CertificateDetachedSignatureValidatorTests
         Assert.That(result2.IsValid, Is.True);
     }
 }
-

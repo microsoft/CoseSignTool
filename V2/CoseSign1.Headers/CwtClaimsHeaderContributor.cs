@@ -460,7 +460,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         if (_autoPopulateTimestamps && !claims.IsDefault())
         {
             DateTimeOffset currentTime = DateTimeOffset.UtcNow;
-            
+
             if (!claims.IssuedAt.HasValue)
             {
                 claims.IssuedAt = currentTime;

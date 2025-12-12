@@ -20,11 +20,11 @@ public class CertificateKeyUsageValidatorTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
-        
+
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -32,7 +32,7 @@ public class CertificateKeyUsageValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -58,7 +58,7 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Constructor_WithNullOid_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new CertificateKeyUsageValidator((Oid)null!));
     }
 
@@ -72,21 +72,21 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Constructor_WithNullOidString_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             new CertificateKeyUsageValidator((string)null!));
     }
 
     [Test]
     public void Constructor_WithEmptyOidString_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             new CertificateKeyUsageValidator(""));
     }
 
     [Test]
     public void Constructor_WithWhitespaceOidString_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             new CertificateKeyUsageValidator("   "));
     }
 
@@ -95,7 +95,7 @@ public class CertificateKeyUsageValidatorTests
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.DigitalSignature);
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateKeyUsageValidator)));
         Assert.That(result.Failures.Any(e => e.ErrorCode == "NULL_INPUT"), Is.True);
@@ -106,7 +106,7 @@ public class CertificateKeyUsageValidatorTests
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateKeyUsageValidator)));
         Assert.That(result.Metadata.ContainsKey("KeyUsage"), Is.True);
@@ -118,7 +118,7 @@ public class CertificateKeyUsageValidatorTests
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
         var result = await validator.ValidateAsync(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -128,7 +128,7 @@ public class CertificateKeyUsageValidatorTests
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
         using var cts = new CancellationTokenSource();
         var result = await validator.ValidateAsync(_validMessage!, cts.Token);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -144,7 +144,7 @@ public class CertificateKeyUsageValidatorTests
     }
 
     [Test]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void Validate_WithValidEKU_ReturnsSuccess()
     {
         // Create a certificate with Code Signing EKU
@@ -163,10 +163,10 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
         Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void Validate_WithValidEKUOid_ReturnsSuccess()
     {
         // Create a certificate with Code Signing EKU
@@ -185,7 +185,7 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithWrongEKU_ReturnsFailure()
@@ -199,7 +199,7 @@ public class CertificateKeyUsageValidatorTests
     }
 
     [Test]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void Validate_WithMissingEKUExtension_ReturnsFailure()
     {
         // Create a certificate without any EKU extension (empty array still creates extension with 0 entries)
@@ -219,7 +219,7 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "EKU_NOT_FOUND" || e.ErrorCode == "EKU_MISMATCH"), Is.True);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithAllowUnprotectedHeaders_UsesUnprotectedHeaders()

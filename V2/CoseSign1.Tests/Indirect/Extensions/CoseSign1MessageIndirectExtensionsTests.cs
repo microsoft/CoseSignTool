@@ -159,10 +159,10 @@ public class CoseSign1MessageIndirectExtensionsTests
         // Arrange
         var protectedHeaders = new CoseHeaderMap();
         protectedHeaders.Add(new CoseHeaderLabel(258), CoseHeaderValue.FromInt32(-16)); // PayloadHashAlg
-        
+
         var unprotectedHeaders = new CoseHeaderMap();
         unprotectedHeaders.Add(new CoseHeaderLabel(259), CoseHeaderValue.FromString("application/json")); // PreimageContentType
-        
+
         var message = CreateTestMessage(new byte[] { 1, 2, 3 }, protectedHeaders, unprotectedHeaders);
 
         // Act
@@ -179,10 +179,10 @@ public class CoseSign1MessageIndirectExtensionsTests
         // Arrange
         var protectedHeaders = new CoseHeaderMap();
         protectedHeaders.Add(new CoseHeaderLabel(258), CoseHeaderValue.FromInt32(-16)); // PayloadHashAlg
-        
+
         var unprotectedHeaders = new CoseHeaderMap();
         unprotectedHeaders.Add(new CoseHeaderLabel(259), CoseHeaderValue.FromInt32(50)); // PreimageContentType as CoAP int
-        
+
         var message = CreateTestMessage(new byte[] { 1, 2, 3 }, protectedHeaders, unprotectedHeaders);
 
         // Act
@@ -321,7 +321,7 @@ public class CoseSign1MessageIndirectExtensionsTests
         Assert.That(contentType, Is.Null.Or.Empty);
     }
 
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     private CoseSign1Message CreateDirectSignature()
     {
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
@@ -337,19 +337,19 @@ public class CoseSign1MessageIndirectExtensionsTests
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
         using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
         using var factory = new DirectSignatureFactory(signingService);
-        
+
         DirectSignatureOptions? options = null;
         if (protectedHeaders != null || unprotectedHeaders != null)
         {
-            options = new DirectSignatureOptions 
-            { 
-                AdditionalHeaderContributors = new[] 
-                { 
-                    new CustomHeaderContributor(protectedHeaders, unprotectedHeaders) 
-                } 
+            options = new DirectSignatureOptions
+            {
+                AdditionalHeaderContributors = new[]
+                {
+                    new CustomHeaderContributor(protectedHeaders, unprotectedHeaders)
+                }
             };
         }
-        
+
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
         return CoseMessage.DecodeSign1(messageBytes);
     }
@@ -389,5 +389,5 @@ public class CoseSign1MessageIndirectExtensionsTests
             }
         }
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 }

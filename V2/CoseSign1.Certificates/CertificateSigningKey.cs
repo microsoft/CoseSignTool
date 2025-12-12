@@ -69,13 +69,13 @@ public class CertificateSigningKey : ICertificateSigningKey
     {
         var chainBuilder = _certificateSource.GetChainBuilder();
         var cert = _certificateSource.GetSigningCertificate();
-        
+
         chainBuilder.Build(cert);
-        
-        var chainElements = sortOrder == X509ChainSortOrder.LeafFirst 
-            ? chainBuilder.ChainElements 
+
+        var chainElements = sortOrder == X509ChainSortOrder.LeafFirst
+            ? chainBuilder.ChainElements
             : chainBuilder.ChainElements.Reverse();
-            
+
         return chainElements;
     }
 
@@ -88,7 +88,7 @@ public class CertificateSigningKey : ICertificateSigningKey
     private SigningKeyMetadata GetMetadata()
     {
         var cert = _certificateSource.GetSigningCertificate();
-        
+
         // Detect key type and algorithm from certificate
         var keyType = CryptographicKeyType.RSA;
         int coseAlgorithmId = -37; // Default to PS256
@@ -101,7 +101,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         {
             keyType = CryptographicKeyType.RSA;
             keySizeInBits = rsa.KeySize;
-            
+
             // Determine COSE algorithm based on key size
             // -37: PS256 (RSA-PSS with SHA-256)
             // -38: PS384 (RSA-PSS with SHA-384)
@@ -112,14 +112,14 @@ public class CertificateSigningKey : ICertificateSigningKey
                 >= 3072 => -38, // PS384
                 _ => -37        // PS256
             };
-            
+
             hashAlgorithm = coseAlgorithmId switch
             {
                 -39 => HashAlgorithmName.SHA512,
                 -38 => HashAlgorithmName.SHA384,
                 _ => HashAlgorithmName.SHA256
             };
-            
+
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,
@@ -135,7 +135,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         {
             keyType = CryptographicKeyType.ECDsa;
             keySizeInBits = ecdsa.KeySize;
-            
+
             // Determine COSE algorithm based on curve
             // -7: ES256 (ECDSA with SHA-256, P-256 curve)
             // -35: ES384 (ECDSA with SHA-384, P-384 curve)
@@ -146,14 +146,14 @@ public class CertificateSigningKey : ICertificateSigningKey
                 384 => -35, // ES384 (P-384)
                 _ => -7     // ES256 (P-256)
             };
-            
+
             hashAlgorithm = coseAlgorithmId switch
             {
                 -36 => HashAlgorithmName.SHA512,
                 -35 => HashAlgorithmName.SHA384,
                 _ => HashAlgorithmName.SHA256
             };
-            
+
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,
@@ -167,7 +167,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         // ML-DSA uses different OIDs that are supported in .NET 10.0+
         // Check for ML-DSA by examining the public key algorithm OID
         var publicKeyOid = cert.PublicKey.Oid.Value;
-        
+
         // ML-DSA OIDs (NIST standardized):
         // 2.16.840.1.101.3.4.3.17 - ML-DSA-44
         // 2.16.840.1.101.3.4.3.18 - ML-DSA-65
@@ -175,7 +175,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
         {
             keyType = CryptographicKeyType.MLDSA;
-            
+
             // Determine COSE algorithm and security level based on ML-DSA variant
             // TBD: COSE algorithm IDs for ML-DSA (these are provisional)
             // -48: ML-DSA-44 (128-bit security)
@@ -188,7 +188,7 @@ public class CertificateSigningKey : ICertificateSigningKey
                 "2.16.840.1.101.3.4.3.19" => (-50, (int?)87, HashAlgorithmName.SHA512),  // ML-DSA-87
                 _ => (-48, (int?)null, HashAlgorithmName.SHA256) // Default to ML-DSA-44 equivalent
             };
-            
+
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,

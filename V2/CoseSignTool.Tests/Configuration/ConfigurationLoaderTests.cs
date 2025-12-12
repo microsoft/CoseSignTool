@@ -248,8 +248,3 @@ public class ConfigurationLoaderTests
         public bool BoolValue { get; set; }
     }
 }
-
-
-
-
-

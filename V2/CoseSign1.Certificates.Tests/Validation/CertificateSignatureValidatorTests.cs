@@ -17,11 +17,11 @@ public class CertificateSignatureValidatorTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252 // Preview features
+#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         _testCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
-        
+
         var chainBuilder = new X509ChainBuilder();
         var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -29,7 +29,7 @@ public class CertificateSignatureValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -56,7 +56,7 @@ public class CertificateSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator();
         var result = validator.Validate(null!);
-        
+
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
     }
@@ -66,7 +66,7 @@ public class CertificateSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator();
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
     }
@@ -76,7 +76,7 @@ public class CertificateSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
         var result = validator.Validate(_validMessage!);
-        
+
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -85,7 +85,7 @@ public class CertificateSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator();
         var result = await validator.ValidateAsync(_validMessage!, CancellationToken.None);
-        
+
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
     }
@@ -96,7 +96,7 @@ public class CertificateSignatureValidatorTests
         var validator = new CertificateSignatureValidator();
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        
+
         // Task may complete before cancellation is observed
         try
         {
@@ -115,7 +115,7 @@ public class CertificateSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator();
         var result = await validator.ValidateAsync(null!, CancellationToken.None);
-        
+
         Assert.That(result.IsValid, Is.False);
     }
 }

@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.X509Certificates;
-using DIDx509.Builder;
 using CoseSign1.Certificates.Extensions;
+using DIDx509.Builder;
 
 namespace CoseSign1.Certificates.AzureTrustedSigning;
 
@@ -63,7 +63,7 @@ public static class AzureTrustedSigningDidX509
 
         // Check for Microsoft EKUs in the leaf certificate
         var microsoftEku = GetDeepestGreatestMicrosoftEku(leafCert);
-        
+
         if (microsoftEku != null)
         {
             // Use EKU-based format for Azure Trusted Signing certificates

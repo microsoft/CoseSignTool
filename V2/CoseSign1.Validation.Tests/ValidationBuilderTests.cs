@@ -16,7 +16,7 @@ public class ValidationBuilderTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void SetUp()
     {
         var cert = TestCertificateUtils.CreateCertificate("BuilderTest");
@@ -28,7 +28,7 @@ public class ValidationBuilderTests
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
     public void Cose_Sign1Message_ReturnsBuilder()

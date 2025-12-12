@@ -122,7 +122,7 @@ public class SubjectAlternativeNameTests
         Assert.DoesNotThrow(() => new SubjectAlternativeName("DNS", "example.com"));
         Assert.DoesNotThrow(() => new SubjectAlternativeName("Email", "test@example.com"));
         Assert.DoesNotThrow(() => new SubjectAlternativeName("URI", "https://example.com"));
-        
+
         var x509Name = new X509Name(new Dictionary<string, string> { ["CN"] = "Test" });
         Assert.DoesNotThrow(() => new SubjectAlternativeName("DN", x509Name));
     }
@@ -253,7 +253,7 @@ public class SubjectAlternativeNameTests
         Assert.DoesNotThrow(() => new SubjectAlternativeName(DidX509Constants.SanTypeEmail, "test@example.com"));
         Assert.DoesNotThrow(() => new SubjectAlternativeName(DidX509Constants.SanTypeDns, "example.com"));
         Assert.DoesNotThrow(() => new SubjectAlternativeName(DidX509Constants.SanTypeUri, "https://example.com"));
-        
+
         var name = new X509Name(new Dictionary<string, string> { ["CN"] = "Test" });
         Assert.DoesNotThrow(() => new SubjectAlternativeName(DidX509Constants.SanTypeDn, name));
     }

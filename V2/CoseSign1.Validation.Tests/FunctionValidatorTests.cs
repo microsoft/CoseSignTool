@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Validation;
-using NUnit.Framework;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Validation;
+using NUnit.Framework;
 
 #pragma warning disable CA2252 // Preview Features
 
@@ -60,7 +60,7 @@ public class FunctionValidatorTests
     public void Validate_WithFailureFunction_ReturnsFailure()
     {
         // Arrange
-        var validator = new FunctionValidator(msg => 
+        var validator = new FunctionValidator(msg =>
             ValidationResult.Failure("TestValidator", "Test error", "TEST_ERROR"));
 
         // Act
@@ -125,7 +125,7 @@ public class FunctionValidatorTests
     public async Task ValidateAsync_WithFailureFunction_ReturnsFailure()
     {
         // Arrange
-        var validator = new FunctionValidator(msg => 
+        var validator = new FunctionValidator(msg =>
             ValidationResult.Failure("TestValidator", "Async error", "ASYNC_ERROR"));
 
         // Act
@@ -170,7 +170,7 @@ public class FunctionValidatorTests
     {
         // Arrange
         var metadata = new Dictionary<string, object> { ["TestKey"] = "TestValue" };
-        var validator = new FunctionValidator(msg => 
+        var validator = new FunctionValidator(msg =>
             ValidationResult.Success("TestValidator", metadata));
 
         // Act

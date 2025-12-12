@@ -72,7 +72,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         var payloadHashAlg = CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg;
         var preimageContentType = CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType;
         var payloadLocation = CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation;
-        
+
         // Verify they can be used in a header map
         var headers = new CoseHeaderMap();
         Assert.DoesNotThrow(() => headers.Add(payloadHashAlg, CoseHeaderValue.FromInt32(1)));
@@ -97,10 +97,10 @@ public class CoseHashEnvelopeHeaderContributorTests
         // Assert
         Assert.That(headers.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg), Is.True);
         Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg].GetValueAsInt32(), Is.EqualTo(-16));
-        
+
         Assert.That(headers.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType), Is.True);
         Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].GetValueAsString(), Is.EqualTo("application/json"));
-        
+
         Assert.That(headers.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation), Is.True);
         Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].GetValueAsString(), Is.EqualTo("https://example.com/payload"));
     }
@@ -150,7 +150,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         var context = CreateHeaderContributorContext("application/json");
 
         // Act & Assert
-        var ex = Assert.Throws<NotSupportedException>(() => 
+        var ex = Assert.Throws<NotSupportedException>(() =>
             contributor.ContributeProtectedHeaders(headers, context));
         Assert.That(ex.Message, Does.Contain("MD5"));
     }
@@ -206,7 +206,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False, 
+        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False,
             "Content-type header (label 3) must be removed per RFC 9054");
     }
 
@@ -225,7 +225,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg].GetValueAsInt32(), 
+        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg].GetValueAsInt32(),
             Is.EqualTo(-44), "Should update to SHA512 algorithm");
     }
 
@@ -237,7 +237,7 @@ public class CoseHashEnvelopeHeaderContributorTests
             HashAlgorithmName.SHA256,
             "application/xml");
         var headers = new CoseHeaderMap();
-        headers.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType, 
+        headers.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType,
             CoseHeaderValue.FromString("application/json"));
         var context = CreateHeaderContributorContext("application/xml");
 
@@ -245,7 +245,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].GetValueAsString(), 
+        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].GetValueAsString(),
             Is.EqualTo("application/xml"));
     }
 
@@ -258,7 +258,7 @@ public class CoseHashEnvelopeHeaderContributorTests
             "application/json",
             "https://new.example.com/payload");
         var headers = new CoseHeaderMap();
-        headers.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation, 
+        headers.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation,
             CoseHeaderValue.FromString("https://old.example.com/payload"));
         var context = CreateHeaderContributorContext("application/json");
 
@@ -266,7 +266,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].GetValueAsString(), 
+        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].GetValueAsString(),
             Is.EqualTo("https://new.example.com/payload"));
     }
 
@@ -315,8 +315,8 @@ public class CoseHashEnvelopeHeaderContributorTests
             contributor.ContributeProtectedHeaders(headers, context);
 
             // Assert
-            Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].GetValueAsString(), 
-                Is.EqualTo(contentType), 
+            Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].GetValueAsString(),
+                Is.EqualTo(contentType),
                 $"PreimageContentType should be {contentType}");
         }
     }
@@ -336,7 +336,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeUnprotectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False, 
+        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False,
             "Content-type header must be removed from unprotected headers per RFC 9054");
     }
 
@@ -395,7 +395,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         var secondCallCount = headers.Count;
 
         // Assert
-        Assert.That(firstCallCount, Is.EqualTo(secondCallCount), 
+        Assert.That(firstCallCount, Is.EqualTo(secondCallCount),
             "Calling ContributeProtectedHeaders multiple times should not increase header count");
         Assert.That(headers.Count, Is.EqualTo(3), "Should have PayloadHashAlg, PreimageContentType, and PayloadLocation");
     }
@@ -408,7 +408,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         var label2 = CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg;
 
         // Assert
-        Assert.That(label1.Equals(label2), Is.True, 
+        Assert.That(label1.Equals(label2), Is.True,
             "Static header labels should be equal when accessed multiple times");
     }
 
@@ -428,7 +428,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
-        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].GetValueAsString(), 
+        Assert.That(headers[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].GetValueAsString(),
             Is.EqualTo(payloadLocation));
     }
 
@@ -449,7 +449,7 @@ public class CoseHashEnvelopeHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert - Verify RFC 9054 compliance
-        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False, 
+        Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.False,
             "RFC 9054: Label 3 (content_type) MUST NOT be present with hash envelope format");
         Assert.That(headers.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg), Is.True,
             "RFC 9054: Label 258 (PayloadHashAlg) MUST be present");

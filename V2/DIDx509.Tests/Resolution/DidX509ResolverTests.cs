@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Tests.Common;
-using DIDx509;
-using DIDx509.Resolution;
-using NUnit.Framework;
 using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Tests.Common;
+using DIDx509;
+using DIDx509.Resolution;
+using NUnit.Framework;
 
 namespace DIDx509.Tests.Resolution;
 
@@ -23,7 +23,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("RSAResolveTest", leafFirst: true, useEcc: false);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         // Use proper DID generation
         string did = leaf.GetDidWithRoot(testChain);
 
@@ -43,7 +43,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("ECResolveTest", leafFirst: true, useEcc: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -61,7 +61,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("DigSigTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -77,7 +77,7 @@ public class DidX509ResolverTests
         var testChain = new[] { collection[0], collection[1], collection[2] };
         string invalidDid = "did:x509:invalid";
 
-        Assert.Throws<InvalidOperationException>(() => 
+        Assert.Throws<InvalidOperationException>(() =>
             DidX509Resolver.Resolve(invalidDid, testChain, validateChain: false));
     }
 
@@ -91,7 +91,7 @@ public class DidX509ResolverTests
         string validDid = leaf.GetDidWithRoot(testChain);
         string did = validDid.Replace(validDid.Split(':')[4], "wrongthumbprintaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
-        Assert.Throws<InvalidOperationException>(() => 
+        Assert.Throws<InvalidOperationException>(() =>
             DidX509Resolver.Resolve(did, testChain, validateChain: false));
     }
 
@@ -101,7 +101,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("TryResolveTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         bool result = DidX509Resolver.TryResolve(did, testChain, out var doc, validateChain: false);
@@ -130,7 +130,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("ValidationTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         // Self-signed cert won't validate with chain validation enabled, but should work without
@@ -145,7 +145,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("ChainTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -160,7 +160,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("VerificationMethodTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -177,7 +177,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("RSAKeyTest", leafFirst: true, useEcc: false);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -193,7 +193,7 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("ECKeyTest", leafFirst: true, useEcc: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
         var doc = DidX509Resolver.Resolve(did, testChain, validateChain: false);
@@ -210,10 +210,10 @@ public class DidX509ResolverTests
         var collection = TestCertificateUtils.CreateTestChain("RevocationTest", leafFirst: true);
         var testChain = new[] { collection[0], collection[1], collection[2] };
         var leaf = testChain[0];
-        
+
         string did = leaf.GetDidWithRoot(testChain);
 
-        bool result = DidX509Resolver.TryResolve(did, testChain, out var doc, 
+        bool result = DidX509Resolver.TryResolve(did, testChain, out var doc,
             validateChain: false, checkRevocation: false);
 
         Assert.That(result, Is.True);

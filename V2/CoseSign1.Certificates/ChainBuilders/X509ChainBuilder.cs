@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -56,13 +56,13 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 #endif
         _logger = logger ?? NullLogger<X509ChainBuilder>.Instance;
         _chain = new X509Chain();
-        
+
         // Create a new policy to avoid any shared state issues
         _chain.ChainPolicy.RevocationMode = chainPolicy.RevocationMode;
         _chain.ChainPolicy.RevocationFlag = chainPolicy.RevocationFlag;
         _chain.ChainPolicy.VerificationFlags = chainPolicy.VerificationFlags;
         _chain.ChainPolicy.UrlRetrievalTimeout = chainPolicy.UrlRetrievalTimeout;
-        
+
         // Copy application policies if any
         if (chainPolicy.ApplicationPolicy.Count > 0)
         {
@@ -71,7 +71,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
                 _chain.ChainPolicy.ApplicationPolicy.Add(oid);
             }
         }
-        
+
         // Copy certificate policies if any
         if (chainPolicy.CertificatePolicy.Count > 0)
         {
@@ -80,7 +80,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
                 _chain.ChainPolicy.CertificatePolicy.Add(oid);
             }
         }
-        
+
         // Copy extra store if any
         if (chainPolicy.ExtraStore.Count > 0)
         {

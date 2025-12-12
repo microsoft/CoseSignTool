@@ -151,7 +151,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
     protected int GetKeySize()
     {
         var cert = GetSigningCertificate();
-        
+
         // Try to get the public key and determine its size
         using var rsa = cert.GetRSAPublicKey();
         if (rsa != null)
@@ -200,7 +200,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
     {
         var cert = GetSigningCertificate();
         using var publicRsa = cert.GetRSAPublicKey();
-        
+
         if (publicRsa == null)
         {
             throw new InvalidOperationException("Certificate does not contain an RSA public key.");
@@ -219,7 +219,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
     {
         var cert = GetSigningCertificate();
         using var publicEcdsa = cert.GetECDsaPublicKey();
-        
+
         if (publicEcdsa == null)
         {
             throw new InvalidOperationException("Certificate does not contain an ECDsa public key.");
@@ -238,7 +238,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
     internal MLDsa GetRemoteMLDsa()
     {
         var cert = GetSigningCertificate();
-        
+
         // Determine security level from OID first
         var oid = cert.PublicKey.Oid.Value;
         var securityLevel = oid switch
@@ -248,7 +248,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
             "2.16.840.1.101.3.4.3.19" => 87,
             _ => 44 // Default
         };
-        
+
         // Get the public key size based on security level (in bytes)
         var publicKeySize = securityLevel switch
         {
@@ -257,12 +257,12 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
             87 => 2592,  // ML-DSA-87 public key size
             _ => 1952
         };
-        
+
         // Export public key from certificate
         var publicKey = new byte[publicKeySize];
         var publicKeyData = cert.PublicKey.EncodedKeyValue.RawData;
         Array.Copy(publicKeyData, publicKey, Math.Min(publicKeyData.Length, publicKeySize));
-        
+
         return new RemoteMLDsa(this, publicKey, securityLevel);
     }
 #pragma warning restore SYSLIB5006

@@ -68,7 +68,7 @@ public class ContentTypeHeaderContributorTests
             contributor.ContributeProtectedHeaders(headers, context);
 
             // Assert
-            Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.True, 
+            Assert.That(headers.ContainsKey(CoseHeaderLabel.ContentType), Is.True,
                 $"Content-type header should be present for {contentType}");
             Assert.That(headers[CoseHeaderLabel.ContentType].GetValueAsString(), Is.EqualTo(contentType),
                 $"Content-type value should be {contentType}");

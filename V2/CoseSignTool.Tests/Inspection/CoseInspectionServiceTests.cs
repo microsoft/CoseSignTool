@@ -56,7 +56,7 @@ public class CoseInspectionServiceTests
         // Arrange
         var service = new CoseInspectionService();
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             // Write invalid COSE data (random bytes that aren't valid CBOR/COSE)
@@ -83,7 +83,7 @@ public class CoseInspectionServiceTests
         // Arrange
         var service = new CoseInspectionService();
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             // Write partial COSE data (starts like COSE but incomplete)
@@ -110,7 +110,7 @@ public class CoseInspectionServiceTests
         // Arrange
         var service = new CoseInspectionService();
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             // Write empty file
@@ -139,7 +139,7 @@ public class CoseInspectionServiceTests
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
@@ -169,7 +169,7 @@ public class CoseInspectionServiceTests
         var formatter = new JsonOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             await File.WriteAllBytesAsync(tempFile, [0x01, 0x02, 0x03, 0x04]);
@@ -199,7 +199,7 @@ public class CoseInspectionServiceTests
         var formatter = new XmlOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             await File.WriteAllBytesAsync(tempFile, [0x01, 0x02, 0x03, 0x04]);
@@ -228,7 +228,7 @@ public class CoseInspectionServiceTests
         var formatter = new QuietOutputFormatter();
         var service = new CoseInspectionService(formatter);
         var tempFile = Path.GetTempFileName();
-        
+
         try
         {
             await File.WriteAllBytesAsync(tempFile, [0x01, 0x02, 0x03, 0x04]);
@@ -259,7 +259,7 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload for inspection");
@@ -301,12 +301,12 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             // Create a text payload
             File.WriteAllText(tempPayload, "This is a text payload that should show a preview when inspected.");
-            
+
             // Sign with 'embedded' type to ensure payload is embedded
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
@@ -344,12 +344,12 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             // Create a binary payload
             File.WriteAllBytes(tempPayload, [0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD]);
-            
+
             // Sign with 'embedded' type
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
@@ -389,11 +389,11 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            
+
             // Sign with 'detached' type and detached flag
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached --detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
@@ -431,7 +431,7 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
@@ -471,7 +471,7 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
@@ -511,7 +511,7 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "{\"test\": \"data\"}");
@@ -551,13 +551,13 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             // Create a text payload longer than 100 chars
             var longText = new string('A', 200);
             File.WriteAllText(tempPayload, longText);
-            
+
             // Sign with 'embedded' type to ensure payload is embedded
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
@@ -598,7 +598,7 @@ public class CoseInspectionServiceTests
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
         var service = new CoseInspectionService(formatter);
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
@@ -636,7 +636,7 @@ public class CoseInspectionServiceTests
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        
+
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
@@ -680,8 +680,3 @@ public class CoseInspectionServiceTests
         }
     }
 }
-
-
-
-
-

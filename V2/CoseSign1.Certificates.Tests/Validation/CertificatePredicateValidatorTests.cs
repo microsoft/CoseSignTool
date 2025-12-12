@@ -29,7 +29,7 @@ public class CertificatePredicateValidatorTests
     public void Constructor_WithNullPredicate_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new CertificatePredicateValidator(null!));
     }
 
@@ -38,7 +38,7 @@ public class CertificatePredicateValidatorTests
     {
         // Act
         var validator = new CertificatePredicateValidator(
-            cert => true, 
+            cert => true,
             "Custom failure message");
 
         // Assert
@@ -284,7 +284,7 @@ public class CertificatePredicateValidatorTests
         Assert.That(result.Failures[0].Message, Is.EqualTo(""));
     }
 
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     private CoseSign1Message CreateSignedMessage()
     {
         using var cert = TestCertificateUtils.CreateCertificate("PredicateTest");
@@ -294,5 +294,5 @@ public class CertificatePredicateValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         return CoseMessage.DecodeSign1(messageBytes);
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 }

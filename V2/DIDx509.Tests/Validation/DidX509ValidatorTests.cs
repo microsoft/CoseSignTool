@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Tests.Common;
-using DIDx509;
-using DIDx509.Validation;
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Tests.Common;
+using DIDx509;
+using DIDx509.Validation;
+using NUnit.Framework;
 
 namespace DIDx509.Tests.Validation;
 
@@ -103,7 +103,7 @@ public class DidX509ValidatorTests
         // Arrange
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
-        
+
         // Create a DID with a non-existent CA fingerprint
         var fakeDid = "did:x509:0:sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA::subject:CN:TestLeaf";
 
@@ -122,7 +122,7 @@ public class DidX509ValidatorTests
         // Arrange
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
-        
+
         // Use builder to create DID with subject policy
         var did = leaf.GetDidBuilder()
             .WithCaCertificate(testChain[2])
@@ -144,7 +144,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add subject policy that doesn't match
         did = did + ":subject:CN:WrongName";
 
@@ -163,7 +163,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add multiple policies
         did = did + ":subject:CN:TestLeaf:subject:O:TestOrg";
 
@@ -181,7 +181,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain.Cast<X509Certificate2>());
-        
+
         // Manually add unknown policy type (this will be parsed but fail validation)
         // Use a format that parses: :policyname:key:value
         did = did + ":unknownpolicy:somekey:somevalue";
@@ -263,7 +263,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add EKU policy (use codeSigning OID)
         did = did + ":eku:1.3.6.1.5.5.7.3.3";
 
@@ -281,7 +281,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add SAN policy
         did = did + ":san:dns:example.com";
 
@@ -299,7 +299,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add policy with uppercase name
         did = did + ":SUBJECT:CN:TestLeaf";
 
@@ -349,7 +349,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add multiple policies that will fail
         did = did + ":subject:CN:Wrong1:subject:O:Wrong2";
 
@@ -367,7 +367,7 @@ public class DidX509ValidatorTests
         // Arrange
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
-        
+
         // Get DID with SHA-384 (version 1)
         var did = leaf.GetDidWithRoot(testChain.Cast<X509Certificate2>(), "sha384");
 
@@ -384,7 +384,7 @@ public class DidX509ValidatorTests
         // Arrange
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
-        
+
         // Get DID with SHA-512 (version 2)
         var did = leaf.GetDidWithRoot(testChain.Cast<X509Certificate2>(), "sha512");
 
@@ -402,7 +402,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var intermediate = testChain[1];
-        
+
         // Create DID pointing to intermediate CA using builder
         var did = leaf.GetDidBuilder()
             .WithCaCertificate(intermediate)
@@ -425,7 +425,7 @@ public class DidX509ValidatorTests
         var testChain = TestCertificateUtils.CreateTestChain();
         var leaf = testChain[0];
         var did = leaf.GetDidWithRoot(testChain);
-        
+
         // Add multiple different policy types
         did = did + ":subject:CN:TestLeaf:subject:C:US";
 

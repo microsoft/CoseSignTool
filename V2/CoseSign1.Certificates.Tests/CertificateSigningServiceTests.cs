@@ -144,7 +144,7 @@ public class CertificateSigningServiceTests
         // Arrange
         var mockSigningKey = CreateMockSigningKey();
         var service = new TestCertificateSigningService(mockSigningKey.Object, false);
-        
+
         var mockContributor = new Mock<IHeaderContributor>();
         mockContributor.Setup(c => c.MergeStrategy).Returns(HeaderMergeStrategy.Replace);
         mockContributor.Setup(c => c.ContributeProtectedHeaders(It.IsAny<CoseHeaderMap>(), It.IsAny<HeaderContributorContext>()))
@@ -222,11 +222,11 @@ public class CertificateSigningServiceTests
     private static Mock<ISigningKey> CreateMockSigningKey()
     {
         var mockKey = new Mock<ISigningKey>();
-        
+
         // Create a real RSA key for CoseKey
         var rsa = RSA.Create(2048);
         var coseKey = new CoseKey(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
-        
+
         mockKey.Setup(k => k.GetCoseKey()).Returns(coseKey);
         mockKey.Setup(k => k.Metadata).Returns(new SigningKeyMetadata(
             -37, // PS256
@@ -235,12 +235,12 @@ public class CertificateSigningServiceTests
             HashAlgorithmName.SHA256,
             2048,
             new Dictionary<string, object>()));
-        
+
         return mockKey;
     }
 
     private static SigningContext CreateSigningContext(
-        string payload, 
+        string payload,
         IReadOnlyList<IHeaderContributor>? additionalContributors = null)
     {
         return new SigningContext(

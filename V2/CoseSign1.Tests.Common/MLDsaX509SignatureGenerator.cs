@@ -60,22 +60,22 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         // Determine ML-DSA parameter set from key
         int keySize = _mldsaKey.ExportSubjectPublicKeyInfo().Length;
         string oid = DetermineMLDsaOid(keySize);
-        
+
         // Create AlgorithmIdentifier structure for ML-DSA
         // AlgorithmIdentifier ::= SEQUENCE {
         //     algorithm OBJECT IDENTIFIER,
         //     parameters ANY DEFINED BY algorithm OPTIONAL
         // }
         // ML-DSA doesn't have parameters, so we just encode the OID
-        
+
         byte[] oidBytes = EncodeOid(oid);
-        
+
         // SEQUENCE tag (0x30) followed by length and content
         byte[] result = new byte[2 + oidBytes.Length];
         result[0] = 0x30; // SEQUENCE tag
         result[1] = (byte)oidBytes.Length; // length
         Array.Copy(oidBytes, 0, result, 2, oidBytes.Length);
-        
+
         return result;
     }
 
@@ -108,7 +108,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         }
 
         List<byte> encoded = new();
-        
+
         // First two components are encoded as: (first * 40) + second
         int first = int.Parse(parts[0]);
         int second = int.Parse(parts[1]);
@@ -119,17 +119,17 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         {
             int value = int.Parse(parts[i]);
             List<byte> valueBytes = new();
-            
+
             // Encode in base-128 (7 bits per byte, MSB set for all but last byte)
             valueBytes.Add((byte)(value & 0x7F));
             value >>= 7;
-            
+
             while (value > 0)
             {
                 valueBytes.Insert(0, (byte)((value & 0x7F) | 0x80));
                 value >>= 7;
             }
-            
+
             encoded.AddRange(valueBytes);
         }
 
@@ -138,7 +138,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         result[0] = 0x06; // OID tag
         result[1] = (byte)encoded.Count; // length
         encoded.CopyTo(result, 2);
-        
+
         return result;
     }
 }

@@ -3,12 +3,12 @@
 
 namespace DIDx509.Builder;
 
-using DIDx509.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using DIDx509.Parsing;
 
 /// <summary>
 /// Fluent builder for creating DID:X509 identifiers with full specification support.

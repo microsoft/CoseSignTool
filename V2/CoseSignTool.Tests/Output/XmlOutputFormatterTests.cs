@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Output;
 using System.Xml.Linq;
+using CoseSignTool.Output;
 
 namespace CoseSignTool.Tests.Output;
 
@@ -212,8 +212,3 @@ public class XmlOutputFormatterTests
         Assert.That(xml, Does.Contain("<?xml version=\"1.0\" encoding=\"utf-16\"?>"));
     }
 }
-
-
-
-
-

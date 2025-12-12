@@ -3,10 +3,10 @@
 
 namespace DIDx509.Tests;
 
+using System.Security.Cryptography.X509Certificates;
 using DIDx509.Builder;
 using DIDx509.Validation;
 using NUnit.Framework;
-using System.Security.Cryptography.X509Certificates;
 
 /// <summary>
 /// Tests for DID:X509 validation with multiple policies.
@@ -441,7 +441,7 @@ public class ValidationTests : DIDx509TestBase
         using var leaf = CreateTestCertificate("CN=TestUser");
         using var root1 = CreateSelfSignedCertificate("CN=Root1");
         using var root2 = CreateSelfSignedCertificate("CN=Root2");
-        
+
         var chain1 = new[] { leaf, root1 };
         var chain2 = new[] { leaf, root2 };
 
@@ -603,7 +603,7 @@ public class ValidationTests : DIDx509TestBase
 
         // Assert
         Assert.That(result.IsValid, Is.False);
-        
+
         // Should have multiple errors - at minimum subject and SAN fail (EKU might pass if same default EKU)
         Assert.That(result.Errors.Count, Is.GreaterThanOrEqualTo(1));
         Assert.That(result.Errors, Has.Some.Contains("policy validation failed"));

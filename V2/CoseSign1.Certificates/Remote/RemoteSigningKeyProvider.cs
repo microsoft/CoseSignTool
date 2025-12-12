@@ -95,7 +95,7 @@ public class RemoteSigningKeyProvider : ISigningKey
                     >= 3072 => -38, // PS384
                     _ => -37        // PS256
                 };
-                
+
                 var hashAlgorithm = coseAlgorithmId switch
                 {
                     -39 => HashAlgorithmName.SHA512,
@@ -125,7 +125,7 @@ public class RemoteSigningKeyProvider : ISigningKey
                     384 => -35, // ES384 (P-384)
                     _ => -7     // ES256 (P-256)
                 };
-                
+
                 var hashAlgorithm = coseAlgorithmId switch
                 {
                     -36 => HashAlgorithmName.SHA512,

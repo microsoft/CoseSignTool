@@ -38,7 +38,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
-        
+
         var unprotectedHeaders = new CoseHeaderMap();
         var writer = new CborWriter();
         writer.WriteByteString(testCert.RawData);
@@ -61,7 +61,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
-        
+
         var unprotectedHeaders = new CoseHeaderMap();
         var writer = new CborWriter();
         writer.WriteByteString(testCert.RawData);
@@ -124,7 +124,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange
         using var cert1 = TestCertificateUtils.CreateCertificate();
         using var cert2 = TestCertificateUtils.CreateCertificate();
-        
+
         var headers = new CoseHeaderMap();
         var writer = new CborWriter();
         writer.WriteStartArray(null); // Indefinite length array
@@ -155,7 +155,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange
         using var cert = TestCertificateUtils.CreateCertificate();
         var headers = new CoseHeaderMap();
-        
+
         var writer = new CborWriter();
         writer.WriteByteString(cert.RawData); // Single cert, not array
         var x5bagValue = CoseHeaderValue.FromEncodedValue(writer.Encode());
@@ -204,7 +204,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange
         using var cert = TestCertificateUtils.CreateCertificate();
         var unprotectedHeaders = new CoseHeaderMap();
-        
+
         var writer = new CborWriter();
         writer.WriteByteString(cert.RawData);
         var x5bagValue = CoseHeaderValue.FromEncodedValue(writer.Encode());
@@ -298,7 +298,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         using var cert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(cert, HashAlgorithmName.SHA256);
         var unprotectedHeaders = new CoseHeaderMap();
-        
+
         var writer = new CborWriter();
         thumbprint.Serialize(writer);
         var x5tValue = CoseHeaderValue.FromEncodedValue(writer.Encode());
@@ -356,7 +356,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         using var testCert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var headers = new CoseHeaderMap();
-        
+
         // Add only x5t, no x5chain
         var writer = new CborWriter();
         thumbprint.Serialize(writer);
@@ -378,7 +378,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
         var headers = new CoseHeaderMap();
-        
+
         // Add only x5chain, no x5t
         var writer = new CborWriter();
         writer.WriteByteString(testCert.RawData);
@@ -401,7 +401,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         using var testCert = TestCertificateUtils.CreateCertificate();
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var unprotectedHeaders = new CoseHeaderMap();
-        
+
         var thumbprintWriter = new CborWriter();
         thumbprint.Serialize(thumbprintWriter);
         unprotectedHeaders.Add(CertificateHeaderContributor.HeaderLabels.X5T, CoseHeaderValue.FromEncodedValue(thumbprintWriter.Encode()));
@@ -512,7 +512,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange - Create message with cert but manipulate to have no valid public key
         using var testCert = TestCertificateUtils.CreateCertificate();
         var headers = new CoseHeaderMap();
-        
+
         // Add certificate headers
         var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA256);
         var thumbprintWriter = new CborWriter();
@@ -539,7 +539,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithAllowUnprotectedTrue_UsesUnprotectedHeaders), useEcc: true);
         using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
-        
+
         // Create message with unprotected headers using factory
         using var factory = new DirectSignatureFactory(signingService);
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/test");

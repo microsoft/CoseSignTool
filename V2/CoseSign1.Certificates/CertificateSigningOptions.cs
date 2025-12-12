@@ -60,4 +60,3 @@ public class CertificateSigningOptions : SigningOptions
     /// </example>
     public CwtClaims? CustomCwtClaims { get; set; }
 }
-

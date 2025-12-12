@@ -16,7 +16,7 @@ public class CompositeValidatorAdditionalTests
     private CoseSign1Message? _validMessage;
 
     [SetUp]
-    #pragma warning disable CA2252
+#pragma warning disable CA2252
     public void SetUp()
     {
         var cert = TestCertificateUtils.CreateCertificate("CompositeAdditionalTest");
@@ -28,7 +28,7 @@ public class CompositeValidatorAdditionalTests
         _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
-    #pragma warning restore CA2252
+#pragma warning restore CA2252
 
     [Test]
     public async Task ValidateAsync_WithNullInput_ReturnsFailure()
@@ -200,7 +200,7 @@ public class CompositeValidatorAdditionalTests
         {
             _shouldPass = shouldPass;
             _metadata = metadata;
-            
+
             // If metadata is provided and errorMessageOrSuffix doesn't contain "error", treat it as a suffix
             if (metadata != null && errorMessageOrSuffix != null && !errorMessageOrSuffix.ToLowerInvariant().Contains("error"))
             {

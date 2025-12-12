@@ -20,7 +20,7 @@ internal sealed class RemoteECDsa : ECDsa
     {
         _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
         _publicParameters = publicParameters;
-        
+
         // Determine key size from curve
         KeySizeValue = _publicParameters.Curve.Oid?.FriendlyName switch
         {

@@ -100,7 +100,7 @@ public static class TransparencyExtensions
         }
 
         var results = new List<TransparencyValidationResult>(providers.Count);
-        
+
         foreach (var provider in providers)
         {
             var result = await provider.VerifyTransparencyProofAsync(message, cancellationToken).ConfigureAwait(false);

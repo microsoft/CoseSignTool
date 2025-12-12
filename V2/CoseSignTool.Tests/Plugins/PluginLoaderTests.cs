@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Plugins;
 using System.CommandLine;
 using System.Reflection;
+using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Tests.Plugins;
 
@@ -295,8 +295,3 @@ public class PluginLoaderTests
         }
     }
 }
-
-
-
-
-

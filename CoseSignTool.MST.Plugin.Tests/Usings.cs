@@ -11,4 +11,4 @@ global using Microsoft.Extensions.Configuration;
 global using Microsoft.VisualStudio.TestTools.UnitTesting;
 global using Moq;
 global using CoseSignTool.Abstractions;
-global using CoseSignTool.CTS.Plugin;
+global using CoseSignTool.MST.Plugin;

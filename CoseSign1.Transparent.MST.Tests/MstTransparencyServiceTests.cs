@@ -17,15 +17,15 @@ using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Interfaces;
 using CoseSign1.Tests.Common;
-using CoseSign1.Transparent.CTS;
+using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.Extensions;
 using Moq;
 
 /// <summary>
-/// Unit tests for the <see cref="AzureCtsTransparencyService"/> class.
+/// Unit tests for the <see cref="MstTransparencyService"/> class.
 /// </summary>
 [TestFixture]
-public class AzureCtsTransparencyServiceTests
+public class MstTransparencyServiceTests
 {
     private CoseSign1MessageFactory? messageFactory;
     private ICoseSigningKeyProvider? signingKeyProvider;
@@ -46,19 +46,19 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the constructor of <see cref="AzureCtsTransparencyService"/> for null arguments.
+    /// Tests the constructor of <see cref="MstTransparencyService"/> for null arguments.
     /// </summary>
     [Test]
     public void Constructor_ThrowsArgumentNullException_WhenTransparencyClientIsNull()
     {
         // Act & Assert
         Assert.That(
-            () => new AzureCtsTransparencyService(null),
+            () => new MstTransparencyService(null),
             Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("transparencyClient"));
     }
 
     /// <summary>
-    /// Tests the constructor of <see cref="AzureCtsTransparencyService"/> with verification options.
+    /// Tests the constructor of <see cref="MstTransparencyService"/> with verification options.
     /// </summary>
     [Test]
     public void Constructor_WithVerificationOptions_CreatesInstance()
@@ -73,14 +73,14 @@ public class AzureCtsTransparencyServiceTests
         };
 
         // Act
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient, verificationOptions, null);
+        MstTransparencyService service = new MstTransparencyService(mockClient, verificationOptions, null);
 
         // Assert
         Assert.That(service, Is.Not.Null);
     }
 
     /// <summary>
-    /// Tests the constructor of <see cref="AzureCtsTransparencyService"/> with logging callbacks.
+    /// Tests the constructor of <see cref="MstTransparencyService"/> with logging callbacks.
     /// </summary>
     [Test]
     public void Constructor_WithLogging_CreatesInstance()
@@ -94,7 +94,7 @@ public class AzureCtsTransparencyServiceTests
         Action<string> logError = msg => logMessages.Add($"ERROR: {msg}");
 
         // Act
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient, null, null, logVerbose, logWarning, logError);
 
         // Assert
@@ -102,14 +102,14 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.MakeTransparentAsync"/> method for null arguments.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for null arguments.
     /// </summary>
     [Test]
     public void MakeTransparentAsync_ThrowsArgumentNullException_WhenMessageIsNull()
     {
         // Arrange
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient);
+        MstTransparencyService service = new MstTransparencyService(mockClient);
 
         // Act & Assert
         Assert.That(
@@ -118,7 +118,7 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.MakeTransparentAsync"/> method for a failed operation.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a failed operation.
     /// </summary>
     [Test]
     public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenOperationFails()
@@ -129,7 +129,7 @@ public class AzureCtsTransparencyServiceTests
             .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockFailedOperation());
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient.Object);
+        MstTransparencyService service = new MstTransparencyService(mockClient.Object);
         CoseSign1Message message = CreateMockCoseSign1Message();
 
         // Act & Assert
@@ -139,7 +139,7 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.MakeTransparentAsync"/> method for a failed operation with an invalid entry Id.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a failed operation with an invalid entry Id.
     /// </summary>
     [Test]
     public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenOperationFails_WithInvalidEntryId()
@@ -150,7 +150,7 @@ public class AzureCtsTransparencyServiceTests
             .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockSuccessfulOperationWithInvalidResponse());
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient.Object);
+        MstTransparencyService service = new MstTransparencyService(mockClient.Object);
         CoseSign1Message message = CreateMockCoseSign1Message();
 
         // Act & Assert
@@ -160,7 +160,7 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.MakeTransparentAsync"/> method for a successful operation.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a successful operation.
     /// </summary>
     [Test]
     public async Task MakeTransparentAsync_ReturnsExpectedResult_WhenOperationSucceeds()
@@ -177,7 +177,7 @@ public class AzureCtsTransparencyServiceTests
             .Setup(client => client.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient.Object);
+        MstTransparencyService service = new MstTransparencyService(mockClient.Object);
 
         // Act
         CoseSign1Message result = await service.MakeTransparentAsync(message);
@@ -187,14 +187,14 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for null arguments.
+    /// Tests the <see cref="MstTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for null arguments.
     /// </summary>
     [Test]
     public void VerifyTransparencyAsync_ThrowsArgumentNullException_WhenMessageIsNull()
     {
         // Arrange
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient);
+        MstTransparencyService service = new MstTransparencyService(mockClient);
 
         // Act & Assert
         Assert.That(
@@ -203,14 +203,14 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for a message without a transparency header.
+    /// Tests the <see cref="MstTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for a message without a transparency header.
     /// </summary>
     [Test]
     public void VerifyTransparencyAsync_ThrowsInvalidOperationException_WhenMessageLacksTransparencyHeader()
     {
         // Arrange
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient);
+        MstTransparencyService service = new MstTransparencyService(mockClient);
         CoseSign1Message message = CreateMockCoseSign1Message();
 
         // Act & Assert
@@ -220,7 +220,7 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for a successful verification.
+    /// Tests the <see cref="MstTransparencyService.VerifyTransparencyAsync(CoseSign1Message, CancellationToken)"/> method for a successful verification.
     /// </summary>
     [Test]
     [Ignore("This test is ignored because RunTransparentStatementVerification is not virtual and cannot be mocked. This has been escalated to the package owners.")]
@@ -229,7 +229,7 @@ public class AzureCtsTransparencyServiceTests
         // Arrange
         // Note: We can't mock the static VerifyTransparentStatement method, so we test the service behavior
         // with actual verification logic. This test verifies the service correctly calls the API.
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(new CodeTransparencyClient(new Uri("https://example.com")));
+        MstTransparencyService service = new MstTransparencyService(new CodeTransparencyClient(new Uri("https://example.com")));
         CoseSign1Message message = CreateMessageWithTransparencyHeader();
 
         // Act
@@ -240,14 +240,14 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.VerifyTransparencyAsync(CoseSign1Message, byte[], CancellationToken)"/> method for null arguments.
+    /// Tests the <see cref="MstTransparencyService.VerifyTransparencyAsync(CoseSign1Message, byte[], CancellationToken)"/> method for null arguments.
     /// </summary>
     [Test]
     public void VerifyTransparencyAsync_WithReceipt_ThrowsArgumentNullException_WhenArgumentsAreNull()
     {
         // Arrange
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient);
+        MstTransparencyService service = new MstTransparencyService(mockClient);
 
         // Act & Assert
         Assert.That(
@@ -260,14 +260,14 @@ public class AzureCtsTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="AzureCtsTransparencyService.VerifyTransparencyAsync(CoseSign1Message, byte[], CancellationToken)"/> method for an empty receipt.
+    /// Tests the <see cref="MstTransparencyService.VerifyTransparencyAsync(CoseSign1Message, byte[], CancellationToken)"/> method for an empty receipt.
     /// </summary>
     [Test]
     public void VerifyTransparencyAsync_WithReceipt_ThrowsArgumentOutOfRangeException_WhenReceiptIsEmpty()
     {
         // Arrange
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(mockClient);
+        MstTransparencyService service = new MstTransparencyService(mockClient);
         CoseSign1Message message = CreateMockCoseSign1Message();
 
         // Act & Assert
@@ -339,3 +339,4 @@ public class AzureCtsTransparencyServiceTests
         return messageFactory!.CreateCoseSign1Message(testPayload, signingKeyProvider!, embedPayload: false);
     }
 }
+

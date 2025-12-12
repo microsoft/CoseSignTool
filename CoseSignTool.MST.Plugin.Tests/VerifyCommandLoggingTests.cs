@@ -4,7 +4,7 @@
 using Azure.Security.CodeTransparency;
 using System.Security.Cryptography.Cose;
 
-namespace CoseSignTool.CTS.Plugin.Tests;
+namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
 /// Tests for VerifyCommand logging behavior.

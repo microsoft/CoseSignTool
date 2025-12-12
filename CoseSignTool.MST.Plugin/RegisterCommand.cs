@@ -1,21 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 using System.Security.Cryptography.Cose;
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
-/// Command to register a COSE Sign1 message with Azure Code Transparency Service.
+/// Command to register a COSE Sign1 message with Microsoft's Signing Transparency (MST).
 /// </summary>
-public class RegisterCommand : CtsCommandBase
+public class RegisterCommand : MstCommandBase
 {
     /// <inheritdoc/>
-    public override string Name => "cts_register";
+    public override string Name => "mst_register";
 
     /// <inheritdoc/>
-    public override string Description => "Register a COSE Sign1 message with Azure Code Transparency Service";
+    public override string Description => "Register a COSE Sign1 message with Microsoft's Signing Transparency (MST)";
 
     /// <inheritdoc/>
     public override string Usage => GetBaseUsage(Name, "register") + 
@@ -27,9 +27,9 @@ public class RegisterCommand : CtsCommandBase
     /// <inheritdoc/>
     protected override string GetExamples()
     {
-        return $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
-               $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --output result.json{Environment.NewLine}" +
-               $"  CoseSignTool cts_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR";
+        return $"  CoseSignTool mst_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
+               $"  CoseSignTool mst_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --output result.json{Environment.NewLine}" +
+               $"  CoseSignTool mst_register --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR";
     }
 
     /// <inheritdoc/>

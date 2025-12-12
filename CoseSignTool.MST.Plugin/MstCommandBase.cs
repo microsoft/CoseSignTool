@@ -1,24 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 using System.Text.Json;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
-/// Base class for Azure Code Transparency Service commands that provides common functionality
+/// Base class for Microsoft's Signing Transparency (MST) commands that provides common functionality
 /// for parameter validation, file operations, error handling, and result output.
 /// </summary>
-public abstract class CtsCommandBase : PluginCommandBase
+public abstract class MstCommandBase : PluginCommandBase
 {
     /// <summary>
-    /// Common command options shared across all CTS commands.
+    /// Common command options shared across all MST commands.
     /// </summary>
     protected static readonly Dictionary<string, string> CommonOptions = new()
     {
-        { "endpoint", "The Azure Code Transparency Service endpoint URL" },
-        { "token-env", "The name of the environment variable containing the access token (default: AZURE_CTS_TOKEN)" },
+        { "endpoint", "The Microsoft's Signing Transparency (MST) service endpoint URL" },
+        { "token-env", "The name of the environment variable containing the access token (default: MST_TOKEN)" },
         { "payload", "The file path to the payload file" },
         { "signature", "The file path to the COSE Sign1 signature file" },
         { "output", "The file path where the result will be written (optional)" },
@@ -299,20 +299,20 @@ public abstract class CtsCommandBase : PluginCommandBase
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Gets the base usage string common to all CTS commands.
+    /// Gets the base usage string common to all MST commands.
     /// </summary>
     protected virtual string GetBaseUsage(string commandName, string verb)
     {
         return $"CoseSignTool {commandName} --endpoint <endpoint-url> --payload <payload-file> --signature <signature-file> [options]{Environment.NewLine}" +
                $"{Environment.NewLine}" +
                $"Required arguments:{Environment.NewLine}" +
-               $"  --endpoint      The Azure Code Transparency Service endpoint URL{Environment.NewLine}" +
+               $"  --endpoint      The Microsoft's Signing Transparency (MST) service endpoint URL{Environment.NewLine}" +
                $"  --payload       The file path to the payload to {verb}{Environment.NewLine}" +
                $"  --signature     The file path to the COSE Sign1 signature file{Environment.NewLine}" +
                $"{Environment.NewLine}" +
                $"Optional arguments:{Environment.NewLine}" +
                $"  --token-env     Name of environment variable containing access token{Environment.NewLine}" +
-               $"                  (default: AZURE_CTS_TOKEN, uses default Azure credential if not specified){Environment.NewLine}" +
+               $"                  (default: MST_TOKEN, uses default Azure credential if not specified){Environment.NewLine}" +
                $"  --output        File path where {verb} result will be written{Environment.NewLine}";
     }
 
@@ -329,3 +329,4 @@ public abstract class CtsCommandBase : PluginCommandBase
         return string.Empty;
     }
 }
+

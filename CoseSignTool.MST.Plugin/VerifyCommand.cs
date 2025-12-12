@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.Extensions;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
-/// Command to verify a COSE Sign1 message with Azure Code Transparency Service.
+/// Command to verify a COSE Sign1 message with Microsoft's Signing Transparency (MST).
 /// </summary>
-public class VerifyCommand : CtsCommandBase
+public class VerifyCommand : MstCommandBase
 {
     private static readonly Dictionary<string, string> VerifyOptions = 
         CommonOptions.Concat(new Dictionary<string, string>
@@ -22,10 +22,10 @@ public class VerifyCommand : CtsCommandBase
         }).ToDictionary(k => k.Key, k => k.Value);
 
     /// <inheritdoc/>
-    public override string Name => "cts_verify";
+    public override string Name => "mst_verify";
 
     /// <inheritdoc/>
-    public override string Description => "Verify a COSE Sign1 message with Azure Code Transparency Service";
+    public override string Description => "Verify a COSE Sign1 message with Microsoft's Signing Transparency (MST)";
 
     /// <inheritdoc/>
     public override string Usage => GetBaseUsage(Name, "verify") + 
@@ -38,10 +38,10 @@ public class VerifyCommand : CtsCommandBase
     /// <inheritdoc/>
     protected override string GetExamples()
     {
-        return $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
-               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --receipt receipt.cose --output verification.json{Environment.NewLine}" +
-               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR{Environment.NewLine}" +
-               $"  CoseSignTool cts_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --authorized-domains example.com,trusted.azure.com --authorized-receipt-behavior RequireAll";
+        return $"  CoseSignTool mst_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose{Environment.NewLine}" +
+               $"  CoseSignTool mst_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --receipt receipt.cose --output verification.json{Environment.NewLine}" +
+               $"  CoseSignTool mst_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --token-env MY_TOKEN_VAR{Environment.NewLine}" +
+               $"  CoseSignTool mst_verify --endpoint https://example.confidential-ledger.azure.com --payload payload.bin --signature signature.cose --authorized-domains example.com,trusted.azure.com --authorized-receipt-behavior RequireAll";
     }
 
     /// <inheritdoc/>
@@ -86,7 +86,7 @@ public class VerifyCommand : CtsCommandBase
         
         // Create the transparency service with verification options and logging
         CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = 
-            new CoseSign1.Transparent.CTS.AzureCtsTransparencyService(
+            new CoseSign1.Transparent.MST.MstTransparencyService(
                 client, 
                 verificationOptions, 
                 null,

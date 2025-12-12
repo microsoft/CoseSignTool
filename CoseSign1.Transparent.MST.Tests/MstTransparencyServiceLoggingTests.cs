@@ -18,16 +18,16 @@ using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Interfaces;
 using CoseSign1.Tests.Common;
-using CoseSign1.Transparent.CTS;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Extensions;
 using Moq;
 
 /// <summary>
-/// Unit tests for logging behavior in <see cref="AzureCtsTransparencyService"/> class.
+/// Unit tests for logging behavior in <see cref="MstTransparencyService"/> class.
 /// </summary>
 [TestFixture]
-public class AzureCtsTransparencyServiceLoggingTests
+public class MstTransparencyServiceLoggingTests
 {
     private CoseSign1MessageFactory? messageFactory;
     private ICoseSigningKeyProvider? signingKeyProvider;
@@ -60,7 +60,7 @@ public class AzureCtsTransparencyServiceLoggingTests
             .Setup(client => client.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(BinaryData.FromBytes(message.Encode()), Mock.Of<Response>()));
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, logVerbose, null, logError);
 
         // Act
@@ -92,7 +92,7 @@ public class AzureCtsTransparencyServiceLoggingTests
             .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockFailedOperation());
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, null, null, logError);
 
         // Act & Assert
@@ -117,7 +117,7 @@ public class AzureCtsTransparencyServiceLoggingTests
             .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockSuccessfulOperationWithInvalidResponse());
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, null, null, logError);
 
         // Act & Assert
@@ -145,7 +145,7 @@ public class AzureCtsTransparencyServiceLoggingTests
             UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
         };
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, verificationOptions, null, logVerbose, null, null);
 
         // Act
@@ -176,7 +176,7 @@ public class AzureCtsTransparencyServiceLoggingTests
         
         Action<string> logError = msg => errorMessages.Add($"ERROR: {msg}");
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, null, null, logError);
 
         // Act & Assert
@@ -199,7 +199,7 @@ public class AzureCtsTransparencyServiceLoggingTests
         Action<string> logVerbose = msg => verboseMessages.Add($"VERBOSE: {msg}");
         Action<string> logError = msg => errorMessages.Add($"ERROR: {msg}");
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, logVerbose, null, logError);
 
         // Act
@@ -229,7 +229,7 @@ public class AzureCtsTransparencyServiceLoggingTests
         Action<string> logVerbose = msg => verboseMessages.Add($"VERBOSE: {msg}");
         Action<string> logError = msg => errorMessages.Add($"ERROR: {msg}");
 
-        AzureCtsTransparencyService service = new AzureCtsTransparencyService(
+        MstTransparencyService service = new MstTransparencyService(
             mockClient.Object, null, null, logVerbose, null, logError);
 
         // Act
@@ -256,7 +256,7 @@ public class AzureCtsTransparencyServiceLoggingTests
 
         // Assert
         Assert.That(service, Is.Not.Null);
-        Assert.That(service, Is.InstanceOf<AzureCtsTransparencyService>());
+        Assert.That(service, Is.InstanceOf<MstTransparencyService>());
     }
 
     [Test]
@@ -270,7 +270,7 @@ public class AzureCtsTransparencyServiceLoggingTests
 
         // Assert
         Assert.That(service, Is.Not.Null);
-        Assert.That(service, Is.InstanceOf<AzureCtsTransparencyService>());
+        Assert.That(service, Is.InstanceOf<MstTransparencyService>());
     }
 
     [Test]
@@ -351,3 +351,4 @@ public class AzureCtsTransparencyServiceLoggingTests
         return mockOperation.Object;
     }
 }
+

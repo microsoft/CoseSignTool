@@ -28,7 +28,7 @@
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
         <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
-        <ProjectReference Include="..\CoseSign1.Transparent.CTS\CoseSign1.Transparent.CTS.csproj" />
+        <ProjectReference Include="..\CoseSign1.Transparent.MST\CoseSign1.Transparent.MST.csproj" />
         <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
     </ItemGroup>
 

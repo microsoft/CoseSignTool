@@ -1,50 +1,50 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin.Tests;
+namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
-/// Tests for the AzureCtsPlugin class.
+/// Tests for the MstPlugin class.
 /// </summary>
 [TestClass]
-public class AzureCtsPluginTests
+public class MstPluginTests
 {
     [TestMethod]
-    public void AzureCtsPlugin_Properties_ReturnCorrectValues()
+    public void MstPlugin_Properties_ReturnCorrectValues()
     {
         // Arrange & Act
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Assert
-        Assert.AreEqual("Azure Code Transparency Service", plugin.Name);
+        Assert.AreEqual("Microsoft's Signing Transparency", plugin.Name);
         Assert.AreEqual("1.0.0.0", plugin.Version);
-        Assert.AreEqual("Provides Azure Code Transparency Service integration for registering and verifying COSE Sign1 messages.", plugin.Description);
+        Assert.AreEqual("Provides Microsoft's Signing Transparency (MST) integration for registering and verifying COSE Sign1 messages.", plugin.Description);
         Assert.AreEqual(2, plugin.Commands.Count());
 
         string[] commandNames = plugin.Commands.Select(c => c.Name).ToArray();
-        Assert.IsTrue(commandNames.Contains("cts_register"));
-        Assert.IsTrue(commandNames.Contains("cts_verify"));
+        Assert.IsTrue(commandNames.Contains("mst_register"));
+        Assert.IsTrue(commandNames.Contains("mst_verify"));
     }
 
     [TestMethod]
-    public void AzureCtsPlugin_Initialize_DoesNotThrow()
+    public void MstPlugin_Initialize_DoesNotThrow()
     {
         // Arrange
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Act & Assert
         plugin.Initialize(); // Should not throw
     }
 
     [TestMethod]
-    public void AzureCtsPlugin_Commands_AreCorrectTypes()
+    public void MstPlugin_Commands_AreCorrectTypes()
     {
         // Arrange & Act
-        AzureCtsPlugin plugin = new AzureCtsPlugin();
+        MstPlugin plugin = new MstPlugin();
 
         // Assert
-        IPluginCommand? registerCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_register");
-        IPluginCommand? verifyCommand = plugin.Commands.FirstOrDefault(c => c.Name == "cts_verify");
+        IPluginCommand? registerCommand = plugin.Commands.FirstOrDefault(c => c.Name == "mst_register");
+        IPluginCommand? verifyCommand = plugin.Commands.FirstOrDefault(c => c.Name == "mst_verify");
 
         Assert.IsNotNull(registerCommand);
         Assert.IsNotNull(verifyCommand);
@@ -66,9 +66,9 @@ public class RegisterCommandTests
         RegisterCommand command = new RegisterCommand();
 
         // Assert
-        Assert.AreEqual("cts_register", command.Name);
-        Assert.AreEqual("Register a COSE Sign1 message with Azure Code Transparency Service", command.Description);
-        Assert.IsTrue(command.Usage.Contains("cts_register"));
+        Assert.AreEqual("mst_register", command.Name);
+        Assert.AreEqual("Register a COSE Sign1 message with Microsoft's Signing Transparency (MST)", command.Description);
+        Assert.IsTrue(command.Usage.Contains("mst_register"));
         Assert.IsTrue(command.Usage.Contains("--endpoint"));
         Assert.IsTrue(command.Usage.Contains("--payload"));
         Assert.IsTrue(command.Usage.Contains("--signature"));
@@ -245,9 +245,9 @@ public class VerifyCommandTests
         VerifyCommand command = new VerifyCommand();
 
         // Assert
-        Assert.AreEqual("cts_verify", command.Name);
-        Assert.AreEqual("Verify a COSE Sign1 message with Azure Code Transparency Service", command.Description);
-        Assert.IsTrue(command.Usage.Contains("cts_verify"));
+        Assert.AreEqual("mst_verify", command.Name);
+        Assert.AreEqual("Verify a COSE Sign1 message with Microsoft's Signing Transparency (MST)", command.Description);
+        Assert.IsTrue(command.Usage.Contains("mst_verify"));
         Assert.IsTrue(command.Usage.Contains("--endpoint"));
         Assert.IsTrue(command.Usage.Contains("--payload"));
         Assert.IsTrue(command.Usage.Contains("--signature"));
@@ -426,7 +426,7 @@ public class CodeTransparencyClientHelperTests
     public async Task CreateClientAsync_WithTokenFromDefaultEnvironmentVariable_CreatesClient()
     {
         // Arrange
-        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", TestToken);
+        Environment.SetEnvironmentVariable("MST_TOKEN", TestToken);
         try
         {
             // Act
@@ -438,7 +438,7 @@ public class CodeTransparencyClientHelperTests
         finally
         {
             // Cleanup
-            Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+            Environment.SetEnvironmentVariable("MST_TOKEN", null);
         }
     }
 
@@ -466,7 +466,7 @@ public class CodeTransparencyClientHelperTests
     public async Task CreateClientAsync_WithoutTokenEnvironmentVariable_UsesDefaultCredential()
     {
         // Arrange
-        Environment.SetEnvironmentVariable("AZURE_CTS_TOKEN", null);
+        Environment.SetEnvironmentVariable("MST_TOKEN", null);
         Environment.SetEnvironmentVariable(TestEnvVarName, null);
 
         try
@@ -518,3 +518,4 @@ public class CodeTransparencyClientHelperTests
         }
     }
 }
+

@@ -19,16 +19,10 @@ public static class LogEvents
     public const int ValidationCompleted = 2001;
     /// <summary>Validation operation failed.</summary>
     public const int ValidationFailed = 2002;
-    /// <summary>Validator registered.</summary>
-    public const int ValidatorRegistered = 2010;
     /// <summary>Validator executing.</summary>
     public const int ValidatorExecuting = 2020;
     /// <summary>Validator passed.</summary>
     public const int ValidatorPassed = 2021;
     /// <summary>Validator failed with specific error.</summary>
     public const int ValidatorFailure = 2022;
-    /// <summary>Signature verification result.</summary>
-    public const int SignatureVerified = 2030;
-    /// <summary>Signature verification failed.</summary>
-    public const int SignatureVerificationFailed = 2031;
 }

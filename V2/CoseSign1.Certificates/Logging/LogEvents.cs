@@ -33,16 +33,6 @@ public static class LogEvents
     public const int CertificateChainBuilt = 3011;
     /// <summary>Certificate chain building failed.</summary>
     public const int CertificateChainBuildFailed = 3012;
-    /// <summary>Certificate validation started.</summary>
-    public const int CertificateValidationStarted = 3020;
-    /// <summary>Certificate validation completed.</summary>
-    public const int CertificateValidationCompleted = 3021;
-    /// <summary>Certificate validation failed.</summary>
-    public const int CertificateValidationFailed = 3022;
     /// <summary>Certificate store access.</summary>
     public const int CertificateStoreAccess = 3030;
-    /// <summary>Certificate expiration warning.</summary>
-    public const int CertificateExpirationWarning = 3040;
-    /// <summary>Certificate expired.</summary>
-    public const int CertificateExpired = 3041;
 }

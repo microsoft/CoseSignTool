@@ -13,28 +13,28 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class AdditionalValidatorTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("ValidatorTest");
+        TestCert = TestCertificateUtils.CreateCertificate("ValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -60,7 +60,7 @@ public class AdditionalValidatorTests
     public void CertificateCommonNameValidator_Validate_WithMatchingName_ReturnsSuccess()
     {
         var validator = new CertificateCommonNameValidator("ValidatorTest");
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -69,7 +69,7 @@ public class AdditionalValidatorTests
     public void CertificateCommonNameValidator_Validate_WithNonMatchingName_ReturnsFailure()
     {
         var validator = new CertificateCommonNameValidator("WrongName");
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -87,7 +87,7 @@ public class AdditionalValidatorTests
     public async Task CertificateCommonNameValidator_ValidateAsync_CompletesSuccessfully()
     {
         var validator = new CertificateCommonNameValidator("ValidatorTest");
-        var result = await validator.ValidateAsync(_validMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -103,7 +103,7 @@ public class AdditionalValidatorTests
     public void CertificateExpirationValidator_Validate_WithValidCertificate_ReturnsSuccess()
     {
         var validator = new CertificateExpirationValidator();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -121,7 +121,7 @@ public class AdditionalValidatorTests
     public async Task CertificateExpirationValidator_ValidateAsync_CompletesSuccessfully()
     {
         var validator = new CertificateExpirationValidator();
-        var result = await validator.ValidateAsync(_validMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }

@@ -13,7 +13,7 @@ using System.Collections.ObjectModel;
 /// </summary>
 public sealed class X509Name
 {
-    private readonly Dictionary<string, string> _attributes;
+    private readonly Dictionary<string, string> InternalAttributes;
 
     /// <summary>
     /// Gets the attributes dictionary (key is label or OID, value is UTF-8 string).
@@ -25,8 +25,8 @@ public sealed class X509Name
     /// </summary>
     public X509Name(IDictionary<string, string> attributes)
     {
-        _attributes = new Dictionary<string, string>(attributes ?? throw new ArgumentNullException(nameof(attributes)), StringComparer.OrdinalIgnoreCase);
-        Attributes = new ReadOnlyDictionary<string, string>(_attributes);
+        InternalAttributes = new Dictionary<string, string>(attributes ?? throw new ArgumentNullException(nameof(attributes)), StringComparer.OrdinalIgnoreCase);
+        Attributes = new ReadOnlyDictionary<string, string>(InternalAttributes);
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ public sealed class X509Name
     /// </summary>
     public string? GetAttribute(string key)
     {
-        return _attributes.TryGetValue(key, out var value) ? value : null;
+        return InternalAttributes.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ public sealed class X509Name
 
         foreach (var kvp in other.Attributes)
         {
-            if (!_attributes.TryGetValue(kvp.Key, out var value) || !string.Equals(value, kvp.Value, StringComparison.Ordinal))
+            if (!InternalAttributes.TryGetValue(kvp.Key, out var value) || !string.Equals(value, kvp.Value, StringComparison.Ordinal))
             {
                 return false;
             }

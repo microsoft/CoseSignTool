@@ -12,7 +12,7 @@ namespace CoseSignTool.Inspection;
 /// </summary>
 public class CoseInspectionService
 {
-    private readonly IOutputFormatter _formatter;
+    private readonly IOutputFormatter Formatter;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseInspectionService"/> class.
@@ -20,7 +20,7 @@ public class CoseInspectionService
     /// <param name="formatter">The output formatter to use.</param>
     public CoseInspectionService(IOutputFormatter? formatter = null)
     {
-        _formatter = formatter ?? new TextOutputFormatter();
+        Formatter = formatter ?? new TextOutputFormatter();
     }
 
     /// <summary>
@@ -32,7 +32,7 @@ public class CoseInspectionService
     {
         if (!File.Exists(filePath))
         {
-            _formatter.WriteError($"File not found: {filePath}");
+            Formatter.WriteError($"File not found: {filePath}");
             return (int)ExitCode.FileNotFound;
         }
 
@@ -41,9 +41,9 @@ public class CoseInspectionService
             var bytes = await File.ReadAllBytesAsync(filePath);
             var fileInfo = new FileInfo(filePath);
 
-            _formatter.BeginSection("COSE Sign1 Signature Details");
-            _formatter.WriteKeyValue("File", fileInfo.FullName);
-            _formatter.WriteKeyValue("Size", $"{fileInfo.Length:N0} bytes");
+            Formatter.BeginSection("COSE Sign1 Signature Details");
+            Formatter.WriteKeyValue("File", fileInfo.FullName);
+            Formatter.WriteKeyValue("Size", $"{fileInfo.Length:N0} bytes");
 
             // Try to decode as COSE Sign1
             try
@@ -62,33 +62,33 @@ public class CoseInspectionService
                 // Display signature information
                 DisplaySignatureInfo(message);
 
-                _formatter.WriteSuccess("COSE Sign1 message inspection complete");
+                Formatter.WriteSuccess("COSE Sign1 message inspection complete");
             }
             catch (CborContentException ex)
             {
-                _formatter.WriteWarning($"Failed to decode as COSE Sign1 message: {ex.Message}");
-                _formatter.WriteInfo("File may not be a valid COSE Sign1 message");
+                Formatter.WriteWarning($"Failed to decode as COSE Sign1 message: {ex.Message}");
+                Formatter.WriteInfo("File may not be a valid COSE Sign1 message");
                 return (int)ExitCode.InvalidSignature;
             }
             catch (Exception ex)
             {
-                _formatter.WriteError($"Error inspecting COSE message: {ex.Message}");
+                Formatter.WriteError($"Error inspecting COSE message: {ex.Message}");
                 return (int)ExitCode.InspectionFailed;
             }
 
-            _formatter.EndSection();
+            Formatter.EndSection();
             return (int)ExitCode.Success;
         }
         catch (Exception ex)
         {
-            _formatter.WriteError($"Error reading file: {ex.Message}");
+            Formatter.WriteError($"Error reading file: {ex.Message}");
             return (int)ExitCode.InspectionFailed;
         }
     }
 
     private void DisplayProtectedHeaders(CoseSign1Message message)
     {
-        _formatter.WriteInfo("Protected Headers:");
+        Formatter.WriteInfo("Protected Headers:");
 
         var protectedHeaders = message.ProtectedHeaders;
 
@@ -101,11 +101,11 @@ public class CoseInspectionService
                 var reader = new CborReader(algValue.EncodedValue);
                 var algId = reader.ReadInt32();
                 var algName = GetAlgorithmName(algId);
-                _formatter.WriteKeyValue("  Algorithm", $"{algId} ({algName})");
+                Formatter.WriteKeyValue("  Algorithm", $"{algId} ({algName})");
             }
             catch
             {
-                _formatter.WriteKeyValue("  Algorithm", "<unable to parse>");
+                Formatter.WriteKeyValue("  Algorithm", "<unable to parse>");
             }
         }
 
@@ -119,23 +119,23 @@ public class CoseInspectionService
                 var state = reader.PeekState();
                 if (state == CborReaderState.TextString)
                 {
-                    _formatter.WriteKeyValue("  Content Type", reader.ReadTextString());
+                    Formatter.WriteKeyValue("  Content Type", reader.ReadTextString());
                 }
                 else if (state == CborReaderState.UnsignedInteger || state == CborReaderState.NegativeInteger)
                 {
-                    _formatter.WriteKeyValue("  Content Type", reader.ReadInt32().ToString());
+                    Formatter.WriteKeyValue("  Content Type", reader.ReadInt32().ToString());
                 }
             }
             catch
             {
-                _formatter.WriteKeyValue("  Content Type", "<unable to parse>");
+                Formatter.WriteKeyValue("  Content Type", "<unable to parse>");
             }
         }
 
         // Critical Headers
         if (protectedHeaders.ContainsKey(CoseHeaderLabel.CriticalHeaders))
         {
-            _formatter.WriteKeyValue("  Critical Headers", "<present>");
+            Formatter.WriteKeyValue("  Critical Headers", "<present>");
         }
 
         // Display other protected headers
@@ -150,7 +150,7 @@ public class CoseInspectionService
             }
 
             string headerName = GetHeaderName(header.Key);
-            _formatter.WriteKeyValue($"  {headerName}", $"<{header.Value.EncodedValue.Length} bytes>");
+            Formatter.WriteKeyValue($"  {headerName}", $"<{header.Value.EncodedValue.Length} bytes>");
         }
     }
 
@@ -160,25 +160,25 @@ public class CoseInspectionService
 
         if (unprotectedHeaders.Count > 0)
         {
-            _formatter.WriteInfo("Unprotected Headers:");
+            Formatter.WriteInfo("Unprotected Headers:");
 
             foreach (var kvp in unprotectedHeaders)
             {
                 string headerName = GetHeaderName(kvp.Key);
                 string headerValue = FormatHeaderValue(kvp.Value);
-                _formatter.WriteKeyValue($"  {headerName}", headerValue);
+                Formatter.WriteKeyValue($"  {headerName}", headerValue);
             }
         }
     }
 
     private void DisplayPayloadInfo(CoseSign1Message message)
     {
-        _formatter.WriteInfo("Payload:");
+        Formatter.WriteInfo("Payload:");
 
         var payload = message.Content;
         if (payload.HasValue && payload.Value.Length > 0)
         {
-            _formatter.WriteKeyValue("  Size", $"{payload.Value.Length:N0} bytes");
+            Formatter.WriteKeyValue("  Size", $"{payload.Value.Length:N0} bytes");
 
             // Try to detect if it's text
             if (IsLikelyText(payload.Value.Span))
@@ -189,37 +189,37 @@ public class CoseInspectionService
                 {
                     preview += "...";
                 }
-                _formatter.WriteKeyValue("  Preview", preview);
+                Formatter.WriteKeyValue("  Preview", preview);
             }
             else
             {
-                _formatter.WriteKeyValue("  Type", "Binary data");
-                _formatter.WriteKeyValue("  SHA-256", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Value.Span)));
+                Formatter.WriteKeyValue("  Type", "Binary data");
+                Formatter.WriteKeyValue("  SHA-256", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Value.Span)));
             }
         }
         else
         {
-            _formatter.WriteKeyValue("  Content", "Detached (no embedded payload)");
+            Formatter.WriteKeyValue("  Content", "Detached (no embedded payload)");
         }
     }
 
     private void DisplaySignatureInfo(CoseSign1Message message)
     {
-        _formatter.WriteInfo("Signature:");
+        Formatter.WriteInfo("Signature:");
         var encoded = message.Encode();
-        _formatter.WriteKeyValue("  Total Size", $"{encoded.Length:N0} bytes");
+        Formatter.WriteKeyValue("  Total Size", $"{encoded.Length:N0} bytes");
 
         // Try to extract certificate chain from unprotected headers (x5chain is label 33)
         var x5chainLabel = new CoseHeaderLabel(33);
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
-            _formatter.WriteInfo("  Certificate Chain found in unprotected headers");
+            Formatter.WriteInfo("  Certificate Chain found in unprotected headers");
         }
 
         // Check protected headers too
         if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
         {
-            _formatter.WriteInfo("  Certificate Chain found in protected headers");
+            Formatter.WriteInfo("  Certificate Chain found in protected headers");
         }
     }
 

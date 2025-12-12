@@ -13,8 +13,8 @@ namespace CoseSignTool.Plugins;
 /// </summary>
 public class PluginLoadContext : AssemblyLoadContext
 {
-    private readonly AssemblyDependencyResolver _resolver;
-    private readonly string _pluginDirectory;
+    private readonly AssemblyDependencyResolver Resolver;
+    private readonly string PluginDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PluginLoadContext"/> class.
@@ -23,8 +23,8 @@ public class PluginLoadContext : AssemblyLoadContext
     /// <param name="pluginDirectory">The directory containing the plugin and its dependencies.</param>
     public PluginLoadContext(string pluginPath, string pluginDirectory) : base(isCollectible: true)
     {
-        _resolver = new AssemblyDependencyResolver(pluginPath);
-        _pluginDirectory = pluginDirectory;
+        Resolver = new AssemblyDependencyResolver(pluginPath);
+        PluginDirectory = pluginDirectory;
 
         // Hook the Resolving event to provide fallback when default context can't find assembly
         this.Resolving += OnResolving;
@@ -55,7 +55,7 @@ public class PluginLoadContext : AssemblyLoadContext
         // Try loading from plugin directory
         if (assemblyName.Name != null)
         {
-            string expectedPath = Path.Combine(_pluginDirectory, $"{assemblyName.Name}.dll");
+            string expectedPath = Path.Combine(PluginDirectory, $"{assemblyName.Name}.dll");
             if (File.Exists(expectedPath))
             {
                 try
@@ -70,7 +70,7 @@ public class PluginLoadContext : AssemblyLoadContext
         }
 
         // Try dependency resolver
-        string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+        string? assemblyPath = Resolver.ResolveAssemblyToPath(assemblyName);
         if (assemblyPath != null && File.Exists(assemblyPath))
         {
             try
@@ -94,7 +94,7 @@ public class PluginLoadContext : AssemblyLoadContext
     /// <returns>A handle to the loaded library, or IntPtr.Zero if not found.</returns>
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
-        string? libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+        string? libraryPath = Resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
         if (libraryPath != null && File.Exists(libraryPath))
         {
             return LoadUnmanagedDllFromPath(libraryPath);

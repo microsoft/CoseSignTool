@@ -16,28 +16,28 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateValidationBuilderTests
 {
-    private X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
+    private X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("BuilderTest");
+        TestCert = TestCertificateUtils.CreateCertificate("BuilderTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -51,7 +51,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -67,7 +67,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -84,7 +84,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -147,7 +147,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -164,7 +164,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -181,7 +181,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -215,7 +215,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -265,7 +265,7 @@ public class CertificateValidationBuilderTests
         });
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }

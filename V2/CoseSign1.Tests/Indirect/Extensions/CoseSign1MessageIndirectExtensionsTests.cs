@@ -356,22 +356,22 @@ public class CoseSign1MessageIndirectExtensionsTests
 
     private class CustomHeaderContributor : IHeaderContributor
     {
-        private readonly CoseHeaderMap? _protectedHeaders;
-        private readonly CoseHeaderMap? _unprotectedHeaders;
+        private readonly CoseHeaderMap? ProtectedHeaders;
+        private readonly CoseHeaderMap? UnprotectedHeaders;
 
         public CustomHeaderContributor(CoseHeaderMap? protectedHeaders, CoseHeaderMap? unprotectedHeaders)
         {
-            _protectedHeaders = protectedHeaders;
-            _unprotectedHeaders = unprotectedHeaders;
+            ProtectedHeaders = protectedHeaders;
+            UnprotectedHeaders = unprotectedHeaders;
         }
 
         public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
 
         public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
         {
-            if (_protectedHeaders != null)
+            if (ProtectedHeaders != null)
             {
-                foreach (var (label, value) in _protectedHeaders)
+                foreach (var (label, value) in ProtectedHeaders)
                 {
                     headers[label] = value;
                 }
@@ -380,9 +380,9 @@ public class CoseSign1MessageIndirectExtensionsTests
 
         public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
         {
-            if (_unprotectedHeaders != null)
+            if (UnprotectedHeaders != null)
             {
-                foreach (var (label, value) in _unprotectedHeaders)
+                foreach (var (label, value) in UnprotectedHeaders)
                 {
                     headers[label] = value;
                 }

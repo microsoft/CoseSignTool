@@ -14,11 +14,11 @@ namespace CoseSign1.Certificates.Remote;
 /// </summary>
 public class RemoteSigningKeyProvider : ISigningKey
 {
-    private readonly RemoteCertificateSource _certificateSource;
-    private readonly Lazy<SigningKeyMetadata> _metadata;
-    private CoseKey? _coseKey;
-    private readonly object _coseKeyLock = new();
-    private bool _disposed;
+    private readonly RemoteCertificateSource CertificateSource;
+    private readonly Lazy<SigningKeyMetadata> LazyMetadata;
+    private CoseKey? CoseKeyField;
+    private readonly object CoseKeyLock = new();
+    private bool Disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RemoteSigningKeyProvider"/> class.
@@ -34,13 +34,13 @@ public class RemoteSigningKeyProvider : ISigningKey
         if (certificateSource == null) { throw new ArgumentNullException(nameof(certificateSource)); }
         if (signingService == null) { throw new ArgumentNullException(nameof(signingService)); }
 #endif
-        _certificateSource = certificateSource;
+        CertificateSource = certificateSource;
         SigningService = signingService;
-        _metadata = new Lazy<SigningKeyMetadata>(() => CreateMetadata());
+        LazyMetadata = new Lazy<SigningKeyMetadata>(() => CreateMetadata());
     }
 
     /// <inheritdoc/>
-    public SigningKeyMetadata Metadata => _metadata.Value;
+    public SigningKeyMetadata Metadata => LazyMetadata.Value;
 
     /// <inheritdoc/>
     public ISigningService<SigningOptions> SigningService { get; }
@@ -48,39 +48,39 @@ public class RemoteSigningKeyProvider : ISigningKey
     /// <inheritdoc/>
     public CoseKey GetCoseKey()
     {
-        if (_coseKey != null)
+        if (CoseKeyField != null)
         {
-            return _coseKey;
+            return CoseKeyField;
         }
 
-        lock (_coseKeyLock)
+        lock (CoseKeyLock)
         {
-            if (_coseKey != null)
+            if (CoseKeyField != null)
             {
-                return _coseKey;
+                return CoseKeyField;
             }
 
-            _coseKey = CreateCoseKeyForRemote();
-            return _coseKey;
+            CoseKeyField = CreateCoseKeyForRemote();
+            return CoseKeyField;
         }
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        if (Disposed)
         {
             return;
         }
 
-        _coseKey = null;
-        _disposed = true;
+        CoseKeyField = null;
+        Disposed = true;
         GC.SuppressFinalize(this);
     }
 
     private SigningKeyMetadata CreateMetadata()
     {
-        var cert = _certificateSource.GetSigningCertificate();
+        var cert = CertificateSource.GetSigningCertificate();
         var publicKeyOid = cert.PublicKey.Oid.Value;
 
         // RSA: 1.2.840.113549.1.1.1
@@ -173,13 +173,13 @@ public class RemoteSigningKeyProvider : ISigningKey
 
     private CoseKey CreateCoseKeyForRemote()
     {
-        var cert = _certificateSource.GetSigningCertificate();
+        var cert = CertificateSource.GetSigningCertificate();
         var publicKeyOid = cert.PublicKey.Oid.Value;
 
         // RSA: 1.2.840.113549.1.1.1
         if (publicKeyOid == "1.2.840.113549.1.1.1")
         {
-            var rsa = _certificateSource.GetRemoteRsa();
+            var rsa = CertificateSource.GetRemoteRsa();
             var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
             return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
         }
@@ -187,7 +187,7 @@ public class RemoteSigningKeyProvider : ISigningKey
         // ECDSA: 1.2.840.10045.2.1
         if (publicKeyOid == "1.2.840.10045.2.1")
         {
-            var ecdsa = _certificateSource.GetRemoteECDsa();
+            var ecdsa = CertificateSource.GetRemoteECDsa();
             var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
             return new CoseKey(ecdsa, hashAlgorithm);
         }
@@ -196,7 +196,7 @@ public class RemoteSigningKeyProvider : ISigningKey
         if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
         {
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
-            var mldsa = _certificateSource.GetRemoteMLDsa();
+            var mldsa = CertificateSource.GetRemoteMLDsa();
             return new CoseKey(mldsa);
 #pragma warning restore SYSLIB5006
         }

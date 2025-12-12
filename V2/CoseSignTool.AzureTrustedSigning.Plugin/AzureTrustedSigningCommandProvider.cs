@@ -15,10 +15,10 @@ namespace CoseSignTool.AzureTrustedSigning.Plugin;
 /// </summary>
 public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
 {
-    private ISigningService<CoseSign1.Abstractions.SigningOptions>? _signingService;
-    private string? _certificateSubject;
-    private string? _accountName;
-    private string? _certificateProfileName;
+    private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
+    private string? CertificateSubject;
+    private string? AccountName;
+    private string? CertificateProfileName;
 
     public string CommandName => "sign-azure";
 
@@ -58,9 +58,9 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
     {
         var endpoint = options["ats-endpoint"] as string
             ?? throw new InvalidOperationException("Azure Trusted Signing endpoint is required");
-        _accountName = options["ats-account-name"] as string
+        AccountName = options["ats-account-name"] as string
             ?? throw new InvalidOperationException("Azure Trusted Signing account name is required");
-        _certificateProfileName = options["ats-cert-profile-name"] as string
+        CertificateProfileName = options["ats-cert-profile-name"] as string
             ?? throw new InvalidOperationException("Certificate profile name is required");
 
         // Create Azure credential with non-interactive authentication
@@ -79,10 +79,10 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
         var certificateProfileClient = new Azure.CodeSigning.CertificateProfileClient(credential, endpointUri);
 
         // Create signing context
-        var signContext = new AzSignContext(endpoint, _accountName, certificateProfileClient);
+        var signContext = new AzSignContext(endpoint, AccountName, certificateProfileClient);
 
         // Create Azure Trusted Signing service
-        _signingService = new AzureTrustedSigningService(signContext);
+        SigningService = new AzureTrustedSigningService(signContext);
 
         // Get certificate info for metadata
         // Note: API has changed - commented out for now
@@ -100,9 +100,9 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
             // Certificate metadata retrieval is best-effort
         }
         */
-        _certificateSubject = "Azure Trusted Signing Certificate";
+        CertificateSubject = "Azure Trusted Signing Certificate";
 
-        return _signingService;
+        return SigningService;
     }
 
     public IDictionary<string, string> GetSigningMetadata()
@@ -110,9 +110,9 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
         return new Dictionary<string, string>
         {
             ["Certificate Source"] = "Azure Trusted Signing",
-            ["Account Name"] = _accountName ?? "Unknown",
-            ["Certificate Profile"] = _certificateProfileName ?? "Unknown",
-            ["Certificate Subject"] = _certificateSubject ?? "Unknown"
+            ["Account Name"] = AccountName ?? "Unknown",
+            ["Certificate Profile"] = CertificateProfileName ?? "Unknown",
+            ["Certificate Subject"] = CertificateSubject ?? "Unknown"
         };
     }
 }

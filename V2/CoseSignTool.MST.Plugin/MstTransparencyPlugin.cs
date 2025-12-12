@@ -25,7 +25,7 @@ public class MstTransparencyPlugin : IPlugin
     /// <inheritdoc/>
     public string Description => "Verify signatures against Microsoft Signing Transparency service";
 
-    private IOutputFormatter? _formatter;
+    private IOutputFormatter? Formatter;
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? options = null)
@@ -74,18 +74,18 @@ public class MstTransparencyPlugin : IPlugin
 
     private async Task<int> VerifyMstAsync(FileInfo signatureFile, string? endpoint)
     {
-        _formatter ??= new TextOutputFormatter();
+        Formatter ??= new TextOutputFormatter();
 
         if (!signatureFile.Exists)
         {
-            _formatter.WriteError($"Signature file not found: {signatureFile.FullName}");
+            Formatter.WriteError($"Signature file not found: {signatureFile.FullName}");
             return 1;
         }
 
         try
         {
-            _formatter.BeginSection("MST Transparency Verification");
-            _formatter.WriteInfo($"Signature: {signatureFile.FullName}");
+            Formatter.BeginSection("MST Transparency Verification");
+            Formatter.WriteInfo($"Signature: {signatureFile.FullName}");
 
             // Read and decode the COSE signature
             var bytes = await File.ReadAllBytesAsync(signatureFile.FullName);
@@ -94,9 +94,9 @@ public class MstTransparencyPlugin : IPlugin
             // Check if MST receipt is embedded
             if (!message.HasMstReceipt())
             {
-                _formatter.WriteWarning("No MST transparency receipt found in signature");
-                _formatter.WriteInfo("This signature was not submitted to Microsoft Signing Transparency");
-                _formatter.EndSection();
+                Formatter.WriteWarning("No MST transparency receipt found in signature");
+                Formatter.WriteInfo("This signature was not submitted to Microsoft Signing Transparency");
+                Formatter.EndSection();
                 return 2;
             }
 
@@ -104,17 +104,17 @@ public class MstTransparencyPlugin : IPlugin
             var receipts = message.GetMstReceipts();
             if (receipts.Count == 0)
             {
-                _formatter.WriteError("Failed to extract MST receipt from signature");
-                _formatter.EndSection();
+                Formatter.WriteError("Failed to extract MST receipt from signature");
+                Formatter.EndSection();
                 return 3;
             }
 
-            _formatter.WriteSuccess($"Found {receipts.Count} MST receipt(s) in signature");
+            Formatter.WriteSuccess($"Found {receipts.Count} MST receipt(s) in signature");
 
             // Display receipt information
             for (int i = 0; i < receipts.Count; i++)
             {
-                _formatter.WriteInfo($"  Receipt {i + 1}: {receipts[i].Encode().Length} bytes");
+                Formatter.WriteInfo($"  Receipt {i + 1}: {receipts[i].Encode().Length} bytes");
             }
 
             // If endpoint provided, verify against service
@@ -122,25 +122,25 @@ public class MstTransparencyPlugin : IPlugin
             {
                 var client = new CodeTransparencyClient(new Uri(endpoint));
 
-                _formatter.WriteInfo($"Verifying against MST service: {endpoint}");
+                Formatter.WriteInfo($"Verifying against MST service: {endpoint}");
 
                 // Note: Actual verification would require the CodeTransparencyClient verification methods
                 // For now, we just confirm the receipt is present
-                _formatter.WriteSuccess("MST receipt verification would be performed here");
+                Formatter.WriteSuccess("MST receipt verification would be performed here");
             }
             else
             {
-                _formatter.WriteInfo("No endpoint specified - receipt extracted but not verified against service");
+                Formatter.WriteInfo("No endpoint specified - receipt extracted but not verified against service");
             }
 
-            _formatter.EndSection();
-            _formatter.WriteSuccess("MST transparency verification complete");
+            Formatter.EndSection();
+            Formatter.WriteSuccess("MST transparency verification complete");
             return 0;
         }
         catch (Exception ex)
         {
-            _formatter.WriteError($"Error verifying MST transparency: {ex.Message}");
-            _formatter.EndSection();
+            Formatter.WriteError($"Error verifying MST transparency: {ex.Message}");
+            Formatter.EndSection();
             return 4;
         }
     }

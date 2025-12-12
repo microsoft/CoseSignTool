@@ -14,7 +14,7 @@ namespace CoseSignTool.Commands.Handlers;
 /// </summary>
 public class VerifyCommandHandler
 {
-    private readonly IOutputFormatter _formatter;
+    private readonly IOutputFormatter Formatter;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandHandler"/> class.
@@ -22,7 +22,7 @@ public class VerifyCommandHandler
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
     public VerifyCommandHandler(IOutputFormatter? formatter = null)
     {
-        _formatter = formatter ?? new TextOutputFormatter();
+        Formatter = formatter ?? new TextOutputFormatter();
     }
 
     /// <summary>
@@ -53,12 +53,12 @@ public class VerifyCommandHandler
 
             if (signature == null || !signature.Exists)
             {
-                _formatter.WriteError($"Signature file not found: {signature?.FullName ?? "null"}");
+                Formatter.WriteError($"Signature file not found: {signature?.FullName ?? "null"}");
                 return Task.FromResult((int)ExitCode.FileNotFound);
             }
 
-            _formatter.BeginSection("Verification Operation");
-            _formatter.WriteKeyValue("Signature", signature.FullName);
+            Formatter.BeginSection("Verification Operation");
+            Formatter.WriteKeyValue("Signature", signature.FullName);
 
             // Read and decode the COSE Sign1 message
             var signatureBytes = File.ReadAllBytes(signature.FullName);
@@ -69,14 +69,14 @@ public class VerifyCommandHandler
             }
             catch (Exception ex)
             {
-                _formatter.WriteError($"Failed to decode COSE Sign1 message: {ex.Message}");
-                _formatter.EndSection();
+                Formatter.WriteError($"Failed to decode COSE Sign1 message: {ex.Message}");
+                Formatter.EndSection();
                 return Task.FromResult((int)ExitCode.InvalidSignature);
             }
 
             // Check if payload is embedded
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
-            _formatter.WriteKeyValue("Payload", hasEmbeddedPayload ? "Embedded" : "Detached");
+            Formatter.WriteKeyValue("Payload", hasEmbeddedPayload ? "Embedded" : "Detached");
 
             // Build and execute validation
             var validator = Cose.Sign1Message()
@@ -87,20 +87,20 @@ public class VerifyCommandHandler
 
             if (validationResult.IsValid)
             {
-                _formatter.WriteSuccess("Signature verified successfully");
-                _formatter.EndSection();
-                _formatter.Flush();
+                Formatter.WriteSuccess("Signature verified successfully");
+                Formatter.EndSection();
+                Formatter.Flush();
                 return Task.FromResult((int)ExitCode.Success);
             }
             else
             {
-                _formatter.WriteError("Signature verification failed");
+                Formatter.WriteError("Signature verification failed");
                 foreach (var failure in validationResult.Failures)
                 {
-                    _formatter.WriteError($"  {failure.ErrorCode}: {failure.Message}");
+                    Formatter.WriteError($"  {failure.ErrorCode}: {failure.Message}");
                 }
-                _formatter.EndSection();
-                _formatter.Flush();
+                Formatter.EndSection();
+                Formatter.Flush();
                 return Task.FromResult((int)ExitCode.VerificationFailed);
             }
         }
@@ -110,8 +110,8 @@ public class VerifyCommandHandler
         }
         catch (Exception ex)
         {
-            _formatter.WriteError($"Error verifying signature: {ex.Message}");
-            _formatter.Flush();
+            Formatter.WriteError($"Error verifying signature: {ex.Message}");
+            Formatter.Flush();
             return Task.FromResult((int)ExitCode.VerificationFailed);
         }
     }

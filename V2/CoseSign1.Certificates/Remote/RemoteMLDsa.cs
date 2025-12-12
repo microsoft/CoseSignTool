@@ -12,9 +12,9 @@ namespace CoseSign1.Certificates.Remote;
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
 internal sealed class RemoteMLDsa : MLDsa
 {
-    private readonly RemoteCertificateSource _certificateSource;
-    private readonly byte[] _publicKey;
-    private bool _disposed;
+    private readonly RemoteCertificateSource CertificateSource;
+    private readonly byte[] PublicKey;
+    private bool Disposed;
 
     public RemoteMLDsa(RemoteCertificateSource certificateSource, byte[] publicKey, int securityLevel)
         : base(securityLevel switch
@@ -25,15 +25,15 @@ internal sealed class RemoteMLDsa : MLDsa
             _ => MLDsaAlgorithm.MLDsa65
         })
     {
-        _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        _publicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
+        CertificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
+        PublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
     }
 
     #region Core Abstract Methods - Must implement for ML-DSA base class
 
     protected override void SignDataCore(ReadOnlySpan<byte> data, ReadOnlySpan<byte> context, Span<byte> destination)
     {
-        var signature = _certificateSource.SignDataWithMLDsa(data.ToArray(), hashAlgorithm: null);
+        var signature = CertificateSource.SignDataWithMLDsa(data.ToArray(), hashAlgorithm: null);
         signature.CopyTo(destination);
     }
 
@@ -48,14 +48,14 @@ internal sealed class RemoteMLDsa : MLDsa
             _ => HashAlgorithmName.SHA256
         };
 
-        var signature = _certificateSource.SignDataWithMLDsa(hash.ToArray(), hashAlgName);
+        var signature = CertificateSource.SignDataWithMLDsa(hash.ToArray(), hashAlgName);
         signature.CopyTo(destination);
     }
 
     protected override void SignMuCore(ReadOnlySpan<byte> mu, Span<byte> destination)
     {
         // ML-DSA pure mode signing (no pre-hashing)
-        var signature = _certificateSource.SignDataWithMLDsa(mu.ToArray(), hashAlgorithm: null);
+        var signature = CertificateSource.SignDataWithMLDsa(mu.ToArray(), hashAlgorithm: null);
         signature.CopyTo(destination);
     }
 
@@ -76,7 +76,7 @@ internal sealed class RemoteMLDsa : MLDsa
 
     protected override void ExportMLDsaPublicKeyCore(Span<byte> destination)
     {
-        _publicKey.CopyTo(destination);
+        PublicKey.CopyTo(destination);
     }
 
     protected override void ExportMLDsaPrivateKeyCore(Span<byte> destination)
@@ -98,9 +98,9 @@ internal sealed class RemoteMLDsa : MLDsa
 
     protected override void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _disposed = true;
+            Disposed = true;
             base.Dispose(disposing);
         }
     }

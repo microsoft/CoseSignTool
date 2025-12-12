@@ -256,7 +256,7 @@ public class CertificateSigningServiceTests
 /// </summary>
 internal class TestCertificateSigningService : CertificateSigningService
 {
-    private readonly ISigningKey _signingKey;
+    private readonly ISigningKey SigningKey;
 
     public TestCertificateSigningService(
         ISigningKey signingKey,
@@ -264,11 +264,11 @@ internal class TestCertificateSigningService : CertificateSigningService
         SigningServiceMetadata? serviceMetadata = null)
         : base(isRemote, serviceMetadata)
     {
-        _signingKey = signingKey;
+        SigningKey = signingKey;
     }
 
     protected override ISigningKey GetSigningKey(SigningContext context)
     {
-        return _signingKey;
+        return SigningKey;
     }
 }

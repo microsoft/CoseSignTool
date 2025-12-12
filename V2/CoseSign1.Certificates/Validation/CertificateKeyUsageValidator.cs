@@ -13,9 +13,9 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
 {
-    private readonly X509KeyUsageFlags? _requiredKeyUsage;
-    private readonly Oid? _requiredEku;
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly X509KeyUsageFlags? RequiredKeyUsage;
+    private readonly Oid? RequiredEku;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateKeyUsageValidator"/> class
@@ -25,9 +25,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateKeyUsageValidator(X509KeyUsageFlags requiredKeyUsage, bool allowUnprotectedHeaders = false)
     {
-        _requiredKeyUsage = requiredKeyUsage;
-        _requiredEku = null;
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        RequiredKeyUsage = requiredKeyUsage;
+        RequiredEku = null;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <summary>
@@ -38,9 +38,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateKeyUsageValidator(Oid requiredEku, bool allowUnprotectedHeaders = false)
     {
-        _requiredKeyUsage = null;
-        _requiredEku = requiredEku ?? throw new ArgumentNullException(nameof(requiredEku));
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        RequiredKeyUsage = null;
+        RequiredEku = requiredEku ?? throw new ArgumentNullException(nameof(requiredEku));
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <summary>
@@ -56,9 +56,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
             throw new ArgumentException("EKU OID cannot be null or whitespace.", nameof(requiredEkuOid));
         }
 
-        _requiredKeyUsage = null;
-        _requiredEku = new Oid(requiredEkuOid);
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        RequiredKeyUsage = null;
+        RequiredEku = new Oid(requiredEkuOid);
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -71,7 +71,7 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
                 "NULL_INPUT");
         }
 
-        if (!input.TryGetSigningCertificate(out var certificate, _allowUnprotectedHeaders))
+        if (!input.TryGetSigningCertificate(out var certificate, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
                 nameof(CertificateKeyUsageValidator),
@@ -79,14 +79,14 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
                 "CERTIFICATE_NOT_FOUND");
         }
 
-        if (_requiredKeyUsage.HasValue)
+        if (RequiredKeyUsage.HasValue)
         {
-            return ValidateKeyUsageFlags(certificate, _requiredKeyUsage.Value);
+            return ValidateKeyUsageFlags(certificate, RequiredKeyUsage.Value);
         }
 
-        if (_requiredEku != null)
+        if (RequiredEku != null)
         {
-            return ValidateEnhancedKeyUsage(certificate, _requiredEku);
+            return ValidateEnhancedKeyUsage(certificate, RequiredEku);
         }
 
         return ValidationResult.Failure(

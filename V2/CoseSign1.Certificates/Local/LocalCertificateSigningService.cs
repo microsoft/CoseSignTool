@@ -15,7 +15,7 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class LocalCertificateSigningService : CertificateSigningService
 {
-    private readonly CertificateSigningKey _signingKey;
+    private readonly CertificateSigningKey SigningKey;
 
     /// <summary>
     /// Initializes a new instance of LocalCertificateSigningService.
@@ -54,7 +54,7 @@ public class LocalCertificateSigningService : CertificateSigningService
 
         var certificateSource = new DirectCertificateSource(certificate, chainBuilder);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);
-        _signingKey = new CertificateSigningKey(certificateSource, signingKeyProvider, this);
+        SigningKey = new CertificateSigningKey(certificateSource, signingKeyProvider, this);
     }
 
     /// <summary>
@@ -94,14 +94,14 @@ public class LocalCertificateSigningService : CertificateSigningService
 
         var certificateSource = new DirectCertificateSource(certificate, certificateChain);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);
-        _signingKey = new CertificateSigningKey(certificateSource, signingKeyProvider, this);
+        SigningKey = new CertificateSigningKey(certificateSource, signingKeyProvider, this);
     }
 
     /// <inheritdoc/>
     protected override ISigningKey GetSigningKey(SigningContext context)
     {
         // Always return the same signing key instance (cached)
-        return _signingKey;
+        return SigningKey;
     }
 
     /// <inheritdoc/>
@@ -109,7 +109,7 @@ public class LocalCertificateSigningService : CertificateSigningService
     {
         if (disposing)
         {
-            _signingKey?.Dispose();
+            SigningKey?.Dispose();
         }
 
         base.Dispose(disposing);

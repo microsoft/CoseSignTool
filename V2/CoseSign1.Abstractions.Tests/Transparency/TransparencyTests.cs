@@ -109,14 +109,14 @@ public class TransparencyValidationResultTests
 [TestFixture]
 public class TransparencyExtensionsTests
 {
-    private Mock<ITransparencyProvider> _mockProvider = null!;
-    private CoseSign1Message _message = null!;
+    private Mock<ITransparencyProvider> MockProvider = null!;
+    private CoseSign1Message Message = null!;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _mockProvider = new Mock<ITransparencyProvider>();
+        MockProvider = new Mock<ITransparencyProvider>();
 
         // Create a COSE Sign1 message using the factory with TestCertificateUtils
         var cert = TestCertificateUtils.CreateCertificate("CN=Test");
@@ -126,7 +126,7 @@ public class TransparencyExtensionsTests
         var payload = new byte[] { 1, 2, 3 };
 
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _message = CoseSign1Message.DecodeSign1(messageBytes);
+        Message = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
@@ -135,16 +135,16 @@ public class TransparencyExtensionsTests
     {
         // Arrange
         var expectedResult = TransparencyValidationResult.Success("TestProvider");
-        _mockProvider
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()))
+        MockProvider
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await _message.VerifyTransparencyAsync(_mockProvider.Object);
+        var result = await Message.VerifyTransparencyAsync(MockProvider.Object);
 
         // Assert
         Assert.That(result, Is.SameAs(expectedResult));
-        _mockProvider.Verify(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()), Times.Once);
+        MockProvider.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -155,7 +155,7 @@ public class TransparencyExtensionsTests
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await nullMessage!.VerifyTransparencyAsync(_mockProvider.Object));
+            await nullMessage!.VerifyTransparencyAsync(MockProvider.Object));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public class TransparencyExtensionsTests
     {
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _message.VerifyTransparencyAsync((ITransparencyProvider)null!));
+            await Message.VerifyTransparencyAsync((ITransparencyProvider)null!));
     }
 
     [Test]
@@ -172,16 +172,16 @@ public class TransparencyExtensionsTests
         // Arrange
         var cts = new CancellationTokenSource();
         var expectedResult = TransparencyValidationResult.Success("TestProvider");
-        _mockProvider
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, cts.Token))
+        MockProvider
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, cts.Token))
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await _message.VerifyTransparencyAsync(_mockProvider.Object, cts.Token);
+        var result = await Message.VerifyTransparencyAsync(MockProvider.Object, cts.Token);
 
         // Assert
         Assert.That(result, Is.SameAs(expectedResult));
-        _mockProvider.Verify(p => p.VerifyTransparencyProofAsync(_message, cts.Token), Times.Once);
+        MockProvider.Verify(p => p.VerifyTransparencyProofAsync(Message, cts.Token), Times.Once);
     }
 
     [Test]
@@ -194,23 +194,23 @@ public class TransparencyExtensionsTests
         var result2 = TransparencyValidationResult.Success("Provider2");
 
         provider1
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(result1);
         provider2
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(result2);
 
         var providers = new List<ITransparencyProvider> { provider1.Object, provider2.Object };
 
         // Act
-        var results = await _message.VerifyTransparencyAsync(providers);
+        var results = await Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Has.Count.EqualTo(2));
         Assert.That(results[0], Is.SameAs(result1));
         Assert.That(results[1], Is.SameAs(result2));
-        provider1.Verify(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()), Times.Once);
-        provider2.Verify(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()), Times.Once);
+        provider1.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
+        provider2.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -218,7 +218,7 @@ public class TransparencyExtensionsTests
     {
         // Arrange
         CoseSign1Message? nullMessage = null;
-        var providers = new List<ITransparencyProvider> { _mockProvider.Object };
+        var providers = new List<ITransparencyProvider> { MockProvider.Object };
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -233,7 +233,7 @@ public class TransparencyExtensionsTests
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _message.VerifyTransparencyAsync(nullProviders!));
+            await Message.VerifyTransparencyAsync(nullProviders!));
     }
 
     [Test]
@@ -246,16 +246,16 @@ public class TransparencyExtensionsTests
         var failureResult = TransparencyValidationResult.Failure("Provider2", "Verification failed");
 
         provider1
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(successResult);
         provider2
-            .Setup(p => p.VerifyTransparencyProofAsync(_message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(failureResult);
 
         var providers = new List<ITransparencyProvider> { provider1.Object, provider2.Object };
 
         // Act
-        var results = await _message.VerifyTransparencyAsync(providers);
+        var results = await Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Has.Count.EqualTo(2));
@@ -270,7 +270,7 @@ public class TransparencyExtensionsTests
         var providers = new List<ITransparencyProvider>();
 
         // Act
-        var results = await _message.VerifyTransparencyAsync(providers);
+        var results = await Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Is.Empty);

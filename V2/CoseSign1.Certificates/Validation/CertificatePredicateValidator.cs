@@ -12,9 +12,9 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Message>
 {
-    private readonly Func<X509Certificate2, bool> _predicate;
-    private readonly string? _failureMessage;
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly Func<X509Certificate2, bool> Predicate;
+    private readonly string? FailureMessage;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificatePredicateValidator"/> class.
@@ -27,9 +27,9 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
         string? failureMessage = null,
         bool allowUnprotectedHeaders = false)
     {
-        _predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
-        _failureMessage = failureMessage;
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
+        FailureMessage = failureMessage;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -42,7 +42,7 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
                 "NULL_INPUT");
         }
 
-        if (!input.TryGetSigningCertificate(out var cert, _allowUnprotectedHeaders))
+        if (!input.TryGetSigningCertificate(out var cert, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
                 nameof(CertificatePredicateValidator),
@@ -50,7 +50,7 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
                 "CERTIFICATE_NOT_FOUND");
         }
 
-        if (_predicate(cert))
+        if (Predicate(cert))
         {
             return ValidationResult.Success(
                 nameof(CertificatePredicateValidator),
@@ -62,7 +62,7 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
 
         return ValidationResult.Failure(
             nameof(CertificatePredicateValidator),
-            _failureMessage ?? "Certificate does not match the specified predicate",
+            FailureMessage ?? "Certificate does not match the specified predicate",
             "CERTIFICATE_PREDICATE_FAILED");
     }
 

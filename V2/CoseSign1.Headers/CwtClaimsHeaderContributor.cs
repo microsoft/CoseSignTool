@@ -50,45 +50,45 @@ public enum CwtClaimsHeaderPlacement
 /// </remarks>
 public class CwtClaimsHeaderContributor : IHeaderContributor
 {
-    private readonly CwtClaims _claims;
-    private readonly CwtClaimsHeaderPlacement _headerPlacement;
-    private readonly CoseHeaderLabel _customHeaderLabel;
-    private readonly bool _autoPopulateTimestamps;
+    private readonly CwtClaims Claims;
+    private readonly CwtClaimsHeaderPlacement HeaderPlacement;
+    private readonly CoseHeaderLabel CustomHeaderLabel;
+    private readonly bool AutoPopulateTimestamps;
 
     /// <summary>
     /// Gets the issuer claim value if set, otherwise null.
     /// </summary>
-    public string? Issuer => _claims.Issuer;
+    public string? Issuer => Claims.Issuer;
 
     /// <summary>
     /// Gets the subject claim value if set, otherwise null.
     /// </summary>
-    public string? Subject => _claims.Subject;
+    public string? Subject => Claims.Subject;
 
     /// <summary>
     /// Gets the audience claim value if set, otherwise null.
     /// </summary>
-    public string? Audience => _claims.Audience;
+    public string? Audience => Claims.Audience;
 
     /// <summary>
     /// Gets the expiration time claim value if set, otherwise null.
     /// </summary>
-    public DateTimeOffset? ExpirationTime => _claims.ExpirationTime;
+    public DateTimeOffset? ExpirationTime => Claims.ExpirationTime;
 
     /// <summary>
     /// Gets the not before claim value if set, otherwise null.
     /// </summary>
-    public DateTimeOffset? NotBefore => _claims.NotBefore;
+    public DateTimeOffset? NotBefore => Claims.NotBefore;
 
     /// <summary>
     /// Gets the issued at claim value if set, otherwise null.
     /// </summary>
-    public DateTimeOffset? IssuedAt => _claims.IssuedAt;
+    public DateTimeOffset? IssuedAt => Claims.IssuedAt;
 
     /// <summary>
     /// Gets the CWT ID claim value if set, otherwise null.
     /// </summary>
-    public byte[]? CWTID => _claims.CwtId;
+    public byte[]? CWTID => Claims.CwtId;
 
     /// <summary>
     /// Gets the merge strategy for handling conflicts when headers already exist.
@@ -107,11 +107,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         CoseHeaderLabel? customHeaderLabel = null,
         bool autoPopulateTimestamps = true)
     {
-        _claims = new CwtClaims();
-        _headerPlacement = headerPlacement;
-        _customHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
-        _autoPopulateTimestamps = autoPopulateTimestamps;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with no claims (placement={headerPlacement}, label={_customHeaderLabel}).");
+        Claims = new CwtClaims();
+        HeaderPlacement = headerPlacement;
+        CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+        AutoPopulateTimestamps = autoPopulateTimestamps;
+        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with no claims (placement={headerPlacement}, label={CustomHeaderLabel}).");
     }
 
     /// <summary>
@@ -133,11 +133,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentNullException(nameof(claims));
         }
 
-        _claims = new CwtClaims(claims);
-        _headerPlacement = headerPlacement;
-        _customHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
-        _autoPopulateTimestamps = autoPopulateTimestamps;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with claims from CwtClaims object (placement={headerPlacement}, label={_customHeaderLabel}).");
+        Claims = new CwtClaims(claims);
+        HeaderPlacement = headerPlacement;
+        CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+        AutoPopulateTimestamps = autoPopulateTimestamps;
+        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with claims from CwtClaims object (placement={headerPlacement}, label={CustomHeaderLabel}).");
     }
 
     /// <summary>
@@ -153,7 +153,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentException("Issuer cannot be null or whitespace.", nameof(issuer));
         }
 
-        _claims.Issuer = issuer;
+        Claims.Issuer = issuer;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issuer to '{issuer}'.");
         return this;
     }
@@ -171,7 +171,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentException("Subject cannot be null or whitespace.", nameof(subject));
         }
 
-        _claims.Subject = subject;
+        Claims.Subject = subject;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set subject to '{subject}'.");
         return this;
     }
@@ -189,7 +189,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentException("Audience cannot be null or whitespace.", nameof(audience));
         }
 
-        _claims.Audience = audience;
+        Claims.Audience = audience;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set audience to '{audience}'.");
         return this;
     }
@@ -201,7 +201,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>The current instance for method chaining.</returns>
     public CwtClaimsHeaderContributor SetExpirationTime(DateTimeOffset expirationTime)
     {
-        _claims.ExpirationTime = expirationTime;
+        Claims.ExpirationTime = expirationTime;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set expiration time to {expirationTime.ToUnixTimeSeconds()}.");
         return this;
     }
@@ -213,7 +213,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>The current instance for method chaining.</returns>
     public CwtClaimsHeaderContributor SetNotBefore(DateTimeOffset notBefore)
     {
-        _claims.NotBefore = notBefore;
+        Claims.NotBefore = notBefore;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set not before time to {notBefore.ToUnixTimeSeconds()}.");
         return this;
     }
@@ -225,7 +225,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>The current instance for method chaining.</returns>
     public CwtClaimsHeaderContributor SetIssuedAt(DateTimeOffset issuedAt)
     {
-        _claims.IssuedAt = issuedAt;
+        Claims.IssuedAt = issuedAt;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issued at time to {issuedAt.ToUnixTimeSeconds()}.");
         return this;
     }
@@ -243,7 +243,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentException("CWT ID cannot be null or empty.", nameof(cwtId));
         }
 
-        _claims.CwtId = cwtId;
+        Claims.CwtId = cwtId;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set CWT ID (length: {cwtId.Length} bytes).");
         return this;
     }
@@ -262,7 +262,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             throw new ArgumentNullException(nameof(value));
         }
 
-        _claims.CustomClaims[label] = value;
+        Claims.CustomClaims[label] = value;
         Trace.TraceInformation($"CwtClaimsHeaderContributor: Set custom claim {label} with value type {value.GetType().Name}.");
         return this;
     }
@@ -281,19 +281,19 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (issuedAt.HasValue)
         {
-            _claims.IssuedAt = issuedAt.Value;
+            Claims.IssuedAt = issuedAt.Value;
             Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issued at time to {issuedAt.Value.ToUnixTimeSeconds()}.");
         }
 
         if (notBefore.HasValue)
         {
-            _claims.NotBefore = notBefore.Value;
+            Claims.NotBefore = notBefore.Value;
             Trace.TraceInformation($"CwtClaimsHeaderContributor: Set not before time to {notBefore.Value.ToUnixTimeSeconds()}.");
         }
 
         if (expirationTime.HasValue)
         {
-            _claims.ExpirationTime = expirationTime.Value;
+            Claims.ExpirationTime = expirationTime.Value;
             Trace.TraceInformation($"CwtClaimsHeaderContributor: Set expiration time to {expirationTime.Value.ToUnixTimeSeconds()}.");
         }
 
@@ -309,7 +309,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (!string.IsNullOrWhiteSpace(audience))
         {
-            _claims.Audience = audience;
+            Claims.Audience = audience;
             Trace.TraceInformation($"CwtClaimsHeaderContributor: Set audience to '{audience}'.");
         }
 
@@ -325,7 +325,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (cwtId != null && cwtId.Length > 0)
         {
-            _claims.CwtId = cwtId;
+            Claims.CwtId = cwtId;
             Trace.TraceInformation($"CwtClaimsHeaderContributor: Set CWT ID (length: {cwtId.Length} bytes).");
         }
 
@@ -339,16 +339,16 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>A new CwtClaimsHeaderContributor configured for protected headers.</returns>
     public CwtClaimsHeaderContributor UseProtectedHeaders()
     {
-        if (_headerPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
         {
             return this; // Already configured correctly
         }
 
         return new CwtClaimsHeaderContributor(
-            _claims,
+            Claims,
             CwtClaimsHeaderPlacement.ProtectedOnly,
-            _customHeaderLabel,
-            _autoPopulateTimestamps);
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
     }
 
     /// <summary>
@@ -358,16 +358,16 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>A new CwtClaimsHeaderContributor configured for unprotected headers.</returns>
     public CwtClaimsHeaderContributor UseUnprotectedHeaders()
     {
-        if (_headerPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
         {
             return this; // Already configured correctly
         }
 
         return new CwtClaimsHeaderContributor(
-            _claims,
+            Claims,
             CwtClaimsHeaderPlacement.UnprotectedOnly,
-            _customHeaderLabel,
-            _autoPopulateTimestamps);
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
     }
 
     /// <summary>
@@ -377,16 +377,16 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <returns>A new CwtClaimsHeaderContributor configured for both header types.</returns>
     public CwtClaimsHeaderContributor UseBothHeaders()
     {
-        if (_headerPlacement == CwtClaimsHeaderPlacement.Both)
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.Both)
         {
             return this; // Already configured correctly
         }
 
         return new CwtClaimsHeaderContributor(
-            _claims,
+            Claims,
             CwtClaimsHeaderPlacement.Both,
-            _customHeaderLabel,
-            _autoPopulateTimestamps);
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
     }
 
     /// <inheritdoc/>
@@ -398,7 +398,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         }
 
         // Skip if this placement doesn't include protected headers
-        if (_headerPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
         {
             Trace.TraceInformation("CwtClaimsHeaderContributor: Skipping protected headers (placement=UnprotectedOnly).");
             return;
@@ -416,7 +416,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         }
 
         // Skip if this placement doesn't include unprotected headers
-        if (_headerPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
         {
             Trace.TraceInformation("CwtClaimsHeaderContributor: Skipping unprotected headers (placement=ProtectedOnly).");
             return;
@@ -428,7 +428,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     private void ContributeToHeaders(CoseHeaderMap headers)
     {
         // Get existing claims if any
-        headers.TryGetCwtClaims(out CwtClaims? existingClaims, _customHeaderLabel);
+        headers.TryGetCwtClaims(out CwtClaims? existingClaims, CustomHeaderLabel);
 
         // Build final claims with auto-population
         CwtClaims finalClaims = BuildFinalClaims();
@@ -443,7 +443,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         // Only set if we have non-default claims
         if (!finalClaims.IsDefault())
         {
-            headers.SetCwtClaims(finalClaims, _customHeaderLabel);
+            headers.SetCwtClaims(finalClaims, CustomHeaderLabel);
             Trace.TraceInformation("CwtClaimsHeaderContributor: Added CWT claims to headers.");
         }
         else
@@ -454,10 +454,10 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
 
     private CwtClaims BuildFinalClaims()
     {
-        var claims = new CwtClaims(_claims);
+        var claims = new CwtClaims(Claims);
 
         // Auto-populate iat (issued at) and nbf (not before) if enabled and not already set
-        if (_autoPopulateTimestamps && !claims.IsDefault())
+        if (AutoPopulateTimestamps && !claims.IsDefault())
         {
             DateTimeOffset currentTime = DateTimeOffset.UtcNow;
 

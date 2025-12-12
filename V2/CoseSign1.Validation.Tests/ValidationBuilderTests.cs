@@ -13,7 +13,7 @@ namespace CoseSign1.Validation.Tests;
 [TestFixture]
 public class ValidationBuilderTests
 {
-    private CoseSign1Message? _validMessage;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252
@@ -25,7 +25,7 @@ public class ValidationBuilderTests
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
 #pragma warning restore CA2252
@@ -54,7 +54,7 @@ public class ValidationBuilderTests
             .AddValidator(mockValidator);
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -68,7 +68,7 @@ public class ValidationBuilderTests
             .AddValidator(new MockValidator(true));
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -80,7 +80,7 @@ public class ValidationBuilderTests
             .AddValidator(msg => ValidationResult.Success("TestFunc"));
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -95,7 +95,7 @@ public class ValidationBuilderTests
             .StopOnFirstFailure();
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -109,7 +109,7 @@ public class ValidationBuilderTests
             .RunInParallel();
 
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -119,7 +119,7 @@ public class ValidationBuilderTests
     {
         var builder = Cose.Sign1Message();
         var validator = builder.Build();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -159,16 +159,16 @@ public class ValidationBuilderTests
 
     private class MockValidator : IValidator<CoseSign1Message>
     {
-        private readonly bool _shouldPass;
+        private readonly bool ShouldPass;
 
         public MockValidator(bool shouldPass)
         {
-            _shouldPass = shouldPass;
+            ShouldPass = shouldPass;
         }
 
         public ValidationResult Validate(CoseSign1Message input)
         {
-            return _shouldPass
+            return ShouldPass
                 ? ValidationResult.Success("MockValidator")
                 : ValidationResult.Failure("MockValidator", "Mock failure", "MOCK_ERROR");
         }

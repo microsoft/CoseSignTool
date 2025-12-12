@@ -17,7 +17,7 @@ public static class TestCertificateUtils
 {
     // Thread-safe dictionary to store ML-DSA private keys associated with certificates
     // Key: certificate thumbprint, Value: ML-DSA private key
-    private static readonly ConcurrentDictionary<string, MLDsa> s_mldsaKeys = new();
+    private static readonly ConcurrentDictionary<string, MLDsa> MldsaKeys = new();
 
     /// <summary>
     /// Gets the ML-DSA private key associated with a certificate, if one exists.
@@ -31,7 +31,7 @@ public static class TestCertificateUtils
             return null;
         }
 
-        s_mldsaKeys.TryGetValue(certificate.Thumbprint, out MLDsa? key);
+        MldsaKeys.TryGetValue(certificate.Thumbprint, out MLDsa? key);
         return key;
     }
 
@@ -444,7 +444,7 @@ public static class TestCertificateUtils
         }
 
         // Store the ML-DSA key for this certificate so it can be used as an issuer later
-        s_mldsaKeys[generatedCertificate.Thumbprint] = mldsaKey;
+        MldsaKeys[generatedCertificate.Thumbprint] = mldsaKey;
 
         return generatedCertificate;
     }

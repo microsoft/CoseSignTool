@@ -21,11 +21,11 @@ namespace CoseSign1.Transparent.MST;
 /// </summary>
 public class MstTransparencyProvider : ITransparencyProvider
 {
-    private readonly CodeTransparencyClient _client;
-    private readonly CodeTransparencyVerificationOptions? _verificationOptions;
-    private readonly CodeTransparencyClientOptions? _clientOptions;
-    private readonly Action<string>? _logVerbose;
-    private readonly Action<string>? _logError;
+    private readonly CodeTransparencyClient Client;
+    private readonly CodeTransparencyVerificationOptions? VerificationOptions;
+    private readonly CodeTransparencyClientOptions? ClientOptions;
+    private readonly Action<string>? LogVerbose;
+    private readonly Action<string>? LogError;
 
     /// <summary>
     /// Gets the name of this transparency provider.
@@ -70,11 +70,11 @@ public class MstTransparencyProvider : ITransparencyProvider
         Action<string>? logVerbose,
         Action<string>? logError)
     {
-        _client = client ?? throw new ArgumentNullException(nameof(client));
-        _verificationOptions = verificationOptions;
-        _clientOptions = clientOptions;
-        _logVerbose = logVerbose;
-        _logError = logError;
+        Client = client ?? throw new ArgumentNullException(nameof(client));
+        VerificationOptions = verificationOptions;
+        ClientOptions = clientOptions;
+        LogVerbose = logVerbose;
+        LogError = logError;
     }
 
     /// <summary>
@@ -92,15 +92,15 @@ public class MstTransparencyProvider : ITransparencyProvider
             throw new ArgumentNullException(nameof(message));
         }
 
-        _logVerbose?.Invoke($"[{ProviderName}] Starting transparency proof addition");
+        LogVerbose?.Invoke($"[{ProviderName}] Starting transparency proof addition");
 
         // Encode the CoseSign1Message to a byte array
         BinaryData content = BinaryData.FromBytes(message.Encode());
-        _logVerbose?.Invoke($"[{ProviderName}] Encoded message size: {content.ToArray().Length} bytes");
+        LogVerbose?.Invoke($"[{ProviderName}] Encoded message size: {content.ToArray().Length} bytes");
 
         // Submit to MST service
-        _logVerbose?.Invoke($"[{ProviderName}] Submitting to transparency service...");
-        Operation<BinaryData> operation = await _client.CreateEntryAsync(
+        LogVerbose?.Invoke($"[{ProviderName}] Submitting to transparency service...");
+        Operation<BinaryData> operation = await Client.CreateEntryAsync(
             WaitUntil.Completed,
             content,
             cancellationToken).ConfigureAwait(false);
@@ -109,32 +109,32 @@ public class MstTransparencyProvider : ITransparencyProvider
         if (!operation.HasValue)
         {
             string error = $"CreateEntryAsync failed: {operation.GetRawResponse().ReasonPhrase}";
-            _logError?.Invoke($"[{ProviderName}] {error}");
+            LogError?.Invoke($"[{ProviderName}] {error}");
             throw new InvalidOperationException($"MST transparency submission failed. {error}");
         }
 
-        _logVerbose?.Invoke($"[{ProviderName}] Entry created successfully");
+        LogVerbose?.Invoke($"[{ProviderName}] Entry created successfully");
 
         // Get the entryId from the operation result
         if (!operation.Value.TryGetMstEntryId(out string entryId))
         {
             string error = "Response did not contain a valid CBOR-encoded entryId";
-            _logError?.Invoke($"[{ProviderName}] {error}");
+            LogError?.Invoke($"[{ProviderName}] {error}");
             throw new InvalidOperationException($"MST transparency submission failed. {error}");
         }
 
-        _logVerbose?.Invoke($"[{ProviderName}] Entry ID: {entryId}");
+        LogVerbose?.Invoke($"[{ProviderName}] Entry ID: {entryId}");
 
         // Retrieve the transparent statement with embedded receipts
-        _logVerbose?.Invoke($"[{ProviderName}] Retrieving transparent statement...");
-        Response<BinaryData> transparentStatement = await _client.GetEntryStatementAsync(
+        LogVerbose?.Invoke($"[{ProviderName}] Retrieving transparent statement...");
+        Response<BinaryData> transparentStatement = await Client.GetEntryStatementAsync(
             entryId,
             cancellationToken).ConfigureAwait(false);
 
-        _logVerbose?.Invoke($"[{ProviderName}] Statement size: {transparentStatement.Value.ToArray().Length} bytes");
+        LogVerbose?.Invoke($"[{ProviderName}] Statement size: {transparentStatement.Value.ToArray().Length} bytes");
 
         // MST returns the full CoseSign1Message with receipts embedded
-        _logVerbose?.Invoke($"[{ProviderName}] Decoding transparent statement");
+        LogVerbose?.Invoke($"[{ProviderName}] Decoding transparent statement");
         return CoseMessage.DecodeSign1(transparentStatement.Value.ToArray());
     }
 
@@ -153,40 +153,40 @@ public class MstTransparencyProvider : ITransparencyProvider
             throw new ArgumentNullException(nameof(message));
         }
 
-        _logVerbose?.Invoke($"[{ProviderName}] Starting transparency verification");
+        LogVerbose?.Invoke($"[{ProviderName}] Starting transparency verification");
 
         // Check if the message contains a transparency header
         if (!message.HasMstReceipt())
         {
             string error = "Message does not contain an MST receipt";
-            _logError?.Invoke($"[{ProviderName}] {error}");
+            LogError?.Invoke($"[{ProviderName}] {error}");
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, error));
         }
 
-        _logVerbose?.Invoke($"[{ProviderName}] MST receipt found in message");
+        LogVerbose?.Invoke($"[{ProviderName}] MST receipt found in message");
         cancellationToken.ThrowIfCancellationRequested();
 
         // Log verification options if configured
-        if (_verificationOptions != null && _logVerbose != null)
+        if (VerificationOptions != null && LogVerbose != null)
         {
-            if (_verificationOptions.AuthorizedDomains?.Count > 0)
+            if (VerificationOptions.AuthorizedDomains?.Count > 0)
             {
-                _logVerbose.Invoke($"[{ProviderName}] Authorized domains: {string.Join(", ", _verificationOptions.AuthorizedDomains)}");
+                LogVerbose.Invoke($"[{ProviderName}] Authorized domains: {string.Join(", ", VerificationOptions.AuthorizedDomains)}");
             }
-            _logVerbose.Invoke($"[{ProviderName}] Authorized receipt behavior: {_verificationOptions.AuthorizedReceiptBehavior}");
-            _logVerbose.Invoke($"[{ProviderName}] Unauthorized receipt behavior: {_verificationOptions.UnauthorizedReceiptBehavior}");
+            LogVerbose.Invoke($"[{ProviderName}] Authorized receipt behavior: {VerificationOptions.AuthorizedReceiptBehavior}");
+            LogVerbose.Invoke($"[{ProviderName}] Unauthorized receipt behavior: {VerificationOptions.UnauthorizedReceiptBehavior}");
         }
 
         // Verify using MST client
         try
         {
-            _logVerbose?.Invoke($"[{ProviderName}] Calling VerifyTransparentStatement");
+            LogVerbose?.Invoke($"[{ProviderName}] Calling VerifyTransparentStatement");
             CodeTransparencyClient.VerifyTransparentStatement(
                 message.Encode(),
-                _verificationOptions,
-                _clientOptions);
+                VerificationOptions,
+                ClientOptions);
 
-            _logVerbose?.Invoke($"[{ProviderName}] Verification succeeded");
+            LogVerbose?.Invoke($"[{ProviderName}] Verification succeeded");
 
             return Task.FromResult(TransparencyValidationResult.Success(
                 ProviderName,
@@ -198,32 +198,32 @@ public class MstTransparencyProvider : ITransparencyProvider
         }
         catch (InvalidOperationException ex)
         {
-            _logError?.Invoke($"[{ProviderName}] Verification failed: {ex.Message}");
+            LogError?.Invoke($"[{ProviderName}] Verification failed: {ex.Message}");
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, ex.Message));
         }
         catch (CryptographicException ex)
         {
-            _logError?.Invoke($"[{ProviderName}] Cryptographic error: {ex.Message}");
+            LogError?.Invoke($"[{ProviderName}] Cryptographic error: {ex.Message}");
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, $"Cryptographic error: {ex.Message}"));
         }
         catch (CborContentException ex)
         {
-            _logError?.Invoke($"[{ProviderName}] CBOR content error: {ex.Message}");
+            LogError?.Invoke($"[{ProviderName}] CBOR content error: {ex.Message}");
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, $"CBOR content error: {ex.Message}"));
         }
         catch (ArgumentException ex)
         {
-            _logError?.Invoke($"[{ProviderName}] Invalid argument: {ex.Message}");
+            LogError?.Invoke($"[{ProviderName}] Invalid argument: {ex.Message}");
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, $"Invalid argument: {ex.Message}"));
         }
         catch (AggregateException ex)
         {
-            _logError?.Invoke($"[{ProviderName}] Multiple verification failures");
+            LogError?.Invoke($"[{ProviderName}] Multiple verification failures");
             var errors = new List<string>();
             foreach (var innerEx in ex.InnerExceptions)
             {
                 errors.Add(innerEx.Message);
-                _logVerbose?.Invoke($"[{ProviderName}]   - {innerEx.Message}");
+                LogVerbose?.Invoke($"[{ProviderName}]   - {innerEx.Message}");
             }
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, errors));
         }

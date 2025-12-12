@@ -12,8 +12,8 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message>
 {
-    private readonly DateTime? _validationTime;
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly DateTime? ValidationTime;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateExpirationValidator"/> class.
@@ -22,8 +22,8 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateExpirationValidator(bool allowUnprotectedHeaders = false)
     {
-        _validationTime = null;
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        ValidationTime = null;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <summary>
@@ -34,8 +34,8 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateExpirationValidator(DateTime validationTime, bool allowUnprotectedHeaders = false)
     {
-        _validationTime = validationTime;
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        ValidationTime = validationTime;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -48,7 +48,7 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
                 "NULL_INPUT");
         }
 
-        if (!input.TryGetSigningCertificate(out var certificate, _allowUnprotectedHeaders))
+        if (!input.TryGetSigningCertificate(out var certificate, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
                 nameof(CertificateExpirationValidator),
@@ -56,7 +56,7 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
                 "CERTIFICATE_NOT_FOUND");
         }
 
-        DateTime checkTime = _validationTime ?? DateTime.UtcNow;
+        DateTime checkTime = ValidationTime ?? DateTime.UtcNow;
 
         if (checkTime < certificate.NotBefore)
         {

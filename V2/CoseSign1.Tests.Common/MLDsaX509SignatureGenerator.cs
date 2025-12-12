@@ -16,7 +16,7 @@ namespace CoseSign1.Tests.Common;
 /// </remarks>
 internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
 {
-    private readonly MLDsa _mldsaKey;
+    private readonly MLDsa MldsaKey;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MLDsaX509SignatureGenerator"/> class.
@@ -24,7 +24,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
     /// <param name="mldsaKey">The ML-DSA key to use for signing.</param>
     public MLDsaX509SignatureGenerator(MLDsa mldsaKey)
     {
-        _mldsaKey = mldsaKey ?? throw new ArgumentNullException(nameof(mldsaKey));
+        MldsaKey = mldsaKey ?? throw new ArgumentNullException(nameof(mldsaKey));
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
     protected override PublicKey BuildPublicKey()
     {
         // Export the public key and create a PublicKey object
-        byte[] publicKeyBytes = _mldsaKey.ExportSubjectPublicKeyInfo();
+        byte[] publicKeyBytes = MldsaKey.ExportSubjectPublicKeyInfo();
         return PublicKey.CreateFromSubjectPublicKeyInfo(publicKeyBytes, out _);
     }
 
@@ -47,7 +47,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
     public override byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm)
     {
         // ML-DSA has a built-in hash function, so we ignore the hashAlgorithm parameter
-        return _mldsaKey.SignData(data);
+        return MldsaKey.SignData(data);
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
     public override byte[] GetSignatureAlgorithmIdentifier(HashAlgorithmName hashAlgorithm)
     {
         // Determine ML-DSA parameter set from key
-        int keySize = _mldsaKey.ExportSubjectPublicKeyInfo().Length;
+        int keySize = MldsaKey.ExportSubjectPublicKeyInfo().Length;
         string oid = DetermineMLDsaOid(keySize);
 
         // Create AlgorithmIdentifier structure for ML-DSA

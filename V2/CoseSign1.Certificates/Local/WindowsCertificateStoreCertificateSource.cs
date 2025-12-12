@@ -21,8 +21,8 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
 {
-    private readonly X509Certificate2 _certificate;
-    private readonly X509Store? _store;
+    private readonly X509Certificate2 Certificate;
+    private readonly X509Store? Store;
 
     /// <summary>
     /// Initializes a new instance by finding a certificate by thumbprint.
@@ -52,7 +52,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             thumbprint,
             storeLocation,
             storeName,
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             storeLocation,
             storeName,
             validOnly,
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             "WindowsCertificateStoreCertificateSource initialized by predicate. Store: {StoreLocation}\\{StoreName}, Subject: {Subject}",
             storeLocation,
             storeName,
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -144,30 +144,30 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             storeLocation,
             storeName);
 
-        _store = new X509Store(storeName, storeLocation);
-        _store.Open(OpenFlags.ReadOnly);
+        Store = new X509Store(storeName, storeLocation);
+        Store.Open(OpenFlags.ReadOnly);
 
         Logger.LogTrace(
             new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
             "Certificate store opened. CertificateCount: {CertificateCount}",
-            _store.Certificates.Count);
+            Store.Certificates.Count);
 
-        _certificate = certificateFinder(_store, logger);
+        Certificate = certificateFinder(Store, logger);
     }
 
     /// <inheritdoc/>
-    public override X509Certificate2 GetSigningCertificate() => _certificate;
+    public override X509Certificate2 GetSigningCertificate() => Certificate;
 
     /// <inheritdoc/>
-    public override bool HasPrivateKey => _certificate.HasPrivateKey;
+    public override bool HasPrivateKey => Certificate.HasPrivateKey;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _store?.Dispose();
-            // Don't dispose _certificate - it's owned by the store
+            Store?.Dispose();
+            // Don't dispose Certificate - it's owned by the store
         }
         base.Dispose(disposing);
     }

@@ -21,7 +21,7 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
 {
-    private readonly X509Certificate2 _certificate;
+    private readonly X509Certificate2 Certificate;
 
     /// <summary>
     /// Common OpenSSL and Linux certificate store paths.
@@ -59,7 +59,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
             "LinuxCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}",
             thumbprint,
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             "LinuxCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}, Subject: {Subject}",
             subjectName,
             validOnly,
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         Logger.LogTrace(
             new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
             "LinuxCertificateStoreCertificateSource initialized by predicate. Subject: {Subject}",
-            _certificate.Subject);
+            Certificate.Subject);
     }
 
     /// <summary>
@@ -168,11 +168,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         {
             using var rsa = RSA.Create();
             rsa.ImportFromPem(keyPem);
-            _certificate = cert.CopyWithPrivateKey(rsa);
+            Certificate = cert.CopyWithPrivateKey(rsa);
             Logger.LogTrace(
                 new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
                 "Certificate loaded with RSA private key. Subject: {Subject}",
-                _certificate.Subject);
+                Certificate.Subject);
         }
         catch (CryptographicException)
         {
@@ -180,11 +180,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             {
                 using var ecdsa = ECDsa.Create();
                 ecdsa.ImportFromPem(keyPem);
-                _certificate = cert.CopyWithPrivateKey(ecdsa);
+                Certificate = cert.CopyWithPrivateKey(ecdsa);
                 Logger.LogTrace(
                     new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
                     "Certificate loaded with ECDSA private key. Subject: {Subject}",
-                    _certificate.Subject);
+                    Certificate.Subject);
             }
             catch (CryptographicException ex)
             {
@@ -216,21 +216,21 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
             "Searching certificate store paths. Paths: {Paths}",
             string.Join(", ", paths));
-        _certificate = certificateFinder(paths, logger);
+        Certificate = certificateFinder(paths, logger);
     }
 
     /// <inheritdoc/>
-    public override X509Certificate2 GetSigningCertificate() => _certificate;
+    public override X509Certificate2 GetSigningCertificate() => Certificate;
 
     /// <inheritdoc/>
-    public override bool HasPrivateKey => _certificate.HasPrivateKey;
+    public override bool HasPrivateKey => Certificate.HasPrivateKey;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _certificate?.Dispose();
+            Certificate?.Dispose();
         }
         base.Dispose(disposing);
     }

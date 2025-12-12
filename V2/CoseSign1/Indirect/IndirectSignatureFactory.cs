@@ -28,15 +28,15 @@ namespace CoseSign1.Indirect;
 /// </summary>
 public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatureOptions>
 {
-    private readonly DirectSignatureFactory _directFactory;
-    private readonly ILogger<IndirectSignatureFactory> _logger;
-    private bool _disposed;
+    private readonly DirectSignatureFactory DirectFactory;
+    private readonly ILogger<IndirectSignatureFactory> Logger;
+    private bool Disposed;
 
     /// <summary>
     /// Gets the transparency providers configured for this factory.
     /// These providers will be applied to all signed messages unless disabled per-operation.
     /// </summary>
-    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => _directFactory.TransparencyProviders;
+    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => DirectFactory.TransparencyProviders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IndirectSignatureFactory"/> class.
@@ -61,8 +61,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     public IndirectSignatureFactory(DirectSignatureFactory directFactory, ILogger<IndirectSignatureFactory>? logger = null)
     {
-        _directFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
-        _logger = logger ?? NullLogger<IndirectSignatureFactory>.Instance;
+        DirectFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
+        Logger = logger ?? NullLogger<IndirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -71,8 +71,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// </summary>
     protected IndirectSignatureFactory()
     {
-        _directFactory = null!;
-        _logger = NullLogger<IndirectSignatureFactory>.Instance;
+        DirectFactory = null!;
+        Logger = NullLogger<IndirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -179,7 +179,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
             "Starting indirect signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}",
             contentType,
@@ -194,7 +194,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
         {
-            _logger.LogError(
+            Logger.LogError(
                 new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
                 "Failed to compute hash of payload using {HashAlgorithm}",
                 options.HashAlgorithm);
@@ -202,7 +202,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         }
 
         var hash = hashSpan.Slice(0, bytesWritten);
-        _logger.LogTrace(
+        Logger.LogTrace(
             new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
             "Computed payload hash. HashSize: {HashSize}",
             bytesWritten);
@@ -228,9 +228,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         };
 
         // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor), passing serviceOptions through
-        var result = _directFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
+        var result = DirectFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
             "Indirect signature created successfully. SignatureSize: {SignatureSize}",
             result.Length);
@@ -332,7 +332,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
             "Starting async indirect signature creation. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}",
             contentType,
@@ -368,7 +368,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         }
 #endif
 
-        _logger.LogTrace(
+        Logger.LogTrace(
             new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
             "Computed payload hash. HashSize: {HashSize}",
             hashOwner.Length);
@@ -395,9 +395,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
         using var hashStream = new MemoryStream(hashOwner.Memory.ToArray(), writable: false);
-        var result = await _directFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+        var result = await DirectFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
             "Async indirect signature created successfully. SignatureSize: {SignatureSize}",
             result.Length);
@@ -496,16 +496,16 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// </summary>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _directFactory?.Dispose();
-            _disposed = true;
+            DirectFactory?.Dispose();
+            Disposed = true;
         }
     }
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (Disposed)
         {
             throw new ObjectDisposedException(nameof(IndirectSignatureFactory));
         }

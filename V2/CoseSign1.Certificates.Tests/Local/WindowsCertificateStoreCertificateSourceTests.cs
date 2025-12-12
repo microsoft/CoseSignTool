@@ -10,27 +10,27 @@ namespace CoseSign1.Certificates.Tests.Local;
 
 public class WindowsWindowsCertificateStoreCertificateSourceTests
 {
-    private X509Store? _testStore;
-    private X509Certificate2? _testCert;
+    private X509Store? TestStore;
+    private X509Certificate2? TestCert;
 
     [SetUp]
     public void Setup()
     {
         // Create a test certificate and add it to the CurrentUser\My store
-        _testCert = TestCertificateUtils.CreateCertificate("CertStoreTest");
-        _testStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-        _testStore.Open(OpenFlags.ReadWrite);
-        _testStore.Add(_testCert);
+        TestCert = TestCertificateUtils.CreateCertificate("CertStoreTest");
+        TestStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        TestStore.Open(OpenFlags.ReadWrite);
+        TestStore.Add(TestCert);
     }
 
     [TearDown]
     public void Cleanup()
     {
-        if (_testCert != null && _testStore != null)
+        if (TestCert != null && TestStore != null)
         {
-            _testStore.Remove(_testCert);
-            _testStore.Close();
-            _testCert.Dispose();
+            TestStore.Remove(TestCert);
+            TestStore.Close();
+            TestCert.Dispose();
         }
     }
 
@@ -38,12 +38,12 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     public void Constructor_WithValidThumbprint_Succeeds()
     {
         using var source = new WindowsCertificateStoreCertificateSource(
-            _testCert!.Thumbprint,
+            TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
         Assert.That(source, Is.Not.Null);
-        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(_testCert.Thumbprint));
+        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(TestCert.Thumbprint));
     }
 
     [Test]
@@ -82,12 +82,12 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     public void Constructor_WithPredicate_Succeeds()
     {
         using var source = new WindowsCertificateStoreCertificateSource(
-            cert => cert.Thumbprint == _testCert!.Thumbprint,
+            cert => cert.Thumbprint == TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
         Assert.That(source, Is.Not.Null);
-        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(_testCert.Thumbprint));
+        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(TestCert.Thumbprint));
     }
 
     [Test]
@@ -111,7 +111,7 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     public void GetChainBuilder_ReturnsX509ChainBuilder()
     {
         using var source = new WindowsCertificateStoreCertificateSource(
-            _testCert!.Thumbprint,
+            TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -125,7 +125,7 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     public void HasPrivateKey_ReturnsCorrectStatus()
     {
         using var source = new WindowsCertificateStoreCertificateSource(
-            _testCert!.Thumbprint,
+            TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -140,7 +140,7 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     {
         // Demonstrate that WindowsCertificateStoreCertificateSource works with LocalCertificateSigningService
         using var source = new WindowsCertificateStoreCertificateSource(
-            _testCert!.Thumbprint,
+            TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -164,7 +164,7 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     public void Dispose_CanBeCalledMultipleTimes()
     {
         var source = new WindowsCertificateStoreCertificateSource(
-            _testCert!.Thumbprint,
+            TestCert!.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 

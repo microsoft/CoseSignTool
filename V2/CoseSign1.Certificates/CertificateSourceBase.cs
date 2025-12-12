@@ -15,8 +15,8 @@ namespace CoseSign1.Certificates;
 /// </summary>
 public abstract class CertificateSourceBase : ICertificateSource
 {
-    private readonly ICertificateChainBuilder _chainBuilder;
-    private bool _disposed;
+    private readonly ICertificateChainBuilder ChainBuilderField;
+    private bool Disposed;
 
     /// <summary>
     /// Gets the logger instance for derived classes to use.
@@ -37,7 +37,7 @@ public abstract class CertificateSourceBase : ICertificateSource
 #else
         if (certificates == null) { throw new ArgumentNullException(nameof(certificates)); }
 #endif
-        _chainBuilder = chainBuilder ?? new ExplicitCertificateChainBuilder(certificates);
+        ChainBuilderField = chainBuilder ?? new ExplicitCertificateChainBuilder(certificates);
         Logger = logger ?? NullLogger.Instance;
     }
 
@@ -48,7 +48,7 @@ public abstract class CertificateSourceBase : ICertificateSource
     /// <param name="logger">Optional logger for diagnostic output.</param>
     protected CertificateSourceBase(ICertificateChainBuilder chainBuilder, ILogger? logger = null)
     {
-        _chainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
+        ChainBuilderField = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
         Logger = logger ?? NullLogger.Instance;
     }
 
@@ -59,18 +59,18 @@ public abstract class CertificateSourceBase : ICertificateSource
     public abstract bool HasPrivateKey { get; }
 
     /// <inheritdoc/>
-    public ICertificateChainBuilder GetChainBuilder() => _chainBuilder;
+    public ICertificateChainBuilder GetChainBuilder() => ChainBuilderField;
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        if (Disposed)
         {
             return;
         }
 
         Dispose(disposing: true);
-        _disposed = true;
+        Disposed = true;
         GC.SuppressFinalize(this);
     }
 
@@ -82,7 +82,7 @@ public abstract class CertificateSourceBase : ICertificateSource
     {
         if (disposing)
         {
-            (_chainBuilder as IDisposable)?.Dispose();
+            (ChainBuilderField as IDisposable)?.Dispose();
         }
     }
 }

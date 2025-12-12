@@ -20,15 +20,15 @@ namespace CoseSignTool.Commands.Builders;
 /// </summary>
 public class SigningCommandBuilder
 {
-    private readonly IReadOnlyList<ITransparencyProvider>? _transparencyProviders;
-    private readonly ILoggerFactory? _loggerFactory;
+    private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
+    private readonly ILoggerFactory? LoggerFactory;
 
     public SigningCommandBuilder(
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
         ILoggerFactory? loggerFactory = null)
     {
-        _transparencyProviders = transparencyProviders;
-        _loggerFactory = loggerFactory;
+        TransparencyProviders = transparencyProviders;
+        LoggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -377,9 +377,9 @@ public class SigningCommandBuilder
         }
 
         // Add the logger factory so plugins can use it for their internal operations
-        if (_loggerFactory != null)
+        if (LoggerFactory != null)
         {
-            options["__loggerFactory"] = _loggerFactory;
+            options["__loggerFactory"] = LoggerFactory;
         }
 
         return options;
@@ -392,8 +392,8 @@ public class SigningCommandBuilder
         bool embedPayload,
         CancellationToken cancellationToken)
     {
-        var logger = _loggerFactory?.CreateLogger<DirectSignatureFactory>();
-        using var factory = new DirectSignatureFactory(signingService, _transparencyProviders, logger);
+        var logger = LoggerFactory?.CreateLogger<DirectSignatureFactory>();
+        using var factory = new DirectSignatureFactory(signingService, TransparencyProviders, logger);
         var options = new DirectSignatureOptions { EmbedPayload = embedPayload };
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);
@@ -406,8 +406,8 @@ public class SigningCommandBuilder
         bool detached,
         CancellationToken cancellationToken)
     {
-        var logger = _loggerFactory?.CreateLogger<IndirectSignatureFactory>();
-        using var factory = new IndirectSignatureFactory(signingService, _transparencyProviders, logger, _loggerFactory);
+        var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();
+        using var factory = new IndirectSignatureFactory(signingService, TransparencyProviders, logger, LoggerFactory);
         var options = new IndirectSignatureOptions(); // Indirect signatures are always detached (payload not embedded, only hash is signed)
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);

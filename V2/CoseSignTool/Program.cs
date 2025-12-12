@@ -13,12 +13,12 @@ namespace CoseSignTool;
 /// </summary>
 public static class Program
 {
-    private static ILoggerFactory? _loggerFactory;
+    private static ILoggerFactory? LoggerFactoryInstance;
 
     /// <summary>
     /// Gets the global logger factory for the application.
     /// </summary>
-    public static ILoggerFactory LoggerFactory => _loggerFactory ??= LoggingConfiguration.CreateLoggerFactory();
+    public static ILoggerFactory LoggerFactory => LoggerFactoryInstance ??= LoggingConfiguration.CreateLoggerFactory();
 
     /// <summary>
     /// Application entry point.
@@ -33,8 +33,8 @@ public static class Program
         {
             // Parse verbosity before anything else - this modifies args to remove verbosity args
             var verbosity = LoggingConfiguration.ParseVerbosity(ref args);
-            _loggerFactory = LoggingConfiguration.CreateLoggerFactory(verbosity);
-            var logger = _loggerFactory.CreateLogger("CoseSignTool");
+            LoggerFactoryInstance = LoggingConfiguration.CreateLoggerFactory(verbosity);
+            var logger = LoggerFactoryInstance.CreateLogger("CoseSignTool");
 
             logger.LogDebug("CoseSignTool starting with verbosity level {Verbosity}", verbosity);
 
@@ -60,14 +60,14 @@ public static class Program
         }
         catch (Exception ex)
         {
-            var logger = _loggerFactory?.CreateLogger("CoseSignTool");
+            var logger = LoggerFactoryInstance?.CreateLogger("CoseSignTool");
             logger?.LogCritical(ex, "Fatal error: {Message}", ex.Message);
             Console.Error.WriteLine($"Fatal error: {ex.Message}");
             return (int)ExitCode.GeneralError;
         }
         finally
         {
-            _loggerFactory?.Dispose();
+            LoggerFactoryInstance?.Dispose();
         }
     }
 
@@ -103,7 +103,7 @@ public static class Program
     /// <returns>The configured root command.</returns>
     internal static RootCommand CreateRootCommand(IEnumerable<string>? additionalPluginDirectories = null)
     {
-        var builder = new CommandBuilder(_loggerFactory);
+        var builder = new CommandBuilder(LoggerFactoryInstance);
         return builder.BuildRootCommand(additionalPluginDirectories);
     }
 }

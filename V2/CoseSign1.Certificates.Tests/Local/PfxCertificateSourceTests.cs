@@ -10,20 +10,20 @@ namespace CoseSign1.Certificates.Tests.Local;
 
 public class PfxCertificateSourceTests
 {
-    private string _tempPfxPath = null!;
+    private string TempPfxPath = null!;
 
     [SetUp]
     public void Setup()
     {
-        _tempPfxPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.pfx");
+        TempPfxPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.pfx");
     }
 
     [TearDown]
     public void Cleanup()
     {
-        if (File.Exists(_tempPfxPath))
+        if (File.Exists(TempPfxPath))
         {
-            File.Delete(_tempPfxPath);
+            File.Delete(TempPfxPath);
         }
     }
 
@@ -33,9 +33,9 @@ public class PfxCertificateSourceTests
         // Create a test PFX file
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        using var source = new PfxCertificateSource(_tempPfxPath, password);
+        using var source = new PfxCertificateSource(TempPfxPath, password);
 
         Assert.That(source, Is.Not.Null);
         Assert.That(source.HasPrivateKey, Is.True);
@@ -63,10 +63,10 @@ public class PfxCertificateSourceTests
         // Create a test PFX file with password
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "correctpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
         Assert.Throws<System.Security.Cryptography.CryptographicException>(() =>
-            new PfxCertificateSource(_tempPfxPath, "wrongpassword"));
+            new PfxCertificateSource(TempPfxPath, "wrongpassword"));
     }
 
     [Test]
@@ -93,9 +93,9 @@ public class PfxCertificateSourceTests
     {
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        using var source = new PfxCertificateSource(_tempPfxPath, password);
+        using var source = new PfxCertificateSource(TempPfxPath, password);
         var cert = source.GetSigningCertificate();
 
         Assert.That(cert, Is.Not.Null);
@@ -107,9 +107,9 @@ public class PfxCertificateSourceTests
     {
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        using var source = new PfxCertificateSource(_tempPfxPath, password);
+        using var source = new PfxCertificateSource(TempPfxPath, password);
         var chainBuilder = source.GetChainBuilder();
 
         Assert.That(chainBuilder, Is.Not.Null);
@@ -120,9 +120,9 @@ public class PfxCertificateSourceTests
     {
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        using var source = new PfxCertificateSource(_tempPfxPath, password);
+        using var source = new PfxCertificateSource(TempPfxPath, password);
         var cert = source.GetSigningCertificate();
         var chainBuilder = source.GetChainBuilder();
 
@@ -138,9 +138,9 @@ public class PfxCertificateSourceTests
         // Demonstrate that PfxCertificateSource works with LocalCertificateSigningService
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        using var source = new PfxCertificateSource(_tempPfxPath, password);
+        using var source = new PfxCertificateSource(TempPfxPath, password);
         var cert = source.GetSigningCertificate();
         var chainBuilder = source.GetChainBuilder();
 
@@ -155,9 +155,9 @@ public class PfxCertificateSourceTests
     {
         var chain = TestCertificateUtils.CreateTestChainForPfx();
         var password = "testpassword";
-        File.WriteAllBytes(_tempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
 
-        var source = new PfxCertificateSource(_tempPfxPath, password);
+        var source = new PfxCertificateSource(TempPfxPath, password);
 
         source.Dispose();
         source.Dispose(); // Should not throw

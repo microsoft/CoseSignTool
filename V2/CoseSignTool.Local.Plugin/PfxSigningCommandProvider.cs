@@ -14,9 +14,9 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class PfxSigningCommandProvider : ISigningCommandProvider
 {
-    private ISigningService<CoseSign1.Abstractions.SigningOptions>? _signingService;
-    private string? _certificateSubject;
-    private string? _certificateThumbprint;
+    private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
+    private string? CertificateSubject;
+    private string? CertificateThumbprint;
 
     public string CommandName => "sign-pfx";
 
@@ -62,16 +62,16 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         var chainBuilder = certSource.GetChainBuilder();
 
         // Store metadata for later display
-        _certificateSubject = signingCert.Subject;
-        _certificateThumbprint = signingCert.Thumbprint;
+        CertificateSubject = signingCert.Subject;
+        CertificateThumbprint = signingCert.Thumbprint;
 
         // Create logger for signing service
         var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
 
         // Create and return signing service
-        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
+        SigningService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
 
-        return await Task.FromResult(_signingService);
+        return await Task.FromResult(SigningService);
     }
 
     public IDictionary<string, string> GetSigningMetadata()
@@ -79,8 +79,8 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         return new Dictionary<string, string>
         {
             ["Certificate Source"] = "PFX file",
-            ["Certificate Subject"] = _certificateSubject ?? "Unknown",
-            ["Certificate Thumbprint"] = _certificateThumbprint ?? "Unknown"
+            ["Certificate Subject"] = CertificateSubject ?? "Unknown",
+            ["Certificate Thumbprint"] = CertificateThumbprint ?? "Unknown"
         };
     }
 }

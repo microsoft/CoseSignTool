@@ -11,8 +11,8 @@ namespace CoseSignTool.Output;
 /// </summary>
 public class XmlOutputFormatter : IOutputFormatter
 {
-    private readonly TextWriter _output;
-    private readonly List<XElement> _messages = [];
+    private readonly TextWriter Output;
+    private readonly List<XElement> Messages = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XmlOutputFormatter"/> class.
@@ -20,37 +20,37 @@ public class XmlOutputFormatter : IOutputFormatter
     /// <param name="output">The output writer (defaults to Console.Out).</param>
     public XmlOutputFormatter(TextWriter? output = null)
     {
-        _output = output ?? Console.Out;
+        Output = output ?? Console.Out;
     }
 
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        _messages.Add(new XElement("Success", message));
+        Messages.Add(new XElement("Success", message));
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        _messages.Add(new XElement("Error", message));
+        Messages.Add(new XElement("Error", message));
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        _messages.Add(new XElement("Info", message));
+        Messages.Add(new XElement("Info", message));
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        _messages.Add(new XElement("Warning", message));
+        Messages.Add(new XElement("Warning", message));
     }
 
     /// <inheritdoc/>
     public void WriteKeyValue(string key, string value)
     {
-        _messages.Add(new XElement("KeyValue",
+        Messages.Add(new XElement("KeyValue",
             new XElement("Key", key),
             new XElement("Value", value)));
     }
@@ -58,19 +58,19 @@ public class XmlOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public void BeginSection(string title)
     {
-        _messages.Add(new XElement("SectionStart", new XAttribute("title", title)));
+        Messages.Add(new XElement("SectionStart", new XAttribute("title", title)));
     }
 
     /// <inheritdoc/>
     public void EndSection()
     {
-        _messages.Add(new XElement("SectionEnd"));
+        Messages.Add(new XElement("SectionEnd"));
     }
 
     /// <inheritdoc/>
     public void Flush()
     {
-        var root = new XElement("CoseSignToolOutput", _messages);
+        var root = new XElement("CoseSignToolOutput", Messages);
         var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), root);
 
         // Write to string first to avoid encoding issues with console output
@@ -88,6 +88,6 @@ public class XmlOutputFormatter : IOutputFormatter
             doc.WriteTo(writer);
         }
 
-        _output.WriteLine(stringWriter.ToString());
+        Output.WriteLine(stringWriter.ToString());
     }
 }

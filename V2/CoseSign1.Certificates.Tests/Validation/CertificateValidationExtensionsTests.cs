@@ -15,28 +15,28 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateValidationExtensionsTests
 {
-    private X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
+    private X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
+        TestCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -70,7 +70,7 @@ public class CertificateValidationExtensionsTests
             .ValidateCertificateCommonName("ExtensionTest");
 
         var validator = builder.Build();
-        var validationResult = validator.Validate(_validMessage!);
+        var validationResult = validator.Validate(ValidMessage!);
 
         Assert.That(validationResult.IsValid, Is.True);
     }
@@ -102,7 +102,7 @@ public class CertificateValidationExtensionsTests
             .ValidateCertificateExpiration();
 
         var validator = builder.Build();
-        var validationResult = validator.Validate(_validMessage!);
+        var validationResult = validator.Validate(ValidMessage!);
 
         Assert.That(validationResult.IsValid, Is.True);
     }

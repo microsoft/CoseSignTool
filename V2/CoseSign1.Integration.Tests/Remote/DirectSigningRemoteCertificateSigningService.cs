@@ -16,7 +16,7 @@ namespace CoseSign1.Integration.Tests.Remote;
 /// </summary>
 internal sealed class DirectSigningRemoteCertificateSigningService : CertificateSigningService
 {
-    private readonly RemoteCertificateSource _remoteCertificateSource;
+    private readonly RemoteCertificateSource RemoteCertificateSource;
 
     public DirectSigningRemoteCertificateSigningService(
         X509Certificate2 certificate,
@@ -25,7 +25,7 @@ internal sealed class DirectSigningRemoteCertificateSigningService : Certificate
         : base(isRemote: true)
     {
         _ = certificate ?? throw new ArgumentNullException(nameof(certificate));
-        _remoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        RemoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
     }
 
     public DirectSigningRemoteCertificateSigningService(
@@ -35,12 +35,12 @@ internal sealed class DirectSigningRemoteCertificateSigningService : Certificate
         : base(isRemote: true)
     {
         _ = certificate ?? throw new ArgumentNullException(nameof(certificate));
-        _remoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        RemoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
     }
 
     protected override ISigningKey GetSigningKey(SigningContext context)
     {
-        return new RemoteSigningKeyProvider(_remoteCertificateSource, this);
+        return new RemoteSigningKeyProvider(RemoteCertificateSource, this);
     }
 
     protected override void Dispose(bool disposing)

@@ -16,10 +16,10 @@ namespace CoseSign1.Certificates.ChainBuilders;
 /// </summary>
 public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, IDisposable
 {
-    private readonly X509ChainBuilder _chainBuilder;
-    private readonly IReadOnlyList<X509Certificate2> _providedCertificates;
-    private readonly ILogger<ExplicitCertificateChainBuilder> _logger;
-    private bool _disposed;
+    private readonly X509ChainBuilder ChainBuilder;
+    private readonly IReadOnlyList<X509Certificate2> ProvidedCertificates;
+    private readonly ILogger<ExplicitCertificateChainBuilder> LoggerField;
+    private bool Disposed;
 
     /// <summary>
     /// Gets the default chain policy used by this class unless overridden.
@@ -60,8 +60,8 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
             throw new ArgumentException("Certificate chain cannot be empty.", nameof(certificateChain));
         }
 
-        _logger = logger ?? NullLogger<ExplicitCertificateChainBuilder>.Instance;
-        _providedCertificates = certificateChain;
+        LoggerField = logger ?? NullLogger<ExplicitCertificateChainBuilder>.Instance;
+        ProvidedCertificates = certificateChain;
 
         // Use the default chain policy unless overridden via the ChainPolicy property
         var policy = DefaultChainPolicy;
@@ -72,9 +72,9 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
             policy.ExtraStore.Add(cert);
         }
 
-        _chainBuilder = new X509ChainBuilder(policy);
+        ChainBuilder = new X509ChainBuilder(policy);
 
-        _logger.LogTrace(
+        LoggerField.LogTrace(
             new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
             "ExplicitCertificateChainBuilder initialized. ProvidedCertificateCount: {Count}",
             certificateChain.Count);
@@ -100,17 +100,17 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     }
 
     /// <inheritdoc/>
-    public IReadOnlyCollection<X509Certificate2> ChainElements => _chainBuilder.ChainElements;
+    public IReadOnlyCollection<X509Certificate2> ChainElements => ChainBuilder.ChainElements;
 
     /// <inheritdoc/>
     public X509ChainPolicy ChainPolicy
     {
-        get => _chainBuilder.ChainPolicy;
-        set => _chainBuilder.ChainPolicy = value;
+        get => ChainBuilder.ChainPolicy;
+        set => ChainBuilder.ChainPolicy = value;
     }
 
     /// <inheritdoc/>
-    public X509ChainStatus[] ChainStatus => _chainBuilder.ChainStatus;
+    public X509ChainStatus[] ChainStatus => ChainBuilder.ChainStatus;
 
     /// <inheritdoc/>
     /// <remarks>
@@ -123,12 +123,12 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     public bool Build(X509Certificate2 certificate)
     {
 #if NET5_0_OR_GREATER
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Disposed, this);
 #else
-        if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+        if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
 #endif
 
-        _logger.LogTrace(
+        LoggerField.LogTrace(
             new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
             "Building explicit certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
             certificate.Subject,
@@ -138,20 +138,20 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         // - Find the correct chain order
         // - Verify signatures cryptographically
         // - Handle self-signed roots properly
-        var buildResult = _chainBuilder.Build(certificate);
+        var buildResult = ChainBuilder.Build(certificate);
 
         // If we provided explicit certificates, verify that all chain elements are from our provided set
         // This ensures we don't inadvertently use system certificates when an explicit chain was given
-        if (_providedCertificates.Count > 0)
+        if (ProvidedCertificates.Count > 0)
         {
-            foreach (var chainElement in _chainBuilder.ChainElements)
+            foreach (var chainElement in ChainBuilder.ChainElements)
             {
-                var isFromProvidedCerts = _providedCertificates.Any(c =>
+                var isFromProvidedCerts = ProvidedCertificates.Any(c =>
                     c.Thumbprint.Equals(chainElement.Thumbprint, StringComparison.OrdinalIgnoreCase));
 
                 if (!isFromProvidedCerts)
                 {
-                    _logger.LogTrace(
+                    LoggerField.LogTrace(
                         new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
                         "Chain element not from provided certificates. Subject: {Subject}, Thumbprint: {Thumbprint}",
                         chainElement.Subject,
@@ -164,17 +164,17 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 
         if (buildResult)
         {
-            _logger.LogTrace(
+            LoggerField.LogTrace(
                 new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
                 "Explicit certificate chain built successfully. ChainLength: {ChainLength}",
-                _chainBuilder.ChainElements.Count);
+                ChainBuilder.ChainElements.Count);
         }
         else
         {
-            _logger.LogTrace(
+            LoggerField.LogTrace(
                 new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
                 "Explicit certificate chain build failed. ChainLength: {ChainLength}",
-                _chainBuilder.ChainElements.Count);
+                ChainBuilder.ChainElements.Count);
         }
 
         return buildResult;
@@ -183,10 +183,10 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _chainBuilder.Dispose();
-            _disposed = true;
+            ChainBuilder.Dispose();
+            Disposed = true;
         }
     }
 }

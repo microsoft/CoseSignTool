@@ -13,28 +13,28 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateSignatureValidatorTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
+        TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -65,7 +65,7 @@ public class CertificateSignatureValidatorTests
     public void Validate_WithValidSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
@@ -75,7 +75,7 @@ public class CertificateSignatureValidatorTests
     public void Validate_WithAllowUnprotectedHeaders_ValidatesSuccessfully()
     {
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -84,7 +84,7 @@ public class CertificateSignatureValidatorTests
     public async Task ValidateAsync_WithValidSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = await validator.ValidateAsync(_validMessage!, CancellationToken.None);
+        var result = await validator.ValidateAsync(ValidMessage!, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
@@ -100,7 +100,7 @@ public class CertificateSignatureValidatorTests
         // Task may complete before cancellation is observed
         try
         {
-            await validator.ValidateAsync(_validMessage!, cts.Token);
+            await validator.ValidateAsync(ValidMessage!, cts.Token);
             // If no exception, test passes - cancellation may not be observed for fast operations
         }
         catch (OperationCanceledException)

@@ -21,9 +21,9 @@ namespace CoseSign1.Certificates;
 public abstract class CertificateSigningService : ISigningService<CertificateSigningOptions>
 {
     private static readonly CertificateHeaderContributor CertificateContributor = new();
-    private bool _disposed;
-    private readonly SigningServiceMetadata _serviceMetadata;
-    private readonly bool _isRemote;
+    private bool Disposed;
+    private readonly SigningServiceMetadata ServiceMetadataField;
+    private readonly bool IsRemoteField;
     /// <summary>
     /// The logger for this service instance.
     /// </summary>
@@ -37,8 +37,8 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     protected CertificateSigningService(bool isRemote, SigningServiceMetadata? serviceMetadata = null, ILogger? logger = null)
     {
-        _isRemote = isRemote;
-        _serviceMetadata = serviceMetadata ?? new SigningServiceMetadata(
+        IsRemoteField = isRemote;
+        ServiceMetadataField = serviceMetadata ?? new SigningServiceMetadata(
             GetType().Name,
             $"Certificate-based signing service: {GetType().Name}");
         Logger = logger ?? NullLogger.Instance;
@@ -47,12 +47,12 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// <summary>
     /// Gets a value indicating whether this is a remote signing service.
     /// </summary>
-    public bool IsRemote => _isRemote;
+    public bool IsRemote => IsRemoteField;
 
     /// <summary>
     /// Gets metadata about the signing service.
     /// </summary>
-    public SigningServiceMetadata ServiceMetadata => _serviceMetadata;
+    public SigningServiceMetadata ServiceMetadata => ServiceMetadataField;
 
     /// <summary>
     /// Creates a new instance of CertificateSigningOptions appropriate for certificate-based signing.
@@ -91,7 +91,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
             new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
             "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}",
             context.ContentType,
-            _isRemote);
+            IsRemoteField);
 
         // Step 1: Acquire signing key dynamically (enables rotation, multi-key, context-aware scenarios)
         var signingKey = GetSigningKey(context);
@@ -223,7 +223,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// <param name="disposing">True if disposing managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (!Disposed)
         {
             if (disposing)
             {
@@ -231,7 +231,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
                 // Base class doesn't own the key, so nothing to dispose here
             }
 
-            _disposed = true;
+            Disposed = true;
         }
     }
 
@@ -240,7 +240,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// </summary>
     protected void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (Disposed)
         {
             throw new ObjectDisposedException(GetType().Name);
         }

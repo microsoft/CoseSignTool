@@ -11,7 +11,7 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class SignatureValidator : IValidator<CoseSign1Message>
 {
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SignatureValidator"/> class.
@@ -19,7 +19,7 @@ public sealed class SignatureValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public SignatureValidator(bool allowUnprotectedHeaders = false)
     {
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -32,7 +32,7 @@ public sealed class SignatureValidator : IValidator<CoseSign1Message>
                 "NULL_INPUT");
         }
 
-        bool isValid = input.VerifySignature(payload: null, _allowUnprotectedHeaders);
+        bool isValid = input.VerifySignature(payload: null, AllowUnprotectedHeaders);
 
         if (!isValid)
         {

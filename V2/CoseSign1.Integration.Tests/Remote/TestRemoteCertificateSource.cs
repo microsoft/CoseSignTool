@@ -15,22 +15,22 @@ namespace CoseSign1.Integration.Tests.Remote;
 /// </summary>
 internal sealed class TestRemoteCertificateSource : RemoteCertificateSource
 {
-    private readonly DirectCertificateSource _directCertificateSource;
+    private readonly DirectCertificateSource DirectCertificateSource;
 
     public TestRemoteCertificateSource(DirectCertificateSource directCertificateSource)
     {
-        _directCertificateSource = directCertificateSource ?? throw new ArgumentNullException(nameof(directCertificateSource));
+        DirectCertificateSource = directCertificateSource ?? throw new ArgumentNullException(nameof(directCertificateSource));
     }
 
     public override X509Certificate2 GetSigningCertificate()
     {
-        return _directCertificateSource.GetSigningCertificate();
+        return DirectCertificateSource.GetSigningCertificate();
     }
 
     // RSA sync methods
     public override byte[] SignDataWithRsa(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
-        var cert = _directCertificateSource.GetSigningCertificate();
+        var cert = DirectCertificateSource.GetSigningCertificate();
         using var rsa = cert.GetRSAPrivateKey();
         if (rsa == null)
         {
@@ -41,7 +41,7 @@ internal sealed class TestRemoteCertificateSource : RemoteCertificateSource
 
     public override byte[] SignHashWithRsa(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
-        var cert = _directCertificateSource.GetSigningCertificate();
+        var cert = DirectCertificateSource.GetSigningCertificate();
         using var rsa = cert.GetRSAPrivateKey();
         if (rsa == null)
         {
@@ -64,7 +64,7 @@ internal sealed class TestRemoteCertificateSource : RemoteCertificateSource
     // ECDSA sync methods
     public override byte[] SignDataWithEcdsa(byte[] data, HashAlgorithmName hashAlgorithm)
     {
-        var cert = _directCertificateSource.GetSigningCertificate();
+        var cert = DirectCertificateSource.GetSigningCertificate();
         using var ecdsa = cert.GetECDsaPrivateKey();
         if (ecdsa == null)
         {
@@ -75,7 +75,7 @@ internal sealed class TestRemoteCertificateSource : RemoteCertificateSource
 
     public override byte[] SignHashWithEcdsa(byte[] hash)
     {
-        var cert = _directCertificateSource.GetSigningCertificate();
+        var cert = DirectCertificateSource.GetSigningCertificate();
         using var ecdsa = cert.GetECDsaPrivateKey();
         if (ecdsa == null)
         {
@@ -98,7 +98,7 @@ internal sealed class TestRemoteCertificateSource : RemoteCertificateSource
     // ML-DSA sync method
     public override byte[] SignDataWithMLDsa(byte[] data, HashAlgorithmName? hashAlgorithm = null)
     {
-        var cert = _directCertificateSource.GetSigningCertificate();
+        var cert = DirectCertificateSource.GetSigningCertificate();
         using var mldsa = cert.GetMLDsaPrivateKey();
         if (mldsa == null)
         {

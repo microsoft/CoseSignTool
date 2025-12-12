@@ -8,8 +8,8 @@ namespace CoseSignTool.Output;
 /// </summary>
 public class TextOutputFormatter : IOutputFormatter
 {
-    private readonly TextWriter _output;
-    private readonly TextWriter _error;
+    private readonly TextWriter Output;
+    private readonly TextWriter Error;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TextOutputFormatter"/> class.
@@ -18,57 +18,57 @@ public class TextOutputFormatter : IOutputFormatter
     /// <param name="error">The error writer (defaults to Console.Error).</param>
     public TextOutputFormatter(TextWriter? output = null, TextWriter? error = null)
     {
-        _output = output ?? Console.Out;
-        _error = error ?? Console.Error;
+        Output = output ?? Console.Out;
+        Error = error ?? Console.Error;
     }
 
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        _output.WriteLine($"✓ {message}");
+        Output.WriteLine($"✓ {message}");
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        _error.WriteLine($"✗ {message}");
+        Error.WriteLine($"✗ {message}");
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        _output.WriteLine($"ℹ {message}");
+        Output.WriteLine($"ℹ {message}");
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        _output.WriteLine($"⚠ {message}");
+        Output.WriteLine($"⚠ {message}");
     }
 
     /// <inheritdoc/>
     public void WriteKeyValue(string key, string value)
     {
-        _output.WriteLine($"  {key}: {value}");
+        Output.WriteLine($"  {key}: {value}");
     }
 
     /// <inheritdoc/>
     public void BeginSection(string title)
     {
-        _output.WriteLine();
-        _output.WriteLine(title);
-        _output.WriteLine(new string('-', title.Length));
+        Output.WriteLine();
+        Output.WriteLine(title);
+        Output.WriteLine(new string('-', title.Length));
     }
 
     /// <inheritdoc/>
     public void EndSection()
     {
-        _output.WriteLine();
+        Output.WriteLine();
     }
 
     /// <inheritdoc/>
     public void Flush()
     {
-        _output.Flush();
+        Output.Flush();
     }
 }

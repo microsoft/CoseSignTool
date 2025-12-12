@@ -16,28 +16,28 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateKeyUsageValidatorTests
 {
-    private X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
+    private X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
+        TestCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -105,7 +105,7 @@ public class CertificateKeyUsageValidatorTests
     public void Validate_WithValidKeyUsage_ReturnsSuccess()
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateKeyUsageValidator)));
@@ -117,7 +117,7 @@ public class CertificateKeyUsageValidatorTests
     public async Task ValidateAsync_ReturnsResultSynchronously()
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
-        var result = await validator.ValidateAsync(_validMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -127,7 +127,7 @@ public class CertificateKeyUsageValidatorTests
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
         using var cts = new CancellationTokenSource();
-        var result = await validator.ValidateAsync(_validMessage!, cts.Token);
+        var result = await validator.ValidateAsync(ValidMessage!, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -137,7 +137,7 @@ public class CertificateKeyUsageValidatorTests
     {
         // The test certificate has KeyCertSign, try to validate for a different key usage that it doesn't have
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.CrlSign);
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "KEY_USAGE_MISMATCH"), Is.True);
@@ -192,7 +192,7 @@ public class CertificateKeyUsageValidatorTests
     {
         // Try to validate for a different EKU than what's in the cert
         var validator = new CertificateKeyUsageValidator("1.2.3.4.5.6"); // Non-existent EKU
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "EKU_MISMATCH"), Is.True);
@@ -225,7 +225,7 @@ public class CertificateKeyUsageValidatorTests
     public void Validate_WithAllowUnprotectedHeaders_UsesUnprotectedHeaders()
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign, allowUnprotectedHeaders: true);
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }

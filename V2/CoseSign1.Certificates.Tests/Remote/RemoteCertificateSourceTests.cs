@@ -471,19 +471,19 @@ public class RemoteCertificateSourceTests
     /// </summary>
     private class TestRemoteCertificateSource : RemoteCertificateSource
     {
-        private readonly X509Certificate2 _certificate;
+        private readonly X509Certificate2 Certificate;
 
         public TestRemoteCertificateSource(X509Certificate2 certificate, ICertificateChainBuilder? chainBuilder = null)
             : base(chainBuilder)
         {
-            _certificate = certificate;
+            Certificate = certificate;
         }
 
-        public override X509Certificate2 GetSigningCertificate() => _certificate;
+        public override X509Certificate2 GetSigningCertificate() => Certificate;
 
         public override byte[] SignDataWithRsa(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
-            using var rsa = _certificate.GetRSAPrivateKey();
+            using var rsa = Certificate.GetRSAPrivateKey();
             return rsa!.SignData(data, hashAlgorithm, padding);
         }
 
@@ -494,7 +494,7 @@ public class RemoteCertificateSourceTests
 
         public override byte[] SignHashWithRsa(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
-            using var rsa = _certificate.GetRSAPrivateKey();
+            using var rsa = Certificate.GetRSAPrivateKey();
             return rsa!.SignHash(hash, hashAlgorithm, padding);
         }
 
@@ -505,7 +505,7 @@ public class RemoteCertificateSourceTests
 
         public override byte[] SignDataWithEcdsa(byte[] data, HashAlgorithmName hashAlgorithm)
         {
-            using var ecdsa = _certificate.GetECDsaPrivateKey();
+            using var ecdsa = Certificate.GetECDsaPrivateKey();
             return ecdsa!.SignData(data, hashAlgorithm);
         }
 
@@ -516,7 +516,7 @@ public class RemoteCertificateSourceTests
 
         public override byte[] SignHashWithEcdsa(byte[] hash)
         {
-            using var ecdsa = _certificate.GetECDsaPrivateKey();
+            using var ecdsa = Certificate.GetECDsaPrivateKey();
             return ecdsa!.SignHash(hash);
         }
 
@@ -545,7 +545,7 @@ public class RemoteCertificateSourceTests
         {
             if (disposing)
             {
-                _certificate?.Dispose();
+                Certificate?.Dispose();
             }
             base.Dispose(disposing);
         }

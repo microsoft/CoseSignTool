@@ -13,22 +13,22 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateDetachedSignatureValidatorTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? _testCert;
-    private byte[]? _payload;
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
+    private byte[]? Payload;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
-        _payload = new byte[] { 1, 2, 3, 4, 5 };
+        TestCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
+        Payload = new byte[] { 1, 2, 3, 4, 5 };
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithNullInput_ReturnsFailure()
     {
         // Arrange
-        var validator = new CertificateDetachedSignatureValidator(_payload!);
+        var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
         var result = validator.Validate(null!);
@@ -125,7 +125,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create message with embedded payload (not detached)
@@ -133,7 +133,7 @@ public class CertificateDetachedSignatureValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(embeddedPayload, "application/test");
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
-        var validator = new CertificateDetachedSignatureValidator(_payload!);
+        var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
         var result = validator.Validate(message);
@@ -150,7 +150,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature
@@ -173,7 +173,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature with one payload
@@ -200,7 +200,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -222,7 +222,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create large payload (1MB)
@@ -246,7 +246,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -267,7 +267,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -288,7 +288,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -309,7 +309,7 @@ public class CertificateDetachedSignatureValidatorTests
     public async Task ValidateAsync_WithNullInput_ReturnsFailure()
     {
         // Arrange
-        var validator = new CertificateDetachedSignatureValidator(_payload!);
+        var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
         var result = await validator.ValidateAsync(null!);
@@ -325,7 +325,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -348,7 +348,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -370,7 +370,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -394,7 +394,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -418,7 +418,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -443,7 +443,7 @@ public class CertificateDetachedSignatureValidatorTests
     {
         // Arrange
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };

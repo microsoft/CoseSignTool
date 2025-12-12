@@ -18,7 +18,7 @@ namespace CoseSignTool.Commands;
 /// </summary>
 public class CommandBuilder
 {
-    private readonly ILoggerFactory? _loggerFactory;
+    private readonly ILoggerFactory? LoggerFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandBuilder"/> class.
@@ -26,7 +26,7 @@ public class CommandBuilder
     /// <param name="loggerFactory">Optional logger factory for creating loggers.</param>
     public CommandBuilder(ILoggerFactory? loggerFactory = null)
     {
-        _loggerFactory = loggerFactory;
+        LoggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ public class CommandBuilder
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
             transparencyProviders: transparencyProviders,
-            loggerFactory: _loggerFactory);
+            loggerFactory: LoggerFactory);
 
         // Add built-in ephemeral signing command using the same infrastructure as plugins
         var ephemeralProvider = new EphemeralSigningCommandProvider();

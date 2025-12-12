@@ -21,7 +21,7 @@ namespace CoseSign1.Integration.Tests;
 [TestFixture]
 public class CertificateSigningIntegrationTests
 {
-    private readonly byte[] _testPayload = Encoding.UTF8.GetBytes("Test payload for integration testing");
+    private readonly byte[] TestPayload = Encoding.UTF8.GetBytes("Test payload for integration testing");
     private const string ContentType = "application/json";
 
     /// <summary>
@@ -45,13 +45,13 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
         Assert.That(message.Content, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
         Assert.That(message.ProtectedHeaders.ContainsKey(CoseHeaderLabel.Algorithm), Is.True);
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
@@ -68,12 +68,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-38)); // PS384
@@ -89,12 +89,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-39)); // PS512
@@ -110,7 +110,7 @@ public class CertificateSigningIntegrationTests
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Uses default SHA256 for payload hash (RSA2048 standard)
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -136,7 +136,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA384 for payload hash to match key size
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA384 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -158,7 +158,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA512 for payload hash to match key size
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA512 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -183,12 +183,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-7)); // ES256
@@ -204,12 +204,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-35)); // ES384
@@ -225,12 +225,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-36)); // ES512
@@ -246,7 +246,7 @@ public class CertificateSigningIntegrationTests
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -271,7 +271,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA384 for payload hash to match curve
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA384 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -293,7 +293,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA512 for payload hash to match curve
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA512 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -319,12 +319,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-48)); // ML-DSA-44
@@ -341,12 +341,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-49)); // ML-DSA-65
@@ -363,12 +363,12 @@ public class CertificateSigningIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
         Assert.That(message, Is.Not.Null);
-        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(_testPayload));
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(TestPayload));
 
         var algValue = message.ProtectedHeaders[CoseHeaderLabel.Algorithm];
         Assert.That(ReadInt32FromCoseHeaderValue(algValue), Is.EqualTo(-50)); // ML-DSA-87
@@ -385,7 +385,7 @@ public class CertificateSigningIntegrationTests
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -411,7 +411,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA384 for payload hash (ML-DSA-65 standard)
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA384 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -437,7 +437,7 @@ public class CertificateSigningIntegrationTests
 
         // Act - Use SHA512 for payload hash (ML-DSA-87 standard)
         var options = new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA512 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType, options);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType, options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Assert
@@ -467,7 +467,7 @@ public class CertificateSigningIntegrationTests
             using var rsaCert = rsaChain[0];
             using var service = new LocalCertificateSigningService(rsaCert, rsaChain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(service);
-            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(_testPayload, ContentType));
+            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["RSA2048"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
         }
 
@@ -477,7 +477,7 @@ public class CertificateSigningIntegrationTests
             using var ecdsaCert = ecdsaChain[0];
             using var service = new LocalCertificateSigningService(ecdsaCert, ecdsaChain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(service);
-            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(_testPayload, ContentType));
+            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["ECDSA-P256"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
         }
 
@@ -488,7 +488,7 @@ public class CertificateSigningIntegrationTests
             var mldsaChain = new List<X509Certificate2> { mldsaCert, tempChain[1], tempChain[2] };
             using var service = new LocalCertificateSigningService(mldsaCert, mldsaChain);
             using var factory = new DirectSignatureFactory(service);
-            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(_testPayload, ContentType));
+            var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["MLDSA44"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
         }
 
@@ -537,7 +537,7 @@ public class CertificateSigningIntegrationTests
                 using var service = new LocalCertificateSigningService(cert, chain);
                 using var factory = new IndirectSignatureFactory(service);
 
-                var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+                var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
                 var message = CoseMessage.DecodeSign1(messageBytes);
 
                 // Assert

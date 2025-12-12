@@ -10,7 +10,7 @@ namespace CoseSignTool.Configuration;
 /// </summary>
 public class ConfigurationLoader
 {
-    private readonly List<Action<IConfigurationBuilder>> _builderActions = [];
+    private readonly List<Action<IConfigurationBuilder>> BuilderActions = [];
 
     /// <summary>
     /// Adds environment variables to the configuration with an optional prefix.
@@ -19,7 +19,7 @@ public class ConfigurationLoader
     /// <returns>The configuration loader for chaining.</returns>
     public ConfigurationLoader AddEnvironmentVariables(string? prefix = null)
     {
-        _builderActions.Add(builder =>
+        BuilderActions.Add(builder =>
         {
             if (string.IsNullOrEmpty(prefix))
             {
@@ -40,7 +40,7 @@ public class ConfigurationLoader
     /// <returns>The configuration loader for chaining.</returns>
     public ConfigurationLoader AddInMemoryCollection(IEnumerable<KeyValuePair<string, string?>> initialData)
     {
-        _builderActions.Add(builder => builder.AddInMemoryCollection(initialData));
+        BuilderActions.Add(builder => builder.AddInMemoryCollection(initialData));
         return this;
     }
 
@@ -52,7 +52,7 @@ public class ConfigurationLoader
     {
         var builder = new ConfigurationBuilder();
 
-        foreach (var action in _builderActions)
+        foreach (var action in BuilderActions)
         {
             action(builder);
         }

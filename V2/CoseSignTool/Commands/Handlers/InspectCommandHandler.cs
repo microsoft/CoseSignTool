@@ -12,8 +12,8 @@ namespace CoseSignTool.Commands.Handlers;
 /// </summary>
 public class InspectCommandHandler
 {
-    private readonly IOutputFormatter _formatter;
-    private readonly CoseInspectionService _inspectionService;
+    private readonly IOutputFormatter Formatter;
+    private readonly CoseInspectionService InspectionService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InspectCommandHandler"/> class.
@@ -21,8 +21,8 @@ public class InspectCommandHandler
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
     public InspectCommandHandler(IOutputFormatter? formatter = null)
     {
-        _formatter = formatter ?? new TextOutputFormatter();
-        _inspectionService = new CoseInspectionService(_formatter);
+        Formatter = formatter ?? new TextOutputFormatter();
+        InspectionService = new CoseInspectionService(Formatter);
     }
 
     /// <summary>
@@ -53,14 +53,14 @@ public class InspectCommandHandler
 
             if (file == null || !file.Exists)
             {
-                _formatter.WriteError($"File not found: {file?.FullName ?? "null"}");
-                _formatter.Flush();
+                Formatter.WriteError($"File not found: {file?.FullName ?? "null"}");
+                Formatter.Flush();
                 return (int)ExitCode.FileNotFound;
             }
 
             // Use the inspection service to inspect the file
-            var result = await _inspectionService.InspectAsync(file.FullName);
-            _formatter.Flush();
+            var result = await InspectionService.InspectAsync(file.FullName);
+            Formatter.Flush();
             return result;
         }
         catch (ArgumentNullException)
@@ -69,8 +69,8 @@ public class InspectCommandHandler
         }
         catch (Exception ex)
         {
-            _formatter.WriteError($"Error inspecting file: {ex.Message}");
-            _formatter.Flush();
+            Formatter.WriteError($"Error inspecting file: {ex.Message}");
+            Formatter.Flush();
             return (int)ExitCode.InspectionFailed;
         }
     }

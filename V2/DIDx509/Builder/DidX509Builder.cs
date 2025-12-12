@@ -17,17 +17,17 @@ using DIDx509.Parsing;
 /// </summary>
 public sealed class DidX509Builder
 {
-    private X509Certificate2? _leafCertificate;
-    private X509Certificate2? _caCertificate;
-    private string _hashAlgorithm = DidX509Constants.HashAlgorithmSha256;
-    private readonly List<(string Name, string Value)> _policies = new List<(string, string)>();
+    private X509Certificate2? LeafCertificate;
+    private X509Certificate2? CaCertificate;
+    private string HashAlgorithm = DidX509Constants.HashAlgorithmSha256;
+    private readonly List<(string Name, string Value)> Policies = new List<(string, string)>();
 
     /// <summary>
     /// Sets the leaf certificate (end-entity certificate).
     /// </summary>
     public DidX509Builder WithLeafCertificate(X509Certificate2 certificate)
     {
-        _leafCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        LeafCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
         return this;
     }
 
@@ -36,7 +36,7 @@ public sealed class DidX509Builder
     /// </summary>
     public DidX509Builder WithCaCertificate(X509Certificate2 certificate)
     {
-        _caCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        CaCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
         return this;
     }
 
@@ -56,8 +56,8 @@ public sealed class DidX509Builder
             throw new ArgumentException("Certificate chain cannot be empty", nameof(certificates));
         }
 
-        _leafCertificate = certArray[0];
-        _caCertificate = FindRootCertificate(certArray);
+        LeafCertificate = certArray[0];
+        CaCertificate = FindRootCertificate(certArray);
 
         return this;
     }
@@ -80,7 +80,7 @@ public sealed class DidX509Builder
             throw new ArgumentException($"Unsupported hash algorithm: {algorithm}", nameof(algorithm));
         }
 
-        _hashAlgorithm = algorithm;
+        HashAlgorithm = algorithm;
         return this;
     }
 
@@ -109,7 +109,7 @@ public sealed class DidX509Builder
         }
 
         string policyValue = string.Join(DidX509Constants.ValueSeparator, parts);
-        _policies.Add((DidX509Constants.PolicySubject, policyValue));
+        Policies.Add((DidX509Constants.PolicySubject, policyValue));
 
         return this;
     }
@@ -119,12 +119,12 @@ public sealed class DidX509Builder
     /// </summary>
     public DidX509Builder WithSubjectFromCertificate()
     {
-        if (_leafCertificate == null)
+        if (LeafCertificate == null)
         {
             throw new InvalidOperationException("Leaf certificate must be set before calling WithSubjectFromCertificate");
         }
 
-        var attributes = ExtractSubjectAttributes(_leafCertificate.Subject);
+        var attributes = ExtractSubjectAttributes(LeafCertificate.Subject);
         return WithSubjectPolicy(attributes);
     }
 
@@ -155,7 +155,7 @@ public sealed class DidX509Builder
 
         string encodedValue = PercentEncoding.Encode(value);
         string policyValue = $"{type}{DidX509Constants.ValueSeparator}{encodedValue}";
-        _policies.Add((DidX509Constants.PolicySan, policyValue));
+        Policies.Add((DidX509Constants.PolicySan, policyValue));
 
         return this;
     }
@@ -176,7 +176,7 @@ public sealed class DidX509Builder
             throw new ArgumentException($"Invalid OID format: {oid}", nameof(oid));
         }
 
-        _policies.Add((DidX509Constants.PolicyEku, oid));
+        Policies.Add((DidX509Constants.PolicyEku, oid));
         return this;
     }
 
@@ -198,7 +198,7 @@ public sealed class DidX509Builder
         }
 
         string encodedIssuer = PercentEncoding.Encode(issuer);
-        _policies.Add((DidX509Constants.PolicyFulcioIssuer, encodedIssuer));
+        Policies.Add((DidX509Constants.PolicyFulcioIssuer, encodedIssuer));
 
         return this;
     }
@@ -208,23 +208,23 @@ public sealed class DidX509Builder
     /// </summary>
     public string Build()
     {
-        if (_leafCertificate == null)
+        if (LeafCertificate == null)
         {
             throw new InvalidOperationException("Leaf certificate must be set");
         }
 
-        if (_caCertificate == null)
+        if (CaCertificate == null)
         {
             throw new InvalidOperationException("CA certificate must be set");
         }
 
-        if (_policies.Count == 0)
+        if (Policies.Count == 0)
         {
             throw new InvalidOperationException("At least one policy must be added");
         }
 
         // Compute CA fingerprint
-        byte[] caHash = ComputeHash(_caCertificate.RawData, _hashAlgorithm);
+        byte[] caHash = ComputeHash(CaCertificate.RawData, HashAlgorithm);
         string caFingerprint = ConvertToBase64Url(caHash);
 
         // Build DID: did:x509:version:algorithm:fingerprint::policy1:value1::policy2:value2...
@@ -233,14 +233,14 @@ public sealed class DidX509Builder
             DidX509Constants.DidMethod,
             DidX509Constants.MethodName,
             DidX509Constants.Version,
-            _hashAlgorithm,
+            HashAlgorithm,
             caFingerprint
         };
 
         string prefix = string.Join(DidX509Constants.ValueSeparator, parts);
 
         // Add policies
-        var policyParts = _policies.Select(p => $"{p.Name}{DidX509Constants.ValueSeparator}{p.Value}");
+        var policyParts = Policies.Select(p => $"{p.Name}{DidX509Constants.ValueSeparator}{p.Value}");
         string policiesString = string.Join(DidX509Constants.PolicySeparator, policyParts);
 
         return $"{prefix}{DidX509Constants.PolicySeparator}{policiesString}";

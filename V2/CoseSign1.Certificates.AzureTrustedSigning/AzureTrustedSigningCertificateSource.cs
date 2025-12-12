@@ -26,10 +26,10 @@ namespace CoseSign1.Certificates.AzureTrustedSigning;
 /// </remarks>
 public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
 {
-    private readonly AzSignContext _signContext;
-    private X509Certificate2? _signingCertificate;
-    private readonly object _certificateLock = new();
-    private RSA? _rsaInstance;
+    private readonly AzSignContext SignContext;
+    private X509Certificate2? SigningCertificate;
+    private readonly object CertificateLock = new();
+    private RSA? RsaInstance;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureTrustedSigningCertificateSource"/> class.
@@ -41,7 +41,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
         ICertificateChainBuilder? chainBuilder = null)
         : base(chainBuilder ?? CreateAzureChainBuilder(signContext))
     {
-        _signContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
+        SignContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
     }
 
     private static ICertificateChainBuilder CreateAzureChainBuilder(AzSignContext signContext)
@@ -64,23 +64,23 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     /// <inheritdoc/>
     public override X509Certificate2 GetSigningCertificate()
     {
-        if (_signingCertificate != null)
+        if (SigningCertificate != null)
         {
-            return _signingCertificate;
+            return SigningCertificate;
         }
 
-        lock (_certificateLock)
+        lock (CertificateLock)
         {
-            if (_signingCertificate != null)
+            if (SigningCertificate != null)
             {
-                return _signingCertificate;
+                return SigningCertificate;
             }
 
             // Get the certificate from Azure Trusted Signing SDK
-            _signingCertificate = _signContext.GetSigningCertificate()
+            SigningCertificate = SignContext.GetSigningCertificate()
                 ?? throw new InvalidOperationException("Azure Trusted Signing did not return a signing certificate.");
 
-            return _signingCertificate;
+            return SigningCertificate;
         }
     }
 
@@ -91,7 +91,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     {
         if (data == null) { throw new ArgumentNullException(nameof(data)); }
 
-        var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
+        var rsa = RsaInstance ??= new RSAAzSign(SignContext);
         return rsa.SignData(data, hashAlgorithm, padding);
     }
 
@@ -100,7 +100,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     {
         if (data == null) { throw new ArgumentNullException(nameof(data)); }
 
-        var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
+        var rsa = RsaInstance ??= new RSAAzSign(SignContext);
         // Note: RSA.SignData is synchronous, but we wrap it for async pattern consistency
         return await Task.Run(() => rsa.SignData(data, hashAlgorithm, padding), cancellationToken).ConfigureAwait(false);
     }
@@ -110,7 +110,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     {
         if (hash == null) { throw new ArgumentNullException(nameof(hash)); }
 
-        var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
+        var rsa = RsaInstance ??= new RSAAzSign(SignContext);
         return rsa.SignHash(hash, hashAlgorithm, padding);
     }
 
@@ -119,7 +119,7 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     {
         if (hash == null) { throw new ArgumentNullException(nameof(hash)); }
 
-        var rsa = _rsaInstance ??= new RSAAzSign(_signContext);
+        var rsa = RsaInstance ??= new RSAAzSign(SignContext);
         return await Task.Run(() => rsa.SignHash(hash, hashAlgorithm, padding), cancellationToken).ConfigureAwait(false);
     }
 
@@ -198,11 +198,11 @@ public class AzureTrustedSigningCertificateSource : RemoteCertificateSource
     {
         if (disposing)
         {
-            _signingCertificate?.Dispose();
-            _signingCertificate = null;
+            SigningCertificate?.Dispose();
+            SigningCertificate = null;
 
-            _rsaInstance?.Dispose();
-            _rsaInstance = null;
+            RsaInstance?.Dispose();
+            RsaInstance = null;
 
             // Note: We don't dispose _signContext as it's owned by the service and may be reused
         }

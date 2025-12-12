@@ -25,8 +25,8 @@ namespace CoseSign1.Certificates.AzureTrustedSigning;
 /// </remarks>
 public class AzureTrustedSigningService : CertificateSigningService
 {
-    private readonly AzSignContext _signContext;
-    private readonly AzureTrustedSigningCertificateSource _certificateSource;
+    private readonly AzSignContext SignContext;
+    private readonly AzureTrustedSigningCertificateSource CertificateSource;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureTrustedSigningService"/> class.
@@ -40,8 +40,8 @@ public class AzureTrustedSigningService : CertificateSigningService
         SigningServiceMetadata? serviceMetadata = null)
         : base(isRemote: true, serviceMetadata ?? CreateDefaultMetadata())
     {
-        _signContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
-        _certificateSource = new AzureTrustedSigningCertificateSource(_signContext, chainBuilder);
+        SignContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
+        CertificateSource = new AzureTrustedSigningCertificateSource(SignContext, chainBuilder);
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public class AzureTrustedSigningService : CertificateSigningService
     {
         // Azure Trusted Signing uses a single key per signing profile
         // Return a signing key provider that wraps our reusable certificate source
-        return new Remote.RemoteSigningKeyProvider(_certificateSource, this);
+        return new Remote.RemoteSigningKeyProvider(CertificateSource, this);
     }
 
     /// <inheritdoc/>
@@ -78,7 +78,7 @@ public class AzureTrustedSigningService : CertificateSigningService
     {
         if (disposing)
         {
-            _certificateSource?.Dispose();
+            CertificateSource?.Dispose();
         }
 
         base.Dispose(disposing);

@@ -17,7 +17,7 @@ namespace CoseSign1.Integration.Tests.Remote;
 [TestFixture]
 public class RemoteCertificateSourceIntegrationTests
 {
-    private readonly byte[] _testPayload = Encoding.UTF8.GetBytes("Test payload for remote signing integration testing");
+    private readonly byte[] TestPayload = Encoding.UTF8.GetBytes("Test payload for remote signing integration testing");
     private const string ContentType = "application/json";
 
     [Test]
@@ -33,7 +33,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act - Sign the payload using remote signing
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
         // Assert - Verify we got a valid COSE message
         Assert.That(messageBytes, Is.Not.Null);
@@ -54,7 +54,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act - Sign the payload using remote signing
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
         // Assert - Verify we got a valid COSE message
         Assert.That(messageBytes, Is.Not.Null);
@@ -74,7 +74,7 @@ public class RemoteCertificateSourceIntegrationTests
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act - Sign the payload using remote signing
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
         // Assert - Verify we got a valid COSE message
         Assert.That(messageBytes, Is.Not.Null);
@@ -99,7 +99,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var factory = new DirectSignatureFactory(signingService);
 
             // Act
-            var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+            var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
             // Assert
             Assert.That(messageBytes, Is.Not.Null);
@@ -132,7 +132,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var factory = new DirectSignatureFactory(signingService);
 
             // Act
-            var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+            var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
             // Assert
             Assert.That(messageBytes, Is.Not.Null);
@@ -182,7 +182,7 @@ public class RemoteCertificateSourceIntegrationTests
             using var factory = new DirectSignatureFactory(signingService);
 
             // Act
-            var messageBytes = factory.CreateCoseSign1MessageBytes(_testPayload, ContentType);
+            var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);
 
             // Assert
             Assert.That(messageBytes, Is.Not.Null);

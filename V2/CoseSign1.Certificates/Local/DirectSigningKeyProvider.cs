@@ -14,10 +14,10 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class DirectSigningKeyProvider : ISigningKeyProvider
 {
-    private readonly X509Certificate2 _certificate;
-    private CoseKey? _coseKey;
-    private readonly object _coseKeyLock = new();
-    private bool _disposed;
+    private readonly X509Certificate2 Certificate;
+    private CoseKey? CoseKeyField;
+    private readonly object CoseKeyLock = new();
+    private bool Disposed;
 
     /// <summary>
     /// Initializes a new instance of DirectSigningKeyProvider.
@@ -25,7 +25,7 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     /// <param name="certificate">Certificate with private key</param>
     public DirectSigningKeyProvider(X509Certificate2 certificate)
     {
-        _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
 
         if (!certificate.HasPrivateKey)
         {
@@ -36,20 +36,20 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     /// <inheritdoc/>
     public CoseKey GetCoseKey()
     {
-        if (_coseKey != null)
+        if (CoseKeyField != null)
         {
-            return _coseKey;
+            return CoseKeyField;
         }
 
-        lock (_coseKeyLock)
+        lock (CoseKeyLock)
         {
-            if (_coseKey != null)
+            if (CoseKeyField != null)
             {
-                return _coseKey;
+                return CoseKeyField;
             }
 
-            _coseKey = CreateCoseKey();
-            return _coseKey;
+            CoseKeyField = CreateCoseKey();
+            return CoseKeyField;
         }
     }
 
@@ -59,20 +59,20 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        if (Disposed)
         {
             return;
         }
 
         // Don't dispose certificate - caller owns it
-        _disposed = true;
+        Disposed = true;
         GC.SuppressFinalize(this);
     }
 
     private CoseKey CreateCoseKey()
     {
         // Try RSA first
-        var rsa = _certificate.GetRSAPrivateKey();
+        var rsa = Certificate.GetRSAPrivateKey();
         if (rsa != null)
         {
             // Determine hash algorithm based on key size
@@ -86,7 +86,7 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
         }
 
         // Try ECDsa
-        var ecdsa = _certificate.GetECDsaPrivateKey();
+        var ecdsa = Certificate.GetECDsaPrivateKey();
         if (ecdsa != null)
         {
             // Determine hash algorithm based on curve size
@@ -101,7 +101,7 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
 
         // Try ML-DSA (Post-Quantum)
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
-        var mlDsa = _certificate.GetMLDsaPrivateKey();
+        var mlDsa = Certificate.GetMLDsaPrivateKey();
         if (mlDsa != null)
         {
             return new CoseKey(mlDsa);

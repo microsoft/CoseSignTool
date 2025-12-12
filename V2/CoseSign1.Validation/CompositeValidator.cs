@@ -12,10 +12,10 @@ namespace CoseSign1.Validation;
 /// </summary>
 public sealed class CompositeValidator : IValidator<CoseSign1Message>
 {
-    private readonly IReadOnlyList<IValidator<CoseSign1Message>> _validators;
-    private readonly bool _stopOnFirstFailure;
-    private readonly bool _runInParallel;
-    private readonly ILogger<CompositeValidator> _logger;
+    private readonly IReadOnlyList<IValidator<CoseSign1Message>> Validators;
+    private readonly bool StopOnFirstFailureField;
+    private readonly bool RunInParallelField;
+    private readonly ILogger<CompositeValidator> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CompositeValidator"/> class.
@@ -30,10 +30,10 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
         bool runInParallel = false,
         ILogger<CompositeValidator>? logger = null)
     {
-        _validators = validators?.ToList() ?? throw new ArgumentNullException(nameof(validators));
-        _stopOnFirstFailure = stopOnFirstFailure;
-        _runInParallel = runInParallel;
-        _logger = logger ?? NullLogger<CompositeValidator>.Instance;
+        Validators = validators?.ToList() ?? throw new ArgumentNullException(nameof(validators));
+        StopOnFirstFailureField = stopOnFirstFailure;
+        RunInParallelField = runInParallel;
+        Logger = logger ?? NullLogger<CompositeValidator>.Instance;
     }
 
     /// <summary>
@@ -45,33 +45,33 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
     {
         if (input == null)
         {
-            _logger.LogWarning(
+            Logger.LogWarning(
                 new EventId(LogEvents.ValidationFailed, nameof(LogEvents.ValidationFailed)),
                 "Validation failed: input message is null");
             return ValidationResult.Failure("CompositeValidator", "Input message is null", "NULL_INPUT");
         }
 
-        if (_validators.Count == 0)
+        if (Validators.Count == 0)
         {
-            _logger.LogDebug(
+            Logger.LogDebug(
                 new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
                 "Validation completed with no validators configured");
             return ValidationResult.Success("CompositeValidator");
         }
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.ValidationStarted, nameof(LogEvents.ValidationStarted)),
             "Starting validation with {ValidatorCount} validators. StopOnFirstFailure: {StopOnFirstFailure}, RunInParallel: {RunInParallel}",
-            _validators.Count,
-            _stopOnFirstFailure,
-            _runInParallel);
+            Validators.Count,
+            StopOnFirstFailureField,
+            RunInParallelField);
 
         var results = new List<ValidationResult>();
         var allFailures = new List<ValidationFailure>();
 
-        foreach (var validator in _validators)
+        foreach (var validator in Validators)
         {
-            _logger.LogTrace(
+            Logger.LogTrace(
                 new EventId(LogEvents.ValidatorExecuting, nameof(LogEvents.ValidatorExecuting)),
                 "Executing validator: {ValidatorType}",
                 validator.GetType().Name);
@@ -81,16 +81,16 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
 
             if (!result.IsValid)
             {
-                _logger.LogDebug(
+                Logger.LogDebug(
                     new EventId(LogEvents.ValidatorFailure, nameof(LogEvents.ValidatorFailure)),
                     "Validator {ValidatorType} failed with {FailureCount} failures",
                     validator.GetType().Name,
                     result.Failures.Count);
                 allFailures.AddRange(result.Failures);
 
-                if (_stopOnFirstFailure)
+                if (StopOnFirstFailureField)
                 {
-                    _logger.LogDebug(
+                    Logger.LogDebug(
                         new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
                         "Stopping validation on first failure");
                     break;
@@ -98,7 +98,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
             }
             else
             {
-                _logger.LogTrace(
+                Logger.LogTrace(
                     new EventId(LogEvents.ValidatorPassed, nameof(LogEvents.ValidatorPassed)),
                     "Validator {ValidatorType} passed",
                     validator.GetType().Name);
@@ -107,17 +107,17 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
 
         if (allFailures.Count > 0)
         {
-            _logger.LogInformation(
+            Logger.LogInformation(
                 new EventId(LogEvents.ValidationFailed, nameof(LogEvents.ValidationFailed)),
                 "Validation failed with {FailureCount} total failures",
                 allFailures.Count);
             return ValidationResult.Failure("CompositeValidator", allFailures.ToArray());
         }
 
-        _logger.LogDebug(
+        Logger.LogDebug(
             new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
             "All {ValidatorCount} validators passed successfully",
-            _validators.Count);
+            Validators.Count);
 
         // Merge metadata from all successful validators
         var mergedMetadata = new Dictionary<string, object>();
@@ -145,7 +145,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
             return ValidationResult.Failure("CompositeValidator", "Input message is null", "NULL_INPUT");
         }
 
-        if (_validators.Count == 0)
+        if (Validators.Count == 0)
         {
             return ValidationResult.Success("CompositeValidator");
         }
@@ -153,10 +153,10 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
         var allFailures = new List<ValidationFailure>();
         var results = new List<ValidationResult>();
 
-        if (_runInParallel)
+        if (RunInParallelField)
         {
             // Run validators in parallel
-            var tasks = _validators.Select(v => v.ValidateAsync(input, cancellationToken));
+            var tasks = Validators.Select(v => v.ValidateAsync(input, cancellationToken));
             var parallelResults = await Task.WhenAll(tasks).ConfigureAwait(false);
             results.AddRange(parallelResults);
 
@@ -171,7 +171,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
         else
         {
             // Run validators sequentially
-            foreach (var validator in _validators)
+            foreach (var validator in Validators)
             {
                 var result = await validator.ValidateAsync(input, cancellationToken).ConfigureAwait(false);
                 results.Add(result);
@@ -180,7 +180,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
                 {
                     allFailures.AddRange(result.Failures);
 
-                    if (_stopOnFirstFailure)
+                    if (StopOnFirstFailureField)
                     {
                         break;
                     }

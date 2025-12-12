@@ -15,12 +15,12 @@ namespace CoseSign1.Certificates;
 /// </summary>
 public class CertificateSigningKey : ICertificateSigningKey
 {
-    private readonly ICertificateSource _certificateSource;
-    private readonly ISigningKeyProvider _signingKeyProvider;
-    private readonly ISigningService<SigningOptions> _signingService;
-    private CoseKey? _coseKey;
-    private readonly object _coseKeyLock = new();
-    private bool _disposed;
+    private readonly ICertificateSource CertificateSourceField;
+    private readonly ISigningKeyProvider SigningKeyProviderField;
+    private readonly ISigningService<SigningOptions> SigningServiceField;
+    private CoseKey? CoseKeyField;
+    private readonly object CoseKeyLock = new();
+    private bool Disposed;
 
     /// <summary>
     /// Initializes a new instance of CertificateSigningKey.
@@ -33,42 +33,42 @@ public class CertificateSigningKey : ICertificateSigningKey
         ISigningKeyProvider signingKeyProvider,
         ISigningService<SigningOptions> signingService)
     {
-        _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        _signingKeyProvider = signingKeyProvider ?? throw new ArgumentNullException(nameof(signingKeyProvider));
-        _signingService = signingService ?? throw new ArgumentNullException(nameof(signingService));
+        CertificateSourceField = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
+        SigningKeyProviderField = signingKeyProvider ?? throw new ArgumentNullException(nameof(signingKeyProvider));
+        SigningServiceField = signingService ?? throw new ArgumentNullException(nameof(signingService));
     }
 
     /// <inheritdoc/>
     public CoseKey GetCoseKey()
     {
-        if (_coseKey != null)
+        if (CoseKeyField != null)
         {
-            return _coseKey;
+            return CoseKeyField;
         }
 
-        lock (_coseKeyLock)
+        lock (CoseKeyLock)
         {
-            if (_coseKey != null)
+            if (CoseKeyField != null)
             {
-                return _coseKey;
+                return CoseKeyField;
             }
 
-            _coseKey = _signingKeyProvider.GetCoseKey();
-            return _coseKey;
+            CoseKeyField = SigningKeyProviderField.GetCoseKey();
+            return CoseKeyField;
         }
     }
 
     /// <inheritdoc/>
     public X509Certificate2 GetSigningCertificate()
     {
-        return _certificateSource.GetSigningCertificate();
+        return CertificateSourceField.GetSigningCertificate();
     }
 
     /// <inheritdoc/>
     public IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
     {
-        var chainBuilder = _certificateSource.GetChainBuilder();
-        var cert = _certificateSource.GetSigningCertificate();
+        var chainBuilder = CertificateSourceField.GetChainBuilder();
+        var cert = CertificateSourceField.GetSigningCertificate();
 
         chainBuilder.Build(cert);
 
@@ -83,11 +83,11 @@ public class CertificateSigningKey : ICertificateSigningKey
     public SigningKeyMetadata Metadata => GetMetadata();
 
     /// <inheritdoc/>
-    public ISigningService<SigningOptions> SigningService => _signingService;
+    public ISigningService<SigningOptions> SigningService => SigningServiceField;
 
     private SigningKeyMetadata GetMetadata()
     {
-        var cert = _certificateSource.GetSigningCertificate();
+        var cert = CertificateSourceField.GetSigningCertificate();
 
         // Detect key type and algorithm from certificate
         var keyType = CryptographicKeyType.RSA;
@@ -123,7 +123,7 @@ public class CertificateSigningKey : ICertificateSigningKey
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,
-                isRemote: _signingKeyProvider.IsRemote,
+                isRemote: SigningKeyProviderField.IsRemote,
                 hashAlgorithm: hashAlgorithm,
                 keySizeInBits: keySizeInBits,
                 additionalMetadata: null);
@@ -157,7 +157,7 @@ public class CertificateSigningKey : ICertificateSigningKey
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,
-                isRemote: _signingKeyProvider.IsRemote,
+                isRemote: SigningKeyProviderField.IsRemote,
                 hashAlgorithm: hashAlgorithm,
                 keySizeInBits: keySizeInBits,
                 additionalMetadata: null);
@@ -192,7 +192,7 @@ public class CertificateSigningKey : ICertificateSigningKey
             return new SigningKeyMetadata(
                 coseAlgorithmId: coseAlgorithmId,
                 keyType: keyType,
-                isRemote: _signingKeyProvider.IsRemote,
+                isRemote: SigningKeyProviderField.IsRemote,
                 hashAlgorithm: hashAlgorithm,
                 keySizeInBits: keySizeInBits,
                 additionalMetadata: new Dictionary<string, object>
@@ -205,7 +205,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         return new SigningKeyMetadata(
             coseAlgorithmId: -37, // Default to PS256
             keyType: CryptographicKeyType.RSA,
-            isRemote: _signingKeyProvider.IsRemote,
+            isRemote: SigningKeyProviderField.IsRemote,
             hashAlgorithm: HashAlgorithmName.SHA256,
             keySizeInBits: null,
             additionalMetadata: new Dictionary<string, object>
@@ -217,14 +217,14 @@ public class CertificateSigningKey : ICertificateSigningKey
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        if (Disposed)
         {
             return;
         }
 
-        _signingKeyProvider?.Dispose();
-        _certificateSource?.Dispose();
-        _disposed = true;
+        SigningKeyProviderField?.Dispose();
+        CertificateSourceField?.Dispose();
+        Disposed = true;
         GC.SuppressFinalize(this);
     }
 }

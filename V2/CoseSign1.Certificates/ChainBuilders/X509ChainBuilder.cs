@@ -14,9 +14,9 @@ namespace CoseSign1.Certificates.ChainBuilders;
 /// </summary>
 public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 {
-    private readonly X509Chain _chain;
-    private readonly ILogger<X509ChainBuilder> _logger;
-    private bool _disposed;
+    private readonly X509Chain Chain;
+    private readonly ILogger<X509ChainBuilder> LoggerField;
+    private bool Disposed;
 
     /// <summary>
     /// Gets the default chain policy used by this class when no policy is provided.
@@ -54,21 +54,21 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 #else
         if (chainPolicy == null) { throw new ArgumentNullException(nameof(chainPolicy)); }
 #endif
-        _logger = logger ?? NullLogger<X509ChainBuilder>.Instance;
-        _chain = new X509Chain();
+        LoggerField = logger ?? NullLogger<X509ChainBuilder>.Instance;
+        Chain = new X509Chain();
 
         // Create a new policy to avoid any shared state issues
-        _chain.ChainPolicy.RevocationMode = chainPolicy.RevocationMode;
-        _chain.ChainPolicy.RevocationFlag = chainPolicy.RevocationFlag;
-        _chain.ChainPolicy.VerificationFlags = chainPolicy.VerificationFlags;
-        _chain.ChainPolicy.UrlRetrievalTimeout = chainPolicy.UrlRetrievalTimeout;
+        Chain.ChainPolicy.RevocationMode = chainPolicy.RevocationMode;
+        Chain.ChainPolicy.RevocationFlag = chainPolicy.RevocationFlag;
+        Chain.ChainPolicy.VerificationFlags = chainPolicy.VerificationFlags;
+        Chain.ChainPolicy.UrlRetrievalTimeout = chainPolicy.UrlRetrievalTimeout;
 
         // Copy application policies if any
         if (chainPolicy.ApplicationPolicy.Count > 0)
         {
             foreach (var oid in chainPolicy.ApplicationPolicy)
             {
-                _chain.ChainPolicy.ApplicationPolicy.Add(oid);
+                Chain.ChainPolicy.ApplicationPolicy.Add(oid);
             }
         }
 
@@ -77,26 +77,26 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         {
             foreach (var oid in chainPolicy.CertificatePolicy)
             {
-                _chain.ChainPolicy.CertificatePolicy.Add(oid);
+                Chain.ChainPolicy.CertificatePolicy.Add(oid);
             }
         }
 
         // Copy extra store if any
         if (chainPolicy.ExtraStore.Count > 0)
         {
-            _chain.ChainPolicy.ExtraStore.AddRange(chainPolicy.ExtraStore);
+            Chain.ChainPolicy.ExtraStore.AddRange(chainPolicy.ExtraStore);
         }
 
 #if NET5_0_OR_GREATER
         // Copy trust mode and custom trust store if applicable
-        _chain.ChainPolicy.TrustMode = chainPolicy.TrustMode;
+        Chain.ChainPolicy.TrustMode = chainPolicy.TrustMode;
         if (chainPolicy.CustomTrustStore.Count > 0)
         {
-            _chain.ChainPolicy.CustomTrustStore.AddRange(chainPolicy.CustomTrustStore);
+            Chain.ChainPolicy.CustomTrustStore.AddRange(chainPolicy.CustomTrustStore);
         }
 #endif
 
-        _logger.LogTrace(
+        LoggerField.LogTrace(
             new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
             "X509ChainBuilder initialized. RevocationMode: {RevocationMode}, RevocationFlag: {RevocationFlag}, VerificationFlags: {VerificationFlags}",
             chainPolicy.RevocationMode,
@@ -110,12 +110,12 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         get
         {
 #if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(Disposed, this);
 #else
-            if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
 #endif
-            var elements = new List<X509Certificate2>(_chain.ChainElements.Count);
-            foreach (var element in _chain.ChainElements)
+            var elements = new List<X509Certificate2>(Chain.ChainElements.Count);
+            foreach (var element in Chain.ChainElements)
             {
                 elements.Add(element.Certificate);
             }
@@ -129,22 +129,22 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         get
         {
 #if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(Disposed, this);
 #else
-            if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
 #endif
-            return _chain.ChainPolicy;
+            return Chain.ChainPolicy;
         }
         set
         {
 #if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(Disposed, this);
             ArgumentNullException.ThrowIfNull(value);
 #else
-            if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
             if (value == null) { throw new ArgumentNullException(nameof(value)); }
 #endif
-            _chain.ChainPolicy = value;
+            Chain.ChainPolicy = value;
         }
     }
 
@@ -154,11 +154,11 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         get
         {
 #if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(Disposed, this);
 #else
-            if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
 #endif
-            return _chain.ChainStatus;
+            return Chain.ChainStatus;
         }
     }
 
@@ -166,35 +166,35 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     public bool Build(X509Certificate2 certificate)
     {
 #if NET5_0_OR_GREATER
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Disposed, this);
         ArgumentNullException.ThrowIfNull(certificate);
 #else
-        if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
+        if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
         if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
 #endif
 
-        _logger.LogTrace(
+        LoggerField.LogTrace(
             new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
             "Building certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
             certificate.Subject,
             certificate.Thumbprint);
 
-        bool result = _chain.Build(certificate);
+        bool result = Chain.Build(certificate);
 
         if (result)
         {
-            _logger.LogTrace(
+            LoggerField.LogTrace(
                 new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
                 "Certificate chain built successfully. ChainLength: {ChainLength}",
-                _chain.ChainElements.Count);
+                Chain.ChainElements.Count);
         }
         else
         {
-            var statusSummary = string.Join(", ", _chain.ChainStatus.Select(s => s.Status.ToString()));
-            _logger.LogTrace(
+            var statusSummary = string.Join(", ", Chain.ChainStatus.Select(s => s.Status.ToString()));
+            LoggerField.LogTrace(
                 new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
                 "Certificate chain build failed. ChainLength: {ChainLength}, ChainStatus: {ChainStatus}",
-                _chain.ChainElements.Count,
+                Chain.ChainElements.Count,
                 statusSummary);
         }
 
@@ -204,10 +204,10 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _chain.Dispose();
-            _disposed = true;
+            Chain.Dispose();
+            Disposed = true;
         }
     }
 }

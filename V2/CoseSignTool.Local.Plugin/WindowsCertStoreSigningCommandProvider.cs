@@ -15,9 +15,9 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
 {
-    private ISigningService<CoseSign1.Abstractions.SigningOptions>? _signingService;
-    private string? _certificateSubject;
-    private string? _certificateThumbprint;
+    private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
+    private string? CertificateSubject;
+    private string? CertificateThumbprint;
 
     public string CommandName => "sign-certstore";
 
@@ -75,16 +75,16 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         var chainBuilder = certSource.GetChainBuilder();
 
         // Store metadata
-        _certificateSubject = signingCert.Subject;
-        _certificateThumbprint = signingCert.Thumbprint;
+        CertificateSubject = signingCert.Subject;
+        CertificateThumbprint = signingCert.Thumbprint;
 
         // Create logger for signing service
         var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
 
         // Create signing service
-        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
+        SigningService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
 
-        return await Task.FromResult(_signingService);
+        return await Task.FromResult(SigningService);
     }
 
     public IDictionary<string, string> GetSigningMetadata()
@@ -92,8 +92,8 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         return new Dictionary<string, string>
         {
             ["Certificate Source"] = "Windows certificate store",
-            ["Certificate Subject"] = _certificateSubject ?? "Unknown",
-            ["Certificate Thumbprint"] = _certificateThumbprint ?? "Unknown"
+            ["Certificate Subject"] = CertificateSubject ?? "Unknown",
+            ["Certificate Thumbprint"] = CertificateThumbprint ?? "Unknown"
         };
     }
 }

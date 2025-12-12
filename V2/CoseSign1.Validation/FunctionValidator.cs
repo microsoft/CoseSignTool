@@ -8,24 +8,24 @@ namespace CoseSign1.Validation;
 /// </summary>
 internal sealed class FunctionValidator : IValidator<CoseSign1Message>
 {
-    private readonly Func<CoseSign1Message, ValidationResult> _validatorFunc;
-    private readonly string _name;
+    private readonly Func<CoseSign1Message, ValidationResult> ValidatorFunc;
+    private readonly string Name;
 
     public FunctionValidator(Func<CoseSign1Message, ValidationResult> validatorFunc, string? name = null)
     {
-        _validatorFunc = validatorFunc ?? throw new ArgumentNullException(nameof(validatorFunc));
-        _name = name ?? "FunctionValidator";
+        ValidatorFunc = validatorFunc ?? throw new ArgumentNullException(nameof(validatorFunc));
+        Name = name ?? "FunctionValidator";
     }
 
     public ValidationResult Validate(CoseSign1Message input)
     {
         try
         {
-            return _validatorFunc(input);
+            return ValidatorFunc(input);
         }
         catch (Exception ex)
         {
-            return ValidationResult.Failure(_name, new ValidationFailure
+            return ValidationResult.Failure(Name, new ValidationFailure
             {
                 Message = $"Validation function threw an exception: {ex.Message}",
                 ErrorCode = "VALIDATOR_EXCEPTION",

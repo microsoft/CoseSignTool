@@ -600,14 +600,14 @@ public class DirectCertificateSourceTests
 // Mock classes to support integration tests
 internal class MockSigningService : ISigningService<SigningOptions>
 {
-    private readonly bool _isRemote;
+    private readonly bool IsRemoteField;
 
     public MockSigningService(bool isRemote)
     {
-        _isRemote = isRemote;
+        IsRemoteField = isRemote;
     }
 
-    public bool IsRemote => _isRemote;
+    public bool IsRemote => IsRemoteField;
     public SigningServiceMetadata ServiceMetadata => new SigningServiceMetadata("MockService", "Test service");
 
     public CoseSigner GetCoseSigner(SigningContext context)
@@ -625,27 +625,27 @@ internal class MockSigningService : ISigningService<SigningOptions>
 
 internal class MockSigningKeyProvider : ISigningKeyProvider
 {
-    private readonly X509Certificate2 _certificate;
-    private readonly bool _isRemote;
+    private readonly X509Certificate2 Certificate;
+    private readonly bool IsRemoteField;
 
     public MockSigningKeyProvider(X509Certificate2 certificate, bool isRemote)
     {
-        _certificate = certificate;
-        _isRemote = isRemote;
+        Certificate = certificate;
+        IsRemoteField = isRemote;
     }
 
-    public bool IsRemote => _isRemote;
+    public bool IsRemote => IsRemoteField;
 
     public CoseKey GetCoseKey()
     {
         // Return a basic CoseKey for testing
-        using var rsa = _certificate.GetRSAPublicKey();
+        using var rsa = Certificate.GetRSAPublicKey();
         if (rsa != null)
         {
             return new CoseKey(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
         }
 
-        using var ecdsa = _certificate.GetECDsaPublicKey();
+        using var ecdsa = Certificate.GetECDsaPublicKey();
         if (ecdsa != null)
         {
             return new CoseKey(ecdsa, HashAlgorithmName.SHA256);

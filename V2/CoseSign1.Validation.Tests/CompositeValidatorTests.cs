@@ -13,7 +13,7 @@ namespace CoseSign1.Validation.Tests;
 [TestFixture]
 public class CompositeValidatorTests
 {
-    private CoseSign1Message? _validMessage;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252
@@ -25,7 +25,7 @@ public class CompositeValidatorTests
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
 #pragma warning restore CA2252
@@ -67,7 +67,7 @@ public class CompositeValidatorTests
     {
         var composite = new CompositeValidator(new List<IValidator<CoseSign1Message>>());
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -83,7 +83,7 @@ public class CompositeValidatorTests
         };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -99,7 +99,7 @@ public class CompositeValidatorTests
         };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Count, Is.GreaterThan(0));
@@ -115,7 +115,7 @@ public class CompositeValidatorTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: true);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -133,7 +133,7 @@ public class CompositeValidatorTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: false);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -152,7 +152,7 @@ public class CompositeValidatorTests
         };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Count, Is.EqualTo(3));
@@ -168,7 +168,7 @@ public class CompositeValidatorTests
         };
         var composite = new CompositeValidator(validators);
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -180,7 +180,7 @@ public class CompositeValidatorTests
         var composite = new CompositeValidator(validators);
         using var cts = new CancellationTokenSource();
 
-        var result = await composite.ValidateAsync(_validMessage!, cts.Token);
+        var result = await composite.ValidateAsync(ValidMessage!, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -194,7 +194,7 @@ public class CompositeValidatorTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2 };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.Count, Is.GreaterThan(0));
@@ -203,28 +203,28 @@ public class CompositeValidatorTests
     // Mock validator for testing
     private class MockValidator : IValidator<CoseSign1Message>
     {
-        private readonly bool _shouldPass;
-        private readonly string _errorMessage;
-        private readonly Dictionary<string, object>? _metadata;
+        private readonly bool ShouldPass;
+        private readonly string ErrorMessage;
+        private readonly Dictionary<string, object>? Metadata;
         public bool WasCalled { get; private set; }
 
         public MockValidator(bool shouldPass, string errorMessage = "Mock error", Dictionary<string, object>? metadata = null)
         {
-            _shouldPass = shouldPass;
-            _errorMessage = errorMessage;
-            _metadata = metadata;
+            ShouldPass = shouldPass;
+            ErrorMessage = errorMessage;
+            Metadata = metadata;
         }
 
         public ValidationResult Validate(CoseSign1Message input)
         {
             WasCalled = true;
 
-            if (_shouldPass)
+            if (ShouldPass)
             {
-                return ValidationResult.Success("MockValidator", _metadata);
+                return ValidationResult.Success("MockValidator", Metadata);
             }
 
-            return ValidationResult.Failure("MockValidator", _errorMessage, "MOCK_ERROR");
+            return ValidationResult.Failure("MockValidator", ErrorMessage, "MOCK_ERROR");
         }
 
         public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

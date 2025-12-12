@@ -280,20 +280,20 @@ public class CertificateHeaderContributorTests
     /// </summary>
     private class MockCertificateSigningKey : ICertificateSigningKey
     {
-        private readonly X509Certificate2? _signingCert;
-        private readonly IEnumerable<X509Certificate2> _chain;
+        private readonly X509Certificate2? SigningCert;
+        private readonly IEnumerable<X509Certificate2> Chain;
 
         public MockCertificateSigningKey(X509Certificate2? signingCert, IEnumerable<X509Certificate2> chain)
         {
-            _signingCert = signingCert;
-            _chain = chain ?? Enumerable.Empty<X509Certificate2>();
+            SigningCert = signingCert;
+            Chain = chain ?? Enumerable.Empty<X509Certificate2>();
         }
 
-        public X509Certificate2 GetSigningCertificate() => _signingCert!;
+        public X509Certificate2 GetSigningCertificate() => SigningCert!;
 
         public IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
         {
-            return sortOrder == X509ChainSortOrder.LeafFirst ? _chain : _chain.Reverse();
+            return sortOrder == X509ChainSortOrder.LeafFirst ? Chain : Chain.Reverse();
         }
 
         public CoseKey GetCoseKey() => throw new NotImplementedException();

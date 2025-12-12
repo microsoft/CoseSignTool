@@ -20,7 +20,7 @@ namespace CoseSign1.Transparent.MST.Validation;
 /// </remarks>
 public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
 {
-    private readonly MstTransparencyProvider _provider;
+    private readonly MstTransparencyProvider Provider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstReceiptValidator"/> class.
@@ -33,7 +33,7 @@ public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
             throw new ArgumentNullException(nameof(client));
         }
 
-        _provider = new MstTransparencyProvider(client);
+        Provider = new MstTransparencyProvider(client);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
             throw new ArgumentNullException(nameof(verificationOptions));
         }
 
-        _provider = new MstTransparencyProvider(client, verificationOptions, clientOptions);
+        Provider = new MstTransparencyProvider(client, verificationOptions, clientOptions);
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
     /// <param name="provider">The MST transparency provider to use for validation.</param>
     public MstReceiptValidator(MstTransparencyProvider provider)
     {
-        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        Provider = provider ?? throw new ArgumentNullException(nameof(provider));
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
         // Verify the receipt using the MST provider
         try
         {
-            var transparencyResult = await _provider.VerifyTransparencyProofAsync(input, cancellationToken)
+            var transparencyResult = await Provider.VerifyTransparencyProofAsync(input, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!transparencyResult.IsValid)

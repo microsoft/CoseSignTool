@@ -13,7 +13,7 @@ namespace CoseSign1.Validation.Tests;
 [TestFixture]
 public class CompositeValidatorAdditionalTests
 {
-    private CoseSign1Message? _validMessage;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
 #pragma warning disable CA2252
@@ -25,7 +25,7 @@ public class CompositeValidatorAdditionalTests
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
 #pragma warning restore CA2252
@@ -47,7 +47,7 @@ public class CompositeValidatorAdditionalTests
     {
         var composite = new CompositeValidator(new List<IValidator<CoseSign1Message>>());
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -64,7 +64,7 @@ public class CompositeValidatorAdditionalTests
         var composite = new CompositeValidator(validators, runInParallel: true);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
         sw.Stop();
 
         Assert.That(result.IsValid, Is.True);
@@ -83,7 +83,7 @@ public class CompositeValidatorAdditionalTests
         var composite = new CompositeValidator(validators, runInParallel: false);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
         sw.Stop();
 
         Assert.That(result.IsValid, Is.True);
@@ -102,7 +102,7 @@ public class CompositeValidatorAdditionalTests
         };
         var composite = new CompositeValidator(validators, runInParallel: true);
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Count, Is.EqualTo(3));
@@ -118,7 +118,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: true);
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -136,7 +136,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: false);
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -153,7 +153,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2 };
         var composite = new CompositeValidator(validators);
 
-        var result = await composite.ValidateAsync(_validMessage!);
+        var result = await composite.ValidateAsync(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("MockValidator.Data1"), Is.True);
@@ -169,7 +169,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator<CoseSign1Message>> { validator1, validator2 };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(_validMessage!);
+        var result = composite.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["MockValidator_V1.Key"], Is.EqualTo("Value1"));
@@ -184,33 +184,33 @@ public class CompositeValidatorAdditionalTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Assert.ThrowsAsync<TaskCanceledException>(() => composite.ValidateAsync(_validMessage!, cts.Token));
+        Assert.ThrowsAsync<TaskCanceledException>(() => composite.ValidateAsync(ValidMessage!, cts.Token));
     }
 
     // Mock validators for testing
     private class MockValidator : IValidator<CoseSign1Message>
     {
-        private readonly bool _shouldPass;
-        private readonly string _errorMessage;
-        private readonly Dictionary<string, object>? _metadata;
-        private readonly string _validatorName;
+        private readonly bool ShouldPass;
+        private readonly string ErrorMessage;
+        private readonly Dictionary<string, object>? Metadata;
+        private readonly string ValidatorName;
         public bool WasCalled { get; private set; }
 
         public MockValidator(bool shouldPass, string? errorMessageOrSuffix = null, Dictionary<string, object>? metadata = null)
         {
-            _shouldPass = shouldPass;
-            _metadata = metadata;
+            ShouldPass = shouldPass;
+            Metadata = metadata;
 
             // If metadata is provided and errorMessageOrSuffix doesn't contain "error", treat it as a suffix
             if (metadata != null && errorMessageOrSuffix != null && !errorMessageOrSuffix.ToLowerInvariant().Contains("error"))
             {
-                _validatorName = $"MockValidator_{errorMessageOrSuffix}";
-                _errorMessage = "Mock error";
+                ValidatorName = $"MockValidator_{errorMessageOrSuffix}";
+                ErrorMessage = "Mock error";
             }
             else
             {
-                _validatorName = "MockValidator";
-                _errorMessage = errorMessageOrSuffix ?? "Mock error";
+                ValidatorName = "MockValidator";
+                ErrorMessage = errorMessageOrSuffix ?? "Mock error";
             }
         }
 
@@ -218,12 +218,12 @@ public class CompositeValidatorAdditionalTests
         {
             WasCalled = true;
 
-            if (_shouldPass)
+            if (ShouldPass)
             {
-                return ValidationResult.Success(_validatorName, _metadata);
+                return ValidationResult.Success(ValidatorName, Metadata);
             }
 
-            return ValidationResult.Failure(_validatorName, _errorMessage, "MOCK_ERROR");
+            return ValidationResult.Failure(ValidatorName, ErrorMessage, "MOCK_ERROR");
         }
 
         public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
@@ -234,27 +234,27 @@ public class CompositeValidatorAdditionalTests
 
     private class DelayedValidator : IValidator<CoseSign1Message>
     {
-        private readonly int _delayMs;
-        private readonly bool _shouldPass;
+        private readonly int DelayMs;
+        private readonly bool ShouldPass;
 
         public DelayedValidator(int delayMs, bool shouldPass)
         {
-            _delayMs = delayMs;
-            _shouldPass = shouldPass;
+            DelayMs = delayMs;
+            ShouldPass = shouldPass;
         }
 
         public ValidationResult Validate(CoseSign1Message input)
         {
-            Thread.Sleep(_delayMs);
-            return _shouldPass
+            Thread.Sleep(DelayMs);
+            return ShouldPass
                 ? ValidationResult.Success("DelayedValidator")
                 : ValidationResult.Failure("DelayedValidator", "Delayed error", "DELAY_ERROR");
         }
 
         public async Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
         {
-            await Task.Delay(_delayMs, cancellationToken);
-            return _shouldPass
+            await Task.Delay(DelayMs, cancellationToken);
+            return ShouldPass
                 ? ValidationResult.Success("DelayedValidator")
                 : ValidationResult.Failure("DelayedValidator", "Delayed error", "DELAY_ERROR");
         }

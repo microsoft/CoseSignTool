@@ -11,8 +11,8 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
 {
-    private readonly ReadOnlyMemory<byte> _payload;
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly ReadOnlyMemory<byte> Payload;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateDetachedSignatureValidator"/> class.
@@ -26,8 +26,8 @@ public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1
             throw new ArgumentNullException(nameof(payload));
         }
 
-        _payload = new ReadOnlyMemory<byte>(payload);
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        Payload = new ReadOnlyMemory<byte>(payload);
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <summary>
@@ -37,8 +37,8 @@ public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateDetachedSignatureValidator(ReadOnlyMemory<byte> payload, bool allowUnprotectedHeaders = false)
     {
-        _payload = payload;
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        Payload = payload;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -59,7 +59,7 @@ public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1
                 "UNEXPECTED_EMBEDDED_CONTENT");
         }
 
-        bool isValid = input.VerifySignature(_payload.ToArray(), _allowUnprotectedHeaders);
+        bool isValid = input.VerifySignature(Payload.ToArray(), AllowUnprotectedHeaders);
 
         if (!isValid)
         {

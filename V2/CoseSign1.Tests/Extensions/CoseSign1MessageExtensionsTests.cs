@@ -46,18 +46,18 @@ public class CoseSign1MessageExtensionsTests
     /// </summary>
     private class CustomHeaderContributor : IHeaderContributor
     {
-        private readonly CoseHeaderMap _headers;
+        private readonly CoseHeaderMap Headers;
 
         public CustomHeaderContributor(CoseHeaderMap headers)
         {
-            _headers = headers;
+            Headers = headers;
         }
 
         public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
 
         public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
         {
-            foreach (var (label, value) in _headers)
+            foreach (var (label, value) in Headers)
             {
                 headers[label] = value;
             }

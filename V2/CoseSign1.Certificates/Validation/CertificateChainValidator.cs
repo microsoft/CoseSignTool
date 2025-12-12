@@ -15,11 +15,11 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
 {
-    private readonly ICertificateChainBuilder _chainBuilder;
-    private readonly bool _allowUnprotectedHeaders;
-    private readonly bool _allowUntrusted;
-    private readonly X509Certificate2Collection? _customRoots;
-    private readonly bool _trustUserRoots;
+    private readonly ICertificateChainBuilder ChainBuilder;
+    private readonly bool AllowUnprotectedHeaders;
+    private readonly bool AllowUntrusted;
+    private readonly X509Certificate2Collection? CustomRoots;
+    private readonly bool TrustUserRoots;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateChainValidator"/> class.
@@ -33,17 +33,17 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         bool allowUntrusted = false,
         X509RevocationMode revocationMode = X509RevocationMode.Online)
     {
-        _chainBuilder = new X509ChainBuilder
+        ChainBuilder = new X509ChainBuilder
         {
             ChainPolicy = new X509ChainPolicy
             {
                 RevocationMode = revocationMode
             }
         };
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
-        _allowUntrusted = allowUntrusted;
-        _customRoots = null;
-        _trustUserRoots = true;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        AllowUntrusted = allowUntrusted;
+        CustomRoots = null;
+        TrustUserRoots = true;
     }
 
     /// <summary>
@@ -60,17 +60,17 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         bool trustUserRoots = true,
         X509RevocationMode revocationMode = X509RevocationMode.Online)
     {
-        _chainBuilder = new X509ChainBuilder
+        ChainBuilder = new X509ChainBuilder
         {
             ChainPolicy = new X509ChainPolicy
             {
                 RevocationMode = revocationMode
             }
         };
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
-        _allowUntrusted = false;
-        _customRoots = customRoots ?? throw new ArgumentNullException(nameof(customRoots));
-        _trustUserRoots = trustUserRoots;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        AllowUntrusted = false;
+        CustomRoots = customRoots ?? throw new ArgumentNullException(nameof(customRoots));
+        TrustUserRoots = trustUserRoots;
     }
 
     /// <summary>
@@ -89,11 +89,11 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         X509Certificate2Collection? customRoots = null,
         bool trustUserRoots = true)
     {
-        _chainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
-        _allowUntrusted = allowUntrusted;
-        _customRoots = customRoots;
-        _trustUserRoots = trustUserRoots;
+        ChainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        AllowUntrusted = allowUntrusted;
+        CustomRoots = customRoots;
+        TrustUserRoots = trustUserRoots;
     }
 
     public ValidationResult Validate(CoseSign1Message input)
@@ -106,7 +106,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
                 "NULL_INPUT");
         }
 
-        if (!input.TryGetSigningCertificate(out var signingCert, _allowUnprotectedHeaders))
+        if (!input.TryGetSigningCertificate(out var signingCert, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
                 nameof(CertificateChainValidator),
@@ -115,24 +115,24 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         }
 
         // Get the certificate chain from the message
-        input.TryGetCertificateChain(out var messageChain, _allowUnprotectedHeaders);
-        input.TryGetExtraCertificates(out var extraCerts, _allowUnprotectedHeaders);
+        input.TryGetCertificateChain(out var messageChain, AllowUnprotectedHeaders);
+        input.TryGetExtraCertificates(out var extraCerts, AllowUnprotectedHeaders);
 
         // Configure custom roots if provided
-        if (_customRoots != null && _customRoots.Count > 0)
+        if (CustomRoots != null && CustomRoots.Count > 0)
         {
-            _chainBuilder.ChainPolicy.ExtraStore.Clear();
+            ChainBuilder.ChainPolicy.ExtraStore.Clear();
 
 #if NET5_0_OR_GREATER
-            if (_trustUserRoots)
+            if (TrustUserRoots)
             {
-                _chainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                _chainBuilder.ChainPolicy.CustomTrustStore.Clear();
-                _chainBuilder.ChainPolicy.CustomTrustStore.AddRange(_customRoots);
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                ChainBuilder.ChainPolicy.CustomTrustStore.Clear();
+                ChainBuilder.ChainPolicy.CustomTrustStore.AddRange(CustomRoots);
             }
             else
             {
-                _chainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
+                ChainBuilder.ChainPolicy.TrustMode = X509ChainTrustMode.System;
             }
 #endif
         }
@@ -140,16 +140,16 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         // Add message chain and extra certificates to the extra store
         if (messageChain != null && messageChain.Count > 0)
         {
-            _chainBuilder.ChainPolicy.ExtraStore.AddRange(messageChain);
+            ChainBuilder.ChainPolicy.ExtraStore.AddRange(messageChain);
         }
 
         if (extraCerts != null && extraCerts.Count > 0)
         {
-            _chainBuilder.ChainPolicy.ExtraStore.AddRange(extraCerts);
+            ChainBuilder.ChainPolicy.ExtraStore.AddRange(extraCerts);
         }
 
         // Build the chain
-        bool chainBuildSuccess = _chainBuilder.Build(signingCert);
+        bool chainBuildSuccess = ChainBuilder.Build(signingCert);
 
         if (chainBuildSuccess)
         {
@@ -160,14 +160,14 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         }
 
         // Retry if revocation check failed (server might be temporarily down)
-        if (_chainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
+        if (ChainBuilder.ChainPolicy.RevocationMode != X509RevocationMode.NoCheck)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {
-                if (_chainBuilder.ChainStatus.Any(s => (s.Status & X509ChainStatusFlags.RevocationStatusUnknown) != 0))
+                if (ChainBuilder.ChainStatus.Any(s => (s.Status & X509ChainStatusFlags.RevocationStatusUnknown) != 0))
                 {
                     Thread.Sleep(1000);
-                    if (_chainBuilder.Build(signingCert))
+                    if (ChainBuilder.Build(signingCert))
                     {
                         return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
                         {
@@ -184,7 +184,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         }
 
         // Check if we should allow untrusted roots
-        if (_allowUntrusted && _chainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
+        if (AllowUntrusted && ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
         {
             return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
             {
@@ -194,13 +194,13 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         }
 
         // Check if custom root is trusted
-        if (_customRoots != null && _trustUserRoots)
+        if (CustomRoots != null && TrustUserRoots)
         {
-            var chainRoot = _chainBuilder.ChainElements?.FirstOrDefault(e => e.Subject.Equals(e.Issuer));
-            if (chainRoot != null && _customRoots.Cast<X509Certificate2>().Any(r => r.Thumbprint == chainRoot.Thumbprint))
+            var chainRoot = ChainBuilder.ChainElements?.FirstOrDefault(e => e.Subject.Equals(e.Issuer));
+            if (chainRoot != null && CustomRoots.Cast<X509Certificate2>().Any(r => r.Thumbprint == chainRoot.Thumbprint))
             {
                 // User-supplied root found in chain
-                if (_chainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
+                if (ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
                 {
                     return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
                     {
@@ -212,7 +212,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         }
 
         // Build failure messages
-        var failures = _chainBuilder.ChainStatus
+        var failures = ChainBuilder.ChainStatus
             .Where(s => s.Status != X509ChainStatusFlags.NoError)
             .Select(s => new ValidationFailure
             {

@@ -14,29 +14,29 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class SignatureValidationExtensionsTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? _testCert;
-    private CoseSign1Message? _validMessage;
-    private byte[]? _payload;
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
+    private CoseSign1Message? ValidMessage;
+    private byte[]? Payload;
 
     [SetUp]
 #pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
+        TestCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(_testCert, chainBuilder);
+        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
-        _payload = new byte[] { 1, 2, 3, 4, 5 };
-        var messageBytes = factory.CreateCoseSign1MessageBytes(_payload, "application/test");
-        _validMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        Payload = new byte[] { 1, 2, 3, 4, 5 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(Payload, "application/test");
+        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
 #pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     [Test]
@@ -88,7 +88,7 @@ public class SignatureValidationExtensionsTests
             .ValidateCertificateSignature();
 
         var validator = builder.Build();
-        var validationResult = validator.Validate(_validMessage!);
+        var validationResult = validator.Validate(ValidMessage!);
 
         Assert.That(validationResult.IsValid, Is.True);
     }
@@ -100,7 +100,7 @@ public class SignatureValidationExtensionsTests
             .ValidateCertificateSignature(allowUnprotectedHeaders: true);
 
         var validator = builder.Build();
-        var validationResult = validator.Validate(_validMessage!);
+        var validationResult = validator.Validate(ValidMessage!);
 
         Assert.That(validationResult.IsValid, Is.True);
     }

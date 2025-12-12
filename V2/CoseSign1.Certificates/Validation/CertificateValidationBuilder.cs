@@ -14,12 +14,12 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 internal sealed class CertificateValidationBuilder : ICertificateValidationBuilder
 {
-    private readonly List<IValidator<CoseSign1Message>> _validators = new();
-    private bool _allowUnprotectedHeaders = false;
+    private readonly List<IValidator<CoseSign1Message>> ValidatorsField = new();
+    private bool AllowUnprotectedHeadersField = false;
 
     public ICertificateValidationBuilder HasCommonName(string commonName)
     {
-        _validators.Add(new CertificateCommonNameValidator(commonName, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateCommonNameValidator(commonName, AllowUnprotectedHeadersField));
         return this;
     }
 
@@ -31,43 +31,43 @@ internal sealed class CertificateValidationBuilder : ICertificateValidationBuild
 
     public ICertificateValidationBuilder NotExpired()
     {
-        _validators.Add(new CertificateExpirationValidator(_allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateExpirationValidator(AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder NotExpired(DateTime asOf)
     {
-        _validators.Add(new CertificateExpirationValidator(asOf, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateExpirationValidator(asOf, AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder HasEnhancedKeyUsage(Oid eku)
     {
-        _validators.Add(new CertificateKeyUsageValidator(eku, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateKeyUsageValidator(eku, AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder HasEnhancedKeyUsage(string ekuOid)
     {
-        _validators.Add(new CertificateKeyUsageValidator(ekuOid, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateKeyUsageValidator(ekuOid, AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder HasKeyUsage(X509KeyUsageFlags usage)
     {
-        _validators.Add(new CertificateKeyUsageValidator(usage, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificateKeyUsageValidator(usage, AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder Matches(Func<X509Certificate2, bool> predicate, string? failureMessage = null)
     {
-        _validators.Add(new CertificatePredicateValidator(predicate, failureMessage, _allowUnprotectedHeaders));
+        ValidatorsField.Add(new CertificatePredicateValidator(predicate, failureMessage, AllowUnprotectedHeadersField));
         return this;
     }
 
     public ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true)
     {
-        _allowUnprotectedHeaders = allow;
+        AllowUnprotectedHeadersField = allow;
         return this;
     }
 
@@ -76,16 +76,16 @@ internal sealed class CertificateValidationBuilder : ICertificateValidationBuild
     /// </summary>
     internal IValidator<CoseSign1Message> Build()
     {
-        if (_validators.Count == 0)
+        if (ValidatorsField.Count == 0)
         {
             throw new InvalidOperationException("No certificate validators configured");
         }
 
-        if (_validators.Count == 1)
+        if (ValidatorsField.Count == 1)
         {
-            return _validators[0];
+            return ValidatorsField[0];
         }
 
-        return new CompositeValidator(_validators);
+        return new CompositeValidator(ValidatorsField);
     }
 }

@@ -15,7 +15,7 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class PfxCertificateSource : CertificateSourceBase
 {
-    private readonly X509Certificate2 _certificate;
+    private readonly X509Certificate2 Certificate;
 
     /// <summary>
     /// Initializes a new instance of PfxCertificateSource from a file path.
@@ -41,9 +41,9 @@ public class PfxCertificateSource : CertificateSourceBase
             new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
             "PfxCertificateSource initialized from file. FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
             pfxFilePath,
-            _certificate.Subject,
-            _certificate.Thumbprint,
-            _certificate.HasPrivateKey);
+            Certificate.Subject,
+            Certificate.Thumbprint,
+            Certificate.HasPrivateKey);
     }
 
     /// <summary>
@@ -69,9 +69,9 @@ public class PfxCertificateSource : CertificateSourceBase
         Logger.LogTrace(
             new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
             "PfxCertificateSource initialized from bytes. Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
-            _certificate.Subject,
-            _certificate.Thumbprint,
-            _certificate.HasPrivateKey);
+            Certificate.Subject,
+            Certificate.Thumbprint,
+            Certificate.HasPrivateKey);
     }
 
     /// <summary>
@@ -83,21 +83,21 @@ public class PfxCertificateSource : CertificateSourceBase
         ILogger<PfxCertificateSource>? logger)
         : base(loaded.chain, chainBuilder, logger)
     {
-        _certificate = loaded.certificate;
+        Certificate = loaded.certificate;
     }
 
     /// <inheritdoc/>
-    public override X509Certificate2 GetSigningCertificate() => _certificate;
+    public override X509Certificate2 GetSigningCertificate() => Certificate;
 
     /// <inheritdoc/>
-    public override bool HasPrivateKey => _certificate.HasPrivateKey;
+    public override bool HasPrivateKey => Certificate.HasPrivateKey;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _certificate?.Dispose();
+            Certificate?.Dispose();
         }
         base.Dispose(disposing);
     }

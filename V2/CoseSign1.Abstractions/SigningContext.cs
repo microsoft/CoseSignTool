@@ -14,8 +14,8 @@ namespace CoseSign1.Abstractions;
 /// </summary>
 public class SigningContext
 {
-    private readonly Stream? _payloadStream;
-    private readonly ReadOnlyMemory<byte> _payloadBytes;
+    private readonly Stream? PayloadStreamField;
+    private readonly ReadOnlyMemory<byte> PayloadBytesField;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SigningContext"/> class with a stream payload.
@@ -26,7 +26,7 @@ public class SigningContext
         IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
-        _payloadStream = payloadStream ?? throw new ArgumentNullException(nameof(payloadStream));
+        PayloadStreamField = payloadStream ?? throw new ArgumentNullException(nameof(payloadStream));
         ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
         AdditionalHeaderContributors = additionalHeaderContributors;
         AdditionalContext = additionalContext;
@@ -42,7 +42,7 @@ public class SigningContext
         IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
-        _payloadBytes = payloadBytes;
+        PayloadBytesField = payloadBytes;
         ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
         AdditionalHeaderContributors = additionalHeaderContributors;
         AdditionalContext = additionalContext;
@@ -58,13 +58,13 @@ public class SigningContext
     /// Gets the payload stream to be signed.
     /// Only valid when <see cref="HasStream"/> is true.
     /// </summary>
-    public Stream PayloadStream => _payloadStream ?? throw new InvalidOperationException("Context contains byte payload, not stream. Check HasStream property.");
+    public Stream PayloadStream => PayloadStreamField ?? throw new InvalidOperationException("Context contains byte payload, not stream. Check HasStream property.");
 
     /// <summary>
     /// Gets the payload bytes to be signed.
     /// Only valid when <see cref="HasStream"/> is false.
     /// </summary>
-    public ReadOnlyMemory<byte> PayloadBytes => HasStream ? throw new InvalidOperationException("Context contains stream payload, not bytes. Check HasStream property.") : _payloadBytes;
+    public ReadOnlyMemory<byte> PayloadBytes => HasStream ? throw new InvalidOperationException("Context contains stream payload, not bytes. Check HasStream property.") : PayloadBytesField;
 
     /// <summary>
     /// Gets the content type of the payload (e.g., "application/json").

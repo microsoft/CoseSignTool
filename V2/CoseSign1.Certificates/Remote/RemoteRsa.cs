@@ -11,15 +11,15 @@ namespace CoseSign1.Certificates.Remote;
 /// </summary>
 internal sealed class RemoteRsa : RSA
 {
-    private readonly RemoteCertificateSource _certificateSource;
-    private readonly RSAParameters _publicParameters;
-    private bool _disposed;
+    private readonly RemoteCertificateSource CertificateSource;
+    private readonly RSAParameters PublicParameters;
+    private bool Disposed;
 
     public RemoteRsa(RemoteCertificateSource certificateSource, RSAParameters publicParameters)
     {
-        _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        _publicParameters = publicParameters;
-        KeySizeValue = _publicParameters.Modulus?.Length * 8 ?? 0;
+        CertificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
+        PublicParameters = publicParameters;
+        KeySizeValue = PublicParameters.Modulus?.Length * 8 ?? 0;
     }
 
     public override RSAParameters ExportParameters(bool includePrivateParameters)
@@ -29,7 +29,7 @@ internal sealed class RemoteRsa : RSA
             throw new CryptographicException("Private key export is not supported for remote signing.");
         }
 
-        return _publicParameters;
+        return PublicParameters;
     }
 
     public override void ImportParameters(RSAParameters parameters)
@@ -44,14 +44,14 @@ internal sealed class RemoteRsa : RSA
             throw new CryptographicException("Only PSS padding is supported for remote RSA signing.");
         }
 
-        return _certificateSource.SignHashWithRsa(hash, hashAlgorithm, padding);
+        return CertificateSource.SignHashWithRsa(hash, hashAlgorithm, padding);
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _disposed = true;
+            Disposed = true;
             base.Dispose(disposing);
         }
     }

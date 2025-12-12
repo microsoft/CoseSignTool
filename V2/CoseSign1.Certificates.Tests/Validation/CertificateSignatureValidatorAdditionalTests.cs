@@ -19,18 +19,18 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateSignatureValidatorAdditionalTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? _testCert;
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
 
     [SetUp]
     public void SetUp()
     {
-        _testCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorAdditionalTest");
+        TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorAdditionalTest");
     }
 
     [TearDown]
     public void TearDown()
     {
-        _testCert?.Dispose();
+        TestCert?.Dispose();
     }
 
     #region Error Code Tests
@@ -241,7 +241,7 @@ public class CertificateSignatureValidatorAdditionalTests
     private CoseSign1Message CreateValidEmbeddedSignature()
     {
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -252,7 +252,7 @@ public class CertificateSignatureValidatorAdditionalTests
     {
         // Create a valid embedded signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -294,7 +294,7 @@ public class CertificateSignatureValidatorAdditionalTests
     {
         // Create a valid signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(_testCert!, chainBuilder);
+        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

@@ -13,7 +13,7 @@ namespace CoseSign1.Validation.Tests;
 [TestFixture]
 public class FunctionValidatorTests
 {
-    private CoseSign1Message? _validMessage;
+    private CoseSign1Message? ValidMessage;
 
     [SetUp]
     public void Setup()
@@ -23,7 +23,7 @@ public class FunctionValidatorTests
         using var ecdsa = ECDsa.Create();
         var signer = new CoseSigner(ecdsa, HashAlgorithmName.SHA256);
         var signedBytes = CoseSign1Message.SignDetached(payload, signer);
-        _validMessage = CoseSign1Message.DecodeSign1(signedBytes);
+        ValidMessage = CoseSign1Message.DecodeSign1(signedBytes);
     }
 
     [Test]
@@ -50,7 +50,7 @@ public class FunctionValidatorTests
         var validator = new FunctionValidator(msg => ValidationResult.Success("TestValidator"));
 
         // Act
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -64,7 +64,7 @@ public class FunctionValidatorTests
             ValidationResult.Failure("TestValidator", "Test error", "TEST_ERROR"));
 
         // Act
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -76,7 +76,7 @@ public class FunctionValidatorTests
     public void Validate_WithNullMessage_PassesNullToFunction()
     {
         // Arrange
-        CoseSign1Message? capturedMessage = _validMessage;
+        CoseSign1Message? capturedMessage = ValidMessage;
         var validator = new FunctionValidator(msg =>
         {
             capturedMessage = msg;
@@ -102,10 +102,10 @@ public class FunctionValidatorTests
         });
 
         // Act
-        validator.Validate(_validMessage!);
+        validator.Validate(ValidMessage!);
 
         // Assert
-        Assert.That(capturedMessage, Is.SameAs(_validMessage));
+        Assert.That(capturedMessage, Is.SameAs(ValidMessage));
     }
 
     [Test]
@@ -115,7 +115,7 @@ public class FunctionValidatorTests
         var validator = new FunctionValidator(msg => ValidationResult.Success("TestValidator"));
 
         // Act
-        var result = await validator.ValidateAsync(_validMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -129,7 +129,7 @@ public class FunctionValidatorTests
             ValidationResult.Failure("TestValidator", "Async error", "ASYNC_ERROR"));
 
         // Act
-        var result = await validator.ValidateAsync(_validMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -143,7 +143,7 @@ public class FunctionValidatorTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(_validMessage!, cts.Token);
+        var result = await validator.ValidateAsync(ValidMessage!, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -156,7 +156,7 @@ public class FunctionValidatorTests
         var validator = new FunctionValidator(msg => throw new InvalidOperationException("Test exception"));
 
         // Act
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -174,7 +174,7 @@ public class FunctionValidatorTests
             ValidationResult.Success("TestValidator", metadata));
 
         // Act
-        var result = validator.Validate(_validMessage!);
+        var result = validator.Validate(ValidMessage!);
 
         // Assert
         Assert.That(result.IsValid, Is.True);

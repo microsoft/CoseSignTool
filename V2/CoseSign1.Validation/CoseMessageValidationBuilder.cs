@@ -8,10 +8,10 @@ namespace CoseSign1.Validation;
 /// </summary>
 internal sealed class CoseMessageValidationBuilder : ICoseMessageValidationBuilder
 {
-    private readonly List<IValidator<CoseSign1Message>> _validators = new();
-    private readonly ValidationBuilderContext _context = new();
+    private readonly List<IValidator<CoseSign1Message>> Validators = new();
+    private readonly ValidationBuilderContext ContextField = new();
 
-    public ValidationBuilderContext Context => _context;
+    public ValidationBuilderContext Context => ContextField;
 
     public ICoseMessageValidationBuilder AddValidator(IValidator<CoseSign1Message> validator)
     {
@@ -20,7 +20,7 @@ internal sealed class CoseMessageValidationBuilder : ICoseMessageValidationBuild
             throw new ArgumentNullException(nameof(validator));
         }
 
-        _validators.Add(validator);
+        Validators.Add(validator);
         return this;
     }
 
@@ -31,24 +31,24 @@ internal sealed class CoseMessageValidationBuilder : ICoseMessageValidationBuild
             throw new ArgumentNullException(nameof(validatorFunc));
         }
 
-        _validators.Add(new FunctionValidator(validatorFunc));
+        Validators.Add(new FunctionValidator(validatorFunc));
         return this;
     }
 
     public ICoseMessageValidationBuilder StopOnFirstFailure(bool stopOnFirstFailure = true)
     {
-        _context.StopOnFirstFailure = stopOnFirstFailure;
+        ContextField.StopOnFirstFailure = stopOnFirstFailure;
         return this;
     }
 
     public ICoseMessageValidationBuilder RunInParallel(bool parallel = true)
     {
-        _context.RunInParallel = parallel;
+        ContextField.RunInParallel = parallel;
         return this;
     }
 
     public IValidator<CoseSign1Message> Build()
     {
-        return new CompositeValidator(_validators, _context.StopOnFirstFailure, _context.RunInParallel);
+        return new CompositeValidator(Validators, ContextField.StopOnFirstFailure, ContextField.RunInParallel);
     }
 }

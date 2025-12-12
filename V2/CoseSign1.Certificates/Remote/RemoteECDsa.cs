@@ -11,18 +11,18 @@ namespace CoseSign1.Certificates.Remote;
 /// </summary>
 internal sealed class RemoteECDsa : ECDsa
 {
-    private readonly RemoteCertificateSource _certificateSource;
-    private readonly ECParameters _publicParameters;
-    private readonly HashAlgorithmName _defaultHashAlgorithm;
-    private bool _disposed;
+    private readonly RemoteCertificateSource CertificateSource;
+    private readonly ECParameters PublicParameters;
+    private readonly HashAlgorithmName DefaultHashAlgorithm;
+    private bool Disposed;
 
     public RemoteECDsa(RemoteCertificateSource certificateSource, ECParameters publicParameters)
     {
-        _certificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        _publicParameters = publicParameters;
+        CertificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
+        PublicParameters = publicParameters;
 
         // Determine key size from curve
-        KeySizeValue = _publicParameters.Curve.Oid?.FriendlyName switch
+        KeySizeValue = PublicParameters.Curve.Oid?.FriendlyName switch
         {
             "nistP256" => 256,
             "nistP384" => 384,
@@ -31,7 +31,7 @@ internal sealed class RemoteECDsa : ECDsa
         };
 
         // Default hash algorithm based on curve
-        _defaultHashAlgorithm = KeySizeValue switch
+        DefaultHashAlgorithm = KeySizeValue switch
         {
             521 => HashAlgorithmName.SHA512,
             384 => HashAlgorithmName.SHA384,
@@ -46,7 +46,7 @@ internal sealed class RemoteECDsa : ECDsa
             throw new CryptographicException("Private key export is not supported for remote signing.");
         }
 
-        return _publicParameters;
+        return PublicParameters;
     }
 
     public override void ImportParameters(ECParameters parameters)
@@ -62,10 +62,10 @@ internal sealed class RemoteECDsa : ECDsa
             32 => HashAlgorithmName.SHA256,
             48 => HashAlgorithmName.SHA384,
             64 => HashAlgorithmName.SHA512,
-            _ => _defaultHashAlgorithm
+            _ => DefaultHashAlgorithm
         };
 
-        return _certificateSource.SignHashWithEcdsa(hash);
+        return CertificateSource.SignHashWithEcdsa(hash);
     }
 
     public override bool VerifyHash(byte[] hash, byte[] signature)
@@ -75,9 +75,9 @@ internal sealed class RemoteECDsa : ECDsa
 
     protected override void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (!Disposed)
         {
-            _disposed = true;
+            Disposed = true;
             base.Dispose(disposing);
         }
     }

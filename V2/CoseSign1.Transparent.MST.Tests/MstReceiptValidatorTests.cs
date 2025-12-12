@@ -11,21 +11,21 @@ namespace CoseSign1.Transparent.MST.Tests;
 [TestFixture]
 public class MstReceiptValidatorTests
 {
-    private Mock<CodeTransparencyClient> _mockClient = null!;
-    private Mock<MstTransparencyProvider> _mockProvider = null!;
+    private Mock<CodeTransparencyClient> MockClient = null!;
+    private Mock<MstTransparencyProvider> MockProvider = null!;
 
     [SetUp]
     public void Setup()
     {
-        _mockClient = new Mock<CodeTransparencyClient>();
-        _mockProvider = new Mock<MstTransparencyProvider>(_mockClient.Object);
+        MockClient = new Mock<CodeTransparencyClient>();
+        MockProvider = new Mock<MstTransparencyProvider>(MockClient.Object);
     }
 
     [Test]
     public void Constructor_WithClient_CreatesValidator()
     {
         // Arrange & Act
-        var validator = new MstReceiptValidator(_mockClient.Object);
+        var validator = new MstReceiptValidator(MockClient.Object);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -42,7 +42,7 @@ public class MstReceiptValidatorTests
     public void Constructor_WithProvider_CreatesValidator()
     {
         // Arrange & Act
-        var validator = new MstReceiptValidator(_mockProvider.Object);
+        var validator = new MstReceiptValidator(MockProvider.Object);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -59,7 +59,7 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WithNullMessage_ReturnsFailure()
     {
         // Arrange
-        var validator = new MstReceiptValidator(_mockClient.Object);
+        var validator = new MstReceiptValidator(MockClient.Object);
 
         // Act
         var result = await validator.ValidateAsync(null!);
@@ -74,7 +74,7 @@ public class MstReceiptValidatorTests
     public void Validate_WithNullMessage_ReturnsFailure()
     {
         // Arrange
-        var validator = new MstReceiptValidator(_mockClient.Object);
+        var validator = new MstReceiptValidator(MockClient.Object);
 
         // Act
         var result = validator.Validate(null!);

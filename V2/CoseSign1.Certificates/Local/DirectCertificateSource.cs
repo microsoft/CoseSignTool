@@ -13,7 +13,7 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class DirectCertificateSource : CertificateSourceBase
 {
-    private readonly X509Certificate2 _certificate;
+    private readonly X509Certificate2 Certificate;
 
     /// <summary>
     /// Initializes a new instance of DirectCertificateSource with an explicit chain.
@@ -28,7 +28,7 @@ public class DirectCertificateSource : CertificateSourceBase
         ICertificateChainBuilder? chainBuilder = null)
         : base(certificateChain, chainBuilder)
     {
-        _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
     }
 
     /// <summary>
@@ -39,14 +39,14 @@ public class DirectCertificateSource : CertificateSourceBase
     public DirectCertificateSource(X509Certificate2 certificate, ICertificateChainBuilder chainBuilder)
         : base(chainBuilder)
     {
-        _certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
     }
 
     /// <inheritdoc/>
-    public override X509Certificate2 GetSigningCertificate() => _certificate;
+    public override X509Certificate2 GetSigningCertificate() => Certificate;
 
     /// <inheritdoc/>
-    public override bool HasPrivateKey => _certificate.HasPrivateKey;
+    public override bool HasPrivateKey => Certificate.HasPrivateKey;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

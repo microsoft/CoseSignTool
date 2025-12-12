@@ -71,6 +71,7 @@ public class CoseValidationException : CoseSign1CertificateException
     {
     }
 
+#if NETSTANDARD2_0 || NETSTANDARD2
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseValidationException"/> class.
     /// </summary>
@@ -86,4 +87,5 @@ public class CoseValidationException : CoseSign1CertificateException
     protected CoseValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
+#endif
 }

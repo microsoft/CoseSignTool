@@ -99,6 +99,7 @@ public class CoseSign1CertificateException : CoseSign1Exception
         Certificate = certificate;
     }
 
+#if NETSTANDARD2_0 || NETSTANDARD2
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseSign1CertificateException"/> class with serialized data.
     /// </summary>
@@ -128,4 +129,5 @@ public class CoseSign1CertificateException : CoseSign1Exception
         base.GetObjectData(info, context); // deprecated in .NET 5.0
 #endif
     }
+#endif
 }

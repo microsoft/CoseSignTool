@@ -28,10 +28,12 @@ public class CoseX509FormatException : CoseSign1CertificateException
     /// <param name="innerException">The source exception.</param>
     public CoseX509FormatException(string message, Exception innerException) : base(message, innerException) { }
 
+#if NETSTANDARD2_0 || NETSTANDARD2
     /// <summary>
     /// Creates a CoseX509FormatException, passing the serialization info and streaming context.
     /// </summary>
     /// <param name="info">The serialization info</param>
     /// <param name="context">The streaming context</param>
     protected CoseX509FormatException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+#endif
 }

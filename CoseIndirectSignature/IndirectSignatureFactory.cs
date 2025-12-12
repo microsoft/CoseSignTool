@@ -261,9 +261,9 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     {
         return algorithm switch
         {
-            CoseHashAlgorithm.SHA256 => new SHA256Managed(),
-            CoseHashAlgorithm.SHA512 => new SHA512Managed(),
-            CoseHashAlgorithm.SHA384 => new SHA384Managed(),
+            CoseHashAlgorithm.SHA256 => SHA256.Create(),
+            CoseHashAlgorithm.SHA512 => SHA512.Create(),
+            CoseHashAlgorithm.SHA384 => SHA384.Create(),
             _ => throw new NotSupportedException($"The algorithm {algorithm} is not supported by {nameof(CoseHashV)}.")
         };
     }

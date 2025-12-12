@@ -1,0 +1,88 @@
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.CommandLine;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
+using CoseSign1.Certificates.Local;
+using CoseSignTool.Plugins;
+
+namespace CoseSignTool.Local.Plugin;
+
+/// <summary>
+/// Command provider for signing with Windows certificate store.
+/// </summary>
+public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
+{
+    private ISigningService<CoseSign1.Abstractions.SigningOptions>? _signingService;
+    private string? _certificateSubject;
+    private string? _certificateThumbprint;
+
+    public string CommandName => "sign-certstore";
+
+    public string CommandDescription => "Sign a payload with a certificate from Windows certificate store";
+
+    public void AddCommandOptions(Command command)
+    {
+        var thumbprintOption = new Option<string>(
+            name: "--thumbprint",
+            description: "Certificate thumbprint (hex string) to find in the certificate store")
+        {
+            IsRequired = true
+        };
+
+        var storeLocationOption = new Option<string>(
+            name: "--store-location",
+            getDefaultValue: () => "CurrentUser",
+            description: "Certificate store location (CurrentUser or LocalMachine)");
+
+        var storeNameOption = new Option<string>(
+            name: "--store-name",
+            getDefaultValue: () => "My",
+            description: "Certificate store name (My, Root, CA, etc.)");
+
+        command.AddOption(thumbprintOption);
+        command.AddOption(storeLocationOption);
+        command.AddOption(storeNameOption);
+    }
+
+    public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
+    {
+        var thumbprint = options["thumbprint"] as string
+            ?? throw new InvalidOperationException("Thumbprint is required");
+        var storeLocation = options.TryGetValue("store-location", out var loc) ? loc as string ?? "CurrentUser" : "CurrentUser";
+        var storeName = options.TryGetValue("store-name", out var name) ? name as string ?? "My" : "My";
+
+        // Parse store location and name
+        var storeLocationEnum = Enum.Parse<StoreLocation>(storeLocation, ignoreCase: true);
+        var storeNameEnum = Enum.Parse<StoreName>(storeName, ignoreCase: true);
+
+        // Create certificate source
+        var certSource = new WindowsCertificateStoreCertificateSource(
+            thumbprint,
+            storeNameEnum,
+            storeLocationEnum);
+
+        var signingCert = certSource.GetSigningCertificate();
+        var chainBuilder = certSource.GetChainBuilder();
+
+        // Store metadata
+        _certificateSubject = signingCert.Subject;
+        _certificateThumbprint = signingCert.Thumbprint;
+
+        // Create signing service
+        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder);
+
+        return await Task.FromResult(_signingService);
+    }
+
+    public IDictionary<string, string> GetSigningMetadata()
+    {
+        return new Dictionary<string, string>
+        {
+            ["Certificate Source"] = "Windows certificate store",
+            ["Certificate Subject"] = _certificateSubject ?? "Unknown",
+            ["Certificate Thumbprint"] = _certificateThumbprint ?? "Unknown"
+        };
+    }
+}

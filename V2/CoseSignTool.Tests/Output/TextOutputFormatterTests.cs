@@ -21,8 +21,8 @@ public class TextOutputFormatterTests
         formatter.WriteSuccess("Test message");
 
         // Assert
-        output.ToString().Should().Contain("Test message");
-        output.ToString().Should().Contain("✓");
+        Assert.Contains("Test message", output.ToString());
+        Assert.Contains("✓", output.ToString());
     }
 
     [Fact]
@@ -36,8 +36,8 @@ public class TextOutputFormatterTests
         formatter.WriteError("Error message");
 
         // Assert
-        error.ToString().Should().Contain("Error message");
-        error.ToString().Should().Contain("✗");
+        Assert.Contains("Error message", error.ToString());
+        Assert.Contains("✗", error.ToString());
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public class TextOutputFormatterTests
         formatter.WriteInfo("Info message");
 
         // Assert
-        output.ToString().Should().Contain("Info message");
-        output.ToString().Should().Contain("ℹ");
+        Assert.Contains("Info message", output.ToString());
+        Assert.Contains("ℹ", output.ToString());
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public class TextOutputFormatterTests
         formatter.WriteWarning("Warning message");
 
         // Assert
-        output.ToString().Should().Contain("Warning message");
-        output.ToString().Should().Contain("⚠");
+        Assert.Contains("Warning message", output.ToString());
+        Assert.Contains("⚠", output.ToString());
     }
 
     [Fact]
@@ -82,9 +82,9 @@ public class TextOutputFormatterTests
 
         // Assert
         var result = output.ToString();
-        result.Should().Contain("Key");
-        result.Should().Contain("Value");
-        result.Should().Contain(":");
+        Assert.Contains("Key", result);
+        Assert.Contains("Value", result);
+        Assert.Contains(":", result);
     }
 
     [Fact]
@@ -99,8 +99,8 @@ public class TextOutputFormatterTests
 
         // Assert
         var result = output.ToString();
-        result.Should().Contain("Test Section");
-        result.Should().Contain("---");
+        Assert.Contains("Test Section", result);
+        Assert.Contains("---", result);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class TextOutputFormatterTests
         formatter.EndSection();
 
         // Assert
-        output.ToString().Should().Contain(Environment.NewLine);
+        Assert.Contains(Environment.NewLine, output.ToString());
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class TextOutputFormatterTests
         var formatter = new TextOutputFormatter();
 
         // Assert - should not throw
-        formatter.Should().NotBeNull();
+        Assert.NotNull(formatter);
     }
 
     [Fact]
@@ -141,6 +141,6 @@ public class TextOutputFormatterTests
 
         // Assert
         var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-        lines.Should().HaveCount(3);
+        Assert.Equal(3, lines.Count());
     }
 }

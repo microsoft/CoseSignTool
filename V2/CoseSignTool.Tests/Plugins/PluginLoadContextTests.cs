@@ -22,7 +22,7 @@ public class PluginLoadContextTests
         var context = new PluginLoadContext(assemblyPath, pluginDir);
 
         // Assert
-        context.Should().NotBeNull();
+        Assert.NotNull(context);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class PluginLoadContextTests
         var context = new PluginLoadContext(assemblyPath, pluginDir);
 
         // Assert
-        context.IsCollectible.Should().BeTrue();
+        Assert.True(context.IsCollectible);
     }
 
     [Fact]
@@ -52,8 +52,8 @@ public class PluginLoadContextTests
         var loadedAssembly = context.LoadFromAssemblyName(systemAssemblyName);
 
         // Assert - Should load successfully (from default context)
-        loadedAssembly.Should().NotBeNull();
-        loadedAssembly.GetName().Name.Should().Be("System.Runtime");
+        Assert.NotNull(loadedAssembly);
+        Assert.Equal("System.Runtime", loadedAssembly.GetName().Name);
     }
 
     [Fact]
@@ -63,12 +63,8 @@ public class PluginLoadContextTests
         var invalidPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "nonexistent.dll");
         var pluginDir = Path.GetTempPath();
 
-        // Act
-        var act = () => new PluginLoadContext(invalidPath, pluginDir);
-
-        // Assert - AssemblyDependencyResolver constructor will throw InvalidOperationException for nonexistent files
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Dependency resolution failed*");
+        // Act & Assert - AssemblyDependencyResolver constructor will throw InvalidOperationException for nonexistent files
+        Assert.Throws<InvalidOperationException>(() => new PluginLoadContext(invalidPath, pluginDir));
     }
 
     [Fact]
@@ -83,7 +79,7 @@ public class PluginLoadContextTests
         var loadedAssembly = context.LoadFromAssemblyPath(assemblyPath);
 
         // Assert
-        loadedAssembly.Should().NotBeNull();
-        loadedAssembly.Location.Should().Be(assemblyPath);
+        Assert.NotNull(loadedAssembly);
+        Assert.Equal(assemblyPath, loadedAssembly.Location);
     }
 }

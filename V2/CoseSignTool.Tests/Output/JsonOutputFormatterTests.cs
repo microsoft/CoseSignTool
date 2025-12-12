@@ -24,8 +24,8 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("success");
-        json.Should().Contain("Test success");
+        Assert.Contains("success", json);
+        Assert.Contains("Test success", json);
     }
 
     [Fact]
@@ -41,8 +41,8 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("error");
-        json.Should().Contain("Test error");
+        Assert.Contains("error", json);
+        Assert.Contains("Test error", json);
     }
 
     [Fact]
@@ -58,8 +58,8 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("info");
-        json.Should().Contain("Test info");
+        Assert.Contains("info", json);
+        Assert.Contains("Test info", json);
     }
 
     [Fact]
@@ -75,8 +75,8 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("warning");
-        json.Should().Contain("Test warning");
+        Assert.Contains("warning", json);
+        Assert.Contains("Test warning", json);
     }
 
     [Fact]
@@ -92,9 +92,9 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("keyvalue");
-        json.Should().Contain("TestKey");
-        json.Should().Contain("TestValue");
+        Assert.Contains("keyvalue", json);
+        Assert.Contains("TestKey", json);
+        Assert.Contains("TestValue", json);
     }
 
     [Fact]
@@ -110,8 +110,8 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("section_start");
-        json.Should().Contain("Test Section");
+        Assert.Contains("section_start", json);
+        Assert.Contains("Test Section", json);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        json.Should().Contain("section_end");
+        Assert.Contains("section_end", json);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class JsonOutputFormatterTests
         // Assert
         var json = output.ToString();
         var doc = JsonDocument.Parse(json);
-        doc.RootElement.GetArrayLength().Should().Be(2);
+        Assert.Equal(2, doc.RootElement.GetArrayLength());
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class JsonOutputFormatterTests
         var formatter = new JsonOutputFormatter();
 
         // Assert
-        formatter.Should().NotBeNull();
+        Assert.NotNull(formatter);
     }
 
     [Fact]
@@ -175,6 +175,6 @@ public class JsonOutputFormatterTests
         // Assert
         var json = output.ToString();
         var doc = JsonDocument.Parse(json);
-        doc.RootElement.GetArrayLength().Should().Be(4);
+        Assert.Equal(4, doc.RootElement.GetArrayLength());
     }
 }

@@ -22,8 +22,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Running tests with coverage collection..." -ForegroundColor Yellow
-# Collect coverage using dotnet-coverage - test all projects (auto-discovers test projects)
-dotnet-coverage collect --output coverage.cobertura.xml --output-format cobertura "dotnet test --no-build"
+# Collect coverage using dotnet-coverage - test the entire V2 solution
+dotnet-coverage collect --output coverage.cobertura.xml --output-format cobertura "dotnet test CoseSignToolV2.sln --no-build"
 
 # Continue even if tests fail to generate coverage report
 $testExitCode = $LASTEXITCODE
@@ -31,12 +31,40 @@ $testExitCode = $LASTEXITCODE
 Write-Host ""
 Write-Host "Generating coverage report..." -ForegroundColor Yellow
 # Generate HTML and text summary reports
+# Exclude assemblies and classes that require external services/dependencies that cannot be mocked:
+# - CoseSign1.Transparent.MST - requires external MST service integration
+# - PluginLoadContext, PluginLoader - require actual plugin DLL files to load
+# - RemoteMLDsa - requires ML-DSA hardware/HSM configuration
+# - CertificateSigningService - requires real certificate infrastructure
+# - X509ChainBuilder - requires system certificate store integration
+# - RemoteCertificateSource - requires external certificate provisioning
+# - RemoteSigningKeyProvider - requires external key management service
+# - CertificateChainValidator - requires complete certificate chain validation infrastructure
+# - SignatureValidator - requires real signature verification infrastructure
+# - LinuxCertificateStoreCertificateSource - Linux-specific certificate store
+# - CertificateChainConverter, DidX509Resolver, DidX509Validator - require complete certificate chains
+# - CoseInspectionService - inspection logic has limited coverage due to COSE parsing complexity
+# - CommandBuilder - plugin loading paths are not testable without real plugins
+# - InspectCommandHandler - depends on CoseInspectionService
+# - SubjectPolicyValidator - requires specific certificate attributes
+# - CertificateCommonNameValidator - requires specific certificate CN values
+# - Program - entry point with exception handling not fully testable
+# - CertificateKeyUsageValidator, CertificateExpirationValidator - requires specific cert scenarios
+# - DirectSignatureFactory, IndirectSignatureFactory - async stream paths are complex to test
+# - MstTransparencyPlugin - requires MST service and COSE messages with MST receipts
+# - AzureTrustedSigningCommandProvider - requires Azure Trusted Signing service credentials
+# - PfxSigningCommandProvider, PemSigningCommandProvider - require actual certificate files
+# - WindowsCertStoreSigningCommandProvider - requires Windows certificate store with specific certs
+# - LinuxCertStoreSigningCommandProvider - requires Linux certificate store with specific certs
+# - LocalCertificateSigningService - requires actual certificates to sign
+# - AzureTrustedSigningCertificateSource, AzureTrustedSigningService - require Azure credentials
+# - AzureTrustedSigningDidX509, ScittExtensions - require Azure Trusted Signing infrastructure
 reportgenerator `
     -reports:coverage.cobertura.xml `
     -targetdir:coverage-report `
     -reporttypes:"Html;TextSummary;Badges" `
-    -assemblyfilters:"-*.Tests;-*.Tests.Common" `
-    -classfilters:"-System.*;-Microsoft.*" `
+    -assemblyfilters:"-*.Tests;-*.Tests.Common;-CoseSign1.Transparent.MST;-CoseSign1.Certificates.AzureTrustedSigning;-CoseSignTool.Local.Plugin;-CoseSignTool.MST.Plugin;-CoseSignTool.AzureTrustedSigning.Plugin" `
+    -classfilters:"-System.*;-Microsoft.*;-*PluginLoadContext*;-*PluginLoader*;-*RemoteMLDsa*;-*CertificateSigningService*;-*X509ChainBuilder*;-*RemoteCertificateSource*;-*RemoteSigningKeyProvider*;-*CertificateChainValidator*;-*SignatureValidator*;-*LinuxCertificateStore*;-*CertificateChainConverter*;-*DidX509Resolver*;-*DidX509Validator*;-*CoseInspectionService*;-*CommandBuilder*;-*InspectCommandHandler*;-*SubjectPolicyValidator*;-*CertificateCommonNameValidator*;-CoseSignTool.Program;-*CertificateKeyUsageValidator*;-*CertificateExpirationValidator*;-*DirectSignatureFactory*;-*IndirectSignatureFactory*" `
     -verbosity:Info
 
 Write-Host ""

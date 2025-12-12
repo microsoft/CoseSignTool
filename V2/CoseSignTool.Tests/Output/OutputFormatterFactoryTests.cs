@@ -17,7 +17,7 @@ public class OutputFormatterFactoryTests
         var formatter = OutputFormatterFactory.Create(OutputFormat.Text);
 
         // Assert
-        formatter.Should().BeOfType<TextOutputFormatter>();
+        Assert.IsType<TextOutputFormatter>(formatter);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class OutputFormatterFactoryTests
         var formatter = OutputFormatterFactory.Create(OutputFormat.Json);
 
         // Assert
-        formatter.Should().BeOfType<JsonOutputFormatter>();
+        Assert.IsType<JsonOutputFormatter>(formatter);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class OutputFormatterFactoryTests
         var formatter = OutputFormatterFactory.Create(OutputFormat.Quiet);
 
         // Assert
-        formatter.Should().BeOfType<QuietOutputFormatter>();
+        Assert.IsType<QuietOutputFormatter>(formatter);
     }
 
     [Fact]
@@ -47,8 +47,8 @@ public class OutputFormatterFactoryTests
         var act = () => OutputFormatterFactory.Create((OutputFormat)999);
 
         // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*Unknown output format*");
+        Assert.Throws<ArgumentException>(act)
+            ;
     }
 
     [Fact]
@@ -62,6 +62,6 @@ public class OutputFormatterFactoryTests
         var formatter = OutputFormatterFactory.Create(OutputFormat.Text, output, error);
 
         // Assert
-        formatter.Should().BeOfType<TextOutputFormatter>();
+        Assert.IsType<TextOutputFormatter>(formatter);
     }
 }

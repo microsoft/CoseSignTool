@@ -33,7 +33,20 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 #### Transparency & Receipts
 - [CoseSign1.Transparent](components/transparent.md) - Transparency architecture
 - [CoseSign1.Transparent.MST](components/mst.md) - Merkle Search Tree receipts
-- [CoseSign1.Transparent.CTS](components/cts.md) - Certificate Transparency Service integration
+
+### CoseSignTool CLI
+
+The V2 CLI tool (`CoseSignTool`) provides command-line signing and verification with a plugin architecture:
+
+#### Core Commands
+- `sign-ephemeral` - Sign with an ephemeral test certificate (development only)
+- `verify` - Verify a COSE Sign1 signature
+- `inspect` - Inspect COSE Sign1 signature details
+
+#### CLI Plugins
+- [CoseSignTool.Local.Plugin](plugins/local-plugin.md) - Local certificate signing (PFX, PEM, Windows/Linux cert stores)
+- [CoseSignTool.AzureTrustedSigning.Plugin](plugins/azure-plugin.md) - Azure Trusted Signing integration
+- [CoseSignTool.MST.Plugin](plugins/mst-plugin.md) - Microsoft Signing Transparency verification
 
 ### Guides
 
@@ -42,6 +55,7 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 - [Custom Header Contributors](guides/custom-headers.md) - Extend header contribution
 - [Certificate Sources](guides/certificate-sources.md) - Implement custom certificate sources
 - [Remote Signing](guides/remote-signing.md) - Integrate with remote signing services
+- [Creating CLI Plugins](guides/cli-plugins.md) - Build custom CoseSignTool plugins
 
 #### Security & Compliance
 - [SCITT Compliance](guides/scitt-compliance.md) - Supply Chain Integrity, Transparency and Trust
@@ -69,19 +83,21 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 V2 represents a fundamental redesign with these major improvements:
 
 1. **Modular Architecture**: Clear separation of concerns with well-defined abstractions
-2. **Extensibility**: Plugin-based header contributors and validators
+2. **Extensibility**: Plugin-based header contributors, validators, and CLI commands
 3. **Modern .NET**: Built for .NET 10+ with modern C# patterns
 4. **Validation Framework**: Composable, testable validation pipeline
-5. **Transparency Support**: First-class support for transparency receipts (MST, CTS)
+5. **Transparency Support**: First-class support for transparency receipts (MST)
 6. **DID:x509 Integration**: Native support for decentralized identifiers
 7. **SCITT Compliance**: Built-in support for SCITT standards
 8. **Post-Quantum Ready**: ML-DSA (FIPS 204) support
+9. **CLI Plugin System**: Extensible command-line tool with pluggable signing providers
 
 ## Version Status
 
 **Current Version**: 2.0.0-preview  
 **Status**: Preview - API surface may change  
 **Target Release**: Q1 2026  
+**Test Coverage**: 95.5% line coverage (1,653 tests)
 
 V2 is currently in preview and will eventually replace V1 entirely. Both versions are maintained during the transition period.
 

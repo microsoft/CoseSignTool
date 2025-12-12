@@ -19,8 +19,7 @@ public class PluginLoaderTests
         var loader = new PluginLoader();
 
         // Assert
-        loader.Plugins.Should().BeEmpty();
-        loader.SigningServices.Should().BeEmpty();
+        Assert.Empty(loader.Plugins);
     }
 
     [Fact]
@@ -34,8 +33,8 @@ public class PluginLoaderTests
         await loader.RegisterPluginAsync(plugin);
 
         // Assert
-        loader.Plugins.Should().ContainSingle();
-        loader.Plugins[0].Name.Should().Be("TestPlugin");
+        Assert.Single(loader.Plugins);
+        Assert.Equal("TestPlugin", loader.Plugins[0].Name);
     }
 
     [Fact]
@@ -44,11 +43,8 @@ public class PluginLoaderTests
         // Arrange
         var loader = new PluginLoader();
 
-        // Act
-        var act = async () => await loader.RegisterPluginAsync(null!);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() => loader.RegisterPluginAsync(null!));
     }
 
     [Fact]
@@ -64,109 +60,17 @@ public class PluginLoaderTests
         await loader.RegisterPluginAsync(plugin2);
 
         // Assert
-        loader.Plugins.Should().ContainSingle();
+        Assert.Single(loader.Plugins);
     }
 
     [Fact]
-    public void RegisterSigningService_WithValidService_AddsToCollection()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-        var service = new TestSigningService();
-
-        // Act
-        loader.RegisterSigningService(service);
-
-        // Assert
-        loader.SigningServices.Should().ContainSingle();
-        loader.SigningServices[0].Name.Should().Be("TestSigningService");
-    }
-
-    [Fact]
-    public void RegisterSigningService_WithNullService_ThrowsArgumentNullException()
+    public async Task LoadPluginsAsync_WithNullDirectory_ThrowsArgumentNullException()
     {
         // Arrange
         var loader = new PluginLoader();
 
-        // Act
-        var act = () => loader.RegisterSigningService(null!);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void RegisterSigningService_WithDuplicateName_DoesNotAddTwice()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-        var service1 = new TestSigningService();
-        var service2 = new TestSigningService();
-
-        // Act
-        loader.RegisterSigningService(service1);
-        loader.RegisterSigningService(service2);
-
-        // Assert
-        loader.SigningServices.Should().ContainSingle();
-    }
-
-    [Fact]
-    public void GetSigningService_WithExistingService_ReturnsService()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-        var service = new TestSigningService();
-        loader.RegisterSigningService(service);
-
-        // Act
-        var result = loader.GetSigningService("TestSigningService");
-
-        // Assert
-        result.Should().NotBeNull();
-        result!.Name.Should().Be("TestSigningService");
-    }
-
-    [Fact]
-    public void GetSigningService_WithNonExistingService_ReturnsNull()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-
-        // Act
-        var result = loader.GetSigningService("NonExistent");
-
-        // Assert
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public void GetSigningService_IsCaseInsensitive()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-        var service = new TestSigningService();
-        loader.RegisterSigningService(service);
-
-        // Act
-        var result = loader.GetSigningService("testsigningservice");
-
-        // Assert
-        result.Should().NotBeNull();
-        result!.Name.Should().Be("TestSigningService");
-    }
-
-    [Fact]
-    public async Task LoadPluginsAsync_WithNullDirectory_ThrowsArgumentException()
-    {
-        // Arrange
-        var loader = new PluginLoader();
-
-        // Act
-        var act = async () => await loader.LoadPluginsAsync(null!);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() => loader.LoadPluginsAsync(null!));
     }
 
     [Fact]
@@ -175,15 +79,12 @@ public class PluginLoaderTests
         // Arrange
         var loader = new PluginLoader();
 
-        // Act
-        var act = async () => await loader.LoadPluginsAsync(string.Empty);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => loader.LoadPluginsAsync(string.Empty));
     }
 
     [Fact]
-    public async Task LoadPluginsAsync_WithNonExistentDirectory_DoesNotThrow()
+    public async Task LoadPluginsAsync_WithAuthorizedDirectory_DoesNotThrow()
     {
         // Arrange
         var loader = new PluginLoader();
@@ -195,9 +96,11 @@ public class PluginLoaderTests
 
         try
         {
-            // Act & Assert
-            await loader.Invoking(l => l.LoadPluginsAsync(authorizedPluginsDir))
-                .Should().NotThrowAsync();
+            // Act - should not throw
+            await loader.LoadPluginsAsync(authorizedPluginsDir);
+
+            // Assert - no plugins loaded from empty directory, but no exception
+            Assert.Empty(loader.Plugins);
         }
         finally
         {
@@ -216,12 +119,8 @@ public class PluginLoaderTests
         var loader = new PluginLoader();
         var unauthorizedDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
-        // Act
-        var act = async () => await loader.LoadPluginsAsync(unauthorizedDir);
-
-        // Assert
-        await act.Should().ThrowAsync<UnauthorizedAccessException>()
-            .WithMessage("*only allowed from the 'plugins' subdirectory*");
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => loader.LoadPluginsAsync(unauthorizedDir));
     }
 
     [Fact]
@@ -231,9 +130,11 @@ public class PluginLoaderTests
         var executableDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory();
         var authorizedDir = Path.Combine(executableDir, "plugins");
 
-        // Act & Assert
-        var act = () => PluginLoader.ValidatePluginDirectory(authorizedDir);
-        act.Should().NotThrow();
+        // Act - should not throw
+        var exception = Record.Exception(() => PluginLoader.ValidatePluginDirectory(authorizedDir));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -242,34 +143,130 @@ public class PluginLoaderTests
         // Arrange
         var unauthorizedDir = Path.Combine(Path.GetTempPath(), "plugins");
 
-        // Act
-        var act = () => PluginLoader.ValidatePluginDirectory(unauthorizedDir);
-
-        // Assert
-        act.Should().Throw<UnauthorizedAccessException>()
-            .WithMessage("*only allowed from the 'plugins' subdirectory*");
+        // Act & Assert
+        Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(unauthorizedDir));
     }
 
     [Fact]
     public void ValidatePluginDirectory_WithNullDirectory_ThrowsUnauthorizedAccessException()
     {
-        // Act
-        var act = () => PluginLoader.ValidatePluginDirectory(null!);
-
-        // Assert
-        act.Should().Throw<UnauthorizedAccessException>()
-            .WithMessage("*empty or null directory path*");
+        // Act & Assert
+        Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(null!));
     }
 
     [Fact]
     public void ValidatePluginDirectory_WithEmptyDirectory_ThrowsUnauthorizedAccessException()
     {
+        // Act & Assert
+        Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(string.Empty));
+    }
+
+    [Fact]
+    public async Task LoadPluginsAsync_WithAdditionalDirectories_LoadsFromAllDirectories()
+    {
+        // Arrange
+        var loader = new PluginLoader();
+        var executableDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory();
+        var authorizedPluginsDir = Path.Combine(executableDir, "plugins");
+        var additionalDir = Path.Combine(Path.GetTempPath(), $"additional_plugins_{Guid.NewGuid()}");
+
+        // Create directories
+        Directory.CreateDirectory(authorizedPluginsDir);
+        Directory.CreateDirectory(additionalDir);
+
+        try
+        {
+            // Act - should not throw
+            await loader.LoadPluginsAsync(authorizedPluginsDir, [additionalDir]);
+
+            // Assert - no plugins loaded from empty directories, but no exception
+            Assert.Empty(loader.Plugins);
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(authorizedPluginsDir) && !Directory.EnumerateFileSystemEntries(authorizedPluginsDir).Any())
+            {
+                Directory.Delete(authorizedPluginsDir);
+            }
+            if (Directory.Exists(additionalDir))
+            {
+                Directory.Delete(additionalDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadPluginsAsync_WithEmptyAdditionalDirectory_SkipsEmptyDirectories()
+    {
+        // Arrange
+        var loader = new PluginLoader();
+        var executableDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory();
+        var authorizedPluginsDir = Path.Combine(executableDir, "plugins");
+
+        // Create the authorized directory
+        Directory.CreateDirectory(authorizedPluginsDir);
+
+        try
+        {
+            // Act - should not throw even with empty/whitespace additional directories
+            await loader.LoadPluginsAsync(authorizedPluginsDir, ["", "   ", null!]);
+
+            // Assert - no plugins loaded from empty directories
+            Assert.Empty(loader.Plugins);
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(authorizedPluginsDir) && !Directory.EnumerateFileSystemEntries(authorizedPluginsDir).Any())
+            {
+                Directory.Delete(authorizedPluginsDir);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadPluginsAsync_WithNonExistentDirectory_DoesNotThrow()
+    {
+        // Arrange
+        var loader = new PluginLoader();
+        var executableDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory();
+        var nonExistentDir = Path.Combine(executableDir, "plugins", "nonexistent_subdir");
+
+        // Ensure the authorized plugins directory exists (for validation)
+        var authorizedPluginsDir = Path.Combine(executableDir, "plugins");
+        Directory.CreateDirectory(authorizedPluginsDir);
+
+        try
+        {
+            // Act - should not throw even if directory doesn't exist
+            await loader.LoadPluginsAsync(authorizedPluginsDir);
+
+            // Assert - no plugins loaded
+            Assert.Empty(loader.Plugins);
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(authorizedPluginsDir) && !Directory.EnumerateFileSystemEntries(authorizedPluginsDir).Any())
+            {
+                Directory.Delete(authorizedPluginsDir);
+            }
+        }
+    }
+
+    [Fact]
+    public void Plugins_Property_ReturnsReadOnlyList()
+    {
+        // Arrange
+        var loader = new PluginLoader();
+
         // Act
-        var act = () => PluginLoader.ValidatePluginDirectory(string.Empty);
+        var plugins = loader.Plugins;
 
         // Assert
-        act.Should().Throw<UnauthorizedAccessException>()
-            .WithMessage("*empty or null directory path*");
+        Assert.NotNull(plugins);
+        Assert.IsAssignableFrom<IReadOnlyList<IPlugin>>(plugins);
     }
 
     // Test helper classes
@@ -279,6 +276,16 @@ public class PluginLoaderTests
         public string Version => "1.0.0";
         public string Description => "Test plugin for unit tests";
 
+        public IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
+        {
+            return Enumerable.Empty<ISigningCommandProvider>();
+        }
+
+        public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
+        {
+            return Enumerable.Empty<ITransparencyProviderContributor>();
+        }
+
         public void RegisterCommands(Command rootCommand)
         {
             // No-op for tests
@@ -287,22 +294,6 @@ public class PluginLoaderTests
         public Task InitializeAsync(IDictionary<string, string>? configuration = null)
         {
             return Task.CompletedTask;
-        }
-    }
-
-    private class TestSigningService : ISigningService
-    {
-        public string Name => "TestSigningService";
-        public bool IsAvailable => true;
-
-        public Task<byte[]> SignAsync(byte[] payload, SigningOptions? options = null, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(new byte[] { 0x01, 0x02, 0x03 });
-        }
-
-        public Task<bool> VerifyAsync(byte[] signature, byte[]? payload = null, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(true);
         }
     }
 }

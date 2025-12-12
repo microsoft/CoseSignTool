@@ -21,8 +21,9 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        config.Should().NotBeNull();
-        config.AsEnumerable().Should().BeEmpty();
+        Assert.NotNull(config);
+        var entries = config.AsEnumerable().Where(kv => kv.Value != null).ToList();
+        Assert.True(entries.Count == 0, "Configuration should be empty");
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            config["TestKey"].Should().Be("TestValue");
+            Assert.Equal("TestValue", config["TestKey"]);
         }
         finally
         {
@@ -61,7 +62,7 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        config[key].Should().Be(value);
+        Assert.Equal(value, config[key]);
     }
 
     [Fact]
@@ -76,7 +77,7 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        config["Key"].Should().Be("SecondValue");
+        Assert.Equal("SecondValue", config["Key"]);
     }
 
     [Fact]
@@ -91,9 +92,9 @@ public class ConfigurationLoaderTests
         var config2 = loader.Build();
 
         // Assert
-        config1.Should().NotBeSameAs(config2);
-        config1["Key"].Should().Be("Value");
-        config2["Key"].Should().Be("Value");
+        Assert.NotSame(config2, config1);
+        Assert.Equal("Value", config1["Key"]);
+        Assert.Equal("Value", config2["Key"]);
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public class ConfigurationLoaderTests
         Action act = () => _ = config[null!];
 
         // Assert
-        act.Should().Throw<ArgumentNullException>();
+        Assert.Throws<ArgumentNullException>(act);
     }
 
     [Fact]
@@ -128,10 +129,10 @@ public class ConfigurationLoaderTests
         var section = config.GetSection("Section");
 
         // Assert
-        section.Should().NotBeNull();
-        section["Key1"].Should().Be("Value1");
-        section["Key2"].Should().Be("Value2");
-        section.GetChildren().Should().HaveCount(2);
+        Assert.NotNull(section);
+        Assert.Equal("Value1", section["Key1"]);
+        Assert.Equal("Value2", section["Key2"]);
+        Assert.Equal(2, section.GetChildren().Count());
     }
 
     [Fact]
@@ -146,9 +147,9 @@ public class ConfigurationLoaderTests
         var section = config.GetSection("NonExistent");
 
         // Assert
-        section.Should().NotBeNull();
-        section.Value.Should().BeNull();
-        section.Exists().Should().BeFalse();
+        Assert.NotNull(section);
+        Assert.Null(section.Value);
+        Assert.False(section.Exists());
     }
 
     [Fact]
@@ -169,9 +170,9 @@ public class ConfigurationLoaderTests
         config.GetSection("TestConfig").Bind(testConfig);
 
         // Assert
-        testConfig.StringValue.Should().Be("Test");
-        testConfig.IntValue.Should().Be(42);
-        testConfig.BoolValue.Should().BeTrue();
+        Assert.Equal("Test", testConfig.StringValue);
+        Assert.Equal(42, testConfig.IntValue);
+        Assert.True(testConfig.BoolValue);
     }
 
     [Fact]
@@ -189,8 +190,8 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            config["Key1"].Should().Be("Value1");
-            config["Key2"].Should().BeNull();
+            Assert.Equal("Value1", config["Key1"]);
+            Assert.Null(config["Key2"]);
         }
         finally
         {
@@ -213,7 +214,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            config["COSESIGN_TestKey"].Should().Be("TestValue");
+            Assert.Equal("TestValue", config["COSESIGN_TestKey"]);
         }
         finally
         {
@@ -235,7 +236,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            config["COSESIGN_AnotherKey"].Should().Be("AnotherValue");
+            Assert.Equal("AnotherValue", config["COSESIGN_AnotherKey"]);
         }
         finally
         {

@@ -15,8 +15,7 @@ public class ExitCodeTests
         var exitCode = ExitCode.Success;
 
         // Assert
-        exitCode.Should().Be(0);
-        ((int)exitCode).Should().Be(0);
+        Assert.Equal(0, (int)exitCode);
     }
 
     [Fact]
@@ -26,8 +25,7 @@ public class ExitCodeTests
         var exitCode = ExitCode.GeneralError;
 
         // Assert
-        exitCode.Should().Be((ExitCode)1);
-        ((int)exitCode).Should().Be(1);
+        Assert.Equal(1, (int)exitCode);
     }
 
     [Fact]
@@ -37,7 +35,7 @@ public class ExitCodeTests
         var exitCode = ExitCode.InvalidArguments;
 
         // Assert
-        ((int)exitCode).Should().Be(2);
+        Assert.Equal(2, (int)exitCode);
     }
 
     [Fact]
@@ -47,7 +45,7 @@ public class ExitCodeTests
         var exitCode = ExitCode.FileNotFound;
 
         // Assert
-        ((int)exitCode).Should().Be(3);
+        Assert.Equal(3, (int)exitCode);
     }
 
     [Fact]
@@ -57,7 +55,7 @@ public class ExitCodeTests
         var exitCode = ExitCode.CertificateNotFound;
 
         // Assert
-        ((int)exitCode).Should().Be(4);
+        Assert.Equal(4, (int)exitCode);
     }
 
     [Theory]
@@ -72,7 +70,7 @@ public class ExitCodeTests
     public void ExitCode_AllCodes_ShouldHaveExpectedValues(ExitCode code, int expectedValue)
     {
         // Assert
-        ((int)code).Should().Be(expectedValue);
+        Assert.Equal(expectedValue, (int)code);
     }
 
     [Fact]
@@ -82,7 +80,7 @@ public class ExitCodeTests
         var allValues = Enum.GetValues<ExitCode>().Cast<int>().ToList();
 
         // Assert
-        allValues.Should().OnlyHaveUniqueItems();
+        Assert.Equal(allValues.Count, allValues.Distinct().Count());
     }
 
     [Fact]
@@ -108,7 +106,7 @@ public class ExitCodeTests
         var actualCodes = Enum.GetValues<ExitCode>();
 
         // Assert
-        actualCodes.Should().Contain(expectedCodes);
+        Assert.All(expectedCodes, expected => Assert.Contains(expected, actualCodes));
     }
 
     [Fact]
@@ -121,7 +119,7 @@ public class ExitCodeTests
         int value = (int)code;
 
         // Assert
-        value.Should().Be(0);
+        Assert.Equal(0, value);
     }
 
     [Fact]
@@ -134,6 +132,6 @@ public class ExitCodeTests
         ExitCode code = (ExitCode)value;
 
         // Assert
-        code.Should().Be(ExitCode.SigningFailed);
+        Assert.Equal(ExitCode.SigningFailed, code);
     }
 }

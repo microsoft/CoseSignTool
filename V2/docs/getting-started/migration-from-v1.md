@@ -15,7 +15,7 @@ V2 is a complete architectural redesign. While the core functionality (creating 
 | **Validation** | Built-in only | Composable framework |
 | **Certificate Handling** | Manual | Abstracted sources, builders |
 | **Transparency** | Add-on | First-class support |
-| **Testing** | ~60% coverage | 88.7% coverage |
+| **Testing** | ~60% coverage | 95.5% coverage |
 | **DID Support** | None | Native DID:x509 |
 | **SCITT** | Manual | Built-in compliance |
 

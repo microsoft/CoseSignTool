@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS.Extensions;
+namespace CoseSign1.Transparent.MST.Extensions;
 
 using System;
 using Azure.Security.CodeTransparency;
@@ -11,7 +11,7 @@ using CoseSign1.Transparent.Interfaces;
 /// Provides extension methods for working with the <see cref="CodeTransparencyClient"/> 
 /// to integrate it with the <see cref="ITransparencyService"/> interface.
 /// </summary>
-public static class AzureCtsTransparencyServiceExtensions
+public static class MstTransparencyServiceExtensions
 {
     /// <summary>
     /// Converts a <see cref="CodeTransparencyClient"/> instance into an <see cref="ITransparencyService"/> implementation.
@@ -33,7 +33,7 @@ public static class AzureCtsTransparencyServiceExtensions
             throw new ArgumentNullException(nameof(client));
         }
 
-        return new AzureCtsTransparencyService(client);
+        return new MstTransparencyService(client);
     }
 
     /// <summary>
@@ -62,6 +62,6 @@ public static class AzureCtsTransparencyServiceExtensions
             throw new ArgumentNullException(nameof(client));
         }
 
-        return new AzureCtsTransparencyService(client, null, null, logVerbose, logWarning, logError);
+        return new MstTransparencyService(client, null, null, logVerbose, logWarning, logError);
     }
 }

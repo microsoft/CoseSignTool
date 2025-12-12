@@ -11,7 +11,7 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <RootNamespace>CoseSignTool.CTS.Plugin.Tests</RootNamespace>
+    <RootNamespace>CoseSignTool.MST.Plugin.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <SignAssembly>true</SignAssembly>
     <DelaySign>True</DelaySign>
@@ -35,7 +35,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
-    <ProjectReference Include="..\CoseSignTool.CTS.Plugin\CoseSignTool.CTS.Plugin.csproj" />
+    <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
   </ItemGroup>
 
 </Project>

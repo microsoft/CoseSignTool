@@ -12,7 +12,7 @@ The CoseSignTool plugin system includes automated build and deployment processes
 - **Dependency Isolation**: Plugins can use different versions of the same dependencies without conflicts
 - **Automated Deployment**: MSBuild targets handle complex dependency copying automatically
 
-The Azure Code Transparency Service (CTS) plugin and Indirect Signature plugin are included as reference implementations and are automatically built and deployed with CoseSignTool releases.
+The Microsoft's Signing Transparency (MST) plugin and Indirect Signature plugin are included as reference implementations and are automatically built and deployed with CoseSignTool releases.
 
 ## 🎯 **Automatic Plugin Discovery and Packaging**
 
@@ -31,7 +31,7 @@ PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f | sed 's|^\./||' | sed
 ```
 
 ### **✅ Current Auto-Packaged Plugins**
-- `CoseSignTool.CTS.Plugin.csproj` → **Automatically packaged**
+- `CoseSignTool.MST.Plugin.csproj` → **Automatically packaged**
 - `CoseSignTool.IndirectSignature.Plugin.csproj` → **Automatically packaged**
 
 ### **✅ Adding New Plugins (Zero Maintenance)**
@@ -91,14 +91,14 @@ For local development, you can use MSBuild targets to automatically deploy plugi
 dotnet build CoseSignTool -p:DeployPlugins=true
 
 # This automatically:
-# - Creates plugins/CoseSignTool.CTS.Plugin/ subdirectory
+# - Creates plugins/CoseSignTool.MST.Plugin/ subdirectory
 # - Creates plugins/CoseSignTool.IndirectSignature.Plugin/ subdirectory  
 # - Copies each plugin and its dependencies to respective subdirectories
 # - Maintains backward compatibility with legacy deployment
 ```
 
 **What happens during plugin deployment:**
-- **CTS Plugin**: Deployed to `plugins/CoseSignTool.CTS.Plugin/` with Azure dependencies
+- **MST Plugin**: Deployed to `plugins/CoseSignTool.MST.Plugin/` with Azure dependencies
 - **Indirect Signature Plugin**: Deployed to `plugins/CoseSignTool.IndirectSignature.Plugin/` with minimal dependencies
 - **Legacy Support**: Also copies plugins to flat structure for backward compatibility
 - **Dependency Isolation**: Each plugin's dependencies are isolated in its subdirectory
@@ -116,9 +116,9 @@ CoseSignTool/
 │           ├── CoseSignTool.dll                    # Main library
 │           ├── [other shared dependencies...]
 │           └── plugins/                            # Plugin directory
-│               ├── CoseSignTool.CTS.Plugin/        # CTS plugin subdirectory
-│               │   ├── CoseSignTool.CTS.Plugin.dll
-│               │   ├── CoseSignTool.CTS.Plugin.deps.json
+│               ├── CoseSignTool.MST.Plugin/        # MST plugin subdirectory
+│               │   ├── CoseSignTool.MST.Plugin.dll
+│               │   ├── CoseSignTool.MST.Plugin.deps.json
 │               │   ├── Azure.Security.CodeTransparency.dll
 │               │   ├── Azure.Core.dll
 │               │   ├── Azure.Identity.dll
@@ -134,7 +134,7 @@ CoseSignTool/
 │               │   ├── CoseSignTool.IndirectSignature.Plugin.deps.json
 │               │   └── [minimal plugin-specific dependencies...]
 │               └── [legacy flat files for backward compatibility]
-│                   ├── CoseSignTool.CTS.Plugin.dll
+│                   ├── CoseSignTool.MST.Plugin.dll
 │                   ├── CoseSignTool.IndirectSignature.Plugin.dll
 │                   └── [shared dependencies...]
 ```
@@ -291,7 +291,7 @@ ls -la plugins/
 ./CoseSignTool --help
 
 # Test specific plugin command
-./CoseSignTool cts_register --help
+./CoseSignTool mst_register --help
 ```
 
 ## Troubleshooting

@@ -59,7 +59,7 @@ public interface ICoseSignToolPlugin
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Name` | `string` | Display name of the plugin (e.g., "Azure Code Transparency Service") |
+| `Name` | `string` | Display name of the plugin (e.g., "Microsoft's Signing Transparency") |
 | `Version` | `string` | Version string (semantic versioning recommended) |
 | `Description` | `string` | Brief description shown in help output |
 | `Commands` | `IEnumerable<IPluginCommand>` | Collection of commands provided by this plugin |

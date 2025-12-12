@@ -32,7 +32,7 @@
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <PackageReadmeFile>readme.md</PackageReadmeFile>
         <PackageReleaseNotes>ChangeLog.md</PackageReleaseNotes>
-        <Description>Extensions to CoseSign1.Transparent to enable Azure Code Transparency Service (CTS) as a transparency registration and validation service.</Description>
+        <Description>Extensions to CoseSign1.Transparent to enable Microsoft's Signing Transparency (MST) as a transparency registration and validation service.</Description>
     </PropertyGroup>
 
     <!--Package references-->

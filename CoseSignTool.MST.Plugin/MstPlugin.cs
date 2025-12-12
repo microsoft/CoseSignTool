@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.CTS.Plugin;
+namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
-/// Azure Code Transparency Service plugin for CoseSignTool.
+/// Microsoft's Signing Transparency (MST) plugin for CoseSignTool.
 /// </summary>
-public class AzureCtsPlugin : ICoseSignToolPlugin
+public class MstPlugin : ICoseSignToolPlugin
 {
     private readonly List<IPluginCommand> _commands;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureCtsPlugin"/> class.
+    /// Initializes a new instance of the <see cref="MstPlugin"/> class.
     /// </summary>
-    public AzureCtsPlugin()
+    public MstPlugin()
     {
         _commands = new List<IPluginCommand>
         {
@@ -23,7 +23,7 @@ public class AzureCtsPlugin : ICoseSignToolPlugin
     }
 
     /// <inheritdoc/>
-    public string Name => "Azure Code Transparency Service";
+    public string Name => "Microsoft's Signing Transparency";
 
     /// <inheritdoc/>
     public string Version => 
@@ -33,7 +33,7 @@ public class AzureCtsPlugin : ICoseSignToolPlugin
             .ToString() ?? "1.0.0";
 
     /// <inheritdoc/>
-    public string Description => "Provides Azure Code Transparency Service integration for registering and verifying COSE Sign1 messages.";
+    public string Description => "Provides Microsoft's Signing Transparency (MST) integration for registering and verifying COSE Sign1 messages.";
 
     /// <inheritdoc/>
     public IEnumerable<IPluginCommand> Commands => _commands;
@@ -42,6 +42,6 @@ public class AzureCtsPlugin : ICoseSignToolPlugin
     public void Initialize(IConfiguration? configuration = null)
     {
         // Perform any plugin-specific initialization here
-        // For now, no initialization is required for the Azure CTS plugin
+        // For now, no initialization is required for the MST plugin
     }
 }

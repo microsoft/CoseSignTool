@@ -7,7 +7,7 @@ CoseSignTool includes a powerful plugin architecture that allows developers to e
 
 **Key Features:**
 - **Custom Commands**: Add new functionality beyond the built-in commands
-- **Third-party Integrations**: Connect with external services and APIs (e.g., Azure Code Transparency Service)
+- **Third-party Integrations**: Connect with external services and APIs (e.g., Microsoft's Signing Transparency)
 - **Secure Loading**: Plugins are only loaded from the authorized `plugins` directory
 - **Easy Development**: Simple interfaces and base classes for rapid development
 - **🚀 Automatic CI/CD Packaging**: Plugins following naming conventions are automatically included in releases
@@ -23,8 +23,8 @@ CoseSignTool includes a powerful plugin architecture that allows developers to e
 CoseSignTool --help
 
 # Use a plugin command (example: Azure CTS)
-export AZURE_CTS_TOKEN="your-access-token"
-CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.txt --signature file.txt.cose
+export MST_TOKEN="your-access-token"
+CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.txt --signature file.txt.cose
 ```
 
 **For Developers:**
@@ -32,7 +32,7 @@ CoseSignTool cts_register --endpoint https://your-cts.azure.com --payload file.t
 - See [Plugins.md](Plugins.md) for comprehensive plugin development documentation
 - See [PluginQuickStart.md](PluginQuickStart.md) for a quick start guide
 - See [PluginExamples.md](PluginExamples.md) for example plugin implementations
-- See [AzureCTS.md](AzureCTS.md) for Azure Code Transparency Service plugin documentation
+- See [MST.md](MST.md) for Microsoft's Signing Transparency plugin documentation
 
 ## Concepts to know before you start
 * **Payload**: We use the term "Payload" to describe the content that is or will be signed. This might be a file or an object in memory.
@@ -341,3 +341,4 @@ You may also want to specify:
 * **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, **/AllowUntrusted**, and **/AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get /?* for the complete command line usage.
+

@@ -35,7 +35,7 @@ using System;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using CoseSign1.Transparent.Interfaces;
-using CoseSign1.Transparent.CTS;
+using CoseSign1.Transparent.MST;
 
 public class TransparencyExample
 {
@@ -58,7 +58,7 @@ public class TransparencyExample
             UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
         };
         
-        ITransparencyService transparencyService = new AzureCtsTransparencyService(
+        ITransparencyService transparencyService = new MstTransparencyService(
             transparencyClient, 
             verificationOptions, 
             null);
@@ -78,7 +78,7 @@ using System;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using CoseSign1.Transparent.Interfaces;
-using CoseSign1.Transparent.CTS;
+using CoseSign1.Transparent.MST;
 
 public class TransparencyExample
 {
@@ -106,7 +106,7 @@ using System;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using CoseSign1.Transparent.Interfaces;
-using CoseSign1.Transparent.CTS;
+using CoseSign1.Transparent.MST;
 
 public class TransparencyExample
 {

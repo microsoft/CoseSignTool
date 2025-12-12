@@ -21,7 +21,7 @@ PLUGIN_PROJECTS=($(find . -name "*.Plugin.csproj" -type f))
 ```
 
 ### **✅ Current Auto-Packaged Plugins**
-- `CoseSignTool.CTS.Plugin.csproj` → Azure Code Transparency Service plugin
+- `CoseSignTool.MST.Plugin.csproj` → Microsoft's Signing Transparency (MST) plugin
 - `CoseSignTool.IndirectSignature.Plugin.csproj` → Indirect signature plugin
 
 ### **✅ Adding New Plugins (Zero Maintenance)**

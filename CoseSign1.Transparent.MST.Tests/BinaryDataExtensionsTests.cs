@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS.Tests;
+namespace CoseSign1.Transparent.MST.Tests;
 
 using System.Formats.Cbor;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Unit tests for the <see cref="BinaryDataExtensions"/> class.
@@ -14,16 +14,16 @@ using CoseSign1.Transparent.CTS.Extensions;
 public class BinaryDataExtensionsTests
 {
     /// <summary>
-    /// Tests the <see cref="BinaryDataExtensions.TryGetCtsEntryId"/> method for null input.
+    /// Tests the <see cref="BinaryDataExtensions.TryGetMstEntryId"/> method for null input.
     /// </summary>
     [Test]
-    public void TryGetCtsEntryId_ReturnsFalse_WhenBinaryDataIsNull()
+    public void TryGetMstEntryId_ReturnsFalse_WhenBinaryDataIsNull()
     {
         // Arrange
         BinaryData binaryData = null;
 
         // Act
-        bool result = binaryData.TryGetCtsEntryId(out string? entryId);
+        bool result = binaryData.TryGetMstEntryId(out string? entryId);
 
         // Assert
         Assert.That(result, Is.False);
@@ -31,17 +31,17 @@ public class BinaryDataExtensionsTests
     }
 
     /// <summary>
-    /// Tests the <see cref="BinaryDataExtensions.TryGetCtsEntryId"/> method for valid CBOR data containing "EntryId".
+    /// Tests the <see cref="BinaryDataExtensions.TryGetMstEntryId"/> method for valid CBOR data containing "EntryId".
     /// </summary>
     [Test]
-    public void TryGetCtsEntryId_ReturnsTrue_WhenEntryIdIsPresent()
+    public void TryGetMstEntryId_ReturnsTrue_WhenEntryIdIsPresent()
     {
         // Arrange
         string expectedEntryId = "12345";
         BinaryData binaryData = CreateCborBinaryDataWithEntryId(expectedEntryId);
 
         // Act
-        bool result = binaryData.TryGetCtsEntryId(out string? entryId);
+        bool result = binaryData.TryGetMstEntryId(out string? entryId);
 
         // Assert
         Assert.That(result, Is.True);
@@ -49,16 +49,16 @@ public class BinaryDataExtensionsTests
     }
 
     /// <summary>
-    /// Tests the <see cref="BinaryDataExtensions.TryGetCtsEntryId"/> method for valid CBOR data without "EntryId".
+    /// Tests the <see cref="BinaryDataExtensions.TryGetMstEntryId"/> method for valid CBOR data without "EntryId".
     /// </summary>
     [Test]
-    public void TryGetCtsEntryId_ReturnsFalse_WhenEntryIdIsNotPresent()
+    public void TryGetMstEntryId_ReturnsFalse_WhenEntryIdIsNotPresent()
     {
         // Arrange
         BinaryData binaryData = CreateCborBinaryDataWithoutEntryId();
 
         // Act
-        bool result = binaryData.TryGetCtsEntryId(out string? entryId);
+        bool result = binaryData.TryGetMstEntryId(out string? entryId);
 
         // Assert
         Assert.That(result, Is.False);
@@ -66,16 +66,16 @@ public class BinaryDataExtensionsTests
     }
 
     /// <summary>
-    /// Tests the <see cref="BinaryDataExtensions.TryGetCtsEntryId"/> method for invalid CBOR data.
+    /// Tests the <see cref="BinaryDataExtensions.TryGetMstEntryId"/> method for invalid CBOR data.
     /// </summary>
     [Test]
-    public void TryGetCtsEntryId_ReturnsFalse_WhenCborDataIsInvalid()
+    public void TryGetMstEntryId_ReturnsFalse_WhenCborDataIsInvalid()
     {
         // Arrange
         BinaryData binaryData = BinaryData.FromBytes(new byte[] { 0xFF, 0xFF, 0xFF });
 
         // Act
-        bool result = binaryData.TryGetCtsEntryId(out string? entryId);
+        bool result = binaryData.TryGetMstEntryId(out string? entryId);
 
         // Assert
         Assert.That(result, Is.False);
@@ -83,16 +83,16 @@ public class BinaryDataExtensionsTests
     }
 
     /// <summary>
-    /// Tests the <see cref="BinaryDataExtensions.TryGetCtsEntryId"/> method for CBOR data with unexpected structure.
+    /// Tests the <see cref="BinaryDataExtensions.TryGetMstEntryId"/> method for CBOR data with unexpected structure.
     /// </summary>
     [Test]
-    public void TryGetCtsEntryId_ReturnsFalse_WhenCborDataHasUnexpectedStructure()
+    public void TryGetMstEntryId_ReturnsFalse_WhenCborDataHasUnexpectedStructure()
     {
         // Arrange
         BinaryData binaryData = CreateCborBinaryDataWithUnexpectedStructure();
 
         // Act
-        bool result = binaryData.TryGetCtsEntryId(out string? entryId);
+        bool result = binaryData.TryGetMstEntryId(out string? entryId);
 
         // Assert
         Assert.That(result, Is.False);
@@ -142,3 +142,4 @@ public class BinaryDataExtensionsTests
         return BinaryData.FromBytes(cborWriter.Encode());
     }
 }
+

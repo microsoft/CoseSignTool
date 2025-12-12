@@ -1,7 +1,7 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.CTS;
+namespace CoseSign1.Transparent.MST;
 
 using System;
 using System.Collections.Generic;
@@ -12,15 +12,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.CTS.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Extensions;
 using CoseSign1.Transparent.Interfaces;
 
 /// <summary>
-/// Provides an implementation of the <see cref="ITransparencyService"/> interface using Azure Code Transparency Service (CTS).
+/// Provides an implementation of the <see cref="ITransparencyService"/> interface using Microsoft's Signing Transparency (MST).
 /// This service enables the creation and verification of transparent COSE Sign1 messages.
 /// </summary>
-public class AzureCtsTransparencyService : ITransparencyService
+public class MstTransparencyService : ITransparencyService
 {
     private readonly CodeTransparencyClient TransparencyClient;
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
@@ -34,23 +34,23 @@ public class AzureCtsTransparencyService : ITransparencyService
     #pragma warning restore IDE0052 // Remove unread private members
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class.
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class.
     /// </summary>
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
-    public AzureCtsTransparencyService(CodeTransparencyClient transparencyClient)
+    public MstTransparencyService(CodeTransparencyClient transparencyClient)
         : this(transparencyClient, null, null, null, null, null)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class with verification options.
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with verification options.
     /// </summary>
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
-    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <param name="clientOptions">Optional client options for the transparency client.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
-    public AzureCtsTransparencyService(
+    public MstTransparencyService(
         CodeTransparencyClient transparencyClient,
         CodeTransparencyVerificationOptions? verificationOptions,
         CodeTransparencyClientOptions? clientOptions)
@@ -59,7 +59,7 @@ public class AzureCtsTransparencyService : ITransparencyService
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureCtsTransparencyService"/> class with verification options and logging.
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with verification options and logging.
     /// </summary>
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
@@ -68,7 +68,7 @@ public class AzureCtsTransparencyService : ITransparencyService
     /// <param name="logWarning">Optional warning logging callback.</param>
     /// <param name="logError">Optional error logging callback.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
-    public AzureCtsTransparencyService(
+    public MstTransparencyService(
         CodeTransparencyClient transparencyClient,
         CodeTransparencyVerificationOptions? verificationOptions,
         CodeTransparencyClientOptions? clientOptions,
@@ -126,7 +126,7 @@ public class AzureCtsTransparencyService : ITransparencyService
         LogVerbose?.Invoke("CreateEntryAsync completed successfully");
 
         // Get the entryId from the operation result
-        if (!operation.Value.TryGetCtsEntryId(out string entryId))
+        if (!operation.Value.TryGetMstEntryId(out string entryId))
         {
             string error = "The transparency operation failed, content was not a valid CBOR-encoded entryId.";
             LogError?.Invoke(error);
@@ -271,3 +271,4 @@ public class AzureCtsTransparencyService : ITransparencyService
         return VerifyTransparencyAsync(message, cancellationToken);
     }
 }
+

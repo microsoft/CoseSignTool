@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Commands;
 /// <summary>
 /// Tests for the CommandBuilder class.
 /// </summary>
+[TestFixture]
 public class CommandBuilderTests
 {
-    [Fact]
+    [Test]
     public void BuildRootCommand_ReturnsRootCommand()
     {
         // Arrange
@@ -21,11 +22,11 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand();
 
         // Assert
-        Assert.NotNull(rootCommand);
-        Assert.IsType<RootCommand>(rootCommand);
+        Assert.That(rootCommand, Is.Not.Null);
+        Assert.That(rootCommand, Is.InstanceOf<RootCommand>());
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasCorrectDescription()
     {
         // Arrange
@@ -35,10 +36,10 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand();
 
         // Assert
-        Assert.Contains("COSE Sign1", rootCommand.Description);
+        Assert.That(rootCommand.Description, Does.Contain("COSE Sign1"));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasSignEphemeralCommand()
     {
         // Arrange
@@ -49,10 +50,10 @@ public class CommandBuilderTests
 
         // Assert
         var signCommand = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "sign-ephemeral");
-        Assert.NotNull(signCommand);
+        Assert.That(signCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasVerifyCommand()
     {
         // Arrange
@@ -63,10 +64,10 @@ public class CommandBuilderTests
 
         // Assert
         var verifyCommand = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "verify");
-        Assert.NotNull(verifyCommand);
+        Assert.That(verifyCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasInspectCommand()
     {
         // Arrange
@@ -77,10 +78,10 @@ public class CommandBuilderTests
 
         // Assert
         var inspectCommand = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "inspect");
-        Assert.NotNull(inspectCommand);
+        Assert.That(inspectCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasOptionalPayloadArgument()
     {
         // Arrange
@@ -92,13 +93,13 @@ public class CommandBuilderTests
 
         // Assert
         var payloadArg = signCommand.Arguments.FirstOrDefault(a => a.Name == "payload");
-        Assert.NotNull(payloadArg);
+        Assert.That(payloadArg, Is.Not.Null);
         // Payload is optional to support stdin
-        Assert.Equal(0, payloadArg!.Arity.MinimumNumberOfValues);
-        Assert.Equal(1, payloadArg!.Arity.MaximumNumberOfValues);
+        Assert.That(payloadArg!.Arity.MinimumNumberOfValues, Is.EqualTo(0));
+        Assert.That(payloadArg!.Arity.MaximumNumberOfValues, Is.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasOutputOption()
     {
         // Arrange
@@ -110,10 +111,10 @@ public class CommandBuilderTests
 
         // Assert
         var outputOption = signCommand.Options.FirstOrDefault(o => o.Name == "output");
-        Assert.NotNull(outputOption);
+        Assert.That(outputOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasDetachedOption()
     {
         // Arrange
@@ -125,10 +126,10 @@ public class CommandBuilderTests
 
         // Assert
         var detachedOption = signCommand.Options.FirstOrDefault(o => o.Name == "detached");
-        Assert.NotNull(detachedOption);
+        Assert.That(detachedOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_VerifyCommandHasRequiredSignatureArgument()
     {
         // Arrange
@@ -140,11 +141,11 @@ public class CommandBuilderTests
 
         // Assert
         var signatureArg = verifyCommand.Arguments.FirstOrDefault(a => a.Name == "signature");
-        Assert.NotNull(signatureArg);
-        Assert.Equal(1, signatureArg!.Arity.MinimumNumberOfValues);
+        Assert.That(signatureArg, Is.Not.Null);
+        Assert.That(signatureArg!.Arity.MinimumNumberOfValues, Is.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_InspectCommandHasRequiredFileArgument()
     {
         // Arrange
@@ -156,11 +157,11 @@ public class CommandBuilderTests
 
         // Assert
         var fileArg = inspectCommand.Arguments.FirstOrDefault(a => a.Name == "file");
-        Assert.NotNull(fileArg);
-        Assert.Equal(1, fileArg!.Arity.MinimumNumberOfValues);
+        Assert.That(fileArg, Is.Not.Null);
+        Assert.That(fileArg!.Arity.MinimumNumberOfValues, Is.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_AllCommandsHaveDescriptions()
     {
         // Arrange
@@ -172,11 +173,11 @@ public class CommandBuilderTests
         // Assert
         foreach (var command in rootCommand.Subcommands)
         {
-            Assert.False(string.IsNullOrEmpty(command.Description), $"Command '{command.Name}' should have a description");
+            Assert.That(!string.IsNullOrEmpty(command.Description), $"Command '{command.Name}' should have a description");
         }
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_CalledMultipleTimes_ReturnsNewInstances()
     {
         // Arrange
@@ -187,10 +188,10 @@ public class CommandBuilderTests
         var rootCommand2 = builder.BuildRootCommand();
 
         // Assert
-        Assert.NotSame(rootCommand2, rootCommand1);
+        Assert.That(rootCommand2, Is.Not.SameAs(rootCommand1));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasOutputFormatOption()
     {
         // Arrange
@@ -201,10 +202,10 @@ public class CommandBuilderTests
 
         // Assert
         var outputFormatOption = rootCommand.Options.FirstOrDefault(o => o.Name == "output-format");
-        Assert.NotNull(outputFormatOption);
+        Assert.That(outputFormatOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_OutputFormatOptionHasAlias()
     {
         // Arrange
@@ -215,11 +216,11 @@ public class CommandBuilderTests
 
         // Assert
         var outputFormatOption = rootCommand.Options.FirstOrDefault(o => o.Name == "output-format");
-        Assert.NotNull(outputFormatOption);
-        Assert.Contains("-f", outputFormatOption!.Aliases);
+        Assert.That(outputFormatOption, Is.Not.Null);
+        Assert.That(outputFormatOption!.Aliases, Does.Contain("-f"));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_HasVerboseOption()
     {
         // Arrange
@@ -230,10 +231,10 @@ public class CommandBuilderTests
 
         // Assert
         var verboseOption = rootCommand.Options.FirstOrDefault(o => o.Name == "verbose");
-        Assert.NotNull(verboseOption);
+        Assert.That(verboseOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasSignatureTypeOption()
     {
         // Arrange
@@ -245,10 +246,10 @@ public class CommandBuilderTests
 
         // Assert
         var signatureTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "signature-type");
-        Assert.NotNull(signatureTypeOption);
+        Assert.That(signatureTypeOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasContentTypeOption()
     {
         // Arrange
@@ -260,10 +261,10 @@ public class CommandBuilderTests
 
         // Assert
         var contentTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "content-type");
-        Assert.NotNull(contentTypeOption);
+        Assert.That(contentTypeOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_SignEphemeralCommandHasQuietOption()
     {
         // Arrange
@@ -275,10 +276,10 @@ public class CommandBuilderTests
 
         // Assert
         var quietOption = signCommand.Options.FirstOrDefault(o => o.Name == "quiet");
-        Assert.NotNull(quietOption);
+        Assert.That(quietOption, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_WithAdditionalPluginDirectories_DoesNotThrow()
     {
         // Arrange
@@ -292,11 +293,11 @@ public class CommandBuilderTests
             var rootCommand = builder.BuildRootCommand([tempDir]);
 
             // Assert
-            Assert.NotNull(rootCommand);
+            Assert.That(rootCommand, Is.Not.Null);
             // Should still have the built-in commands
-            Assert.Contains(rootCommand.Subcommands, c => c.Name == "sign-ephemeral");
-            Assert.Contains(rootCommand.Subcommands, c => c.Name == "verify");
-            Assert.Contains(rootCommand.Subcommands, c => c.Name == "inspect");
+            Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "sign-ephemeral"));
+            Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "verify"));
+            Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "inspect"));
         }
         finally
         {
@@ -307,7 +308,7 @@ public class CommandBuilderTests
         }
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_WithNullPluginDirectories_DoesNotThrow()
     {
         // Arrange
@@ -317,10 +318,10 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand(null);
 
         // Assert
-        Assert.NotNull(rootCommand);
+        Assert.That(rootCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_WithEmptyPluginDirectories_DoesNotThrow()
     {
         // Arrange
@@ -330,10 +331,10 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand([]);
 
         // Assert
-        Assert.NotNull(rootCommand);
+        Assert.That(rootCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_VerifyCommandHasCorrectDescription()
     {
         // Arrange
@@ -344,10 +345,10 @@ public class CommandBuilderTests
         var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
 
         // Assert
-        Assert.Contains("Verify", verifyCommand.Description);
+        Assert.That(verifyCommand.Description, Does.Contain("Verify"));
     }
 
-    [Fact]
+    [Test]
     public void BuildRootCommand_InspectCommandHasCorrectDescription()
     {
         // Arrange
@@ -358,6 +359,11 @@ public class CommandBuilderTests
         var inspectCommand = rootCommand.Subcommands.First(c => c.Name == "inspect");
 
         // Assert
-        Assert.Contains("Inspect", inspectCommand.Description);
+        Assert.That(inspectCommand.Description, Does.Contain("Inspect"));
     }
 }
+
+
+
+
+

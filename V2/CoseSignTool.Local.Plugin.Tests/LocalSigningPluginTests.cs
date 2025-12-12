@@ -8,9 +8,10 @@ namespace CoseSignTool.Local.Plugin.Tests;
 /// <summary>
 /// Tests for LocalSigningPlugin.
 /// </summary>
+[TestFixture]
 public class LocalSigningPluginTests
 {
-    [Fact]
+    [Test]
     public void Name_ReturnsCorrectName()
     {
         // Arrange
@@ -20,10 +21,10 @@ public class LocalSigningPluginTests
         var name = plugin.Name;
 
         // Assert
-        Assert.Equal("Local Certificate Signing", name);
+        Assert.That(name, Is.EqualTo("Local Certificate Signing"));
     }
 
-    [Fact]
+    [Test]
     public void Version_ReturnsVersion()
     {
         // Arrange
@@ -33,12 +34,12 @@ public class LocalSigningPluginTests
         var version = plugin.Version;
 
         // Assert
-        Assert.NotNull(version);
-        Assert.NotEmpty(version);
-        Assert.Equal("1.0.0", version);
+        Assert.That(version, Is.Not.Null);
+        Assert.That(version, Is.Not.Empty);
+        Assert.That(version, Is.EqualTo("1.0.0"));
     }
 
-    [Fact]
+    [Test]
     public void Description_ReturnsDescription()
     {
         // Arrange
@@ -48,12 +49,12 @@ public class LocalSigningPluginTests
         var description = plugin.Description;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("local", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToLowerInvariant(), Does.Contain("local"));
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_CompletesSuccessfully()
     {
         // Arrange
@@ -63,7 +64,7 @@ public class LocalSigningPluginTests
         await plugin.InitializeAsync();
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_WithConfiguration_CompletesSuccessfully()
     {
         // Arrange
@@ -74,7 +75,7 @@ public class LocalSigningPluginTests
         await plugin.InitializeAsync(config);
     }
 
-    [Fact]
+    [Test]
     public void GetSigningCommandProviders_ReturnsProviders()
     {
         // Arrange
@@ -84,13 +85,13 @@ public class LocalSigningPluginTests
         var providers = plugin.GetSigningCommandProviders().ToList();
 
         // Assert
-        Assert.NotNull(providers);
-        Assert.NotEmpty(providers);
+        Assert.That(providers, Is.Not.Null);
+        Assert.That(providers, Is.Not.Empty);
         // Should always include PFX provider
-        Assert.Contains(providers, p => p.CommandName == "sign-pfx");
+        Assert.That(providers, Has.Some.Matches<CoseSignTool.Plugins.ISigningCommandProvider>(p => p.CommandName == "sign-pfx"));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningCommandProviders_IncludesPlatformSpecificProviders()
     {
         // Arrange
@@ -100,15 +101,15 @@ public class LocalSigningPluginTests
         var providers = plugin.GetSigningCommandProviders().ToList();
 
         // Assert
-        Assert.NotNull(providers);
+        Assert.That(providers, Is.Not.Null);
         // On Windows, should include certstore provider
         if (OperatingSystem.IsWindows())
         {
-            Assert.Contains(providers, p => p.CommandName == "sign-certstore");
+            Assert.That(providers, Has.Some.Matches<CoseSignTool.Plugins.ISigningCommandProvider>(p => p.CommandName == "sign-certstore"));
         }
     }
 
-    [Fact]
+    [Test]
     public void GetTransparencyProviderContributors_ReturnsEmpty()
     {
         // Arrange
@@ -118,10 +119,10 @@ public class LocalSigningPluginTests
         var contributors = plugin.GetTransparencyProviderContributors().ToList();
 
         // Assert
-        Assert.Empty(contributors);
+        Assert.That(contributors, Is.Empty);
     }
 
-    [Fact]
+    [Test]
     public void RegisterCommands_DoesNotThrow()
     {
         // Arrange

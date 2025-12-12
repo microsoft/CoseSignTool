@@ -24,6 +24,8 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
 
     public string CommandDescription => "Sign a payload using Azure Trusted Signing service";
 
+    public string ExampleUsage => "--ats-endpoint https://... --ats-account-name <account> --ats-cert-profile-name <profile>";
+
     public void AddCommandOptions(Command command)
     {
         var endpointOption = new Option<string>(

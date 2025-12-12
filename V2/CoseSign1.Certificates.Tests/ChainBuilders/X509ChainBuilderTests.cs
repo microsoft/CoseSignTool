@@ -35,7 +35,8 @@ public class X509ChainBuilderTests
     [Test]
     public void Constructor_WithNullPolicy_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new X509ChainBuilder(null!));
+        X509ChainPolicy? nullPolicy = null;
+        Assert.Throws<ArgumentNullException>(() => new X509ChainBuilder(nullPolicy!));
     }
 
     [Test]

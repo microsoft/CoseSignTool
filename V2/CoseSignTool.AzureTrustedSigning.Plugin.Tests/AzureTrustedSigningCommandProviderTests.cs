@@ -9,9 +9,10 @@ namespace CoseSignTool.AzureTrustedSigning.Plugin.Tests;
 /// <summary>
 /// Tests for AzureTrustedSigningCommandProvider.
 /// </summary>
+[TestFixture]
 public class AzureTrustedSigningCommandProviderTests
 {
-    [Fact]
+    [Test]
     public void CommandName_ReturnsSignAzure()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class AzureTrustedSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.Equal("sign-azure", name);
+        Assert.That(name, Is.EqualTo("sign-azure"));
     }
 
-    [Fact]
+    [Test]
     public void CommandDescription_ReturnsDescription()
     {
         // Arrange
@@ -34,12 +35,12 @@ public class AzureTrustedSigningCommandProviderTests
         var description = provider.CommandDescription;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("Azure", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToLowerInvariant(), Does.Contain("azure"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_AddsRequiredOptions()
     {
         // Arrange
@@ -50,12 +51,12 @@ public class AzureTrustedSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        Assert.Contains(command.Options, o => o.Name == "ats-endpoint");
-        Assert.Contains(command.Options, o => o.Name == "ats-account-name");
-        Assert.Contains(command.Options, o => o.Name == "ats-cert-profile-name");
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-endpoint"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-account-name"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-cert-profile-name"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_EndpointIsRequired()
     {
         // Arrange
@@ -67,11 +68,11 @@ public class AzureTrustedSigningCommandProviderTests
 
         // Assert
         var endpointOption = command.Options.FirstOrDefault(o => o.Name == "ats-endpoint");
-        Assert.NotNull(endpointOption);
-        Assert.True(endpointOption.IsRequired);
+        Assert.That(endpointOption, Is.Not.Null);
+        Assert.That(endpointOption!.IsRequired, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_AccountNameIsRequired()
     {
         // Arrange
@@ -83,11 +84,11 @@ public class AzureTrustedSigningCommandProviderTests
 
         // Assert
         var accountNameOption = command.Options.FirstOrDefault(o => o.Name == "ats-account-name");
-        Assert.NotNull(accountNameOption);
-        Assert.True(accountNameOption.IsRequired);
+        Assert.That(accountNameOption, Is.Not.Null);
+        Assert.That(accountNameOption!.IsRequired, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_CertProfileIsRequired()
     {
         // Arrange
@@ -99,12 +100,12 @@ public class AzureTrustedSigningCommandProviderTests
 
         // Assert
         var certProfileOption = command.Options.FirstOrDefault(o => o.Name == "ats-cert-profile-name");
-        Assert.NotNull(certProfileOption);
-        Assert.True(certProfileOption.IsRequired);
+        Assert.That(certProfileOption, Is.Not.Null);
+        Assert.That(certProfileOption!.IsRequired, Is.True);
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingEndpoint_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingEndpoint_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new AzureTrustedSigningCommandProvider();
@@ -115,12 +116,12 @@ public class AzureTrustedSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingAccountName_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingAccountName_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new AzureTrustedSigningCommandProvider();
@@ -131,12 +132,12 @@ public class AzureTrustedSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingCertProfile_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingCertProfile_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new AzureTrustedSigningCommandProvider();
@@ -147,12 +148,12 @@ public class AzureTrustedSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithInvalidEndpoint_ThrowsArgumentException()
+    [Test]
+    public void CreateSigningServiceAsync_WithInvalidEndpoint_ThrowsArgumentException()
     {
         // Arrange
         var provider = new AzureTrustedSigningCommandProvider();
@@ -164,11 +165,11 @@ public class AzureTrustedSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        Assert.ThrowsAsync<ArgumentException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_ReturnsMetadata()
     {
         // Arrange
@@ -178,12 +179,12 @@ public class AzureTrustedSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.NotNull(metadata);
-        Assert.Contains("Certificate Source", metadata.Keys);
-        Assert.Equal("Azure Trusted Signing", metadata["Certificate Source"]);
+        Assert.That(metadata, Is.Not.Null);
+        Assert.That(metadata.Keys, Does.Contain("Certificate Source"));
+        Assert.That(metadata["Certificate Source"], Is.EqualTo("Azure Trusted Signing"));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_WithNoSigningService_ReturnsUnknownValues()
     {
         // Arrange
@@ -193,7 +194,7 @@ public class AzureTrustedSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.Equal("Unknown", metadata["Account Name"]);
-        Assert.Equal("Unknown", metadata["Certificate Profile"]);
+        Assert.That(metadata["Account Name"], Is.EqualTo("Unknown"));
+        Assert.That(metadata["Certificate Profile"], Is.EqualTo("Unknown"));
     }
 }

@@ -21,6 +21,8 @@ public class PemSigningCommandProvider : ISigningCommandProvider
 
     public string CommandDescription => "Sign a payload with PEM certificate and private key files";
 
+    public string ExampleUsage => "--cert-file cert.pem --key-file key.pem";
+
     public void AddCommandOptions(Command command)
     {
         var certFileOption = new Option<FileInfo>(

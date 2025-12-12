@@ -7,3 +7,4 @@ global using System.Linq;
 global using System.Security.Cryptography.Cose;
 global using System.Threading;
 global using System.Threading.Tasks;
+global using Microsoft.Extensions.Logging;

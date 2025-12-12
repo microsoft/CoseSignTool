@@ -12,19 +12,20 @@ namespace CoseSignTool.Tests.Commands.Handlers;
 /// <summary>
 /// Tests for the VerifyCommandHandler class.
 /// </summary>
+[TestFixture]
 public class VerifyCommandHandlerTests
 {
-    [Fact]
+    [Test]
     public void Constructor_WithNullFormatter_UsesDefaultFormatter()
     {
         // Arrange & Act
         var handler = new VerifyCommandHandler(null);
 
         // Assert
-        Assert.NotNull(handler);
+        Assert.That(handler, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithFormatter_UsesProvidedFormatter()
     {
         // Arrange
@@ -34,10 +35,10 @@ public class VerifyCommandHandlerTests
         var handler = new VerifyCommandHandler(formatter);
 
         // Assert
-        Assert.NotNull(handler);
+        Assert.That(handler, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNullSignature_ReturnsFileNotFound()
     {
         // Arrange
@@ -48,10 +49,10 @@ public class VerifyCommandHandlerTests
         var result = await handler.HandleAsync(context);
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, result);
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNonExistentSignature_ReturnsFileNotFound()
     {
         // Arrange
@@ -63,10 +64,10 @@ public class VerifyCommandHandlerTests
         var result = await handler.HandleAsync(context);
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, result);
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithValidSignature_ReturnsInvalidSignatureForInvalidCose()
     {
         // Arrange
@@ -82,7 +83,7 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - invalid COSE data returns InvalidSignature
-            Assert.Equal((int)ExitCode.InvalidSignature, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
         }
         finally
         {
@@ -93,17 +94,17 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNullContext_ThrowsArgumentNullException()
     {
         // Arrange
         var handler = new VerifyCommandHandler();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
+        Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithRandomBytes_ReturnsInvalidSignature()
     {
         // Arrange
@@ -119,7 +120,7 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - random bytes returns InvalidSignature
-            Assert.Equal((int)ExitCode.InvalidSignature, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
         }
         finally
         {
@@ -130,7 +131,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_UsesProvidedFormatter()
     {
         // Arrange
@@ -150,7 +151,7 @@ public class VerifyCommandHandlerTests
 
             // Assert - formatter should have been used
             var output = stringWriter.ToString();
-            Assert.Contains("Verification Operation", output);
+            Assert.That(output, Does.Contain("Verification Operation"));
         }
         finally
         {
@@ -161,7 +162,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithEmptyFile_ReturnsInvalidSignature()
     {
         // Arrange
@@ -177,7 +178,7 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - empty file returns InvalidSignature
-            Assert.Equal((int)ExitCode.InvalidSignature, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
         }
         finally
         {
@@ -200,7 +201,7 @@ public class VerifyCommandHandlerTests
         return new InvocationContext(parseResult);
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccessOrValidationStatus()
     {
         // Arrange - Create a real signature using sign-ephemeral
@@ -214,7 +215,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload for verify test");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
             var context = CreateInvocationContext(signature: signature);
@@ -223,7 +224,7 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - Should return success or a validation status (not file-related errors)
-            Assert.True(
+            Assert.That(
                 result == (int)ExitCode.Success ||
                 result == (int)ExitCode.VerificationFailed ||
                 result == (int)ExitCode.UntrustedCertificate,
@@ -242,7 +243,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithJsonFormatter_ProducesJsonOutput()
     {
         // Arrange
@@ -262,7 +263,7 @@ public class VerifyCommandHandlerTests
 
             // Assert - JSON formatter should produce JSON-like output
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("{") || output.Contains("[") || output.Contains("\""));
+            Assert.That(output.Contains("{") || output.Contains("[") || output.Contains("\""));
         }
         finally
         {
@@ -273,7 +274,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithXmlFormatter_ProducesXmlOutput()
     {
         // Arrange
@@ -293,7 +294,7 @@ public class VerifyCommandHandlerTests
 
             // Assert - XML formatter should produce XML-like output
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("<") || output.Contains("</") || output.Contains("xml"));
+            Assert.That(output.Contains("<") || output.Contains("</") || output.Contains("xml"));
         }
         finally
         {
@@ -304,7 +305,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithQuietFormatter_SuppressesOutput()
     {
         // Arrange
@@ -321,10 +322,10 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - Should complete without throwing
-            Assert.True(
+            Assert.That(
                 result == (int)ExitCode.InvalidSignature ||
                 result == (int)ExitCode.FileNotFound ||
-                result == (int)ExitCode.VerificationFailed);
+                result == (int)ExitCode.VerificationFailed, Is.True);
         }
         finally
         {
@@ -335,7 +336,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithEmbeddedPayloadSignature_IndicatesEmbedded()
     {
         // Arrange
@@ -352,7 +353,7 @@ public class VerifyCommandHandlerTests
             File.WriteAllText(tempPayload, "Test payload");
             // Use embedded signature type
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
             var context = CreateInvocationContext(signature: signature);
@@ -363,7 +364,7 @@ public class VerifyCommandHandlerTests
 
             // Assert
             var output = stringWriter.ToString();
-            Assert.Contains("Embedded", output);
+            Assert.That(output, Does.Contain("Embedded"));
         }
         finally
         {
@@ -378,7 +379,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithDetachedSignature_IndicatesDetached()
     {
         // Arrange
@@ -395,7 +396,7 @@ public class VerifyCommandHandlerTests
             File.WriteAllText(tempPayload, "Test payload");
             // Use direct with detached flag
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type direct --detached");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
             var context = CreateInvocationContext(signature: signature);
@@ -406,7 +407,7 @@ public class VerifyCommandHandlerTests
 
             // Assert
             var output = stringWriter.ToString();
-            Assert.Contains("Detached", output);
+            Assert.That(output, Does.Contain("Detached"));
         }
         finally
         {
@@ -421,3 +422,8 @@ public class VerifyCommandHandlerTests
         }
     }
 }
+
+
+
+
+

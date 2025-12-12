@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Commands;
 /// <summary>
 /// Integration tests for command execution through CommandBuilder.
 /// </summary>
+[TestFixture]
 public class CommandIntegrationTests
 {
-    [Fact]
+    [Test]
     public async Task SignCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -23,11 +24,11 @@ public class CommandIntegrationTests
         var exitCode = rootCommand.Invoke($"sign-ephemeral \"{nonExistentFile}\"");
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
         await Task.CompletedTask; // Keep async for consistency
     }
 
-    [Fact]
+    [Test]
     public async Task SignCommand_WithValidFile_ReturnsSuccess()
     {
         // Arrange
@@ -42,7 +43,7 @@ public class CommandIntegrationTests
             var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -58,7 +59,7 @@ public class CommandIntegrationTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task VerifyCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -70,11 +71,11 @@ public class CommandIntegrationTests
         var exitCode = rootCommand.Invoke($"verify \"{nonExistentFile}\"");
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
         await Task.CompletedTask; // Keep async for consistency
     }
 
-    [Fact]
+    [Test]
     public async Task VerifyCommand_WithInvalidCoseFile_ReturnsInvalidSignature()
     {
         // Arrange
@@ -89,7 +90,7 @@ public class CommandIntegrationTests
             var exitCode = rootCommand.Invoke($"verify \"{tempFile}\"");
 
             // Assert - invalid COSE data returns InvalidSignature
-            Assert.Equal((int)ExitCode.InvalidSignature, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidSignature));
         }
         finally
         {
@@ -100,7 +101,7 @@ public class CommandIntegrationTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -112,11 +113,11 @@ public class CommandIntegrationTests
         var exitCode = rootCommand.Invoke($"inspect \"{nonExistentFile}\"");
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
         await Task.CompletedTask; // Keep async for consistency
     }
 
-    [Fact]
+    [Test]
     public async Task InspectCommand_WithInvalidCoseFile_ReturnsInspectionFailed()
     {
         // Arrange
@@ -131,7 +132,7 @@ public class CommandIntegrationTests
             var exitCode = rootCommand.Invoke($"inspect \"{tempFile}\"");
 
             // Assert - invalid COSE data returns InspectionFailed
-            Assert.Equal((int)ExitCode.InspectionFailed, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.InspectionFailed));
         }
         finally
         {
@@ -142,7 +143,7 @@ public class CommandIntegrationTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task SignCommand_WithDetachedOption_ReturnsSuccess()
     {
         // Arrange
@@ -157,7 +158,7 @@ public class CommandIntegrationTests
             var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --detached");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -173,7 +174,7 @@ public class CommandIntegrationTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task SignCommand_WithCustomOutput_ReturnsSuccess()
     {
         // Arrange
@@ -189,7 +190,7 @@ public class CommandIntegrationTests
             var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --output \"{customOutput}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -204,3 +205,8 @@ public class CommandIntegrationTests
         }
     }
 }
+
+
+
+
+

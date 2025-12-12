@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests;
 /// <summary>
 /// Tests for the Program class entry point.
 /// </summary>
+[TestFixture]
 public class ProgramTests
 {
-    [Fact]
+    [Test]
     public void Main_WithHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithInvalidCommand_ReturnsInvalidArguments()
     {
         // Arrange
@@ -34,62 +35,59 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.InvalidArguments, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidArguments));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithNullArgs_ThrowsArgumentNullException()
     {
-        // Act
-        Action act = () => Program.Main(null!);
-
-        // Assert
-        Assert.Throws<ArgumentNullException>(act);
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => Program.Main(null!));
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_ReturnsConfiguredCommand()
     {
         // Act
         var rootCommand = Program.CreateRootCommand();
 
         // Assert
-        Assert.NotNull(rootCommand);
-        Assert.IsType<RootCommand>(rootCommand);
-        Assert.NotEmpty(rootCommand.Subcommands);
+        Assert.That(rootCommand, Is.Not.Null);
+        Assert.That(rootCommand, Is.InstanceOf<RootCommand>());
+        Assert.That(rootCommand.Subcommands, Is.Not.Empty);
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_HasSignEphemeralCommand()
     {
         // Act
         var rootCommand = Program.CreateRootCommand();
 
         // Assert
-        Assert.Contains(rootCommand.Subcommands, c => c.Name == "sign-ephemeral");
+        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "sign-ephemeral"));
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_HasVerifyCommand()
     {
         // Act
         var rootCommand = Program.CreateRootCommand();
 
         // Assert
-        Assert.Contains(rootCommand.Subcommands, c => c.Name == "verify");
+        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "verify"));
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_HasInspectCommand()
     {
         // Act
         var rootCommand = Program.CreateRootCommand();
 
         // Assert
-        Assert.Contains(rootCommand.Subcommands, c => c.Name == "inspect");
+        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "inspect"));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithSignEphemeralCommandNoArgument_ReturnsSuccessWithStdinSupport()
     {
         // Arrange - sign-ephemeral with no argument will try to read from stdin
@@ -102,10 +100,10 @@ public class ProgramTests
 
         // Assert - sign-ephemeral without arguments reads from stdin (returns 0 or 3 depending on stdin)
         // Since there's no stdin in test, it will try to sign empty data and succeed or fail gracefully
-        Assert.True(exitCode == (int)ExitCode.Success || exitCode == (int)ExitCode.FileNotFound);
+        Assert.That(exitCode == (int)ExitCode.Success || exitCode == (int)ExitCode.FileNotFound, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void Main_WithVerifyCommandMissingArgument_ReturnsInvalidArguments()
     {
         // Arrange - verify command requires a signature argument
@@ -115,10 +113,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.InvalidArguments, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidArguments));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithVersionFlag_ReturnsSuccess()
     {
         // Arrange
@@ -128,10 +126,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithSignEphemeralHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -141,10 +139,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithVerifyHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -154,10 +152,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithInspectHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -167,10 +165,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithOutputFormatOption_AcceptsJson()
     {
         // Arrange
@@ -180,10 +178,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithOutputFormatOption_AcceptsXml()
     {
         // Arrange
@@ -193,10 +191,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithOutputFormatOption_AcceptsQuiet()
     {
         // Arrange
@@ -206,10 +204,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithShortOutputFormatOption_AcceptsText()
     {
         // Arrange
@@ -219,10 +217,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void Main_WithEmptyArgs_ReturnsSuccess()
     {
         // Arrange - no args shows help
@@ -232,10 +230,10 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert - no arguments shows help and returns success
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_WithAdditionalPluginDirectories_DoesNotThrow()
     {
         // Arrange
@@ -248,8 +246,8 @@ public class ProgramTests
             var rootCommand = Program.CreateRootCommand([tempDir]);
 
             // Assert
-            Assert.NotNull(rootCommand);
-            Assert.Contains(rootCommand.Subcommands, c => c.Name == "sign-ephemeral");
+            Assert.That(rootCommand, Is.Not.Null);
+            Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "sign-ephemeral"));
         }
         finally
         {
@@ -260,17 +258,17 @@ public class ProgramTests
         }
     }
 
-    [Fact]
+    [Test]
     public void CreateRootCommand_WithNull_DoesNotThrow()
     {
         // Act
         var rootCommand = Program.CreateRootCommand(null);
 
         // Assert
-        Assert.NotNull(rootCommand);
+        Assert.That(rootCommand, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void Main_WithAdditionalPluginDir_ProcessesPluginDirectory()
     {
         // Arrange
@@ -285,7 +283,7 @@ public class ProgramTests
             var exitCode = Program.Main(args);
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, exitCode);
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -296,7 +294,7 @@ public class ProgramTests
         }
     }
 
-    [Fact]
+    [Test]
     public void Main_WithInspectCommandMissingArgument_ReturnsInvalidArguments()
     {
         // Arrange - inspect command requires a file argument
@@ -306,6 +304,17 @@ public class ProgramTests
         var exitCode = Program.Main(args);
 
         // Assert
-        Assert.Equal((int)ExitCode.InvalidArguments, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidArguments));
     }
 }
+
+
+
+
+
+
+
+
+
+
+

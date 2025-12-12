@@ -10,19 +10,20 @@ namespace CoseSignTool.Tests.Inspection;
 /// <summary>
 /// Tests for CoseInspectionService.
 /// </summary>
+[TestFixture]
 public class CoseInspectionServiceTests
 {
-    [Fact]
+    [Test]
     public void Constructor_WithNullFormatter_UsesDefaultFormatter()
     {
         // Arrange & Act
         var service = new CoseInspectionService(null);
 
         // Assert - Should not throw
-        Assert.NotNull(service);
+        Assert.That(service, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithFormatter_UsesProvidedFormatter()
     {
         // Arrange
@@ -32,10 +33,10 @@ public class CoseInspectionServiceTests
         var service = new CoseInspectionService(formatter);
 
         // Assert
-        Assert.NotNull(service);
+        Assert.That(service, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -46,10 +47,10 @@ public class CoseInspectionServiceTests
         var result = await service.InspectAsync(nonExistentPath);
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, result);
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithInvalidCoseFile_ReturnsInspectionFailed()
     {
         // Arrange
@@ -65,7 +66,7 @@ public class CoseInspectionServiceTests
             var result = await service.InspectAsync(tempFile);
 
             // Assert - Invalid COSE returns InspectionFailed
-            Assert.True(result == (int)ExitCode.InvalidSignature || result == (int)ExitCode.InspectionFailed);
+            Assert.That(result == (int)ExitCode.InvalidSignature || result == (int)ExitCode.InspectionFailed, Is.True);
         }
         finally
         {
@@ -76,7 +77,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithPartialCoseData_ReturnsError()
     {
         // Arrange
@@ -92,7 +93,7 @@ public class CoseInspectionServiceTests
             var result = await service.InspectAsync(tempFile);
 
             // Assert - Incomplete COSE returns error
-            Assert.True(result != (int)ExitCode.Success);
+            Assert.That(result != (int)ExitCode.Success, Is.True);
         }
         finally
         {
@@ -103,7 +104,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithEmptyFile_ReturnsError()
     {
         // Arrange
@@ -119,7 +120,7 @@ public class CoseInspectionServiceTests
             var result = await service.InspectAsync(tempFile);
 
             // Assert - Empty file returns error
-            Assert.True(result != (int)ExitCode.Success);
+            Assert.That(result != (int)ExitCode.Success, Is.True);
         }
         finally
         {
@@ -130,7 +131,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_UsesFormatter()
     {
         // Arrange
@@ -149,7 +150,7 @@ public class CoseInspectionServiceTests
 
             // Assert - Formatter should have been used
             var output = stringWriter.ToString();
-            Assert.Contains("COSE Sign1 Signature Details", output);
+            Assert.That(output, Does.Contain("COSE Sign1 Signature Details"));
         }
         finally
         {
@@ -160,7 +161,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithJsonFormatter_ProducesJsonOutput()
     {
         // Arrange
@@ -179,7 +180,7 @@ public class CoseInspectionServiceTests
 
             // Assert - JSON formatter should have been used
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("{") || output.Contains("[") || string.IsNullOrEmpty(output.Trim()));
+            Assert.That(output.Contains("{") || output.Contains("[") || string.IsNullOrEmpty(output.Trim()));
         }
         finally
         {
@@ -190,7 +191,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithXmlFormatter_ProducesXmlOutput()
     {
         // Arrange
@@ -209,7 +210,7 @@ public class CoseInspectionServiceTests
 
             // Assert - XML formatter should produce some output
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("<") || string.IsNullOrEmpty(output.Trim()));
+            Assert.That(output.Contains("<") || string.IsNullOrEmpty(output.Trim()));
         }
         finally
         {
@@ -220,7 +221,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithQuietFormatter_ProducesMinimalOutput()
     {
         // Arrange
@@ -236,7 +237,7 @@ public class CoseInspectionServiceTests
             var result = await service.InspectAsync(tempFile);
 
             // Assert - QuietOutputFormatter suppresses output, just check we get a result
-            Assert.True(result != (int)ExitCode.Success || result == (int)ExitCode.Success); // Always true, just verifies no exception
+            Assert.That(result != (int)ExitCode.Success || result == (int)ExitCode.Success, Is.True); // Always true, just verifies no exception
         }
         finally
         {
@@ -247,7 +248,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithValidSignature_ReturnsSuccess()
     {
         // Arrange - Create a real signature using sign-ephemeral command
@@ -263,18 +264,18 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test payload for inspection");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("COSE Sign1 Signature Details", output);
-            Assert.Contains("Protected Headers:", output);
-            Assert.Contains("Algorithm", output);
+            Assert.That(output, Does.Contain("COSE Sign1 Signature Details"));
+            Assert.That(output, Does.Contain("Protected Headers:"));
+            Assert.That(output, Does.Contain("Algorithm"));
         }
         finally
         {
@@ -289,7 +290,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithTextPayload_ShowsPreview()
     {
         // Arrange - Create a signature with text payload using direct type (embeds payload)
@@ -308,16 +309,16 @@ public class CoseInspectionServiceTests
             
             // Sign with 'embedded' type to ensure payload is embedded
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Payload:", output);
+            Assert.That(output, Does.Contain("Payload:"));
         }
         finally
         {
@@ -332,7 +333,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithBinaryPayload_ShowsHashAndType()
     {
         // Arrange - Create a signature with binary payload
@@ -351,18 +352,18 @@ public class CoseInspectionServiceTests
             
             // Sign with 'embedded' type
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Payload:", output);
+            Assert.That(output, Does.Contain("Payload:"));
             // Binary data shows type and SHA-256
-            Assert.True(output.Contains("Binary data") || output.Contains("SHA-256") || output.Contains("Payload"));
+            Assert.That(output.Contains("Binary data") || output.Contains("SHA-256") || output.Contains("Payload"));
         }
         finally
         {
@@ -377,7 +378,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithDetachedSignature_ShowsDetachedInfo()
     {
         // Arrange - Create a detached signature
@@ -395,16 +396,16 @@ public class CoseInspectionServiceTests
             
             // Sign with 'direct' type and detached flag
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type direct --detached");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Detached", output);
+            Assert.That(output, Does.Contain("Detached"));
         }
         finally
         {
@@ -419,7 +420,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_ShowsSignatureSize()
     {
         // Arrange
@@ -441,10 +442,10 @@ public class CoseInspectionServiceTests
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Size", output);
-            Assert.Contains("bytes", output);
+            Assert.That(output, Does.Contain("Size"));
+            Assert.That(output, Does.Contain("bytes"));
         }
         finally
         {
@@ -459,7 +460,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_ShowsCertificateChainInfo()
     {
         // Arrange
@@ -481,10 +482,10 @@ public class CoseInspectionServiceTests
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
             // Certificate chain should be shown
-            Assert.Contains("Certificate Chain", output);
+            Assert.That(output, Does.Contain("Certificate Chain"));
         }
         finally
         {
@@ -499,7 +500,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithDifferentContentType_ShowsContentType()
     {
         // Arrange
@@ -521,10 +522,10 @@ public class CoseInspectionServiceTests
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
             // Should contain headers info
-            Assert.Contains("Header", output);
+            Assert.That(output, Does.Contain("Header"));
         }
         finally
         {
@@ -539,7 +540,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithLongTextPayload_ShowsTruncatedPreview()
     {
         // Arrange - Create a signature with long text payload
@@ -559,18 +560,18 @@ public class CoseInspectionServiceTests
             
             // Sign with 'embedded' type to ensure payload is embedded
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Payload:", output);
+            Assert.That(output, Does.Contain("Payload:"));
             // Should have preview with truncation indicator
-            Assert.True(output.Contains("...") || output.Contains("Preview") || output.Contains("bytes"),
+            Assert.That(output.Contains("...") || output.Contains("Preview") || output.Contains("bytes"),
                 "Long payload should show preview or size");
         }
         finally
@@ -586,7 +587,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WritesFileInfoCorrectly()
     {
         // Arrange
@@ -608,11 +609,11 @@ public class CoseInspectionServiceTests
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("File:", output);
-            Assert.Contains(tempSignature, output);
-            Assert.Contains("Size:", output);
+            Assert.That(output, Does.Contain("File:"));
+            Assert.That(output, Does.Contain(tempSignature));
+            Assert.That(output, Does.Contain("Size:"));
         }
         finally
         {
@@ -627,7 +628,7 @@ public class CoseInspectionServiceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task InspectAsync_WithAllFormatters_Succeeds()
     {
         // Arrange
@@ -640,31 +641,31 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature file should exist");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Test each formatter type
             var textWriter = new StringWriter();
             var textFormatter = new TextOutputFormatter(textWriter);
             var textService = new CoseInspectionService(textFormatter);
             var textResult = await textService.InspectAsync(tempSignature);
-            Assert.Equal((int)ExitCode.Success, textResult);
+            Assert.That(textResult, Is.EqualTo((int)ExitCode.Success));
 
             var jsonWriter = new StringWriter();
             var jsonFormatter = new JsonOutputFormatter(jsonWriter);
             var jsonService = new CoseInspectionService(jsonFormatter);
             var jsonResult = await jsonService.InspectAsync(tempSignature);
-            Assert.Equal((int)ExitCode.Success, jsonResult);
+            Assert.That(jsonResult, Is.EqualTo((int)ExitCode.Success));
 
             var xmlWriter = new StringWriter();
             var xmlFormatter = new XmlOutputFormatter(xmlWriter);
             var xmlService = new CoseInspectionService(xmlFormatter);
             var xmlResult = await xmlService.InspectAsync(tempSignature);
-            Assert.Equal((int)ExitCode.Success, xmlResult);
+            Assert.That(xmlResult, Is.EqualTo((int)ExitCode.Success));
 
             var quietFormatter = new QuietOutputFormatter();
             var quietService = new CoseInspectionService(quietFormatter);
             var quietResult = await quietService.InspectAsync(tempSignature);
-            Assert.Equal((int)ExitCode.Success, quietResult);
+            Assert.That(quietResult, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -679,3 +680,8 @@ public class CoseInspectionServiceTests
         }
     }
 }
+
+
+
+
+

@@ -8,9 +8,10 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Tests for the TextOutputFormatter class.
 /// </summary>
+[TestFixture]
 public class TextOutputFormatterTests
 {
-    [Fact]
+    [Test]
     public void WriteSuccess_WritesToOutput()
     {
         // Arrange
@@ -21,11 +22,11 @@ public class TextOutputFormatterTests
         formatter.WriteSuccess("Test message");
 
         // Assert
-        Assert.Contains("Test message", output.ToString());
-        Assert.Contains("✓", output.ToString());
+        Assert.That(output.ToString(), Does.Contain("Test message"));
+        Assert.That(output.ToString(), Does.Contain("✓"));
     }
 
-    [Fact]
+    [Test]
     public void WriteError_WritesToError()
     {
         // Arrange
@@ -36,11 +37,11 @@ public class TextOutputFormatterTests
         formatter.WriteError("Error message");
 
         // Assert
-        Assert.Contains("Error message", error.ToString());
-        Assert.Contains("✗", error.ToString());
+        Assert.That(error.ToString(), Does.Contain("Error message"));
+        Assert.That(error.ToString(), Does.Contain("✗"));
     }
 
-    [Fact]
+    [Test]
     public void WriteInfo_WritesToOutput()
     {
         // Arrange
@@ -51,11 +52,11 @@ public class TextOutputFormatterTests
         formatter.WriteInfo("Info message");
 
         // Assert
-        Assert.Contains("Info message", output.ToString());
-        Assert.Contains("ℹ", output.ToString());
+        Assert.That(output.ToString(), Does.Contain("Info message"));
+        Assert.That(output.ToString(), Does.Contain("ℹ"));
     }
 
-    [Fact]
+    [Test]
     public void WriteWarning_WritesToOutput()
     {
         // Arrange
@@ -66,11 +67,11 @@ public class TextOutputFormatterTests
         formatter.WriteWarning("Warning message");
 
         // Assert
-        Assert.Contains("Warning message", output.ToString());
-        Assert.Contains("⚠", output.ToString());
+        Assert.That(output.ToString(), Does.Contain("Warning message"));
+        Assert.That(output.ToString(), Does.Contain("⚠"));
     }
 
-    [Fact]
+    [Test]
     public void WriteKeyValue_FormatsCorrectly()
     {
         // Arrange
@@ -82,12 +83,12 @@ public class TextOutputFormatterTests
 
         // Assert
         var result = output.ToString();
-        Assert.Contains("Key", result);
-        Assert.Contains("Value", result);
-        Assert.Contains(":", result);
+        Assert.That(result, Does.Contain("Key"));
+        Assert.That(result, Does.Contain("Value"));
+        Assert.That(result, Does.Contain(":"));
     }
 
-    [Fact]
+    [Test]
     public void BeginSection_WritesTitle()
     {
         // Arrange
@@ -99,11 +100,11 @@ public class TextOutputFormatterTests
 
         // Assert
         var result = output.ToString();
-        Assert.Contains("Test Section", result);
-        Assert.Contains("---", result);
+        Assert.That(result, Does.Contain("Test Section"));
+        Assert.That(result, Does.Contain("---"));
     }
 
-    [Fact]
+    [Test]
     public void EndSection_WritesNewLine()
     {
         // Arrange
@@ -114,20 +115,20 @@ public class TextOutputFormatterTests
         formatter.EndSection();
 
         // Assert
-        Assert.Contains(Environment.NewLine, output.ToString());
+        Assert.That(output.ToString(), Does.Contain(Environment.NewLine));
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithNullWriters_UsesConsole()
     {
         // Act
         var formatter = new TextOutputFormatter();
 
         // Assert - should not throw
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void MultipleWrites_ProduceMultipleLines()
     {
         // Arrange
@@ -141,6 +142,11 @@ public class TextOutputFormatterTests
 
         // Assert
         var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(3, lines.Count());
+        Assert.That(lines.Count(), Is.EqualTo(3));
     }
 }
+
+
+
+
+

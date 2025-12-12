@@ -44,4 +44,11 @@ public interface ISigningCommandProvider
     /// </summary>
     /// <returns>Metadata dictionary with keys like "Certificate Subject", "Thumbprint", etc.</returns>
     IDictionary<string, string> GetSigningMetadata();
+
+    /// <summary>
+    /// Gets an example usage string showing the required options for this provider.
+    /// Used in help text and pipeline examples.
+    /// </summary>
+    /// <example>"--pfx cert.pfx" or "--thumbprint ABC123"</example>
+    string ExampleUsage { get; }
 }

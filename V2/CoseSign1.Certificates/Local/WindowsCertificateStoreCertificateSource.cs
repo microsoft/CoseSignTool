@@ -3,8 +3,10 @@
 
 using System.Runtime.Versioning;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -29,18 +31,28 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="storeName">Certificate store name</param>
     /// <param name="storeLocation">Certificate store location</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public WindowsCertificateStoreCertificateSource(
         string thumbprint,
         StoreName storeName = StoreName.My,
         StoreLocation storeLocation = StoreLocation.CurrentUser,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<WindowsCertificateStoreCertificateSource>? logger = null)
         : this(
-            (store) => FindCertificateByThumbprint(store, thumbprint) 
+            (store, log) => FindCertificateByThumbprint(store, thumbprint, log) 
                 ?? throw new InvalidOperationException($"Certificate with thumbprint '{thumbprint}' not found in {storeLocation}\\{storeName}"),
             storeName,
             storeLocation,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "WindowsCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Store: {StoreLocation}\\{StoreName}, Subject: {Subject}",
+            thumbprint,
+            storeLocation,
+            storeName,
+            _certificate.Subject);
     }
 
     /// <summary>
@@ -51,19 +63,30 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="storeLocation">Certificate store location</param>
     /// <param name="validOnly">If true, only returns valid certificates</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public WindowsCertificateStoreCertificateSource(
         string subjectName,
         StoreName storeName,
         StoreLocation storeLocation,
         bool validOnly,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<WindowsCertificateStoreCertificateSource>? logger = null)
         : this(
-            (store) => FindCertificateBySubjectName(store, subjectName, validOnly)
+            (store, log) => FindCertificateBySubjectName(store, subjectName, validOnly, log)
                 ?? throw new InvalidOperationException($"Certificate with subject name containing '{subjectName}' not found in {storeLocation}\\{storeName}"),
             storeName,
             storeLocation,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "WindowsCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, Store: {StoreLocation}\\{StoreName}, ValidOnly: {ValidOnly}, FoundSubject: {Subject}",
+            subjectName,
+            storeLocation,
+            storeName,
+            validOnly,
+            _certificate.Subject);
     }
 
     /// <summary>
@@ -73,33 +96,63 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="storeName">Certificate store name</param>
     /// <param name="storeLocation">Certificate store location</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public WindowsCertificateStoreCertificateSource(
         Func<X509Certificate2, bool> predicate,
         StoreName storeName = StoreName.My,
         StoreLocation storeLocation = StoreLocation.CurrentUser,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<WindowsCertificateStoreCertificateSource>? logger = null)
         : this(
-            (store) => store.Certificates.Cast<X509Certificate2>().FirstOrDefault(predicate)
-                ?? throw new InvalidOperationException($"No certificate matching the predicate found in {storeLocation}\\{storeName}"),
+            (store, log) =>
+            {
+                log?.LogTrace(
+                    new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                    "Searching for certificate by predicate in {StoreLocation}\\{StoreName}",
+                    storeLocation,
+                    storeName);
+                return store.Certificates.Cast<X509Certificate2>().FirstOrDefault(predicate)
+                    ?? throw new InvalidOperationException($"No certificate matching the predicate found in {storeLocation}\\{storeName}");
+            },
             storeName,
             storeLocation,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "WindowsCertificateStoreCertificateSource initialized by predicate. Store: {StoreLocation}\\{StoreName}, Subject: {Subject}",
+            storeLocation,
+            storeName,
+            _certificate.Subject);
     }
 
     /// <summary>
     /// Private constructor that performs the actual store access and certificate retrieval.
     /// </summary>
     private WindowsCertificateStoreCertificateSource(
-        Func<X509Store, X509Certificate2> certificateFinder,
+        Func<X509Store, ILogger?, X509Certificate2> certificateFinder,
         StoreName storeName,
         StoreLocation storeLocation,
-        ICertificateChainBuilder? chainBuilder)
-        : base(chainBuilder ?? new X509ChainBuilder())
+        ICertificateChainBuilder? chainBuilder,
+        ILogger<WindowsCertificateStoreCertificateSource>? logger)
+        : base(chainBuilder ?? new X509ChainBuilder(), logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Opening certificate store. Store: {StoreLocation}\\{StoreName}",
+            storeLocation,
+            storeName);
+
         _store = new X509Store(storeName, storeLocation);
         _store.Open(OpenFlags.ReadOnly);
-        _certificate = certificateFinder(_store);
+
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Certificate store opened. CertificateCount: {CertificateCount}",
+            _store.Certificates.Count);
+
+        _certificate = certificateFinder(_store, logger);
     }
 
     /// <inheritdoc/>
@@ -119,7 +172,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         base.Dispose(disposing);
     }
 
-    private static X509Certificate2? FindCertificateByThumbprint(X509Store store, string thumbprint)
+    private static X509Certificate2? FindCertificateByThumbprint(X509Store store, string thumbprint, ILogger? logger)
     {
 #if NET5_0_OR_GREATER
         ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
@@ -133,21 +186,43 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             .Replace(":", "")
             .ToUpperInvariant();
 
-        return store.Certificates
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching for certificate by thumbprint. NormalizedThumbprint: {Thumbprint}",
+            normalizedThumbprint);
+
+        var cert = store.Certificates
             .Cast<X509Certificate2>()
             .FirstOrDefault(c => c.Thumbprint.Equals(normalizedThumbprint, StringComparison.OrdinalIgnoreCase));
+
+        if (cert == null)
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "Certificate with thumbprint {Thumbprint} not found",
+                normalizedThumbprint);
+        }
+
+        return cert;
     }
 
     private static X509Certificate2? FindCertificateBySubjectName(
         X509Store store,
         string subjectName,
-        bool validOnly)
+        bool validOnly,
+        ILogger? logger)
     {
 #if NET5_0_OR_GREATER
         ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
 #else
         if (string.IsNullOrWhiteSpace(subjectName)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(subjectName)); }
 #endif
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching for certificate by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}",
+            subjectName,
+            validOnly);
         
         var candidates = store.Certificates
             .Cast<X509Certificate2>()
@@ -160,7 +235,25 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         }
 
         // Prefer certificates with private keys
-        return candidates.FirstOrDefault(c => c.HasPrivateKey)
+        var cert = candidates.FirstOrDefault(c => c.HasPrivateKey)
             ?? candidates.FirstOrDefault();
+
+        if (cert == null)
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "Certificate with subject name containing '{SubjectName}' not found",
+                subjectName);
+        }
+        else
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                "Found certificate by subject name. Subject: {Subject}, HasPrivateKey: {HasPrivateKey}",
+                cert.Subject,
+                cert.HasPrivateKey);
+        }
+
+        return cert;
     }
 }

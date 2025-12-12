@@ -3,7 +3,10 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates.ChainBuilders;
 
@@ -15,6 +18,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 {
     private readonly X509ChainBuilder _chainBuilder;
     private readonly IReadOnlyList<X509Certificate2> _providedCertificates;
+    private readonly ILogger<ExplicitCertificateChainBuilder> _logger;
     private bool _disposed;
 
     /// <summary>
@@ -41,9 +45,10 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// Initializes a new instance of the <see cref="ExplicitCertificateChainBuilder"/> class.
     /// </summary>
     /// <param name="certificateChain">The explicitly provided certificate chain to use.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateChain"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="certificateChain"/> is empty.</exception>
-    public ExplicitCertificateChainBuilder(IReadOnlyList<X509Certificate2> certificateChain)
+    public ExplicitCertificateChainBuilder(IReadOnlyList<X509Certificate2> certificateChain, ILogger<ExplicitCertificateChainBuilder>? logger = null)
     {
 #if NET5_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(certificateChain);
@@ -55,6 +60,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
             throw new ArgumentException("Certificate chain cannot be empty.", nameof(certificateChain));
         }
 
+        _logger = logger ?? NullLogger<ExplicitCertificateChainBuilder>.Instance;
         _providedCertificates = certificateChain;
 
         // Use the default chain policy unless overridden via the ChainPolicy property
@@ -67,15 +73,21 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         }
 
         _chainBuilder = new X509ChainBuilder(policy);
+
+        _logger.LogTrace(
+            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            "ExplicitCertificateChainBuilder initialized. ProvidedCertificateCount: {Count}",
+            certificateChain.Count);
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ExplicitCertificateChainBuilder"/> class with a single certificate.
     /// </summary>
     /// <param name="certificate">The certificate to use for chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
-    public ExplicitCertificateChainBuilder(X509Certificate2 certificate)
-        : this(new[] { certificate ?? throw new ArgumentNullException(nameof(certificate)) })
+    public ExplicitCertificateChainBuilder(X509Certificate2 certificate, ILogger<ExplicitCertificateChainBuilder>? logger = null)
+        : this(new[] { certificate ?? throw new ArgumentNullException(nameof(certificate)) }, logger)
     {
     }
 
@@ -116,6 +128,12 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
 #endif
 
+        _logger.LogTrace(
+            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            "Building explicit certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            certificate.Subject,
+            certificate.Thumbprint);
+
         // Delegate to X509ChainBuilder which will:
         // - Find the correct chain order
         // - Verify signatures cryptographically
@@ -133,10 +151,30 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 
                 if (!isFromProvidedCerts)
                 {
+                    _logger.LogTrace(
+                        new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                        "Chain element not from provided certificates. Subject: {Subject}, Thumbprint: {Thumbprint}",
+                        chainElement.Subject,
+                        chainElement.Thumbprint);
                     // Chain contains a certificate not in our provided list
                     return false;
                 }
             }
+        }
+
+        if (buildResult)
+        {
+            _logger.LogTrace(
+                new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
+                "Explicit certificate chain built successfully. ChainLength: {ChainLength}",
+                _chainBuilder.ChainElements.Count);
+        }
+        else
+        {
+            _logger.LogTrace(
+                new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                "Explicit certificate chain build failed. ChainLength: {ChainLength}",
+                _chainBuilder.ChainElements.Count);
         }
 
         return buildResult;

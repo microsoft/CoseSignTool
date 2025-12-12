@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-global using Xunit;
+// NUnit.Framework is added via <Using Include="NUnit.Framework" /> in csproj
 global using FluentAssertions;
 global using Moq;
 global using System;

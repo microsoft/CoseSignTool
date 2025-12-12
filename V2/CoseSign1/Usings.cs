@@ -7,3 +7,5 @@ global using System.Linq;
 global using System.Security.Cryptography.Cose;
 global using System.Text.RegularExpressions;
 global using CoseSign1.Abstractions;
+global using CoseSign1.Logging;
+global using Microsoft.Extensions.Logging;

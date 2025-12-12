@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Tests for the XmlOutputFormatter class.
 /// </summary>
+[TestFixture]
 public class XmlOutputFormatterTests
 {
-    [Fact]
+    [Test]
     public void WriteSuccess_AddsSuccessMessage()
     {
         // Arrange
@@ -24,10 +25,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<Success>Test success</Success>", xml);
+        Assert.That(xml, Does.Contain("<Success>Test success</Success>"));
     }
 
-    [Fact]
+    [Test]
     public void WriteError_AddsErrorMessage()
     {
         // Arrange
@@ -40,10 +41,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<Error>Test error</Error>", xml);
+        Assert.That(xml, Does.Contain("<Error>Test error</Error>"));
     }
 
-    [Fact]
+    [Test]
     public void WriteInfo_AddsInfoMessage()
     {
         // Arrange
@@ -56,10 +57,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<Info>Test info</Info>", xml);
+        Assert.That(xml, Does.Contain("<Info>Test info</Info>"));
     }
 
-    [Fact]
+    [Test]
     public void WriteWarning_AddsWarningMessage()
     {
         // Arrange
@@ -72,10 +73,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<Warning>Test warning</Warning>", xml);
+        Assert.That(xml, Does.Contain("<Warning>Test warning</Warning>"));
     }
 
-    [Fact]
+    [Test]
     public void WriteKeyValue_AddsKeyValuePair()
     {
         // Arrange
@@ -88,12 +89,12 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<KeyValue>", xml);
-        Assert.Contains("<Key>TestKey</Key>", xml);
-        Assert.Contains("<Value>TestValue</Value>", xml);
+        Assert.That(xml, Does.Contain("<KeyValue>"));
+        Assert.That(xml, Does.Contain("<Key>TestKey</Key>"));
+        Assert.That(xml, Does.Contain("<Value>TestValue</Value>"));
     }
 
-    [Fact]
+    [Test]
     public void BeginSection_AddsSectionStart()
     {
         // Arrange
@@ -106,10 +107,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<SectionStart title=\"Test Section\"", xml);
+        Assert.That(xml, Does.Contain("<SectionStart title=\"Test Section\""));
     }
 
-    [Fact]
+    [Test]
     public void EndSection_AddsSectionEnd()
     {
         // Arrange
@@ -122,10 +123,10 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<SectionEnd />", xml);
+        Assert.That(xml, Does.Contain("<SectionEnd />"));
     }
 
-    [Fact]
+    [Test]
     public void Flush_OutputsValidXml()
     {
         // Arrange
@@ -140,22 +141,22 @@ public class XmlOutputFormatterTests
         // Assert
         var xml = output.ToString();
         var doc = XDocument.Parse(xml);
-        Assert.NotNull(doc.Root);
-        Assert.Equal("CoseSignToolOutput", doc.Root!.Name.LocalName);
-        Assert.Equal(2, doc.Root.Elements().Count());
+        Assert.That(doc.Root, Is.Not.Null);
+        Assert.That(doc.Root!.Name.LocalName, Is.EqualTo("CoseSignToolOutput"));
+        Assert.That(doc.Root.Elements().Count(), Is.EqualTo(2));
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithNullWriter_UsesConsole()
     {
         // Act
         var formatter = new XmlOutputFormatter();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void MultipleMessages_CreateValidXml()
     {
         // Arrange
@@ -175,10 +176,10 @@ public class XmlOutputFormatterTests
         // Assert
         var xml = output.ToString();
         var doc = XDocument.Parse(xml);
-        Assert.Equal(7, doc.Root!.Elements().Count());
+        Assert.That(doc.Root!.Elements().Count(), Is.EqualTo(7));
     }
 
-    [Fact]
+    [Test]
     public void XmlOutput_IsWellFormed()
     {
         // Arrange
@@ -192,10 +193,10 @@ public class XmlOutputFormatterTests
         // Assert - Should not throw
         var xml = output.ToString();
         var doc = XDocument.Parse(xml); // Will throw if malformed
-        Assert.NotNull(doc);
+        Assert.That(doc, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void XmlOutput_HasDeclaration()
     {
         // Arrange
@@ -208,6 +209,11 @@ public class XmlOutputFormatterTests
 
         // Assert
         var xml = output.ToString();
-        Assert.Contains("<?xml version=\"1.0\" encoding=\"utf-16\"?>", xml);
+        Assert.That(xml, Does.Contain("<?xml version=\"1.0\" encoding=\"utf-16\"?>"));
     }
 }
+
+
+
+
+

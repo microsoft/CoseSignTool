@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests;
 /// <summary>
 /// End-to-end integration tests that create real COSE signatures and test them.
 /// </summary>
+[TestFixture]
 public class EndToEndSigningTests
 {
-    [Fact]
+    [Test]
     public void SignAndVerify_WithValidPayload_Succeeds()
     {
         // Arrange
@@ -28,15 +29,15 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
 
             // Assert - Sign succeeded
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
 
             // Act - Verify
             var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\"");
 
             // Note: Verify may fail since signature is from ephemeral cert (not trusted)
             // This tests that the command runs and returns an expected exit code
-            Assert.True(verifyExitCode == (int)ExitCode.Success || 
+            Assert.That(verifyExitCode == (int)ExitCode.Success || 
                         verifyExitCode == (int)ExitCode.VerificationFailed ||
                         verifyExitCode == (int)ExitCode.UntrustedCertificate,
                         $"Unexpected exit code: {verifyExitCode}");
@@ -54,7 +55,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignAndInspect_WithValidPayload_Succeeds()
     {
         // Arrange
@@ -69,13 +70,13 @@ public class EndToEndSigningTests
 
             // Act - Sign
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect the created signature
             var inspectExitCode = rootCommand.Invoke($"inspect \"{tempSignature}\"");
 
             // Assert - Inspect succeeded
-            Assert.Equal((int)ExitCode.Success, inspectExitCode);
+            Assert.That(inspectExitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -90,7 +91,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithDetached_CreatesSignature()
     {
         // Arrange
@@ -107,8 +108,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --detached");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -123,7 +124,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithCustomOutput_CreatesSignatureAtSpecifiedPath()
     {
         // Arrange
@@ -140,8 +141,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --output \"{customOutput}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(customOutput), "Signature should be created at custom path");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(customOutput), "Signature should be created at custom path");
         }
         finally
         {
@@ -156,7 +157,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithDirectSignatureType_CreatesSignature()
     {
         // Arrange
@@ -173,8 +174,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type direct");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -189,7 +190,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithEmbeddedSignatureType_CreatesSignature()
     {
         // Arrange
@@ -206,8 +207,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -222,7 +223,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithContentType_CreatesSignatureWithContentType()
     {
         // Arrange
@@ -239,8 +240,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --content-type application/json");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -255,7 +256,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignWithQuietOption_CreatesSignature()
     {
         // Arrange
@@ -272,8 +273,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --quiet");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -288,7 +289,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignAndInspect_WithJsonOutput_Succeeds()
     {
         // Arrange
@@ -303,13 +304,13 @@ public class EndToEndSigningTests
 
             // Act - Sign
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with JSON output format
             var inspectExitCode = rootCommand.Invoke($"inspect \"{tempSignature}\" --output-format json");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, inspectExitCode);
+            Assert.That(inspectExitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -324,7 +325,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignAndInspect_WithXmlOutput_Succeeds()
     {
         // Arrange
@@ -339,13 +340,13 @@ public class EndToEndSigningTests
 
             // Act - Sign
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with XML output format
             var inspectExitCode = rootCommand.Invoke($"inspect \"{tempSignature}\" --output-format xml");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, inspectExitCode);
+            Assert.That(inspectExitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -360,7 +361,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignLargePayload_Succeeds()
     {
         // Arrange
@@ -379,8 +380,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -395,7 +396,7 @@ public class EndToEndSigningTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignBinaryPayload_Succeeds()
     {
         // Arrange
@@ -415,8 +416,8 @@ public class EndToEndSigningTests
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature), "Signature file should be created");
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature), "Signature file should be created");
         }
         finally
         {
@@ -431,3 +432,8 @@ public class EndToEndSigningTests
         }
     }
 }
+
+
+
+
+

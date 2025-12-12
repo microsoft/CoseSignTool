@@ -5,6 +5,7 @@ using System.CommandLine;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Plugins;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Local.Plugin;
 
@@ -20,6 +21,8 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     public string CommandName => "sign-pfx";
 
     public string CommandDescription => "Sign a payload with a PFX/PKCS#12 certificate file";
+
+    public string ExampleUsage => "--pfx cert.pfx";
 
     public void AddCommandOptions(Command command)
     {
@@ -44,13 +47,17 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
             ?? throw new InvalidOperationException("PFX file is required");
         var pfxPassword = options.TryGetValue("pfx-password", out var pwd) ? pwd as string : null;
 
+        // Get logger factory if provided
+        var loggerFactory = options.TryGetValue("__loggerFactory", out var lf) ? lf as ILoggerFactory : null;
+        var logger = loggerFactory?.CreateLogger<PfxCertificateSource>();
+
         if (!pfxFile.Exists)
         {
             throw new FileNotFoundException($"PFX file not found: {pfxFile.FullName}");
         }
 
-        // Create certificate source
-        var certSource = new PfxCertificateSource(pfxFile.FullName, pfxPassword);
+        // Create certificate source with logging
+        var certSource = new PfxCertificateSource(pfxFile.FullName, pfxPassword, logger: logger);
         var signingCert = certSource.GetSigningCertificate();
         var chainBuilder = certSource.GetChainBuilder();
 
@@ -58,8 +65,11 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         _certificateSubject = signingCert.Subject;
         _certificateThumbprint = signingCert.Thumbprint;
 
+        // Create logger for signing service
+        var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
+
         // Create and return signing service
-        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder);
+        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
         
         return await Task.FromResult(_signingService);
     }

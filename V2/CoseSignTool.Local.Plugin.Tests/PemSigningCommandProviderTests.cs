@@ -9,9 +9,10 @@ namespace CoseSignTool.Local.Plugin.Tests;
 /// <summary>
 /// Tests for PemSigningCommandProvider.
 /// </summary>
+[TestFixture]
 public class PemSigningCommandProviderTests
 {
-    [Fact]
+    [Test]
     public void CommandName_ReturnsSignPem()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class PemSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.Equal("sign-pem", name);
+        Assert.That(name, Is.EqualTo("sign-pem"));
     }
 
-    [Fact]
+    [Test]
     public void CommandDescription_ReturnsDescription()
     {
         // Arrange
@@ -34,12 +35,12 @@ public class PemSigningCommandProviderTests
         var description = provider.CommandDescription;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("PEM", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToUpperInvariant(), Does.Contain("PEM"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_AddsRequiredOptions()
     {
         // Arrange
@@ -50,11 +51,11 @@ public class PemSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        Assert.Contains(command.Options, o => o.Name == "cert-file");
-        Assert.Contains(command.Options, o => o.Name == "key-file");
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "cert-file"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "key-file"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_CertFileIsRequired()
     {
         // Arrange
@@ -66,11 +67,11 @@ public class PemSigningCommandProviderTests
 
         // Assert
         var certFileOption = command.Options.FirstOrDefault(o => o.Name == "cert-file");
-        Assert.NotNull(certFileOption);
-        Assert.True(certFileOption.IsRequired);
+        Assert.That(certFileOption, Is.Not.Null);
+        Assert.That(certFileOption!.IsRequired, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_KeyFileIsRequired()
     {
         // Arrange
@@ -82,12 +83,12 @@ public class PemSigningCommandProviderTests
 
         // Assert
         var keyFileOption = command.Options.FirstOrDefault(o => o.Name == "key-file");
-        Assert.NotNull(keyFileOption);
-        Assert.True(keyFileOption.IsRequired);
+        Assert.That(keyFileOption, Is.Not.Null);
+        Assert.That(keyFileOption!.IsRequired, Is.True);
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingCertFile_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingCertFile_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new PemSigningCommandProvider();
@@ -97,12 +98,12 @@ public class PemSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingKeyFile_ThrowsInvalidOperationException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingKeyFile_ThrowsInvalidOperationException()
     {
         // Arrange
         var provider = new PemSigningCommandProvider();
@@ -113,12 +114,12 @@ public class PemSigningCommandProviderTests
 
         // Act & Assert - When cert-file is a string (not FileInfo), the cast returns null
         // and throws InvalidOperationException ("Certificate file is required")
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        Assert.ThrowsAsync<InvalidOperationException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithNonExistentCertFile_ThrowsFileNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithNonExistentCertFile_ThrowsFileNotFoundException()
     {
         // Arrange
         var provider = new PemSigningCommandProvider();
@@ -131,11 +132,11 @@ public class PemSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<FileNotFoundException>(
+        Assert.ThrowsAsync<FileNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_ReturnsMetadata()
     {
         // Arrange
@@ -145,12 +146,12 @@ public class PemSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.NotNull(metadata);
-        Assert.Contains("Certificate Source", metadata.Keys);
-        Assert.Equal("PEM files", metadata["Certificate Source"]);
+        Assert.That(metadata, Is.Not.Null);
+        Assert.That(metadata.Keys, Does.Contain("Certificate Source"));
+        Assert.That(metadata["Certificate Source"], Is.EqualTo("PEM files"));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_WithNoSigningService_ReturnsUnknownValues()
     {
         // Arrange
@@ -160,7 +161,7 @@ public class PemSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.Equal("Unknown", metadata["Certificate Subject"]);
-        Assert.Equal("Unknown", metadata["Certificate Thumbprint"]);
+        Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
+        Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
 }

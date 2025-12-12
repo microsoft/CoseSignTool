@@ -10,6 +10,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Direct;
 
@@ -23,6 +26,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private readonly ISigningService<SigningOptions> _signingService;
     private readonly IReadOnlyList<ITransparencyProvider>? _transparencyProviders;
+    private readonly ILogger<DirectSignatureFactory> _logger;
     private bool _disposed;
 
     /// <summary>
@@ -36,12 +40,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// </summary>
     /// <param name="signingService">The signing service to use for creating signatures.</param>
     /// <param name="transparencyProviders">Optional transparency providers to apply to all signed messages. Can be overridden per-operation.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     public DirectSignatureFactory(
         ISigningService<SigningOptions> signingService,
-        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null)
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
+        ILogger<DirectSignatureFactory>? logger = null)
     {
         _signingService = signingService ?? throw new ArgumentNullException(nameof(signingService));
         _transparencyProviders = transparencyProviders;
+        _logger = logger ?? NullLogger<DirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -51,6 +58,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     protected DirectSignatureFactory()
     {
         _signingService = null!;
+        _logger = NullLogger<DirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -92,6 +100,13 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
+            "Starting direct signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, EmbedPayload: {EmbedPayload}",
+            contentType,
+            payload.Length,
+            options?.EmbedPayload ?? true);
+
         options ??= new DirectSignatureOptions();
 
         // Use SpanOwner to rent from ArrayPool - provides both Span and Memory views
@@ -109,6 +124,10 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         // Create combined header contributors list with ContentTypeHeaderContributor first
         var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+            "Created header contributors list with {Count} contributors",
+            headerContributors.Count);
 
         // Merge service options into additional context if provided
         var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
@@ -120,14 +139,24 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             headerContributors,
             additionalContext);
 
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            "Acquiring signer from signing service");
         var signer = _signingService.GetCoseSigner(context);
 
         // Use the original payload span and AdditionalData span - no additional allocations
         ReadOnlySpan<byte> additionalDataSpan = options.AdditionalData.Span;
 
-        return options.EmbedPayload
+        var result = options.EmbedPayload
             ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
             : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
+
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+            "Direct signature created successfully. SignatureSize: {SignatureSize}",
+            result.Length);
+
+        return result;
     }
 
     /// <summary>
@@ -223,10 +252,21 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
+            "Starting async direct signature creation. ContentType: {ContentType}, StreamLength: {StreamLength}, EmbedPayload: {EmbedPayload}",
+            contentType,
+            payloadStream.CanSeek ? payloadStream.Length : -1,
+            options?.EmbedPayload ?? true);
+
         options ??= new DirectSignatureOptions();
 
         // Create combined header contributors list with ContentTypeHeaderContributor first
         var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+            "Created header contributors list with {Count} contributors",
+            headerContributors.Count);
 
         // Merge service options into additional context if provided
         var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
@@ -237,6 +277,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             headerContributors,
             additionalContext);
 
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            "Acquiring signer from signing service");
         var signer = _signingService.GetCoseSigner(context);
 
         // Get pooled arrays for both payload (if embedded) and additional data
@@ -277,7 +320,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         }
 
         // Sign with Task.Run for cancellation support
-        return await Task.Run(async () =>
+        var result = await Task.Run(async () =>
         {
             if (options.EmbedPayload)
             {
@@ -292,6 +335,13 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                     : await CoseSign1Message.SignDetachedAsync(payloadStream, signer).ConfigureAwait(false);
             }
         }, cancellationToken).ConfigureAwait(false);
+
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+            "Async direct signature created successfully. SignatureSize: {SignatureSize}",
+            result.Length);
+
+        return result;
     }
 
     /// <summary>

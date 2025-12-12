@@ -10,19 +10,20 @@ namespace CoseSignTool.Tests.Plugins;
 /// <summary>
 /// Tests for the PluginLoader class.
 /// </summary>
+[TestFixture]
 public class PluginLoaderTests
 {
-    [Fact]
+    [Test]
     public void PluginLoader_Constructor_InitializesEmptyCollections()
     {
         // Act
         var loader = new PluginLoader();
 
         // Assert
-        Assert.Empty(loader.Plugins);
+        Assert.That(loader.Plugins, Is.Empty);
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterPluginAsync_WithValidPlugin_AddsToCollection()
     {
         // Arrange
@@ -33,21 +34,21 @@ public class PluginLoaderTests
         await loader.RegisterPluginAsync(plugin);
 
         // Assert
-        Assert.Single(loader.Plugins);
-        Assert.Equal("TestPlugin", loader.Plugins[0].Name);
+        Assert.That(loader.Plugins, Has.Count.EqualTo(1));
+        Assert.That(loader.Plugins[0].Name, Is.EqualTo("TestPlugin"));
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterPluginAsync_WithNullPlugin_ThrowsArgumentNullException()
     {
         // Arrange
         var loader = new PluginLoader();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => loader.RegisterPluginAsync(null!));
+        Assert.ThrowsAsync<ArgumentNullException>(() => loader.RegisterPluginAsync(null!));
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterPluginAsync_WithDuplicateName_DoesNotAddTwice()
     {
         // Arrange
@@ -60,30 +61,30 @@ public class PluginLoaderTests
         await loader.RegisterPluginAsync(plugin2);
 
         // Assert
-        Assert.Single(loader.Plugins);
+        Assert.That(loader.Plugins, Has.Count.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithNullDirectory_ThrowsArgumentNullException()
     {
         // Arrange
         var loader = new PluginLoader();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => loader.LoadPluginsAsync(null!));
+        Assert.ThrowsAsync<ArgumentNullException>(() => loader.LoadPluginsAsync(null!));
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithEmptyDirectory_ThrowsArgumentException()
     {
         // Arrange
         var loader = new PluginLoader();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => loader.LoadPluginsAsync(string.Empty));
+        Assert.ThrowsAsync<ArgumentException>(() => loader.LoadPluginsAsync(string.Empty));
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithAuthorizedDirectory_DoesNotThrow()
     {
         // Arrange
@@ -100,7 +101,7 @@ public class PluginLoaderTests
             await loader.LoadPluginsAsync(authorizedPluginsDir);
 
             // Assert - no plugins loaded from empty directory, but no exception
-            Assert.Empty(loader.Plugins);
+            Assert.That(loader.Plugins, Is.Empty);
         }
         finally
         {
@@ -112,7 +113,7 @@ public class PluginLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithUnauthorizedDirectory_ThrowsUnauthorizedAccessException()
     {
         // Arrange
@@ -120,24 +121,21 @@ public class PluginLoaderTests
         var unauthorizedDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => loader.LoadPluginsAsync(unauthorizedDir));
+        Assert.ThrowsAsync<UnauthorizedAccessException>(() => loader.LoadPluginsAsync(unauthorizedDir));
     }
 
-    [Fact]
+    [Test]
     public void ValidatePluginDirectory_WithAuthorizedDirectory_DoesNotThrow()
     {
         // Arrange
         var executableDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory();
         var authorizedDir = Path.Combine(executableDir, "plugins");
 
-        // Act - should not throw
-        var exception = Record.Exception(() => PluginLoader.ValidatePluginDirectory(authorizedDir));
-
-        // Assert
-        Assert.Null(exception);
+        // Act & Assert - should not throw
+        Assert.DoesNotThrow(() => PluginLoader.ValidatePluginDirectory(authorizedDir));
     }
 
-    [Fact]
+    [Test]
     public void ValidatePluginDirectory_WithUnauthorizedDirectory_ThrowsUnauthorizedAccessException()
     {
         // Arrange
@@ -147,21 +145,21 @@ public class PluginLoaderTests
         Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(unauthorizedDir));
     }
 
-    [Fact]
+    [Test]
     public void ValidatePluginDirectory_WithNullDirectory_ThrowsUnauthorizedAccessException()
     {
         // Act & Assert
         Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(null!));
     }
 
-    [Fact]
+    [Test]
     public void ValidatePluginDirectory_WithEmptyDirectory_ThrowsUnauthorizedAccessException()
     {
         // Act & Assert
         Assert.Throws<UnauthorizedAccessException>(() => PluginLoader.ValidatePluginDirectory(string.Empty));
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithAdditionalDirectories_LoadsFromAllDirectories()
     {
         // Arrange
@@ -180,7 +178,7 @@ public class PluginLoaderTests
             await loader.LoadPluginsAsync(authorizedPluginsDir, [additionalDir]);
 
             // Assert - no plugins loaded from empty directories, but no exception
-            Assert.Empty(loader.Plugins);
+            Assert.That(loader.Plugins, Is.Empty);
         }
         finally
         {
@@ -196,7 +194,7 @@ public class PluginLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithEmptyAdditionalDirectory_SkipsEmptyDirectories()
     {
         // Arrange
@@ -213,7 +211,7 @@ public class PluginLoaderTests
             await loader.LoadPluginsAsync(authorizedPluginsDir, ["", "   ", null!]);
 
             // Assert - no plugins loaded from empty directories
-            Assert.Empty(loader.Plugins);
+            Assert.That(loader.Plugins, Is.Empty);
         }
         finally
         {
@@ -225,7 +223,7 @@ public class PluginLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task LoadPluginsAsync_WithNonExistentDirectory_DoesNotThrow()
     {
         // Arrange
@@ -243,7 +241,7 @@ public class PluginLoaderTests
             await loader.LoadPluginsAsync(authorizedPluginsDir);
 
             // Assert - no plugins loaded
-            Assert.Empty(loader.Plugins);
+            Assert.That(loader.Plugins, Is.Empty);
         }
         finally
         {
@@ -255,7 +253,7 @@ public class PluginLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public void Plugins_Property_ReturnsReadOnlyList()
     {
         // Arrange
@@ -265,8 +263,8 @@ public class PluginLoaderTests
         var plugins = loader.Plugins;
 
         // Assert
-        Assert.NotNull(plugins);
-        Assert.IsAssignableFrom<IReadOnlyList<IPlugin>>(plugins);
+        Assert.That(plugins, Is.Not.Null);
+        Assert.That(plugins, Is.InstanceOf<IReadOnlyList<IPlugin>>());
     }
 
     // Test helper classes
@@ -297,3 +295,8 @@ public class PluginLoaderTests
         }
     }
 }
+
+
+
+
+

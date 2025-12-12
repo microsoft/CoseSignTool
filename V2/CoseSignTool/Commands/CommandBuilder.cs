@@ -7,6 +7,7 @@ using CoseSignTool.Commands.Builders;
 using CoseSignTool.Commands.Providers;
 using CoseSignTool.Output;
 using CoseSignTool.Plugins;
+using Microsoft.Extensions.Logging;
 using System.CommandLine;
 using System.CommandLine.Help;
 
@@ -17,6 +18,17 @@ namespace CoseSignTool.Commands;
 /// </summary>
 public class CommandBuilder
 {
+    private readonly ILoggerFactory? _loggerFactory;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommandBuilder"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">Optional logger factory for creating loggers.</param>
+    public CommandBuilder(ILoggerFactory? loggerFactory = null)
+    {
+        _loggerFactory = loggerFactory;
+    }
+
     /// <summary>
     /// Builds and returns the root command with all subcommands configured.
     /// </summary>
@@ -53,7 +65,25 @@ public class CommandBuilder
             name: "--verbose",
             description: "Show detailed help including all options and examples");
 
+        // Add logging verbosity options (these are parsed/stripped before System.CommandLine, 
+        // but we add them so they appear in help)
+        var verbosityOption = new Option<int>(
+            name: "--verbosity",
+            getDefaultValue: () => 1,
+            description: "Set logging verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace)");
+        
+        var vvOption = new Option<bool>(
+            name: "-vv",
+            description: "Enable debug logging (equivalent to --verbosity 3)");
+        
+        var vvvOption = new Option<bool>(
+            name: "-vvv",
+            description: "Enable trace logging (equivalent to --verbosity 4)");
+
         rootCommand.AddGlobalOption(outputFormatOption);
+        rootCommand.AddGlobalOption(verbosityOption);
+        rootCommand.AddGlobalOption(vvOption);
+        rootCommand.AddGlobalOption(vvvOption);
         rootCommand.Add(verboseHelpOption);
 
         // Customize help to support --verbose
@@ -66,9 +96,10 @@ public class CommandBuilder
         // Load and register plugins first to collect transparency providers
         LoadPlugins(rootCommand, additionalPluginDirectories, out var transparencyProviders);
 
-        // Create signing command builder with transparency providers
+        // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
-            transparencyProviders: transparencyProviders);
+            transparencyProviders: transparencyProviders,
+            loggerFactory: _loggerFactory);
 
         // Add built-in ephemeral signing command using the same infrastructure as plugins
         var ephemeralProvider = new EphemeralSigningCommandProvider();

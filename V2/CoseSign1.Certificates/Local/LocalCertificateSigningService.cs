@@ -3,7 +3,9 @@
 
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -20,10 +22,12 @@ public class LocalCertificateSigningService : CertificateSigningService
     /// </summary>
     /// <param name="certificate">Certificate with private key for signing</param>
     /// <param name="chainBuilder">Chain builder to construct the certificate chain. Required.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     public LocalCertificateSigningService(
         X509Certificate2 certificate,
-        ICertificateChainBuilder chainBuilder)
-        : base(isRemote: false)
+        ICertificateChainBuilder chainBuilder,
+        ILogger<LocalCertificateSigningService>? logger = null)
+        : base(isRemote: false, logger: logger)
     {
         if (certificate == null)
         {
@@ -42,6 +46,12 @@ public class LocalCertificateSigningService : CertificateSigningService
                 nameof(certificate));
         }
 
+        Logger.LogDebug(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            certificate.Subject,
+            certificate.Thumbprint);
+
         var certificateSource = new DirectCertificateSource(certificate, chainBuilder);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);
         _signingKey = new CertificateSigningKey(certificateSource, signingKeyProvider, this);
@@ -52,10 +62,12 @@ public class LocalCertificateSigningService : CertificateSigningService
     /// </summary>
     /// <param name="certificate">Certificate with private key for signing</param>
     /// <param name="certificateChain">The complete certificate chain including the signing certificate</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     public LocalCertificateSigningService(
         X509Certificate2 certificate,
-        IReadOnlyList<X509Certificate2> certificateChain)
-        : base(isRemote: false)
+        IReadOnlyList<X509Certificate2> certificateChain,
+        ILogger<LocalCertificateSigningService>? logger = null)
+        : base(isRemote: false, logger: logger)
     {
         if (certificate == null)
         {
@@ -73,6 +85,12 @@ public class LocalCertificateSigningService : CertificateSigningService
                 "Certificate must have a private key for local signing.",
                 nameof(certificate));
         }
+
+        Logger.LogDebug(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}",
+            certificate.Subject,
+            certificateChain.Count);
 
         var certificateSource = new DirectCertificateSource(certificate, certificateChain);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);

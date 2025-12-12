@@ -12,19 +12,20 @@ namespace CoseSignTool.Tests.Commands.Handlers;
 /// <summary>
 /// Tests for the InspectCommandHandler class.
 /// </summary>
+[TestFixture]
 public class InspectCommandHandlerTests
 {
-    [Fact]
+    [Test]
     public void Constructor_WithNullFormatter_UsesDefaultFormatter()
     {
         // Arrange & Act
         var handler = new InspectCommandHandler(null);
 
         // Assert
-        Assert.NotNull(handler);
+        Assert.That(handler, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithFormatter_UsesProvidedFormatter()
     {
         // Arrange
@@ -34,10 +35,10 @@ public class InspectCommandHandlerTests
         var handler = new InspectCommandHandler(formatter);
 
         // Assert
-        Assert.NotNull(handler);
+        Assert.That(handler, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNullFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -48,10 +49,10 @@ public class InspectCommandHandlerTests
         var result = await handler.HandleAsync(context);
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, result);
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -63,10 +64,10 @@ public class InspectCommandHandlerTests
         var result = await handler.HandleAsync(context);
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, result);
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithValidFile_ReturnsInspectionFailedForInvalidCose()
     {
         // Arrange
@@ -82,7 +83,7 @@ public class InspectCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - invalid COSE data returns InspectionFailed
-            Assert.Equal((int)ExitCode.InspectionFailed, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InspectionFailed));
         }
         finally
         {
@@ -93,17 +94,17 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithNullContext_ThrowsArgumentNullException()
     {
         // Arrange
         var handler = new InspectCommandHandler();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
+        Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithRandomBytes_ReturnsInspectionFailed()
     {
         // Arrange
@@ -119,7 +120,7 @@ public class InspectCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - random bytes returns InspectionFailed
-            Assert.Equal((int)ExitCode.InspectionFailed, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InspectionFailed));
         }
         finally
         {
@@ -130,7 +131,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_UsesProvidedFormatter()
     {
         // Arrange
@@ -150,7 +151,7 @@ public class InspectCommandHandlerTests
 
             // Assert - formatter should have been used
             var output = stringWriter.ToString();
-            Assert.Contains("COSE Sign1 Signature Details", output);
+            Assert.That(output, Does.Contain("COSE Sign1 Signature Details"));
         }
         finally
         {
@@ -161,7 +162,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithEmptyFile_ReturnsInspectionFailed()
     {
         // Arrange
@@ -177,7 +178,7 @@ public class InspectCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert - empty file returns InspectionFailed
-            Assert.Equal((int)ExitCode.InspectionFailed, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.InspectionFailed));
         }
         finally
         {
@@ -200,7 +201,7 @@ public class InspectCommandHandlerTests
         return new InvocationContext(parseResult);
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccess()
     {
         // Arrange - Create a real signature using sign-ephemeral
@@ -214,7 +215,7 @@ public class InspectCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload for inspect test");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
             var context = CreateInvocationContext(file: file);
@@ -223,7 +224,7 @@ public class InspectCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -238,7 +239,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithJsonFormatter_ProducesJsonOutput()
     {
         // Arrange
@@ -254,7 +255,7 @@ public class InspectCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
             var context = CreateInvocationContext(file: file);
@@ -265,7 +266,7 @@ public class InspectCommandHandlerTests
 
             // Assert
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("{") || output.Contains("["));
+            Assert.That(output.Contains("{") || output.Contains("["));
         }
         finally
         {
@@ -280,7 +281,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithXmlFormatter_ProducesXmlOutput()
     {
         // Arrange
@@ -296,7 +297,7 @@ public class InspectCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
             var context = CreateInvocationContext(file: file);
@@ -307,7 +308,7 @@ public class InspectCommandHandlerTests
 
             // Assert
             var output = stringWriter.ToString();
-            Assert.True(output.Contains("<") || output.Contains("xml"));
+            Assert.That(output.Contains("<") || output.Contains("xml"));
         }
         finally
         {
@@ -322,7 +323,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithQuietFormatter_ReturnsResult()
     {
         // Arrange
@@ -337,7 +338,7 @@ public class InspectCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
             var context = CreateInvocationContext(file: file);
@@ -346,7 +347,7 @@ public class InspectCommandHandlerTests
             var result = await handler.HandleAsync(context);
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -361,7 +362,7 @@ public class InspectCommandHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task HandleAsync_WithLargePayload_ReturnsSuccess()
     {
         // Arrange
@@ -378,7 +379,7 @@ public class InspectCommandHandlerTests
             // Create large payload
             File.WriteAllText(tempPayload, new string('A', 10000));
             rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
-            Assert.True(File.Exists(tempSignature), "Signature should exist");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
             var context = CreateInvocationContext(file: file);
@@ -388,9 +389,9 @@ public class InspectCommandHandlerTests
             formatter.Flush();
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, result);
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            Assert.Contains("Payload", output);
+            Assert.That(output, Does.Contain("Payload"));
         }
         finally
         {
@@ -405,3 +406,8 @@ public class InspectCommandHandlerTests
         }
     }
 }
+
+
+
+
+

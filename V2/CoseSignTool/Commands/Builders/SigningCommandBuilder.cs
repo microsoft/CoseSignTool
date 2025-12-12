@@ -9,6 +9,7 @@ using CoseSign1.Direct;
 using CoseSign1.Indirect;
 using CoseSignTool.Output;
 using CoseSignTool.Plugins;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Commands.Builders;
 
@@ -20,11 +21,14 @@ namespace CoseSignTool.Commands.Builders;
 public class SigningCommandBuilder
 {
     private readonly IReadOnlyList<ITransparencyProvider>? _transparencyProviders;
+    private readonly ILoggerFactory? _loggerFactory;
 
     public SigningCommandBuilder(
-        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null)
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _transparencyProviders = transparencyProviders;
+        _loggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -203,18 +207,25 @@ public class SigningCommandBuilder
                 formatter.WriteKeyValue("Content Type", contentType);
             }
 
-            // Read payload into memory stream for factory
+            // Create a combined cancellation token with timeout for stdin operations
+            // This prevents hanging indefinitely when waiting for stdin input
+            using var stdinTimeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                context.GetCancellationToken(), 
+                stdinTimeoutCts.Token);
+            var cancellationToken = linkedCts.Token;
+
+            // Get payload stream - either stdin or file
+            // For large files, we stream directly without buffering into memory
             Stream payloadStream;
             bool shouldDisposeStream = true;
 
             if (useStdin)
             {
-                // Read from stdin into memory stream
-                var memoryStream = new MemoryStream();
-                var stdin = Console.OpenStandardInput();
-                await stdin.CopyToAsync(memoryStream, context.GetCancellationToken());
-                memoryStream.Position = 0;
-                payloadStream = memoryStream;
+                // Use stdin directly as a stream - don't buffer into memory
+                // The factories support streaming and will read incrementally
+                payloadStream = Console.OpenStandardInput();
+                shouldDisposeStream = false; // Don't dispose stdin
             }
             else
             {
@@ -227,7 +238,14 @@ public class SigningCommandBuilder
                     }
                     return 3; // FileNotFound
                 }
-                payloadStream = File.OpenRead(payloadPath);
+                // Open file with FileOptions.SequentialScan for better performance on large files
+                payloadStream = new FileStream(
+                    payloadPath!, 
+                    FileMode.Open, 
+                    FileAccess.Read, 
+                    FileShare.Read, 
+                    bufferSize: 81920, // 80KB buffer for large file streaming
+                    FileOptions.SequentialScan | FileOptions.Asynchronous);
             }
 
             byte[] signatureBytes;
@@ -237,14 +255,15 @@ public class SigningCommandBuilder
                 var signingService = await provider.CreateSigningServiceAsync(pluginOptions);
 
                 // Create signature based on signature type
+                // Use the combined cancellation token that includes timeout
                 signatureBytes = signatureType.ToLowerInvariant() switch
                 {
                     "indirect" => await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, detached, context.GetCancellationToken()),
+                        signingService, payloadStream, contentType, detached, cancellationToken),
                     "embedded" => await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: true, context.GetCancellationToken()),
+                        signingService, payloadStream, contentType, embedPayload: true, cancellationToken),
                     "direct" => await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, !detached, context.GetCancellationToken()),
+                        signingService, payloadStream, contentType, !detached, cancellationToken),
                     _ => throw new InvalidOperationException($"Unknown signature type: {signatureType}")
                 };
             }
@@ -256,17 +275,32 @@ public class SigningCommandBuilder
                 }
             }
 
-            // Write signature
+            // Write signature output
+            // With PQC keys and certificate chains, signatures can be 50-100KB+
             if (useStdout)
             {
-                using var stdout = Console.OpenStandardOutput();
-                await stdout.WriteAsync(signatureBytes, context.GetCancellationToken());
-                await stdout.FlushAsync(context.GetCancellationToken());
+                // Write to stdout with timeout protection and chunked streaming
+                // for large PQC signatures with full certificate chains
+                using var stdoutTimeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                using var stdoutLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    context.GetCancellationToken(),
+                    stdoutTimeoutCts.Token);
+                
+                await using var stdout = Console.OpenStandardOutput();
+                await WriteToStreamChunkedAsync(stdout, signatureBytes, stdoutLinkedCts.Token);
             }
             else
             {
                 var finalOutputPath = outputPath ?? $"{payloadPath}.cose";
-                await File.WriteAllBytesAsync(finalOutputPath, signatureBytes, context.GetCancellationToken());
+                // Use FileStream with larger buffer for PQC-sized signatures
+                await using var fileStream = new FileStream(
+                    finalOutputPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 81920, // 80KB buffer for large signatures
+                    FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await WriteToStreamChunkedAsync(fileStream, signatureBytes, cancellationToken);
             }
 
             if (!suppressOutput)
@@ -286,6 +320,26 @@ public class SigningCommandBuilder
 
             formatter.Flush();
             return 0; // Success
+        }
+        catch (OperationCanceledException) when (context.GetCancellationToken().IsCancellationRequested)
+        {
+            // User-initiated cancellation (Ctrl+C)
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError("Operation cancelled by user");
+            }
+            formatter.Flush();
+            return 2; // Cancelled
+        }
+        catch (OperationCanceledException)
+        {
+            // Timeout occurred (stdin/stdout timeout)
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError("Operation timed out waiting for input/output");
+            }
+            formatter.Flush();
+            return 11; // Timeout
         }
         catch (FileNotFoundException ex)
         {
@@ -323,6 +377,12 @@ public class SigningCommandBuilder
             }
         }
 
+        // Add the logger factory so plugins can use it for their internal operations
+        if (_loggerFactory != null)
+        {
+            options["__loggerFactory"] = _loggerFactory;
+        }
+
         return options;
     }
 
@@ -333,7 +393,8 @@ public class SigningCommandBuilder
         bool embedPayload,
         CancellationToken cancellationToken)
     {
-        using var factory = new DirectSignatureFactory(signingService, _transparencyProviders);
+        var logger = _loggerFactory?.CreateLogger<DirectSignatureFactory>();
+        using var factory = new DirectSignatureFactory(signingService, _transparencyProviders, logger);
         var options = new DirectSignatureOptions { EmbedPayload = embedPayload };
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);
@@ -346,7 +407,8 @@ public class SigningCommandBuilder
         bool detached,
         CancellationToken cancellationToken)
     {
-        using var factory = new IndirectSignatureFactory(signingService, _transparencyProviders);
+        var logger = _loggerFactory?.CreateLogger<IndirectSignatureFactory>();
+        using var factory = new IndirectSignatureFactory(signingService, _transparencyProviders, logger, _loggerFactory);
         var options = new IndirectSignatureOptions(); // Indirect signatures are always detached (payload not embedded, only hash is signed)
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);
@@ -357,15 +419,40 @@ public class SigningCommandBuilder
     /// </summary>
     private static string GetProviderExample(ISigningCommandProvider provider)
     {
-        // Generate example based on command name
-        return provider.CommandName switch
+        // Use the provider's own example usage - fully extensible via plugins
+        return provider.ExampleUsage;
+    }
+
+    /// <summary>
+    /// Writes data to a stream in chunks for efficient handling of large PQC signatures.
+    /// Uses 64KB chunks to stay below LOH threshold and allow incremental flushing.
+    /// </summary>
+    /// <param name="stream">The output stream to write to.</param>
+    /// <param name="data">The data to write.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private static async Task WriteToStreamChunkedAsync(Stream stream, byte[] data, CancellationToken cancellationToken)
+    {
+        const int chunkSize = 65536; // 64KB chunks - below LOH threshold, good for streaming
+
+        int offset = 0;
+        while (offset < data.Length)
         {
-            var name when name.Contains("pfx") => "--pfx cert.pfx",
-            var name when name.Contains("certstore") => "--thumbprint ABC123",
-            var name when name.Contains("azure") => "--ats-endpoint https://...",
-            var name when name.Contains("pem") => "--private-key key.pem --certificate cert.pem",
-            _ => "[options]"
-        };
+            int remaining = data.Length - offset;
+            int writeSize = Math.Min(remaining, chunkSize);
+
+            await stream.WriteAsync(data.AsMemory(offset, writeSize), cancellationToken).ConfigureAwait(false);
+            offset += writeSize;
+
+            // Flush periodically for stdout to ensure data flows through pipes
+            // This is important for pipeline scenarios where downstream commands are waiting
+            if (offset < data.Length || stream == Console.OpenStandardOutput())
+            {
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // Final flush to ensure all data is written
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 }
 

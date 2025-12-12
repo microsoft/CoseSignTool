@@ -9,9 +9,10 @@ namespace CoseSignTool.MST.Plugin.Tests;
 /// <summary>
 /// Tests for MstTransparencyPlugin.
 /// </summary>
+[TestFixture]
 public class MstTransparencyPluginTests
 {
-    [Fact]
+    [Test]
     public void Name_ReturnsCorrectName()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class MstTransparencyPluginTests
         var name = plugin.Name;
 
         // Assert
-        Assert.Equal("Microsoft Signing Transparency", name);
+        Assert.That(name, Is.EqualTo("Microsoft Signing Transparency"));
     }
 
-    [Fact]
+    [Test]
     public void Version_ReturnsVersion()
     {
         // Arrange
@@ -34,11 +35,11 @@ public class MstTransparencyPluginTests
         var version = plugin.Version;
 
         // Assert
-        Assert.NotNull(version);
-        Assert.Equal("1.0.0", version);
+        Assert.That(version, Is.Not.Null);
+        Assert.That(version, Is.EqualTo("1.0.0"));
     }
 
-    [Fact]
+    [Test]
     public void Description_ReturnsDescription()
     {
         // Arrange
@@ -48,12 +49,12 @@ public class MstTransparencyPluginTests
         var description = plugin.Description;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("Microsoft Signing Transparency", description);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description, Does.Contain("Microsoft Signing Transparency"));
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_CompletesSuccessfully()
     {
         // Arrange
@@ -63,7 +64,7 @@ public class MstTransparencyPluginTests
         await plugin.InitializeAsync();
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_WithConfiguration_CompletesSuccessfully()
     {
         // Arrange
@@ -77,7 +78,7 @@ public class MstTransparencyPluginTests
         await plugin.InitializeAsync(options);
     }
 
-    [Fact]
+    [Test]
     public void GetSigningCommandProviders_ReturnsEmpty()
     {
         // Arrange
@@ -87,10 +88,10 @@ public class MstTransparencyPluginTests
         var providers = plugin.GetSigningCommandProviders().ToList();
 
         // Assert - MST plugin doesn't provide signing commands
-        Assert.Empty(providers);
+        Assert.That(providers, Is.Empty);
     }
 
-    [Fact]
+    [Test]
     public void GetTransparencyProviderContributors_ReturnsMstContributor()
     {
         // Arrange
@@ -100,11 +101,11 @@ public class MstTransparencyPluginTests
         var contributors = plugin.GetTransparencyProviderContributors().ToList();
 
         // Assert
-        Assert.Single(contributors);
-        Assert.IsType<MstTransparencyProviderContributor>(contributors[0]);
+        Assert.That(contributors, Has.Count.EqualTo(1));
+        Assert.That(contributors[0], Is.InstanceOf<MstTransparencyProviderContributor>());
     }
 
-    [Fact]
+    [Test]
     public void RegisterCommands_AddsVerifyMstCommand()
     {
         // Arrange
@@ -115,10 +116,10 @@ public class MstTransparencyPluginTests
         plugin.RegisterCommands(rootCommand);
 
         // Assert
-        Assert.Contains(rootCommand.Subcommands, c => c.Name == "verify-mst");
+        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "verify-mst"));
     }
 
-    [Fact]
+    [Test]
     public void RegisterCommands_VerifyMstCommandHasSignatureArgument()
     {
         // Arrange
@@ -130,10 +131,10 @@ public class MstTransparencyPluginTests
 
         // Assert
         var verifyMstCommand = rootCommand.Subcommands.First(c => c.Name == "verify-mst");
-        Assert.Contains(verifyMstCommand.Arguments, a => a.Name == "signature");
+        Assert.That(verifyMstCommand.Arguments, Has.Some.Matches<Argument>(a => a.Name == "signature"));
     }
 
-    [Fact]
+    [Test]
     public void RegisterCommands_VerifyMstCommandHasEndpointOption()
     {
         // Arrange
@@ -145,6 +146,6 @@ public class MstTransparencyPluginTests
 
         // Assert
         var verifyMstCommand = rootCommand.Subcommands.First(c => c.Name == "verify-mst");
-        Assert.Contains(verifyMstCommand.Options, o => o.Name == "endpoint");
+        Assert.That(verifyMstCommand.Options, Has.Some.Matches<Option>(o => o.Name == "endpoint"));
     }
 }

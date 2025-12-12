@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Plugins;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Local.Plugin;
 
@@ -21,6 +22,8 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
     public string CommandName => "sign-certstore";
 
     public string CommandDescription => "Sign a payload with a certificate from Windows certificate store";
+
+    public string ExampleUsage => "--thumbprint ABC123";
 
     public void AddCommandOptions(Command command)
     {
@@ -53,15 +56,20 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         var storeLocation = options.TryGetValue("store-location", out var loc) ? loc as string ?? "CurrentUser" : "CurrentUser";
         var storeName = options.TryGetValue("store-name", out var name) ? name as string ?? "My" : "My";
 
+        // Get logger factory if provided
+        var loggerFactory = options.TryGetValue("__loggerFactory", out var lf) ? lf as ILoggerFactory : null;
+        var logger = loggerFactory?.CreateLogger<WindowsCertificateStoreCertificateSource>();
+
         // Parse store location and name
         var storeLocationEnum = Enum.Parse<StoreLocation>(storeLocation, ignoreCase: true);
         var storeNameEnum = Enum.Parse<StoreName>(storeName, ignoreCase: true);
 
-        // Create certificate source
+        // Create certificate source with logging
         var certSource = new WindowsCertificateStoreCertificateSource(
             thumbprint,
             storeNameEnum,
-            storeLocationEnum);
+            storeLocationEnum,
+            logger: logger);
 
         var signingCert = certSource.GetSigningCertificate();
         var chainBuilder = certSource.GetChainBuilder();
@@ -70,8 +78,11 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         _certificateSubject = signingCert.Subject;
         _certificateThumbprint = signingCert.Thumbprint;
 
+        // Create logger for signing service
+        var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
+
         // Create signing service
-        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder);
+        _signingService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
 
         return await Task.FromResult(_signingService);
     }

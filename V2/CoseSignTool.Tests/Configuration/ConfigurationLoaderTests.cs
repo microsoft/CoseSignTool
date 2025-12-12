@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Configuration;
 /// <summary>
 /// Tests for the ConfigurationLoader class.
 /// </summary>
+[TestFixture]
 public class ConfigurationLoaderTests
 {
-    [Fact]
+    [Test]
     public void LoadConfiguration_WithNoSources_ReturnsEmptyConfiguration()
     {
         // Arrange
@@ -21,12 +22,12 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        Assert.NotNull(config);
+        Assert.That(config, Is.Not.Null);
         var entries = config.AsEnumerable().Where(kv => kv.Value != null).ToList();
-        Assert.True(entries.Count == 0, "Configuration should be empty");
+        Assert.That(entries.Count == 0, Is.True, "Configuration should be empty");
     }
 
-    [Fact]
+    [Test]
     public void LoadConfiguration_WithEnvironmentVariables_LoadsCorrectly()
     {
         // Arrange
@@ -40,7 +41,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            Assert.Equal("TestValue", config["TestKey"]);
+            Assert.That(config["TestKey"], Is.EqualTo("TestValue"));
         }
         finally
         {
@@ -48,10 +49,9 @@ public class ConfigurationLoaderTests
         }
     }
 
-    [Theory]
-    [InlineData("key1", "value1")]
-    [InlineData("Section:Key2", "value2")]
-    [InlineData("Section:SubSection:Key3", "value3")]
+    [TestCase("key1", "value1")]
+    [TestCase("Section:Key2", "value2")]
+    [TestCase("Section:SubSection:Key3", "value3")]
     public void LoadConfiguration_WithInMemoryValues_LoadsCorrectly(string key, string value)
     {
         // Arrange
@@ -62,10 +62,10 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        Assert.Equal(value, config[key]);
+        Assert.That(config[key], Is.EqualTo(value));
     }
 
-    [Fact]
+    [Test]
     public void LoadConfiguration_WithMultipleSources_LaterSourcesOverrideEarlier()
     {
         // Arrange
@@ -77,10 +77,10 @@ public class ConfigurationLoaderTests
         var config = loader.Build();
 
         // Assert
-        Assert.Equal("SecondValue", config["Key"]);
+        Assert.That(config["Key"], Is.EqualTo("SecondValue"));
     }
 
-    [Fact]
+    [Test]
     public void LoadConfiguration_CanBuildMultipleTimes()
     {
         // Arrange
@@ -92,12 +92,12 @@ public class ConfigurationLoaderTests
         var config2 = loader.Build();
 
         // Assert
-        Assert.NotSame(config2, config1);
-        Assert.Equal("Value", config1["Key"]);
-        Assert.Equal("Value", config2["Key"]);
+        Assert.That(config2, Is.Not.SameAs(config1));
+        Assert.That(config1["Key"], Is.EqualTo("Value"));
+        Assert.That(config2["Key"], Is.EqualTo("Value"));
     }
 
-    [Fact]
+    [Test]
     public void LoadConfiguration_WithNullKey_ThrowsArgumentNullException()
     {
         // Arrange
@@ -105,14 +105,11 @@ public class ConfigurationLoaderTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Key"] = "Value" });
         var config = loader.Build();
 
-        // Act
-        Action act = () => _ = config[null!];
-
-        // Assert
-        Assert.Throws<ArgumentNullException>(act);
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => _ = config[null!]);
     }
 
-    [Fact]
+    [Test]
     public void GetSection_WithValidSectionName_ReturnsSection()
     {
         // Arrange
@@ -129,13 +126,13 @@ public class ConfigurationLoaderTests
         var section = config.GetSection("Section");
 
         // Assert
-        Assert.NotNull(section);
-        Assert.Equal("Value1", section["Key1"]);
-        Assert.Equal("Value2", section["Key2"]);
-        Assert.Equal(2, section.GetChildren().Count());
+        Assert.That(section, Is.Not.Null);
+        Assert.That(section["Key1"], Is.EqualTo("Value1"));
+        Assert.That(section["Key2"], Is.EqualTo("Value2"));
+        Assert.That(section.GetChildren().Count(), Is.EqualTo(2));
     }
 
-    [Fact]
+    [Test]
     public void GetSection_WithNonExistentSection_ReturnsEmptySection()
     {
         // Arrange
@@ -147,12 +144,12 @@ public class ConfigurationLoaderTests
         var section = config.GetSection("NonExistent");
 
         // Assert
-        Assert.NotNull(section);
-        Assert.Null(section.Value);
-        Assert.False(section.Exists());
+        Assert.That(section, Is.Not.Null);
+        Assert.That(section.Value, Is.Null);
+        Assert.That(section.Exists(), Is.False);
     }
 
-    [Fact]
+    [Test]
     public void Bind_WithValidObject_PopulatesProperties()
     {
         // Arrange
@@ -170,12 +167,12 @@ public class ConfigurationLoaderTests
         config.GetSection("TestConfig").Bind(testConfig);
 
         // Assert
-        Assert.Equal("Test", testConfig.StringValue);
-        Assert.Equal(42, testConfig.IntValue);
-        Assert.True(testConfig.BoolValue);
+        Assert.That(testConfig.StringValue, Is.EqualTo("Test"));
+        Assert.That(testConfig.IntValue, Is.EqualTo(42));
+        Assert.That(testConfig.BoolValue, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddEnvironmentVariables_WithCustomPrefix_FiltersCorrectly()
     {
         // Arrange
@@ -190,8 +187,8 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            Assert.Equal("Value1", config["Key1"]);
-            Assert.Null(config["Key2"]);
+            Assert.That(config["Key1"], Is.EqualTo("Value1"));
+            Assert.That(config["Key2"], Is.Null);
         }
         finally
         {
@@ -200,7 +197,7 @@ public class ConfigurationLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public void AddEnvironmentVariables_WithNullPrefix_LoadsAllEnvironmentVariables()
     {
         // Arrange
@@ -214,7 +211,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            Assert.Equal("TestValue", config["COSESIGN_TestKey"]);
+            Assert.That(config["COSESIGN_TestKey"], Is.EqualTo("TestValue"));
         }
         finally
         {
@@ -222,7 +219,7 @@ public class ConfigurationLoaderTests
         }
     }
 
-    [Fact]
+    [Test]
     public void AddEnvironmentVariables_WithEmptyPrefix_LoadsAllEnvironmentVariables()
     {
         // Arrange
@@ -236,7 +233,7 @@ public class ConfigurationLoaderTests
             var config = loader.Build();
 
             // Assert
-            Assert.Equal("AnotherValue", config["COSESIGN_AnotherKey"]);
+            Assert.That(config["COSESIGN_AnotherKey"], Is.EqualTo("AnotherValue"));
         }
         finally
         {
@@ -251,3 +248,8 @@ public class ConfigurationLoaderTests
         public bool BoolValue { get; set; }
     }
 }
+
+
+
+
+

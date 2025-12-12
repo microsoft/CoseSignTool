@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates.ChainBuilders;
 
@@ -12,6 +15,7 @@ namespace CoseSign1.Certificates.ChainBuilders;
 public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 {
     private readonly X509Chain _chain;
+    private readonly ILogger<X509ChainBuilder> _logger;
     private bool _disposed;
 
     /// <summary>
@@ -31,8 +35,9 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="X509ChainBuilder"/> class with the default chain policy.
     /// </summary>
-    public X509ChainBuilder()
-        : this(DefaultChainPolicy)
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public X509ChainBuilder(ILogger<X509ChainBuilder>? logger = null)
+        : this(DefaultChainPolicy, logger)
     {
     }
 
@@ -40,14 +45,16 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     /// Initializes a new instance of the <see cref="X509ChainBuilder"/> class with a specific chain policy.
     /// </summary>
     /// <param name="chainPolicy">The chain policy to use for chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="chainPolicy"/> is null.</exception>
-    public X509ChainBuilder(X509ChainPolicy chainPolicy)
+    public X509ChainBuilder(X509ChainPolicy chainPolicy, ILogger<X509ChainBuilder>? logger = null)
     {
 #if NET5_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(chainPolicy);
 #else
         if (chainPolicy == null) { throw new ArgumentNullException(nameof(chainPolicy)); }
 #endif
+        _logger = logger ?? NullLogger<X509ChainBuilder>.Instance;
         _chain = new X509Chain();
         
         // Create a new policy to avoid any shared state issues
@@ -88,6 +95,13 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
             _chain.ChainPolicy.CustomTrustStore.AddRange(chainPolicy.CustomTrustStore);
         }
 #endif
+
+        _logger.LogTrace(
+            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            "X509ChainBuilder initialized. RevocationMode: {RevocationMode}, RevocationFlag: {RevocationFlag}, VerificationFlags: {VerificationFlags}",
+            chainPolicy.RevocationMode,
+            chainPolicy.RevocationFlag,
+            chainPolicy.VerificationFlags);
     }
 
     /// <inheritdoc/>
@@ -158,7 +172,33 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         if (_disposed) { throw new ObjectDisposedException(GetType().FullName); }
         if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
 #endif
-        return _chain.Build(certificate);
+
+        _logger.LogTrace(
+            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            "Building certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            certificate.Subject,
+            certificate.Thumbprint);
+
+        bool result = _chain.Build(certificate);
+
+        if (result)
+        {
+            _logger.LogTrace(
+                new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
+                "Certificate chain built successfully. ChainLength: {ChainLength}",
+                _chain.ChainElements.Count);
+        }
+        else
+        {
+            var statusSummary = string.Join(", ", _chain.ChainStatus.Select(s => s.Status.ToString()));
+            _logger.LogTrace(
+                new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                "Certificate chain build failed. ChainLength: {ChainLength}, ChainStatus: {ChainStatus}",
+                _chain.ChainElements.Count,
+                statusSummary);
+        }
+
+        return result;
     }
 
     /// <inheritdoc/>

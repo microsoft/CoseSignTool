@@ -8,9 +8,10 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Tests for the QuietOutputFormatter class.
 /// </summary>
+[TestFixture]
 public class QuietOutputFormatterTests
 {
-    [Fact]
+    [Test]
     public void WriteSuccess_ProducesNoOutput()
     {
         // Arrange
@@ -20,7 +21,7 @@ public class QuietOutputFormatterTests
         formatter.WriteSuccess("Test");
     }
 
-    [Fact]
+    [Test]
     public void WriteError_ProducesNoOutput()
     {
         // Arrange
@@ -30,7 +31,7 @@ public class QuietOutputFormatterTests
         formatter.WriteError("Test");
     }
 
-    [Fact]
+    [Test]
     public void WriteInfo_ProducesNoOutput()
     {
         // Arrange
@@ -40,7 +41,7 @@ public class QuietOutputFormatterTests
         formatter.WriteInfo("Test");
     }
 
-    [Fact]
+    [Test]
     public void WriteWarning_ProducesNoOutput()
     {
         // Arrange
@@ -50,7 +51,7 @@ public class QuietOutputFormatterTests
         formatter.WriteWarning("Test");
     }
 
-    [Fact]
+    [Test]
     public void WriteKeyValue_ProducesNoOutput()
     {
         // Arrange
@@ -60,7 +61,7 @@ public class QuietOutputFormatterTests
         formatter.WriteKeyValue("Key", "Value");
     }
 
-    [Fact]
+    [Test]
     public void BeginSection_ProducesNoOutput()
     {
         // Arrange
@@ -70,7 +71,7 @@ public class QuietOutputFormatterTests
         formatter.BeginSection("Test");
     }
 
-    [Fact]
+    [Test]
     public void EndSection_ProducesNoOutput()
     {
         // Arrange
@@ -80,3 +81,8 @@ public class QuietOutputFormatterTests
         formatter.EndSection();
     }
 }
+
+
+
+
+

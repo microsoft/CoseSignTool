@@ -8,9 +8,10 @@ namespace CoseSignTool.AzureTrustedSigning.Plugin.Tests;
 /// <summary>
 /// Tests for AzureTrustedSigningPlugin.
 /// </summary>
+[TestFixture]
 public class AzureTrustedSigningPluginTests
 {
-    [Fact]
+    [Test]
     public void Name_ReturnsCorrectName()
     {
         // Arrange
@@ -20,10 +21,10 @@ public class AzureTrustedSigningPluginTests
         var name = plugin.Name;
 
         // Assert
-        Assert.Equal("Azure Trusted Signing", name);
+        Assert.That(name, Is.EqualTo("Azure Trusted Signing"));
     }
 
-    [Fact]
+    [Test]
     public void Version_ReturnsVersion()
     {
         // Arrange
@@ -33,12 +34,12 @@ public class AzureTrustedSigningPluginTests
         var version = plugin.Version;
 
         // Assert
-        Assert.NotNull(version);
-        Assert.NotEmpty(version);
-        Assert.Equal("1.0.0", version);
+        Assert.That(version, Is.Not.Null);
+        Assert.That(version, Is.Not.Empty);
+        Assert.That(version, Is.EqualTo("1.0.0"));
     }
 
-    [Fact]
+    [Test]
     public void Description_ReturnsDescription()
     {
         // Arrange
@@ -48,12 +49,12 @@ public class AzureTrustedSigningPluginTests
         var description = plugin.Description;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("Azure", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToLowerInvariant(), Does.Contain("azure"));
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_CompletesSuccessfully()
     {
         // Arrange
@@ -63,7 +64,7 @@ public class AzureTrustedSigningPluginTests
         await plugin.InitializeAsync();
     }
 
-    [Fact]
+    [Test]
     public async Task InitializeAsync_WithConfiguration_CompletesSuccessfully()
     {
         // Arrange
@@ -74,7 +75,7 @@ public class AzureTrustedSigningPluginTests
         await plugin.InitializeAsync(config);
     }
 
-    [Fact]
+    [Test]
     public void GetSigningCommandProviders_ReturnsAzureProvider()
     {
         // Arrange
@@ -84,12 +85,12 @@ public class AzureTrustedSigningPluginTests
         var providers = plugin.GetSigningCommandProviders().ToList();
 
         // Assert
-        Assert.NotNull(providers);
-        Assert.Single(providers);
-        Assert.Contains(providers, p => p.CommandName == "sign-azure");
+        Assert.That(providers, Is.Not.Null);
+        Assert.That(providers, Has.Count.EqualTo(1));
+        Assert.That(providers, Has.Some.Matches<CoseSignTool.Plugins.ISigningCommandProvider>(p => p.CommandName == "sign-azure"));
     }
 
-    [Fact]
+    [Test]
     public void GetTransparencyProviderContributors_ReturnsEmpty()
     {
         // Arrange
@@ -99,10 +100,10 @@ public class AzureTrustedSigningPluginTests
         var contributors = plugin.GetTransparencyProviderContributors().ToList();
 
         // Assert
-        Assert.Empty(contributors);
+        Assert.That(contributors, Is.Empty);
     }
 
-    [Fact]
+    [Test]
     public void RegisterCommands_DoesNotThrow()
     {
         // Arrange

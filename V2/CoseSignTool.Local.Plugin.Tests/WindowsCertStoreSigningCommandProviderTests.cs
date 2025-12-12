@@ -9,9 +9,10 @@ namespace CoseSignTool.Local.Plugin.Tests;
 /// <summary>
 /// Tests for WindowsCertStoreSigningCommandProvider.
 /// </summary>
+[TestFixture]
 public class WindowsCertStoreSigningCommandProviderTests
 {
-    [Fact]
+    [Test]
     public void CommandName_ReturnsSignCertstore()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class WindowsCertStoreSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.Equal("sign-certstore", name);
+        Assert.That(name, Is.EqualTo("sign-certstore"));
     }
 
-    [Fact]
+    [Test]
     public void CommandDescription_ReturnsDescription()
     {
         // Arrange
@@ -34,12 +35,12 @@ public class WindowsCertStoreSigningCommandProviderTests
         var description = provider.CommandDescription;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("certificate", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToLowerInvariant(), Does.Contain("certificate"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_AddsRequiredOptions()
     {
         // Arrange
@@ -50,12 +51,12 @@ public class WindowsCertStoreSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        Assert.Contains(command.Options, o => o.Name == "thumbprint");
-        Assert.Contains(command.Options, o => o.Name == "store-location");
-        Assert.Contains(command.Options, o => o.Name == "store-name");
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "thumbprint"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "store-location"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "store-name"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_ThumbprintIsRequired()
     {
         // Arrange
@@ -67,11 +68,11 @@ public class WindowsCertStoreSigningCommandProviderTests
 
         // Assert
         var thumbprintOption = command.Options.FirstOrDefault(o => o.Name == "thumbprint");
-        Assert.NotNull(thumbprintOption);
-        Assert.True(thumbprintOption.IsRequired);
+        Assert.That(thumbprintOption, Is.Not.Null);
+        Assert.That(thumbprintOption!.IsRequired, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_StoreLocationHasDefault()
     {
         // Arrange
@@ -83,23 +84,23 @@ public class WindowsCertStoreSigningCommandProviderTests
 
         // Assert
         var storeLocationOption = command.Options.FirstOrDefault(o => o.Name == "store-location");
-        Assert.NotNull(storeLocationOption);
-        Assert.False(storeLocationOption.IsRequired);
+        Assert.That(storeLocationOption, Is.Not.Null);
+        Assert.That(storeLocationOption!.IsRequired, Is.False);
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingThumbprint_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingThumbprint_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new WindowsCertStoreSigningCommandProvider();
         var options = new Dictionary<string, object?>();
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_ReturnsMetadata()
     {
         // Arrange
@@ -109,12 +110,12 @@ public class WindowsCertStoreSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.NotNull(metadata);
-        Assert.Contains("Certificate Source", metadata.Keys);
-        Assert.Equal("Windows certificate store", metadata["Certificate Source"]);
+        Assert.That(metadata, Is.Not.Null);
+        Assert.That(metadata.Keys, Does.Contain("Certificate Source"));
+        Assert.That(metadata["Certificate Source"], Is.EqualTo("Windows certificate store"));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_WithNoSigningService_ReturnsUnknownValues()
     {
         // Arrange
@@ -124,7 +125,7 @@ public class WindowsCertStoreSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.Equal("Unknown", metadata["Certificate Subject"]);
-        Assert.Equal("Unknown", metadata["Certificate Thumbprint"]);
+        Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
+        Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
 }

@@ -11,9 +11,10 @@ namespace CoseSignTool.Tests.Commands.Handlers;
 /// <summary>
 /// Extended tests for command handlers with various code paths.
 /// </summary>
+[TestFixture]
 public class ExtendedHandlerTests
 {
-    [Fact]
+    [Test]
     public void InspectCommandHandler_WithDifferentFormatters_Works()
     {
         // Arrange
@@ -28,13 +29,13 @@ public class ExtendedHandlerTests
         var handler3 = new InspectCommandHandler(xmlFormatter);
         var handler4 = new InspectCommandHandler(quietFormatter);
 
-        Assert.NotNull(handler1);
-        Assert.NotNull(handler2);
-        Assert.NotNull(handler3);
-        Assert.NotNull(handler4);
+        Assert.That(handler1, Is.Not.Null);
+        Assert.That(handler2, Is.Not.Null);
+        Assert.That(handler3, Is.Not.Null);
+        Assert.That(handler4, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommandHandler_WithDifferentFormatters_Works()
     {
         // Arrange
@@ -49,13 +50,13 @@ public class ExtendedHandlerTests
         var handler3 = new VerifyCommandHandler(xmlFormatter);
         var handler4 = new VerifyCommandHandler(quietFormatter);
 
-        Assert.NotNull(handler1);
-        Assert.NotNull(handler2);
-        Assert.NotNull(handler3);
-        Assert.NotNull(handler4);
+        Assert.That(handler1, Is.Not.Null);
+        Assert.That(handler2, Is.Not.Null);
+        Assert.That(handler3, Is.Not.Null);
+        Assert.That(handler4, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void InspectCommand_ViaRootCommand_WithValidSignature_Succeeds()
     {
         // Arrange - Create a real signature first
@@ -70,14 +71,14 @@ public class ExtendedHandlerTests
 
             // Sign the payload
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
-            Assert.True(File.Exists(tempSignature));
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(tempSignature));
 
             // Act - Inspect with text format (default)
             var inspectExitCode = rootCommand.Invoke($"inspect \"{tempSignature}\"");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, inspectExitCode);
+            Assert.That(inspectExitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -92,7 +93,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void InspectCommand_ViaRootCommand_WithQuietFormat_Succeeds()
     {
         // Arrange - Create a real signature first
@@ -107,13 +108,13 @@ public class ExtendedHandlerTests
 
             // Sign the payload
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with quiet format
             var inspectExitCode = rootCommand.Invoke($"inspect \"{tempSignature}\" --output-format quiet");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, inspectExitCode);
+            Assert.That(inspectExitCode, Is.EqualTo((int)ExitCode.Success));
         }
         finally
         {
@@ -128,7 +129,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommand_ViaRootCommand_WithJsonFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
@@ -143,15 +144,15 @@ public class ExtendedHandlerTests
 
             // Sign the payload
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with JSON format
             var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format json");
 
             // Assert - Either success or verification failure is acceptable
-            Assert.True(verifyExitCode == (int)ExitCode.Success ||
+            Assert.That(verifyExitCode == (int)ExitCode.Success ||
                         verifyExitCode == (int)ExitCode.VerificationFailed ||
-                        verifyExitCode == (int)ExitCode.UntrustedCertificate);
+                        verifyExitCode == (int)ExitCode.UntrustedCertificate, Is.True);
         }
         finally
         {
@@ -166,7 +167,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommand_ViaRootCommand_WithQuietFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
@@ -181,15 +182,15 @@ public class ExtendedHandlerTests
 
             // Sign the payload
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with quiet format
             var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format quiet");
 
             // Assert - Either success or verification failure is acceptable
-            Assert.True(verifyExitCode == (int)ExitCode.Success ||
+            Assert.That(verifyExitCode == (int)ExitCode.Success ||
                         verifyExitCode == (int)ExitCode.VerificationFailed ||
-                        verifyExitCode == (int)ExitCode.UntrustedCertificate);
+                        verifyExitCode == (int)ExitCode.UntrustedCertificate, Is.True);
         }
         finally
         {
@@ -204,7 +205,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommand_ViaRootCommand_WithXmlFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
@@ -219,15 +220,15 @@ public class ExtendedHandlerTests
 
             // Sign the payload
             var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
-            Assert.Equal((int)ExitCode.Success, signExitCode);
+            Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with XML format
             var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format xml");
 
             // Assert - Either success or verification failure is acceptable
-            Assert.True(verifyExitCode == (int)ExitCode.Success ||
+            Assert.That(verifyExitCode == (int)ExitCode.Success ||
                         verifyExitCode == (int)ExitCode.VerificationFailed ||
-                        verifyExitCode == (int)ExitCode.UntrustedCertificate);
+                        verifyExitCode == (int)ExitCode.UntrustedCertificate, Is.True);
         }
         finally
         {
@@ -242,7 +243,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SignEphemeral_WithVerboseOption_ShowsHelp()
     {
         // Arrange
@@ -253,10 +254,10 @@ public class ExtendedHandlerTests
         var exitCode = rootCommand.Invoke("sign-ephemeral --help --verbose");
 
         // Assert - Help should show (exit code 0)
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommand_WithVerboseHelp_ShowsHelp()
     {
         // Arrange
@@ -267,10 +268,10 @@ public class ExtendedHandlerTests
         var exitCode = rootCommand.Invoke("verify --help");
 
         // Assert - Help should show
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void InspectCommand_WithVerboseHelp_ShowsHelp()
     {
         // Arrange
@@ -281,10 +282,10 @@ public class ExtendedHandlerTests
         var exitCode = rootCommand.Invoke("inspect --help");
 
         // Assert - Help should show
-        Assert.Equal((int)ExitCode.Success, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
     }
 
-    [Fact]
+    [Test]
     public void SignEphemeral_WithAllOptions_CreatesSignature()
     {
         // Arrange
@@ -306,8 +307,8 @@ public class ExtendedHandlerTests
                 "--quiet");
 
             // Assert
-            Assert.Equal((int)ExitCode.Success, exitCode);
-            Assert.True(File.Exists(customOutput));
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(File.Exists(customOutput));
         }
         finally
         {
@@ -322,7 +323,7 @@ public class ExtendedHandlerTests
         }
     }
 
-    [Fact]
+    [Test]
     public void VerifyCommand_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -334,10 +335,10 @@ public class ExtendedHandlerTests
         var exitCode = rootCommand.Invoke($"verify \"{nonExistentFile}\"");
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
-    [Fact]
+    [Test]
     public void InspectCommand_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
@@ -349,6 +350,11 @@ public class ExtendedHandlerTests
         var exitCode = rootCommand.Invoke($"inspect \"{nonExistentFile}\"");
 
         // Assert
-        Assert.Equal((int)ExitCode.FileNotFound, exitCode);
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 }
+
+
+
+
+

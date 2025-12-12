@@ -21,6 +21,8 @@ public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
 
     public string CommandDescription => "Sign a payload by searching system certificate store paths by thumbprint";
 
+    public string ExampleUsage => "--thumbprint ABC123";
+
     public void AddCommandOptions(Command command)
     {
         var thumbprintOption = new Option<string>(

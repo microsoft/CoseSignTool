@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using CoseSignTool.Commands;
+using CoseSignTool.Configuration;
+using Microsoft.Extensions.Logging;
 using System.CommandLine;
 
 namespace CoseSignTool;
@@ -11,6 +13,13 @@ namespace CoseSignTool;
 /// </summary>
 public static class Program
 {
+    private static ILoggerFactory? _loggerFactory;
+
+    /// <summary>
+    /// Gets the global logger factory for the application.
+    /// </summary>
+    public static ILoggerFactory LoggerFactory => _loggerFactory ??= LoggingConfiguration.CreateLoggerFactory();
+
     /// <summary>
     /// Application entry point.
     /// </summary>
@@ -22,12 +31,21 @@ public static class Program
 
         try
         {
+            // Parse verbosity before anything else - this modifies args to remove verbosity args
+            var verbosity = LoggingConfiguration.ParseVerbosity(ref args);
+            _loggerFactory = LoggingConfiguration.CreateLoggerFactory(verbosity);
+            var logger = _loggerFactory.CreateLogger("CoseSignTool");
+
+            logger.LogDebug("CoseSignTool starting with verbosity level {Verbosity}", verbosity);
+
             // Parse for global --additional-plugin-dir option before building commands
             var additionalPluginDirs = ExtractAdditionalPluginDirectories(ref args);
             
             var rootCommand = CreateRootCommand(additionalPluginDirs);
             var result = rootCommand.Invoke(args);
             
+            logger.LogDebug("CoseSignTool exiting with code {ExitCode}", result);
+
             // Map System.CommandLine exit codes to our ExitCode enum
             return result switch
             {
@@ -42,8 +60,14 @@ public static class Program
         }
         catch (Exception ex)
         {
+            var logger = _loggerFactory?.CreateLogger("CoseSignTool");
+            logger?.LogCritical(ex, "Fatal error: {Message}", ex.Message);
             Console.Error.WriteLine($"Fatal error: {ex.Message}");
             return (int)ExitCode.GeneralError;
+        }
+        finally
+        {
+            _loggerFactory?.Dispose();
         }
     }
 
@@ -79,7 +103,7 @@ public static class Program
     /// <returns>The configured root command.</returns>
     internal static RootCommand CreateRootCommand(IEnumerable<string>? additionalPluginDirectories = null)
     {
-        var builder = new CommandBuilder();
+        var builder = new CommandBuilder(_loggerFactory);
         return builder.BuildRootCommand(additionalPluginDirectories);
     }
 }

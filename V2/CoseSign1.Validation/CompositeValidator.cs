@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using CoseSign1.Validation.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace CoseSign1.Validation;
 
 /// <summary>
@@ -12,6 +15,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
     private readonly IReadOnlyList<IValidator<CoseSign1Message>> _validators;
     private readonly bool _stopOnFirstFailure;
     private readonly bool _runInParallel;
+    private readonly ILogger<CompositeValidator> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CompositeValidator"/> class.
@@ -19,14 +23,17 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
     /// <param name="validators">The validators to combine.</param>
     /// <param name="stopOnFirstFailure">Whether to stop on first failure.</param>
     /// <param name="runInParallel">Whether to run validators in parallel.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
     public CompositeValidator(
         IEnumerable<IValidator<CoseSign1Message>> validators,
         bool stopOnFirstFailure = false,
-        bool runInParallel = false)
+        bool runInParallel = false,
+        ILogger<CompositeValidator>? logger = null)
     {
         _validators = validators?.ToList() ?? throw new ArgumentNullException(nameof(validators));
         _stopOnFirstFailure = stopOnFirstFailure;
         _runInParallel = runInParallel;
+        _logger = logger ?? NullLogger<CompositeValidator>.Instance;
     }
 
     /// <summary>
@@ -38,37 +45,79 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
     {
         if (input == null)
         {
+            _logger.LogWarning(
+                new EventId(LogEvents.ValidationFailed, nameof(LogEvents.ValidationFailed)),
+                "Validation failed: input message is null");
             return ValidationResult.Failure("CompositeValidator", "Input message is null", "NULL_INPUT");
         }
 
         if (_validators.Count == 0)
         {
+            _logger.LogDebug(
+                new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
+                "Validation completed with no validators configured");
             return ValidationResult.Success("CompositeValidator");
         }
+
+        _logger.LogDebug(
+            new EventId(LogEvents.ValidationStarted, nameof(LogEvents.ValidationStarted)),
+            "Starting validation with {ValidatorCount} validators. StopOnFirstFailure: {StopOnFirstFailure}, RunInParallel: {RunInParallel}",
+            _validators.Count,
+            _stopOnFirstFailure,
+            _runInParallel);
 
         var results = new List<ValidationResult>();
         var allFailures = new List<ValidationFailure>();
 
         foreach (var validator in _validators)
         {
+            _logger.LogTrace(
+                new EventId(LogEvents.ValidatorExecuting, nameof(LogEvents.ValidatorExecuting)),
+                "Executing validator: {ValidatorType}",
+                validator.GetType().Name);
+
             var result = validator.Validate(input);
             results.Add(result);
 
             if (!result.IsValid)
             {
+                _logger.LogDebug(
+                    new EventId(LogEvents.ValidatorFailure, nameof(LogEvents.ValidatorFailure)),
+                    "Validator {ValidatorType} failed with {FailureCount} failures",
+                    validator.GetType().Name,
+                    result.Failures.Count);
                 allFailures.AddRange(result.Failures);
 
                 if (_stopOnFirstFailure)
                 {
+                    _logger.LogDebug(
+                        new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
+                        "Stopping validation on first failure");
                     break;
                 }
+            }
+            else
+            {
+                _logger.LogTrace(
+                    new EventId(LogEvents.ValidatorPassed, nameof(LogEvents.ValidatorPassed)),
+                    "Validator {ValidatorType} passed",
+                    validator.GetType().Name);
             }
         }
 
         if (allFailures.Count > 0)
         {
+            _logger.LogInformation(
+                new EventId(LogEvents.ValidationFailed, nameof(LogEvents.ValidationFailed)),
+                "Validation failed with {FailureCount} total failures",
+                allFailures.Count);
             return ValidationResult.Failure("CompositeValidator", allFailures.ToArray());
         }
+
+        _logger.LogDebug(
+            new EventId(LogEvents.ValidationCompleted, nameof(LogEvents.ValidationCompleted)),
+            "All {ValidatorCount} validators passed successfully",
+            _validators.Count);
 
         // Merge metadata from all successful validators
         var mergedMetadata = new Dictionary<string, object>();

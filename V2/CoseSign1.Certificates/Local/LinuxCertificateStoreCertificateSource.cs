@@ -4,8 +4,10 @@
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -40,16 +42,24 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="thumbprint">Certificate thumbprint (hex string)</param>
     /// <param name="storePaths">Optional custom certificate store paths. If null, uses DefaultCertificateStorePaths.</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public LinuxCertificateStoreCertificateSource(
         string thumbprint,
         IEnumerable<string>? storePaths = null,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<LinuxCertificateStoreCertificateSource>? logger = null)
         : this(
-            (paths) => FindCertificateByThumbprint(paths, thumbprint)
+            (paths, log) => FindCertificateByThumbprint(paths, thumbprint, log)
                 ?? throw new InvalidOperationException($"Certificate with thumbprint '{thumbprint}' not found in any certificate store"),
             storePaths,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "LinuxCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}",
+            thumbprint,
+            _certificate.Subject);
     }
 
     /// <summary>
@@ -59,17 +69,26 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="storePaths">Optional custom certificate store paths. If null, uses DefaultCertificateStorePaths.</param>
     /// <param name="validOnly">If true, only returns valid certificates</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public LinuxCertificateStoreCertificateSource(
         string subjectName,
         IEnumerable<string>? storePaths,
         bool validOnly,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<LinuxCertificateStoreCertificateSource>? logger = null)
         : this(
-            (paths) => FindCertificateBySubjectName(paths, subjectName, validOnly)
+            (paths, log) => FindCertificateBySubjectName(paths, subjectName, validOnly, log)
                 ?? throw new InvalidOperationException($"Certificate with subject name containing '{subjectName}' not found in any certificate store"),
             storePaths,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "LinuxCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}, Subject: {Subject}",
+            subjectName,
+            validOnly,
+            _certificate.Subject);
     }
 
     /// <summary>
@@ -78,16 +97,23 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="predicate">Predicate to find the desired certificate</param>
     /// <param name="storePaths">Optional custom certificate store paths. If null, uses DefaultCertificateStorePaths.</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public LinuxCertificateStoreCertificateSource(
         Func<X509Certificate2, bool> predicate,
         IEnumerable<string>? storePaths = null,
-        ICertificateChainBuilder? chainBuilder = null)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<LinuxCertificateStoreCertificateSource>? logger = null)
         : this(
-            (paths) => FindCertificateByPredicate(paths, predicate)
+            (paths, log) => FindCertificateByPredicate(paths, predicate, log)
                 ?? throw new InvalidOperationException("No certificate matching the predicate found in any certificate store"),
             storePaths,
-            chainBuilder)
+            chainBuilder,
+            logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "LinuxCertificateStoreCertificateSource initialized by predicate. Subject: {Subject}",
+            _certificate.Subject);
     }
 
     /// <summary>
@@ -97,23 +123,39 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// <param name="privateKeyFilePath">Path to the private key file (.key, .pem)</param>
     /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses X509ChainBuilder for automatic chain building.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public LinuxCertificateStoreCertificateSource(
         string certificateFilePath,
         string privateKeyFilePath,
         X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.MachineKeySet,
-        ICertificateChainBuilder? chainBuilder = null)
-        : base(chainBuilder ?? new X509ChainBuilder())
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<LinuxCertificateStoreCertificateSource>? logger = null)
+        : base(chainBuilder ?? new X509ChainBuilder(), logger)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(certificateFilePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(privateKeyFilePath);
 
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Loading certificate from files. CertificateFile: {CertFile}, PrivateKeyFile: {KeyFile}",
+            certificateFilePath,
+            privateKeyFilePath);
+
         if (!File.Exists(certificateFilePath))
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "Certificate file not found. Path: {Path}",
+                certificateFilePath);
             throw new FileNotFoundException($"Certificate file not found: {certificateFilePath}", certificateFilePath);
         }
 
         if (!File.Exists(privateKeyFilePath))
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "Private key file not found. Path: {Path}",
+                privateKeyFilePath);
             throw new FileNotFoundException($"Private key file not found: {privateKeyFilePath}", privateKeyFilePath);
         }
 
@@ -127,6 +169,10 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             using var rsa = RSA.Create();
             rsa.ImportFromPem(keyPem);
             _certificate = cert.CopyWithPrivateKey(rsa);
+            Logger.LogTrace(
+                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                "Certificate loaded with RSA private key. Subject: {Subject}",
+                _certificate.Subject);
         }
         catch (CryptographicException)
         {
@@ -135,10 +181,18 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                 using var ecdsa = ECDsa.Create();
                 ecdsa.ImportFromPem(keyPem);
                 _certificate = cert.CopyWithPrivateKey(ecdsa);
+                Logger.LogTrace(
+                    new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                    "Certificate loaded with ECDSA private key. Subject: {Subject}",
+                    _certificate.Subject);
             }
             catch (CryptographicException ex)
             {
                 cert.Dispose();
+                Logger.LogTrace(
+                    new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                    "Unable to import private key. Path: {Path}",
+                    privateKeyFilePath);
                 throw new InvalidOperationException($"Unable to import private key from {privateKeyFilePath}. The key format is not supported or the key is invalid.", ex);
             }
         }
@@ -151,13 +205,18 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// Private constructor that performs the actual certificate retrieval from store paths.
     /// </summary>
     private LinuxCertificateStoreCertificateSource(
-        Func<IEnumerable<string>, X509Certificate2> certificateFinder,
+        Func<IEnumerable<string>, ILogger?, X509Certificate2> certificateFinder,
         IEnumerable<string>? storePaths,
-        ICertificateChainBuilder? chainBuilder)
-        : base(chainBuilder ?? new X509ChainBuilder())
+        ICertificateChainBuilder? chainBuilder,
+        ILogger<LinuxCertificateStoreCertificateSource>? logger)
+        : base(chainBuilder ?? new X509ChainBuilder(), logger)
     {
         var paths = storePaths ?? DefaultCertificateStorePaths.Where(Directory.Exists);
-        _certificate = certificateFinder(paths);
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching certificate store paths. Paths: {Paths}",
+            string.Join(", ", paths));
+        _certificate = certificateFinder(paths, logger);
     }
 
     /// <inheritdoc/>
@@ -179,12 +238,17 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// <summary>
     /// Finds a certificate by thumbprint in the specified store paths.
     /// </summary>
-    private static X509Certificate2? FindCertificateByThumbprint(IEnumerable<string> storePaths, string thumbprint)
+    private static X509Certificate2? FindCertificateByThumbprint(IEnumerable<string> storePaths, string thumbprint, ILogger? logger)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
 
         // Normalize thumbprint: remove whitespace and convert to uppercase
         string normalizedThumbprint = thumbprint.Replace(" ", "").Replace(":", "").ToUpperInvariant();
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching for certificate by thumbprint. NormalizedThumbprint: {Thumbprint}",
+            normalizedThumbprint);
 
         foreach (var path in storePaths)
         {
@@ -193,6 +257,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                 continue;
             }
 
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                "Searching directory. Path: {Path}",
+                path);
+
             foreach (var certFile in EnumerateCertificateFiles(path))
             {
                 try
@@ -200,6 +269,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                     var cert = X509CertificateLoader.LoadCertificateFromFile(certFile);
                     if (cert.Thumbprint.Equals(normalizedThumbprint, StringComparison.OrdinalIgnoreCase))
                     {
+                        logger?.LogTrace(
+                            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                            "Found certificate by thumbprint. File: {File}, Subject: {Subject}",
+                            certFile,
+                            cert.Subject);
                         return cert;
                     }
                     cert.Dispose();
@@ -215,15 +289,26 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             }
         }
 
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+            "Certificate with thumbprint {Thumbprint} not found",
+            normalizedThumbprint);
+
         return null;
     }
 
     /// <summary>
     /// Finds a certificate by subject name in the specified store paths.
     /// </summary>
-    private static X509Certificate2? FindCertificateBySubjectName(IEnumerable<string> storePaths, string subjectName, bool validOnly)
+    private static X509Certificate2? FindCertificateBySubjectName(IEnumerable<string> storePaths, string subjectName, bool validOnly, ILogger? logger)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching for certificate by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}",
+            subjectName,
+            validOnly);
 
         var candidates = new List<X509Certificate2>();
 
@@ -259,6 +344,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             }
         }
 
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Found {Count} candidate certificates matching subject name",
+            candidates.Count);
+
         if (validOnly)
         {
             var now = DateTime.Now;
@@ -271,6 +361,10 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             }
             
             candidates = validCandidates;
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                "{Count} certificates remaining after validity filter",
+                candidates.Count);
         }
 
         // Prefer certificates with private keys
@@ -282,15 +376,35 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             cert.Dispose();
         }
 
+        if (result != null)
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                "Selected certificate. Subject: {Subject}, HasPrivateKey: {HasPrivateKey}",
+                result.Subject,
+                result.HasPrivateKey);
+        }
+        else
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "Certificate with subject name containing '{SubjectName}' not found",
+                subjectName);
+        }
+
         return result;
     }
 
     /// <summary>
     /// Finds a certificate using a predicate in the specified store paths.
     /// </summary>
-    private static X509Certificate2? FindCertificateByPredicate(IEnumerable<string> storePaths, Func<X509Certificate2, bool> predicate)
+    private static X509Certificate2? FindCertificateByPredicate(IEnumerable<string> storePaths, Func<X509Certificate2, bool> predicate, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(predicate);
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            "Searching for certificate by predicate");
 
         foreach (var path in storePaths)
         {
@@ -306,6 +420,11 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                     var cert = X509CertificateLoader.LoadCertificateFromFile(certFile);
                     if (predicate(cert))
                     {
+                        logger?.LogTrace(
+                            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                            "Found certificate matching predicate. File: {File}, Subject: {Subject}",
+                            certFile,
+                            cert.Subject);
                         return cert;
                     }
                     cert.Dispose();
@@ -320,6 +439,10 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                 }
             }
         }
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+            "No certificate matching predicate found");
 
         return null;
     }

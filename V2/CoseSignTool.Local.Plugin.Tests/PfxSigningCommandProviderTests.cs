@@ -9,9 +9,10 @@ namespace CoseSignTool.Local.Plugin.Tests;
 /// <summary>
 /// Tests for PfxSigningCommandProvider.
 /// </summary>
+[TestFixture]
 public class PfxSigningCommandProviderTests
 {
-    [Fact]
+    [Test]
     public void CommandName_ReturnsSignPfx()
     {
         // Arrange
@@ -21,10 +22,10 @@ public class PfxSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.Equal("sign-pfx", name);
+        Assert.That(name, Is.EqualTo("sign-pfx"));
     }
 
-    [Fact]
+    [Test]
     public void CommandDescription_ReturnsDescription()
     {
         // Arrange
@@ -34,12 +35,12 @@ public class PfxSigningCommandProviderTests
         var description = provider.CommandDescription;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("PFX", description, StringComparison.OrdinalIgnoreCase);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description.ToUpperInvariant(), Does.Contain("PFX"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_AddsRequiredOptions()
     {
         // Arrange
@@ -50,11 +51,11 @@ public class PfxSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        Assert.Contains(command.Options, o => o.Name == "pfx");
-        Assert.Contains(command.Options, o => o.Name == "pfx-password");
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx-password"));
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_PfxOptionIsRequired()
     {
         // Arrange
@@ -66,11 +67,11 @@ public class PfxSigningCommandProviderTests
 
         // Assert
         var pfxOption = command.Options.FirstOrDefault(o => o.Name == "pfx");
-        Assert.NotNull(pfxOption);
-        Assert.True(pfxOption.IsRequired);
+        Assert.That(pfxOption, Is.Not.Null);
+        Assert.That(pfxOption!.IsRequired, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void AddCommandOptions_PasswordOptionIsOptional()
     {
         // Arrange
@@ -82,24 +83,24 @@ public class PfxSigningCommandProviderTests
 
         // Assert
         var passwordOption = command.Options.FirstOrDefault(o => o.Name == "pfx-password");
-        Assert.NotNull(passwordOption);
-        Assert.False(passwordOption.IsRequired);
+        Assert.That(passwordOption, Is.Not.Null);
+        Assert.That(passwordOption!.IsRequired, Is.False);
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithMissingPfxOption_ThrowsKeyNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingPfxOption_ThrowsKeyNotFoundException()
     {
         // Arrange
         var provider = new PfxSigningCommandProvider();
         var options = new Dictionary<string, object?>();
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        Assert.ThrowsAsync<KeyNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
-    public async Task CreateSigningServiceAsync_WithNonExistentPfxFile_ThrowsFileNotFoundException()
+    [Test]
+    public void CreateSigningServiceAsync_WithNonExistentPfxFile_ThrowsFileNotFoundException()
     {
         // Arrange
         var provider = new PfxSigningCommandProvider();
@@ -110,11 +111,11 @@ public class PfxSigningCommandProviderTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<FileNotFoundException>(
+        Assert.ThrowsAsync<FileNotFoundException>(
             () => provider.CreateSigningServiceAsync(options));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_ReturnsMetadata()
     {
         // Arrange
@@ -124,12 +125,12 @@ public class PfxSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.NotNull(metadata);
-        Assert.Contains("Certificate Source", metadata.Keys);
-        Assert.Equal("PFX file", metadata["Certificate Source"]);
+        Assert.That(metadata, Is.Not.Null);
+        Assert.That(metadata.Keys, Does.Contain("Certificate Source"));
+        Assert.That(metadata["Certificate Source"], Is.EqualTo("PFX file"));
     }
 
-    [Fact]
+    [Test]
     public void GetSigningMetadata_WithNoSigningService_ReturnsUnknownValues()
     {
         // Arrange
@@ -139,7 +140,7 @@ public class PfxSigningCommandProviderTests
         var metadata = provider.GetSigningMetadata();
 
         // Assert
-        Assert.Equal("Unknown", metadata["Certificate Subject"]);
-        Assert.Equal("Unknown", metadata["Certificate Thumbprint"]);
+        Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
+        Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
 }

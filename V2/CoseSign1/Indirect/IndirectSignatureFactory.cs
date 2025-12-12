@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
+using CoseSign1.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Indirect;
 
@@ -26,6 +29,7 @@ namespace CoseSign1.Indirect;
 public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatureOptions>
 {
     private readonly DirectSignatureFactory _directFactory;
+    private readonly ILogger<IndirectSignatureFactory> _logger;
     private bool _disposed;
 
     /// <summary>
@@ -39,10 +43,14 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// </summary>
     /// <param name="signingService">The signing service to use for signature creation.</param>
     /// <param name="transparencyProviders">Optional transparency providers to apply to all signed messages. Can be overridden per-operation.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    /// <param name="loggerFactory">Optional logger factory for creating loggers for internal factories.</param>
     public IndirectSignatureFactory(
         ISigningService<SigningOptions> signingService,
-        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null) :
-        this(new DirectSignatureFactory(signingService, transparencyProviders))
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
+        ILogger<IndirectSignatureFactory>? logger = null,
+        ILoggerFactory? loggerFactory = null) :
+        this(new DirectSignatureFactory(signingService, transparencyProviders, loggerFactory?.CreateLogger<DirectSignatureFactory>()), logger)
     {
     }
 
@@ -50,9 +58,11 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// Initializes a new instance of the <see cref="IndirectSignatureFactory"/> class.
     /// </summary>
     /// <param name="directFactory">The direct signature factory to use for signing hashes.</param>
-    public IndirectSignatureFactory(DirectSignatureFactory directFactory)
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    public IndirectSignatureFactory(DirectSignatureFactory directFactory, ILogger<IndirectSignatureFactory>? logger = null)
     {
         _directFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
+        _logger = logger ?? NullLogger<IndirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -62,6 +72,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     protected IndirectSignatureFactory()
     {
         _directFactory = null!;
+        _logger = NullLogger<IndirectSignatureFactory>.Instance;
     }
 
     /// <summary>
@@ -168,6 +179,13 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
+            "Starting indirect signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}",
+            contentType,
+            payload.Length,
+            options.HashAlgorithm);
+
         // Compute hash of payload using the hash algorithm specified in options
         // Note: This is the hash of the CONTENT. The signature itself may use a different
         // hash algorithm determined by the signing key in DirectSignatureFactory.
@@ -176,10 +194,18 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
         {
+            _logger.LogError(
+                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                "Failed to compute hash of payload using {HashAlgorithm}",
+                options.HashAlgorithm);
             throw new InvalidOperationException("Failed to compute hash of payload");
         }
 
         var hash = hashSpan.Slice(0, bytesWritten);
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+            "Computed payload hash. HashSize: {HashSize}",
+            bytesWritten);
 
         // Create CoseHashEnvelope header contributor with protected headers
         var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
@@ -202,7 +228,14 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         };
 
         // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor), passing serviceOptions through
-        return _directFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
+        var result = _directFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
+
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+            "Indirect signature created successfully. SignatureSize: {SignatureSize}",
+            result.Length);
+
+        return result;
     }
 
     /// <summary>
@@ -299,6 +332,12 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
+            "Starting async indirect signature creation. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}",
+            contentType,
+            options.HashAlgorithm);
+
         // Compute hash of stream using MemoryOwner for pooled memory
         // Note: This is the hash of the CONTENT. The signature itself may use a different
         // hash algorithm determined by the signing key in DirectSignatureFactory.
@@ -329,6 +368,11 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         }
 #endif
 
+        _logger.LogTrace(
+            new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+            "Computed payload hash. HashSize: {HashSize}",
+            hashOwner.Length);
+
         // Create CoseHashEnvelope header contributor with protected headers
         var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
             options.HashAlgorithm,
@@ -351,7 +395,14 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
         using var hashStream = new MemoryStream(hashOwner.Memory.ToArray(), writable: false);
-        return await _directFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+        var result = await _directFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+
+        _logger.LogDebug(
+            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+            "Async indirect signature created successfully. SignatureSize: {SignatureSize}",
+            result.Length);
+
+        return result;
     }
 
     /// <summary>

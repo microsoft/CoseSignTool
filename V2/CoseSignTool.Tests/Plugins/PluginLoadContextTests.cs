@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Plugins;
 /// <summary>
 /// Tests for the PluginLoadContext class.
 /// </summary>
+[TestFixture]
 public class PluginLoadContextTests
 {
-    [Fact]
+    [Test]
     public void PluginLoadContext_Constructor_InitializesSuccessfully()
     {
         // Arrange
@@ -22,10 +23,10 @@ public class PluginLoadContextTests
         var context = new PluginLoadContext(assemblyPath, pluginDir);
 
         // Assert
-        Assert.NotNull(context);
+        Assert.That(context, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void PluginLoadContext_IsCollectible()
     {
         // Arrange
@@ -36,10 +37,10 @@ public class PluginLoadContextTests
         var context = new PluginLoadContext(assemblyPath, pluginDir);
 
         // Assert
-        Assert.True(context.IsCollectible);
+        Assert.That(context.IsCollectible, Is.True);
     }
 
-    [Fact]
+    [Test]
     public void PluginLoadContext_LoadsSharedFrameworkAssembliesFromDefaultContext()
     {
         // Arrange
@@ -52,11 +53,11 @@ public class PluginLoadContextTests
         var loadedAssembly = context.LoadFromAssemblyName(systemAssemblyName);
 
         // Assert - Should load successfully (from default context)
-        Assert.NotNull(loadedAssembly);
-        Assert.Equal("System.Runtime", loadedAssembly.GetName().Name);
+        Assert.That(loadedAssembly, Is.Not.Null);
+        Assert.That(loadedAssembly.GetName().Name, Is.EqualTo("System.Runtime"));
     }
 
-    [Fact]
+    [Test]
     public void PluginLoadContext_WithInvalidPath_ThrowsException()
     {
         // Arrange
@@ -67,7 +68,7 @@ public class PluginLoadContextTests
         Assert.Throws<InvalidOperationException>(() => new PluginLoadContext(invalidPath, pluginDir));
     }
 
-    [Fact]
+    [Test]
     public void PluginLoadContext_LoadFromAssemblyPath_LoadsAssembly()
     {
         // Arrange
@@ -79,7 +80,12 @@ public class PluginLoadContextTests
         var loadedAssembly = context.LoadFromAssemblyPath(assemblyPath);
 
         // Assert
-        Assert.NotNull(loadedAssembly);
-        Assert.Equal(assemblyPath, loadedAssembly.Location);
+        Assert.That(loadedAssembly, Is.Not.Null);
+        Assert.That(loadedAssembly.Location, Is.EqualTo(assemblyPath));
     }
 }
+
+
+
+
+

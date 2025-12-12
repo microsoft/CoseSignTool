@@ -6,84 +6,84 @@ namespace CoseSignTool.Tests;
 /// <summary>
 /// Tests for ExitCode enumeration.
 /// </summary>
+[TestFixture]
 public class ExitCodeTests
 {
-    [Fact]
+    [Test]
     public void ExitCode_Success_ShouldBeZero()
     {
         // Arrange & Act
         var exitCode = ExitCode.Success;
 
         // Assert
-        Assert.Equal(0, (int)exitCode);
+        Assert.That((int)exitCode, Is.EqualTo(0));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_GeneralError_ShouldBeOne()
     {
         // Arrange & Act
         var exitCode = ExitCode.GeneralError;
 
         // Assert
-        Assert.Equal(1, (int)exitCode);
+        Assert.That((int)exitCode, Is.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_InvalidArguments_ShouldBeTwo()
     {
         // Arrange & Act
         var exitCode = ExitCode.InvalidArguments;
 
         // Assert
-        Assert.Equal(2, (int)exitCode);
+        Assert.That((int)exitCode, Is.EqualTo(2));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_FileNotFound_ShouldBeThree()
     {
         // Arrange & Act
         var exitCode = ExitCode.FileNotFound;
 
         // Assert
-        Assert.Equal(3, (int)exitCode);
+        Assert.That((int)exitCode, Is.EqualTo(3));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_CertificateNotFound_ShouldBeFour()
     {
         // Arrange & Act
         var exitCode = ExitCode.CertificateNotFound;
 
         // Assert
-        Assert.Equal(4, (int)exitCode);
+        Assert.That((int)exitCode, Is.EqualTo(4));
     }
 
-    [Theory]
-    [InlineData(ExitCode.SigningFailed, 10)]
-    [InlineData(ExitCode.ValidationFailed, 20)]
-    [InlineData(ExitCode.InvalidSignature, 21)]
-    [InlineData(ExitCode.VerificationFailed, 22)]
-    [InlineData(ExitCode.CertificateExpired, 23)]
-    [InlineData(ExitCode.UntrustedCertificate, 24)]
-    [InlineData(ExitCode.PluginError, 30)]
-    [InlineData(ExitCode.InspectionFailed, 40)]
+    [TestCase(ExitCode.SigningFailed, 10)]
+    [TestCase(ExitCode.ValidationFailed, 20)]
+    [TestCase(ExitCode.InvalidSignature, 21)]
+    [TestCase(ExitCode.VerificationFailed, 22)]
+    [TestCase(ExitCode.CertificateExpired, 23)]
+    [TestCase(ExitCode.UntrustedCertificate, 24)]
+    [TestCase(ExitCode.PluginError, 30)]
+    [TestCase(ExitCode.InspectionFailed, 40)]
     public void ExitCode_AllCodes_ShouldHaveExpectedValues(ExitCode code, int expectedValue)
     {
         // Assert
-        Assert.Equal(expectedValue, (int)code);
+        Assert.That((int)code, Is.EqualTo(expectedValue));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_AllValues_ShouldBeUnique()
     {
         // Arrange
         var allValues = Enum.GetValues<ExitCode>().Cast<int>().ToList();
 
         // Assert
-        Assert.Equal(allValues.Count, allValues.Distinct().Count());
+        Assert.That(allValues.Distinct().Count(), Is.EqualTo(allValues.Count));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_ShouldHaveAllDocumentedCodes()
     {
         // Arrange
@@ -106,10 +106,13 @@ public class ExitCodeTests
         var actualCodes = Enum.GetValues<ExitCode>();
 
         // Assert
-        Assert.All(expectedCodes, expected => Assert.Contains(expected, actualCodes));
+        foreach (var expected in expectedCodes)
+        {
+            Assert.That(actualCodes, Does.Contain(expected));
+        }
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_CanBeCastToInt()
     {
         // Arrange
@@ -119,10 +122,10 @@ public class ExitCodeTests
         int value = (int)code;
 
         // Assert
-        Assert.Equal(0, value);
+        Assert.That(value, Is.EqualTo(0));
     }
 
-    [Fact]
+    [Test]
     public void ExitCode_CanBeCastFromInt()
     {
         // Arrange
@@ -132,6 +135,11 @@ public class ExitCodeTests
         ExitCode code = (ExitCode)value;
 
         // Assert
-        Assert.Equal(ExitCode.SigningFailed, code);
+        Assert.That(code, Is.EqualTo(ExitCode.SigningFailed));
     }
 }
+
+
+
+
+

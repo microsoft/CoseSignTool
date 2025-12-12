@@ -3,9 +3,12 @@
 
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Headers;
 using CoseSign1.Certificates.Extensions;
 using DIDx509;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates;
 
@@ -21,18 +24,24 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     private bool _disposed;
     private readonly SigningServiceMetadata _serviceMetadata;
     private readonly bool _isRemote;
+    /// <summary>
+    /// The logger for this service instance.
+    /// </summary>
+    protected readonly ILogger Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateSigningService"/> class.
     /// </summary>
     /// <param name="isRemote">Whether this is a remote signing service.</param>
     /// <param name="serviceMetadata">Optional service metadata. If null, default metadata is created.</param>
-    protected CertificateSigningService(bool isRemote, SigningServiceMetadata? serviceMetadata = null)
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    protected CertificateSigningService(bool isRemote, SigningServiceMetadata? serviceMetadata = null, ILogger? logger = null)
     {
         _isRemote = isRemote;
         _serviceMetadata = serviceMetadata ?? new SigningServiceMetadata(
             GetType().Name,
             $"Certificate-based signing service: {GetType().Name}");
+        Logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>
@@ -78,8 +87,20 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
             throw new ArgumentNullException(nameof(context));
         }
 
+        Logger.LogDebug(
+            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}",
+            context.ContentType,
+            _isRemote);
+
         // Step 1: Acquire signing key dynamically (enables rotation, multi-key, context-aware scenarios)
         var signingKey = GetSigningKey(context);
+
+        Logger.LogTrace(
+            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            "Signing key acquired. CoseAlgorithmId: {CoseAlgorithmId}, KeyType: {KeyType}",
+            signingKey.Metadata.CoseAlgorithmId,
+            signingKey.Metadata.KeyType);
 
         // Step 2: Get CoseKey from signing key
         var coseKey = signingKey.GetCoseKey();
@@ -100,6 +121,9 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         // Check for SCITT compliance and add CWT claims if requested
         if (context.TryGetCertificateOptions(out var certOptions) && certOptions.EnableScittCompliance)
         {
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                "Adding SCITT-compliant CWT claims to signature headers");
             var cwtContributor = CreateScittCwtClaimsContributor(certOptions, signingKey);
             cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
             cwtContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
@@ -108,6 +132,10 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         // Then apply any additional header contributors from context
         if (context.AdditionalHeaderContributors != null)
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                "Applying {Count} additional header contributors",
+                context.AdditionalHeaderContributors.Count);
             foreach (var contributor in context.AdditionalHeaderContributors)
             {
                 contributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);

@@ -8,50 +8,47 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Tests for the OutputFormatterFactory class.
 /// </summary>
+[TestFixture]
 public class OutputFormatterFactoryTests
 {
-    [Fact]
+    [Test]
     public void Create_WithTextFormat_ReturnsTextFormatter()
     {
         // Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Text);
 
         // Assert
-        Assert.IsType<TextOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<TextOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void Create_WithJsonFormat_ReturnsJsonFormatter()
     {
         // Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Json);
 
         // Assert
-        Assert.IsType<JsonOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<JsonOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void Create_WithQuietFormat_ReturnsQuietFormatter()
     {
         // Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Quiet);
 
         // Assert
-        Assert.IsType<QuietOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<QuietOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void Create_WithInvalidFormat_ThrowsArgumentException()
     {
-        // Act
-        var act = () => OutputFormatterFactory.Create((OutputFormat)999);
-
-        // Assert
-        Assert.Throws<ArgumentException>(act)
-            ;
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => OutputFormatterFactory.Create((OutputFormat)999));
     }
 
-    [Fact]
+    [Test]
     public void Create_WithCustomWriters_PassesThemThrough()
     {
         // Arrange
@@ -62,6 +59,11 @@ public class OutputFormatterFactoryTests
         var formatter = OutputFormatterFactory.Create(OutputFormat.Text, output, error);
 
         // Assert
-        Assert.IsType<TextOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<TextOutputFormatter>());
     }
 }
+
+
+
+
+

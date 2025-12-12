@@ -9,9 +9,10 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Tests for the JsonOutputFormatter class.
 /// </summary>
+[TestFixture]
 public class JsonOutputFormatterTests
 {
-    [Fact]
+    [Test]
     public void WriteSuccess_AddsSuccessMessage()
     {
         // Arrange
@@ -24,11 +25,11 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("success", json);
-        Assert.Contains("Test success", json);
+        Assert.That(json, Does.Contain("success"));
+        Assert.That(json, Does.Contain("Test success"));
     }
 
-    [Fact]
+    [Test]
     public void WriteError_AddsErrorMessage()
     {
         // Arrange
@@ -41,11 +42,11 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("error", json);
-        Assert.Contains("Test error", json);
+        Assert.That(json, Does.Contain("error"));
+        Assert.That(json, Does.Contain("Test error"));
     }
 
-    [Fact]
+    [Test]
     public void WriteInfo_AddsInfoMessage()
     {
         // Arrange
@@ -58,11 +59,11 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("info", json);
-        Assert.Contains("Test info", json);
+        Assert.That(json, Does.Contain("info"));
+        Assert.That(json, Does.Contain("Test info"));
     }
 
-    [Fact]
+    [Test]
     public void WriteWarning_AddsWarningMessage()
     {
         // Arrange
@@ -75,11 +76,11 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("warning", json);
-        Assert.Contains("Test warning", json);
+        Assert.That(json, Does.Contain("warning"));
+        Assert.That(json, Does.Contain("Test warning"));
     }
 
-    [Fact]
+    [Test]
     public void WriteKeyValue_AddsKeyValuePair()
     {
         // Arrange
@@ -92,12 +93,12 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("keyvalue", json);
-        Assert.Contains("TestKey", json);
-        Assert.Contains("TestValue", json);
+        Assert.That(json, Does.Contain("keyvalue"));
+        Assert.That(json, Does.Contain("TestKey"));
+        Assert.That(json, Does.Contain("TestValue"));
     }
 
-    [Fact]
+    [Test]
     public void BeginSection_AddsSectionStart()
     {
         // Arrange
@@ -110,11 +111,11 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("section_start", json);
-        Assert.Contains("Test Section", json);
+        Assert.That(json, Does.Contain("section_start"));
+        Assert.That(json, Does.Contain("Test Section"));
     }
 
-    [Fact]
+    [Test]
     public void EndSection_AddsSectionEnd()
     {
         // Arrange
@@ -127,10 +128,10 @@ public class JsonOutputFormatterTests
 
         // Assert
         var json = output.ToString();
-        Assert.Contains("section_end", json);
+        Assert.That(json, Does.Contain("section_end"));
     }
 
-    [Fact]
+    [Test]
     public void Flush_OutputsValidJson()
     {
         // Arrange
@@ -145,20 +146,20 @@ public class JsonOutputFormatterTests
         // Assert
         var json = output.ToString();
         var doc = JsonDocument.Parse(json);
-        Assert.Equal(2, doc.RootElement.GetArrayLength());
+        Assert.That(doc.RootElement.GetArrayLength(), Is.EqualTo(2));
     }
 
-    [Fact]
+    [Test]
     public void Constructor_WithNullWriter_UsesConsole()
     {
         // Act
         var formatter = new JsonOutputFormatter();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void MultipleMessages_CreateArray()
     {
         // Arrange
@@ -175,6 +176,11 @@ public class JsonOutputFormatterTests
         // Assert
         var json = output.ToString();
         var doc = JsonDocument.Parse(json);
-        Assert.Equal(4, doc.RootElement.GetArrayLength());
+        Assert.That(doc.RootElement.GetArrayLength(), Is.EqualTo(4));
     }
 }
+
+
+
+
+

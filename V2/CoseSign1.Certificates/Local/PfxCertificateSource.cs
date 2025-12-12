@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -22,6 +24,7 @@ public class PfxCertificateSource : CertificateSourceBase
     /// <param name="password">Password for the PFX file (null for unprotected files)</param>
     /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public PfxCertificateSource(
         string pfxFilePath,
         string? password = null,
@@ -30,9 +33,17 @@ public class PfxCertificateSource : CertificateSourceBase
 #else
         X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.MachineKeySet,
 #endif
-        ICertificateChainBuilder? chainBuilder = null)
-        : this(LoadFromFile(pfxFilePath, password, keyStorageFlags), chainBuilder)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<PfxCertificateSource>? logger = null)
+        : this(LoadFromFile(pfxFilePath, password, keyStorageFlags, logger), chainBuilder, logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "PfxCertificateSource initialized from file. FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            pfxFilePath,
+            _certificate.Subject,
+            _certificate.Thumbprint,
+            _certificate.HasPrivateKey);
     }
 
     /// <summary>
@@ -42,6 +53,7 @@ public class PfxCertificateSource : CertificateSourceBase
     /// <param name="password">Password for the PFX file (null for unprotected data)</param>
     /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public PfxCertificateSource(
         byte[] pfxData,
         string? password = null,
@@ -50,16 +62,26 @@ public class PfxCertificateSource : CertificateSourceBase
 #else
         X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.MachineKeySet,
 #endif
-        ICertificateChainBuilder? chainBuilder = null)
-        : this(LoadFromBytes(pfxData, password, keyStorageFlags), chainBuilder)
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<PfxCertificateSource>? logger = null)
+        : this(LoadFromBytes(pfxData, password, keyStorageFlags, logger), chainBuilder, logger)
     {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "PfxCertificateSource initialized from bytes. Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            _certificate.Subject,
+            _certificate.Thumbprint,
+            _certificate.HasPrivateKey);
     }
 
     /// <summary>
     /// Private constructor that accepts the loaded certificate and chain.
     /// </summary>
-    private PfxCertificateSource((X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) loaded, ICertificateChainBuilder? chainBuilder)
-        : base(loaded.chain, chainBuilder)
+    private PfxCertificateSource(
+        (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) loaded,
+        ICertificateChainBuilder? chainBuilder,
+        ILogger<PfxCertificateSource>? logger)
+        : base(loaded.chain, chainBuilder, logger)
     {
         _certificate = loaded.certificate;
     }
@@ -83,7 +105,8 @@ public class PfxCertificateSource : CertificateSourceBase
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromFile(
         string pfxFilePath,
         string? password,
-        X509KeyStorageFlags keyStorageFlags)
+        X509KeyStorageFlags keyStorageFlags,
+        ILogger? logger)
     {
 #if NET5_0_OR_GREATER
         ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
@@ -91,8 +114,18 @@ public class PfxCertificateSource : CertificateSourceBase
         if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(pfxFilePath)); }
 #endif
 
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Loading PFX from file. FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}",
+            pfxFilePath,
+            keyStorageFlags);
+
         if (!File.Exists(pfxFilePath))
         {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "PFX file not found. FilePath: {FilePath}",
+                pfxFilePath);
             throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
         }
 
@@ -102,13 +135,14 @@ public class PfxCertificateSource : CertificateSourceBase
         var collection = new X509Certificate2Collection();
         collection.Import(pfxFilePath, password, keyStorageFlags);
 #endif
-        return ExtractCertificateAndChain(collection, $"PFX file: {pfxFilePath}");
+        return ExtractCertificateAndChain(collection, $"PFX file: {pfxFilePath}", logger);
     }
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromBytes(
         byte[] pfxData,
         string? password,
-        X509KeyStorageFlags keyStorageFlags)
+        X509KeyStorageFlags keyStorageFlags,
+        ILogger? logger)
     {
 #if NET5_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(pfxData);
@@ -116,25 +150,45 @@ public class PfxCertificateSource : CertificateSourceBase
         if (pfxData == null) { throw new ArgumentNullException(nameof(pfxData)); }
 #endif
 
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Loading PFX from bytes. DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}",
+            pfxData.Length,
+            keyStorageFlags);
+
 #if NET5_0_OR_GREATER
         var collection = X509CertificateLoader.LoadPkcs12Collection(pfxData, password, keyStorageFlags);
 #else
         var collection = new X509Certificate2Collection();
         collection.Import(pfxData, password, keyStorageFlags);
 #endif
-        return ExtractCertificateAndChain(collection, "PFX data");
+        return ExtractCertificateAndChain(collection, "PFX data", logger);
     }
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) ExtractCertificateAndChain(
         X509Certificate2Collection collection,
-        string source)
+        string source,
+        ILogger? logger)
     {
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Extracting certificate and chain from {Source}. CertificateCount: {Count}",
+            source,
+            collection.Count);
+
         var certificate = collection
             .Cast<X509Certificate2>()
             .FirstOrDefault(c => c.HasPrivateKey)
             ?? throw new InvalidOperationException($"No certificate with private key found in {source}");
 
         var chain = collection.Cast<X509Certificate2>().ToList();
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Extracted signing certificate. Subject: {Subject}, ChainCertificateCount: {ChainCount}",
+            certificate.Subject,
+            chain.Count);
+
         return (certificate, chain);
     }
 }

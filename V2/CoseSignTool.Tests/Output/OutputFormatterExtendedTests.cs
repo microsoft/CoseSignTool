@@ -8,51 +8,52 @@ namespace CoseSignTool.Tests.Output;
 /// <summary>
 /// Extended tests for output formatters.
 /// </summary>
+[TestFixture]
 public class OutputFormatterExtendedTests
 {
     #region OutputFormatterFactory Tests
 
-    [Fact]
+    [Test]
     public void OutputFormatterFactory_CreateTextFormatter_ReturnsTextOutputFormatter()
     {
         // Arrange & Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Text);
 
         // Assert
-        Assert.IsType<TextOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<TextOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void OutputFormatterFactory_CreateJsonFormatter_ReturnsJsonOutputFormatter()
     {
         // Arrange & Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Json);
 
         // Assert
-        Assert.IsType<JsonOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<JsonOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void OutputFormatterFactory_CreateXmlFormatter_ReturnsXmlOutputFormatter()
     {
         // Arrange & Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Xml);
 
         // Assert
-        Assert.IsType<XmlOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<XmlOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void OutputFormatterFactory_CreateQuietFormatter_ReturnsQuietOutputFormatter()
     {
         // Arrange & Act
         var formatter = OutputFormatterFactory.Create(OutputFormat.Quiet);
 
         // Assert
-        Assert.IsType<QuietOutputFormatter>(formatter);
+        Assert.That(formatter, Is.InstanceOf<QuietOutputFormatter>());
     }
 
-    [Fact]
+    [Test]
     public void OutputFormatterFactory_WithWriter_PassesWriterToFormatter()
     {
         // Arrange
@@ -65,14 +66,14 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("Test message", output);
+        Assert.That(output, Does.Contain("Test message"));
     }
 
     #endregion
 
     #region TextOutputFormatter Tests
 
-    [Fact]
+    [Test]
     public void TextOutputFormatter_WriteKeyValue_FormatsCorrectly()
     {
         // Arrange
@@ -85,11 +86,11 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("Key", output);
-        Assert.Contains("Value", output);
+        Assert.That(output, Does.Contain("Key"));
+        Assert.That(output, Does.Contain("Value"));
     }
 
-    [Fact]
+    [Test]
     public void TextOutputFormatter_BeginEndSection_FormatsCorrectly()
     {
         // Arrange
@@ -104,11 +105,11 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("Test Section", output);
-        Assert.Contains("Content", output);
+        Assert.That(output, Does.Contain("Test Section"));
+        Assert.That(output, Does.Contain("Content"));
     }
 
-    [Fact]
+    [Test]
     public void TextOutputFormatter_WriteSuccess_WritesWithMarker()
     {
         // Arrange
@@ -121,10 +122,10 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("Success message", output);
+        Assert.That(output, Does.Contain("Success message"));
     }
 
-    [Fact]
+    [Test]
     public void TextOutputFormatter_WriteWarning_WritesWithMarker()
     {
         // Arrange
@@ -137,10 +138,10 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("Warning message", output);
+        Assert.That(output, Does.Contain("Warning message"));
     }
 
-    [Fact]
+    [Test]
     public void TextOutputFormatter_WriteError_WritesToError()
     {
         // Arrange
@@ -153,14 +154,14 @@ public class OutputFormatterExtendedTests
 
         // Assert - Error goes to Console.Error by default
         // We test that no exception is thrown
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
     #endregion
 
     #region JsonOutputFormatter Tests
 
-    [Fact]
+    [Test]
     public void JsonOutputFormatter_WriteKeyValue_ProducesValidJson()
     {
         // Arrange
@@ -173,11 +174,11 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("testKey", output);
-        Assert.Contains("testValue", output);
+        Assert.That(output, Does.Contain("testKey"));
+        Assert.That(output, Does.Contain("testValue"));
     }
 
-    [Fact]
+    [Test]
     public void JsonOutputFormatter_CompleteOutput_IsValidJsonArray()
     {
         // Arrange
@@ -193,11 +194,11 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.StartsWith("[", output.Trim());
-        Assert.EndsWith("]", output.Trim());
+        Assert.That(output.Trim(), Does.StartWith("["));
+        Assert.That(output.Trim(), Does.EndWith("]"));
     }
 
-    [Fact]
+    [Test]
     public void JsonOutputFormatter_WriteError_IncludesErrorType()
     {
         // Arrange
@@ -210,14 +211,14 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("error", output.ToLowerInvariant());
+        Assert.That(output.ToLowerInvariant(), Does.Contain("error"));
     }
 
     #endregion
 
     #region XmlOutputFormatter Tests
 
-    [Fact]
+    [Test]
     public void XmlOutputFormatter_WriteKeyValue_ProducesXml()
     {
         // Arrange
@@ -230,11 +231,11 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("<Key>TestKey</Key>", output);
-        Assert.Contains("<Value>TestValue</Value>", output);
+        Assert.That(output, Does.Contain("<Key>TestKey</Key>"));
+        Assert.That(output, Does.Contain("<Value>TestValue</Value>"));
     }
 
-    [Fact]
+    [Test]
     public void XmlOutputFormatter_CompleteOutput_HasXmlDeclaration()
     {
         // Arrange
@@ -248,10 +249,10 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("<?xml", output);
+        Assert.That(output, Does.Contain("<?xml"));
     }
 
-    [Fact]
+    [Test]
     public void XmlOutputFormatter_HasCorrectRootElement()
     {
         // Arrange
@@ -264,15 +265,15 @@ public class OutputFormatterExtendedTests
 
         // Assert
         var output = stringWriter.ToString();
-        Assert.Contains("<CoseSignToolOutput>", output);
-        Assert.Contains("</CoseSignToolOutput>", output);
+        Assert.That(output, Does.Contain("<CoseSignToolOutput>"));
+        Assert.That(output, Does.Contain("</CoseSignToolOutput>"));
     }
 
     #endregion
 
     #region QuietOutputFormatter Tests
 
-    [Fact]
+    [Test]
     public void QuietOutputFormatter_SupressesInfo()
     {
         // Arrange
@@ -283,10 +284,10 @@ public class OutputFormatterExtendedTests
         formatter.Flush();
 
         // Assert - QuietOutputFormatter suppresses output
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void QuietOutputFormatter_SupressesSuccess()
     {
         // Arrange
@@ -297,10 +298,10 @@ public class OutputFormatterExtendedTests
         formatter.Flush();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void QuietOutputFormatter_SupressesWarning()
     {
         // Arrange
@@ -311,10 +312,10 @@ public class OutputFormatterExtendedTests
         formatter.Flush();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void QuietOutputFormatter_SupressesKeyValue()
     {
         // Arrange
@@ -325,10 +326,10 @@ public class OutputFormatterExtendedTests
         formatter.Flush();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public void QuietOutputFormatter_SuppressesSections()
     {
         // Arrange
@@ -340,8 +341,13 @@ public class OutputFormatterExtendedTests
         formatter.Flush();
 
         // Assert
-        Assert.NotNull(formatter);
+        Assert.That(formatter, Is.Not.Null);
     }
 
     #endregion
 }
+
+
+
+
+

@@ -8,9 +8,10 @@ namespace CoseSignTool.MST.Plugin.Tests;
 /// <summary>
 /// Tests for MstTransparencyProviderContributor.
 /// </summary>
+[TestFixture]
 public class MstTransparencyProviderContributorTests
 {
-    [Fact]
+    [Test]
     public void ProviderName_ReturnsCorrectName()
     {
         // Arrange
@@ -20,10 +21,10 @@ public class MstTransparencyProviderContributorTests
         var name = contributor.ProviderName;
 
         // Assert
-        Assert.Equal("Microsoft Signing Transparency", name);
+        Assert.That(name, Is.EqualTo("Microsoft Signing Transparency"));
     }
 
-    [Fact]
+    [Test]
     public void ProviderDescription_ReturnsDescription()
     {
         // Arrange
@@ -33,12 +34,12 @@ public class MstTransparencyProviderContributorTests
         var description = contributor.ProviderDescription;
 
         // Assert
-        Assert.NotNull(description);
-        Assert.NotEmpty(description);
-        Assert.Contains("MST", description);
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description, Does.Contain("MST"));
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTransparencyProviderAsync_WithDefaultEndpoint_ReturnsProvider()
     {
         // Arrange
@@ -49,10 +50,10 @@ public class MstTransparencyProviderContributorTests
         var provider = await contributor.CreateTransparencyProviderAsync(options);
 
         // Assert
-        Assert.NotNull(provider);
+        Assert.That(provider, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTransparencyProviderAsync_WithCustomEndpoint_ReturnsProvider()
     {
         // Arrange
@@ -66,11 +67,11 @@ public class MstTransparencyProviderContributorTests
         var provider = await contributor.CreateTransparencyProviderAsync(options);
 
         // Assert
-        Assert.NotNull(provider);
+        Assert.That(provider, Is.Not.Null);
     }
 
-    [Fact]
-    public async Task CreateTransparencyProviderAsync_WithInvalidEndpoint_ThrowsArgumentException()
+    [Test]
+    public void CreateTransparencyProviderAsync_WithInvalidEndpoint_ThrowsArgumentException()
     {
         // Arrange
         var contributor = new MstTransparencyProviderContributor();
@@ -80,11 +81,11 @@ public class MstTransparencyProviderContributorTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        Assert.ThrowsAsync<ArgumentException>(
             () => contributor.CreateTransparencyProviderAsync(options));
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTransparencyProviderAsync_WithNullEndpoint_UsesDefault()
     {
         // Arrange
@@ -98,10 +99,10 @@ public class MstTransparencyProviderContributorTests
         var provider = await contributor.CreateTransparencyProviderAsync(options);
 
         // Assert
-        Assert.NotNull(provider);
+        Assert.That(provider, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTransparencyProviderAsync_WithEmptyEndpoint_UsesDefault()
     {
         // Arrange
@@ -115,10 +116,10 @@ public class MstTransparencyProviderContributorTests
         var provider = await contributor.CreateTransparencyProviderAsync(options);
 
         // Assert
-        Assert.NotNull(provider);
+        Assert.That(provider, Is.Not.Null);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTransparencyProviderAsync_WithCancellationToken_ReturnsProvider()
     {
         // Arrange
@@ -130,6 +131,6 @@ public class MstTransparencyProviderContributorTests
         var provider = await contributor.CreateTransparencyProviderAsync(options, cancellationToken);
 
         // Assert
-        Assert.NotNull(provider);
+        Assert.That(provider, Is.Not.Null);
     }
 }

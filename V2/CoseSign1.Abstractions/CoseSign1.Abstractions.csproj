@@ -37,6 +37,7 @@
 
     <!--Package references-->
     <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
         <PackageReference Include="System.Security.Cryptography.Cose" />
     </ItemGroup>
 

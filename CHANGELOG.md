@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.7...HEAD)
+
+**Merged pull requests:**
+
+- Rename Azure CTS to Microsoft's Signing Transparency \(MST\) [\#151](https://github.com/microsoft/CoseSignTool/pull/151) ([JeromySt](https://github.com/JeromySt))
+
 ## [v1.6.7](https://github.com/microsoft/CoseSignTool/tree/v1.6.7) (2025-12-10)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.6...v1.6.7)

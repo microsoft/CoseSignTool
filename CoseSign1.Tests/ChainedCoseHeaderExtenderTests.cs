@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Tests;
 
+using CoseSign1.Headers;
+
 /// <summary>
 /// Unit tests for <see cref="ChainedCoseHeaderExtender"/>.
 /// </summary>

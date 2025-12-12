@@ -55,6 +55,7 @@ This class combines X.509 certificate headers with CWT Claims for SCITT-complian
 - **Default Subject**: Subject defaults to `"unknown.intent"` if not specified
 - **Fluent API**: Access and modify CWT claims through the `ActiveCWTClaimsExtender` property
 - **Compile-time Safety**: Requires `CertificateCoseSigningKeyProvider` type, catching type mismatches at compile time
+- **Optional SCITT Compliance**: The underlying `CertificateCoseSigningKeyProvider` has an `EnableScittCompliance` property (default: `true`) that controls whether default CWT claims are automatically added
 
 #### Basic Usage:
 
@@ -65,11 +66,18 @@ using CoseSign1.Certificates.Local;
 // Create signing key provider
 var cert = new X509Certificate2("mycert.pfx", "password");
 var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+// SCITT compliance is enabled by default (enableScittCompliance: true)
+
+// Or explicitly disable SCITT compliance if not needed
+// var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(
+//     signingCertificate: cert,
+//     enableScittCompliance: false
+// );
 
 // Create SCITT-compliant header extender with defaults
 var headerExtender = new X509CertificateWithCWTClaimsHeaderExtender(signingKeyProvider);
-// Issuer: DID:x509 from certificate chain
-// Subject: "unknown.intent"
+// Issuer: DID:x509 from certificate chain (when EnableScittCompliance is true)
+// Subject: "unknown.intent" (when EnableScittCompliance is true)
 
 // Use with CoseSign1MessageBuilder
 var builder = new CoseSign1MessageBuilder()

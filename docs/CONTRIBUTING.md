@@ -21,7 +21,15 @@ _Note: There was a bug in the pull request process which caused Github to lose t
 1. Create a user or feature branch off of main. Do not use the keyword "hotfix" or "develope" in your branch names as these will trigger incorrect release behavior.
 1. Make your changes, including adding or updating unit tests to ensure your changes work as intended.
 1. Make sure the solution still builds and all unit tests still pass locally.
-1. Update any documentation, user and contributor, that is impacted by your changes. See [CoseSignTool.md](./CoseSignTool.md) for the CoseSignTool project, [CoseHandler.md](./CoseHandler.md) for the CoseHandler project, and [Advanced.md](./Advanced.md) for the CoseSign1 projects.
+1. Update any documentation, user and contributor, that is impacted by your changes:
+   - [CoseSignTool.md](./CoseSignTool.md) for the CoseSignTool CLI
+   - [CoseHandler.md](./CoseHandler.md) for the high-level CoseHandler API
+   - [CoseSign1.Headers.md](./CoseSign1.Headers.md) for CWT Claims and header extenders
+   - [CWT-Claims.md](./CWT-Claims.md) for SCITT compliance features
+   - [Advanced.md](./Advanced.md) for advanced scenarios, async APIs, and low-level usage
+   - [CoseSign1.md](../CoseSign1.md) for factory and builder patterns
+   - [Plugins.md](./Plugins.md) for plugin development
+   - [CertificateProviders.md](./CertificateProviders.md) for certificate provider plugins
 1. Push your changes to origin and create a pull request into main from your branch. The pull request automation will re-run the unit tests in Windows, MacOS, and Linux environments.
 1. Fix any build or test failures or CodeQL warnings caught by the pull request automation and push the fixes to your branch.
 1. Address any code review comments.

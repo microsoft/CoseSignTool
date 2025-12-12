@@ -3,6 +3,8 @@
 
 namespace CoseSign1;
 
+using System.Threading;
+
 /// <summary>
 /// Class thats sets the properties required for cosesigning and builds a CoseSign1Message
 /// </summary>
@@ -113,5 +115,16 @@ public class CoseSign1MessageBuilder
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
     /// <exception cref="CoseSigningException">Thrown if the certificate has neither a RSA or ECDsa private key.</exception>
     public CoseSign1Message Build() => FactObj.CreateCoseSign1Message(PayloadBytes, SigningKeyProvider, EmbedPayload, ContentType, HeaderExtender);
+
+    /// <summary>
+    /// Asynchronously builds the CoseSign1Message using a stream payload
+    /// </summary>
+    /// <param name="payloadStream">The stream containing the payload to sign.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the <see cref="CoseSign1Message"/> signed by the <see cref="ICoseSigningKeyProvider"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
+    /// <exception cref="CoseSigningException">Thrown if the certificate has neither a RSA or ECDsa private key.</exception>
+    public async Task<CoseSign1Message> BuildAsync(Stream payloadStream, CancellationToken cancellationToken = default) =>
+        await FactObj.CreateCoseSign1MessageAsync(payloadStream, SigningKeyProvider, EmbedPayload, ContentType, HeaderExtender, cancellationToken).ConfigureAwait(false);
 }
 

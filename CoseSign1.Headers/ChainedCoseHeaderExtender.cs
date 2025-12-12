@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CoseSign1;
+namespace CoseSign1.Headers;
 
 /// <summary>
 /// Chains multiple <see cref="ICoseHeaderExtender"/> instances and applies them in order to protected and unprotected COSE header maps.
@@ -44,7 +44,7 @@ public sealed class ChainedCoseHeaderExtender : ICoseHeaderExtender
     /// <param name="protectedHeaders">The initial <see cref="CoseHeaderMap"/> to extend. Must not be null.</param>
     /// <returns>The extended <see cref="CoseHeaderMap"/> after all extenders have been applied.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="protectedHeaders"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown if any extender returns null.</exception>
+    /// <exception cref="InvalidOperationException"/>Thrown if any extender returns null.</exception>
     public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap protectedHeaders)
     {
         if (protectedHeaders == null)

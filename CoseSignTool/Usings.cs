@@ -13,6 +13,8 @@ global using System.Security.Cryptography;
 global using System.Security.Cryptography.X509Certificates;
 global using System.Text;
 global using System.Text.Json;
+global using System.Threading;
+global using System.Threading.Tasks;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using CoseSign1;

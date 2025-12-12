@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using System.Formats.Cbor;
 using CoseSign1.Headers;
@@ -356,7 +359,7 @@ public class CwtClaimsTests
 
         // Assert
         Assert.That(claims.Issuer, Is.Null);
-        Assert.That(claims.Subject, Is.Null);
+        Assert.That(claims.Subject, Is.EqualTo(CwtClaims.DefaultSubject));
         Assert.That(claims.Audience, Is.Null);
         Assert.That(claims.ExpirationTime, Is.Null);
         Assert.That(claims.NotBefore, Is.Null);
@@ -385,4 +388,181 @@ public class CwtClaimsTests
         Assert.That(claims.CustomClaims.ContainsKey(110), Is.True);
         Assert.That(claims.CustomClaims[110], Is.EqualTo(-42L));
     }
+
+    [Test]
+    public void Merge_WithNullOther_ReturnsOriginalClaims()
+    {
+        // Arrange
+        var writer = new CborWriter();
+        writer.WriteStartMap(2);
+        writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer.WriteTextString("test-issuer");
+        writer.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer.WriteTextString("test-subject");
+        writer.WriteEndMap();
+        byte[] cborBytes = writer.Encode();
+        var claims = CwtClaims.FromCborBytes(cborBytes);
+
+        // Act
+        var merged = claims.Merge(null);
+
+        // Assert
+        Assert.That(merged.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(merged.Subject, Is.EqualTo("test-subject"));
+    }
+
+    [Test]
+    public void Merge_WithOtherClaims_MergesCorrectly()
+    {
+        // Arrange - Create base claims
+        var writer1 = new CborWriter();
+        writer1.WriteStartMap(2);
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer1.WriteTextString("base-issuer");
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer1.WriteTextString("base-subject");
+        writer1.WriteEndMap();
+        var baseClaims = CwtClaims.FromCborBytes(writer1.Encode());
+
+        // Create other claims
+        var writer2 = new CborWriter();
+        writer2.WriteStartMap(2);
+        writer2.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer2.WriteTextString("other-subject");
+        writer2.WriteInt32(CWTClaimsHeaderLabels.Audience);
+        writer2.WriteTextString("other-audience");
+        writer2.WriteEndMap();
+        var otherClaims = CwtClaims.FromCborBytes(writer2.Encode());
+
+        // Act
+        var merged = baseClaims.Merge(otherClaims);
+
+        // Assert - other values should override base
+        Assert.That(merged.Issuer, Is.EqualTo("base-issuer")); // Not in other, so kept from base
+        Assert.That(merged.Subject, Is.EqualTo("other-subject")); // Overridden by other
+        Assert.That(merged.Audience, Is.EqualTo("other-audience")); // From other
+    }
+
+    [Test]
+    public void Merge_WithCwtId_ClonesCorrectly()
+    {
+        // Arrange - Create base claims with CwtId
+        var writer1 = new CborWriter();
+        writer1.WriteStartMap(2);
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer1.WriteTextString("base-issuer");
+        writer1.WriteInt32(CWTClaimsHeaderLabels.CWTID);
+        writer1.WriteByteString(new byte[] { 0x01, 0x02, 0x03 });
+        writer1.WriteEndMap();
+        var baseClaims = CwtClaims.FromCborBytes(writer1.Encode());
+
+        // Create other claims with different CwtId
+        var writer2 = new CborWriter();
+        writer2.WriteStartMap(1);
+        writer2.WriteInt32(CWTClaimsHeaderLabels.CWTID);
+        writer2.WriteByteString(new byte[] { 0x04, 0x05, 0x06 });
+        writer2.WriteEndMap();
+        var otherClaims = CwtClaims.FromCborBytes(writer2.Encode());
+
+        // Act
+        var merged = baseClaims.Merge(otherClaims);
+
+        // Assert - CwtId should be from other and cloned (not reference)
+        Assert.That(merged.CwtId, Is.EqualTo(new byte[] { 0x04, 0x05, 0x06 }));
+        Assert.That(merged.CwtId, Is.Not.SameAs(otherClaims.CwtId)); // Should be a clone
+        
+        // Modify the merged CwtId and verify original is unchanged
+        merged.CwtId![0] = 0xFF;
+        Assert.That(otherClaims.CwtId![0], Is.EqualTo(0x04)); // Original unchanged
+    }
+
+    [Test]
+    public void Merge_WithCustomClaims_MergesCorrectly()
+    {
+        // Arrange - Create base claims with custom claim
+        var writer1 = new CborWriter();
+        writer1.WriteStartMap(2);
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer1.WriteTextString("base-issuer");
+        writer1.WriteInt32(100); // Custom claim
+        writer1.WriteTextString("base-value");
+        writer1.WriteEndMap();
+        var baseClaims = CwtClaims.FromCborBytes(writer1.Encode());
+
+        // Create other claims with different custom claim
+        var writer2 = new CborWriter();
+        writer2.WriteStartMap(2);
+        writer2.WriteInt32(100); // Override same custom claim
+        writer2.WriteTextString("other-value");
+        writer2.WriteInt32(101); // New custom claim
+        writer2.WriteInt32(42);
+        writer2.WriteEndMap();
+        var otherClaims = CwtClaims.FromCborBytes(writer2.Encode());
+
+        // Act
+        var merged = baseClaims.Merge(otherClaims);
+
+        // Assert
+        Assert.That(merged.CustomClaims[100], Is.EqualTo("other-value")); // Overridden
+        Assert.That(merged.CustomClaims[101], Is.EqualTo(42L)); // New claim added
+    }
+
+    [Test]
+    public void Merge_WithDefaultSubject_UsesNonDefaultSubject()
+    {
+        // Arrange - Create base claims with default subject
+        var writer1 = new CborWriter();
+        writer1.WriteStartMap(2);
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer1.WriteTextString("base-issuer");
+        writer1.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer1.WriteTextString(CwtClaims.DefaultSubject);
+        writer1.WriteEndMap();
+        var baseClaims = CwtClaims.FromCborBytes(writer1.Encode());
+
+        // Create other claims with non-default subject
+        var writer2 = new CborWriter();
+        writer2.WriteStartMap(1);
+        writer2.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer2.WriteTextString("real-subject");
+        writer2.WriteEndMap();
+        var otherClaims = CwtClaims.FromCborBytes(writer2.Encode());
+
+        // Act
+        var merged = baseClaims.Merge(otherClaims);
+
+        // Assert - Non-default subject should be used
+        Assert.That(merged.Subject, Is.EqualTo("real-subject"));
+    }
+
+    [Test]
+    public void IsDefault_WithDefaultValues_ReturnsTrue()
+    {
+        // Arrange - Create claims with only default subject
+        var writer = new CborWriter();
+        writer.WriteStartMap(1);
+        writer.WriteInt32(CWTClaimsHeaderLabels.Subject);
+        writer.WriteTextString(CwtClaims.DefaultSubject);
+        writer.WriteEndMap();
+        var claims = CwtClaims.FromCborBytes(writer.Encode());
+
+        // Act & Assert
+        Assert.That(claims.IsDefault(), Is.True);
+    }
+
+    [Test]
+    public void IsDefault_WithNonDefaultValues_ReturnsFalse()
+    {
+        // Arrange - Create claims with issuer
+        var writer = new CborWriter();
+        writer.WriteStartMap(1);
+        writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer.WriteTextString("test-issuer");
+        writer.WriteEndMap();
+        var claims = CwtClaims.FromCborBytes(writer.Encode());
+
+        // Act & Assert
+        Assert.That(claims.IsDefault(), Is.False);
+    }
 }
+

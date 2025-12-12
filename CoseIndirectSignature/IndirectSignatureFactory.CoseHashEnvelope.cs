@@ -58,7 +58,7 @@ public sealed partial class IndirectSignatureFactory
 
         ICoseHeaderExtender effectiveHeaderExtender = headerExtender == null ?
             new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) :
-            new ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) });
+            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) });
 
         return returnBytes
                ? InternalMessageFactory.CreateCoseSign1MessageBytes(
@@ -71,5 +71,67 @@ public sealed partial class IndirectSignatureFactory
                     signingKeyProvider,
                     embedPayload: true,
                     headerExtender: effectiveHeaderExtender);
+    }
+
+    /// <summary>
+    /// Async version of CreateIndirectSignatureWithChecksInternalCoseHashEnvelopeFormat that uses async factory methods.
+    /// </summary>
+    private async Task<object> CreateIndirectSignatureWithChecksInternalCoseHashEnvelopeFormatAsync(
+        bool returnBytes,
+        ICoseSigningKeyProvider signingKeyProvider,
+        string contentType,
+        Stream? streamPayload = null,
+        ReadOnlyMemory<byte>? bytePayload = null,
+        bool payloadHashed = false,
+        ICoseHeaderExtender? headerExtender = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Check for cancellation before starting expensive hash computation
+        cancellationToken.ThrowIfCancellationRequested();
+        
+        ReadOnlyMemory<byte> hash;
+        HashAlgorithmName algoName = InternalHashAlgorithmName;
+
+        if (!payloadHashed)
+        {
+            // Note: HashAlgorithm.ComputeHashAsync is not available in netstandard2.0
+            // For better async support in the future, consider targeting net6.0+ where
+            // ComputeHashAsync is available on specific hash algorithm implementations
+            hash = streamPayload != null
+                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
+                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
+        }
+        else
+        {
+            hash = streamPayload != null
+                                 ? streamPayload.GetBytes()
+                                 : bytePayload!.Value.ToArray();
+            try
+            {
+                algoName = SizeInBytesToAlgorithm[hash.Length];
+            }
+            catch (KeyNotFoundException e)
+            {
+                throw new ArgumentException($"{nameof(payloadHashed)} is set, but payload size does not correspond to any known hash sizes in {nameof(HashAlgorithmName)}", e);
+            }
+        }
+
+        ICoseHeaderExtender effectiveHeaderExtender = headerExtender == null ?
+            new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) :
+            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) });
+
+        return returnBytes
+               ? await InternalMessageFactory.CreateCoseSign1MessageBytesAsync(
+                    hash,
+                    signingKeyProvider,
+                    embedPayload: true,
+                    headerExtender: effectiveHeaderExtender,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+               : await InternalMessageFactory.CreateCoseSign1MessageAsync(
+                    hash,
+                    signingKeyProvider,
+                    embedPayload: true,
+                    headerExtender: effectiveHeaderExtender,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }

@@ -196,11 +196,43 @@ CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
 
 ### Disabling SCITT Compliance
 
-If needed, you can disable automatic SCITT compliance:
+If your use case doesn't require SCITT compliance, you can disable automatic CWT claims:
 
 ```bash
+# Disable SCITT compliance - no automatic CWT claims will be added
 CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
   --enable-scitt false
+```
+
+When SCITT compliance is disabled:
+- **No default CWT claims** are automatically added (no issuer, subject, timestamps)
+- **Custom CWT claims** are still honored if explicitly specified
+- Useful for scenarios where CWT claims are not needed or managed separately
+
+```bash
+# SCITT disabled but custom claims still work
+CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
+  --enable-scitt false \
+  --cwt-issuer "custom-issuer" \
+  --cwt-subject "custom-subject"
+```
+
+### Indirect Signatures
+
+The `indirect-sign` command also supports SCITT compliance control:
+
+```bash
+# Enable SCITT compliance (default)
+indirect-sign --payload data.bin --signature sig.cose --pfx cert.pfx
+
+# Disable SCITT compliance
+indirect-sign --payload data.bin --signature sig.cose --pfx cert.pfx \
+  --enable-scitt false
+
+# Custom CWT claims with indirect signatures
+indirect-sign --payload data.bin --signature sig.cose --pfx cert.pfx \
+  --cwt-issuer "custom-issuer" \
+  --cwt-subject "software.v2.0"
 ```
 
 ## Using SCITT Compliance in CoseHandler Library
@@ -212,8 +244,15 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Extensions;
 
 // Create signing key provider with certificate
+// SCITT compliance is enabled by default (enableScittCompliance: true)
 var cert = new X509Certificate2("mycert.pfx", "password");
 var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
+
+// Or explicitly disable SCITT compliance
+// var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(
+//     signingCertificate: cert,
+//     enableScittCompliance: false
+// );
 
 // Create header extender with SCITT compliance (automatic DID:x509 issuer)
 var headerExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(

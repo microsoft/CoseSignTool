@@ -240,7 +240,11 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             // Create signing key provider
             logger.LogVerbose($"Using certificate: {certificate.Subject}");
             logger.LogVerbose($"Certificate thumbprint: {certificate.Thumbprint}");
-            X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(certificate);
+            X509Certificate2CoseSigningKeyProvider signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(
+                signingCertificate: certificate,
+                hashAlgorithm: hashAlgorithm,
+                rootCertificates: additionalCertificates,
+                enableScittCompliance: enableScitt);
 
             // Create header extender from configuration
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(configuration);
@@ -249,45 +253,54 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 logger.LogVerbose("Custom COSE headers will be applied");
             }
 
-            // If SCITT compliance is enabled or CWT claims are specified, integrate CWT claims
-            if (enableScitt || !string.IsNullOrEmpty(cwtIssuer) || !string.IsNullOrEmpty(cwtSubject) || !string.IsNullOrEmpty(cwtAudience))
+            // If CWT claims customization is requested, create a CWT extender
+            // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically adds default CWT claims
+            // We only need to create a customizer if the user wants to override defaults
+            if (!string.IsNullOrEmpty(cwtIssuer) || !string.IsNullOrEmpty(cwtSubject) || !string.IsNullOrEmpty(cwtAudience) || (cwtClaims != null && cwtClaims.Count > 0))
             {
-                logger.LogVerbose("Creating CWT claims header extender for SCITT compliance");
+                logger.LogVerbose("Creating CWT claims customizer to override defaults");
                 
-                // Create the X509 + CWT header extender using the extension method
-                ICoseHeaderExtender cwtHeaderExtender = signingKeyProvider.CreateHeaderExtenderWithCWTClaims(cwtIssuer, cwtSubject);
+                // Create a CWT claims extender with user-specified values
+                // This will merge with and override the automatic defaults from CertificateCoseSigningKeyProvider
+                CoseSign1.Headers.CWTClaimsHeaderExtender cwtCustomizer = new();
 
-                // If audience is specified, add it to the CWT claims
+                // Override issuer if specified
+                if (!string.IsNullOrEmpty(cwtIssuer))
+                {
+                    logger.LogVerbose($"Overriding CWT issuer: {cwtIssuer}");
+                    cwtCustomizer.SetIssuer(cwtIssuer);
+                }
+
+                // Override subject if specified
+                if (!string.IsNullOrEmpty(cwtSubject))
+                {
+                    logger.LogVerbose($"Overriding CWT subject: {cwtSubject}");
+                    cwtCustomizer.SetSubject(cwtSubject);
+                }
+
+                // Add audience if specified
                 if (!string.IsNullOrEmpty(cwtAudience))
                 {
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        logger.LogVerbose($"Setting CWT audience: {cwtAudience}");
-                        certWithCwtExtender.ActiveCWTClaimsExtender.SetAudience(cwtAudience);
-                    }
+                    logger.LogVerbose($"Setting CWT audience: {cwtAudience}");
+                    cwtCustomizer.SetAudience(cwtAudience);
                 }
 
                 // Apply any custom CWT claims
                 if (cwtClaims != null && cwtClaims.Count > 0)
                 {
-                    var certWithCwtExtender = cwtHeaderExtender as CoseSign1.Certificates.X509CertificateWithCWTClaimsHeaderExtender;
-                    if (certWithCwtExtender != null)
-                    {
-                        logger.LogVerbose($"Applying {cwtClaims.Count} custom CWT claims");
-                        ApplyCwtClaims(certWithCwtExtender.ActiveCWTClaimsExtender, cwtClaims);
-                    }
+                    logger.LogVerbose($"Applying {cwtClaims.Count} custom CWT claims");
+                    ApplyCwtClaims(cwtCustomizer, cwtClaims);
                 }
 
-                // Chain the CWT extender with any existing header extender
+                // Chain the CWT customizer with any existing header extender
                 if (headerExtender != null)
                 {
                     logger.LogVerbose("Chaining CWT claims with custom headers");
-                    headerExtender = new CoseSign1.ChainedCoseHeaderExtender(new[] { cwtHeaderExtender, headerExtender });
+                    headerExtender = new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { cwtCustomizer, headerExtender });
                 }
                 else
                 {
-                    headerExtender = cwtHeaderExtender;
+                    headerExtender = cwtCustomizer;
                 }
             }
 
@@ -295,13 +308,17 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             using IndirectSignatureFactory factory = new IndirectSignatureFactory(hashAlgorithm);
             
             // Create the indirect signature with optional header extender
+            // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically includes default CWT claims
             logger.LogVerbose("Creating indirect signature...");
-            CoseSign1Message indirectSignature = factory.CreateIndirectSignature(
-                payload: payload,
+            // Use async method to support cancellation via the cancellationToken
+            using MemoryStream payloadStream = new(payload);
+            CoseSign1Message indirectSignature = await factory.CreateIndirectSignatureAsync(
+                payload: payloadStream,
                 signingKeyProvider: signingKeyProvider,
                 contentType: contentType,
                 signatureVersion: signatureVersion,
-                coseHeaderExtender: headerExtender);
+                coseHeaderExtender: headerExtender,
+                cancellationToken: cancellationToken);
 
             // Encode and write signature to file
             byte[] signatureBytes = indirectSignature.Encode();

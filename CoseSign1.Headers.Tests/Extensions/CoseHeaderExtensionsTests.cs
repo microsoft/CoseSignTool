@@ -774,4 +774,423 @@ public class CoseHeaderExtensionsTests
         Assert.That(result[new CoseHeaderLabel("StringHeader2")].GetValueAsString(), Is.EqualTo("StringValue2"));
         Assert.That(result[new CoseHeaderLabel("Additional")].GetValueAsInt32(), Is.EqualTo(999));
     }
+
+    [Test]
+    public void TryGetCwtClaims_WithNullHeaderMap_ReturnsFalse()
+    {
+        // Arrange
+        CoseHeaderMap? headerMap = null;
+
+        // Act
+        bool result = headerMap!.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(claims, Is.Null);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithNoCwtClaims_ReturnsFalse()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        headerMap[new CoseHeaderLabel("test")] = CoseHeaderValue.FromString("value");
+
+        // Act
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(claims, Is.Null);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithValidCwtClaims_ReturnsTrue()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var extender = new CWTClaimsHeaderExtender()
+            .SetIssuer("test-issuer")
+            .SetSubject("test-subject");
+        headerMap = extender.ExtendProtectedHeaders(headerMap);
+
+        // Act
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(claims, Is.Not.Null);
+        Assert.That(claims!.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(claims.Subject, Is.EqualTo("test-subject"));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithNullHeaderMap_ThrowsArgumentNullException()
+    {
+        // Arrange
+        CoseHeaderMap? headerMap = null;
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => headerMap!.MergeCwtClaims(claims!));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithNullClaims_ReturnsUnchangedHeaderMap()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        headerMap[new CoseHeaderLabel("test")] = CoseHeaderValue.FromString("value");
+        int originalCount = headerMap.Count;
+
+        // Act
+        CoseHeaderMap result = headerMap.MergeCwtClaims(null!);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(result.Count, Is.EqualTo(originalCount));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithNoExistingClaims_AddsClaims()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var extender = new CWTClaimsHeaderExtender()
+            .SetIssuer("new-issuer")
+            .SetSubject("new-subject");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? newClaims);
+
+        // Act
+        CoseHeaderMap result = headerMap.MergeCwtClaims(newClaims!);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(headerMap.TryGetCwtClaims(out CwtClaims? claims), Is.True);
+        Assert.That(claims!.Issuer, Is.EqualTo("new-issuer"));
+        Assert.That(claims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithExistingClaims_MergesCorrectly()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var existingExtender = new CWTClaimsHeaderExtender()
+            .SetIssuer("existing-issuer")
+            .SetSubject("existing-subject");
+        headerMap = existingExtender.ExtendProtectedHeaders(headerMap);
+
+        var newExtender = new CWTClaimsHeaderExtender()
+            .SetIssuer("new-issuer")
+            .SetAudience("new-audience");
+        var tempMap = newExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? newClaims);
+
+        // Act
+        CoseHeaderMap result = headerMap.MergeCwtClaims(newClaims!);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(headerMap.TryGetCwtClaims(out CwtClaims? claims), Is.True);
+        Assert.That(claims!.Issuer, Is.EqualTo("new-issuer")); // Overridden
+        Assert.That(claims.Subject, Is.EqualTo("existing-subject")); // Preserved
+        Assert.That(claims.Audience, Is.EqualTo("new-audience")); // Added
+    }
+
+    [Test]
+    public void SetCwtClaims_WithNullHeaderMap_ThrowsArgumentNullException()
+    {
+        // Arrange
+        CoseHeaderMap? headerMap = null;
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => headerMap!.SetCwtClaims(claims!));
+    }
+
+    [Test]
+    public void SetCwtClaims_WithNullClaims_ReturnsUnchangedHeaderMap()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        int originalCount = headerMap.Count;
+
+        // Act
+        CoseHeaderMap result = headerMap.SetCwtClaims(null!);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(result.Count, Is.EqualTo(originalCount));
+    }
+
+    [Test]
+    public void SetCwtClaims_WithValidClaims_SetsClaims()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var extender = new CWTClaimsHeaderExtender()
+            .SetIssuer("test-issuer")
+            .SetSubject("test-subject")
+            .SetAudience("test-audience");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Act
+        CoseHeaderMap result = headerMap.SetCwtClaims(claims!);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(headerMap.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.True);
+        Assert.That(headerMap.TryGetCwtClaims(out CwtClaims? retrievedClaims), Is.True);
+        Assert.That(retrievedClaims!.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(retrievedClaims.Subject, Is.EqualTo("test-subject"));
+        Assert.That(retrievedClaims.Audience, Is.EqualTo("test-audience"));
+    }
+
+    #region Custom Header Label Tests
+
+    [Test]
+    public void SetCwtClaims_WithCustomLabel_StoresAtCustomLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(999);
+        var extender = new CWTClaimsHeaderExtender()
+            .SetIssuer("custom-issuer")
+            .SetSubject("custom-subject");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Act
+        CoseHeaderMap result = headerMap.SetCwtClaims(claims!, customLabel);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(headerMap.ContainsKey(customLabel), Is.True);
+        Assert.That(headerMap.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.False);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithCustomLabel_RetrievesFromCustomLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(888);
+        var extender = new CWTClaimsHeaderExtender()
+            .SetIssuer("custom-issuer")
+            .SetSubject("custom-subject")
+            .SetAudience("custom-audience");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+        headerMap.SetCwtClaims(claims!, customLabel);
+
+        // Act
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? retrievedClaims, customLabel);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(retrievedClaims, Is.Not.Null);
+        Assert.That(retrievedClaims!.Issuer, Is.EqualTo("custom-issuer"));
+        Assert.That(retrievedClaims.Subject, Is.EqualTo("custom-subject"));
+        Assert.That(retrievedClaims.Audience, Is.EqualTo("custom-audience"));
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithDefaultLabel_DoesNotFindCustomLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(777);
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test-issuer");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+        headerMap.SetCwtClaims(claims!, customLabel);
+
+        // Act - Try to get with default label
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? retrievedClaims);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(retrievedClaims, Is.Null);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithWrongCustomLabel_ReturnsFalse()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(666);
+        var wrongLabel = new CoseHeaderLabel(555);
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test-issuer");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+        headerMap.SetCwtClaims(claims!, customLabel);
+
+        // Act
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? retrievedClaims, wrongLabel);
+
+        // Assert
+        Assert.That(result, Is.False);
+        Assert.That(retrievedClaims, Is.Null);
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithCustomLabel_MergesAtCustomLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(444);
+        
+        // Set existing claims at custom label
+        var existingExtender = new CWTClaimsHeaderExtender().SetIssuer("existing-issuer");
+        var tempMap1 = existingExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap1.TryGetCwtClaims(out CwtClaims? existingClaims);
+        headerMap.SetCwtClaims(existingClaims!, customLabel);
+
+        // Create new claims to merge
+        var newExtender = new CWTClaimsHeaderExtender()
+            .SetSubject("new-subject")
+            .SetAudience("new-audience");
+        var tempMap2 = newExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap2.TryGetCwtClaims(out CwtClaims? newClaims);
+
+        // Act
+        headerMap.MergeCwtClaims(newClaims!, logOverrides: false, headerLabel: customLabel);
+
+        // Assert
+        headerMap.TryGetCwtClaims(out CwtClaims? mergedClaims, customLabel);
+        Assert.That(mergedClaims, Is.Not.Null);
+        Assert.That(mergedClaims!.Issuer, Is.EqualTo("existing-issuer")); // Preserved
+        Assert.That(mergedClaims.Subject, Is.EqualTo("new-subject")); // Added
+        Assert.That(mergedClaims.Audience, Is.EqualTo("new-audience")); // Added
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithCustomLabel_OverridesExistingClaims()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var customLabel = new CoseHeaderLabel(333);
+        
+        // Set existing claims at custom label
+        var existingExtender = new CWTClaimsHeaderExtender()
+            .SetIssuer("old-issuer")
+            .SetSubject("old-subject");
+        var tempMap1 = existingExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap1.TryGetCwtClaims(out CwtClaims? existingClaims);
+        headerMap.SetCwtClaims(existingClaims!, customLabel);
+
+        // Create new claims to merge
+        var newExtender = new CWTClaimsHeaderExtender()
+            .SetIssuer("new-issuer")
+            .SetAudience("new-audience");
+        var tempMap2 = newExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap2.TryGetCwtClaims(out CwtClaims? newClaims);
+
+        // Act
+        headerMap.MergeCwtClaims(newClaims!, logOverrides: false, headerLabel: customLabel);
+
+        // Assert
+        headerMap.TryGetCwtClaims(out CwtClaims? mergedClaims, customLabel);
+        Assert.That(mergedClaims, Is.Not.Null);
+        Assert.That(mergedClaims!.Issuer, Is.EqualTo("new-issuer")); // Overridden
+        Assert.That(mergedClaims.Subject, Is.EqualTo("old-subject")); // Preserved
+        Assert.That(mergedClaims.Audience, Is.EqualTo("new-audience")); // Added
+    }
+
+    [Test]
+    public void SetCwtClaims_WithNullCustomLabel_UsesDefaultLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test-issuer");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Act
+        CoseHeaderMap result = headerMap.SetCwtClaims(claims!, null);
+
+        // Assert
+        Assert.That(result, Is.SameAs(headerMap));
+        Assert.That(headerMap.ContainsKey(CWTClaimsHeaderLabels.CWTClaims), Is.True);
+    }
+
+    [Test]
+    public void TryGetCwtClaims_WithNullCustomLabel_UsesDefaultLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var extender = new CWTClaimsHeaderExtender().SetIssuer("test-issuer");
+        var tempMap = extender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap.TryGetCwtClaims(out CwtClaims? claims);
+        headerMap.SetCwtClaims(claims!);
+
+        // Act
+        bool result = headerMap.TryGetCwtClaims(out CwtClaims? retrievedClaims, null);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(retrievedClaims, Is.Not.Null);
+        Assert.That(retrievedClaims!.Issuer, Is.EqualTo("test-issuer"));
+    }
+
+    [Test]
+    public void MultipleCustomLabels_CanCoexist()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var label1 = new CoseHeaderLabel(100);
+        var label2 = new CoseHeaderLabel(200);
+        
+        var extender1 = new CWTClaimsHeaderExtender().SetIssuer("issuer-1");
+        var tempMap1 = extender1.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap1.TryGetCwtClaims(out CwtClaims? claims1);
+        
+        var extender2 = new CWTClaimsHeaderExtender().SetIssuer("issuer-2");
+        var tempMap2 = extender2.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap2.TryGetCwtClaims(out CwtClaims? claims2);
+
+        // Act
+        headerMap.SetCwtClaims(claims1!, label1);
+        headerMap.SetCwtClaims(claims2!, label2);
+
+        // Assert
+        Assert.That(headerMap.TryGetCwtClaims(out CwtClaims? retrieved1, label1), Is.True);
+        Assert.That(headerMap.TryGetCwtClaims(out CwtClaims? retrieved2, label2), Is.True);
+        Assert.That(retrieved1!.Issuer, Is.EqualTo("issuer-1"));
+        Assert.That(retrieved2!.Issuer, Is.EqualTo("issuer-2"));
+    }
+
+    [Test]
+    public void MergeCwtClaims_WithNullCustomLabel_UsesDefaultLabel()
+    {
+        // Arrange
+        CoseHeaderMap headerMap = new();
+        var existingExtender = new CWTClaimsHeaderExtender().SetIssuer("existing-issuer");
+        var tempMap1 = existingExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap1.TryGetCwtClaims(out CwtClaims? existingClaims);
+        headerMap.SetCwtClaims(existingClaims!);
+
+        var newExtender = new CWTClaimsHeaderExtender().SetSubject("new-subject");
+        var tempMap2 = newExtender.ExtendProtectedHeaders(new CoseHeaderMap());
+        tempMap2.TryGetCwtClaims(out CwtClaims? newClaims);
+
+        // Act
+        headerMap.MergeCwtClaims(newClaims!, logOverrides: false, headerLabel: null);
+
+        // Assert
+        headerMap.TryGetCwtClaims(out CwtClaims? mergedClaims);
+        Assert.That(mergedClaims, Is.Not.Null);
+        Assert.That(mergedClaims!.Issuer, Is.EqualTo("existing-issuer"));
+        Assert.That(mergedClaims.Subject, Is.EqualTo("new-subject"));
+    }
+
+    #endregion
 }
+

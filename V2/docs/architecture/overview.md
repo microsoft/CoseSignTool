@@ -22,7 +22,7 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
 ┌─────────────────────────────────────────────────────────────┐
 │                    Factory Layer                            │
 │  DirectSignatureFactory | IndirectSignatureFactory          │
-│  (High-level signing operations)                            │
+│  ICoseSign1MessageFactory<TOptions>                         │
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
@@ -30,19 +30,27 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
 │  ISigningService<TOptions>                                  │
 │  - LocalCertificateSigningService                           │
 │  - AzureTrustedSigningService                               │
-│  - Custom implementations                                   │
+│  - CertificateSigningService (base)                         │
 └─────────────────────────────────────────────────────────────┘
                             │
         ┌───────────────────┴───────────────────┐
         │                                       │
 ┌───────────────────┐                  ┌───────────────────┐
-│ Certificate       │                  │ Header            │
+│ Signing Key       │                  │ Header            │
 │ Management        │                  │ Contribution      │
 │                   │                  │                   │
-│ - Sources         │                  │ - IHeaderContrib  │
-│ - Chain Builders  │                  │ - CWT Claims      │
+│ - ISigningKey     │                  │ - IHeaderContrib  │
+│ - ICertSigningKey │                  │ - CWT Claims      │
 │ - Key Providers   │                  │ - X5T/X5Chain     │
 └───────────────────┘                  └───────────────────┘
+        │
+┌───────────────────┐
+│ Certificate       │
+│ Management        │
+│                   │
+│ - ICertSource     │
+│ - Chain Builders  │
+└───────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
 │                  Validation Layer                           │
@@ -50,16 +58,23 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
 │  - Composable validators                                    │
 │  - Certificate validation                                   │
 │  - Signature validation                                     │
-│  - Custom validators                                        │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│               Transparency Layer                            │
+│  ITransparencyProvider                                      │
+│  - MstTransparencyProvider                                  │
+│  - Custom transparency services                             │
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
 │                  Foundation Layer                           │
 │  CoseSign1.Abstractions                                     │
+│  - ICoseSign1MessageFactory<TOptions>                       │
 │  - ISigningService<TOptions>                                │
+│  - ISigningKey                                              │
 │  - IHeaderContributor                                       │
-│  - IValidator<T>                                            │
-│  - SigningContext                                           │
+│  - SigningContext, SigningOptions                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -69,60 +84,100 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
 
 Defines the foundational interfaces and contracts:
 
-- **`ISigningService<TOptions>`**: Contract for signing services (local, remote, etc.)
-- **`IHeaderContributor`**: Extension point for adding headers to COSE messages
-- **`IValidator<T>`**: Contract for validation logic
-- **`SigningContext`**: Encapsulates signing operation context
-- **`SigningKeyMetadata`**: Metadata about cryptographic keys
+- **`ICoseSign1MessageFactory<TOptions>`**: Generic factory for creating COSE Sign1 messages with type-safe options
+- **`ISigningService<TOptions>`**: Service that provides `CoseSigner` instances for signing operations
+- **`ISigningKey`**: Abstraction for cryptographic signing keys (emits `CoseKey` instances)
+- **`IHeaderContributor`**: Extension point for adding headers to COSE messages at sign-time
+- **`SigningContext`**: Encapsulates signing operation context (payload, content type)
+- **`SigningOptions`**: Base class for signing options
+- **`SigningKeyMetadata`**: Metadata about cryptographic keys (algorithm, key type, size)
+- **`SigningServiceMetadata`**: Metadata about signing services
 
 ### 2. Signing Services
 
 Implementations of `ISigningService<TOptions>`:
 
-- **`LocalCertificateSigningService`**: Signs with local certificates
+```csharp
+public interface ISigningService<out TSigningOptions> : IDisposable
+    where TSigningOptions : SigningOptions
+{
+    CoseSigner GetCoseSigner(SigningContext context);
+    TSigningOptions CreateSigningOptions();
+    bool IsRemote { get; }
+    SigningServiceMetadata ServiceMetadata { get; }
+}
+```
+
+**Available Implementations**:
+- **`LocalCertificateSigningService`**: Signs with local X.509 certificates
 - **`AzureTrustedSigningService`**: Signs using Azure Trusted Signing
-- **Custom services**: Implement `ISigningService<TOptions>` for custom backends
+- **`CertificateSigningService`**: Abstract base class for certificate-based signing
 
 Key characteristics:
-- Stateless or thread-safe
-- Dispose of unmanaged resources properly
-- Support both sync and async operations
-- Provide rich metadata about capabilities
+- Returns `CoseSigner` instances from .NET's `System.Security.Cryptography.Cose`
+- Uses `ISigningKey` to access underlying `CoseKey`
+- Applies header contributors during `GetCoseSigner()`
+- Thread-safe implementations
 
-### 3. Signature Factories
+### 3. Signing Keys
+
+The `ISigningKey` interface abstracts cryptographic keys:
+
+```csharp
+public interface ISigningKey : IDisposable
+{
+    CoseKey GetCoseKey();
+    SigningKeyMetadata Metadata { get; }
+    ISigningService<SigningOptions> SigningService { get; }
+}
+```
+
+**Key Providers** (`ISigningKeyProvider`):
+- **`DirectSigningKeyProvider`**: Local key from X509Certificate2 private key
+- **`RemoteSigningKeyProvider`**: Delegates to remote signing service
+
+**Certificate Signing Key** (`ICertificateSigningKey`):
+- Extends `ISigningKey` with certificate chain access
+- Used by certificate header contributors
+
+### 4. Signature Factories
 
 High-level APIs for creating COSE Sign1 messages:
 
-- **`DirectSignatureFactory`**: Creates standard COSE Sign1 messages
-- **`IndirectSignatureFactory`**: Creates indirect signatures (hash envelopes)
+**`DirectSignatureFactory`**: Creates standard COSE Sign1 messages
+```csharp
+var factory = new DirectSignatureFactory(signingService);
+byte[] signed = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+```
+
+**`IndirectSignatureFactory`**: Creates indirect signatures (hash envelopes)
+```csharp
+var factory = new IndirectSignatureFactory(signingService);
+byte[] signed = factory.CreateCoseSign1MessageBytes(largePayload, "application/octet-stream");
+```
 
 Factories handle:
 - Header contribution coordination
-- Content type management
-- Embedded vs detached payloads
-- Options processing
+- Content type management  
+- Embedded vs detached payloads (via options)
+- Transparency proof addition (optional)
 
-### 4. Certificate Management
+### 5. Certificate Management
 
-Multi-layered certificate handling:
+Multi-layered certificate handling in `CoseSign1.Certificates`:
 
 **Certificate Sources** (`ICertificateSource`):
-- `PfxCertificateSource`: Load from PFX files
-- `WindowsCertificateStoreCertificateSource`: Windows cert store
-- `LinuxCertificateStoreCertificateSource`: Linux cert store
-- Custom implementations
+- `DirectCertificateSource`: Certificate provided directly in-memory
+- `PfxCertificateSource`: Load from PFX/PKCS#12 files
+- `WindowsCertificateStoreCertificateSource`: Windows certificate store
+- `LinuxCertificateStoreCertificateSource`: Linux certificate store
+- `RemoteCertificateSource`: Abstract base for remote signing
 
 **Chain Builders** (`ICertificateChainBuilder`):
 - `X509ChainBuilder`: Automatic chain building using system trust
 - `ExplicitCertificateChainBuilder`: Explicit chain specification
-- Custom chain building logic
 
-**Key Providers** (`ISigningKeyProvider`):
-- `DirectSigningKeyProvider`: Local key access
-- `RemoteSigningKeyProvider`: Remote signing (HSM, cloud)
-- ML-DSA support for post-quantum cryptography
-
-### 5. Header Contributors
+### 6. Header Contributors
 
 Extensible header contribution system:
 
@@ -135,69 +190,83 @@ public interface IHeaderContributor
 }
 ```
 
-Built-in contributors:
-- **`CertificateHeaderContributor`**: Adds X5T, X5Chain headers
+**Built-in Contributors**:
+- **`CertificateHeaderContributor`**: Adds X5T (thumbprint), X5Chain headers
 - **`ContentTypeHeaderContributor`**: Adds content type header
-- **`CwtClaimsHeaderContributor`**: Adds CWT claims (for SCITT)
-- **`CoseHashEnvelopeHeaderContributor`**: Adds hash envelope headers
+- **`CwtClaimsHeaderContributor`**: Adds CWT claims for SCITT compliance
+- **`CoseHashEnvelopeHeaderContributor`**: Adds hash envelope headers for indirect signatures
 
-Custom contributors can:
-- Add application-specific headers
-- Implement custom merge strategies
-- Access signing context and metadata
+**HeaderContributorContext** provides:
+- `SigningContext`: Payload, content type, additional headers
+- `SigningKey`: Access to key metadata for header derivation
 
-### 6. Validation Framework
+### 7. Validation Framework
 
-Composable validation architecture:
+Composable validation architecture in `CoseSign1.Validation`:
 
 ```csharp
 public interface IValidator<in T>
 {
     ValidationResult Validate(T input);
-    Task<ValidationResult> ValidateAsync(T input, CancellationToken cancellationToken = default);
 }
 ```
 
-**ValidationResult**:
-- `IsValid`: Overall validation status
-- `Failures`: Collection of validation failures
-- `Metadata`: Additional validation metadata
-
-**Validators**:
-- **Certificate Validators**: Signature, expiration, EKU, SAN, common name, chain
-- **Composite Validators**: Combine multiple validators with AND/OR logic
-- **Function Validators**: Inline validation logic
-- **Custom Validators**: Implement `IValidator<T>`
-
-Builder pattern for fluent validation:
-
+**Entry Point** - Fluent builder API:
 ```csharp
-var validator = new CoseMessageValidationBuilder()
-    .AddCertificateValidator(builder => builder
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("TrustedSigner")
-    )
-    .AddCustomValidator(new MyCustomValidator())
+var validator = Cose.Sign1Message()
+    .ValidateCertificateSignature()
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .HasCommonName("TrustedSigner"))
     .Build();
 ```
 
-### 7. Transparency Support
+**Core Types**:
+- `CoseMessageValidationBuilder`: Builder for message validators
+- `CompositeValidator`: Combines multiple validators
+- `FunctionValidator`: Wraps lambda functions as validators
+- `ValidationResult`: Success/failure with `ValidationError` collection
 
-First-class support for transparency receipts:
+**Certificate Validators** (in `CoseSign1.Certificates.Validation`):
+- `CertificateSignatureValidator`: Verifies cryptographic signature
+- `CertificateChainValidator`: Validates certificate chain
+- `CertificateExpirationValidator`: Checks validity period
+- `CertificateCommonNameValidator`: Validates CN
+- `CertificateKeyUsageValidator`: Validates EKU/key usage
+- `CertificatePredicateValidator`: Custom predicate validation
 
-- **MST (Merkle Search Tree)**: `CoseSign1.Transparent.MST`
-- **CTS (Certificate Transparency Service)**: `CoseSign1.Transparent.CTS`
-- **Abstract interfaces**: Implement custom transparency services
+### 8. Transparency Support
 
-### 8. DID:x509 Integration
+First-class support for transparency receipts via `ITransparencyProvider`:
 
-Native support for decentralized identifiers:
+```csharp
+public interface ITransparencyProvider
+{
+    string ProviderName { get; }
+    Task<CoseSign1Message> AddTransparencyProofAsync(
+        CoseSign1Message message,
+        CancellationToken cancellationToken = default);
+}
+```
 
-- **`DidX509Parser`**: Parse and validate DID:x509 identifiers
-- **`DidX509Resolver`**: Resolve DIDs to DID documents
-- **`DidX509Validator`**: Validate DID:x509 compliance
-- **Policy validators**: EKU and SAN policy validation
+**MST (Merkle Search Tree)** in `CoseSign1.Transparent.MST`:
+- `MstTransparencyProvider`: Submits to MST service
+- `MstReceiptValidator`: Validates MST receipts
+- Integration with Azure Confidential Ledger
+
+### 9. DID:x509 Integration
+
+Native support for decentralized identifiers in `DIDx509`:
+
+- **`DidX509Builder`**: Create DID:x509 URIs from certificate chains
+- **`DidX509Parser`**: Parse DID:x509 URIs
+- **`DidX509Validator`**: Validate DID against certificate chains
+
+**Supported Policies**:
+- `subject` - Match certificate subject attributes
+- `san` - Match subject alternative names
+- `eku` - Match enhanced key usage OIDs
+- `fulcio-issuer` - Match Fulcio issuer extension
 
 ## Data Flow
 
@@ -209,34 +278,32 @@ Native support for decentralized identifiers:
 2. Factory creates SigningContext
                 ↓
 3. SigningService.GetCoseSigner(context)
-   - Gets signing key
-   - Applies header contributors (in order)
-   - Returns CoseSigner
+   a. Gets ISigningKey via GetSigningKey(context)
+   b. Gets CoseKey from ISigningKey.GetCoseKey()
+   c. Builds headers using IHeaderContributors
+   d. Returns CoseSigner (CoseKey + headers)
                 ↓
-4. CoseSign1Message.Sign(payload, signer)
-   - Creates COSE Sign1 structure
-   - Computes signature
-   - Returns signed message bytes
+4. CoseSign1Message.SignDetached/SignEmbedded
                 ↓
-5. Application receives: signed COSE message
+5. [Optional] TransparencyProvider.AddTransparencyProofAsync
+                ↓
+6. Returns signed COSE message bytes
 ```
 
 ### Validation Flow
 
 ```
-1. Application provides: signed COSE message
+1. Application provides: signed COSE message bytes
                 ↓
-2. Decode CoseSign1Message
+2. CoseMessage.DecodeSign1(bytes)
                 ↓
-3. Validator.ValidateAsync(message)
-   - Runs all configured validators
-   - Collects validation results
-   - Merges results
+3. Validator.Validate(message)
+   - Runs configured validators in order
+   - CompositeValidator aggregates results
                 ↓
 4. Returns ValidationResult
    - IsValid: true/false
-   - Failures: list of failures (if any)
-   - Metadata: validation metadata
+   - Errors: list of ValidationError (if any)
                 ↓
 5. Application acts on validation result
 ```
@@ -245,41 +312,73 @@ Native support for decentralized identifiers:
 
 V2 is designed for extensibility at multiple levels:
 
-1. **Custom Signing Services**: Implement `ISigningService<TOptions>`
-2. **Custom Certificate Sources**: Implement `ICertificateSource`
-3. **Custom Chain Builders**: Implement `ICertificateChainBuilder`
-4. **Custom Header Contributors**: Implement `IHeaderContributor`
-5. **Custom Validators**: Implement `IValidator<T>`
-6. **Custom Transparency Services**: Implement transparency interfaces
+| Extension Point | Interface | Use Case |
+|----------------|-----------|----------|
+| Signing Services | `ISigningService<TOptions>` | Custom signing backends (HSM, cloud) |
+| Certificate Sources | `ICertificateSource` | Custom certificate retrieval |
+| Chain Builders | `ICertificateChainBuilder` | Custom chain building logic |
+| Header Contributors | `IHeaderContributor` | Custom header injection |
+| Validators | `IValidator<T>` | Custom validation logic |
+| Transparency | `ITransparencyProvider` | Custom transparency services |
+| CLI Plugins | `IPlugin` | Custom CoseSignTool commands |
 
 ## Thread Safety
 
-- **Factories**: Thread-safe, can be shared across threads
-- **Signing Services**: Most implementations are thread-safe (documented per class)
-- **Validators**: Typically stateless and thread-safe
-- **Header Contributors**: Should be stateless and thread-safe
+| Component | Thread Safety | Notes |
+|-----------|---------------|-------|
+| Factories | Thread-safe | Can be shared across threads |
+| Signing Services | Thread-safe | Most implementations use locks for key access |
+| Validators | Thread-safe | Typically stateless |
+| Header Contributors | Should be stateless | Avoid mutable state |
 
 ## Performance Considerations
 
 1. **Certificate Caching**: Chain builders cache built chains
-2. **Lazy Loading**: Resources loaded only when needed
-3. **Async Operations**: Non-blocking I/O operations
-4. **Streaming Support**: Large payloads can be streamed
+2. **CoseKey Caching**: `ISigningKey` implementations cache `CoseKey` instances
+3. **Async Operations**: Non-blocking I/O for remote operations
+4. **Memory Efficiency**: Uses `ReadOnlyMemory<byte>` and `Stream` overloads
 5. **Minimal Allocations**: Value types and span-based APIs where appropriate
 
 ## Testing Strategy
 
 V2 is designed for testability:
 
-1. **Interface-based**: Easy to mock dependencies
-2. **Dependency Injection**: Dependencies are explicit
-3. **Pure Functions**: Many operations are pure and deterministic
-4. **Test Utilities**: `TestCertificateUtils` for test certificate generation
-5. **High Coverage**: 88.7% code coverage with comprehensive tests
+1. **Interface-based**: Easy to mock all dependencies
+2. **Dependency Injection**: Dependencies are explicit constructor parameters
+3. **Test Utilities**: `TestCertificateUtils` for test certificate generation
+4. **High Coverage**: 95%+ code coverage with comprehensive tests
+
+## Package Dependencies
+
+```
+CoseSign1.Abstractions (foundation)
+    ↑
+CoseSign1 (factories)
+    ↑
+CoseSign1.Certificates (certificate signing)
+    ↑
+CoseSign1.Certificates.AzureTrustedSigning (Azure integration)
+
+CoseSign1.Abstractions
+    ↑
+CoseSign1.Validation (validation framework)
+    ↑
+CoseSign1.Certificates (certificate validators)
+
+CoseSign1.Abstractions
+    ↑
+CoseSign1.Headers (CWT claims)
+
+CoseSign1.Abstractions
+    ↑
+CoseSign1.Transparent.MST (MST receipts)
+
+DIDx509 (standalone, minimal dependencies)
+```
 
 ## Next Steps
 
 - [Core Concepts](core-concepts.md) - Deep dive into key abstractions
-- [Signing Services](signing-services.md) - Learn about signing service patterns
-- [Certificate Management](certificate-management.md) - Certificate handling details
-- [Validation Framework](validation-framework.md) - Validation architecture deep dive
+- [Component Documentation](../components/README.md) - Per-package documentation
+- [Plugin Documentation](../plugins/README.md) - CLI plugin architecture
+- [Getting Started](../getting-started/quick-start.md) - Quick start guide

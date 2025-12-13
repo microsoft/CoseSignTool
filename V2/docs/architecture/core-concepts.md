@@ -449,13 +449,13 @@ if (!result.Success)
 
 ## Next Steps
 
-- [Signing Services](signing-services.md) - Deep dive into signing
-- [Validation Framework](validation-framework.md) - Validation patterns
-- [Certificate Management](certificate-management.md) - Certificate handling
-- [Header Contributors](header-contributors.md) - Extending headers
+- [Architecture Overview](overview.md) - High-level architecture and component diagrams
+- [Quick Start](../getting-started/quick-start.md) - Get started in 5 minutes
+- [Migration Guide](../getting-started/migration-from-v1.md) - Migrate from V1
 
-## See Also
+## Package Documentation
 
-- [Architecture Overview](overview.md)
-- [Quick Start](../getting-started/quick-start.md)
-- [Migration Guide](../getting-started/migration-from-v1.md)
+- [CoseSign1.Abstractions](../../CoseSign1.Abstractions/README.md) - Core interfaces
+- [CoseSign1.Certificates](../../CoseSign1.Certificates/README.md) - Certificate signing services
+- [CoseSign1.Validation](../../CoseSign1.Validation/README.md) - Validation framework
+- [CoseSign1.Headers](../../CoseSign1.Headers/README.md) - Header contributors and CWT claims

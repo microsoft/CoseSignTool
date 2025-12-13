@@ -33,6 +33,7 @@ public class CoseSign1Exception : Exception
     {
     }
 
+#if NETSTANDARD2_0
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseSign1Exception"/> class with serialized data.
     /// </summary>
@@ -48,4 +49,5 @@ public class CoseSign1Exception : Exception
     protected CoseSign1Exception(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
+#endif
 }

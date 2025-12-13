@@ -49,8 +49,8 @@ public static class CoseSign1MessageIndirectSignatureExtensions
         // The type to find all derived implementations from.
         Type baseType = typeof(HashAlgorithm);
 
-        // loop through each type in the assembly containing System.Security.Cryptography.SHA256Managed and grab any type that are derived from the base type
-        foreach (Type derivedType in Assembly.GetAssembly(typeof(SHA256Managed)).GetTypes().Where(t => t != baseType && baseType.IsAssignableFrom(t)))
+        // loop through each type in the assembly containing System.Security.Cryptography.SHA256 and grab any type that are derived from the base type
+        foreach (Type derivedType in Assembly.GetAssembly(typeof(SHA256))!.GetTypes().Where(t => t != baseType && baseType.IsAssignableFrom(t)))
         {
             // return this algorithm.
             yield return derivedType;
@@ -84,6 +84,8 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     /// <returns>True if successful in extracting a HashAlgorithmName from the Content Type Protected Header; False otherwise.</returns>
     public static bool TryGetIndirectSignatureAlgorithm(this CoseSign1Message? @this, out HashAlgorithmName name)
     {
+        name = default;
+
         if (@this == null)
         {
             Trace.TraceError($"{nameof(TryGetIndirectSignatureAlgorithm)} was called on a null CoseSign1Message object");

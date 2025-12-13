@@ -223,11 +223,6 @@ public static class CoseHeaderExtensions
     /// </remarks>
     public static string ToLabelString(this CoseHeaderLabel label)
     {
-        if (label == null)
-        {
-            return "null";
-        }
-
         try
         {
             // Try to get LabelAsInt32 property

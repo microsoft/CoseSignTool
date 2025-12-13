@@ -37,6 +37,7 @@ public class CoseIndirectSignatureException : CoseSign1Exception
     {
     }
 
+#if NETSTANDARD2_0
     /// <summary>
     /// Creates an instance of <see cref="CoseIndirectSignatureException"/> with a specified message and inner context.
     /// </summary>
@@ -45,4 +46,5 @@ public class CoseIndirectSignatureException : CoseSign1Exception
     protected CoseIndirectSignatureException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
+#endif
 }

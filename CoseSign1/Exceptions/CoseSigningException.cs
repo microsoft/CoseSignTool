@@ -27,6 +27,7 @@ public class CoseSigningException : CoseSign1Exception
     /// <param name="innerException">The source exception.</param>
     public CoseSigningException(string message, Exception innerException) : base(message, innerException) { }
 
+#if NETSTANDARD2_0
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseSigningException"/> class with serialized data.
     /// </summary>
@@ -42,4 +43,5 @@ public class CoseSigningException : CoseSign1Exception
     protected CoseSigningException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
+#endif
 }

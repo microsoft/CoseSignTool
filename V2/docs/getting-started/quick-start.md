@@ -4,13 +4,41 @@ Get started with CoseSignTool V2 in just a few minutes.
 
 ## Installation
 
+### CLI Tool
+
 ```bash
-# Install the core packages
-dotnet add package CoseSign1.Certificates --version 2.0.0-preview
-dotnet add package CoseSign1.Validation --version 2.0.0-preview
+# Install the CLI tool globally (includes all plugins)
+dotnet tool install -g CoseSignTool --version 2.0.0-preview
+
+# Verify installation
+cosesigntool --version
 ```
 
-## Basic Usage
+### Library Packages
+
+```bash
+# Install the core library packages
+dotnet add package CoseSign1.Certificates.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Validation.V2 --version 2.0.0-preview
+```
+
+## CLI Quick Start
+
+```bash
+# Sign with an ephemeral test certificate (development only)
+echo "Hello, COSE!" | cosesigntool sign-ephemeral -o signed.cose
+
+# Verify the signature (allow untrusted for self-signed test certs)
+cosesigntool verify signed.cose --allow-untrusted
+
+# Sign with a PFX certificate
+cosesigntool sign-pfx myfile.txt --pfx certificate.pfx --pfx-password mypassword
+
+# Inspect a signature
+cosesigntool inspect signed.cose
+```
+
+## Library Quick Start
 
 ### 1. Sign a Message with a Certificate
 

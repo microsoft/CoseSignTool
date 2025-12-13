@@ -100,7 +100,19 @@ V2 represents a fundamental redesign with these major improvements:
 **Current Version**: 2.0.0-preview  
 **Status**: Preview - API surface may change  
 **Target Release**: Q1 2026  
-**Test Coverage**: 95.5% line coverage (1,732 tests)
+
+### Package Names
+
+V2 packages use a `.V2` suffix to coexist with V1 packages:
+
+| Package | V1 Name | V2 Name |
+|---------|---------|---------|
+| Abstractions | `CoseSign1.Abstractions` | `CoseSign1.Abstractions.V2` |
+| Core | `CoseSign1` | `CoseSign1.V2` |
+| Certificates | `CoseSign1.Certificates` | `CoseSign1.Certificates.V2` |
+| Validation | N/A | `CoseSign1.Validation.V2` |
+| Headers | N/A | `CoseSign1.Headers.V2` |
+| CLI Tool | `CoseSignTool` | `CoseSignTool` (same name, v2.x) |
 
 V2 is currently in preview and will eventually replace V1 entirely. Both versions are maintained during the transition period.
 

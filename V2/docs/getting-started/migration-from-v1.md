@@ -31,8 +31,18 @@ V2 is a complete architectural redesign. While the core functionality (creating 
 
 **V2:**
 ```xml
-<PackageReference Include="CoseSign1.Certificates" Version="2.0.0-preview" />
-<PackageReference Include="CoseSign1.Validation" Version="2.0.0-preview" />
+<!-- Note: V2 packages have a .V2 suffix to coexist with V1 -->
+<PackageReference Include="CoseSign1.Certificates.V2" Version="2.0.0-preview" />
+<PackageReference Include="CoseSign1.Validation.V2" Version="2.0.0-preview" />
+```
+
+**CLI Tool:**
+```bash
+# Uninstall V1 (if installed)
+dotnet tool uninstall -g CoseSignTool
+
+# Install V2 (includes bundled plugins)
+dotnet tool install -g CoseSignTool --version 2.0.0-preview
 ```
 
 ### 2. Update Namespace Imports

@@ -46,6 +46,10 @@ The V2 CLI tool (`CoseSignTool`) provides command-line signing and verification 
 - `verify` - Verify a COSE Sign1 signature
 - `inspect` - Inspect COSE Sign1 signature details
 
+#### Command Reference
+- [Inspect Command](cli/inspect.md) - Detailed inspect command documentation
+- [Output Formats](cli/output-formats.md) - JSON, text, XML, and quiet output formats
+
 #### CLI Plugins
 - [CoseSignTool.Local.Plugin](plugins/local-plugin.md) - Local certificate signing (PFX, PEM, Windows/Linux cert stores)
 - [CoseSignTool.AzureTrustedSigning.Plugin](plugins/azure-plugin.md) - Azure Trusted Signing integration

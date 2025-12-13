@@ -79,14 +79,6 @@ public class SigningCommandBuilder
                         "    (omitted)                - Use default");
         outputOption.AddAlias("-o");
 
-        // Standard detached option
-        var detachedOption = new Option<bool>(
-            name: "--detached",
-            description: "Create a detached signature (payload not embedded in signature).\n" +
-                        "  Only applies to 'embedded' signature type (overrides to detached).\n" +
-                        "  Has no effect on 'detached' or 'indirect' types.");
-        detachedOption.AddAlias("-d");
-
         // Signature type option - indirect is default
         var signatureTypeOption = new Option<string>(
             name: "--signature-type",
@@ -97,6 +89,7 @@ public class SigningCommandBuilder
                         "  indirect - Sign a hash envelope of the payload (SCITT-compliant, most efficient)");
         signatureTypeOption.FromAmong("detached", "embedded", "indirect");
         signatureTypeOption.AddAlias("-t");
+        signatureTypeOption.AddAlias("-d"); // -d for detached as shorthand
 
         // Standard content-type option
         var contentTypeOption = new Option<string>(
@@ -120,7 +113,6 @@ public class SigningCommandBuilder
 
         command.AddArgument(payloadArgument);
         command.AddOption(outputOption);
-        command.AddOption(detachedOption);
         command.AddOption(signatureTypeOption);
         command.AddOption(contentTypeOption);
         command.AddOption(quietOption);
@@ -136,7 +128,6 @@ public class SigningCommandBuilder
                 provider,
                 payloadArgument,
                 outputOption,
-                detachedOption,
                 signatureTypeOption,
                 contentTypeOption,
                 quietOption);
@@ -151,7 +142,6 @@ public class SigningCommandBuilder
         ISigningCommandProvider provider,
         Argument<string?> payloadArgument,
         Option<string?> outputOption,
-        Option<bool> detachedOption,
         Option<string> signatureTypeOption,
         Option<string> contentTypeOption,
         Option<bool> quietOption)
@@ -182,7 +172,6 @@ public class SigningCommandBuilder
             // Get standard options
             string? payloadPath = parseResult.GetValueForArgument(payloadArgument);
             string? outputPath = parseResult.GetValueForOption(outputOption);
-            bool detached = parseResult.GetValueForOption(detachedOption);
             string signatureType = parseResult.GetValueForOption(signatureTypeOption) ?? "indirect";
             string contentType = parseResult.GetValueForOption(contentTypeOption) ?? "application/octet-stream";
             bool quiet = parseResult.GetValueForOption(quietOption);
@@ -195,6 +184,18 @@ public class SigningCommandBuilder
             // Extract plugin-specific options
             var pluginOptions = ExtractPluginOptions(parseResult, context.ParseResult.CommandResult.Command);
 
+            // Determine if payload will be embedded based on signature type
+            // For "detached" type, payload is never embedded
+            // For "embedded" type, payload is always embedded
+            // For "indirect" type, hash envelope is embedded, but original payload is not
+            bool willEmbedPayload = signatureType.ToLowerInvariant() switch
+            {
+                "detached" => false,
+                "embedded" => true,
+                "indirect" => true, // Hash envelope is embedded
+                _ => true
+            };
+
             if (!suppressOutput)
             {
                 formatter.BeginSection("Signing Operation");
@@ -202,7 +203,7 @@ public class SigningCommandBuilder
                 formatter.WriteKeyValue("Payload", useStdin ? "<stdin>" : payloadPath!);
                 formatter.WriteKeyValue("Output", useStdout ? "<stdout>" : (outputPath ?? $"{payloadPath}.cose"));
                 formatter.WriteKeyValue("Signature Type", signatureType);
-                formatter.WriteKeyValue("Embed Payload", detached ? "No (detached)" : "Yes (embedded)");
+                formatter.WriteKeyValue("Embed Payload", willEmbedPayload ? "Yes (embedded)" : "No (detached)");
                 formatter.WriteKeyValue("Content Type", contentType);
             }
 
@@ -258,11 +259,11 @@ public class SigningCommandBuilder
                 signatureBytes = signatureType.ToLowerInvariant() switch
                 {
                     "indirect" => await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, detached, cancellationToken),
+                        signingService, payloadStream, contentType, cancellationToken),
                     "embedded" => await CreateDirectSignatureAsync(
                         signingService, payloadStream, contentType, embedPayload: true, cancellationToken),
                     "detached" => await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, !detached, cancellationToken),
+                        signingService, payloadStream, contentType, embedPayload: false, cancellationToken),
                     _ => throw new InvalidOperationException($"Unknown signature type: {signatureType}")
                 };
             }
@@ -403,7 +404,6 @@ public class SigningCommandBuilder
         ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
         Stream payloadStream,
         string contentType,
-        bool detached,
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();

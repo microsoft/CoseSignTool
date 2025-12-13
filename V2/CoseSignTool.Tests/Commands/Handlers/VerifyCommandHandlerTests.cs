@@ -398,7 +398,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             // Use direct with detached flag
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached --detached");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);

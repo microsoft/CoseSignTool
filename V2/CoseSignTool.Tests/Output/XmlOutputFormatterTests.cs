@@ -211,4 +211,23 @@ public class XmlOutputFormatterTests
         var xml = output.ToString();
         Assert.That(xml, Does.Contain("<?xml version=\"1.0\" encoding=\"utf-16\"?>"));
     }
+
+    [Test]
+    public void WriteStructuredData_IsIgnored()
+    {
+        // Arrange
+        using var output = new StringWriter();
+        var formatter = new XmlOutputFormatter(output);
+        var structuredData = new { name = "Test", value = 42 };
+
+        // Act - XmlOutputFormatter uses message-based output, ignores structured data
+        formatter.WriteStructuredData(structuredData);
+        formatter.WriteSuccess("Test message");
+        formatter.Flush();
+
+        // Assert - Should still output message-based XML
+        var xml = output.ToString();
+        var doc = XDocument.Parse(xml);
+        Assert.That(doc.Root!.Elements("Success").Count(), Is.EqualTo(1));
+    }
 }

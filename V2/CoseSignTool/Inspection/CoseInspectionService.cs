@@ -30,8 +30,9 @@ public class CoseInspectionService
     /// Inspects a COSE Sign1 message file and displays its details.
     /// </summary>
     /// <param name="filePath">The path to the COSE Sign1 file.</param>
+    /// <param name="extractPayloadPath">Optional path to extract embedded payload to. Use "-" for stdout.</param>
     /// <returns>Exit code indicating success or failure.</returns>
-    public async Task<int> InspectAsync(string filePath)
+    public async Task<int> InspectAsync(string filePath, string? extractPayloadPath = null)
     {
         if (!File.Exists(filePath))
         {
@@ -53,6 +54,10 @@ public class CoseInspectionService
             {
                 var message = CoseSign1Message.DecodeSign1(bytes);
 
+                // Build structured result for JSON output
+                var result = BuildInspectionResult(message, fileInfo);
+                Formatter.WriteStructuredData(result);
+
                 // Display protected headers
                 DisplayProtectedHeaders(message);
 
@@ -67,6 +72,12 @@ public class CoseInspectionService
 
                 // Display signature information
                 DisplaySignatureInfo(message);
+
+                // Extract payload if requested
+                if (!string.IsNullOrEmpty(extractPayloadPath))
+                {
+                    await ExtractPayloadAsync(message, extractPayloadPath);
+                }
 
                 Formatter.WriteSuccess("COSE Sign1 message inspection complete");
             }
@@ -90,6 +101,455 @@ public class CoseInspectionService
             Formatter.WriteError($"Error reading file: {ex.Message}");
             return (int)ExitCode.InspectionFailed;
         }
+    }
+
+    private CoseInspectionResult BuildInspectionResult(CoseSign1Message message, FileInfo fileInfo)
+    {
+        var result = new CoseInspectionResult
+        {
+            File = new FileInformation
+            {
+                Path = fileInfo.FullName,
+                SizeBytes = fileInfo.Length
+            },
+            ProtectedHeaders = BuildProtectedHeaders(message),
+            UnprotectedHeaders = BuildUnprotectedHeaders(message),
+            CwtClaims = BuildCwtClaims(message),
+            Payload = BuildPayloadInfo(message),
+            Signature = BuildSignatureInfo(message),
+            Certificates = BuildCertificateInfo(message)
+        };
+
+        return result;
+    }
+
+    private ProtectedHeadersInfo BuildProtectedHeaders(CoseSign1Message message)
+    {
+        var info = new ProtectedHeadersInfo();
+        var protectedHeaders = message.ProtectedHeaders;
+
+        // Algorithm
+        if (protectedHeaders.ContainsKey(CoseHeaderLabel.Algorithm))
+        {
+            var algValue = protectedHeaders[CoseHeaderLabel.Algorithm];
+            try
+            {
+                var reader = new CborReader(algValue.EncodedValue);
+                var algId = reader.ReadInt32();
+                info.Algorithm = new AlgorithmInfo
+                {
+                    Id = algId,
+                    Name = GetAlgorithmName(algId)
+                };
+            }
+            catch { }
+        }
+
+        // Content Type
+        if (protectedHeaders.ContainsKey(CoseHeaderLabel.ContentType))
+        {
+            var ctValue = protectedHeaders[CoseHeaderLabel.ContentType];
+            try
+            {
+                var reader = new CborReader(ctValue.EncodedValue);
+                var state = reader.PeekState();
+                if (state == CborReaderState.TextString)
+                {
+                    info.ContentType = reader.ReadTextString();
+                }
+                else if (state == CborReaderState.UnsignedInteger || state == CborReaderState.NegativeInteger)
+                {
+                    info.ContentType = reader.ReadInt32().ToString();
+                }
+            }
+            catch { }
+        }
+
+        // Certificate thumbprint (x5t - label 34)
+        var x5tLabel = new CoseHeaderLabel(34);
+        if (protectedHeaders.ContainsKey(x5tLabel))
+        {
+            try
+            {
+                var reader = new CborReader(protectedHeaders[x5tLabel].EncodedValue);
+                if (reader.PeekState() == CborReaderState.StartArray)
+                {
+                    reader.ReadStartArray();
+                    var algId = reader.ReadInt32();
+                    var thumbprint = reader.ReadByteString();
+                    reader.ReadEndArray();
+                    info.CertificateThumbprint = new CertificateThumbprintInfo
+                    {
+                        Algorithm = GetHashAlgorithmName(algId),
+                        Value = Convert.ToHexString(thumbprint)
+                    };
+                }
+            }
+            catch { }
+        }
+
+        // Certificate chain length (x5chain - label 33)
+        var x5chainLabel = new CoseHeaderLabel(33);
+        if (protectedHeaders.ContainsKey(x5chainLabel))
+        {
+            try
+            {
+                var chainValue = protectedHeaders[x5chainLabel];
+                var reader = new CborReader(chainValue.EncodedValue);
+                var state = reader.PeekState();
+                if (state == CborReaderState.StartArray)
+                {
+                    var count = reader.ReadStartArray();
+                    info.CertificateChainLength = count ?? 0;
+                }
+                else if (state == CborReaderState.ByteString)
+                {
+                    info.CertificateChainLength = 1;
+                }
+            }
+            catch { }
+        }
+
+        // Payload hash algorithm
+        if (protectedHeaders.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg))
+        {
+            try
+            {
+                var reader = new CborReader(protectedHeaders[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg].EncodedValue);
+                var algId = reader.ReadInt32();
+                info.PayloadHashAlgorithm = new AlgorithmInfo
+                {
+                    Id = algId,
+                    Name = GetHashAlgorithmName(algId)
+                };
+            }
+            catch { }
+        }
+
+        // Preimage content type
+        if (protectedHeaders.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType))
+        {
+            try
+            {
+                var reader = new CborReader(protectedHeaders[CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType].EncodedValue);
+                if (reader.PeekState() == CborReaderState.TextString)
+                {
+                    info.PreimageContentType = reader.ReadTextString();
+                }
+            }
+            catch { }
+        }
+
+        // Payload location
+        if (protectedHeaders.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation))
+        {
+            try
+            {
+                var reader = new CborReader(protectedHeaders[CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation].EncodedValue);
+                if (reader.PeekState() == CborReaderState.TextString)
+                {
+                    info.PayloadLocation = reader.ReadTextString();
+                }
+            }
+            catch { }
+        }
+
+        // Collect other headers
+        var otherHeaders = new List<HeaderInfo>();
+        foreach (var header in protectedHeaders)
+        {
+            // Skip already processed headers
+            if (header.Key.Equals(CoseHeaderLabel.Algorithm) ||
+                header.Key.Equals(CoseHeaderLabel.ContentType) ||
+                header.Key.Equals(CoseHeaderLabel.CriticalHeaders) ||
+                header.Key.Equals(x5tLabel) ||
+                header.Key.Equals(x5chainLabel) ||
+                header.Key.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg) ||
+                header.Key.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType) ||
+                header.Key.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation) ||
+                header.Key.Equals(CWTClaimsHeaderLabels.CWTClaims))
+            {
+                continue;
+            }
+
+            otherHeaders.Add(BuildHeaderInfo(header.Key, header.Value));
+        }
+
+        if (otherHeaders.Count > 0)
+        {
+            info.OtherHeaders = otherHeaders;
+        }
+
+        return info;
+    }
+
+    private List<HeaderInfo>? BuildUnprotectedHeaders(CoseSign1Message message)
+    {
+        var unprotectedHeaders = message.UnprotectedHeaders;
+        if (unprotectedHeaders.Count == 0)
+        {
+            return null;
+        }
+
+        var headers = new List<HeaderInfo>();
+        foreach (var kvp in unprotectedHeaders)
+        {
+            headers.Add(BuildHeaderInfo(kvp.Key, kvp.Value));
+        }
+        return headers;
+    }
+
+    private HeaderInfo BuildHeaderInfo(CoseHeaderLabel label, CoseHeaderValue value)
+    {
+        var info = new HeaderInfo
+        {
+            Label = GetHeaderName(label),
+            LengthBytes = value.EncodedValue.Length
+        };
+
+        // Try to get the label ID
+        try
+        {
+            foreach (var (key, _) in WellKnownHeaders)
+            {
+                if (label.Equals(new CoseHeaderLabel(key)))
+                {
+                    info.LabelId = key;
+                    break;
+                }
+            }
+        }
+        catch { }
+
+        // Try to decode the value
+        try
+        {
+            var reader = new CborReader(value.EncodedValue);
+            var state = reader.PeekState();
+
+            switch (state)
+            {
+                case CborReaderState.TextString:
+                    info.Value = reader.ReadTextString();
+                    info.ValueType = "string";
+                    break;
+                case CborReaderState.UnsignedInteger:
+                    info.Value = reader.ReadUInt64();
+                    info.ValueType = "uint";
+                    break;
+                case CborReaderState.NegativeInteger:
+                    info.Value = reader.ReadInt64();
+                    info.ValueType = "int";
+                    break;
+                case CborReaderState.ByteString:
+                    var bytes = reader.ReadByteString();
+                    info.ValueType = "bytes";
+                    info.LengthBytes = bytes.Length;
+                    break;
+                case CborReaderState.StartArray:
+                    var count = reader.ReadStartArray();
+                    info.ValueType = "array";
+                    info.LengthBytes = count ?? 0;
+                    break;
+                case CborReaderState.StartMap:
+                    var mapCount = reader.ReadStartMap();
+                    info.ValueType = "map";
+                    info.LengthBytes = mapCount ?? 0;
+                    break;
+                case CborReaderState.Boolean:
+                    info.Value = reader.ReadBoolean();
+                    info.ValueType = "bool";
+                    break;
+                default:
+                    info.ValueType = "unknown";
+                    break;
+            }
+        }
+        catch
+        {
+            info.ValueType = "binary";
+        }
+
+        return info;
+    }
+
+    private CwtClaimsInfo? BuildCwtClaims(CoseSign1Message message)
+    {
+        if (!message.ProtectedHeaders.TryGetCwtClaims(out var claims) || claims == null)
+        {
+            return null;
+        }
+
+        var info = new CwtClaimsInfo();
+
+        if (!string.IsNullOrEmpty(claims.Issuer))
+        {
+            info.Issuer = claims.Issuer;
+        }
+
+        if (!string.IsNullOrEmpty(claims.Subject))
+        {
+            info.Subject = claims.Subject;
+        }
+
+        if (!string.IsNullOrEmpty(claims.Audience))
+        {
+            info.Audience = claims.Audience;
+        }
+
+        if (claims.IssuedAt.HasValue)
+        {
+            info.IssuedAt = claims.IssuedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.IssuedAtUnix = claims.IssuedAt.Value.ToUnixTimeSeconds();
+        }
+
+        if (claims.NotBefore.HasValue)
+        {
+            info.NotBefore = claims.NotBefore.Value.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.NotBeforeUnix = claims.NotBefore.Value.ToUnixTimeSeconds();
+        }
+
+        if (claims.ExpirationTime.HasValue)
+        {
+            var expiry = claims.ExpirationTime.Value;
+            info.ExpirationTime = expiry.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.ExpirationTimeUnix = expiry.ToUnixTimeSeconds();
+            info.IsExpired = expiry < DateTimeOffset.UtcNow;
+        }
+
+        if (claims.CwtId != null && claims.CwtId.Length > 0)
+        {
+            info.CwtId = Convert.ToHexString(claims.CwtId);
+        }
+
+        if (claims.CustomClaims.Count > 0)
+        {
+            info.CustomClaimsCount = claims.CustomClaims.Count;
+        }
+
+        return info;
+    }
+
+    private PayloadInfo BuildPayloadInfo(CoseSign1Message message)
+    {
+        var payload = message.Content;
+        var info = new PayloadInfo
+        {
+            IsEmbedded = payload.HasValue && payload.Value.Length > 0
+        };
+
+        if (info.IsEmbedded)
+        {
+            info.SizeBytes = payload.Value.Length;
+            info.IsText = IsLikelyText(payload.Value.Span);
+
+            if (info.IsText == true)
+            {
+                int previewLength = Math.Min(100, payload.Value.Length);
+                var preview = System.Text.Encoding.UTF8.GetString(payload.Value.Span.Slice(0, previewLength));
+                if (payload.Value.Length > 100)
+                {
+                    preview += "...";
+                }
+                info.Preview = preview;
+            }
+            else
+            {
+                info.Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Value.Span));
+            }
+        }
+
+        return info;
+    }
+
+    private SignatureInfo BuildSignatureInfo(CoseSign1Message message)
+    {
+        var encoded = message.Encode();
+        var info = new SignatureInfo
+        {
+            TotalSizeBytes = encoded.Length
+        };
+
+        var x5chainLabel = new CoseHeaderLabel(33);
+        if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
+        {
+            info.CertificateChainLocation = "unprotected";
+        }
+        else if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
+        {
+            info.CertificateChainLocation = "protected";
+        }
+
+        return info;
+    }
+
+    private List<CertificateInfo>? BuildCertificateInfo(CoseSign1Message message)
+    {
+        var x5chainLabel = new CoseHeaderLabel(33);
+        CoseHeaderValue? chainValue = null;
+
+        if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
+        {
+            chainValue = message.ProtectedHeaders[x5chainLabel];
+        }
+        else if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
+        {
+            chainValue = message.UnprotectedHeaders[x5chainLabel];
+        }
+
+        if (chainValue == null)
+        {
+            return null;
+        }
+
+        var certs = new List<CertificateInfo>();
+
+        try
+        {
+            var reader = new CborReader(chainValue.Value.EncodedValue);
+            var state = reader.PeekState();
+
+            var certBytes = new List<byte[]>();
+            if (state == CborReaderState.StartArray)
+            {
+                reader.ReadStartArray();
+                while (reader.PeekState() != CborReaderState.EndArray)
+                {
+                    certBytes.Add(reader.ReadByteString());
+                }
+            }
+            else if (state == CborReaderState.ByteString)
+            {
+                certBytes.Add(reader.ReadByteString());
+            }
+
+            foreach (var certData in certBytes)
+            {
+                try
+                {
+                    using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificate(certData);
+                    certs.Add(new CertificateInfo
+                    {
+                        Subject = cert.Subject,
+                        Issuer = cert.Issuer,
+                        SerialNumber = cert.SerialNumber,
+                        Thumbprint = cert.Thumbprint,
+                        NotBefore = cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+                        NotAfter = cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+                        IsExpired = cert.NotAfter < DateTime.UtcNow,
+                        KeyAlgorithm = cert.GetKeyAlgorithm(),
+                        SignatureAlgorithm = cert.SignatureAlgorithm.FriendlyName
+                    });
+                }
+                catch
+                {
+                    // Skip malformed certificates
+                }
+            }
+        }
+        catch { }
+
+        return certs.Count > 0 ? certs : null;
     }
 
     private void DisplayProtectedHeaders(CoseSign1Message message)
@@ -266,6 +726,46 @@ public class CoseInspectionService
         else
         {
             Formatter.WriteKeyValue("  Content", "Detached (no embedded payload)");
+        }
+    }
+
+    private async Task ExtractPayloadAsync(CoseSign1Message message, string extractPath)
+    {
+        var payload = message.Content;
+
+        if (!payload.HasValue || payload.Value.Length == 0)
+        {
+            Formatter.WriteWarning("Cannot extract payload: signature has no embedded payload (detached)");
+            return;
+        }
+
+        try
+        {
+            if (extractPath == "-")
+            {
+                // Write to stdout
+                using var stdout = Console.OpenStandardOutput();
+                await stdout.WriteAsync(payload.Value.ToArray());
+                await stdout.FlushAsync();
+            }
+            else
+            {
+                // Write to file
+                var fullPath = Path.GetFullPath(extractPath);
+                var directory = Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await File.WriteAllBytesAsync(fullPath, payload.Value.ToArray());
+                Formatter.WriteSuccess($"Payload extracted to: {fullPath}");
+                Formatter.WriteKeyValue("  Extracted Size", $"{payload.Value.Length:N0} bytes");
+            }
+        }
+        catch (Exception ex)
+        {
+            Formatter.WriteError($"Failed to extract payload: {ex.Message}");
         }
     }
 

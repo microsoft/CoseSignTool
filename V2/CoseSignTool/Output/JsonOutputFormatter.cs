@@ -65,11 +65,23 @@ public class JsonOutputFormatter : IOutputFormatter
     }
 
     /// <inheritdoc/>
+    public void WriteStructuredData<T>(T data) where T : class
+    {
+        // When structured data is provided, use it as the primary output
+        StructuredData = data;
+    }
+
+    private object? StructuredData { get; set; }
+
+    /// <inheritdoc/>
     public void Flush()
     {
-        var json = JsonSerializer.Serialize(Messages, new JsonSerializerOptions
+        // If structured data was provided, output that instead of messages
+        var outputObject = StructuredData ?? Messages;
+        var json = JsonSerializer.Serialize(outputObject, new JsonSerializerOptions
         {
-            WriteIndented = true
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         });
         Output.WriteLine(json);
     }

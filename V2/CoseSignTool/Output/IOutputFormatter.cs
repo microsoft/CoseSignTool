@@ -45,6 +45,15 @@ public interface IOutputFormatter
     void EndSection();
 
     /// <summary>
+    /// Writes a structured object as the primary output.
+    /// Used for structured output formats like JSON to provide rich data.
+    /// Text formatters may ignore this and rely on key-value pairs instead.
+    /// </summary>
+    /// <typeparam name="T">The type of the structured data.</typeparam>
+    /// <param name="data">The structured data object.</param>
+    void WriteStructuredData<T>(T data) where T : class;
+
+    /// <summary>
     /// Flushes any buffered output.
     /// </summary>
     void Flush();

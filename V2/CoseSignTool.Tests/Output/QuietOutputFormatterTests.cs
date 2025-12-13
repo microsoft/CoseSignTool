@@ -80,4 +80,16 @@ public class QuietOutputFormatterTests
         // Act & Assert - should not throw
         formatter.EndSection();
     }
+
+    [Test]
+    public void WriteStructuredData_ProducesNoOutput()
+    {
+        // Arrange
+        var formatter = new QuietOutputFormatter();
+        var structuredData = new { name = "Test", value = 42 };
+
+        // Act & Assert - should not throw
+        formatter.WriteStructuredData(structuredData);
+        formatter.Flush();
+    }
 }

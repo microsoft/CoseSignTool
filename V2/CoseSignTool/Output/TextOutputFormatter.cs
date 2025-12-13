@@ -67,6 +67,12 @@ public class TextOutputFormatter : IOutputFormatter
     }
 
     /// <inheritdoc/>
+    public void WriteStructuredData<T>(T data) where T : class
+    {
+        // Text formatter ignores structured data - uses key-value output instead
+    }
+
+    /// <inheritdoc/>
     public void Flush()
     {
         Output.Flush();

@@ -105,7 +105,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for detached signing");
 
             // Act - Sign with detached option
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --detached");
+            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));

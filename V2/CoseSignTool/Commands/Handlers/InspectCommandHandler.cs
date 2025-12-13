@@ -29,8 +29,9 @@ public class InspectCommandHandler
     /// Handles the inspect command asynchronously.
     /// </summary>
     /// <param name="context">The invocation context containing command arguments and options.</param>
+    /// <param name="extractPayloadPath">Optional path to extract the embedded payload to. Use "-" for stdout.</param>
     /// <returns>Exit code indicating success or failure.</returns>
-    public async Task<int> HandleAsync(InvocationContext context)
+    public async Task<int> HandleAsync(InvocationContext context, string? extractPayloadPath = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -59,7 +60,7 @@ public class InspectCommandHandler
             }
 
             // Use the inspection service to inspect the file
-            var result = await InspectionService.InspectAsync(file.FullName);
+            var result = await InspectionService.InspectAsync(file.FullName, extractPayloadPath);
             Formatter.Flush();
             return result;
         }

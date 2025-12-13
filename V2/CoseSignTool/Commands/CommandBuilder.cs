@@ -307,6 +307,10 @@ public class CommandBuilder
             "EXAMPLES:\n" +
             "  # Inspect a signature file:\n" +
             "    cosesigntool inspect signature.cose\n\n" +
+            "  # Extract embedded payload to a file:\n" +
+            "    cosesigntool inspect signature.cose --extract-payload payload.bin\n\n" +
+            "  # Extract payload to stdout:\n" +
+            "    cosesigntool inspect signature.cose --extract-payload - > payload.bin\n\n" +
             "  # JSON output for scripting:\n" +
             "    cosesigntool inspect signature.cose -f json\n\n" +
             "  # Inspect and filter with jq:\n" +
@@ -319,6 +323,14 @@ public class CommandBuilder
             "file",
             "Path to the COSE signature file to inspect");
         command.AddArgument(fileArgument);
+
+        // Extract payload option
+        var extractPayloadOption = new Option<string?>(
+            name: "--extract-payload",
+            description: "Extract embedded payload to the specified path. Use '-' for stdout.\n" +
+                        "  Only works if the signature contains an embedded payload.");
+        extractPayloadOption.AddAlias("-x");
+        command.AddOption(extractPayloadOption);
 
         // Set handler
         command.SetHandler(async (context) =>
@@ -338,9 +350,20 @@ public class CommandBuilder
                 }
             }
 
+            // Get extract-payload option
+            string? extractPayload = null;
+            foreach (var opt in context.ParseResult.CommandResult.Command.Options)
+            {
+                if (opt.Name == "extract-payload")
+                {
+                    extractPayload = context.ParseResult.GetValueForOption(opt) as string;
+                    break;
+                }
+            }
+
             var formatter = OutputFormatterFactory.Create(outputFormat);
             var handler = new InspectCommandHandler(formatter);
-            var exitCode = await handler.HandleAsync(context);
+            var exitCode = await handler.HandleAsync(context, extractPayload);
             context.ExitCode = exitCode;
         });
 

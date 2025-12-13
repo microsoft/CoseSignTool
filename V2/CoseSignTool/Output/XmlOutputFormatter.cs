@@ -68,6 +68,12 @@ public class XmlOutputFormatter : IOutputFormatter
     }
 
     /// <inheritdoc/>
+    public void WriteStructuredData<T>(T data) where T : class
+    {
+        // XML formatter uses message-based output
+    }
+
+    /// <inheritdoc/>
     public void Flush()
     {
         var root = new XElement("CoseSignToolOutput", Messages);

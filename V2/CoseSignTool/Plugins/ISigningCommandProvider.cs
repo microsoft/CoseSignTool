@@ -4,7 +4,7 @@
 using System.CommandLine;
 using CoseSign1.Abstractions;
 
-namespace CoseSignTool.Abstractions;
+namespace CoseSignTool.Plugins;
 
 /// <summary>
 /// Interface for plugins that provide signing commands.

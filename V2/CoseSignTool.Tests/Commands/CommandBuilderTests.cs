@@ -115,7 +115,7 @@ public class CommandBuilderTests
     }
 
     [Test]
-    public void BuildRootCommand_SignEphemeralCommandHasDetachedOption()
+    public void BuildRootCommand_SignEphemeralCommandHasDetachedAliasForSignatureType()
     {
         // Arrange
         var builder = new CommandBuilder();
@@ -125,8 +125,10 @@ public class CommandBuilderTests
         var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
 
         // Assert
-        var detachedOption = signCommand.Options.FirstOrDefault(o => o.Name == "detached");
-        Assert.That(detachedOption, Is.Not.Null);
+        var signatureTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "signature-type");
+        Assert.That(signatureTypeOption, Is.Not.Null);
+        // -d is now an alias for --signature-type
+        Assert.That(signatureTypeOption!.Aliases, Does.Contain("-d"));
     }
 
     [Test]

@@ -144,7 +144,7 @@ public class CommandIntegrationTests
     }
 
     [Test]
-    public async Task SignCommand_WithDetachedOption_ReturnsSuccess()
+    public async Task SignCommand_WithDetachedSignatureType_ReturnsSuccess()
     {
         // Arrange
         var builder = new CommandBuilder();
@@ -154,8 +154,8 @@ public class CommandIntegrationTests
 
         try
         {
-            // Act
-            var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --detached");
+            // Act - use --signature-type detached (or -d shorthand)
+            var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --signature-type detached");
 
             // Assert
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));

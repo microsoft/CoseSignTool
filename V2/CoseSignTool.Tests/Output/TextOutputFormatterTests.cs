@@ -144,4 +144,20 @@ public class TextOutputFormatterTests
         var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
         Assert.That(lines.Count(), Is.EqualTo(3));
     }
+
+    [Test]
+    public void WriteStructuredData_IsIgnored()
+    {
+        // Arrange
+        using var output = new StringWriter();
+        var formatter = new TextOutputFormatter(output);
+        var structuredData = new { name = "Test", value = 42 };
+
+        // Act
+        formatter.WriteStructuredData(structuredData);
+        formatter.Flush();
+
+        // Assert - TextOutputFormatter ignores structured data
+        Assert.That(output.ToString(), Is.Empty);
+    }
 }

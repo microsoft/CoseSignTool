@@ -51,6 +51,12 @@ public class QuietOutputFormatter : IOutputFormatter
     }
 
     /// <inheritdoc/>
+    public void WriteStructuredData<T>(T data) where T : class
+    {
+        // Suppress output
+    }
+
+    /// <inheritdoc/>
     public void Flush()
     {
         // No output

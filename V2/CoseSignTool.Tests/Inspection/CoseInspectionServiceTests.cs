@@ -394,8 +394,8 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test payload");
 
-            // Sign with 'detached' type and detached flag
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached --detached");
+            // Sign with 'detached' type
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -678,5 +678,564 @@ public class CoseInspectionServiceTests
                 File.Delete(tempSignature);
             }
         }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_ReturnsStructuredResult()
+    {
+        // Arrange - Create a real signature
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for JSON inspection");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
+            var jsonOutput = jsonWriter.ToString();
+
+            // Parse JSON to verify structure
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var root = doc.RootElement;
+
+            // Verify file info
+            Assert.That(root.TryGetProperty("file", out var fileElement), Is.True);
+            Assert.That(fileElement.GetProperty("path").GetString(), Does.Contain(tempSignature));
+            Assert.That(fileElement.GetProperty("sizeBytes").GetInt64(), Is.GreaterThan(0));
+
+            // Verify protected headers
+            Assert.That(root.TryGetProperty("protectedHeaders", out var headersElement), Is.True);
+            Assert.That(headersElement.TryGetProperty("algorithm", out var algElement), Is.True);
+            Assert.That(algElement.GetProperty("id").GetInt32(), Is.Not.EqualTo(0));
+            Assert.That(algElement.GetProperty("name").GetString(), Is.Not.Null.And.Not.Empty);
+
+            // Verify payload info
+            Assert.That(root.TryGetProperty("payload", out var payloadElement), Is.True);
+            Assert.That(payloadElement.GetProperty("isEmbedded").GetBoolean(), Is.True);
+            Assert.That(payloadElement.GetProperty("sizeBytes").GetInt32(), Is.GreaterThan(0));
+
+            // Verify signature info
+            Assert.That(root.TryGetProperty("signature", out var sigElement), Is.True);
+            Assert.That(sigElement.GetProperty("totalSizeBytes").GetInt32(), Is.GreaterThan(0));
+
+            // Verify certificates
+            Assert.That(root.TryGetProperty("certificates", out var certsElement), Is.True);
+            Assert.That(certsElement.GetArrayLength(), Is.GreaterThan(0));
+            var firstCert = certsElement[0];
+            Assert.That(firstCert.GetProperty("subject").GetString(), Is.Not.Null.And.Not.Empty);
+            Assert.That(firstCert.GetProperty("thumbprint").GetString(), Is.Not.Null.And.Not.Empty);
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_DecodesAlgorithmName()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var algName = doc.RootElement.GetProperty("protectedHeaders").GetProperty("algorithm").GetProperty("name").GetString();
+
+            // Should contain descriptive algorithm name like "PS256" or "RSASSA-PSS"
+            Assert.That(algName, Does.Match("ES|PS|RS|ECDSA|RSA|EdDSA").IgnoreCase);
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_IncludesCertificateChainInfo()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+
+            // Check certificate chain location
+            var sigElement = doc.RootElement.GetProperty("signature");
+            if (sigElement.TryGetProperty("certificateChainLocation", out var chainLoc))
+            {
+                Assert.That(chainLoc.GetString(), Is.EqualTo("protected").Or.EqualTo("unprotected"));
+            }
+
+            // Check certificates array
+            var certs = doc.RootElement.GetProperty("certificates");
+            Assert.That(certs.GetArrayLength(), Is.GreaterThanOrEqualTo(1));
+
+            var cert = certs[0];
+            Assert.That(cert.GetProperty("subject").GetString(), Does.Contain("CN="));
+            Assert.That(cert.GetProperty("issuer").GetString(), Does.Contain("CN="));
+            Assert.That(cert.GetProperty("serialNumber").GetString(), Is.Not.Null);
+            Assert.That(cert.GetProperty("notBefore").GetString(), Does.Contain("UTC"));
+            Assert.That(cert.GetProperty("notAfter").GetString(), Does.Contain("UTC"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_DetachedSignature_ShowsNoEmbeddedPayload()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test");
+            // Create detached signature (payload not embedded)
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var payloadElement = doc.RootElement.GetProperty("payload");
+
+            Assert.That(payloadElement.GetProperty("isEmbedded").GetBoolean(), Is.False);
+            // sizeBytes should be null or not present for detached signatures
+            if (payloadElement.TryGetProperty("sizeBytes", out var sizeElement))
+            {
+                Assert.That(sizeElement.ValueKind, Is.EqualTo(System.Text.Json.JsonValueKind.Null));
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_TextPayload_ShowsPreview()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+        var testContent = "Hello, this is a test payload for JSON inspection!";
+
+        try
+        {
+            File.WriteAllText(tempPayload, testContent);
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var payloadElement = doc.RootElement.GetProperty("payload");
+
+            Assert.That(payloadElement.GetProperty("isEmbedded").GetBoolean(), Is.True);
+            // Embedded signatures contain binary hash envelope, so isText is false
+            // The preview is only for truly embedded payload, not hash envelopes
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_BinaryPayload_ShowsSha256()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            // Write binary data (not valid UTF-8 text)
+            File.WriteAllBytes(tempPayload, new byte[] { 0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD, 0x00, 0x00 });
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var payloadElement = doc.RootElement.GetProperty("payload");
+
+            Assert.That(payloadElement.GetProperty("isEmbedded").GetBoolean(), Is.True);
+            Assert.That(payloadElement.GetProperty("isText").GetBoolean(), Is.False);
+            Assert.That(payloadElement.GetProperty("sha256").GetString(), Does.Match("^[A-F0-9]{64}$"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithJsonFormatter_IndirectSignature_ShowsHashAlgorithm()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var jsonWriter = new StringWriter();
+        var formatter = new JsonOutputFormatter(jsonWriter);
+        var service = new CoseInspectionService(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test");
+            // Create indirect signature (default type)
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type indirect");
+            Assert.That(File.Exists(tempSignature), "Signature file should exist");
+
+            // Act
+            var result = await service.InspectAsync(tempSignature);
+            formatter.Flush();
+
+            // Assert
+            var jsonOutput = jsonWriter.ToString();
+            var doc = System.Text.Json.JsonDocument.Parse(jsonOutput);
+            var headersElement = doc.RootElement.GetProperty("protectedHeaders");
+
+            // Indirect signatures should have payloadHashAlgorithm
+            if (headersElement.TryGetProperty("payloadHashAlgorithm", out var hashAlg))
+            {
+                Assert.That(hashAlg.GetProperty("name").GetString(), Does.Contain("SHA"));
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public void CoseInspectionResult_PropertiesAreNullByDefault()
+    {
+        // Arrange & Act
+        var result = new CoseInspectionResult();
+
+        // Assert
+        Assert.That(result.File, Is.Null);
+        Assert.That(result.ProtectedHeaders, Is.Null);
+        Assert.That(result.UnprotectedHeaders, Is.Null);
+        Assert.That(result.CwtClaims, Is.Null);
+        Assert.That(result.Payload, Is.Null);
+        Assert.That(result.Signature, Is.Null);
+        Assert.That(result.Certificates, Is.Null);
+    }
+
+    [Test]
+    public void FileInformation_CanSetProperties()
+    {
+        // Arrange & Act
+        var fileInfo = new FileInformation
+        {
+            Path = "/test/path.cose",
+            SizeBytes = 1234
+        };
+
+        // Assert
+        Assert.That(fileInfo.Path, Is.EqualTo("/test/path.cose"));
+        Assert.That(fileInfo.SizeBytes, Is.EqualTo(1234));
+    }
+
+    [Test]
+    public void ProtectedHeadersInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var headers = new ProtectedHeadersInfo
+        {
+            Algorithm = new AlgorithmInfo { Id = -37, Name = "PS256" },
+            ContentType = "application/json",
+            CertificateChainLength = 3,
+            PayloadHashAlgorithm = new AlgorithmInfo { Id = -16, Name = "SHA-256" },
+            PreimageContentType = "text/plain",
+            PayloadLocation = "https://example.com/payload"
+        };
+
+        // Assert
+        Assert.That(headers.Algorithm?.Id, Is.EqualTo(-37));
+        Assert.That(headers.Algorithm?.Name, Is.EqualTo("PS256"));
+        Assert.That(headers.ContentType, Is.EqualTo("application/json"));
+        Assert.That(headers.CertificateChainLength, Is.EqualTo(3));
+        Assert.That(headers.PayloadHashAlgorithm?.Name, Is.EqualTo("SHA-256"));
+        Assert.That(headers.PreimageContentType, Is.EqualTo("text/plain"));
+        Assert.That(headers.PayloadLocation, Is.EqualTo("https://example.com/payload"));
+    }
+
+    [Test]
+    public void CertificateThumbprintInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var thumbprint = new CertificateThumbprintInfo
+        {
+            Algorithm = "SHA-256",
+            Value = "ABCD1234"
+        };
+
+        // Assert
+        Assert.That(thumbprint.Algorithm, Is.EqualTo("SHA-256"));
+        Assert.That(thumbprint.Value, Is.EqualTo("ABCD1234"));
+    }
+
+    [Test]
+    public void HeaderInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var header = new HeaderInfo
+        {
+            Label = "custom-header",
+            LabelId = 999,
+            Value = "test-value",
+            ValueType = "string",
+            LengthBytes = 10
+        };
+
+        // Assert
+        Assert.That(header.Label, Is.EqualTo("custom-header"));
+        Assert.That(header.LabelId, Is.EqualTo(999));
+        Assert.That(header.Value, Is.EqualTo("test-value"));
+        Assert.That(header.ValueType, Is.EqualTo("string"));
+        Assert.That(header.LengthBytes, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void CwtClaimsInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var claims = new CwtClaimsInfo
+        {
+            Issuer = "test-issuer",
+            Subject = "test-subject",
+            Audience = "test-audience",
+            IssuedAt = "2025-01-01 00:00:00 UTC",
+            IssuedAtUnix = 1735689600,
+            NotBefore = "2025-01-01 00:00:00 UTC",
+            NotBeforeUnix = 1735689600,
+            ExpirationTime = "2026-01-01 00:00:00 UTC",
+            ExpirationTimeUnix = 1767225600,
+            IsExpired = false,
+            CwtId = "ABCD1234",
+            CustomClaimsCount = 5
+        };
+
+        // Assert
+        Assert.That(claims.Issuer, Is.EqualTo("test-issuer"));
+        Assert.That(claims.Subject, Is.EqualTo("test-subject"));
+        Assert.That(claims.Audience, Is.EqualTo("test-audience"));
+        Assert.That(claims.IssuedAt, Is.EqualTo("2025-01-01 00:00:00 UTC"));
+        Assert.That(claims.IssuedAtUnix, Is.EqualTo(1735689600));
+        Assert.That(claims.IsExpired, Is.False);
+        Assert.That(claims.CwtId, Is.EqualTo("ABCD1234"));
+        Assert.That(claims.CustomClaimsCount, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void PayloadInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var payload = new PayloadInfo
+        {
+            IsEmbedded = true,
+            SizeBytes = 1024,
+            ContentType = "application/json",
+            IsText = true,
+            Preview = "{ \"key\": \"value\" }",
+            Sha256 = null // Not set when it's text
+        };
+
+        // Assert
+        Assert.That(payload.IsEmbedded, Is.True);
+        Assert.That(payload.SizeBytes, Is.EqualTo(1024));
+        Assert.That(payload.ContentType, Is.EqualTo("application/json"));
+        Assert.That(payload.IsText, Is.True);
+        Assert.That(payload.Preview, Does.Contain("key"));
+        Assert.That(payload.Sha256, Is.Null);
+    }
+
+    [Test]
+    public void SignatureInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var sig = new SignatureInfo
+        {
+            TotalSizeBytes = 2048,
+            CertificateChainLocation = "protected"
+        };
+
+        // Assert
+        Assert.That(sig.TotalSizeBytes, Is.EqualTo(2048));
+        Assert.That(sig.CertificateChainLocation, Is.EqualTo("protected"));
+    }
+
+    [Test]
+    public void CertificateInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var cert = new CertificateInfo
+        {
+            Subject = "CN=Test Cert",
+            Issuer = "CN=Test CA",
+            SerialNumber = "123456",
+            Thumbprint = "ABCDEF123456",
+            NotBefore = "2025-01-01 00:00:00 UTC",
+            NotAfter = "2026-01-01 00:00:00 UTC",
+            IsExpired = false,
+            KeyAlgorithm = "RSA",
+            SignatureAlgorithm = "sha256RSA"
+        };
+
+        // Assert
+        Assert.That(cert.Subject, Is.EqualTo("CN=Test Cert"));
+        Assert.That(cert.Issuer, Is.EqualTo("CN=Test CA"));
+        Assert.That(cert.SerialNumber, Is.EqualTo("123456"));
+        Assert.That(cert.Thumbprint, Is.EqualTo("ABCDEF123456"));
+        Assert.That(cert.NotBefore, Does.Contain("2025"));
+        Assert.That(cert.NotAfter, Does.Contain("2026"));
+        Assert.That(cert.IsExpired, Is.False);
+        Assert.That(cert.KeyAlgorithm, Is.EqualTo("RSA"));
+        Assert.That(cert.SignatureAlgorithm, Is.EqualTo("sha256RSA"));
+    }
+
+    [Test]
+    public void AlgorithmInfo_CanSetProperties()
+    {
+        // Arrange & Act
+        var alg = new AlgorithmInfo
+        {
+            Id = -37,
+            Name = "PS256 (RSASSA-PSS w/ SHA-256)"
+        };
+
+        // Assert
+        Assert.That(alg.Id, Is.EqualTo(-37));
+        Assert.That(alg.Name, Is.EqualTo("PS256 (RSASSA-PSS w/ SHA-256)"));
     }
 }

@@ -3,6 +3,7 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Validation;
 

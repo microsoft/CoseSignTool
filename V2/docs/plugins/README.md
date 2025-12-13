@@ -61,10 +61,29 @@ public interface IPlugin
     string Version { get; }
     string Description { get; }
     
-    Task InitializeAsync(IDictionary<string, string>? options = null);
-    IEnumerable<ISigningCommandProvider> GetSigningCommandProviders();
-    IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors();
+    PluginExtensions GetExtensions();
     void RegisterCommands(Command rootCommand);
+    Task InitializeAsync(IDictionary<string, string>? configuration = null);
+}
+```
+
+### Plugin Extensions Model
+
+Plugins return all their capabilities through `PluginExtensions`:
+
+```csharp
+public sealed class PluginExtensions
+{
+    public PluginExtensions(
+        IEnumerable<ISigningCommandProvider> signingCommandProviders,
+        IEnumerable<IVerificationProvider> verificationProviders,
+        IEnumerable<ITransparencyProviderContributor> transparencyProviders);
+    
+    public IEnumerable<ISigningCommandProvider> SigningCommandProviders { get; }
+    public IEnumerable<IVerificationProvider> VerificationProviders { get; }
+    public IEnumerable<ITransparencyProviderContributor> TransparencyProviders { get; }
+    
+    public static PluginExtensions None => new();
 }
 ```
 
@@ -77,11 +96,33 @@ public interface ISigningCommandProvider
 {
     string CommandName { get; }
     string CommandDescription { get; }
+    string ExampleUsage { get; }
     
     void AddCommandOptions(Command command);
     Task<ISigningService<SigningOptions>> CreateSigningServiceAsync(
         IDictionary<string, object?> options);
     IDictionary<string, string> GetSigningMetadata();
+}
+```
+
+### Verification Provider
+
+Verification providers implement `IVerificationProvider`:
+
+```csharp
+public interface IVerificationProvider
+{
+    string ProviderName { get; }
+    string Description { get; }
+    int Priority { get; }
+    
+    void AddVerificationOptions(Command command);
+    bool IsActivated(ParseResult parseResult);
+    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult);
+    IDictionary<string, object?> GetVerificationMetadata(
+        ParseResult parseResult,
+        CoseSign1Message message,
+        ValidationResult validationResult);
 }
 ```
 

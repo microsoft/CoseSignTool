@@ -185,7 +185,7 @@ See [CLI Plugin Documentation](docs/plugins/README.md) for more details.
 
 ## Test Coverage
 
-V2 maintains high test coverage: **95.5%** with 1,654 tests.
+V2 maintains high test coverage: **95.5%** with 1,732 tests.
 
 ## Contributing
 

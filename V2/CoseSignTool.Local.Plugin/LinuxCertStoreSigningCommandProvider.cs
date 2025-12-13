@@ -4,7 +4,7 @@
 using System.CommandLine;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Local;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Local.Plugin;
 

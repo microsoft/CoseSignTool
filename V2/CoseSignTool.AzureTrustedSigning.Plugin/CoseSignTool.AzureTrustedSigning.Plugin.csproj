@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
     <ProjectReference Include="..\CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj" />
   </ItemGroup>
 

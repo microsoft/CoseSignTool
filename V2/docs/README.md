@@ -25,6 +25,9 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 - [CoseSign1.Headers](components/headers.md) - Header management and CWT claims
 - [CoseSign1.Validation](components/validation.md) - Validation framework
 
+#### CLI Tool Abstractions
+- [CoseSignTool.Abstractions](components/cosesigntool-abstractions.md) - Plugin interfaces for extending the CLI tool
+
 #### Certificate Support
 - [CoseSign1.Certificates](components/certificates.md) - Certificate-based signing
 - [CoseSign1.Certificates.AzureTrustedSigning](components/azure-trusted-signing.md) - Azure Trusted Signing integration
@@ -97,7 +100,7 @@ V2 represents a fundamental redesign with these major improvements:
 **Current Version**: 2.0.0-preview  
 **Status**: Preview - API surface may change  
 **Target Release**: Q1 2026  
-**Test Coverage**: 95.5% line coverage (1,653 tests)
+**Test Coverage**: 95.5% line coverage (1,732 tests)
 
 V2 is currently in preview and will eventually replace V1 entirely. Both versions are maintained during the transition period.
 

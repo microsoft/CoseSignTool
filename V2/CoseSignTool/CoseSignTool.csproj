@@ -38,6 +38,7 @@
         <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
         <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
         <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+        <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
     </ItemGroup>
 
     <ItemGroup>

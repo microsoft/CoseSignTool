@@ -68,7 +68,8 @@ public class CertificateSignatureValidatorTests
         var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
-        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+        // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
     }
 
     [Test]
@@ -87,7 +88,8 @@ public class CertificateSignatureValidatorTests
         var result = await validator.ValidateAsync(ValidMessage!, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.True);
-        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+        // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
     }
 
     [Test]

@@ -4,49 +4,43 @@
 namespace CoseSignTool.Output;
 
 /// <summary>
-/// Interface for formatting command output.
+/// Interface for formatting command output in CoseSignTool.
+/// This is an internal interface - plugins should not depend on it.
 /// </summary>
 public interface IOutputFormatter
 {
     /// <summary>
-    /// Writes a success message to the console.
+    /// Writes an informational message.
     /// </summary>
-    /// <param name="message">The message to write.</param>
-    void WriteSuccess(string message);
-
-    /// <summary>
-    /// Writes an error message to the console.
-    /// </summary>
-    /// <param name="message">The error message to write.</param>
-    void WriteError(string message);
-
-    /// <summary>
-    /// Writes an informational message to the console.
-    /// </summary>
-    /// <param name="message">The message to write.</param>
     void WriteInfo(string message);
 
     /// <summary>
-    /// Writes a warning message to the console.
+    /// Writes a success message.
     /// </summary>
-    /// <param name="message">The warning message to write.</param>
+    void WriteSuccess(string message);
+
+    /// <summary>
+    /// Writes a warning message.
+    /// </summary>
     void WriteWarning(string message);
 
     /// <summary>
-    /// Writes a key-value pair to the output.
+    /// Writes an error message.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
+    void WriteError(string message);
+
+    /// <summary>
+    /// Writes a key-value pair.
+    /// </summary>
     void WriteKeyValue(string key, string value);
 
     /// <summary>
-    /// Begins a new output section.
+    /// Begins a named section in the output.
     /// </summary>
-    /// <param name="title">The section title.</param>
     void BeginSection(string title);
 
     /// <summary>
-    /// Ends the current output section.
+    /// Ends the current section.
     /// </summary>
     void EndSection();
 

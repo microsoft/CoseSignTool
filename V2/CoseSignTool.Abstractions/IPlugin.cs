@@ -3,11 +3,11 @@
 
 using System.CommandLine;
 
-namespace CoseSignTool.Plugins;
+namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Interface for CoseSignTool plugins that can extend functionality.
-/// Plugins can provide signing commands, verification providers, or other extensions.
+/// Plugins can provide signing commands, verification providers, transparency providers, or other extensions.
 /// </summary>
 public interface IPlugin
 {
@@ -27,27 +27,14 @@ public interface IPlugin
     string Description { get; }
 
     /// <summary>
-    /// Gets the signing command providers offered by this plugin.
-    /// Return empty collection if plugin doesn't provide signing commands.
+    /// Gets all extension points this plugin provides.
+    /// Return <see cref="PluginExtensions.None"/> if plugin provides no extensions.
     /// </summary>
-    IEnumerable<ISigningCommandProvider> GetSigningCommandProviders();
+    PluginExtensions GetExtensions();
 
     /// <summary>
-    /// Gets the verification providers offered by this plugin.
-    /// Return empty collection if plugin doesn't provide verification capabilities.
-    /// </summary>
-    IEnumerable<IVerificationProvider> GetVerificationProviders();
-
-    /// <summary>
-    /// Gets the transparency provider contributors offered by this plugin.
-    /// Return empty collection if plugin doesn't provide transparency services.
-    /// </summary>
-    IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors();
-
-    /// <summary>
-    /// Registers additional (non-signing) commands with the root command.
-    /// For example: verify commands, utility commands, etc.
-    /// Signing commands are registered automatically via GetSigningCommandProviders().
+    /// Registers additional commands with the root command.
+    /// Use this for utility commands that don't fit the standard signing/verification pattern.
     /// </summary>
     /// <param name="rootCommand">The root command to register with.</param>
     void RegisterCommands(Command rootCommand);

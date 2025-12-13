@@ -4,6 +4,7 @@
 using System.CommandLine;
 using System.CommandLine.Help;
 using CoseSign1.Abstractions.Transparency;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Commands.Providers;
@@ -151,11 +152,22 @@ public class CommandBuilder
 
             foreach (var plugin in plugins)
             {
+                // Get all extensions from this plugin
+                PluginExtensions extensions;
+                try
+                {
+                    extensions = plugin.GetExtensions();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: Failed to get extensions from plugin '{plugin.Name}': {ex.Message}");
+                    continue;
+                }
+
                 // Collect transparency providers
                 try
                 {
-                    var contributors = plugin.GetTransparencyProviderContributors();
-                    foreach (var contributor in contributors)
+                    foreach (var contributor in extensions.TransparencyProviders)
                     {
                         var providerTask = contributor.CreateTransparencyProviderAsync(new Dictionary<string, object?>());
                         providerTask.Wait();
@@ -170,8 +182,7 @@ public class CommandBuilder
                 // Collect verification providers
                 try
                 {
-                    var providers = plugin.GetVerificationProviders();
-                    verificationProvidersList.AddRange(providers);
+                    verificationProvidersList.AddRange(extensions.VerificationProviders);
                 }
                 catch (Exception ex)
                 {
@@ -191,9 +202,10 @@ public class CommandBuilder
             {
                 try
                 {
+                    var extensions = plugin.GetExtensions();
+
                     // Register signing commands via providers (centralized I/O, factories managed by main exe)
-                    var signingProviders = plugin.GetSigningCommandProviders();
-                    foreach (var provider in signingProviders)
+                    foreach (var provider in extensions.SigningCommandProviders)
                     {
                         var signingCommand = signingCommandBuilder.BuildSigningCommand(provider);
                         rootCommand.AddCommand(signingCommand);

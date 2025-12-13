@@ -5,8 +5,8 @@ using System.CommandLine.Invocation;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Output;
-using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Commands.Handlers;
 

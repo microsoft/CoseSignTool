@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using CoseSignTool.Abstractions;
 using CoseSignTool.AzureTrustedSigning.Plugin;
 
 namespace CoseSignTool.AzureTrustedSigning.Plugin.Tests;
@@ -76,31 +77,46 @@ public class AzureTrustedSigningPluginTests
     }
 
     [Test]
-    public void GetSigningCommandProviders_ReturnsAzureProvider()
+    public void GetExtensions_SigningCommandProviders_ReturnsAzureProvider()
     {
         // Arrange
         var plugin = new AzureTrustedSigningPlugin();
 
         // Act
-        var providers = plugin.GetSigningCommandProviders().ToList();
+        var extensions = plugin.GetExtensions();
+        var providers = extensions.SigningCommandProviders.ToList();
 
         // Assert
         Assert.That(providers, Is.Not.Null);
         Assert.That(providers, Has.Count.EqualTo(1));
-        Assert.That(providers, Has.Some.Matches<CoseSignTool.Plugins.ISigningCommandProvider>(p => p.CommandName == "sign-azure"));
+        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-azure"));
     }
 
     [Test]
-    public void GetTransparencyProviderContributors_ReturnsEmpty()
+    public void GetExtensions_TransparencyProviders_ReturnsEmpty()
     {
         // Arrange
         var plugin = new AzureTrustedSigningPlugin();
 
         // Act
-        var contributors = plugin.GetTransparencyProviderContributors().ToList();
+        var extensions = plugin.GetExtensions();
+        var contributors = extensions.TransparencyProviders.ToList();
 
         // Assert
         Assert.That(contributors, Is.Empty);
+    }
+
+    [Test]
+    public void GetExtensions_VerificationProviders_ReturnsEmpty()
+    {
+        // Arrange
+        var plugin = new AzureTrustedSigningPlugin();
+
+        // Act
+        var extensions = plugin.GetExtensions();
+
+        // Assert
+        Assert.That(extensions.VerificationProviders, Is.Empty);
     }
 
     [Test]

@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using System.Reflection;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Tests.Plugins;
@@ -274,19 +275,9 @@ public class PluginLoaderTests
         public string Version => "1.0.0";
         public string Description => "Test plugin for unit tests";
 
-        public IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
+        public PluginExtensions GetExtensions()
         {
-            return Enumerable.Empty<ISigningCommandProvider>();
-        }
-
-        public IEnumerable<IVerificationProvider> GetVerificationProviders()
-        {
-            return Enumerable.Empty<IVerificationProvider>();
-        }
-
-        public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
-        {
-            return Enumerable.Empty<ITransparencyProviderContributor>();
+            return PluginExtensions.None;
         }
 
         public void RegisterCommands(Command rootCommand)

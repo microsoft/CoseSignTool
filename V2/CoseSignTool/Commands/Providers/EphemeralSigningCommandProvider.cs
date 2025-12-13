@@ -7,7 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Local;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Commands.Providers;

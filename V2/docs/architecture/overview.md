@@ -321,6 +321,55 @@ V2 is designed for extensibility at multiple levels:
 | Validators | `IValidator<T>` | Custom validation logic |
 | Transparency | `ITransparencyProvider` | Custom transparency services |
 | CLI Plugins | `IPlugin` | Custom CoseSignTool commands |
+| CLI Signing Commands | `ISigningCommandProvider` | Custom signing commands (e.g., `sign-pfx`) |
+| CLI Verification | `IVerificationProvider` | Custom verification providers |
+| CLI Transparency | `ITransparencyProviderContributor` | Custom transparency integration |
+
+### 10. CLI Plugin Architecture
+
+The `CoseSignTool.Abstractions` package defines the CLI plugin system:
+
+**Core Plugin Interface**:
+```csharp
+public interface IPlugin
+{
+    string Name { get; }
+    string Version { get; }
+    string Description { get; }
+    
+    PluginExtensions GetExtensions();
+    void RegisterCommands(Command rootCommand);
+    Task InitializeAsync(IDictionary<string, string>? configuration = null);
+}
+```
+
+**PluginExtensions Model**:
+Plugins return all their capabilities through a single `PluginExtensions` object:
+```csharp
+public sealed class PluginExtensions
+{
+    public PluginExtensions(
+        IEnumerable<ISigningCommandProvider> signingCommandProviders,
+        IEnumerable<IVerificationProvider> verificationProviders,
+        IEnumerable<ITransparencyProviderContributor> transparencyProviders);
+    
+    public IEnumerable<ISigningCommandProvider> SigningCommandProviders { get; }
+    public IEnumerable<IVerificationProvider> VerificationProviders { get; }
+    public IEnumerable<ITransparencyProviderContributor> TransparencyProviders { get; }
+    
+    public static PluginExtensions None => new(); // Empty extensions
+}
+```
+
+**Extension Interfaces**:
+
+| Interface | Purpose | Example |
+|-----------|---------|---------|
+| `ISigningCommandProvider` | Adds signing commands | `sign-pfx`, `sign-azure` |
+| `IVerificationProvider` | Adds verification validators | Certificate validation, MST verification |
+| `ITransparencyProviderContributor` | Integrates transparency services | MST receipt generation |
+
+See [CLI Plugin Documentation](../plugins/README.md) for complete details.
 
 ## Thread Safety
 

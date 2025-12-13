@@ -8,8 +8,9 @@ namespace CoseSign1.Certificates.Validation;
 
 /// <summary>
 /// Validates a detached COSE signature using the certificate from x5t/x5chain headers.
+/// For public use, prefer <see cref="CertificateSignatureValidator"/> which auto-detects embedded vs detached.
 /// </summary>
-public sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
+internal sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
 {
     private readonly ReadOnlyMemory<byte> Payload;
     private readonly bool AllowUnprotectedHeaders;

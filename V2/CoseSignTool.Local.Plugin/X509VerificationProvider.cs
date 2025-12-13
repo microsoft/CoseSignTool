@@ -7,7 +7,7 @@ using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Local.Plugin;
 

@@ -64,9 +64,9 @@ public class CertificateSignatureValidatorAdditionalTests
         // Assert
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures, Has.Count.EqualTo(1));
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("DETACHED_CONTENT_NOT_SUPPORTED"));
+        // When no payload is provided for a detached signature, the error is MISSING_DETACHED_PAYLOAD
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MISSING_DETACHED_PAYLOAD"));
         Assert.That(result.Failures[0].Message, Does.Contain("detached"));
-        Assert.That(result.Failures[0].Message, Does.Contain("CertificateDetachedSignatureValidator"));
     }
 
     [Test]
@@ -102,7 +102,7 @@ public class CertificateSignatureValidatorAdditionalTests
 
         // Assert
         Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("DETACHED_CONTENT_NOT_SUPPORTED"));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MISSING_DETACHED_PAYLOAD"));
     }
 
     [Test]
@@ -117,7 +117,7 @@ public class CertificateSignatureValidatorAdditionalTests
 
         // Assert
         Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("DETACHED_CONTENT_NOT_SUPPORTED"));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MISSING_DETACHED_PAYLOAD"));
     }
 
     #endregion
@@ -136,7 +136,8 @@ public class CertificateSignatureValidatorAdditionalTests
 
         // Assert
         Assert.That(result.IsValid, Is.False);
-        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+        // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
     }
 
     [Test]
@@ -185,7 +186,8 @@ public class CertificateSignatureValidatorAdditionalTests
 
         // Assert
         Assert.That(result.IsValid, Is.True);
-        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+        // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
         Assert.That(result.Failures, Is.Empty);
     }
 
@@ -216,7 +218,8 @@ public class CertificateSignatureValidatorAdditionalTests
 
         // Assert
         Assert.That(result.IsValid, Is.True);
-        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+        // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
     }
 
     [Test]

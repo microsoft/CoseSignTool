@@ -5,7 +5,7 @@ using Azure;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.MST.Plugin;
 

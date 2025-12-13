@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.AzureTrustedSigning.Plugin;
 
@@ -23,27 +23,17 @@ public class AzureTrustedSigningPlugin : IPlugin
     public string Description => "Sign with Microsoft Azure Trusted Signing cloud service";
 
     /// <inheritdoc/>
-    public Task InitializeAsync(IDictionary<string, string>? configuration = null)
-    {
-        return Task.CompletedTask;
-    }
+    public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;
 
     /// <inheritdoc/>
-    public IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
-    {
-        yield return new AzureTrustedSigningCommandProvider();
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
-    {
-        // Azure Trusted Signing plugin doesn't provide transparency services
-        return Enumerable.Empty<ITransparencyProviderContributor>();
-    }
+    public PluginExtensions GetExtensions() => new(
+        signingCommandProviders: [new AzureTrustedSigningCommandProvider()],
+        verificationProviders: [],
+        transparencyProviders: []);
 
     /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
-        // No additional commands to register - signing commands handled by command providers
+        // No additional commands - signing handled through extensions
     }
 }

@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Local.Plugin;
 
 /// <summary>
 /// Local signing plugin for COSE Sign1 operations with local certificates.
-/// Provides signing with PFX files and certificate stores.
+/// Provides signing with PFX files, PEM files, and certificate stores.
 /// All I/O and formatting is handled by the main executable.
 /// </summary>
 public class LocalSigningPlugin : IPlugin
@@ -20,55 +20,36 @@ public class LocalSigningPlugin : IPlugin
     public string Version => "1.0.0";
 
     /// <inheritdoc/>
-    public string Description => "Sign and verify with local certificates (PFX files, certificate stores)";
+    public string Description => "Sign with local certificates (PFX, PEM, certificate stores)";
 
     /// <inheritdoc/>
-    public Task InitializeAsync(IDictionary<string, string>? configuration = null)
-    {
-        return Task.CompletedTask;
-    }
+    public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;
 
     /// <inheritdoc/>
-    public IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
-    {
-        var providers = new List<ISigningCommandProvider>
-        {
-            // PFX signing is cross-platform
-            new PfxSigningCommandProvider()
-        };
-
-        // Platform-specific certificate store providers
-        if (OperatingSystem.IsWindows())
-        {
-            providers.Add(new WindowsCertStoreSigningCommandProvider());
-        }
-        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
-        {
-            providers.Add(new PemSigningCommandProvider());
-            providers.Add(new LinuxCertStoreSigningCommandProvider());
-        }
-
-        return providers;
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<IVerificationProvider> GetVerificationProviders()
-    {
-        // X509 verification is available on all platforms
-        yield return new X509VerificationProvider();
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
-    {
-        // Local plugin doesn't provide transparency services
-        return Enumerable.Empty<ITransparencyProviderContributor>();
-    }
+    public PluginExtensions GetExtensions() => new(
+        signingCommandProviders: GetSigningCommandProviders(),
+        verificationProviders: [new X509VerificationProvider()],
+        transparencyProviders: []);
 
     /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
-        // No additional commands to register
-        // All signing commands are handled via GetSigningCommandProviders()
+        // No additional commands - signing/verification handled through extensions
+    }
+
+    private static IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
+    {
+        yield return new PfxSigningCommandProvider();
+        yield return new PemSigningCommandProvider();
+
+        // Platform-specific certificate store providers
+        if (OperatingSystem.IsWindows())
+        {
+            yield return new WindowsCertStoreSigningCommandProvider();
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            yield return new LinuxCertStoreSigningCommandProvider();
+        }
     }
 }

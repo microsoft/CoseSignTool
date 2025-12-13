@@ -67,7 +67,7 @@ public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
 
         return ValidationResult.Success(nameof(CertificateIssuerValidator), new Dictionary<string, object>
         {
-            ["IssuerCN"] = issuerCn,
+            ["IssuerCN"] = issuerCn!,
             ["CertificateThumbprint"] = signingCert.Thumbprint
         });
     }
@@ -89,12 +89,13 @@ public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
         }
 
         // Parse the distinguished name to find CN
-        var parts = distinguishedName.Split(',', StringSplitOptions.TrimEntries);
+        var parts = distinguishedName.Split(',');
         foreach (var part in parts)
         {
-            if (part.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
+            var trimmedPart = part.Trim();
+            if (trimmedPart.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
             {
-                return part.Substring(3).Trim();
+                return trimmedPart.Substring(3).Trim();
             }
         }
 

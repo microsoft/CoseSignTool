@@ -4,8 +4,8 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using CoseSign1.Validation;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Local.Plugin;
-using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Tests.Plugins;
 

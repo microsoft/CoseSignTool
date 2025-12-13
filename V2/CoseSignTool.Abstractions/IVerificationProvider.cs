@@ -6,7 +6,7 @@ using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
 
-namespace CoseSignTool.Plugins;
+namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Interface for plugins that provide verification capabilities.

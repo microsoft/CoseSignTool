@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.Validation;
+using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
 using NUnit.Framework;
 
@@ -147,5 +148,117 @@ public class CertificateIssuerValidatorTests
         Assert.That(validatorLower, Is.Not.Null);
         Assert.That(validatorUpper, Is.Not.Null);
         Assert.That(validatorMixed, Is.Not.Null);
+    }
+
+    [Test]
+    public void Validate_WithMatchingIssuer_ReturnsSuccess()
+    {
+        // Arrange - create a self-signed certificate
+        // For self-signed certs, the issuer CN equals the subject CN
+        using var cert = TestCertificateUtils.CreateCertificate("TestIssuerCN");
+        var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        var signingService = new CoseSign1.Certificates.Local.LocalCertificateSigningService(cert, chainBuilder);
+        var factory = new CoseSign1.Direct.DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // For a self-signed cert, Issuer == Subject
+        var validator = new CertificateIssuerValidator("TestIssuerCN");
+
+        // Act
+        var result = validator.Validate(message);
+
+        // Assert
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateIssuerValidator)));
+    }
+
+    [Test]
+    public void Validate_WithMismatchedIssuer_ReturnsFailure()
+    {
+        // Arrange - create a self-signed certificate with known CN
+        using var cert = TestCertificateUtils.CreateCertificate("ActualIssuerCN");
+        var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        var signingService = new CoseSign1.Certificates.Local.LocalCertificateSigningService(cert, chainBuilder);
+        var factory = new CoseSign1.Direct.DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // Validator expects different issuer than actual
+        var validator = new CertificateIssuerValidator("ExpectedIssuerCN");
+
+        // Act
+        var result = validator.Validate(message);
+
+        // Assert
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Any(f => f.ErrorCode == "ISSUER_CN_MISMATCH"), Is.True);
+    }
+
+    [Test]
+    public void Validate_WithMatchingIssuerCaseInsensitive_ReturnsSuccess()
+    {
+        // Arrange - create a self-signed certificate
+        using var cert = TestCertificateUtils.CreateCertificate("TestIssuerCN");
+        var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        var signingService = new CoseSign1.Certificates.Local.LocalCertificateSigningService(cert, chainBuilder);
+        var factory = new CoseSign1.Direct.DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // Validator uses different case than actual certificate
+        var validator = new CertificateIssuerValidator("TESTISSUERCN");
+
+        // Act
+        var result = validator.Validate(message);
+
+        // Assert - should match case-insensitively
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public async Task ValidateAsync_WithMatchingIssuer_ReturnsSuccess()
+    {
+        // Arrange
+        using var cert = TestCertificateUtils.CreateCertificate("TestIssuerCN");
+        var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        var signingService = new CoseSign1.Certificates.Local.LocalCertificateSigningService(cert, chainBuilder);
+        var factory = new CoseSign1.Direct.DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+        var validator = new CertificateIssuerValidator("TestIssuerCN");
+
+        // Act
+        var result = await validator.ValidateAsync(message);
+
+        // Assert
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public void Validate_SuccessResult_ContainsMetadata()
+    {
+        // Arrange
+        using var cert = TestCertificateUtils.CreateCertificate("TestIssuerCN");
+        var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        var signingService = new CoseSign1.Certificates.Local.LocalCertificateSigningService(cert, chainBuilder);
+        var factory = new CoseSign1.Direct.DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+        var validator = new CertificateIssuerValidator("TestIssuerCN");
+
+        // Act
+        var result = validator.Validate(message);
+
+        // Assert
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata, Does.ContainKey("IssuerCN"));
+        Assert.That(result.Metadata, Does.ContainKey("CertificateThumbprint"));
+        Assert.That(result.Metadata["IssuerCN"], Is.EqualTo("TestIssuerCN"));
     }
 }

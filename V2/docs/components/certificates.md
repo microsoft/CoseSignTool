@@ -364,23 +364,34 @@ var keySizeValidator = new CertificatePredicateValidator(
 );
 ```
 
-### CertificateDetachedSignatureValidator
+### CertificateSignatureValidator
 
-Validates detached signatures with external payload.
+Validates COSE signatures using the certificate from x5t/x5chain headers.
+Automatically handles both embedded and detached signatures.
 
 ```csharp
-public class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
+public class CertificateSignatureValidator : IValidator<CoseSign1Message>
 {
-    public CertificateDetachedSignatureValidator(byte[] payload);
+    // For embedded signatures (payload in message)
+    public CertificateSignatureValidator(bool allowUnprotectedHeaders = false);
+    
+    // For detached signatures (external payload)
+    public CertificateSignatureValidator(byte[] detachedPayload, bool allowUnprotectedHeaders = false);
 }
 
-// Usage
-byte[] payload = File.ReadAllBytes("document.bin");
-byte[] signature = File.ReadAllBytes("document.cose");
-
-var message = CoseSign1Message.Decode(signature);
-var validator = new CertificateDetachedSignatureValidator(payload);
+// Usage - Embedded signature
+byte[] signatureWithPayload = File.ReadAllBytes("document.cose");
+var message = CoseSign1Message.Decode(signatureWithPayload);
+var validator = new CertificateSignatureValidator();
 var result = validator.Validate(message);
+
+// Usage - Detached signature
+byte[] payload = File.ReadAllBytes("document.bin");
+byte[] signature = File.ReadAllBytes("document.sig.cose");
+
+var detachedMessage = CoseSign1Message.Decode(signature);
+var detachedValidator = new CertificateSignatureValidator(payload);
+var result = detachedValidator.Validate(detachedMessage);
 ```
 
 ## Extension Methods

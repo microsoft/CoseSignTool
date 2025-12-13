@@ -1,30 +1,64 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Extensions;
-using CoseSign1.Validation;
-
 namespace CoseSign1.Certificates.Validation;
 
+using CoseSign1.Abstractions;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
 /// <summary>
-/// Validates the embedded COSE signature using the certificate from x5t/x5chain headers.
+/// Validates a COSE signature using the certificate from x5t/x5chain headers.
+/// Automatically handles both embedded and detached signatures.
 /// </summary>
+/// <remarks>
+/// For embedded signatures, the payload is taken from the message content.
+/// For detached signatures, the payload must be provided via the constructor.
+/// </remarks>
 public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
 {
-    private readonly bool AllowUnprotectedHeaders;
+    private readonly byte[]? _detachedPayload;
+    private readonly bool _allowUnprotectedHeaders;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class.
+    /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class
+    /// for embedded signature validation.
     /// </summary>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateSignatureValidator(bool allowUnprotectedHeaders = false)
     {
-        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        _detachedPayload = null;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class
+    /// for detached signature validation.
+    /// </summary>
+    /// <param name="detachedPayload">The detached payload bytes to use for signature verification.</param>
+    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    public CertificateSignatureValidator(byte[] detachedPayload, bool allowUnprotectedHeaders = false)
     {
-        if (input == null)
+        _detachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
+        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class
+    /// for detached signature validation.
+    /// </summary>
+    /// <param name="detachedPayload">The detached payload bytes to use for signature verification.</param>
+    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    public CertificateSignatureValidator(ReadOnlyMemory<byte> detachedPayload, bool allowUnprotectedHeaders = false)
+    {
+        _detachedPayload = detachedPayload.ToArray();
+        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+    }
+
+    /// <inheritdoc/>
+    public ValidationResult Validate(CoseSign1Message? input)
+    {
+        if (input is null)
         {
             return ValidationResult.Failure(
                 nameof(CertificateSignatureValidator),
@@ -32,31 +66,36 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
                 "NULL_INPUT");
         }
 
-        // This validator only works with embedded signatures (Content != null)
-        // For detached signatures, use CertificateDetachedSignatureValidator
-        if (input.Content == null)
+        // Determine if the message is embedded or detached
+        bool isEmbedded = input.Content != null;
+
+        if (isEmbedded)
         {
-            return ValidationResult.Failure(
-                nameof(CertificateSignatureValidator),
-                "Message has no embedded content. Use CertificateDetachedSignatureValidator for detached signatures.",
-                "DETACHED_CONTENT_NOT_SUPPORTED");
+            // Embedded signature - use embedded validator
+            var embeddedValidator = new CertificateEmbeddedSignatureValidator(_allowUnprotectedHeaders);
+            return embeddedValidator.Validate(input);
         }
-
-        bool isValid = input.VerifySignature(payload: null, AllowUnprotectedHeaders);
-
-        if (!isValid)
+        else
         {
-            return ValidationResult.Failure(
-                nameof(CertificateSignatureValidator),
-                "Signature verification failed",
-                "SIGNATURE_INVALID");
-        }
+            // Detached signature - need payload
+            if (_detachedPayload == null)
+            {
+                return ValidationResult.Failure(
+                    nameof(CertificateSignatureValidator),
+                    "Message has detached content but no payload was provided. " +
+                    "Use a constructor overload that accepts a payload for detached signatures.",
+                    "MISSING_DETACHED_PAYLOAD");
+            }
 
-        return ValidationResult.Success(nameof(CertificateSignatureValidator));
+            var detachedValidator = new CertificateDetachedSignatureValidator(_detachedPayload, _allowUnprotectedHeaders);
+            return detachedValidator.Validate(input);
+        }
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message? input, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(Validate(input));
     }
 }

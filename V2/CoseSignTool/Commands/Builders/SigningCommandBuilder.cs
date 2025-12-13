@@ -7,8 +7,8 @@ using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 using CoseSign1.Indirect;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Output;
-using CoseSignTool.Plugins;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Commands.Builders;

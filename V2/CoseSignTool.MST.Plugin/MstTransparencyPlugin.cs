@@ -2,18 +2,21 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
-using System.Security.Cryptography.Cose;
-using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.MST.Extensions;
-using CoseSignTool.Output;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Plugin for Microsoft Signing Transparency (MST) verification.
-/// Provides commands and verification providers for transparency proofs in COSE signatures.
+/// Provides verification providers and transparency contributors for MST proofs in COSE signatures.
 /// </summary>
+/// <remarks>
+/// This plugin extends CoseSignTool with MST capabilities:
+/// - Verification: Use 'verify' command with --require-receipt and --mst-endpoint options
+/// - Transparency: Automatically contributes MST transparency provider for signing
+/// 
+/// All I/O is handled by the main executable; this plugin only provides validators and providers.
+/// </remarks>
 public class MstTransparencyPlugin : IPlugin
 {
     /// <inheritdoc/>
@@ -25,130 +28,18 @@ public class MstTransparencyPlugin : IPlugin
     /// <inheritdoc/>
     public string Description => "Verify signatures against Microsoft Signing Transparency service";
 
-    private IOutputFormatter? Formatter;
+    /// <inheritdoc/>
+    public Task InitializeAsync(IDictionary<string, string>? options = null) => Task.CompletedTask;
 
     /// <inheritdoc/>
-    public Task InitializeAsync(IDictionary<string, string>? options = null)
-    {
-        // Configuration can be provided through options if needed in the future
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<ISigningCommandProvider> GetSigningCommandProviders()
-    {
-        // MST plugin doesn't provide signing commands
-        return Enumerable.Empty<ISigningCommandProvider>();
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<IVerificationProvider> GetVerificationProviders()
-    {
-        // MST plugin contributes verification capabilities
-        yield return new MstVerificationProvider();
-    }
-
-    /// <inheritdoc/>
-    public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
-    {
-        // MST plugin contributes a transparency provider
-        yield return new MstTransparencyProviderContributor();
-    }
+    public PluginExtensions GetExtensions() => new(
+        signingCommandProviders: [],
+        verificationProviders: [new MstVerificationProvider()],
+        transparencyProviders: [new MstTransparencyProviderContributor()]);
 
     /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
-        var verifyMstCommand = new Command("verify-mst", "Verify a COSE signature against Microsoft Signing Transparency service");
-
-        var signatureArgument = new Argument<FileInfo>(
-            name: "signature",
-            description: "Path to the COSE Sign1 signature file");
-
-        var endpointOption = new Option<string?>(
-            name: "--endpoint",
-            description: "MST service endpoint URL (optional)");
-
-        verifyMstCommand.AddArgument(signatureArgument);
-        verifyMstCommand.AddOption(endpointOption);
-
-        verifyMstCommand.SetHandler(async (FileInfo signature, string? endpoint) =>
-        {
-            await VerifyMstAsync(signature, endpoint);
-        }, signatureArgument, endpointOption);
-
-        rootCommand.AddCommand(verifyMstCommand);
-    }
-
-    private async Task<int> VerifyMstAsync(FileInfo signatureFile, string? endpoint)
-    {
-        Formatter ??= new TextOutputFormatter();
-
-        if (!signatureFile.Exists)
-        {
-            Formatter.WriteError($"Signature file not found: {signatureFile.FullName}");
-            return 1;
-        }
-
-        try
-        {
-            Formatter.BeginSection("MST Transparency Verification");
-            Formatter.WriteInfo($"Signature: {signatureFile.FullName}");
-
-            // Read and decode the COSE signature
-            var bytes = await File.ReadAllBytesAsync(signatureFile.FullName);
-            var message = CoseSign1Message.DecodeSign1(bytes);
-
-            // Check if MST receipt is embedded
-            if (!message.HasMstReceipt())
-            {
-                Formatter.WriteWarning("No MST transparency receipt found in signature");
-                Formatter.WriteInfo("This signature was not submitted to Microsoft Signing Transparency");
-                Formatter.EndSection();
-                return 2;
-            }
-
-            // Extract the MST receipt(s)
-            var receipts = message.GetMstReceipts();
-            if (receipts.Count == 0)
-            {
-                Formatter.WriteError("Failed to extract MST receipt from signature");
-                Formatter.EndSection();
-                return 3;
-            }
-
-            Formatter.WriteSuccess($"Found {receipts.Count} MST receipt(s) in signature");
-
-            // Display receipt information
-            for (int i = 0; i < receipts.Count; i++)
-            {
-                Formatter.WriteInfo($"  Receipt {i + 1}: {receipts[i].Encode().Length} bytes");
-            }
-
-            // If endpoint provided, verify against service
-            if (!string.IsNullOrEmpty(endpoint))
-            {
-                var client = new CodeTransparencyClient(new Uri(endpoint));
-
-                Formatter.WriteInfo($"Verifying against MST service: {endpoint}");
-
-                // Note: Actual verification would require the CodeTransparencyClient verification methods
-                // For now, we just confirm the receipt is present
-                Formatter.WriteSuccess("MST receipt verification would be performed here");
-            }
-            else
-            {
-                Formatter.WriteInfo("No endpoint specified - receipt extracted but not verified against service");
-            }
-
-            Formatter.EndSection();
-            Formatter.WriteSuccess("MST transparency verification complete");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Formatter.WriteError($"Error verifying MST transparency: {ex.Message}");
-            Formatter.EndSection();
-            return 4;
-        }
+        // No additional commands - verification/transparency handled through extensions
     }
 }

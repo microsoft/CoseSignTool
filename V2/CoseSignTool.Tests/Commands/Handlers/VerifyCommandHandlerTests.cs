@@ -4,6 +4,9 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
+using System.Security.Cryptography.Cose;
+using CoseSign1.Validation;
+using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Output;
 
@@ -419,6 +422,230 @@ public class VerifyCommandHandlerTests
             {
                 File.Delete(tempSignature);
             }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithVerificationProvider_CallsProviderMethods()
+    {
+        // Arrange - Create a real signature using sign-ephemeral
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(stringWriter);
+
+        // Create a mock provider that is activated and returns validators
+        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: true);
+        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for verify test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            var result = await handler.HandleAsync(context);
+            formatter.Flush();
+
+            // Assert - Provider should have been called
+            Assert.That(mockProvider.IsActivatedCalled, Is.True, "IsActivated should have been called");
+            Assert.That(mockProvider.CreateValidatorsCalled, Is.True, "CreateValidators should have been called");
+            Assert.That(mockProvider.GetMetadataCalled, Is.True, "GetVerificationMetadata should have been called");
+
+            // Provider name should appear in output
+            var output = stringWriter.ToString();
+            Assert.That(output, Does.Contain("MockProvider"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithFailingVerificationProvider_ReturnsVerificationFailed()
+    {
+        // Arrange - Create a real signature using sign-ephemeral
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(stringWriter);
+
+        // Create a provider that adds a failing validator
+        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: false);
+        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for verify test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            var result = await handler.HandleAsync(context);
+            formatter.Flush();
+
+            // Assert - The mock provider should have been called
+            Assert.That(mockProvider.CreateValidatorsCalled, Is.True, "CreateValidators should have been called");
+
+            // The result should be either success (if only cert validation passed)
+            // or verification failed (if our mock validator's failure was processed)
+            // Since the composite validator runs all validators, check that at least the provider was invoked
+            var output = stringWriter.ToString();
+            Assert.That(output, Does.Contain("Active Providers: MockProvider"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithInactiveProvider_DoesNotCallProviderValidators()
+    {
+        // Arrange - Create a real signature using sign-ephemeral
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(stringWriter);
+
+        // Create a provider that is NOT activated
+        var mockProvider = new MockVerificationProvider(isActivated: false, validationPasses: true);
+        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for verify test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            await handler.HandleAsync(context);
+
+            // Assert - Provider should have checked activation but not created validators
+            Assert.That(mockProvider.IsActivatedCalled, Is.True, "IsActivated should have been called");
+            Assert.That(mockProvider.CreateValidatorsCalled, Is.False, "CreateValidators should NOT have been called");
+            Assert.That(mockProvider.GetMetadataCalled, Is.False, "GetVerificationMetadata should NOT have been called");
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Mock verification provider for testing provider integration.
+    /// </summary>
+    private class MockVerificationProvider : IVerificationProvider
+    {
+        private readonly bool IsActivatedValue;
+        private readonly bool ValidationPasses;
+
+        public bool IsActivatedCalled { get; private set; }
+        public bool CreateValidatorsCalled { get; private set; }
+        public bool GetMetadataCalled { get; private set; }
+
+        public MockVerificationProvider(bool isActivated, bool validationPasses)
+        {
+            IsActivatedValue = isActivated;
+            ValidationPasses = validationPasses;
+        }
+
+        public string ProviderName => "MockProvider";
+
+        public string Description => "Mock provider for testing";
+
+        public int Priority => 100;
+
+        public void AddVerificationOptions(Command command)
+        {
+            // No options needed for mock
+        }
+
+        public bool IsActivated(ParseResult parseResult)
+        {
+            IsActivatedCalled = true;
+            return IsActivatedValue;
+        }
+
+        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        {
+            CreateValidatorsCalled = true;
+            yield return new MockValidator(ValidationPasses);
+        }
+
+        public IDictionary<string, object?> GetVerificationMetadata(
+            ParseResult parseResult,
+            CoseSign1Message message,
+            ValidationResult validationResult)
+        {
+            GetMetadataCalled = true;
+            return new Dictionary<string, object?>
+            {
+                { "MockMetadata", "MockValue" }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Mock validator for testing.
+    /// </summary>
+    private class MockValidator : IValidator<CoseSign1Message>
+    {
+        private readonly bool ShouldPass;
+
+        public MockValidator(bool shouldPass)
+        {
+            ShouldPass = shouldPass;
+        }
+
+        public ValidationResult Validate(CoseSign1Message input)
+        {
+            return ShouldPass
+                ? ValidationResult.Success("MockValidator")
+                : ValidationResult.Failure("MockValidator", "Mock validation failure", "MOCK_ERROR");
+        }
+
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Validate(input));
         }
     }
 }

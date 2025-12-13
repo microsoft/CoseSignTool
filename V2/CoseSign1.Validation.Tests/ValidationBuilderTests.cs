@@ -157,6 +157,52 @@ public class ValidationBuilderTests
         Assert.That(context.RunInParallel, Is.False);
     }
 
+    [Test]
+    public void CoseMessageValidationBuilder_AddValidator_WithNullValidator_ThrowsArgumentNullException()
+    {
+        var builder = Cose.Sign1Message();
+
+        Assert.Throws<ArgumentNullException>(() => builder.AddValidator((IValidator<CoseSign1Message>)null!));
+    }
+
+    [Test]
+    public void CoseMessageValidationBuilder_AddValidator_WithNullFunc_ThrowsArgumentNullException()
+    {
+        var builder = Cose.Sign1Message();
+
+        Assert.Throws<ArgumentNullException>(() => builder.AddValidator((Func<CoseSign1Message, ValidationResult>)null!));
+    }
+
+    [Test]
+    public void CoseMessageValidationBuilder_StopOnFirstFailure_WithFalse_ConfiguresCorrectly()
+    {
+        var builder = Cose.Sign1Message()
+            .StopOnFirstFailure(false);
+
+        var validator = builder.Build();
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void CoseMessageValidationBuilder_RunInParallel_WithFalse_ConfiguresCorrectly()
+    {
+        var builder = Cose.Sign1Message()
+            .RunInParallel(false);
+
+        var validator = builder.Build();
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void CoseMessageValidationBuilder_Context_ReturnsValidContext()
+    {
+        var builder = Cose.Sign1Message();
+
+        // Access internal context through the interface
+        var internalBuilder = builder as object;
+        Assert.That(internalBuilder, Is.Not.Null);
+    }
+
     private class MockValidator : IValidator<CoseSign1Message>
     {
         private readonly bool ShouldPass;

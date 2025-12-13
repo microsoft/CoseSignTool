@@ -8,7 +8,7 @@ using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.MST.Plugin;
 

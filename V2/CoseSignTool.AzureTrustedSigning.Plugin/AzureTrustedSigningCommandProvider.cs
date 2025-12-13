@@ -6,7 +6,7 @@ using Azure.Developer.TrustedSigning.CryptoProvider;
 using Azure.Identity;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.AzureTrustedSigning;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.AzureTrustedSigning.Plugin;
 

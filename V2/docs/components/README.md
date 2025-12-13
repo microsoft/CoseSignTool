@@ -31,6 +31,20 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 ---
 
+### [CoseSignTool.Abstractions](cosesigntool-abstractions.md)
+**CLI plugin interfaces** for extending CoseSignTool with custom providers.
+
+**Key Features**:
+- `IPlugin` - Core plugin interface
+- `ISigningCommandProvider` - Add signing commands (e.g., `sign-pfx`)
+- `IVerificationProvider` - Add verification capabilities
+- `ITransparencyProviderContributor` - Integrate transparency services
+- `PluginExtensions` - Model containing all plugin extension points
+
+**Use When**: Creating plugins to extend the CoseSignTool CLI.
+
+---
+
 ### [CoseSign1.Certificates](certificates.md)
 **Certificate-based signing** and validation with full X.509 support.
 

@@ -3,7 +3,7 @@
 
 using CoseSign1.Abstractions.Transparency;
 
-namespace CoseSignTool.Plugins;
+namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Interface for plugins that contribute transparency providers.

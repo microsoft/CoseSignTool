@@ -5,7 +5,7 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
-using CoseSignTool.Plugins;
+using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Tests.Plugins;
 

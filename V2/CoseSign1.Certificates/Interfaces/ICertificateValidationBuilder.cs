@@ -4,7 +4,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace CoseSign1.Certificates.Validation;
+namespace CoseSign1.Certificates.Interfaces;
 
 /// <summary>
 /// Domain-specific builder for certificate validation.

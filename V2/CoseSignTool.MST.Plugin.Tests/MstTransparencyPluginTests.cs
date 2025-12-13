@@ -79,26 +79,27 @@ public class MstTransparencyPluginTests
     }
 
     [Test]
-    public void GetSigningCommandProviders_ReturnsEmpty()
+    public void GetExtensions_SigningCommandProviders_ReturnsEmpty()
     {
         // Arrange
         var plugin = new MstTransparencyPlugin();
 
         // Act
-        var providers = plugin.GetSigningCommandProviders().ToList();
+        var extensions = plugin.GetExtensions();
 
         // Assert - MST plugin doesn't provide signing commands
-        Assert.That(providers, Is.Empty);
+        Assert.That(extensions.SigningCommandProviders, Is.Empty);
     }
 
     [Test]
-    public void GetTransparencyProviderContributors_ReturnsMstContributor()
+    public void GetExtensions_TransparencyProviders_ReturnsMstContributor()
     {
         // Arrange
         var plugin = new MstTransparencyPlugin();
 
         // Act
-        var contributors = plugin.GetTransparencyProviderContributors().ToList();
+        var extensions = plugin.GetExtensions();
+        var contributors = extensions.TransparencyProviders.ToList();
 
         // Assert
         Assert.That(contributors, Has.Count.EqualTo(1));
@@ -106,46 +107,32 @@ public class MstTransparencyPluginTests
     }
 
     [Test]
-    public void RegisterCommands_AddsVerifyMstCommand()
+    public void GetExtensions_VerificationProviders_ReturnsMstVerificationProvider()
     {
         // Arrange
         var plugin = new MstTransparencyPlugin();
-        var rootCommand = new RootCommand("Test");
 
         // Act
-        plugin.RegisterCommands(rootCommand);
+        var extensions = plugin.GetExtensions();
+        var providers = extensions.VerificationProviders.ToList();
 
-        // Assert
-        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "verify-mst"));
+        // Assert - MST plugin provides verification provider
+        Assert.That(providers, Has.Count.EqualTo(1));
+        Assert.That(providers[0], Is.InstanceOf<MstVerificationProvider>());
     }
 
     [Test]
-    public void RegisterCommands_VerifyMstCommandHasSignatureArgument()
+    public void RegisterCommands_DoesNotAddCommands()
     {
         // Arrange
         var plugin = new MstTransparencyPlugin();
         var rootCommand = new RootCommand("Test");
+        var initialCount = rootCommand.Subcommands.Count;
 
         // Act
         plugin.RegisterCommands(rootCommand);
 
-        // Assert
-        var verifyMstCommand = rootCommand.Subcommands.First(c => c.Name == "verify-mst");
-        Assert.That(verifyMstCommand.Arguments, Has.Some.Matches<Argument>(a => a.Name == "signature"));
-    }
-
-    [Test]
-    public void RegisterCommands_VerifyMstCommandHasEndpointOption()
-    {
-        // Arrange
-        var plugin = new MstTransparencyPlugin();
-        var rootCommand = new RootCommand("Test");
-
-        // Act
-        plugin.RegisterCommands(rootCommand);
-
-        // Assert
-        var verifyMstCommand = rootCommand.Subcommands.First(c => c.Name == "verify-mst");
-        Assert.That(verifyMstCommand.Options, Has.Some.Matches<Option>(o => o.Name == "endpoint"));
+        // Assert - MST plugin does not add commands (I/O is handled by main exe)
+        Assert.That(rootCommand.Subcommands.Count, Is.EqualTo(initialCount));
     }
 }

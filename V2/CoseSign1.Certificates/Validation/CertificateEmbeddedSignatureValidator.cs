@@ -7,17 +7,18 @@ using CoseSign1.Validation;
 namespace CoseSign1.Certificates.Validation;
 
 /// <summary>
-/// Validates the embedded COSE signature using the certificate from x5t/x5chain headers.
+/// Validates an embedded COSE signature using the certificate from x5t/x5chain headers.
+/// For public use, prefer <see cref="CertificateSignatureValidator"/> which auto-detects embedded vs detached.
 /// </summary>
-public sealed class SignatureValidator : IValidator<CoseSign1Message>
+internal sealed class CertificateEmbeddedSignatureValidator : IValidator<CoseSign1Message>
 {
     private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SignatureValidator"/> class.
+    /// Initializes a new instance of the <see cref="CertificateEmbeddedSignatureValidator"/> class.
     /// </summary>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public SignatureValidator(bool allowUnprotectedHeaders = false)
+    public CertificateEmbeddedSignatureValidator(bool allowUnprotectedHeaders = false)
     {
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
@@ -27,9 +28,19 @@ public sealed class SignatureValidator : IValidator<CoseSign1Message>
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(SignatureValidator),
+                nameof(CertificateEmbeddedSignatureValidator),
                 "Input message is null",
                 "NULL_INPUT");
+        }
+
+        // This validator only works with embedded signatures (Content != null)
+        // For detached signatures, use CertificateDetachedSignatureValidator
+        if (input.Content == null)
+        {
+            return ValidationResult.Failure(
+                nameof(CertificateEmbeddedSignatureValidator),
+                "Message has no embedded content",
+                "DETACHED_CONTENT_NOT_SUPPORTED");
         }
 
         bool isValid = input.VerifySignature(payload: null, AllowUnprotectedHeaders);
@@ -37,12 +48,12 @@ public sealed class SignatureValidator : IValidator<CoseSign1Message>
         if (!isValid)
         {
             return ValidationResult.Failure(
-                nameof(SignatureValidator),
+                nameof(CertificateEmbeddedSignatureValidator),
                 "Signature verification failed",
                 "SIGNATURE_INVALID");
         }
 
-        return ValidationResult.Success(nameof(SignatureValidator));
+        return ValidationResult.Success(nameof(CertificateEmbeddedSignatureValidator));
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

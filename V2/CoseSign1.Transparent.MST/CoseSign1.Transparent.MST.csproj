@@ -3,36 +3,13 @@
   <!--Build configuration-->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <EnablePreviewFeatures>True</EnablePreviewFeatures>
-  </PropertyGroup>
-
-  <!--Code style and static analysis-->
-  <PropertyGroup>
-    <Nullable>enable</Nullable>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-
-  <!--Strong name signing-->
-  <PropertyGroup>
-    <SignAssembly>True</SignAssembly>
-    <DelaySign>True</DelaySign>
-    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>$(MsBuildProjectName).V2</PackageId>
-    <PackageVersion>$(VersionNgt)</PackageVersion>
-    <Company>Microsoft</Company>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageId>CoseSign1.Transparent.MST.V2</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
-    <Description>V2 Microsoft Signing Transparency (MST) provider for COSE Sign1 transparency services.</Description>
+    <Description>V2 Microsoft Signing Transparency (MST) provider for COSE Sign1 transparency services and SCITT receipts.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,9 +23,7 @@
 
   <!--Files to include in the package-->
   <ItemGroup>
-    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\CHANGELOG.md" Pack="true" PackagePath="\" />
     <None Include="..\docs\packages\transparency-mst.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\transparency-mst.md')" />
   </ItemGroup>
 

@@ -226,6 +226,8 @@ public static class TestCertificateUtils
     /// <param name="testName">The test name for cert name uniqueness.  They all start with Test.</param>
     /// <param name="useEcc">True for ecc certs, false (default) for RSA certs.</param>
     /// <param name="keySize">The optional key size to request for the certificate, defaults to 256 for ECC and 2048 for RSA.</param>
+    /// <param name="leafFirst">If true, returns collection with leaf first; if false, root first.</param>
+    /// <param name="rootDuration">Optional duration for the root certificate validity.</param>
     /// <returns>An <see cref="X509Certificate2Collection"/> containing a root, intermediate, and leaf node certificate.</returns>
     public static X509Certificate2Collection CreateTestChain(
         [CallerMemberName] string? testName = "none",
@@ -254,6 +256,7 @@ public static class TestCertificateUtils
     /// <param name="testName">The test name for cert name uniqueness.</param>
     /// <param name="useEcc">True for ecc certs, false (default) for RSA certs.</param>
     /// <param name="keySize">The optional key size to request for the certificate, defaults to 256 for ECC and 2048 for RSA.</param>
+    /// <param name="rootDuration">Optional duration for the root certificate validity.</param>
     /// <returns>An <see cref="X509Certificate2Collection"/> containing root (public only), intermediate (public only), and leaf (with private key) certificates.</returns>
     public static X509Certificate2Collection CreateTestChainForPfx(
         [CallerMemberName] string? testName = "none",

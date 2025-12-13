@@ -3,36 +3,13 @@
   <!--Build configuration-->
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
-
-  <!--Code style and static analysis-->
-  <PropertyGroup>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-
-  <!--Strong name signing-->
-  <PropertyGroup>
-    <SignAssembly>True</SignAssembly>
-    <DelaySign>True</DelaySign>
-    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>$(MsBuildProjectName).V2</PackageId>
-    <PackageVersion>$(VersionNgt)</PackageVersion>
-    <Company>Microsoft</Company>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageId>CoseSign1.Validation.V2</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
-    <Description>V2 Validation utilities for COSE Sign1 messages.</Description>
+    <Description>V2 Validation framework for COSE Sign1 messages with composable validators.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,10 +23,8 @@
 
   <!--Files to include in the package-->
   <ItemGroup>
-    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\CHANGELOG.md" Pack="true" PackagePath="\" />
-    <None Include="..\docs\packages\validation.md" Pack="true" PackagePath="\docs\" />
+    <None Include="..\docs\packages\validation.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\validation.md')" />
   </ItemGroup>
 
 </Project>

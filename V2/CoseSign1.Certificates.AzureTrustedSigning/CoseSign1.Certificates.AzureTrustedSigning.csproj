@@ -2,36 +2,13 @@
 
 	<!--Build configuration-->
 	<PropertyGroup>
-		<TargetFrameworks>net10.0</TargetFrameworks>
-		<LangVersion>latest</LangVersion>
-	</PropertyGroup>
-
-	<!--Code style and static analysis-->
-	<PropertyGroup>
-		<EnablePreviewFeatures>True</EnablePreviewFeatures>
-		<Nullable>enable</Nullable>
-		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-		<EnableNETAnalyzers>true</EnableNETAnalyzers>
-		<AnalysisLevel>latest</AnalysisLevel>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-	</PropertyGroup>
-
-	<!--Strong name signing-->
-	<PropertyGroup>
-		<SignAssembly>True</SignAssembly>
-		<DelaySign>True</DelaySign>
-		<AssemblyOriginatorKeyFile>..\..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+		<TargetFramework>net10.0</TargetFramework>
 	</PropertyGroup>
 
 	<!--NuGet package configuration-->
 	<PropertyGroup>
-		<PackageId>$(MSBuildProjectName).V2</PackageId>
-		<PackageVersion>$(VersionNgt)</PackageVersion>
-		<Company>Microsoft</Company>
-		<PackageLicenseFile>LICENSE</PackageLicenseFile>
-		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+		<PackageId>CoseSign1.Certificates.AzureTrustedSigning.V2</PackageId>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
 		<Description>V2 Azure Trusted Signing remote signing service for COSE Sign1 with FIPS 140-2 Level 3 HSM-backed keys.</Description>
 	</PropertyGroup>
 
@@ -42,6 +19,12 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
 		<ProjectReference Include="..\DIDx509\DIDx509.csproj" />
+	</ItemGroup>
+
+	<!--Files to include in the package-->
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\docs\packages\azure-trusted-signing.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\azure-trusted-signing.md')" />
 	</ItemGroup>
 
 </Project>

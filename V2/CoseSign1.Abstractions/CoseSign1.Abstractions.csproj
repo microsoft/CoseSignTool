@@ -3,36 +3,13 @@
     <!--Build configuration-->
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-    </PropertyGroup>
-
-    <!--Code style and static analysis-->
-    <PropertyGroup>
-        <EnablePreviewFeatures>true</EnablePreviewFeatures>
-        <Nullable>enable</Nullable>
-        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-        <EnableNETAnalyzers>true</EnableNETAnalyzers>
-        <AnalysisLevel>latest</AnalysisLevel>
-        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    </PropertyGroup>
-
-    <!--Strong name signing-->
-    <PropertyGroup>
-        <SignAssembly>True</SignAssembly>
-        <DelaySign>True</DelaySign>
-        <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
     </PropertyGroup>
 
     <!--NuGet package configuration-->
     <PropertyGroup>
-        <PackageId>$(MsBuildProjectName).V2</PackageId>
-        <PackageVersion>$(VersionNgt)</PackageVersion>
-        <Company>Microsoft</Company>
-        <PackageLicenseFile>LICENSE</PackageLicenseFile>
-        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageId>CoseSign1.Abstractions.V2</PackageId>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
-        <Description>V2 Abstractions required to extend or enhance Create CoseSign1 functionality with dynamic key acquisition and service metadata.</Description>
+        <Description>V2 Abstractions required to extend or enhance CoseSign1 functionality with dynamic key acquisition and service metadata.</Description>
     </PropertyGroup>
 
     <!--Package references-->
@@ -43,10 +20,7 @@
 
     <!--Files to include in the package-->
     <ItemGroup>
-        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="README.md" Pack="true" PackagePath="\" />
-        <None Include="..\CHANGELOG.md" Pack="true" PackagePath="\" />
-        <None Include="..\docs\packages\abstractions.md" Pack="true" PackagePath="\docs\" />
-        <None Include="\bin\Release\netstandard2.0\_manifest\spdx_2.2\*.*" Condition="Exists('\bin\Release\netstandard2.0\_manifest\spdx_2.2\*.*')" Pack="true" PackagePath="Build\sbom\spdx_2.2" />
+        <None Include="..\docs\packages\abstractions.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\abstractions.md')" />
     </ItemGroup>
 </Project>

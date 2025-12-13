@@ -1,25 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
+    <!--Build configuration-->
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
-        <Nullable>enable</Nullable>
-        <LangVersion>latest</LangVersion>
-        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <!-- RuntimeIdentifiers specified for publish commands only, not for pack -->
     </PropertyGroup>
 
+    <!--NuGet package configuration (CLI tool)-->
     <PropertyGroup>
         <PackageId>CoseSignTool</PackageId>
-        <PackageVersion>2.0.0-preview</PackageVersion>
-        <Company>Microsoft</Company>
-        <Authors>Microsoft</Authors>
-        <Description>Modern CLI tool for COSE Sign1 signing and verification with V2 architecture</Description>
-        <PackageProjectUrl>https://github.com/microsoft/CoseSignTool</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/microsoft/CoseSignTool</RepositoryUrl>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
+        <Description>Modern CLI tool for COSE Sign1 signing and verification with extensible plugin architecture.</Description>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>cosesigntool</ToolCommandName>
+        <!-- License inherited from Directory.Build.props -->
+    </PropertyGroup>
+
+    <!-- Plugin deployment - enabled by default for Debug builds -->
+    <PropertyGroup>
+        <DeployPlugins Condition="'$(DeployPlugins)' == '' AND '$(Configuration)' == 'Debug'">true</DeployPlugins>
+        <DeployPlugins Condition="'$(DeployPlugins)' == ''">false</DeployPlugins>
     </PropertyGroup>
 
     <ItemGroup>
@@ -43,11 +44,47 @@
 
     <ItemGroup>
         <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-            <_Parameter1>CoseSignTool.Tests</_Parameter1>
+            <_Parameter1>CoseSignTool.Tests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100b5fc90e7027f67871e773a8fde8938c81dd402ba65b9201d60593e96c492651e889cc13f1415ebb53fac1131ae0bd333c5ee6021672d9718ea31a8aebd0da0072f25d87dba6fc90ffd598ed4da35e44c398c454307e8e33b8426143daec9f596836f97c8f74750e5975c64e2189f45def46b2a2b1247adc3652bf5c308055da9</_Parameter1>
         </AssemblyAttribute>
     </ItemGroup>
 
-    <!-- Plugin deployment system following V1 pattern -->
+    <!--Files to include in the package-->
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+        <None Include="..\docs\cli\*.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\cli')" />
+    </ItemGroup>
+
+    <!-- Include plugins in the tool package -->
+    <!-- These will be deployed alongside the tool when installed via dotnet tool install -->
+    <ItemGroup>
+        <PluginDlls Include="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+        <PluginDlls Include="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+        <PluginDlls Include="..\CoseSignTool.AzureTrustedSigning.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.AzureTrustedSigning.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+    </ItemGroup>
+
+    <!-- Pack plugin files into tools folder structure -->
+    <ItemGroup>
+        <None Include="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.Local.Plugin\"
+              Visible="false" />
+        <None Include="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.MST.Plugin\"
+              Visible="false" />
+        <None Include="..\CoseSignTool.AzureTrustedSigning.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.AzureTrustedSigning.Plugin\"
+              Visible="false" />
+    </ItemGroup>
+
+    <!-- ========================================== -->
+    <!-- Plugin Deployment System                   -->
+    <!-- ========================================== -->
+
     <!-- Reusable plugin deployment template for isolated plugin loading -->
     <Target Name="DeployPlugin">
         <PropertyGroup>

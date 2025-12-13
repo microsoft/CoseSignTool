@@ -7,7 +7,6 @@
 
     <!--NuGet package configuration-->
     <PropertyGroup>
-        <PackageId>CoseSign1.Certificates.V2</PackageId>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>V2 Certificate-based signing and validation for COSE Sign1 messages with chain building and trust management.</Description>
     </PropertyGroup>

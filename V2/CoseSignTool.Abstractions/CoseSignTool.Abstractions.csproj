@@ -7,7 +7,6 @@
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>CoseSignTool.Abstractions</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Abstractions and interfaces for CoseSignTool plugins. Reference this package to create plugins that extend CoseSignTool without depending on the full implementation.</Description>
   </PropertyGroup>

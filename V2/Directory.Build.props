@@ -30,6 +30,8 @@
     <EnableNUnitRunner>true</EnableNUnitRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!-- Suppress MTP0001: VSTest properties ignored when using Microsoft.Testing.Platform -->
+    <NoWarn>$(NoWarn);MTP0001</NoWarn>
   </PropertyGroup>
 
   <!-- Code analysis -->
@@ -62,6 +64,11 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
     <PackageTags>cose;sign1;signing;verification;scitt;transparency;cryptography;security</PackageTags>
+  </PropertyGroup>
+
+  <!-- PackageId: Use project name directly. Version 2.0.0 indicates the major version upgrade from V1. -->
+  <PropertyGroup Condition="'$(PackageId)' == ''">
+    <PackageId>$(MSBuildProjectName)</PackageId>
   </PropertyGroup>
 
   <!-- Test projects are not packable -->

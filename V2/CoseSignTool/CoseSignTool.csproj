@@ -9,7 +9,6 @@
 
     <!--NuGet package configuration (CLI tool)-->
     <PropertyGroup>
-        <PackageId>CoseSignTool</PackageId>
         <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
         <Description>Modern CLI tool for COSE Sign1 signing and verification with extensible plugin architecture.</Description>
         <PackAsTool>true</PackAsTool>

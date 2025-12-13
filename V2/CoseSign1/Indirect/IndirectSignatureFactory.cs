@@ -4,6 +4,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -177,6 +178,15 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         ThrowIfDisposed();
 
+        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        using var scope = Logger.BeginScope(new Dictionary<string, object>
+        {
+            ["OperationId"] = operationId,
+            ["SignatureType"] = "Indirect"
+        });
+
+        var stopwatch = Stopwatch.StartNew();
+
         options ??= new IndirectSignatureOptions();
 
         Logger.LogDebug(
@@ -186,56 +196,74 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             payload.Length,
             options.HashAlgorithm);
 
-        // Compute hash of payload using the hash algorithm specified in options
-        // Note: This is the hash of the CONTENT. The signature itself may use a different
-        // hash algorithm determined by the signing key in DirectSignatureFactory.
-        using var owner = SpanOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
-        var hashSpan = owner.Span;
-
-        if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
+        try
         {
+            // Compute hash of payload using the hash algorithm specified in options
+            // Note: This is the hash of the CONTENT. The signature itself may use a different
+            // hash algorithm determined by the signing key in DirectSignatureFactory.
+            using var owner = SpanOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
+            var hashSpan = owner.Span;
+
+            if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
+            {
+                Logger.LogError(
+                    new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                    "Failed to compute hash of payload using {HashAlgorithm}",
+                    options.HashAlgorithm);
+                throw new InvalidOperationException("Failed to compute hash of payload");
+            }
+
+            var hash = hashSpan.Slice(0, bytesWritten);
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+                "Computed payload hash. HashSize: {HashSize}",
+                bytesWritten);
+
+            // Create CoseHashEnvelope header contributor with protected headers
+            var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
+                options.HashAlgorithm,
+                contentType,
+                options.PayloadLocation);
+
+            // Chain with any additional header contributors
+            var headerContributors = options.AdditionalHeaderContributors?.Any() == true
+                ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+                : new List<IHeaderContributor> { hashEnvelopeContributor };
+
+            // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
+            var directOptions = new DirectSignatureOptions
+            {
+                AdditionalHeaderContributors = headerContributors,
+                AdditionalContext = options.AdditionalContext,
+                AdditionalData = options.AdditionalData,
+                EmbedPayload = true  // Embed the hash (not the original payload)
+            };
+
+            // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor), passing serviceOptions through
+            var result = DirectFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
+
+            stopwatch.Stop();
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                result.Length,
+                stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
             Logger.LogError(
                 new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
-                "Failed to compute hash of payload using {HashAlgorithm}",
-                options.HashAlgorithm);
-            throw new InvalidOperationException("Failed to compute hash of payload");
+                ex,
+                "Indirect signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}",
+                contentType,
+                payload.Length,
+                options.HashAlgorithm,
+                stopwatch.ElapsedMilliseconds);
+            throw;
         }
-
-        var hash = hashSpan.Slice(0, bytesWritten);
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-            "Computed payload hash. HashSize: {HashSize}",
-            bytesWritten);
-
-        // Create CoseHashEnvelope header contributor with protected headers
-        var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
-            options.HashAlgorithm,
-            contentType,
-            options.PayloadLocation);
-
-        // Chain with any additional header contributors
-        var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-            : new List<IHeaderContributor> { hashEnvelopeContributor };
-
-        // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
-        var directOptions = new DirectSignatureOptions
-        {
-            AdditionalHeaderContributors = headerContributors,
-            AdditionalContext = options.AdditionalContext,
-            AdditionalData = options.AdditionalData,
-            EmbedPayload = true  // Embed the hash (not the original payload)
-        };
-
-        // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor), passing serviceOptions through
-        var result = DirectFactory.CreateCoseSign1MessageBytes(hash, contentType, directOptions, serviceOptions);
-
-        Logger.LogDebug(
-            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-            "Indirect signature created successfully. SignatureSize: {SignatureSize}",
-            result.Length);
-
-        return result;
     }
 
     /// <summary>
@@ -330,6 +358,16 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         ThrowIfDisposed();
 
+        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        using var scope = Logger.BeginScope(new Dictionary<string, object>
+        {
+            ["OperationId"] = operationId,
+            ["SignatureType"] = "Indirect",
+            ["Async"] = true
+        });
+
+        var stopwatch = Stopwatch.StartNew();
+
         options ??= new IndirectSignatureOptions();
 
         Logger.LogDebug(
@@ -338,71 +376,88 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             contentType,
             options.HashAlgorithm);
 
-        // Compute hash of stream using MemoryOwner for pooled memory
-        // Note: This is the hash of the CONTENT. The signature itself may use a different
-        // hash algorithm determined by the signing key in DirectSignatureFactory.
-        using var hashOwner = MemoryOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
-        var hashMemory = hashOwner.Memory;
-
-#if NETSTANDARD2_0
-        var hashBytes = await ComputeHashAsync(payloadStream, options.HashAlgorithm, cancellationToken).ConfigureAwait(false);
-        hashBytes.CopyTo(hashOwner.Span);
-#else
-        using var incrementalHash = IncrementalHash.CreateHash(options.HashAlgorithm);
-        
-        var buffer = ArrayPool<byte>.Shared.Rent(8192); // 8KB buffer for incremental hashing
         try
         {
-            int bytesRead;
-            while ((bytesRead = await payloadStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
-            {
-                incrementalHash.AppendData(buffer, 0, bytesRead);
-            }
+            // Compute hash of stream using MemoryOwner for pooled memory
+            // Note: This is the hash of the CONTENT. The signature itself may use a different
+            // hash algorithm determined by the signing key in DirectSignatureFactory.
+            using var hashOwner = MemoryOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
+            var hashMemory = hashOwner.Memory;
+
+#if NETSTANDARD2_0
+            var hashBytes = await ComputeHashAsync(payloadStream, options.HashAlgorithm, cancellationToken).ConfigureAwait(false);
+            hashBytes.CopyTo(hashOwner.Span);
+#else
+            using var incrementalHash = IncrementalHash.CreateHash(options.HashAlgorithm);
             
-            var hash = incrementalHash.GetHashAndReset();
-            hash.CopyTo(hashOwner.Span);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
+            var buffer = ArrayPool<byte>.Shared.Rent(8192); // 8KB buffer for incremental hashing
+            try
+            {
+                int bytesRead;
+                while ((bytesRead = await payloadStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    incrementalHash.AppendData(buffer, 0, bytesRead);
+                }
+                
+                var hash = incrementalHash.GetHashAndReset();
+                hash.CopyTo(hashOwner.Span);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
 #endif
 
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-            "Computed payload hash. HashSize: {HashSize}",
-            hashOwner.Length);
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+                "Computed payload hash. HashSize: {HashSize}",
+                hashOwner.Length);
 
-        // Create CoseHashEnvelope header contributor with protected headers
-        var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
-            options.HashAlgorithm,
-            contentType,
-            options.PayloadLocation);
+            // Create CoseHashEnvelope header contributor with protected headers
+            var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
+                options.HashAlgorithm,
+                contentType,
+                options.PayloadLocation);
 
-        // Chain with any additional header contributors
-        var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-            : new List<IHeaderContributor> { hashEnvelopeContributor };
+            // Chain with any additional header contributors
+            var headerContributors = options.AdditionalHeaderContributors?.Any() == true
+                ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+                : new List<IHeaderContributor> { hashEnvelopeContributor };
 
-        // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
-        var directOptions = new DirectSignatureOptions
+            // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
+            var directOptions = new DirectSignatureOptions
+            {
+                AdditionalHeaderContributors = headerContributors,
+                AdditionalContext = options.AdditionalContext,
+                AdditionalData = options.AdditionalData,
+                EmbedPayload = true  // Embed the hash
+            };
+
+            // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
+            using var hashStream = new MemoryStream(hashOwner.Memory.ToArray(), writable: false);
+            var result = await DirectFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+
+            stopwatch.Stop();
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Async indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                result.Length,
+                stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+        catch (Exception ex)
         {
-            AdditionalHeaderContributors = headerContributors,
-            AdditionalContext = options.AdditionalContext,
-            AdditionalData = options.AdditionalData,
-            EmbedPayload = true  // Embed the hash
-        };
-
-        // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
-        using var hashStream = new MemoryStream(hashOwner.Memory.ToArray(), writable: false);
-        var result = await DirectFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
-
-        Logger.LogDebug(
-            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-            "Async indirect signature created successfully. SignatureSize: {SignatureSize}",
-            result.Length);
-
-        return result;
+            stopwatch.Stop();
+            Logger.LogError(
+                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                ex,
+                "Async indirect signature creation failed. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}",
+                contentType,
+                options.HashAlgorithm,
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
     }
 
     /// <summary>

@@ -7,7 +7,6 @@
 
 	<!--NuGet package configuration-->
 	<PropertyGroup>
-		<PackageId>CoseSign1.Certificates.AzureTrustedSigning.V2</PackageId>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<Description>V2 Azure Trusted Signing remote signing service for COSE Sign1 with FIPS 140-2 Level 3 HSM-backed keys.</Description>
 	</PropertyGroup>

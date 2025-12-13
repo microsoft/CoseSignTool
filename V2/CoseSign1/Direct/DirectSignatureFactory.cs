@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.Cose;
@@ -100,6 +101,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
+        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        using var scope = Logger.BeginScope(new Dictionary<string, object>
+        {
+            ["OperationId"] = operationId,
+            ["SignatureType"] = "Direct"
+        });
+
+        var stopwatch = Stopwatch.StartNew();
+
         Logger.LogDebug(
             new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
             "Starting direct signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, EmbedPayload: {EmbedPayload}",
@@ -107,56 +117,73 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             payload.Length,
             options?.EmbedPayload ?? true);
 
-        options ??= new DirectSignatureOptions();
-
-        // Use SpanOwner to rent from ArrayPool - provides both Span and Memory views
-        using var owner = SpanOwner<byte>.Allocate(payload.Length);
-        payload.CopyTo(owner.Span);
-
-        // Get Memory<byte> from the owner via DangerousGetArray() and wrap it
-        var segment = owner.DangerousGetArray();
-        if (segment.Array == null)
+        try
         {
-            throw new InvalidOperationException("Failed to get underlying array");
+            options ??= new DirectSignatureOptions();
+
+            // Use SpanOwner to rent from ArrayPool - provides both Span and Memory views
+            using var owner = SpanOwner<byte>.Allocate(payload.Length);
+            payload.CopyTo(owner.Span);
+
+            // Get Memory<byte> from the owner via DangerousGetArray() and wrap it
+            var segment = owner.DangerousGetArray();
+            if (segment.Array == null)
+            {
+                throw new InvalidOperationException("Failed to get underlying array");
+            }
+
+            var payloadMemory = new ReadOnlyMemory<byte>(segment.Array, segment.Offset, payload.Length);
+
+            // Create combined header contributors list with ContentTypeHeaderContributor first
+            var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                "Created header contributors list with {Count} contributors",
+                headerContributors.Count);
+
+            // Merge service options into additional context if provided
+            var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
+
+            // Create context with bytes - using pooled memory
+            var context = new SigningContext(
+                payloadMemory,
+                contentType,
+                headerContributors,
+                additionalContext);
+
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+                "Acquiring signer from signing service");
+            var signer = SigningService.GetCoseSigner(context);
+
+            // Use the original payload span and AdditionalData span - no additional allocations
+            ReadOnlySpan<byte> additionalDataSpan = options.AdditionalData.Span;
+
+            var result = options.EmbedPayload
+                ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
+                : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
+
+            stopwatch.Stop();
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                result.Length,
+                stopwatch.ElapsedMilliseconds);
+
+            return result;
         }
-
-        var payloadMemory = new ReadOnlyMemory<byte>(segment.Array, segment.Offset, payload.Length);
-
-        // Create combined header contributors list with ContentTypeHeaderContributor first
-        var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
-            "Created header contributors list with {Count} contributors",
-            headerContributors.Count);
-
-        // Merge service options into additional context if provided
-        var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
-
-        // Create context with bytes - using pooled memory
-        var context = new SigningContext(
-            payloadMemory,
-            contentType,
-            headerContributors,
-            additionalContext);
-
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
-            "Acquiring signer from signing service");
-        var signer = SigningService.GetCoseSigner(context);
-
-        // Use the original payload span and AdditionalData span - no additional allocations
-        ReadOnlySpan<byte> additionalDataSpan = options.AdditionalData.Span;
-
-        var result = options.EmbedPayload
-            ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
-            : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
-
-        Logger.LogDebug(
-            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-            "Direct signature created successfully. SignatureSize: {SignatureSize}",
-            result.Length);
-
-        return result;
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            Logger.LogError(
+                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                ex,
+                "Direct signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, ElapsedMs: {ElapsedMs}",
+                contentType,
+                payload.Length,
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
     }
 
     /// <summary>
@@ -252,96 +279,124 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
+        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        using var scope = Logger.BeginScope(new Dictionary<string, object>
+        {
+            ["OperationId"] = operationId,
+            ["SignatureType"] = "Direct",
+            ["Async"] = true
+        });
+
+        var stopwatch = Stopwatch.StartNew();
+        var streamLength = payloadStream.CanSeek ? payloadStream.Length : -1;
+
         Logger.LogDebug(
             new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
             "Starting async direct signature creation. ContentType: {ContentType}, StreamLength: {StreamLength}, EmbedPayload: {EmbedPayload}",
             contentType,
-            payloadStream.CanSeek ? payloadStream.Length : -1,
+            streamLength,
             options?.EmbedPayload ?? true);
 
-        options ??= new DirectSignatureOptions();
-
-        // Create combined header contributors list with ContentTypeHeaderContributor first
-        var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
-            "Created header contributors list with {Count} contributors",
-            headerContributors.Count);
-
-        // Merge service options into additional context if provided
-        var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
-
-        var context = new SigningContext(
-            payloadStream,
-            contentType,
-            headerContributors,
-            additionalContext);
-
-        Logger.LogTrace(
-            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
-            "Acquiring signer from signing service");
-        var signer = SigningService.GetCoseSigner(context);
-
-        // Get pooled arrays for both payload (if embedded) and additional data
-        byte[] payloadArray;
-        byte[]? additionalDataArray = null;
-
-        using var payloadOwner = options.EmbedPayload
-            ? MemoryOwner<byte>.Allocate((int)payloadStream.Length)
-            : default;
-
-        using var additionalDataOwner = options.AdditionalData.IsEmpty
-            ? default
-            : MemoryOwner<byte>.Allocate(options.AdditionalData.Length);
-
-        // Read payload if embedded
-        if (options.EmbedPayload)
+        try
         {
-#if NETSTANDARD2_0
-            var tempBuffer = payloadOwner!.DangerousGetArray();
-            var tempArray = tempBuffer.Array!;
-            await payloadStream.ReadAsync(tempArray, tempBuffer.Offset, tempBuffer.Count).ConfigureAwait(false);
-            payloadArray = tempArray;
-#else
-            await payloadStream.ReadAsync(payloadOwner!.Memory, cancellationToken).ConfigureAwait(false);
-            payloadArray = payloadOwner.DangerousGetArray().Array!;
-#endif
-        }
-        else
-        {
-            payloadArray = Array.Empty<byte>(); // Not used for detached
-        }
+            options ??= new DirectSignatureOptions();
 
-        // Copy additional data if present
-        if (!options.AdditionalData.IsEmpty)
-        {
-            options.AdditionalData.Span.CopyTo(additionalDataOwner!.Span);
-            additionalDataArray = additionalDataOwner.DangerousGetArray().Array!;
-        }
+            // Create combined header contributors list with ContentTypeHeaderContributor first
+            var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                "Created header contributors list with {Count} contributors",
+                headerContributors.Count);
 
-        // Sign with Task.Run for cancellation support
-        var result = await Task.Run(async () =>
-        {
+            // Merge service options into additional context if provided
+            var additionalContext = MergeServiceOptions(options.AdditionalContext, serviceOptions);
+
+            var context = new SigningContext(
+                payloadStream,
+                contentType,
+                headerContributors,
+                additionalContext);
+
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+                "Acquiring signer from signing service");
+            var signer = SigningService.GetCoseSigner(context);
+
+            // Get pooled arrays for both payload (if embedded) and additional data
+            byte[] payloadArray;
+            byte[]? additionalDataArray = null;
+
+            using var payloadOwner = options.EmbedPayload
+                ? MemoryOwner<byte>.Allocate((int)payloadStream.Length)
+                : default;
+
+            using var additionalDataOwner = options.AdditionalData.IsEmpty
+                ? default
+                : MemoryOwner<byte>.Allocate(options.AdditionalData.Length);
+
+            // Read payload if embedded
             if (options.EmbedPayload)
             {
-                return additionalDataArray != null
-                    ? CoseSign1Message.SignEmbedded(payloadArray, signer, additionalDataArray)
-                    : CoseSign1Message.SignEmbedded(payloadArray, signer);
+#if NETSTANDARD2_0
+                var tempBuffer = payloadOwner!.DangerousGetArray();
+                var tempArray = tempBuffer.Array!;
+                await payloadStream.ReadAsync(tempArray, tempBuffer.Offset, tempBuffer.Count).ConfigureAwait(false);
+                payloadArray = tempArray;
+#else
+                await payloadStream.ReadAsync(payloadOwner!.Memory, cancellationToken).ConfigureAwait(false);
+                payloadArray = payloadOwner.DangerousGetArray().Array!;
+#endif
             }
             else
             {
-                return additionalDataArray != null
-                    ? await CoseSign1Message.SignDetachedAsync(payloadStream, signer, additionalDataArray).ConfigureAwait(false)
-                    : await CoseSign1Message.SignDetachedAsync(payloadStream, signer).ConfigureAwait(false);
+                payloadArray = Array.Empty<byte>(); // Not used for detached
             }
-        }, cancellationToken).ConfigureAwait(false);
 
-        Logger.LogDebug(
-            new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-            "Async direct signature created successfully. SignatureSize: {SignatureSize}",
-            result.Length);
+            // Copy additional data if present
+            if (!options.AdditionalData.IsEmpty)
+            {
+                options.AdditionalData.Span.CopyTo(additionalDataOwner!.Span);
+                additionalDataArray = additionalDataOwner.DangerousGetArray().Array!;
+            }
 
-        return result;
+            // Sign with Task.Run for cancellation support
+            var result = await Task.Run(async () =>
+            {
+                if (options.EmbedPayload)
+                {
+                    return additionalDataArray != null
+                        ? CoseSign1Message.SignEmbedded(payloadArray, signer, additionalDataArray)
+                        : CoseSign1Message.SignEmbedded(payloadArray, signer);
+                }
+                else
+                {
+                    return additionalDataArray != null
+                        ? await CoseSign1Message.SignDetachedAsync(payloadStream, signer, additionalDataArray).ConfigureAwait(false)
+                        : await CoseSign1Message.SignDetachedAsync(payloadStream, signer).ConfigureAwait(false);
+                }
+            }, cancellationToken).ConfigureAwait(false);
+
+            stopwatch.Stop();
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Async direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                result.Length,
+                stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            Logger.LogError(
+                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                ex,
+                "Async direct signature creation failed. ContentType: {ContentType}, StreamLength: {StreamLength}, ElapsedMs: {ElapsedMs}",
+                contentType,
+                streamLength,
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
     }
 
     /// <summary>
@@ -537,33 +592,73 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         // Check if transparency is disabled for this operation
         if (options?.DisableTransparency == true)
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+                "Transparency disabled for this operation, skipping transparency providers");
             return message;
         }
 
         // No transparency providers configured at factory level - return message as-is
         if (TransparencyProvidersField == null || TransparencyProvidersField.Count == 0)
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
+                "No transparency providers configured, skipping transparency application");
             return message;
         }
 
+        var stopwatch = Stopwatch.StartNew();
+        Logger.LogDebug(
+            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
+            "Starting transparency proof application. ProviderCount: {ProviderCount}, FailOnError: {FailOnError}",
+            TransparencyProvidersField.Count,
+            options?.FailOnTransparencyError ?? false);
+
         var currentMessage = message;
         var errors = new List<string>();
+        var successCount = 0;
 
         // Chain through each provider in sequence
         foreach (var provider in TransparencyProvidersField)
         {
+            Logger.LogTrace(
+                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                "Applying transparency provider: {ProviderName}",
+                provider.ProviderName);
+
             try
             {
                 currentMessage = await provider.AddTransparencyProofAsync(currentMessage, cancellationToken).ConfigureAwait(false);
+                successCount++;
+
+                Logger.LogTrace(
+                    new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                    "Transparency provider '{ProviderName}' completed successfully",
+                    provider.ProviderName);
             }
             catch (Exception ex)
             {
                 var error = $"Transparency provider '{provider.ProviderName}' failed: {ex.Message}";
                 errors.Add(error);
 
+                Logger.LogWarning(
+                    new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                    ex,
+                    "Transparency provider '{ProviderName}' failed. FailOnError: {FailOnError}",
+                    provider.ProviderName,
+                    options?.FailOnTransparencyError ?? false);
+
                 // If configured to fail on transparency errors, throw immediately
-                if (options.FailOnTransparencyError)
+                if (options?.FailOnTransparencyError == true)
                 {
+                    stopwatch.Stop();
+                    Logger.LogError(
+                        new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                        ex,
+                        "Transparency application aborted due to provider failure. ProviderName: {ProviderName}, ElapsedMs: {ElapsedMs}",
+                        provider.ProviderName,
+                        stopwatch.ElapsedMilliseconds);
+
                     throw new InvalidOperationException(
                         $"Failed to add transparency proof. {error}",
                         ex);
@@ -573,12 +668,25 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             }
         }
 
-        // If we collected errors but didn't fail fast, log a warning
-        // (In production, consider using ILogger here if available via DI)
-        if (errors.Any() && !options.FailOnTransparencyError)
+        stopwatch.Stop();
+
+        // Log final status
+        if (errors.Count > 0)
         {
-            // Best-effort mode: some providers failed but we're continuing
-            // Could log to ILogger here if the factory supported it
+            Logger.LogWarning(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Transparency application completed with errors. SuccessCount: {SuccessCount}, FailureCount: {FailureCount}, ElapsedMs: {ElapsedMs}",
+                successCount,
+                errors.Count,
+                stopwatch.ElapsedMilliseconds);
+        }
+        else
+        {
+            Logger.LogDebug(
+                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
+                "Transparency application completed successfully. ProviderCount: {ProviderCount}, ElapsedMs: {ElapsedMs}",
+                successCount,
+                stopwatch.ElapsedMilliseconds);
         }
 
         return currentMessage;

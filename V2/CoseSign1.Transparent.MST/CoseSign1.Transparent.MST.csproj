@@ -7,7 +7,6 @@
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>CoseSign1.Transparent.MST.V2</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>V2 Microsoft Signing Transparency (MST) provider for COSE Sign1 transparency services and SCITT receipts.</Description>
   </PropertyGroup>

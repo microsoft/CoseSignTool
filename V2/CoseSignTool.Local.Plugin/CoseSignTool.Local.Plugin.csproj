@@ -7,7 +7,6 @@
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>CoseSignTool.Local.Plugin</PackageId>
     <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
     <Description>Local certificate signing plugin for CoseSignTool. Provides signing with PFX files, PEM files, and certificate stores.</Description>
   </PropertyGroup>

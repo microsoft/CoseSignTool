@@ -9,6 +9,8 @@
     <SignAssembly>True</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    <!-- This is a test helper library, not a packable product -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

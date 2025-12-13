@@ -7,7 +7,6 @@
 
     <!--NuGet package configuration-->
     <PropertyGroup>
-        <PackageId>CoseSign1.Abstractions.V2</PackageId>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>V2 Abstractions required to extend or enhance CoseSign1 functionality with dynamic key acquisition and service metadata.</Description>
     </PropertyGroup>

@@ -7,7 +7,6 @@
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>CoseSignTool.MST.Plugin</PackageId>
     <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
     <Description>Microsoft Signing Transparency plugin for CoseSignTool. Provides verification of SCITT receipts and transparency services.</Description>
   </PropertyGroup>

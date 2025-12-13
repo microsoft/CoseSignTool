@@ -8,7 +8,6 @@
 
   <!--NuGet package configuration-->
   <PropertyGroup>
-    <PackageId>DIDx509.V2</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>V2 DID:X509 identifier generation for X.509 certificate chains with EKU policy support.</Description>
   </PropertyGroup>

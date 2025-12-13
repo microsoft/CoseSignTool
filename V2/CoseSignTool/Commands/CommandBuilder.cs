@@ -236,7 +236,22 @@ public class CommandBuilder
     /// </summary>
     private static Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
     {
-        var command = new Command("verify", "Verify a COSE Sign1 signature");
+        var description = "Verify a COSE Sign1 signature\n\n" +
+            "EXAMPLES:\n" +
+            "  # Basic verification:\n" +
+            "    cosesigntool verify signature.cose\n\n" +
+            "  # Verify with specific trust roots:\n" +
+            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n" +
+            "  # Allow self-signed certificates (dev/test):\n" +
+            "    cosesigntool verify signature.cose --allow-untrusted\n\n" +
+            "  # Verify with certificate constraints:\n" +
+            "    cosesigntool verify signature.cose --subject-name \"My Company\"\n\n" +
+            "  # Verify from stdin (pipeline):\n" +
+            "    cat signature.cose | cosesigntool verify -\n\n" +
+            "  # JSON output for scripting:\n" +
+            "    cosesigntool verify signature.cose -f json";
+
+        var command = new Command("verify", description);
 
         // Required signature argument
         var signatureArgument = new Argument<FileInfo>(
@@ -282,7 +297,22 @@ public class CommandBuilder
     /// </summary>
     private static Command BuildInspectCommand()
     {
-        var command = new Command("inspect", "Inspect and display COSE Sign1 signature details");
+        var description = "Inspect and display COSE Sign1 signature details\n\n" +
+            "Displays detailed information about a COSE Sign1 message including:\n" +
+            "  - Protected and unprotected headers\n" +
+            "  - Algorithm and content type\n" +
+            "  - Payload size and preview (if embedded)\n" +
+            "  - Certificate chain information\n" +
+            "  - Signature size\n\n" +
+            "EXAMPLES:\n" +
+            "  # Inspect a signature file:\n" +
+            "    cosesigntool inspect signature.cose\n\n" +
+            "  # JSON output for scripting:\n" +
+            "    cosesigntool inspect signature.cose -f json\n\n" +
+            "  # Inspect and filter with jq:\n" +
+            "    cosesigntool inspect signature.cose -f json | jq '.headers'";
+
+        var command = new Command("inspect", description);
 
         // Required file argument
         var fileArgument = new Argument<FileInfo>(

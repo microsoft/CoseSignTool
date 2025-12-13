@@ -60,11 +60,11 @@ public class SigningCommandBuilder
                         "  Examples:\n" +
                         "    myfile.txt          - Sign file from disk\n" +
                         "    -                   - Read from stdin\n" +
-                        "    (omitted)           - Read from stdin (default)")
+                        "    (omitted)           - Read from stdin (default)",
+            getDefaultValue: () => null)
         {
             Arity = ArgumentArity.ZeroOrOne
         };
-        payloadArgument.SetDefaultValue(null);
 
         // Standard output option - managed by main exe
         var outputOption = new Option<string?>(

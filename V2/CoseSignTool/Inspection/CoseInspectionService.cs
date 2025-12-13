@@ -3,6 +3,9 @@
 
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Headers;
+using CoseSign1.Headers.Extensions;
+using CoseSign1.Indirect;
 using CoseSignTool.Output;
 
 namespace CoseSignTool.Inspection;
@@ -52,6 +55,9 @@ public class CoseInspectionService
 
                 // Display protected headers
                 DisplayProtectedHeaders(message);
+
+                // Display CWT Claims if present
+                DisplayCwtClaims(message);
 
                 // Display unprotected headers
                 DisplayUnprotectedHeaders(message);
@@ -150,7 +156,8 @@ public class CoseInspectionService
             }
 
             string headerName = GetHeaderName(header.Key);
-            Formatter.WriteKeyValue($"  {headerName}", $"<{header.Value.EncodedValue.Length} bytes>");
+            string headerValue = FormatHeaderValueWithDecode(header.Key, header.Value);
+            Formatter.WriteKeyValue($"  {headerName}", headerValue);
         }
     }
 
@@ -167,6 +174,65 @@ public class CoseInspectionService
                 string headerName = GetHeaderName(kvp.Key);
                 string headerValue = FormatHeaderValue(kvp.Value);
                 Formatter.WriteKeyValue($"  {headerName}", headerValue);
+            }
+        }
+    }
+
+    private void DisplayCwtClaims(CoseSign1Message message)
+    {
+        // Try to extract CWT Claims from protected headers using extension method
+        if (message.ProtectedHeaders.TryGetCwtClaims(out var claims) && claims != null)
+        {
+            Formatter.WriteInfo("CWT Claims (SCITT Compliance):");
+
+            if (!string.IsNullOrEmpty(claims.Issuer))
+            {
+                Formatter.WriteKeyValue("  Issuer (iss)", claims.Issuer);
+            }
+
+            if (!string.IsNullOrEmpty(claims.Subject))
+            {
+                Formatter.WriteKeyValue("  Subject (sub)", claims.Subject);
+            }
+
+            if (!string.IsNullOrEmpty(claims.Audience))
+            {
+                Formatter.WriteKeyValue("  Audience (aud)", claims.Audience);
+            }
+
+            if (claims.IssuedAt.HasValue)
+            {
+                Formatter.WriteKeyValue("  Issued At (iat)", claims.IssuedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC"));
+            }
+
+            if (claims.NotBefore.HasValue)
+            {
+                Formatter.WriteKeyValue("  Not Before (nbf)", claims.NotBefore.Value.ToString("yyyy-MM-dd HH:mm:ss UTC"));
+            }
+
+            if (claims.ExpirationTime.HasValue)
+            {
+                var expiry = claims.ExpirationTime.Value;
+                var isExpired = expiry < DateTimeOffset.UtcNow;
+                var expiryStr = expiry.ToString("yyyy-MM-dd HH:mm:ss UTC");
+                if (isExpired)
+                {
+                    Formatter.WriteWarning($"  Expiration (exp): {expiryStr} [EXPIRED]");
+                }
+                else
+                {
+                    Formatter.WriteKeyValue("  Expiration (exp)", expiryStr);
+                }
+            }
+
+            if (claims.CwtId != null && claims.CwtId.Length > 0)
+            {
+                Formatter.WriteKeyValue("  CWT ID (cti)", Convert.ToHexString(claims.CwtId));
+            }
+
+            if (claims.CustomClaims.Count > 0)
+            {
+                Formatter.WriteKeyValue("  Custom Claims", $"{claims.CustomClaims.Count} additional claims");
             }
         }
     }
@@ -227,46 +293,160 @@ public class CoseInspectionService
     {
         return algorithm switch
         {
+            // ECDSA algorithms
             -7 => "ES256 (ECDSA w/ SHA-256)",
             -35 => "ES384 (ECDSA w/ SHA-384)",
             -36 => "ES512 (ECDSA w/ SHA-512)",
+            // RSA-PSS algorithms
             -37 => "PS256 (RSASSA-PSS w/ SHA-256)",
             -38 => "PS384 (RSASSA-PSS w/ SHA-384)",
             -39 => "PS512 (RSASSA-PSS w/ SHA-512)",
+            // RSA PKCS#1 algorithms
             -257 => "RS256 (RSASSA-PKCS1-v1_5 w/ SHA-256)",
             -258 => "RS384 (RSASSA-PKCS1-v1_5 w/ SHA-384)",
             -259 => "RS512 (RSASSA-PKCS1-v1_5 w/ SHA-512)",
+            // Hash algorithms (for payload-hash-alg)
+            -16 => "SHA-256",
+            -43 => "SHA-384",
+            -44 => "SHA-512",
             _ => "Unknown"
         };
     }
 
-    private static string GetHeaderName(CoseHeaderLabel label)
+    private static string GetHashAlgorithmName(int algorithm)
     {
-        // CoseHeaderLabel is a struct that can be created from int or string
-        // We need to determine which one it is
+        return algorithm switch
+        {
+            -16 => "SHA-256",
+            -43 => "SHA-384",
+            -44 => "SHA-512",
+            _ => $"Unknown ({algorithm})"
+        };
+    }
+
+    private static string FormatHeaderValueWithDecode(CoseHeaderLabel label, CoseHeaderValue value)
+    {
         try
         {
-            // Try to get the int value
-            var value = label.GetHashCode(); // This is a workaround - need to inspect the actual structure
-            return value switch
+            var reader = new CborReader(value.EncodedValue);
+            var state = reader.PeekState();
+
+            // Try to decode payload-hash-alg as algorithm ID
+            if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg))
             {
-                1 => "alg (Algorithm)",
-                2 => "crit (Critical)",
-                3 => "content type",
-                4 => "kid (Key ID)",
-                5 => "IV",
-                6 => "Partial IV",
-                7 => "counter signature",
-                33 => "x5chain (Certificate Chain)",
-                34 => "x5t (Certificate Thumbprint)",
-                35 => "x5u (Certificate URL)",
-                _ => $"Header {label}"
+                if (state == CborReaderState.NegativeInteger || state == CborReaderState.UnsignedInteger)
+                {
+                    var algId = reader.ReadInt32();
+                    return GetHashAlgorithmName(algId);
+                }
+            }
+
+            // Try to decode preimage-content-type as string
+            if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType))
+            {
+                if (state == CborReaderState.TextString)
+                {
+                    return reader.ReadTextString();
+                }
+            }
+
+            // Try to decode payload-location as string
+            if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation))
+            {
+                if (state == CborReaderState.TextString)
+                {
+                    return reader.ReadTextString();
+                }
+            }
+
+            // For certificate thumbprint, show as hex
+            if (label.Equals(new CoseHeaderLabel(34))) // x5t
+            {
+                if (state == CborReaderState.StartArray)
+                {
+                    reader.ReadStartArray();
+                    var algId = reader.ReadInt32();
+                    var thumbprint = reader.ReadByteString();
+                    reader.ReadEndArray();
+                    var hashName = GetHashAlgorithmName(algId);
+                    return $"{hashName}: {Convert.ToHexString(thumbprint)}";
+                }
+            }
+
+            // Generic decoding for simple types
+            return state switch
+            {
+                CborReaderState.TextString => reader.ReadTextString(),
+                CborReaderState.UnsignedInteger => reader.ReadUInt64().ToString(),
+                CborReaderState.NegativeInteger => reader.ReadInt64().ToString(),
+                CborReaderState.ByteString => $"<{value.EncodedValue.Length} bytes>",
+                _ => $"<{value.EncodedValue.Length} bytes>"
             };
         }
         catch
         {
-            return $"Header {label}";
+            return $"<{value.EncodedValue.Length} bytes>";
         }
+    }
+
+    // Well-known COSE header labels (from RFC 9052, RFC 9054, and extensions)
+    // Using constants from CoseSign1.Headers library where available
+    private static readonly Dictionary<int, string> WellKnownHeaders = new()
+    {
+        // Standard COSE headers (RFC 9052)
+        { 1, "alg (Algorithm)" },
+        { 2, "crit (Critical)" },
+        { 3, "content type" },
+        { 4, "kid (Key ID)" },
+        { 5, "IV" },
+        { 6, "Partial IV" },
+        { 7, "counter signature" },
+        // CWT Claims header (RFC 9597) - label 15
+        { 15, "CWT Claims" },
+        // X.509 certificate headers
+        { 33, "x5chain (Certificate Chain)" },
+        { 34, "x5t (Certificate Thumbprint)" },
+        { 35, "x5u (Certificate URL)" },
+        // COSE Hash Envelope headers (RFC 9054)
+        { 258, "payload-hash-alg (Hash Algorithm)" },
+        { 259, "payload-preimage-content-type" },
+        { 260, "payload-location" },
+        // SCITT transparency headers
+        { 393, "scitt-receipts" },
+        { 394, "scitt-statement" },
+    };
+
+    private static string GetHeaderName(CoseHeaderLabel label)
+    {
+        // Check against well-known labels from CoseSign1.Headers constants
+        if (label.Equals(CWTClaimsHeaderLabels.CWTClaims))
+        {
+            return "CWT Claims";
+        }
+        if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg))
+        {
+            return "payload-hash-alg (Hash Algorithm)";
+        }
+        if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType))
+        {
+            return "payload-preimage-content-type";
+        }
+        if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation))
+        {
+            return "payload-location";
+        }
+
+        // Check against other well-known headers by comparing equality
+        foreach (var (key, name) in WellKnownHeaders)
+        {
+            if (label.Equals(new CoseHeaderLabel(key)))
+            {
+                return name;
+            }
+        }
+
+        // For unknown labels, return a generic description
+        return "Header (custom)";
     }
 
     private static string FormatHeaderValue(CoseHeaderValue value)

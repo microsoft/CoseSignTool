@@ -20,7 +20,7 @@ public class LocalSigningPlugin : IPlugin
     public string Version => "1.0.0";
 
     /// <inheritdoc/>
-    public string Description => "Sign with local certificates (PFX files, certificate stores)";
+    public string Description => "Sign and verify with local certificates (PFX files, certificate stores)";
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null)
@@ -49,6 +49,13 @@ public class LocalSigningPlugin : IPlugin
         }
 
         return providers;
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<IVerificationProvider> GetVerificationProviders()
+    {
+        // X509 verification is available on all platforms
+        yield return new X509VerificationProvider();
     }
 
     /// <inheritdoc/>

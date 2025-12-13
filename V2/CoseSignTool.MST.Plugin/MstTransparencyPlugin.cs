@@ -12,7 +12,7 @@ namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Plugin for Microsoft Signing Transparency (MST) verification.
-/// Provides commands for verifying transparency proofs embedded in COSE signatures.
+/// Provides commands and verification providers for transparency proofs in COSE signatures.
 /// </summary>
 public class MstTransparencyPlugin : IPlugin
 {
@@ -39,6 +39,13 @@ public class MstTransparencyPlugin : IPlugin
     {
         // MST plugin doesn't provide signing commands
         return Enumerable.Empty<ISigningCommandProvider>();
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<IVerificationProvider> GetVerificationProviders()
+    {
+        // MST plugin contributes verification capabilities
+        yield return new MstVerificationProvider();
     }
 
     /// <inheritdoc/>

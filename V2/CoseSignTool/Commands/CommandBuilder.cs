@@ -65,7 +65,7 @@ public class CommandBuilder
             name: "--verbose",
             description: "Show detailed help including all options and examples");
 
-        // Add logging verbosity options (these are parsed/stripped before System.CommandLine, 
+        // Add logging verbosity options (these are parsed/stripped before System.CommandLine,
         // but we add them so they appear in help)
         var verbosityOption = new Option<int>(
             name: "--verbosity",
@@ -93,8 +93,12 @@ public class CommandBuilder
             // Regular help is handled automatically by System.CommandLine
         }, verboseHelpOption);
 
-        // Load and register plugins first to collect transparency providers
-        LoadPlugins(rootCommand, additionalPluginDirectories, out var transparencyProviders);
+        // Load and register plugins first to collect providers
+        LoadPlugins(
+            rootCommand,
+            additionalPluginDirectories,
+            out var transparencyProviders,
+            out var verificationProviders);
 
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
@@ -105,8 +109,8 @@ public class CommandBuilder
         var ephemeralProvider = new EphemeralSigningCommandProvider();
         rootCommand.AddCommand(signingCommandBuilder.BuildSigningCommand(ephemeralProvider));
 
-        // Add built-in verify and inspect commands
-        rootCommand.AddCommand(BuildVerifyCommand());
+        // Add built-in verify and inspect commands with verification providers
+        rootCommand.AddCommand(BuildVerifyCommand(verificationProviders));
         rootCommand.AddCommand(BuildInspectCommand());
 
         return rootCommand;
@@ -118,9 +122,11 @@ public class CommandBuilder
     private static void LoadPlugins(
         RootCommand rootCommand,
         IEnumerable<string>? additionalPluginDirectories,
-        out IReadOnlyList<ITransparencyProvider> transparencyProviders)
+        out IReadOnlyList<ITransparencyProvider> transparencyProviders,
+        out IReadOnlyList<IVerificationProvider> verificationProviders)
     {
         transparencyProviders = Array.Empty<ITransparencyProvider>();
+        verificationProviders = Array.Empty<IVerificationProvider>();
 
         try
         {
@@ -138,31 +144,43 @@ public class CommandBuilder
             var loadTask = loader.LoadPluginsAsync(pluginDir, additionalPluginDirectories);
             loadTask.Wait(); // Synchronous wait since we can't make BuildRootCommand async
 
-            // Collect transparency providers from all plugins
-            var providers = new List<ITransparencyProvider>();
+            // Collect providers from all plugins
+            var transparencyProvidersList = new List<ITransparencyProvider>();
+            var verificationProvidersList = new List<IVerificationProvider>();
             var plugins = loader.Plugins;
 
             foreach (var plugin in plugins)
             {
+                // Collect transparency providers
                 try
                 {
                     var contributors = plugin.GetTransparencyProviderContributors();
                     foreach (var contributor in contributors)
                     {
-                        // Create transparency provider with empty options for now
-                        // In the future, these could be configured via global options
                         var providerTask = contributor.CreateTransparencyProviderAsync(new Dictionary<string, object?>());
                         providerTask.Wait();
-                        providers.Add(providerTask.Result);
+                        transparencyProvidersList.Add(providerTask.Result);
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Warning: Failed to load transparency provider from plugin '{plugin.Name}': {ex.Message}");
                 }
+
+                // Collect verification providers
+                try
+                {
+                    var providers = plugin.GetVerificationProviders();
+                    verificationProvidersList.AddRange(providers);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: Failed to load verification provider from plugin '{plugin.Name}': {ex.Message}");
+                }
             }
 
-            transparencyProviders = providers;
+            transparencyProviders = transparencyProvidersList;
+            verificationProviders = verificationProvidersList.OrderBy(p => p.Priority).ToList();
 
             // Create signing command builder with transparency providers
             var signingCommandBuilder = new SigningCommandBuilder(
@@ -204,7 +222,7 @@ public class CommandBuilder
     /// <summary>
     /// Builds the 'verify' command for validating COSE signatures.
     /// </summary>
-    private static Command BuildVerifyCommand()
+    private static Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
     {
         var command = new Command("verify", "Verify a COSE Sign1 signature");
 
@@ -213,6 +231,12 @@ public class CommandBuilder
             "signature",
             "Path to the COSE signature file");
         command.AddArgument(signatureArgument);
+
+        // Let each verification provider add its options
+        foreach (var provider in verificationProviders)
+        {
+            provider.AddVerificationOptions(command);
+        }
 
         // Set handler
         command.SetHandler(async (context) =>
@@ -233,7 +257,7 @@ public class CommandBuilder
             }
 
             var formatter = OutputFormatterFactory.Create(outputFormat);
-            var handler = new VerifyCommandHandler(formatter);
+            var handler = new VerifyCommandHandler(formatter, verificationProviders);
             var exitCode = await handler.HandleAsync(context);
             context.ExitCode = exitCode;
         });

@@ -279,6 +279,11 @@ public class PluginLoaderTests
             return Enumerable.Empty<ISigningCommandProvider>();
         }
 
+        public IEnumerable<IVerificationProvider> GetVerificationProviders()
+        {
+            return Enumerable.Empty<IVerificationProvider>();
+        }
+
         public IEnumerable<ITransparencyProviderContributor> GetTransparencyProviderContributors()
         {
             return Enumerable.Empty<ITransparencyProviderContributor>();

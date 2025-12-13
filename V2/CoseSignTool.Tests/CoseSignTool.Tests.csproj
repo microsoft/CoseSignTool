@@ -23,6 +23,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+        <ProjectReference Include="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -6,6 +6,7 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSignTool.Output;
+using CoseSignTool.Plugins;
 
 namespace CoseSignTool.Commands.Handlers;
 
@@ -15,14 +16,17 @@ namespace CoseSignTool.Commands.Handlers;
 public class VerifyCommandHandler
 {
     private readonly IOutputFormatter Formatter;
+    private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandHandler"/> class.
     /// </summary>
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
-    public VerifyCommandHandler(IOutputFormatter? formatter = null)
+    /// <param name="verificationProviders">The verification providers to use for validation.</param>
+    public VerifyCommandHandler(IOutputFormatter? formatter = null, IReadOnlyList<IVerificationProvider>? verificationProviders = null)
     {
         Formatter = formatter ?? new TextOutputFormatter();
+        VerificationProviders = verificationProviders ?? Array.Empty<IVerificationProvider>();
     }
 
     /// <summary>
@@ -78,16 +82,50 @@ public class VerifyCommandHandler
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
             Formatter.WriteKeyValue("Payload", hasEmbeddedPayload ? "Embedded" : "Detached");
 
-            // Build and execute validation
-            var validator = Cose.Sign1Message()
-                .ValidateCertificateSignature(allowUnprotectedHeaders: true)
-                .Build();
+            // Build validator with all activated providers
+            var validatorBuilder = Cose.Sign1Message()
+                .ValidateCertificateSignature(allowUnprotectedHeaders: true);
 
-            var validationResult = validator.Validate(message);
+            // Add validators from each activated provider
+            var activatedProviders = new List<string>();
+            foreach (var provider in VerificationProviders)
+            {
+                if (provider.IsActivated(parseResult))
+                {
+                    activatedProviders.Add(provider.ProviderName);
+                    var validators = provider.CreateValidators(parseResult);
+                    foreach (var validator in validators)
+                    {
+                        validatorBuilder = validatorBuilder.AddValidator(validator);
+                    }
+                }
+            }
+
+            if (activatedProviders.Count > 0)
+            {
+                Formatter.WriteKeyValue("Active Providers", string.Join(", ", activatedProviders));
+            }
+
+            var compositeValidator = validatorBuilder.Build();
+            var validationResult = compositeValidator.Validate(message);
 
             if (validationResult.IsValid)
             {
                 Formatter.WriteSuccess("Signature verified successfully");
+
+                // Add metadata from providers
+                foreach (var provider in VerificationProviders)
+                {
+                    if (provider.IsActivated(parseResult))
+                    {
+                        var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult);
+                        foreach (var kvp in metadata)
+                        {
+                            Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? "null");
+                        }
+                    }
+                }
+
                 Formatter.EndSection();
                 Formatter.Flush();
                 return Task.FromResult((int)ExitCode.Success);

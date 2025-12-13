@@ -7,7 +7,7 @@ namespace CoseSignTool.Plugins;
 
 /// <summary>
 /// Interface for CoseSignTool plugins that can extend functionality.
-/// Plugins can provide signing commands, validation services, or other extensions.
+/// Plugins can provide signing commands, verification providers, or other extensions.
 /// </summary>
 public interface IPlugin
 {
@@ -31,6 +31,12 @@ public interface IPlugin
     /// Return empty collection if plugin doesn't provide signing commands.
     /// </summary>
     IEnumerable<ISigningCommandProvider> GetSigningCommandProviders();
+
+    /// <summary>
+    /// Gets the verification providers offered by this plugin.
+    /// Return empty collection if plugin doesn't provide verification capabilities.
+    /// </summary>
+    IEnumerable<IVerificationProvider> GetVerificationProviders();
 
     /// <summary>
     /// Gets the transparency provider contributors offered by this plugin.

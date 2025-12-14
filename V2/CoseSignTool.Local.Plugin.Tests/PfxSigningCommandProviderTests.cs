@@ -52,7 +52,9 @@ public class PfxSigningCommandProviderTests
 
         // Assert
         Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx"));
-        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx-password"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx-password-file"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx-password-env"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "pfx-password-prompt"));
     }
 
     [Test]
@@ -72,7 +74,7 @@ public class PfxSigningCommandProviderTests
     }
 
     [Test]
-    public void AddCommandOptions_PasswordOptionIsOptional()
+    public void AddCommandOptions_PasswordFileOptionIsOptional()
     {
         // Arrange
         var provider = new PfxSigningCommandProvider();
@@ -82,9 +84,41 @@ public class PfxSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "pfx-password");
+        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "pfx-password-file");
         Assert.That(passwordOption, Is.Not.Null);
         Assert.That(passwordOption!.IsRequired, Is.False);
+    }
+
+    [Test]
+    public void AddCommandOptions_PasswordEnvOptionIsOptional()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+        var command = new Command("test");
+
+        // Act
+        provider.AddCommandOptions(command);
+
+        // Assert
+        var envOption = command.Options.FirstOrDefault(o => o.Name == "pfx-password-env");
+        Assert.That(envOption, Is.Not.Null);
+        Assert.That(envOption!.IsRequired, Is.False);
+    }
+
+    [Test]
+    public void AddCommandOptions_PasswordPromptOptionIsOptional()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+        var command = new Command("test");
+
+        // Act
+        provider.AddCommandOptions(command);
+
+        // Assert
+        var promptOption = command.Options.FirstOrDefault(o => o.Name == "pfx-password-prompt");
+        Assert.That(promptOption, Is.Not.Null);
+        Assert.That(promptOption!.IsRequired, Is.False);
     }
 
     [Test]

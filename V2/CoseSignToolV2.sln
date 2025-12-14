@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.Loca
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.Local.Tests", "CoseSign1.Certificates.Local.Tests\CoseSign1.Certificates.Local.Tests.csproj", "{F70E527C-4F6F-4AF6-B8DE-3E5343A85870}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSignTool.Abstractions.Tests", "CoseSignTool.Abstractions.Tests\CoseSignTool.Abstractions.Tests.csproj", "{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -405,6 +407,18 @@ Global
 		{F70E527C-4F6F-4AF6-B8DE-3E5343A85870}.Release|x64.Build.0 = Release|Any CPU
 		{F70E527C-4F6F-4AF6-B8DE-3E5343A85870}.Release|x86.ActiveCfg = Release|Any CPU
 		{F70E527C-4F6F-4AF6-B8DE-3E5343A85870}.Release|x86.Build.0 = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|x64.Build.0 = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Debug|x86.Build.0 = Debug|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|x64.ActiveCfg = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|x64.Build.0 = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|x86.ActiveCfg = Release|Any CPU
+		{9A683A9A-D938-4D30-93B3-1948DCCCD9FC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

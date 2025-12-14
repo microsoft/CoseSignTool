@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Tests.Common;
@@ -162,4 +163,121 @@ public class PfxCertificateSourceTests
         source.Dispose();
         source.Dispose(); // Should not throw
     }
+
+    #region SecureString Tests
+
+    [Test]
+    public void Constructor_WithSecureStringPassword_FromFile_Succeeds()
+    {
+        // Create a test PFX file
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var password = "testpassword";
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+
+        using var securePassword = ConvertToSecureString(password);
+        using var source = new PfxCertificateSource(TempPfxPath, securePassword);
+
+        Assert.That(source, Is.Not.Null);
+        Assert.That(source.HasPrivateKey, Is.True);
+    }
+
+    [Test]
+    public void Constructor_WithSecureStringPassword_FromBytes_Succeeds()
+    {
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var password = "testpassword";
+        var pfxData = chain.Export(X509ContentType.Pfx, password)!;
+
+        using var securePassword = ConvertToSecureString(password);
+        using var source = new PfxCertificateSource(pfxData, securePassword);
+
+        Assert.That(source, Is.Not.Null);
+        Assert.That(source.HasPrivateKey, Is.True);
+    }
+
+    [Test]
+    public void Constructor_WithNullSecureString_FromFile_SucceedsForUnprotectedPfx()
+    {
+        // Create unprotected PFX
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, (string?)null)!);
+
+        using var source = new PfxCertificateSource(TempPfxPath, (SecureString?)null);
+
+        Assert.That(source, Is.Not.Null);
+        Assert.That(source.HasPrivateKey, Is.True);
+    }
+
+    [Test]
+    public void Constructor_WithNullSecureString_FromBytes_SucceedsForUnprotectedPfx()
+    {
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var pfxData = chain.Export(X509ContentType.Pfx, (string?)null)!;
+
+        using var source = new PfxCertificateSource(pfxData, (SecureString?)null);
+
+        Assert.That(source, Is.Not.Null);
+        Assert.That(source.HasPrivateKey, Is.True);
+    }
+
+    [Test]
+    public void Constructor_WithIncorrectSecureStringPassword_ThrowsCryptographicException()
+    {
+        // Create a test PFX file with password
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var password = "correctpassword";
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+
+        using var wrongPassword = ConvertToSecureString("wrongpassword");
+
+        Assert.Throws<System.Security.Cryptography.CryptographicException>(() =>
+            new PfxCertificateSource(TempPfxPath, wrongPassword));
+    }
+
+    [Test]
+    public void GetSigningCertificate_WithSecureString_ReturnsLeafCertificate()
+    {
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var password = "testpassword";
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+
+        using var securePassword = ConvertToSecureString(password);
+        using var source = new PfxCertificateSource(TempPfxPath, securePassword);
+        var cert = source.GetSigningCertificate();
+
+        Assert.That(cert, Is.Not.Null);
+        Assert.That(cert.HasPrivateKey, Is.True);
+    }
+
+    [Test]
+    public void UsageWithLocalCertificateSigningService_WithSecureString_Succeeds()
+    {
+        // Demonstrate that PfxCertificateSource works with LocalCertificateSigningService
+        var chain = TestCertificateUtils.CreateTestChainForPfx();
+        var password = "testpassword";
+        File.WriteAllBytes(TempPfxPath, chain.Export(X509ContentType.Pfx, password)!);
+
+        using var securePassword = ConvertToSecureString(password);
+        using var source = new PfxCertificateSource(TempPfxPath, securePassword);
+        var cert = source.GetSigningCertificate();
+        var chainBuilder = source.GetChainBuilder();
+
+        using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+
+        Assert.That(signingService, Is.Not.Null);
+        Assert.That(signingService.IsRemote, Is.False);
+    }
+
+    private static SecureString ConvertToSecureString(string plainString)
+    {
+        var secure = new SecureString();
+        foreach (char c in plainString)
+        {
+            secure.AppendChar(c);
+        }
+        secure.MakeReadOnly();
+        return secure;
+    }
+
+    #endregion
 }

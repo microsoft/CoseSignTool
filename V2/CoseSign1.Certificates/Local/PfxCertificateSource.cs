@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
@@ -13,9 +15,49 @@ namespace CoseSign1.Certificates.Local;
 /// Certificate source that loads from a PFX/PKCS#12 file.
 /// Supports loading with password protection and extracting the full certificate chain.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Security Best Practice:</b> Use the <see cref="SecureString"/> overloads when possible
+/// to avoid password strings lingering in memory. Regular strings are immutable in .NET and
+/// cannot be reliably cleared from memory.
+/// </para>
+/// </remarks>
 public class PfxCertificateSource : CertificateSourceBase
 {
     private readonly X509Certificate2 Certificate;
+
+    /// <summary>
+    /// Initializes a new instance of PfxCertificateSource from a file path with a SecureString password.
+    /// </summary>
+    /// <param name="pfxFilePath">Path to the PFX file</param>
+    /// <param name="password">SecureString password for the PFX file (null for unprotected files)</param>
+    /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <remarks>
+    /// This overload is recommended for security-sensitive scenarios as it keeps the password
+    /// in encrypted memory until needed.
+    /// </remarks>
+    public PfxCertificateSource(
+        string pfxFilePath,
+        SecureString? password,
+#if NET5_0_OR_GREATER
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.EphemeralKeySet,
+#else
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.MachineKeySet,
+#endif
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<PfxCertificateSource>? logger = null)
+        : this(LoadFromFile(pfxFilePath, password, keyStorageFlags, logger), chainBuilder, logger)
+    {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "PfxCertificateSource initialized from file (SecureString). FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            pfxFilePath,
+            Certificate.Subject,
+            Certificate.Thumbprint,
+            Certificate.HasPrivateKey);
+    }
 
     /// <summary>
     /// Initializes a new instance of PfxCertificateSource from a file path.
@@ -25,6 +67,9 @@ public class PfxCertificateSource : CertificateSourceBase
     /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <remarks>
+    /// Consider using the <see cref="SecureString"/> overload for improved security.
+    /// </remarks>
     public PfxCertificateSource(
         string pfxFilePath,
         string? password = null,
@@ -47,6 +92,38 @@ public class PfxCertificateSource : CertificateSourceBase
     }
 
     /// <summary>
+    /// Initializes a new instance of PfxCertificateSource from byte array with a SecureString password.
+    /// </summary>
+    /// <param name="pfxData">PFX file data</param>
+    /// <param name="password">SecureString password for the PFX file (null for unprotected data)</param>
+    /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
+    /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <remarks>
+    /// This overload is recommended for security-sensitive scenarios as it keeps the password
+    /// in encrypted memory until needed.
+    /// </remarks>
+    public PfxCertificateSource(
+        byte[] pfxData,
+        SecureString? password,
+#if NET5_0_OR_GREATER
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.EphemeralKeySet,
+#else
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.MachineKeySet,
+#endif
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger<PfxCertificateSource>? logger = null)
+        : this(LoadFromBytes(pfxData, password, keyStorageFlags, logger), chainBuilder, logger)
+    {
+        Logger.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "PfxCertificateSource initialized from bytes (SecureString). Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            Certificate.Subject,
+            Certificate.Thumbprint,
+            Certificate.HasPrivateKey);
+    }
+
+    /// <summary>
     /// Initializes a new instance of PfxCertificateSource from byte array.
     /// </summary>
     /// <param name="pfxData">PFX file data</param>
@@ -54,6 +131,9 @@ public class PfxCertificateSource : CertificateSourceBase
     /// <param name="keyStorageFlags">Flags controlling how the private key is stored</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder with all certificates from the PFX.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <remarks>
+    /// Consider using the <see cref="SecureString"/> overload for improved security.
+    /// </remarks>
     public PfxCertificateSource(
         byte[] pfxData,
         string? password = null,
@@ -104,6 +184,52 @@ public class PfxCertificateSource : CertificateSourceBase
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromFile(
         string pfxFilePath,
+        SecureString? password,
+        X509KeyStorageFlags keyStorageFlags,
+        ILogger? logger)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
+#else
+        if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(pfxFilePath)); }
+#endif
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Loading PFX from file (SecureString). FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}",
+            pfxFilePath,
+            keyStorageFlags);
+
+        if (!File.Exists(pfxFilePath))
+        {
+            logger?.LogTrace(
+                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                "PFX file not found. FilePath: {FilePath}",
+                pfxFilePath);
+            throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
+        }
+
+        // Convert SecureString to plain string only at the moment of use
+        string? plainPassword = ConvertSecureStringToPlain(password);
+        try
+        {
+#if NET5_0_OR_GREATER
+            var collection = X509CertificateLoader.LoadPkcs12CollectionFromFile(pfxFilePath, plainPassword, keyStorageFlags);
+#else
+            var collection = new X509Certificate2Collection();
+            collection.Import(pfxFilePath, plainPassword, keyStorageFlags);
+#endif
+            return ExtractCertificateAndChain(collection, $"PFX file: {pfxFilePath}", logger);
+        }
+        finally
+        {
+            // Help GC clean up the plain password string
+            plainPassword = null;
+        }
+    }
+
+    private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromFile(
+        string pfxFilePath,
         string? password,
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
@@ -140,6 +266,43 @@ public class PfxCertificateSource : CertificateSourceBase
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromBytes(
         byte[] pfxData,
+        SecureString? password,
+        X509KeyStorageFlags keyStorageFlags,
+        ILogger? logger)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(pfxData);
+#else
+        if (pfxData == null) { throw new ArgumentNullException(nameof(pfxData)); }
+#endif
+
+        logger?.LogTrace(
+            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            "Loading PFX from bytes (SecureString). DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}",
+            pfxData.Length,
+            keyStorageFlags);
+
+        // Convert SecureString to plain string only at the moment of use
+        string? plainPassword = ConvertSecureStringToPlain(password);
+        try
+        {
+#if NET5_0_OR_GREATER
+            var collection = X509CertificateLoader.LoadPkcs12Collection(pfxData, plainPassword, keyStorageFlags);
+#else
+            var collection = new X509Certificate2Collection();
+            collection.Import(pfxData, plainPassword, keyStorageFlags);
+#endif
+            return ExtractCertificateAndChain(collection, "PFX data", logger);
+        }
+        finally
+        {
+            // Help GC clean up the plain password string
+            plainPassword = null;
+        }
+    }
+
+    private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromBytes(
+        byte[] pfxData,
         string? password,
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
@@ -163,6 +326,31 @@ public class PfxCertificateSource : CertificateSourceBase
         collection.Import(pfxData, password, keyStorageFlags);
 #endif
         return ExtractCertificateAndChain(collection, "PFX data", logger);
+    }
+
+    /// <summary>
+    /// Converts a SecureString to a plain string for use with APIs that don't support SecureString.
+    /// </summary>
+    private static string? ConvertSecureStringToPlain(SecureString? secureString)
+    {
+        if (secureString == null || secureString.Length == 0)
+        {
+            return null;
+        }
+
+        IntPtr ptr = IntPtr.Zero;
+        try
+        {
+            ptr = Marshal.SecureStringToBSTR(secureString);
+            return Marshal.PtrToStringBSTR(ptr);
+        }
+        finally
+        {
+            if (ptr != IntPtr.Zero)
+            {
+                Marshal.ZeroFreeBSTR(ptr);
+            }
+        }
     }
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) ExtractCertificateAndChain(

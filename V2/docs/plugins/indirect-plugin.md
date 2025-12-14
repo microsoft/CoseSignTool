@@ -12,11 +12,11 @@ The plugin is included with CoseSignTool by default.
 
 ## Options Added
 
-The plugin adds the following options to sign commands:
+The plugin adds support for indirect signatures via the `--signature-type` option:
 
 | Option | Description |
 |--------|-------------|
-| `--indirect` | Create an indirect (hash envelope) signature |
+| `--signature-type indirect` | Create an indirect (hash envelope) signature |
 | `--hash-algorithm <alg>` | Hash algorithm for indirect signatures |
 
 ## Supported Hash Algorithms
@@ -37,7 +37,7 @@ The plugin adds the following options to sign commands:
 ```bash
 CoseSignTool sign-pfx large-file.bin ^
     --pfx-file cert.pfx ^
-    --indirect ^
+    --signature-type indirect ^
     --hash-algorithm SHA384 ^
     --output large-file.sig
 ```

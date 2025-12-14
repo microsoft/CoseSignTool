@@ -164,7 +164,7 @@ CoseSignTool inspect signed.cose
 ```bash
 CoseSignTool sign-pfx document.json ^
     --pfx-file cert.pfx ^
-    --detached ^
+    --signature-type detached ^
     --output document.json.sig
 ```
 

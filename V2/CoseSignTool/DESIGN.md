@@ -89,10 +89,10 @@ cosesigntool sign artifact.tar.gz --scitt \
   --subject "pkg:npm/express@4.18.2"
 
 # Detached signature
-cosesigntool sign input.bin --detached -o input.cose
+cosesigntool sign input.bin --signature-type detached -o input.cose
 
 # Indirect signature (hash-based)
-cosesigntool sign large-file.iso --indirect -o large-file.cose
+cosesigntool sign large-file.iso --signature-type indirect -o large-file.cose
 
 # With transparency receipt
 cosesigntool sign input.bin --transparency mst \

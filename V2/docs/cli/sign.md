@@ -38,8 +38,7 @@ CoseSignTool sign-pfx <input-file> [options]
 | `--pfx-file <path>` | Path to PFX certificate file (required) |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
-| `--detached` | Create detached signature |
-| `--indirect` | Create indirect (hash) signature |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 > **Note:** Set the PFX password via the `COSESIGNTOOL_PFX_PASSWORD` environment variable.
 
@@ -69,7 +68,7 @@ CoseSignTool sign-certstore <input-file> [options]
 | `--store-location <loc>` | Store location: `CurrentUser` or `LocalMachine` |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
-| `--detached` | Create detached signature |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 ### Example
 
@@ -99,7 +98,7 @@ CoseSignTool sign-pem <input-file> [options]
 | `--key-file <path>` | Path to PEM private key file (required) |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
-| `--detached` | Create detached signature |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 > **Note:** Set the key password via the `COSESIGNTOOL_KEY_PASSWORD` environment variable if the key is encrypted.
 
@@ -129,7 +128,7 @@ CoseSignTool sign-ephemeral <input-file> [options]
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
 | `--algorithm <alg>` | Signing algorithm: `ES256`, `ES384`, `PS256`, etc. |
-| `--detached` | Create detached signature |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 ### Example
 
@@ -158,7 +157,7 @@ CoseSignTool sign-azure <input-file> [options]
 | `--ats-cert-profile-name <name>` | Certificate profile name (required) |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
-| `--detached` | Create detached signature |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 ### Example
 
@@ -176,11 +175,10 @@ All sign commands support these common options:
 
 | Option | Description |
 |--------|-------------|
-| `--output <path>` | Output file path (default: `<input>.cose`) |
-| `--content-type <type>` | MIME type for content type header |
-| `--detached` | Create detached signature (payload not embedded) |
-| `--indirect` | Create indirect signature (hash of payload) |
-| `--hash-algorithm <alg>` | Hash algorithm for indirect signatures |
+| `--output <path>`, `-o` | Output file path (default: `<input>.cose`) |
+| `--content-type <type>`, `-c` | MIME type for content type header |
+| `--signature-type <type>`, `-t` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
+| `--hash-algorithm <alg>` | Hash algorithm for indirect signatures (default: `SHA256`) |
 
 ## Exit Codes
 

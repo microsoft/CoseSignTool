@@ -43,7 +43,7 @@ Adds indirect (hash envelope) signature support:
 
 | Options | Description |
 |---------|-------------|
-| `--indirect` | Create indirect signature |
+| `--signature-type indirect` | Create indirect signature |
 | `--hash-algorithm` | Hash algorithm for indirect signatures |
 
 ## Plugin Architecture

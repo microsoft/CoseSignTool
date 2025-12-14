@@ -40,7 +40,7 @@ await File.WriteAllBytesAsync("document.json.sig", signature);
 # Create detached signature
 CoseSignTool sign-pfx document.json ^
     --pfx-file cert.pfx ^
-    --detached ^
+    --signature-type detached ^
     --output document.json.sig
 ```
 
@@ -146,19 +146,19 @@ Detached signatures enable multiple parties to sign the same payload:
 # Developer signs
 CoseSignTool sign-pfx artifact.bin ^
     --pfx-file developer.pfx ^
-    --detached ^
+    --signature-type detached ^
     --output artifact.bin.dev-sig
 
 # QA signs
 CoseSignTool sign-pfx artifact.bin ^
     --pfx-file qa.pfx ^
-    --detached ^
+    --signature-type detached ^
     --output artifact.bin.qa-sig
 
 # Security signs
 CoseSignTool sign-pfx artifact.bin ^
     --pfx-file security.pfx ^
-    --detached ^
+    --signature-type detached ^
     --output artifact.bin.sec-sig
 ```
 

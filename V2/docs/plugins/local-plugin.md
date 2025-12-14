@@ -29,8 +29,7 @@ CoseSignTool sign-pfx <payload> --pfx <path> [password-options] [options]
 | `--pfx-password-env` | No | Environment variable name containing the password (default: `COSESIGNTOOL_PFX_PASSWORD`) |
 | `--pfx-password-prompt` | No | Prompt for password interactively |
 | `--output`, `-o` | No | Output path for signature file |
-| `--detached`, `-d` | No | Create detached signature |
-| `--signature-type`, `-t` | No | Signature type: detached, embedded, indirect |
+| `--signature-type`, `-t` | No | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 | `--content-type`, `-c` | No | MIME type of payload |
 
 #### Password Security

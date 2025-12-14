@@ -63,10 +63,10 @@ byte[] signature = factory.CreateCoseSign1MessageBytes(
 
 ```bash
 # Embedded direct signature
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --output signed.cose
+CoseSignTool sign-pfx document.json --pfx-file cert.pfx --signature-type embedded --output signed.cose
 
 # Detached direct signature
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --detached --output signed.cose
+CoseSignTool sign-pfx document.json --pfx-file cert.pfx --signature-type detached --output signed.cose
 ```
 
 ## Indirect Signatures
@@ -145,7 +145,7 @@ byte[] signature = await factory.CreateIndirectSignatureBytesAsync(
 # Indirect signature
 CoseSignTool sign-pfx large-file.bin ^
     --pfx-file cert.pfx ^
-    --indirect ^
+    --signature-type indirect ^
     --hash-algorithm SHA256 ^
     --output signed.cose
 ```
@@ -193,8 +193,8 @@ CoseSignTool verify signed.cose
 # Direct signature (detached)
 CoseSignTool verify signed.cose --payload document.json
 
-# Indirect signature
-CoseSignTool verify signed.cose --payload large-file.bin --indirect
+# Indirect signature (automatically detected from signature)
+CoseSignTool verify signed.cose --payload large-file.bin
 ```
 
 ## Supported Hash Algorithms

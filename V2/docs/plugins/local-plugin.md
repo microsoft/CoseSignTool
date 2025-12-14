@@ -18,23 +18,46 @@ This plugin adds commands for signing with certificates stored on the local mach
 Sign a payload using a PFX/PKCS#12 certificate file.
 
 ```bash
-CoseSignTool sign-pfx <payload> --pfx <path> [--password <password>] [options]
+CoseSignTool sign-pfx <payload> --pfx <path> [password-options] [options]
 ```
 
 **Options**:
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--pfx` | Yes | Path to the PFX certificate file |
-| `--password` | No | Password for the PFX file |
+| `--pfx-password-file` | No | Path to a file containing the PFX password |
+| `--pfx-password-env` | No | Environment variable name containing the password (default: `COSESIGNTOOL_PFX_PASSWORD`) |
+| `--pfx-password-prompt` | No | Prompt for password interactively |
 | `--output`, `-o` | No | Output path for signature file |
 | `--detached`, `-d` | No | Create detached signature |
 | `--signature-type`, `-t` | No | Signature type: detached, embedded, indirect |
 | `--content-type`, `-c` | No | MIME type of payload |
 
+#### Password Security
+
+⚠️ **Security Best Practice**: PFX passwords should NOT be passed directly on the command line, as they may be logged in shell history, process lists, and audit logs.
+
+**Supported password input methods (in order of precedence)**:
+1. **Environment variable** (CI/CD scenarios): Set `COSESIGNTOOL_PFX_PASSWORD` or use `--pfx-password-env` for a custom variable name
+2. **Password file** (automation): Use `--pfx-password-file` to read from a secure file
+3. **Interactive prompt**: Use `--pfx-password-prompt` or the tool will prompt automatically if no other method is used
+
 **Examples**:
 ```bash
-# Sign with PFX file
-CoseSignTool sign-pfx document.json --pfx cert.pfx --password mypassword
+# Using environment variable (recommended for CI/CD)
+export COSESIGNTOOL_PFX_PASSWORD=mypassword  # Linux/macOS
+set COSESIGNTOOL_PFX_PASSWORD=mypassword     # Windows
+CoseSignTool sign-pfx document.json --pfx cert.pfx
+
+# Using custom environment variable
+export MY_PFX_PWD=mypassword
+CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-env MY_PFX_PWD
+
+# Using password file (recommended for automation)
+CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-file /secure/path/password.txt
+
+# Interactive prompt
+CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-prompt
 
 # Create indirect signature (SCITT-compliant, payload referenced by hash)
 CoseSignTool sign-pfx document.json --pfx cert.pfx -t indirect
@@ -226,9 +249,33 @@ done
 ## Security Considerations
 
 1. **Password Protection**: Always use password-protected PFX files
-2. **Key Storage**: Store private keys securely with appropriate file permissions
-3. **Certificate Expiration**: Monitor certificate expiration dates
-4. **Development Only**: The `sign-ephemeral` command is for development only
+2. **Secure Password Input**: Use environment variables, password files, or interactive prompts for PFX passwords - never pass passwords on the command line
+3. **Key Storage**: Store private keys securely with appropriate file permissions
+4. **Certificate Expiration**: Monitor certificate expiration dates
+5. **Development Only**: The `sign-ephemeral` command is for development only
+
+### SecurePasswordProvider
+
+The `SecurePasswordProvider` class in `CoseSignTool.Abstractions.Security` provides utilities for secure password handling:
+
+```csharp
+using CoseSignTool.Abstractions.Security;
+
+// Get password from environment variable
+SecureString? password = SecurePasswordProvider.GetPasswordFromEnvironment("COSESIGNTOOL_PFX_PASSWORD");
+
+// Read password from file
+SecureString password = SecurePasswordProvider.ReadPasswordFromFile("/secure/password.txt");
+
+// Interactive console prompt (masked input)
+SecureString password = SecurePasswordProvider.ReadPasswordFromConsole("Enter password: ");
+
+// Get password with automatic fallback (env → file → prompt)
+SecureString password = SecurePasswordProvider.GetPassword(
+    passwordFilePath: "/path/to/password.txt",
+    environmentVariableName: "COSESIGNTOOL_PFX_PASSWORD",
+    prompt: "Enter PFX password: ");
+```
 
 ## Supported Algorithms
 

@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System.CommandLine.Invocation;
+using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
+using CoseSign1.Indirect;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
 using CoseSignTool.IO;
@@ -170,6 +172,7 @@ public class VerifyCommandHandler
             }
 
             // Determine signature type: embedded, detached, or indirect
+            // Check for PayloadHashAlg header (label 258) to identify indirect signatures
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
             bool isIndirectSignature = IsIndirectSignature(message);
             
@@ -321,31 +324,18 @@ public class VerifyCommandHandler
     }
 
     /// <summary>
-    /// Determines if the message is an indirect signature by checking for hash envelope content type.
+    /// Determines if the message is an indirect signature by checking for PayloadHashAlg header (label 258).
+    /// Uses V2 CoseHashEnvelopeHeaderContributor.HeaderLabels for header label constants.
     /// </summary>
     private static bool IsIndirectSignature(CoseSign1Message message)
     {
-        // Check protected headers for content type indicating hash envelope
-        var protectedHeaders = message.ProtectedHeaders;
-        
-        // Content type header label is 3 in COSE
-        const int ContentTypeLabel = 3;
-        
-        if (protectedHeaders.TryGetValue(new CoseHeaderLabel(ContentTypeLabel), out var contentTypeValue))
-        {
-            var contentType = contentTypeValue.GetValueAsString();
-            // Check for hash envelope content types
-            return contentType != null && (
-                contentType.Contains("cose-hash-v", StringComparison.OrdinalIgnoreCase) ||
-                contentType.Contains("hash-envelope", StringComparison.OrdinalIgnoreCase) ||
-                contentType.StartsWith("application/vnd.cose.hash-", StringComparison.OrdinalIgnoreCase));
-        }
-
-        return false;
+        // Check for PayloadHashAlg (258) in protected headers - this indicates a COSE Hash Envelope / indirect signature
+        return message.ProtectedHeaders.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg);
     }
 
     /// <summary>
-    /// Verifies that the provided payload matches the hash in an indirect signature.
+    /// Verifies that the provided payload matches the hash stored in an indirect signature.
+    /// Reads the hash algorithm from PayloadHashAlg header and compares computed hash against embedded hash.
     /// </summary>
     private static bool VerifyIndirectPayloadHash(CoseSign1Message message, byte[] payload)
     {
@@ -354,74 +344,42 @@ public class VerifyCommandHandler
             return false;
         }
 
-        var hashEnvelope = message.Content.Value.ToArray();
-        
-        // Parse the hash envelope to get algorithm and expected hash
-        // The hash envelope is typically CBOR-encoded with algorithm and hash value
-        // For now, we'll try common hash algorithms and check if any match
-        
-        // Try SHA-256
-        using (var sha256 = SHA256.Create())
-        {
-            var computedHash = sha256.ComputeHash(payload);
-            if (ContainsHash(hashEnvelope, computedHash))
-            {
-                return true;
-            }
-        }
-
-        // Try SHA-384
-        using (var sha384 = SHA384.Create())
-        {
-            var computedHash = sha384.ComputeHash(payload);
-            if (ContainsHash(hashEnvelope, computedHash))
-            {
-                return true;
-            }
-        }
-
-        // Try SHA-512
-        using (var sha512 = SHA512.Create())
-        {
-            var computedHash = sha512.ComputeHash(payload);
-            if (ContainsHash(hashEnvelope, computedHash))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if the hash envelope contains the computed hash.
-    /// </summary>
-    private static bool ContainsHash(byte[] hashEnvelope, byte[] computedHash)
-    {
-        // Simple check: see if the computed hash appears in the envelope
-        // This is a basic implementation - a full implementation would parse CBOR properly
-        if (hashEnvelope.Length < computedHash.Length)
+        // Get the hash algorithm from the PayloadHashAlg header
+        if (!message.ProtectedHeaders.TryGetValue(
+            CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg,
+            out var hashAlgValue))
         {
             return false;
         }
 
-        for (int i = 0; i <= hashEnvelope.Length - computedHash.Length; i++)
+        // Read the COSE algorithm ID
+        var reader = new CborReader(hashAlgValue.EncodedValue);
+        var algId = reader.ReadInt32();
+
+        // Determine the hash algorithm from COSE algorithm ID
+        HashAlgorithm? hasher = algId switch
         {
-            bool found = true;
-            for (int j = 0; j < computedHash.Length; j++)
-            {
-                if (hashEnvelope[i + j] != computedHash[j])
-                {
-                    found = false;
-                    break;
-                }
-            }
-            if (found)
-            {
-                return true;
-            }
+            -16 => SHA256.Create(),  // SHA-256
+            -43 => SHA384.Create(),  // SHA-384
+            -44 => SHA512.Create(),  // SHA-512
+            _ => null
+        };
+
+        if (hasher == null)
+        {
+            return false;
         }
 
-        return false;
+        using (hasher)
+        {
+            // Compute hash of the payload
+            var computedHash = hasher.ComputeHash(payload);
+
+            // The embedded content is the hash value
+            var embeddedHash = message.Content.Value.ToArray();
+
+            // Compare the hashes
+            return computedHash.SequenceEqual(embeddedHash);
+        }
     }
 }

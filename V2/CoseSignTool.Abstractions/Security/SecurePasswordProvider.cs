@@ -19,12 +19,28 @@ namespace CoseSignTool.Abstractions.Security;
 /// 2. Read from a secure file (automation scenarios)
 /// 3. Prompt user interactively (interactive scenarios)
 /// </remarks>
-public static class SecurePasswordProvider
+public class SecurePasswordProvider
 {
     /// <summary>
     /// Default environment variable name for PFX passwords.
     /// </summary>
     public const string DefaultPfxPasswordEnvVar = "COSESIGNTOOL_PFX_PASSWORD";
+
+    /// <summary>
+    /// Gets the default instance using the system console.
+    /// </summary>
+    public static SecurePasswordProvider Default { get; } = new(SystemConsole.Instance);
+
+    private readonly IConsole Console;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecurePasswordProvider"/> class.
+    /// </summary>
+    /// <param name="console">The console implementation to use for interactive input.</param>
+    public SecurePasswordProvider(IConsole console)
+    {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
+    }
 
     /// <summary>
     /// Gets a password from the specified environment variable.
@@ -65,7 +81,7 @@ public static class SecurePasswordProvider
     /// </summary>
     /// <param name="prompt">The prompt to display to the user.</param>
     /// <returns>SecureString containing the password.</returns>
-    public static SecureString ReadPasswordFromConsole(string prompt = "Enter password: ")
+    public SecureString ReadPasswordFromConsole(string prompt = "Enter password: ")
     {
         Console.Write(prompt);
         var password = new SecureString();
@@ -100,7 +116,7 @@ public static class SecurePasswordProvider
                 else if (!char.IsControl(keyInfo.KeyChar))
                 {
                     password.AppendChar(keyInfo.KeyChar);
-                    Console.Write('*');
+                    Console.Write("*");
                 }
             }
 
@@ -127,7 +143,7 @@ public static class SecurePasswordProvider
     /// <param name="environmentVariableName">Environment variable name to check.</param>
     /// <param name="prompt">Prompt for interactive input.</param>
     /// <returns>SecureString containing the password.</returns>
-    public static SecureString GetPassword(
+    public SecureString GetPassword(
         string? passwordFilePath = null,
         string environmentVariableName = DefaultPfxPasswordEnvVar,
         string prompt = "Enter PFX password: ")
@@ -153,11 +169,11 @@ public static class SecurePasswordProvider
     /// Determines if password input should be interactive based on the current execution context.
     /// Returns false if stdin is redirected (pipeline scenarios) or console is unavailable.
     /// </summary>
-    public static bool IsInteractiveInputAvailable()
+    public bool IsInteractiveInputAvailable()
     {
         try
         {
-            return !Console.IsInputRedirected && Environment.UserInteractive;
+            return !Console.IsInputRedirected && Console.IsUserInteractive;
         }
         catch
         {

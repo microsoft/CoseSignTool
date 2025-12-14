@@ -9,6 +9,7 @@ The `CoseSignTool.Abstractions` package defines the plugin architecture for Cose
 - Custom signing commands (e.g., `sign-pfx`, `sign-azure`)
 - Custom verification providers
 - Transparency service integrations
+- Secure password handling utilities
 
 ## Package Information
 
@@ -226,6 +227,79 @@ Verification providers declare a `Priority` property to control execution order:
 | `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-cert-store` | - | - |
 | `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-azure` | - | - |
 | `CoseSignTool.MST.Plugin` | - | MST receipt verification | MST receipt generation |
+
+## Security Utilities
+
+### SecurePasswordProvider
+
+The `SecurePasswordProvider` class provides secure password handling for CLI applications. It uses `SecureString` throughout to minimize password exposure in memory.
+
+```csharp
+using CoseSignTool.Abstractions.Security;
+
+// Use the default instance (uses system console)
+var provider = SecurePasswordProvider.Default;
+
+// Get password using priority order: env var → file → interactive prompt
+var password = provider.GetPassword(
+    passwordFilePath: "/path/to/password.txt",
+    environmentVariableName: "MY_PASSWORD_VAR",
+    prompt: "Enter password: ");
+
+// Read password interactively with masked input
+var password = provider.ReadPasswordFromConsole("Enter PFX password: ");
+
+// Check if interactive input is available
+if (provider.IsInteractiveInputAvailable())
+{
+    // Safe to prompt user
+}
+```
+
+**Static Methods** (don't require console access):
+- `GetPasswordFromEnvironment(string envVarName)` - Read from environment variable
+- `ReadPasswordFromFile(string filePath)` - Read from secure file
+- `ConvertToSecureString(string? value)` - Convert plain string to SecureString
+- `ConvertToPlainString(SecureString? secure)` - Convert SecureString to plain string
+- `Copy(SecureString? source)` - Create a copy of a SecureString
+
+**Instance Methods** (require console for interactive input):
+- `ReadPasswordFromConsole(string prompt)` - Masked password input
+- `GetPassword(...)` - Priority-based password retrieval
+- `IsInteractiveInputAvailable()` - Check if console input is available
+
+### IConsole Interface
+
+For testability, console operations are abstracted through the `IConsole` interface:
+
+```csharp
+public interface IConsole
+{
+    void Write(string? value);
+    void WriteLine();
+    void WriteLine(string? value);
+    ConsoleKeyInfo ReadKey(bool intercept);
+    string? ReadLine();
+    bool IsInputRedirected { get; }
+    bool IsUserInteractive { get; }
+}
+```
+
+**Testing with Mock Console**:
+```csharp
+var mockConsole = new Mock<IConsole>();
+mockConsole.SetupSequence(c => c.ReadKey(true))
+    .Returns(new ConsoleKeyInfo('p', ConsoleKey.P, false, false, false))
+    .Returns(new ConsoleKeyInfo('w', ConsoleKey.W, false, false, false))
+    .Returns(new ConsoleKeyInfo('d', ConsoleKey.D, false, false, false))
+    .Returns(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+
+var provider = new SecurePasswordProvider(mockConsole.Object);
+var password = provider.ReadPasswordFromConsole();
+// password = "pwd"
+```
+
+The `SystemConsole` class provides the default implementation that wraps `System.Console`. It is marked with `[ExcludeFromCodeCoverage]` as it's a thin wrapper with no testable logic.
 
 ## See Also
 

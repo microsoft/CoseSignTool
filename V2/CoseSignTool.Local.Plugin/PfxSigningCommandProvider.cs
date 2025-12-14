@@ -134,13 +134,14 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
 
         // 3. Check if explicit prompt requested or if interactive input is available
         var promptRequested = options.TryGetValue("pfx-password-prompt", out var prompt) && prompt is true;
+        var passwordProvider = SecurePasswordProvider.Default;
 
-        if (promptRequested || SecurePasswordProvider.IsInteractiveInputAvailable())
+        if (promptRequested || passwordProvider.IsInteractiveInputAvailable())
         {
             // Only prompt if explicitly requested or if we're interactive
             if (promptRequested)
             {
-                return SecurePasswordProvider.ReadPasswordFromConsole("Enter PFX password: ");
+                return passwordProvider.ReadPasswordFromConsole("Enter PFX password: ");
             }
 
             // For non-prompted case, assume unprotected PFX (silent operation)

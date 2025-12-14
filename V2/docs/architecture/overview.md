@@ -249,7 +249,7 @@ public interface ITransparencyProvider
 }
 ```
 
-**MST (Merkle Search Tree)** in `CoseSign1.Transparent.MST`:
+**MST (Microsoft's Signing Transparency)** in `CoseSign1.Transparent.MST`:
 - `MstTransparencyProvider`: Submits to MST service
 - `MstReceiptValidator`: Validates MST receipts
 - Integration with Azure Confidential Ledger

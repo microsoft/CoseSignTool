@@ -16,9 +16,9 @@ Local certificate signing using certificates stored on the local machine.
 
 **Commands Added**:
 - `sign-pfx` - Sign with a PFX/PKCS#12 certificate file
-- `sign-cert-store` - Sign with a certificate from Windows certificate store
+- `sign-certstore` - Sign with a certificate from Windows or Linux certificate store
 - `sign-pem` - Sign with PEM-encoded certificate and key files
-- `sign-linux-store` - Sign with a certificate from Linux certificate store
+- `sign-ephemeral` - Sign with an ephemeral test certificate (development only)
 
 **Use When**: You have certificates available locally (development, on-premises signing).
 
@@ -37,10 +37,12 @@ Cloud-based signing using Azure Trusted Signing service.
 
 ### [CoseSignTool.MST.Plugin](mst-plugin.md)
 
-Microsoft Signing Transparency (MST) verification.
+Microsoft's Signing Transparency (MST) verification.
 
-**Commands Added**:
-- `verify-mst` - Verify a signature against Microsoft Signing Transparency service
+**Options Added to `verify` Command**:
+- `--require-receipt` - Require MST receipt for verification
+- `--mst-endpoint` - MST service endpoint URL
+- `--verify-receipt` - Verify the MST receipt
 
 **Transparency Support**: Automatically adds MST receipts to signed messages.
 

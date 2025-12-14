@@ -36,16 +36,21 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 
 #### Transparency & Receipts
 - [CoseSign1.Transparent](components/transparent.md) - Transparency architecture
-- [CoseSign1.Transparent.MST](components/mst.md) - Merkle Search Tree receipts
+- [CoseSign1.Transparent.MST](components/mst.md) - Microsoft's Signing Transparency receipts
 
 ### CoseSignTool CLI
 
 The V2 CLI tool (`CoseSignTool`) provides command-line signing and verification with a plugin architecture:
 
 #### Core Commands
-- `sign-ephemeral` - Sign with an ephemeral test certificate (development only)
 - `verify` - Verify a COSE Sign1 signature
 - `inspect` - Inspect COSE Sign1 signature details
+
+#### Plugin Commands (via Local Plugin)
+- `sign-ephemeral` - Sign with an ephemeral test certificate (development only)
+- `sign-pfx` - Sign with a PFX/PKCS#12 certificate file
+- `sign-certstore` - Sign with a certificate from Windows/Linux certificate store
+- `sign-pem` - Sign with PEM-encoded certificate and key files
 
 #### Command Reference
 - [Inspect Command](cli/inspect.md) - Detailed inspect command documentation
@@ -54,7 +59,7 @@ The V2 CLI tool (`CoseSignTool`) provides command-line signing and verification 
 #### CLI Plugins
 - [CoseSignTool.Local.Plugin](plugins/local-plugin.md) - Local certificate signing (PFX, PEM, Windows/Linux cert stores)
 - [CoseSignTool.AzureTrustedSigning.Plugin](plugins/azure-plugin.md) - Azure Trusted Signing integration
-- [CoseSignTool.MST.Plugin](plugins/mst-plugin.md) - Microsoft Signing Transparency verification
+- [CoseSignTool.MST.Plugin](plugins/mst-plugin.md) - Microsoft's Signing Transparency verification
 
 ### Guides
 
@@ -108,18 +113,39 @@ V2 represents a fundamental redesign with these major improvements:
 
 ### Package Names
 
-V2 packages use a `.V2` suffix to coexist with V1 packages:
+V2 packages use semantic versioning (2.x.x) to distinguish from V1 (1.x.x):
 
-| Package | V1 Name | V2 Name |
-|---------|---------|---------|
-| Abstractions | `CoseSign1.Abstractions` | `CoseSign1.Abstractions.V2` |
-| Core | `CoseSign1` | `CoseSign1.V2` |
-| Certificates | `CoseSign1.Certificates` | `CoseSign1.Certificates.V2` |
-| Validation | N/A | `CoseSign1.Validation.V2` |
-| Headers | N/A | `CoseSign1.Headers.V2` |
-| CLI Tool | `CoseSignTool` | `CoseSignTool` (same name, v2.x) |
+#### Library Packages
 
-V2 is currently in preview and will eventually replace V1 entirely. Both versions are maintained during the transition period.
+| Package | Description |
+|---------|-------------|
+| `CoseSign1.Abstractions` | Core interfaces and abstractions |
+| `CoseSign1` | Direct and indirect signature factories |
+| `CoseSign1.Certificates` | Certificate-based signing services |
+| `CoseSign1.Certificates.Local` | Local certificate sources (PFX, PEM, stores) |
+| `CoseSign1.Certificates.AzureTrustedSigning` | Azure Trusted Signing integration |
+| `CoseSign1.Validation` | Composable validation framework |
+| `CoseSign1.Headers` | Header management and CWT claims |
+| `CoseSign1.Transparent.MST` | Microsoft's Signing Transparency receipts |
+| `DIDx509` | DID:x509 resolution and validation |
+
+#### CLI Tool & Plugins
+
+| Package | Description |
+|---------|-------------|
+| `CoseSignTool` | CLI tool |
+| `CoseSignTool.Abstractions` | Plugin interfaces |
+| `CoseSignTool.Local.Plugin` | Local certificate signing plugin |
+| `CoseSignTool.AzureTrustedSigning.Plugin` | Azure Trusted Signing plugin |
+| `CoseSignTool.MST.Plugin` | Microsoft's Signing Transparency plugin |
+
+#### Testing Utilities
+
+| Package | Description |
+|---------|-------------|
+| `CoseSign1.Tests.Common` | Shared test utilities and certificate generation |
+
+V2 is currently in preview (2.0.0-preview) and will eventually replace V1 entirely. Both versions are maintained during the transition period.
 
 ## Support
 

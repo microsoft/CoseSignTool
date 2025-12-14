@@ -31,9 +31,9 @@ V2 is a complete architectural redesign. While the core functionality (creating 
 
 **V2:**
 ```xml
-<!-- Note: V2 packages have a .V2 suffix to coexist with V1 -->
-<PackageReference Include="CoseSign1.Certificates.V2" Version="2.0.0-preview" />
-<PackageReference Include="CoseSign1.Validation.V2" Version="2.0.0-preview" />
+<!-- V2 packages use semantic versioning 2.x.x -->
+<PackageReference Include="CoseSign1.Certificates" Version="2.0.0-preview" />
+<PackageReference Include="CoseSign1.Validation" Version="2.0.0-preview" />
 ```
 
 **CLI Tool:**

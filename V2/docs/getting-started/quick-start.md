@@ -18,8 +18,8 @@ cosesigntool --version
 
 ```bash
 # Install the core library packages
-dotnet add package CoseSign1.Certificates.V2 --version 2.0.0-preview
-dotnet add package CoseSign1.Validation.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Certificates --version 2.0.0-preview
+dotnet add package CoseSign1.Validation --version 2.0.0-preview
 ```
 
 ## CLI Quick Start
@@ -31,8 +31,10 @@ echo "Hello, COSE!" | cosesigntool sign-ephemeral -o signed.cose
 # Verify the signature (allow untrusted for self-signed test certs)
 cosesigntool verify signed.cose --allow-untrusted
 
-# Sign with a PFX certificate
-cosesigntool sign-pfx myfile.txt --pfx certificate.pfx --pfx-password mypassword
+# Sign with a PFX certificate (password via environment variable)
+export COSESIGNTOOL_PFX_PASSWORD=mypassword  # Linux/macOS
+set COSESIGNTOOL_PFX_PASSWORD=mypassword     # Windows
+cosesigntool sign-pfx myfile.txt --pfx certificate.pfx
 
 # Inspect a signature
 cosesigntool inspect signed.cose

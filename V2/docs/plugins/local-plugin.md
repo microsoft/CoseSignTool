@@ -68,28 +68,55 @@ CoseSignTool sign-pfx document.json --pfx cert.pfx -o signed.cose
 
 ---
 
-### sign-cert-store (Windows)
+### sign-certstore
 
-Sign using a certificate from the Windows certificate store.
+Sign using a certificate from the system certificate store. This command is platform-specific:
+- **Windows**: Accesses the Windows certificate store (CurrentUser/LocalMachine)
+- **Linux/macOS**: Searches common system certificate paths
+
+#### Windows Usage
 
 ```bash
-CoseSignTool sign-cert-store <payload> --thumbprint <thumbprint> [options]
+CoseSignTool sign-certstore <payload> --thumbprint <thumbprint> [options]
 ```
 
-**Options**:
+**Windows Options**:
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--thumbprint` | Yes | Certificate thumbprint (SHA-1) |
+| `--thumbprint` | Yes | Certificate thumbprint (SHA-1 hex string) |
 | `--store-name` | No | Store name (default: My) |
 | `--store-location` | No | Store location: CurrentUser, LocalMachine |
 
-**Examples**:
+**Windows Examples**:
 ```bash
 # Sign with certificate from CurrentUser\My store
-CoseSignTool sign-cert-store document.json --thumbprint ABC123...
+CoseSignTool sign-certstore document.json --thumbprint ABC123...
 
 # Sign from LocalMachine store
-CoseSignTool sign-cert-store document.json --thumbprint ABC123... --store-location LocalMachine
+CoseSignTool sign-certstore document.json --thumbprint ABC123... --store-location LocalMachine
+```
+
+#### Linux/macOS Usage
+
+```bash
+CoseSignTool sign-certstore <payload> --thumbprint <thumbprint> [options]
+```
+
+**Linux/macOS Options**:
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--thumbprint` | Yes | Certificate thumbprint (hex string) |
+| `--store-paths` | No | Custom certificate store search paths |
+
+Default search paths: `/etc/ssl/certs`, `/etc/pki/tls/certs`, `~/.certs`
+
+**Linux/macOS Examples**:
+```bash
+# Sign with certificate from default system paths
+CoseSignTool sign-certstore document.json --thumbprint ABC123...
+
+# Sign from custom store path
+CoseSignTool sign-certstore document.json --thumbprint ABC123... --store-paths /my/certs
 ```
 
 ---
@@ -112,32 +139,6 @@ CoseSignTool sign-pem <payload> --cert-file <path> --key-file <path> [options]
 ```bash
 # Sign with PEM files
 CoseSignTool sign-pem document.json --cert-file cert.pem --key-file key.pem
-```
-
----
-
-### sign-linux-store (Linux)
-
-Sign using a certificate from the Linux certificate store.
-
-```bash
-CoseSignTool sign-linux-store <payload> --thumbprint <thumbprint> [options]
-```
-
-**Options**:
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--thumbprint` | Yes | Certificate thumbprint (SHA-256) |
-| `--store-path` | No | Path to certificate store directory |
-| `--store-paths` | No | Additional store paths to search |
-
-**Examples**:
-```bash
-# Sign with certificate from default Linux store
-CoseSignTool sign-linux-store document.json --thumbprint ABC123...
-
-# Sign from custom store path
-CoseSignTool sign-linux-store document.json --thumbprint ABC123... --store-path /etc/ssl/private
 ```
 
 ---

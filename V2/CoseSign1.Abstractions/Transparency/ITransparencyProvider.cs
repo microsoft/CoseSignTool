@@ -15,7 +15,7 @@ namespace CoseSign1.Abstractions.Transparency;
 /// Transparency providers enable integration with various transparency services like:
 /// - Azure Code Transparency Service (CTS)
 /// - Certificate Transparency (CT) / Signed Certificate Timestamps (SCT)
-/// - Merkle Tree-based transparency logs
+/// - Microsoft's Signing Transparency (MST)
 /// - Custom transparency implementations
 /// 
 /// The provider is called automatically by the factory after signing,

@@ -29,8 +29,8 @@ dotnet tool install -g CoseSignTool --version 2.0.0-preview
 
 **Library packages:**
 ```bash
-dotnet add package CoseSign1.Certificates.V2 --version 2.0.0-preview
-dotnet add package CoseSign1.Validation.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Certificates --version 2.0.0-preview
+dotnet add package CoseSign1.Validation --version 2.0.0-preview
 ```
 
 ### Sign a Message
@@ -74,14 +74,14 @@ bool isValid = message.VerifySignature();
 ### Library Packages
 | Package | Description |
 |---------|-------------|
-| [`CoseSign1.Abstractions.V2`](CoseSign1.Abstractions/README.md) | Core interfaces and abstractions |
-| [`CoseSign1.V2`](CoseSign1/README.md) | Direct and indirect signature factories |
-| [`CoseSign1.Certificates.V2`](CoseSign1.Certificates/README.md) | Certificate-based signing services |
-| [`CoseSign1.Validation.V2`](CoseSign1.Validation/README.md) | Composable validation framework |
-| [`CoseSign1.Headers.V2`](CoseSign1.Headers/README.md) | CWT claims and SCITT headers |
-| [`CoseSign1.Transparent.MST.V2`](CoseSign1.Transparent.MST/README.md) | MST transparency receipts |
-| [`CoseSign1.Certificates.AzureTrustedSigning.V2`](CoseSign1.Certificates.AzureTrustedSigning/README.md) | Azure Trusted Signing integration |
-| [`DIDx509.V2`](DIDx509/README.md) | DID:x509 resolution and validation |
+| [`CoseSign1.Abstractions`](CoseSign1.Abstractions/README.md) | Core interfaces and abstractions |
+| [`CoseSign1`](CoseSign1/README.md) | Direct and indirect signature factories |
+| [`CoseSign1.Certificates`](CoseSign1.Certificates/README.md) | Certificate-based signing services |
+| [`CoseSign1.Validation`](CoseSign1.Validation/README.md) | Composable validation framework |
+| [`CoseSign1.Headers`](CoseSign1.Headers/README.md) | CWT claims and SCITT headers |
+| [`CoseSign1.Transparent.MST`](CoseSign1.Transparent.MST/README.md) | MST transparency receipts |
+| [`CoseSign1.Certificates.AzureTrustedSigning`](CoseSign1.Certificates.AzureTrustedSigning/README.md) | Azure Trusted Signing integration |
+| [`DIDx509`](DIDx509/README.md) | DID:x509 resolution and validation |
 
 ### Plugin Packages (standalone)
 | Package | Description |
@@ -183,18 +183,22 @@ var messageWithReceipt = await transparencyProvider.AddTransparencyProofAsync(si
 CoseSignTool V2 includes a command-line interface with plugin architecture:
 
 ```bash
-# Sign with PFX certificate
-CoseSignTool sign-pfx document.json --pfx cert.pfx --password mypassword
+# Sign with PFX certificate (password via env var or prompt)
+export COSESIGNTOOL_PFX_PASSWORD=mypassword
+CoseSignTool sign-pfx document.json --pfx cert.pfx
 
 # Sign with Azure Trusted Signing
 CoseSignTool sign-azure document.json --ats-endpoint https://myaccount.codesigning.azure.net \
     --ats-account-name myaccount --ats-cert-profile-name production
 
+# Sign with ephemeral test certificate (development only)
+CoseSignTool sign-ephemeral document.json -o signed.cose
+
 # Verify signature
 CoseSignTool verify signed.cose
 
-# Verify MST transparency
-CoseSignTool verify-mst signed.cose
+# Verify with MST transparency receipt
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://mst.example.com
 ```
 
 See [CLI Plugin Documentation](docs/plugins/README.md) for more details.

@@ -1,10 +1,10 @@
 # CoseSign1.Transparent.MST
 
-Merkle Search Tree (MST) transparency receipts for COSE Sign1 messages.
+Microsoft's Signing Transparency (MST) receipts for COSE Sign1 messages.
 
 ## Overview
 
-Implements Merkle Search Tree transparency receipts for SCITT compliance, enabling verifiable inclusion proofs for COSE Sign1 messages in transparency logs.
+Implements Microsoft's Signing Transparency receipts for SCITT compliance, enabling verifiable inclusion proofs for COSE Sign1 messages in transparency logs.
 
 ## Installation
 

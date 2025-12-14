@@ -223,7 +223,7 @@ public class MyVerificationProvider : IVerificationProvider
 |--------|---------|-------------|
 | Local | `CoseSignTool.Local.Plugin` | Local certificate signing (PFX, cert stores) |
 | Azure | `CoseSignTool.AzureTrustedSigning.Plugin` | Azure Trusted Signing integration |
-| MST | `CoseSignTool.MST.Plugin` | Microsoft Signing Transparency |
+| MST | `CoseSignTool.MST.Plugin` | Microsoft's Signing Transparency |
 
 ## Dependencies
 

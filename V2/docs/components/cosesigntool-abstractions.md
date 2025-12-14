@@ -224,7 +224,7 @@ Verification providers declare a `Priority` property to control execution order:
 
 | Plugin | Commands | Verification | Transparency |
 |--------|----------|--------------|--------------|
-| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-cert-store` | - | - |
+| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-certstore`, `sign-pem`, `sign-ephemeral` | X509 verification | - |
 | `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-azure` | - | - |
 | `CoseSignTool.MST.Plugin` | - | MST receipt verification | MST receipt generation |
 

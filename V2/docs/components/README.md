@@ -116,7 +116,7 @@ This section provides comprehensive documentation for each NuGet package in the 
 ---
 
 ### [CoseSign1.Transparent.MST](transparency-mst.md)
-**Merkle Search Tree** transparency receipts.
+**Microsoft's Signing Transparency** receipts.
 
 **Key Features**:
 - MST receipt generation
@@ -135,9 +135,9 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 **Commands Added**:
 - `sign-pfx` - Sign with PFX certificate file
-- `sign-cert-store` - Sign with Windows certificate store
+- `sign-certstore` - Sign with Windows/Linux certificate store
 - `sign-pem` - Sign with PEM files
-- `sign-linux-store` - Sign with Linux certificate store
+- `sign-ephemeral` - Sign with ephemeral test certificate
 
 **Use When**: Signing with locally stored certificates via CLI.
 
@@ -154,10 +154,12 @@ This section provides comprehensive documentation for each NuGet package in the 
 ---
 
 ### [CoseSignTool.MST.Plugin](../plugins/mst-plugin.md)
-**Microsoft Signing Transparency** for the CLI tool.
+**Microsoft's Signing Transparency** for the CLI tool.
 
-**Commands Added**:
-- `verify-mst` - Verify MST transparency receipts
+**Options Added to `verify` Command**:
+- `--require-receipt` - Require MST receipt for verification
+- `--mst-endpoint` - MST service endpoint URL
+- `--verify-receipt` - Verify the MST receipt
 
 **Use When**: Verifying supply chain transparency via CLI.
 

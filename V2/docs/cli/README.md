@@ -2,17 +2,27 @@
 
 CoseSignTool is a command-line tool for creating and verifying COSE Sign1 signatures. It supports a plugin architecture for extensibility and multiple output formats for automation.
 
-## Commands
+## Core Commands
+
+| Command | Description |
+|---------|-------------|
+| `verify` | Verify a COSE Sign1 signature |
+| `inspect` | Inspect COSE Sign1 signature details |
+
+## Plugin Commands (Local Plugin)
 
 | Command | Description |
 |---------|-------------|
 | `sign-ephemeral` | Sign with an ephemeral test certificate (development only) |
-| `sign-pfx` | Sign with a PFX certificate file (requires Local plugin) |
-| `sign-pem` | Sign with PEM certificate and key files (requires Local plugin) |
-| `sign-store` | Sign with a certificate from the system store (requires Local plugin) |
-| `sign-ats` | Sign with Azure Trusted Signing (requires ATS plugin) |
-| `verify` | Verify a COSE Sign1 signature |
-| `inspect` | Inspect COSE Sign1 signature details |
+| `sign-pfx` | Sign with a PFX certificate file |
+| `sign-pem` | Sign with PEM certificate and key files |
+| `sign-certstore` | Sign with a certificate from the system store (Windows/Linux) |
+
+## Plugin Commands (Azure Plugin)
+
+| Command | Description |
+|---------|-------------|
+| `sign-azure` | Sign with Azure Trusted Signing |
 
 ## Global Options
 
@@ -91,24 +101,28 @@ CoseSignTool uses a plugin architecture. Additional signing commands are availab
 ### Local Plugin
 
 ```bash
-# Sign with a PFX file
-cosesigntool sign-pfx payload.bin --pfx cert.pfx --pfx-password secret -o signed.cose
+# Sign with a PFX file (password via environment variable)
+export COSESIGNTOOL_PFX_PASSWORD=secret
+cosesigntool sign-pfx payload.bin --pfx cert.pfx -o signed.cose
 
 # Sign with PEM files
-cosesigntool sign-pem payload.bin --cert cert.pem --key key.pem -o signed.cose
+cosesigntool sign-pem payload.bin --cert-file cert.pem --key-file key.pem -o signed.cose
 
-# Sign with certificate store (Windows)
-cosesigntool sign-store payload.bin --thumbprint ABC123... -o signed.cose
+# Sign with certificate store (Windows/Linux)
+cosesigntool sign-certstore payload.bin --thumbprint ABC123... -o signed.cose
+
+# Sign with ephemeral test certificate (development only)
+cosesigntool sign-ephemeral payload.bin -o signed.cose
 ```
 
 ### Azure Trusted Signing Plugin
 
 ```bash
 # Sign with Azure Trusted Signing
-cosesigntool sign-ats payload.bin \
-  --endpoint https://account.codesigning.azure.net \
-  --account myaccount \
-  --profile myprofile \
+cosesigntool sign-azure payload.bin \
+  --ats-endpoint https://account.codesigning.azure.net \
+  --ats-account-name myaccount \
+  --ats-cert-profile-name myprofile \
   -o signed.cose
 ```
 

@@ -22,19 +22,19 @@ CoseSignTool V2 is distributed as multiple NuGet packages for maximum modularity
 
 | Package | Description | When to Use |
 |---------|-------------|-------------|
-| `CoseSign1.Abstractions.V2` | Core interfaces and abstractions | Always (transitive dependency) |
-| `CoseSign1.V2` | Direct and indirect signature factories | Basic signing operations |
-| `CoseSign1.Certificates.V2` | Certificate-based signing | Certificate signing (most common) |
-| `CoseSign1.Validation.V2` | Validation framework | Message validation |
-| `CoseSign1.Headers.V2` | Header management, CWT claims | SCITT compliance, custom headers |
+| `CoseSign1.Abstractions` | Core interfaces and abstractions | Always (transitive dependency) |
+| `CoseSign1` | Direct and indirect signature factories | Basic signing operations |
+| `CoseSign1.Certificates` | Certificate-based signing | Certificate signing (most common) |
+| `CoseSign1.Validation` | Validation framework | Message validation |
+| `CoseSign1.Headers` | Header management, CWT claims | SCITT compliance, custom headers |
 
 ### Extended Functionality
 
 | Package | Description | When to Use |
 |---------|-------------|-------------|
-| `CoseSign1.Certificates.AzureTrustedSigning.V2` | Azure Trusted Signing integration | Cloud-based signing with Azure |
-| `CoseSign1.Transparent.MST.V2` | Merkle Search Tree receipts | Transparency with MST |
-| `DIDx509.V2` | DID:x509 resolution and validation | Decentralized identifiers |
+| `CoseSign1.Certificates.AzureTrustedSigning` | Azure Trusted Signing integration | Cloud-based signing with Azure |
+| `CoseSign1.Transparent.MST` | Microsoft's Signing Transparency receipts | Transparency with MST |
+| `DIDx509` | DID:x509 resolution and validation | Decentralized identifiers |
 
 ### Plugin Packages (standalone installation)
 
@@ -60,20 +60,20 @@ CoseSignTool V2 is distributed as multiple NuGet packages for maximum modularity
 dotnet tool install -g CoseSignTool --version 2.0.0-preview
 
 # Most common scenario: certificate-based signing and validation
-dotnet add package CoseSign1.Certificates.V2 --version 2.0.0-preview
-dotnet add package CoseSign1.Validation.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Certificates --version 2.0.0-preview
+dotnet add package CoseSign1.Validation --version 2.0.0-preview
 
 # For Azure Trusted Signing
-dotnet add package CoseSign1.Certificates.AzureTrustedSigning.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Certificates.AzureTrustedSigning --version 2.0.0-preview
 
 # For SCITT compliance (CWT claims)
-dotnet add package CoseSign1.Headers.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Headers --version 2.0.0-preview
 
 # For transparency receipts
-dotnet add package CoseSign1.Transparent.MST.V2 --version 2.0.0-preview
+dotnet add package CoseSign1.Transparent.MST --version 2.0.0-preview
 
 # For DID:x509 support
-dotnet add package DIDx509.V2 --version 2.0.0-preview
+dotnet add package DIDx509 --version 2.0.0-preview
 ```
 
 ### Using Package Manager Console (Visual Studio)
@@ -83,17 +83,17 @@ dotnet add package DIDx509.V2 --version 2.0.0-preview
 dotnet tool install -g CoseSignTool -Version 2.0.0-preview
 
 # Install library packages
-Install-Package CoseSign1.Certificates.V2 -Version 2.0.0-preview
-Install-Package CoseSign1.Validation.V2 -Version 2.0.0-preview
+Install-Package CoseSign1.Certificates -Version 2.0.0-preview
+Install-Package CoseSign1.Validation -Version 2.0.0-preview
 ```
 
 ### Using PackageReference (csproj)
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CoseSign1.Certificates.V2" Version="2.0.0-preview" />
-  <PackageReference Include="CoseSign1.Validation.V2" Version="2.0.0-preview" />
-  <PackageReference Include="CoseSign1.Headers.V2" Version="2.0.0-preview" />
+  <PackageReference Include="CoseSign1.Certificates" Version="2.0.0-preview" />
+  <PackageReference Include="CoseSign1.Validation" Version="2.0.0-preview" />
+  <PackageReference Include="CoseSign1.Headers" Version="2.0.0-preview" />
 </ItemGroup>
 ```
 
@@ -109,9 +109,9 @@ For solutions with many projects, use Central Package Management:
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageVersion Include="CoseSign1.Certificates.V2" Version="2.0.0-preview" />
-    <PackageVersion Include="CoseSign1.Validation.V2" Version="2.0.0-preview" />
-    <PackageVersion Include="CoseSign1.Headers.V2" Version="2.0.0-preview" />
+    <PackageVersion Include="CoseSign1.Certificates" Version="2.0.0-preview" />
+    <PackageVersion Include="CoseSign1.Validation" Version="2.0.0-preview" />
+    <PackageVersion Include="CoseSign1.Headers" Version="2.0.0-preview" />
   </ItemGroup>
 </Project>
 ```
@@ -119,8 +119,8 @@ For solutions with many projects, use Central Package Management:
 **Project.csproj:**
 ```xml
 <ItemGroup>
-  <PackageReference Include="CoseSign1.Certificates.V2" />
-  <PackageReference Include="CoseSign1.Validation.V2" />
+  <PackageReference Include="CoseSign1.Certificates" />
+  <PackageReference Include="CoseSign1.Validation" />
 </ItemGroup>
 ```
 

@@ -1,54 +1,48 @@
 # CoseSignTool.MST.Plugin
 
 **Package**: `CoseSignTool.MST.Plugin`  
-**Purpose**: Microsoft Signing Transparency (MST) verification for the CoseSignTool CLI
+**Purpose**: Microsoft's Signing Transparency (MST) verification for the CoseSignTool CLI
 
 ## Overview
 
-This plugin provides Microsoft Signing Transparency (MST) integration, enabling:
+This plugin provides Microsoft's Signing Transparency (MST) integration, enabling:
 - Verification of MST transparency receipts embedded in COSE signatures
 - Automatic MST receipt attachment during signing operations
 - Supply chain transparency compliance
 
-## What is Microsoft Signing Transparency?
+## What is Microsoft's Signing Transparency?
 
-Microsoft Signing Transparency (MST) is a transparency service that provides:
+Microsoft's Signing Transparency (MST) is a transparency service that provides:
 - **Immutable Audit Log**: All signatures are recorded in a tamper-evident log
 - **Public Verifiability**: Anyone can verify that a signature was properly logged
 - **Cryptographic Receipts**: Proof of inclusion in the transparency log
 - **Supply Chain Integrity**: Supports SCITT (Supply Chain Integrity, Transparency and Trust)
 
-## Commands
+## Verification Options
 
-### verify-mst
+This plugin adds options to the `verify` command for MST receipt validation.
 
-Verify a COSE signature against Microsoft Signing Transparency service.
+### Options Added to `verify` Command
 
-```bash
-CoseSignTool verify-mst <signature> [--endpoint <url>] [options]
-```
-
-**Arguments**:
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `signature` | Yes | Path to the COSE Sign1 signature file |
-
-**Options**:
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--endpoint` | No | MST service endpoint URL (uses default if not specified) |
-| `--output-format`, `-f` | No | Output format: Text, Json, Xml |
+| `--require-receipt` | No | Require an MST transparency receipt in the signature |
+| `--mst-endpoint` | No | MST service endpoint URL for receipt verification |
+| `--verify-receipt` | No | Verify the receipt against the MST service (default: true when endpoint provided) |
 
 **Examples**:
 ```bash
-# Verify MST receipt in a signature
-CoseSignTool verify-mst signed.cose
+# Verify signature and require MST receipt
+CoseSignTool verify signed.cose --require-receipt
 
-# Verify against specific endpoint
-CoseSignTool verify-mst signed.cose --endpoint https://custom.codetransparency.azure.net
+# Verify receipt against specific endpoint
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://custom.codetransparency.azure.net
+
+# Verify signature structure only (skip receipt verification)
+CoseSignTool verify signed.cose --require-receipt --verify-receipt false
 
 # Output as JSON for scripting
-CoseSignTool verify-mst signed.cose --output-format json
+CoseSignTool verify signed.cose --require-receipt -f json
 ```
 
 ## Transparency Provider
@@ -85,7 +79,7 @@ MST Transparency Verification
 -----------------------------
   Signature: signed.cose
 ⚠ No MST transparency receipt found in signature
-  This signature was not submitted to Microsoft Signing Transparency
+  This signature was not submitted to Microsoft's Signing Transparency
 ```
 
 ### JSON Output

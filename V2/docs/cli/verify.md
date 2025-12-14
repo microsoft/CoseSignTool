@@ -102,6 +102,32 @@ CoseSignTool verify signed.cose ^
     --verify-mst-receipt
 ```
 
+### Verify with MST Receipt Only (Bypass Certificate Validation)
+
+When using MST transparency receipts, you can bypass traditional certificate chain validation.
+The receipt verification provides an alternative trust anchor - see [MST Plugin Documentation](../plugins/mst-plugin.md#bypassing-certificate-validation-with-receipt-verification) for details.
+
+```bash
+# Trust the MST receipt instead of certificate chain
+CoseSignTool verify signed.cose --require-receipt --allow-untrusted
+
+# With endpoint verification
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://... --allow-untrusted
+```
+
+## Trust Models
+
+CoseSignTool supports different trust models depending on your security requirements:
+
+| Trust Model | Options | Description |
+|-------------|---------|-------------|
+| Certificate Chain | (default) | Traditional PKI - trust anchored in X.509 certificate authorities |
+| Certificate + Receipt | `--require-receipt` | Both certificate chain AND MST receipt must be valid |
+| Receipt Only | `--require-receipt --allow-untrusted` | Trust anchored in MST transparency service only |
+| No Validation | `--allow-untrusted` | No trust validation (development/testing only) |
+
+**Recommendation**: For supply chain scenarios, use "Receipt Only" trust (`--require-receipt --allow-untrusted`) to decouple trust from traditional PKI infrastructure.
+
 ## Output
 
 ### Text Format (default)

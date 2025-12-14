@@ -127,6 +127,63 @@ MST is designed to work with SCITT (Supply Chain Integrity, Transparency and Tru
 3. **Network Security**: Use HTTPS for all transparency service communications
 4. **Receipt Freshness**: Consider how old receipts are acceptable for your use case
 
+## Bypassing Certificate Validation with Receipt Verification
+
+When using MST receipt verification, you may want to **bypass traditional X.509 certificate chain validation** because the transparency receipt provides an alternative trust anchor.
+
+### Why Bypass Certificate Validation?
+
+MST receipt verification provides:
+- **Proof of Logging**: The signature was submitted to and accepted by the transparency service
+- **Tamper Evidence**: Any modification would invalidate the inclusion proof
+- **Time-stamping**: Cryptographic proof of when the signature was logged
+- **Supply Chain Trust**: Trust is anchored in the transparency service, not certificate authorities
+
+This means certificate chain validation may be redundant or even counterproductive when:
+- The signing certificate has expired (but the receipt proves it was valid at signing time)
+- The certificate was issued by a private/internal CA not in system trust stores
+- You want to decouple trust from traditional PKI infrastructure
+
+### How to Bypass Certificate Validation
+
+Use `--allow-untrusted` to skip certificate chain validation while still requiring MST receipt verification:
+
+```bash
+# Verify with MST receipt only - bypass certificate chain validation
+CoseSignTool verify signed.cose --require-receipt --allow-untrusted
+
+# Verify with MST receipt and endpoint verification - bypass certificate chain
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://dataplane.codetransparency.azure.net --allow-untrusted
+```
+
+### Provider Activation Behavior
+
+| Options | Active Providers | Trust Model |
+|---------|-----------------|-------------|
+| (none) | X509 | Certificate chain trust |
+| `--require-receipt` | X509, MST | Both certificate AND receipt |
+| `--allow-untrusted` | (none) | No validation |
+| `--require-receipt --allow-untrusted` | MST | Receipt trust only ✓ |
+| `--mst-endpoint <url>` | X509, MST | Both certificate AND receipt |
+| `--mst-endpoint <url> --allow-untrusted` | MST | Receipt trust only ✓ |
+
+### Recommended Usage Patterns
+
+**Production with Full Validation** (certificate + receipt):
+```bash
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://...
+```
+
+**Receipt-Only Trust** (recommended for supply chain scenarios):
+```bash
+CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://... --allow-untrusted
+```
+
+**Development/Testing** (ephemeral certificates):
+```bash
+CoseSignTool verify signed.cose --allow-untrusted
+```
+
 ## Default Endpoints
 
 | Environment | Endpoint |

@@ -152,34 +152,51 @@ CoseSignTool sign-pfx large-file.bin ^
 
 ## Comparison
 
-| Feature | Direct | Indirect |
-|---------|--------|----------|
-| Payload in signature | Yes (embedded) or No (detached) | No (hash only) |
-| Signature size | Varies with payload | Fixed (small) |
-| Memory usage | Payload size | Hash size |
-| Streaming support | No | Yes |
-| Verification | Self-contained | Needs original payload |
-| SCITT compliance | Limited | Full support |
+| Feature | Direct (Embedded) | Direct (Detached) | Indirect |
+|---------|-------------------|-------------------|----------|
+| Payload in signature | Yes | No | No (hash only) |
+| Signature size | Varies with payload | Small | Small (fixed) |
+| Memory usage | Payload size | Hash size | Hash size |
+| Streaming support | No | No | Yes |
+| Signature verification | Self-contained | Requires payload | Self-contained |
+| Payload verification | N/A (embedded) | Requires payload | Requires payload |
+| SCITT compliance | Limited | Limited | Full support |
+
+> **Key Distinction:**
+> - **Detached signatures** require the original payload to verify the *signature itself* (the payload is part of the signed data)
+> - **Indirect signatures** can verify the *signature* without the payload (the hash envelope is the signed data), but require the payload to verify it *matches the signed hash*
 
 ## Verification
 
 ### Direct Signature Verification
 
 ```csharp
-// Embedded - payload in signature
+// Embedded - payload in signature, fully self-contained
 var result = validator.Validate(signature);
 
-// Detached - provide payload separately
+// Detached - payload REQUIRED to verify signature
+// (the payload is part of the signed data structure)
 var result = validator.Validate(signature, detachedPayload);
 ```
 
 ### Indirect Signature Verification
 
+Indirect signatures have two verification steps:
+
+1. **Signature verification** - Verify the signature over the hash envelope (no payload needed)
+2. **Payload verification** - Verify the payload matches the signed hash (payload required)
+
 ```csharp
-// Must provide original payload for hash comparison
+// Step 1: Verify signature is valid (no payload needed)
+var signatureResult = validator.ValidateSignature(signature);
+
+// Step 2: Verify payload matches the signed hash (payload required)
+var payloadResult = validator.ValidatePayload(signature, originalPayload);
+
+// Combined: Verify both signature and payload in one call
 var result = validator.ValidateIndirect(signature, originalPayload);
 
-// Or from stream
+// Or from stream for large files
 using var stream = File.OpenRead("large-file.bin");
 var result = await validator.ValidateIndirectAsync(signature, stream);
 ```
@@ -187,14 +204,18 @@ var result = await validator.ValidateIndirectAsync(signature, stream);
 ### CLI Verification
 
 ```bash
-# Direct signature (embedded)
+# Direct signature (embedded) - fully self-contained
 CoseSignTool verify signed.cose
 
-# Direct signature (detached)
+# Direct signature (detached) - payload REQUIRED to verify signature
 CoseSignTool verify signed.cose --payload document.json
 
-# Indirect signature (automatically detected from signature)
+# Indirect signature - payload needed to verify hash match
+# (signature itself can be verified without payload)
 CoseSignTool verify signed.cose --payload large-file.bin
+
+# Indirect signature - verify signature only (no payload verification)
+CoseSignTool verify signed.cose --signature-only
 ```
 
 ## Supported Hash Algorithms

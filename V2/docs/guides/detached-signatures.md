@@ -4,7 +4,9 @@ This guide explains detached signatures in CoseSignTool V2.
 
 ## Overview
 
-A detached signature is a COSE signature where the payload is not embedded in the signature structure. Instead, the signature references the payload, and the payload must be provided separately during verification.
+A detached signature is a COSE signature where the payload is not embedded in the signature structure. Instead, the payload field in the COSE structure is `nil`, and the original payload must be provided separately during verification.
+
+> **Important:** Unlike indirect signatures, detached signatures **require the original payload to verify the signature itself**. This is because the payload is part of the data that was signed—it's just not stored in the signature file. Without the payload, signature verification will fail.
 
 ## When to Use Detached Signatures
 
@@ -46,6 +48,8 @@ CoseSignTool sign-pfx document.json ^
 
 ## Verifying Detached Signatures
 
+> **Note:** The payload is **required** to verify a detached signature. Without it, the cryptographic signature cannot be validated because the payload was part of the signed data.
+
 ### Programmatic API
 
 ```csharp
@@ -53,7 +57,7 @@ CoseSignTool sign-pfx document.json ^
 var signature = await File.ReadAllBytesAsync("document.json.sig");
 var payload = await File.ReadAllBytesAsync("document.json");
 
-// Verify with detached payload
+// Payload is REQUIRED - it's part of the signed data
 var result = validator.Validate(signature, detachedPayload: payload);
 
 if (result.IsValid)

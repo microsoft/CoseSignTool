@@ -45,7 +45,11 @@ CoseSignTool sign-pfx large-file.bin ^
 ### Verify Indirect Signature
 
 ```bash
+# Verify signature AND that payload matches the signed hash
 CoseSignTool verify large-file.sig --payload large-file.bin
+
+# Verify signature only (no payload needed)
+CoseSignTool verify large-file.sig --signature-only
 ```
 
 ## When to Use Indirect Signatures
@@ -87,12 +91,35 @@ Use indirect signatures when:
 
 ## Verification
 
-When verifying indirect signatures:
+Indirect signatures have two distinct verification steps:
 
-1. The original payload must be provided
-2. The verifier hashes the payload
-3. The hash is compared to the signed hash envelope
-4. The signature is verified
+### 1. Signature Verification (No Payload Needed)
+
+The signature over the hash envelope can be verified without the original payload:
+
+```bash
+CoseSignTool verify large-file.sig --signature-only
+```
+
+This confirms:
+- The signature is cryptographically valid
+- The signing certificate is trusted
+- The hash envelope hasn't been tampered with
+
+### 2. Payload Verification (Requires Payload)
+
+To verify the payload matches the signed hash:
+
+```bash
+CoseSignTool verify large-file.sig --payload large-file.bin
+```
+
+This additionally confirms:
+- The payload hashes to the value in the signed hash envelope
+
+> **Key Difference from Detached Signatures:**
+> - **Detached signatures** require the payload to verify the *signature itself*
+> - **Indirect signatures** can verify the *signature* without the payload, but need the payload to verify it *matches the signed hash*
 
 ## See Also
 

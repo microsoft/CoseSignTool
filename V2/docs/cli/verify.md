@@ -29,7 +29,8 @@ The `verify` command validates a COSE Sign1 signature file, checking:
 
 | Option | Description |
 |--------|-------------|
-| `--payload <file>` | Path to detached payload file |
+| `--payload <file>` | Path to payload file (required for detached signatures, optional for indirect) |
+| `--signature-only` | Verify signature only, skip payload verification (indirect signatures only) |
 | `--trust-root <file>` | Custom trusted root certificate |
 | `--skip-revocation` | Skip certificate revocation checking |
 | `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
@@ -55,7 +56,7 @@ Additional options may be available from installed plugins:
 
 ## Examples
 
-### Basic Verification
+### Basic Verification (Embedded Signature)
 
 ```bash
 CoseSignTool verify signed.cose
@@ -63,8 +64,22 @@ CoseSignTool verify signed.cose
 
 ### Verify Detached Signature
 
+For detached signatures, the payload is **required** to verify the signature:
+
 ```bash
 CoseSignTool verify document.sig --payload document.json
+```
+
+### Verify Indirect Signature
+
+Indirect signatures can be verified with or without the payload:
+
+```bash
+# Full verification: signature + payload hash match
+CoseSignTool verify indirect.sig --payload large-file.bin
+
+# Signature-only verification (no payload needed)
+CoseSignTool verify indirect.sig --signature-only
 ```
 
 ### Verify with Custom Trust Root

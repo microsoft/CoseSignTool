@@ -195,7 +195,7 @@ public class VerifyCommandHandlerTests
     private static InvocationContext CreateInvocationContext(FileInfo? signature = null)
     {
         var command = new Command("verify");
-        var signatureArg = new Argument<FileInfo?>("signature");
+        var signatureArg = new Argument<string?>("signature");
 
         command.AddArgument(signatureArg);
 

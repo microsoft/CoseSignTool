@@ -192,7 +192,7 @@ public class InspectCommandHandlerTests
     private static InvocationContext CreateInvocationContext(FileInfo? file = null)
     {
         var command = new Command("inspect");
-        var fileArg = new Argument<FileInfo?>("file");
+        var fileArg = new Argument<string?>("file");
 
         command.AddArgument(fileArg);
 

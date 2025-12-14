@@ -113,7 +113,7 @@ dotnet_naming_symbols.static_fields.applicable_accessibilities = private, intern
 dotnet_naming_style.static_prefix_style.required_prefix = s_
 dotnet_naming_style.static_prefix_style.capitalization = camel_case
 
-# internal and private fields should be _camelCase
+# internal and private fields should be PascalCase
 dotnet_naming_rule.camel_case_for_private_internal_fields.severity = error
 dotnet_naming_rule.camel_case_for_private_internal_fields.symbols  = private_internal_fields
 dotnet_naming_rule.camel_case_for_private_internal_fields.style = pascal_case_style

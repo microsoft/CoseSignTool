@@ -6,6 +6,7 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
+using CoseSignTool.IO;
 using CoseSignTool.Output;
 
 namespace CoseSignTool.Commands.Handlers;
@@ -17,6 +18,11 @@ public class VerifyCommandHandler
 {
     private readonly IOutputFormatter Formatter;
     private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
+
+    /// <summary>
+    /// The timeout for waiting for stdin data. Default is 2 seconds.
+    /// </summary>
+    public static TimeSpan StdinTimeout { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandHandler"/> class.
@@ -45,27 +51,61 @@ public class VerifyCommandHandler
             var commandResult = parseResult.CommandResult;
 
             // Find the signature argument
-            FileInfo? signature = null;
+            string? signaturePath = null;
             foreach (var arg in commandResult.Command.Arguments)
             {
                 if (arg.Name == "signature")
                 {
-                    signature = parseResult.GetValueForArgument(arg) as FileInfo;
+                    signaturePath = parseResult.GetValueForArgument(arg) as string;
                     break;
                 }
             }
 
-            if (signature == null || !signature.Exists)
+            // Determine if using stdin
+            bool useStdin = string.IsNullOrEmpty(signaturePath) || signaturePath == "-";
+
+            // Read signature bytes from stdin or file
+            byte[] signatureBytes;
+            if (useStdin)
             {
-                Formatter.WriteError($"Signature file not found: {signature?.FullName ?? "null"}");
-                return Task.FromResult((int)ExitCode.FileNotFound);
+                Formatter.BeginSection("Verification Operation");
+                Formatter.WriteKeyValue("Signature", "<stdin>");
+
+                // Read from stdin with timeout wrapper to avoid blocking forever
+                using var rawStdin = Console.OpenStandardInput();
+                using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
+                using var ms = new MemoryStream();
+                timeoutStdin.CopyTo(ms);
+                signatureBytes = ms.ToArray();
+
+                if (signatureBytes.Length == 0)
+                {
+                    if (timeoutStdin.TimedOut)
+                    {
+                        Formatter.WriteError($"No signature data received from stdin (timed out after {StdinTimeout.TotalSeconds:F0}s)");
+                    }
+                    else
+                    {
+                        Formatter.WriteError("No signature data received from stdin");
+                    }
+                    Formatter.WriteError("No signature data received from stdin");
+                    Formatter.EndSection();
+                    return Task.FromResult((int)ExitCode.FileNotFound);
+                }
             }
+            else
+            {
+                if (!File.Exists(signaturePath))
+                {
+                    Formatter.WriteError($"Signature file not found: {signaturePath}");
+                    return Task.FromResult((int)ExitCode.FileNotFound);
+                }
 
-            Formatter.BeginSection("Verification Operation");
-            Formatter.WriteKeyValue("Signature", signature.FullName);
+                Formatter.BeginSection("Verification Operation");
+                Formatter.WriteKeyValue("Signature", signaturePath);
 
-            // Read and decode the COSE Sign1 message
-            var signatureBytes = File.ReadAllBytes(signature.FullName);
+                signatureBytes = File.ReadAllBytes(signaturePath);
+            }
             CoseSign1Message message;
             try
             {

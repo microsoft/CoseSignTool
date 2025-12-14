@@ -132,7 +132,7 @@ public class CommandBuilderTests
     }
 
     [Test]
-    public void BuildRootCommand_VerifyCommandHasRequiredSignatureArgument()
+    public void BuildRootCommand_VerifyCommandHasSignatureArgumentSupportingStdin()
     {
         // Arrange
         var builder = new CommandBuilder();
@@ -141,14 +141,15 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand();
         var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
 
-        // Assert
+        // Assert - signature is optional (MinimumNumberOfValues = 0) to support stdin
         var signatureArg = verifyCommand.Arguments.FirstOrDefault(a => a.Name == "signature");
         Assert.That(signatureArg, Is.Not.Null);
-        Assert.That(signatureArg!.Arity.MinimumNumberOfValues, Is.EqualTo(1));
+        Assert.That(signatureArg!.Arity.MinimumNumberOfValues, Is.EqualTo(0), "Signature should be optional to support stdin");
+        Assert.That(signatureArg!.Arity.MaximumNumberOfValues, Is.EqualTo(1), "Should accept at most one argument");
     }
 
     [Test]
-    public void BuildRootCommand_InspectCommandHasRequiredFileArgument()
+    public void BuildRootCommand_InspectCommandHasFileArgumentSupportingStdin()
     {
         // Arrange
         var builder = new CommandBuilder();
@@ -157,10 +158,11 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand();
         var inspectCommand = rootCommand.Subcommands.First(c => c.Name == "inspect");
 
-        // Assert
+        // Assert - file is optional (MinimumNumberOfValues = 0) to support stdin
         var fileArg = inspectCommand.Arguments.FirstOrDefault(a => a.Name == "file");
         Assert.That(fileArg, Is.Not.Null);
-        Assert.That(fileArg!.Arity.MinimumNumberOfValues, Is.EqualTo(1));
+        Assert.That(fileArg!.Arity.MinimumNumberOfValues, Is.EqualTo(0), "File should be optional to support stdin");
+        Assert.That(fileArg!.Arity.MaximumNumberOfValues, Is.EqualTo(1), "Should accept at most one argument");
     }
 
     [Test]

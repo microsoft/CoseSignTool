@@ -252,10 +252,17 @@ public class CommandBuilder
 
         var command = new Command("verify", description);
 
-        // Required signature argument
-        var signatureArgument = new Argument<FileInfo>(
-            "signature",
-            "Path to the COSE signature file");
+        // Signature argument - accepts file path or '-' for stdin
+        var signatureArgument = new Argument<string?>(
+            name: "signature",
+            description: "Path to the COSE signature file. Use '-' to read from stdin.\n" +
+                        "  Examples:\n" +
+                        "    signature.cose  - Read from file\n" +
+                        "    -               - Read from stdin (for pipeline)",
+            getDefaultValue: () => null)
+        {
+            Arity = ArgumentArity.ZeroOrOne
+        };
         command.AddArgument(signatureArgument);
 
         // Let each verification provider add its options
@@ -317,10 +324,17 @@ public class CommandBuilder
 
         var command = new Command("inspect", description);
 
-        // Required file argument
-        var fileArgument = new Argument<FileInfo>(
-            "file",
-            "Path to the COSE signature file to inspect");
+        // File argument - accepts file path or '-' for stdin
+        var fileArgument = new Argument<string?>(
+            name: "file",
+            description: "Path to the COSE signature file to inspect. Use '-' to read from stdin.\n" +
+                        "  Examples:\n" +
+                        "    signature.cose  - Read from file\n" +
+                        "    -               - Read from stdin (for pipeline)",
+            getDefaultValue: () => null)
+        {
+            Arity = ArgumentArity.ZeroOrOne
+        };
         command.AddArgument(fileArgument);
 
         // Extract payload option

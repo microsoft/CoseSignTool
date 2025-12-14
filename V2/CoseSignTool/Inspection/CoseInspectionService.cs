@@ -31,8 +31,9 @@ public class CoseInspectionService
     /// </summary>
     /// <param name="filePath">The path to the COSE Sign1 file.</param>
     /// <param name="extractPayloadPath">Optional path to extract embedded payload to. Use "-" for stdout.</param>
+    /// <param name="displayPath">Optional display name for the file path (used when reading from stdin).</param>
     /// <returns>Exit code indicating success or failure.</returns>
-    public async Task<int> InspectAsync(string filePath, string? extractPayloadPath = null)
+    public async Task<int> InspectAsync(string filePath, string? extractPayloadPath = null, string? displayPath = null)
     {
         if (!File.Exists(filePath))
         {
@@ -44,9 +45,10 @@ public class CoseInspectionService
         {
             var bytes = await File.ReadAllBytesAsync(filePath);
             var fileInfo = new FileInfo(filePath);
+            var displayName = displayPath ?? fileInfo.FullName;
 
             Formatter.BeginSection("COSE Sign1 Signature Details");
-            Formatter.WriteKeyValue("File", fileInfo.FullName);
+            Formatter.WriteKeyValue("File", displayName);
             Formatter.WriteKeyValue("Size", $"{fileInfo.Length:N0} bytes");
 
             // Try to decode as COSE Sign1

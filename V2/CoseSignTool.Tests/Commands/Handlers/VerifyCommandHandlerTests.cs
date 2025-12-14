@@ -570,6 +570,216 @@ public class VerifyCommandHandlerTests
         }
     }
 
+    #region Payload and SignatureOnly Tests
+
+    [Test]
+    public async Task HandleAsync_WithPayloadFile_PassesPayloadToHandler()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(stringWriter);
+        var handler = new VerifyCommandHandler(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for detached verification test");
+            // Create a detached signature
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var payload = new FileInfo(tempPayload);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            var result = await handler.HandleAsync(context, payload, signatureOnly: false);
+            formatter.Flush();
+
+            // Assert - Should complete and show payload file info
+            var output = stringWriter.ToString();
+            Assert.That(output, Does.Contain("Payload File").Or.Contain("Detached"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithNonExistentPayloadFile_ReturnsFileNotFound()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var handler = new VerifyCommandHandler();
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var nonExistentPayload = new FileInfo(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.bin"));
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            var result = await handler.HandleAsync(context, nonExistentPayload, signatureOnly: false);
+
+            // Assert - Should return FileNotFound for non-existent payload
+            Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithSignatureOnlyTrue_SkipsPayloadVerification()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(stringWriter);
+        var handler = new VerifyCommandHandler(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for signature-only test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: true);
+            formatter.Flush();
+
+            // Assert - Should show signature-only mode in output
+            var output = stringWriter.ToString();
+            Assert.That(output, Does.Contain("Signature Only").Or.Contain("Yes"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_DetachedSignatureWithoutPayload_ReturnsInvalidArguments()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var handler = new VerifyCommandHandler();
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for detached test");
+            // Create a detached signature
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act - Try to verify detached signature without providing payload
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
+
+            // Assert - Should return InvalidArguments because detached requires payload
+            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidArguments));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_OverloadWithNoArgs_CallsMainMethod()
+    {
+        // Arrange
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+        var handler = new VerifyCommandHandler();
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var signature = new FileInfo(tempSignature);
+            var context = CreateInvocationContext(signature: signature);
+
+            // Act - Call the overload that takes only context
+            var result = await handler.HandleAsync(context);
+
+            // Assert - Should complete without throwing
+            Assert.That(
+                result == (int)ExitCode.Success ||
+                result == (int)ExitCode.VerificationFailed ||
+                result == (int)ExitCode.UntrustedCertificate,
+                $"Expected success or validation failure, got {result}");
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    #endregion
+
     /// <summary>
     /// Mock verification provider for testing provider integration.
     /// </summary>

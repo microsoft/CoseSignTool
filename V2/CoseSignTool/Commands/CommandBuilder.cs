@@ -56,16 +56,18 @@ public class CommandBuilder
         public static readonly string CommandVerify = "verify";
         public static readonly string VerifyDescription = "Verify a COSE Sign1 signature\n\n" +
             "EXAMPLES:\n" +
-            "  # Basic verification:\n" +
+            "  # Basic verification (embedded signature):\n" +
             "    cosesigntool verify signature.cose\n\n" +
+            "  # Verify detached signature (payload required):\n" +
+            "    cosesigntool verify signature.cose --payload document.json\n\n" +
+            "  # Verify indirect signature (payload required for hash match):\n" +
+            "    cosesigntool verify indirect.sig --payload large-file.bin\n\n" +
+            "  # Verify signature only (skip payload hash verification):\n" +
+            "    cosesigntool verify indirect.sig --signature-only\n\n" +
             "  # Verify with specific trust roots:\n" +
             "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n" +
             "  # Allow self-signed certificates (dev/test):\n" +
             "    cosesigntool verify signature.cose --allow-untrusted\n\n" +
-            "  # Verify with certificate constraints:\n" +
-            "    cosesigntool verify signature.cose --subject-name \"My Company\"\n\n" +
-            "  # Verify from stdin (pipeline):\n" +
-            "    cat signature.cose | cosesigntool verify -\n\n" +
             "  # JSON output for scripting:\n" +
             "    cosesigntool verify signature.cose -f json";
         public static readonly string ArgumentSignature = "signature";
@@ -73,6 +75,17 @@ public class CommandBuilder
             "  Examples:\n" +
             "    signature.cose  - Read from file\n" +
             "    -               - Read from stdin (for pipeline)";
+
+        // Verify options
+        public static readonly string OptionPayload = "--payload";
+        public static readonly string OptionPayloadAlias = "-p";
+        public static readonly string OptionPayloadDescription = "Path to payload file for detached/indirect signature verification.\n" +
+            "  - Detached signatures: REQUIRED (payload is part of signed data)\n" +
+            "  - Indirect signatures: Optional (verifies hash match if provided)";
+        public static readonly string OptionSignatureOnly = "--signature-only";
+        public static readonly string OptionSignatureOnlyDescription = "Verify only the cryptographic signature, skip payload verification.\n" +
+            "  For indirect signatures, this verifies the signature over the hash\n" +
+            "  envelope without checking if a payload matches the hash.";
 
         // Inspect command
         public static readonly string CommandInspect = "inspect";
@@ -116,6 +129,8 @@ public class CommandBuilder
         // Option names for handler lookups (without -- prefix)
         public static readonly string OptionNameOutputFormat = "output-format";
         public static readonly string OptionNameExtractPayload = "extract-payload";
+        public static readonly string OptionNamePayload = "payload";
+        public static readonly string OptionNameSignatureOnly = "signature-only";
 
         // Other
         public static readonly string PluginsDirectory = "plugins";
@@ -335,6 +350,19 @@ public class CommandBuilder
         };
         command.AddArgument(signatureArgument);
 
+        // Payload option for detached/indirect signatures
+        var payloadOption = new Option<FileInfo?>(
+            name: ClassStrings.OptionPayload,
+            description: ClassStrings.OptionPayloadDescription);
+        payloadOption.AddAlias(ClassStrings.OptionPayloadAlias);
+        command.AddOption(payloadOption);
+
+        // Signature-only option for indirect signatures
+        var signatureOnlyOption = new Option<bool>(
+            name: ClassStrings.OptionSignatureOnly,
+            description: ClassStrings.OptionSignatureOnlyDescription);
+        command.AddOption(signatureOnlyOption);
+
         // Let each verification provider add its options
         foreach (var provider in verificationProviders)
         {
@@ -359,9 +387,25 @@ public class CommandBuilder
                 }
             }
 
+            // Get payload and signature-only options
+            FileInfo? payloadFile = null;
+            bool signatureOnly = false;
+            foreach (var opt in context.ParseResult.CommandResult.Command.Options)
+            {
+                if (opt.Name == ClassStrings.OptionNamePayload)
+                {
+                    payloadFile = context.ParseResult.GetValueForOption(opt) as FileInfo;
+                }
+                else if (opt.Name == ClassStrings.OptionNameSignatureOnly)
+                {
+                    var value = context.ParseResult.GetValueForOption(opt);
+                    signatureOnly = value is bool b && b;
+                }
+            }
+
             var formatter = OutputFormatterFactory.Create(outputFormat);
             var handler = new VerifyCommandHandler(formatter, verificationProviders);
-            var exitCode = await handler.HandleAsync(context);
+            var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
             context.ExitCode = exitCode;
         });
 

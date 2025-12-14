@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine.Invocation;
+using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
@@ -25,14 +26,26 @@ public class VerifyCommandHandler
         public static readonly string SectionTitle = "Verification Operation";
         public static readonly string KeySignature = "Signature";
         public static readonly string KeyPayload = "Payload";
+        public static readonly string KeyPayloadFile = "Payload File";
+        public static readonly string KeySignatureOnly = "Signature Only";
         public static readonly string KeyActiveProviders = "Active Providers";
         public static readonly string ErrorSignatureNotFound = "Signature file not found: {0}";
+        public static readonly string ErrorPayloadNotFound = "Payload file not found: {0}";
         public static readonly string ErrorFailedToDecode = "Failed to decode COSE Sign1 message: {0}";
         public static readonly string ErrorVerificationFailed = "Signature verification failed";
         public static readonly string ErrorFailureDetail = "  {0}: {1}";
         public static readonly string ErrorVerifying = "Error verifying signature: {0}";
+        public static readonly string ErrorDetachedRequiresPayload = "Detached signature requires --payload option to specify the original payload file";
+        public static readonly string ErrorPayloadHashMismatch = "Payload hash does not match the signed hash in the indirect signature";
         public static readonly string SuccessVerified = "Signature verified successfully";
+        public static readonly string SuccessSignatureVerified = "Signature verified successfully (payload verification skipped)";
+        public static readonly string SuccessPayloadVerified = "Payload hash verification successful";
         public static readonly string NullValue = "null";
+        public static readonly string ValueYes = "Yes";
+        public static readonly string ValueNo = "No";
+        public static readonly string ValueEmbedded = "Embedded";
+        public static readonly string ValueDetached = "Detached";
+        public static readonly string ValueIndirect = "Indirect";
     }
 
     private readonly IOutputFormatter Formatter;
@@ -61,6 +74,18 @@ public class VerifyCommandHandler
     /// <returns>Exit code indicating success or failure.</returns>
     public Task<int> HandleAsync(InvocationContext context)
     {
+        return HandleAsync(context, payloadFile: null, signatureOnly: false);
+    }
+
+    /// <summary>
+    /// Handles the verify command asynchronously with payload and signature-only options.
+    /// </summary>
+    /// <param name="context">The invocation context containing command arguments and options.</param>
+    /// <param name="payloadFile">Optional payload file for detached/indirect signature verification.</param>
+    /// <param name="signatureOnly">If true, only verify the signature without payload verification.</param>
+    /// <returns>Exit code indicating success or failure.</returns>
+    public Task<int> HandleAsync(InvocationContext context, FileInfo? payloadFile, bool signatureOnly)
+    {
         ArgumentNullException.ThrowIfNull(context);
 
         try
@@ -78,6 +103,13 @@ public class VerifyCommandHandler
                     signaturePath = parseResult.GetValueForArgument(arg) as string;
                     break;
                 }
+            }
+
+            // Validate payload file exists if provided
+            if (payloadFile != null && !payloadFile.Exists)
+            {
+                Formatter.WriteError(string.Format(ClassStrings.ErrorPayloadNotFound, payloadFile.FullName));
+                return Task.FromResult((int)ExitCode.FileNotFound);
             }
 
             // Determine if using stdin
@@ -124,6 +156,7 @@ public class VerifyCommandHandler
 
                 signatureBytes = File.ReadAllBytes(signaturePath);
             }
+
             CoseSign1Message message;
             try
             {
@@ -136,13 +169,67 @@ public class VerifyCommandHandler
                 return Task.FromResult((int)ExitCode.InvalidSignature);
             }
 
-            // Check if payload is embedded
+            // Determine signature type: embedded, detached, or indirect
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
-            Formatter.WriteKeyValue(ClassStrings.KeyPayload, hasEmbeddedPayload ? AssemblyStrings.Display.Embedded : AssemblyStrings.Display.Detached);
+            bool isIndirectSignature = IsIndirectSignature(message);
+            
+            string signatureType;
+            if (isIndirectSignature)
+            {
+                signatureType = ClassStrings.ValueIndirect;
+            }
+            else if (hasEmbeddedPayload)
+            {
+                signatureType = ClassStrings.ValueEmbedded;
+            }
+            else
+            {
+                signatureType = ClassStrings.ValueDetached;
+            }
+            
+            Formatter.WriteKeyValue(ClassStrings.KeyPayload, signatureType);
+            
+            if (payloadFile != null)
+            {
+                Formatter.WriteKeyValue(ClassStrings.KeyPayloadFile, payloadFile.FullName);
+            }
+            
+            if (signatureOnly)
+            {
+                Formatter.WriteKeyValue(ClassStrings.KeySignatureOnly, ClassStrings.ValueYes);
+            }
+
+            // For detached signatures (non-indirect), payload is REQUIRED to verify the signature
+            if (!hasEmbeddedPayload && !isIndirectSignature && payloadFile == null && !signatureOnly)
+            {
+                Formatter.WriteError(ClassStrings.ErrorDetachedRequiresPayload);
+                Formatter.EndSection();
+                Formatter.Flush();
+                return Task.FromResult((int)ExitCode.InvalidArguments);
+            }
+
+            // Read payload bytes if provided
+            byte[]? payloadBytes = null;
+            if (payloadFile != null)
+            {
+                payloadBytes = File.ReadAllBytes(payloadFile.FullName);
+            }
 
             // Build validator with all activated providers
-            var validatorBuilder = Cose.Sign1Message()
-                .ValidateCertificateSignature(allowUnprotectedHeaders: true);
+            // For detached signatures, pass the payload to the signature validator
+            ICoseMessageValidationBuilder validatorBuilder;
+            if (!hasEmbeddedPayload && !isIndirectSignature && payloadBytes != null)
+            {
+                // Detached signature: use detached validator with payload
+                validatorBuilder = Cose.Sign1Message()
+                    .ValidateCertificateSignature(payloadBytes, allowUnprotectedHeaders: true);
+            }
+            else
+            {
+                // Embedded or indirect: use standard validator
+                validatorBuilder = Cose.Sign1Message()
+                    .ValidateCertificateSignature(allowUnprotectedHeaders: true);
+            }
 
             // Add validators from each activated provider
             var activatedProviders = new List<string>();
@@ -165,30 +252,11 @@ public class VerifyCommandHandler
             }
 
             var compositeValidator = validatorBuilder.Build();
+            
+            // Perform signature verification
             var validationResult = compositeValidator.Validate(message);
 
-            if (validationResult.IsValid)
-            {
-                Formatter.WriteSuccess(ClassStrings.SuccessVerified);
-
-                // Add metadata from providers
-                foreach (var provider in VerificationProviders)
-                {
-                    if (provider.IsActivated(parseResult))
-                    {
-                        var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult);
-                        foreach (var kvp in metadata)
-                        {
-                            Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
-                        }
-                    }
-                }
-
-                Formatter.EndSection();
-                Formatter.Flush();
-                return Task.FromResult((int)ExitCode.Success);
-            }
-            else
+            if (!validationResult.IsValid)
             {
                 Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
                 foreach (var failure in validationResult.Failures)
@@ -199,6 +267,46 @@ public class VerifyCommandHandler
                 Formatter.Flush();
                 return Task.FromResult((int)ExitCode.VerificationFailed);
             }
+
+            // For indirect signatures, optionally verify payload matches the signed hash
+            if (isIndirectSignature && payloadBytes != null && !signatureOnly)
+            {
+                if (!VerifyIndirectPayloadHash(message, payloadBytes))
+                {
+                    Formatter.WriteError(ClassStrings.ErrorPayloadHashMismatch);
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.VerificationFailed);
+                }
+                Formatter.WriteSuccess(ClassStrings.SuccessPayloadVerified);
+            }
+
+            // Success
+            if (signatureOnly)
+            {
+                Formatter.WriteSuccess(ClassStrings.SuccessSignatureVerified);
+            }
+            else
+            {
+                Formatter.WriteSuccess(ClassStrings.SuccessVerified);
+            }
+
+            // Add metadata from providers
+            foreach (var provider in VerificationProviders)
+            {
+                if (provider.IsActivated(parseResult))
+                {
+                    var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult);
+                    foreach (var kvp in metadata)
+                    {
+                        Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
+                    }
+                }
+            }
+
+            Formatter.EndSection();
+            Formatter.Flush();
+            return Task.FromResult((int)ExitCode.Success);
         }
         catch (ArgumentNullException)
         {
@@ -210,5 +318,110 @@ public class VerifyCommandHandler
             Formatter.Flush();
             return Task.FromResult((int)ExitCode.VerificationFailed);
         }
+    }
+
+    /// <summary>
+    /// Determines if the message is an indirect signature by checking for hash envelope content type.
+    /// </summary>
+    private static bool IsIndirectSignature(CoseSign1Message message)
+    {
+        // Check protected headers for content type indicating hash envelope
+        var protectedHeaders = message.ProtectedHeaders;
+        
+        // Content type header label is 3 in COSE
+        const int ContentTypeLabel = 3;
+        
+        if (protectedHeaders.TryGetValue(new CoseHeaderLabel(ContentTypeLabel), out var contentTypeValue))
+        {
+            var contentType = contentTypeValue.GetValueAsString();
+            // Check for hash envelope content types
+            return contentType != null && (
+                contentType.Contains("cose-hash-v", StringComparison.OrdinalIgnoreCase) ||
+                contentType.Contains("hash-envelope", StringComparison.OrdinalIgnoreCase) ||
+                contentType.StartsWith("application/vnd.cose.hash-", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Verifies that the provided payload matches the hash in an indirect signature.
+    /// </summary>
+    private static bool VerifyIndirectPayloadHash(CoseSign1Message message, byte[] payload)
+    {
+        if (!message.Content.HasValue)
+        {
+            return false;
+        }
+
+        var hashEnvelope = message.Content.Value.ToArray();
+        
+        // Parse the hash envelope to get algorithm and expected hash
+        // The hash envelope is typically CBOR-encoded with algorithm and hash value
+        // For now, we'll try common hash algorithms and check if any match
+        
+        // Try SHA-256
+        using (var sha256 = SHA256.Create())
+        {
+            var computedHash = sha256.ComputeHash(payload);
+            if (ContainsHash(hashEnvelope, computedHash))
+            {
+                return true;
+            }
+        }
+
+        // Try SHA-384
+        using (var sha384 = SHA384.Create())
+        {
+            var computedHash = sha384.ComputeHash(payload);
+            if (ContainsHash(hashEnvelope, computedHash))
+            {
+                return true;
+            }
+        }
+
+        // Try SHA-512
+        using (var sha512 = SHA512.Create())
+        {
+            var computedHash = sha512.ComputeHash(payload);
+            if (ContainsHash(hashEnvelope, computedHash))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the hash envelope contains the computed hash.
+    /// </summary>
+    private static bool ContainsHash(byte[] hashEnvelope, byte[] computedHash)
+    {
+        // Simple check: see if the computed hash appears in the envelope
+        // This is a basic implementation - a full implementation would parse CBOR properly
+        if (hashEnvelope.Length < computedHash.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i <= hashEnvelope.Length - computedHash.Length; i++)
+        {
+            bool found = true;
+            for (int j = 0; j < computedHash.Length; j++)
+            {
+                if (hashEnvelope[i + j] != computedHash[j])
+                {
+                    found = false;
+                    break;
+                }
+            }
+            if (found)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

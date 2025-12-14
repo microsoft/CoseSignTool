@@ -365,4 +365,63 @@ public class CommandBuilderTests
         // Assert
         Assert.That(inspectCommand.Description, Does.Contain("Inspect"));
     }
+
+    [Test]
+    public void BuildRootCommand_VerifyCommandHasPayloadOption()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        // Act
+        var rootCommand = builder.BuildRootCommand();
+        var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+
+        // Assert
+        var payloadOption = verifyCommand.Options.FirstOrDefault(o => o.Name == "payload");
+        Assert.That(payloadOption, Is.Not.Null, "Verify command should have --payload option");
+        Assert.That(payloadOption!.Aliases, Does.Contain("-p"), "Should have -p alias");
+    }
+
+    [Test]
+    public void BuildRootCommand_VerifyCommandHasSignatureOnlyOption()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        // Act
+        var rootCommand = builder.BuildRootCommand();
+        var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+
+        // Assert
+        var signatureOnlyOption = verifyCommand.Options.FirstOrDefault(o => o.Name == "signature-only");
+        Assert.That(signatureOnlyOption, Is.Not.Null, "Verify command should have --signature-only option");
+    }
+
+    [Test]
+    public void BuildRootCommand_VerifyDescription_ContainsPayloadExamples()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        // Act
+        var rootCommand = builder.BuildRootCommand();
+        var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+
+        // Assert
+        Assert.That(verifyCommand.Description, Does.Contain("--payload"), "Description should include --payload example");
+    }
+
+    [Test]
+    public void BuildRootCommand_VerifyDescription_ContainsSignatureOnlyExamples()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        // Act
+        var rootCommand = builder.BuildRootCommand();
+        var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+
+        // Assert
+        Assert.That(verifyCommand.Description, Does.Contain("--signature-only"), "Description should include --signature-only example");
+    }
 }

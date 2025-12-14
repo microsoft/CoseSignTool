@@ -60,12 +60,13 @@ Write-Host "Generating coverage report..." -ForegroundColor Yellow
 # - AzureTrustedSigningCertificateSource, AzureTrustedSigningService - require Azure credentials
 # - AzureTrustedSigningDidX509, ScittExtensions - require Azure Trusted Signing infrastructure
 # - SystemConsole - thin console wrapper, excluded via [ExcludeFromCodeCoverage] attribute
+# - SanParser - conditionally compiled: netstandard2.0 fallback code paths cannot be tested on .NET 10
 reportgenerator `
     -reports:coverage.cobertura.xml `
     -targetdir:coverage-report `
     -reporttypes:"Html;TextSummary;Badges" `
     -assemblyfilters:"-*.Tests;-*.Tests.Common;-CoseSign1.Transparent.MST;-CoseSign1.Certificates.AzureTrustedSigning;-CoseSignTool.Local.Plugin;-CoseSignTool.MST.Plugin;-CoseSignTool.AzureTrustedSigning.Plugin" `
-    -classfilters:"-System.*;-Microsoft.*;-*PluginLoadContext*;-*PluginLoader*;-*RemoteMLDsa*;-*CertificateSigningService*;-*X509ChainBuilder*;-*RemoteCertificateSource*;-*RemoteSigningKeyProvider*;-*CertificateChainValidator*;-*SignatureValidator*;-*LinuxCertificateStore*;-*CertificateChainConverter*;-*DidX509Resolver*;-*DidX509Validator*;-*CoseInspectionService*;-*CommandBuilder*;-*InspectCommandHandler*;-*SubjectPolicyValidator*;-*CertificateCommonNameValidator*;-CoseSignTool.Program;-*CertificateKeyUsageValidator*;-*CertificateExpirationValidator*;-*DirectSignatureFactory*;-*IndirectSignatureFactory*" `
+    -classfilters:"-System.*;-Microsoft.*;-*PluginLoadContext*;-*PluginLoader*;-*RemoteMLDsa*;-*CertificateSigningService*;-*X509ChainBuilder*;-*RemoteCertificateSource*;-*RemoteSigningKeyProvider*;-*CertificateChainValidator*;-*SignatureValidator*;-*LinuxCertificateStore*;-*CertificateChainConverter*;-*DidX509Resolver*;-*DidX509Validator*;-*CoseInspectionService*;-*CommandBuilder*;-*InspectCommandHandler*;-*SubjectPolicyValidator*;-*CertificateCommonNameValidator*;-CoseSignTool.Program;-*CertificateKeyUsageValidator*;-*CertificateExpirationValidator*;-*DirectSignatureFactory*;-*IndirectSignatureFactory*;-DIDx509.SanParser" `
     -verbosity:Info
 
 Write-Host ""

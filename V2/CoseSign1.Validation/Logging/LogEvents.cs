@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
+
 namespace CoseSign1.Validation.Logging;
 
 /// <summary>
@@ -25,4 +27,18 @@ public static class LogEvents
     public const int ValidatorPassed = 2021;
     /// <summary>Validator failed with specific error.</summary>
     public const int ValidatorFailure = 2022;
+
+    // Static EventId instances to avoid allocations on each log call
+    /// <summary>EventId for validation started.</summary>
+    public static readonly EventId ValidationStartedEvent = new(ValidationStarted, nameof(ValidationStarted));
+    /// <summary>EventId for validation completed.</summary>
+    public static readonly EventId ValidationCompletedEvent = new(ValidationCompleted, nameof(ValidationCompleted));
+    /// <summary>EventId for validation failed.</summary>
+    public static readonly EventId ValidationFailedEvent = new(ValidationFailed, nameof(ValidationFailed));
+    /// <summary>EventId for validator executing.</summary>
+    public static readonly EventId ValidatorExecutingEvent = new(ValidatorExecuting, nameof(ValidatorExecuting));
+    /// <summary>EventId for validator passed.</summary>
+    public static readonly EventId ValidatorPassedEvent = new(ValidatorPassed, nameof(ValidatorPassed));
+    /// <summary>EventId for validator failure.</summary>
+    public static readonly EventId ValidatorFailureEvent = new(ValidatorFailure, nameof(ValidatorFailure));
 }

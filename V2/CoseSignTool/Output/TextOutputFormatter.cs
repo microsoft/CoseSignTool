@@ -8,6 +8,18 @@ namespace CoseSignTool.Output;
 /// </summary>
 public class TextOutputFormatter : IOutputFormatter
 {
+    /// <summary>
+    /// String constants specific to this class.
+    /// </summary>
+    internal static class ClassStrings
+    {
+        public static readonly string SuccessPrefix = "✓ ";
+        public static readonly string ErrorPrefix = "✗ ";
+        public static readonly string InfoPrefix = "ℹ ";
+        public static readonly string WarningPrefix = "⚠ ";
+        public static readonly string KeyValueFormat = "  {0}: {1}";
+    }
+
     private readonly TextWriter Output;
     private readonly TextWriter Error;
 
@@ -25,31 +37,31 @@ public class TextOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        Output.WriteLine($"✓ {message}");
+        Output.WriteLine(ClassStrings.SuccessPrefix + message);
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        Error.WriteLine($"✗ {message}");
+        Error.WriteLine(ClassStrings.ErrorPrefix + message);
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        Output.WriteLine($"ℹ {message}");
+        Output.WriteLine(ClassStrings.InfoPrefix + message);
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        Output.WriteLine($"⚠ {message}");
+        Output.WriteLine(ClassStrings.WarningPrefix + message);
     }
 
     /// <inheritdoc/>
     public void WriteKeyValue(string key, string value)
     {
-        Output.WriteLine($"  {key}: {value}");
+        Output.WriteLine(string.Format(ClassStrings.KeyValueFormat, key, value));
     }
 
     /// <inheritdoc/>

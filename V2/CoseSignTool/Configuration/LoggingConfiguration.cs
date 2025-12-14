@@ -10,6 +10,23 @@ namespace CoseSignTool.Configuration;
 /// </summary>
 public static class LoggingConfiguration
 {
+    internal static class ClassStrings
+    {
+        // Console formatter
+        public static readonly string FormatterNameSimple = "simple";
+
+        // Log filter namespaces
+        public static readonly string FilterSystem = "System";
+        public static readonly string FilterMicrosoft = "Microsoft";
+
+        // Verbosity arguments
+        public static readonly string ArgQuietShort = "-q";
+        public static readonly string ArgQuietLong = "--quiet";
+        public static readonly string ArgVerboseDouble = "-vv";
+        public static readonly string ArgVerboseTriple = "-vvv";
+        public static readonly string ArgVerbosityLong = "--verbosity";
+    }
+
     /// <summary>
     /// Creates and configures a logger factory based on verbosity level.
     /// </summary>
@@ -33,14 +50,14 @@ public static class LoggingConfiguration
                 .SetMinimumLevel(minLevel)
                 .AddConsole(options =>
                 {
-                    options.FormatterName = "simple";
+                    options.FormatterName = ClassStrings.FormatterNameSimple;
                 });
 
             // Filter out noise from System and Microsoft namespaces unless debug level
             if (minLevel > LogLevel.Debug)
             {
-                builder.AddFilter("System", LogLevel.Warning);
-                builder.AddFilter("Microsoft", LogLevel.Warning);
+                builder.AddFilter(ClassStrings.FilterSystem, LogLevel.Warning);
+                builder.AddFilter(ClassStrings.FilterMicrosoft, LogLevel.Warning);
             }
         });
     }
@@ -72,23 +89,23 @@ public static class LoggingConfiguration
         {
             var arg = args[i];
 
-            if (arg == "-q" || arg == "--quiet")
+            if (arg == ClassStrings.ArgQuietShort || arg == ClassStrings.ArgQuietLong)
             {
                 verbosity = 0;
                 // Keep -q/--quiet in remainingArgs so command handlers can also see it
                 remainingArgs.Add(arg);
             }
-            else if (arg == "-vv")
+            else if (arg == ClassStrings.ArgVerboseDouble)
             {
                 verbosity = Math.Max(verbosity, 3);
                 // Don't add to remainingArgs - strip this arg
             }
-            else if (arg == "-vvv")
+            else if (arg == ClassStrings.ArgVerboseTriple)
             {
                 verbosity = Math.Max(verbosity, 4);
                 // Don't add to remainingArgs - strip this arg
             }
-            else if (arg == "--verbosity" && i + 1 < args.Length)
+            else if (arg == ClassStrings.ArgVerbosityLong && i + 1 < args.Length)
             {
                 if (int.TryParse(args[i + 1], out int level))
                 {

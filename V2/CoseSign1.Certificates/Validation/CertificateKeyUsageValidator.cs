@@ -13,6 +13,39 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateKeyUsageValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeCertNotFound = "CERTIFICATE_NOT_FOUND";
+        public static readonly string ErrorCodeNoCriteria = "NO_CRITERIA";
+        public static readonly string ErrorCodeKeyUsageNotFound = "KEY_USAGE_NOT_FOUND";
+        public static readonly string ErrorCodeKeyUsageMismatch = "KEY_USAGE_MISMATCH";
+        public static readonly string ErrorCodeEkuNotFound = "EKU_NOT_FOUND";
+        public static readonly string ErrorCodeEkuMismatch = "EKU_MISMATCH";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageCertNotFound = "Could not extract signing certificate from message";
+        public static readonly string ErrorMessageNoCriteria = "No key usage criteria specified";
+        public static readonly string ErrorMessageKeyUsageNotFound = "Certificate does not have a key usage extension";
+        public static readonly string ErrorFormatKeyUsageMismatch = "Certificate key usage '{0}' does not include required '{1}'";
+        public static readonly string ErrorMessageEkuNotFound = "Certificate does not have an enhanced key usage extension";
+        public static readonly string ErrorFormatEkuMismatch = "Certificate does not have required EKU '{0}'. Found: [{1}]";
+        public static readonly string ErrorMessageEkuOidNull = "EKU OID cannot be null or whitespace.";
+
+        // Metadata keys
+        public static readonly string MetaKeyKeyUsage = "KeyUsage";
+        public static readonly string MetaKeyEnhancedKeyUsage = "EnhancedKeyUsage";
+        public static readonly string MetaKeyCertThumbprint = "CertificateThumbprint";
+
+        // Default value
+        public static readonly string MetaValueUnknown = "Unknown";
+    }
+
     private readonly X509KeyUsageFlags? RequiredKeyUsage;
     private readonly Oid? RequiredEku;
     private readonly bool AllowUnprotectedHeaders;
@@ -53,7 +86,7 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
     {
         if (string.IsNullOrWhiteSpace(requiredEkuOid))
         {
-            throw new ArgumentException("EKU OID cannot be null or whitespace.", nameof(requiredEkuOid));
+            throw new ArgumentException(ClassStrings.ErrorMessageEkuOidNull, nameof(requiredEkuOid));
         }
 
         RequiredKeyUsage = null;
@@ -66,17 +99,17 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (!input.TryGetSigningCertificate(out var certificate, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                "Could not extract signing certificate from message",
-                "CERTIFICATE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageCertNotFound,
+                ClassStrings.ErrorCodeCertNotFound);
         }
 
         if (RequiredKeyUsage.HasValue)
@@ -90,9 +123,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         }
 
         return ValidationResult.Failure(
-            nameof(CertificateKeyUsageValidator),
-            "No key usage criteria specified",
-            "NO_CRITERIA");
+            ClassStrings.ValidatorName,
+            ClassStrings.ErrorMessageNoCriteria,
+            ClassStrings.ErrorCodeNoCriteria);
     }
 
     private ValidationResult ValidateKeyUsageFlags(X509Certificate2 certificate, X509KeyUsageFlags required)
@@ -102,23 +135,23 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         if (keyUsageExt == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                "Certificate does not have a key usage extension",
-                "KEY_USAGE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageKeyUsageNotFound,
+                ClassStrings.ErrorCodeKeyUsageNotFound);
         }
 
         if ((keyUsageExt.KeyUsages & required) != required)
         {
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                $"Certificate key usage '{keyUsageExt.KeyUsages}' does not include required '{required}'",
-                "KEY_USAGE_MISMATCH");
+                ClassStrings.ValidatorName,
+                string.Format(ClassStrings.ErrorFormatKeyUsageMismatch, keyUsageExt.KeyUsages, required),
+                ClassStrings.ErrorCodeKeyUsageMismatch);
         }
 
-        return ValidationResult.Success(nameof(CertificateKeyUsageValidator), new Dictionary<string, object>
+        return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
-            ["KeyUsage"] = keyUsageExt.KeyUsages.ToString(),
-            ["CertificateThumbprint"] = certificate.Thumbprint
+            [ClassStrings.MetaKeyKeyUsage] = keyUsageExt.KeyUsages.ToString(),
+            [ClassStrings.MetaKeyCertThumbprint] = certificate.Thumbprint
         });
     }
 
@@ -129,9 +162,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         if (ekuExt == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                "Certificate does not have an enhanced key usage extension",
-                "EKU_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageEkuNotFound,
+                ClassStrings.ErrorCodeEkuNotFound);
         }
 
         bool found = ekuExt.EnhancedKeyUsages
@@ -142,15 +175,15 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         {
             var ekuList = string.Join(", ", ekuExt.EnhancedKeyUsages.Cast<Oid>().Select(o => o.Value ?? o.FriendlyName));
             return ValidationResult.Failure(
-                nameof(CertificateKeyUsageValidator),
-                $"Certificate does not have required EKU '{requiredEku.Value}'. Found: [{ekuList}]",
-                "EKU_MISMATCH");
+                ClassStrings.ValidatorName,
+                string.Format(ClassStrings.ErrorFormatEkuMismatch, requiredEku.Value, ekuList),
+                ClassStrings.ErrorCodeEkuMismatch);
         }
 
-        return ValidationResult.Success(nameof(CertificateKeyUsageValidator), new Dictionary<string, object>
+        return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
-            ["EnhancedKeyUsage"] = requiredEku.Value ?? requiredEku.FriendlyName ?? "Unknown",
-            ["CertificateThumbprint"] = certificate.Thumbprint
+            [ClassStrings.MetaKeyEnhancedKeyUsage] = requiredEku.Value ?? requiredEku.FriendlyName ?? ClassStrings.MetaValueUnknown,
+            [ClassStrings.MetaKeyCertThumbprint] = certificate.Thumbprint
         });
     }
 

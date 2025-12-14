@@ -15,6 +15,122 @@ namespace CoseSignTool.Inspection;
 /// </summary>
 public class CoseInspectionService
 {
+    internal static class ClassStrings
+    {
+        // Section titles
+        public static readonly string SectionSignatureDetails = "COSE Sign1 Signature Details";
+        public static readonly string HeaderProtected = "Protected Headers:";
+        public static readonly string HeaderUnprotected = "Unprotected Headers:";
+        public static readonly string HeaderCwtClaims = "CWT Claims (SCITT Compliance):";
+        public static readonly string HeaderPayload = "Payload:";
+        public static readonly string HeaderSignature = "Signature:";
+
+        // Key names
+        public static readonly string KeyFile = "File";
+        public static readonly string KeySize = "Size";
+        public static readonly string KeyAlgorithm = "  Algorithm";
+        public static readonly string KeyContentType = "  Content Type";
+        public static readonly string KeyCriticalHeaders = "  Critical Headers";
+        public static readonly string KeyPreview = "  Preview";
+        public static readonly string KeyType = "  Type";
+        public static readonly string KeySha256 = "  SHA-256";
+        public static readonly string KeyContent = "  Content";
+        public static readonly string KeyTotalSize = "  Total Size";
+        public static readonly string KeyExtractedSize = "  Extracted Size";
+        public static readonly string KeyPayloadSize = "  Size";
+        public static readonly string KeyIssuer = "  Issuer (iss)";
+        public static readonly string KeySubject = "  Subject (sub)";
+        public static readonly string KeyAudience = "  Audience (aud)";
+        public static readonly string KeyIssuedAt = "  Issued At (iat)";
+        public static readonly string KeyNotBefore = "  Not Before (nbf)";
+        public static readonly string KeyExpiration = "  Expiration (exp)";
+        public static readonly string KeyCwtId = "  CWT ID (cti)";
+        public static readonly string KeyCustomClaims = "  Custom Claims";
+
+        // Value formats
+        public static readonly string FormatBytes = "{0:N0} bytes";
+        public static readonly string FormatAlgorithm = "{0} ({1})";
+        public static readonly string FormatCustomClaims = "{0} additional claims";
+        public static readonly string FormatUnknownAlgorithm = "Unknown ({0})";
+        public static readonly string FormatBytesLength = "<{0} bytes>";
+        public static readonly string FormatBytesLengthWithHex = "<{0} bytes> [{1}...]";
+        public static readonly string FormatHashThumbprint = "{0}: {1}";
+
+        // Display values
+        public static readonly string ValueUnableToParse = "<unable to parse>";
+        public static readonly string ValuePresent = "<present>";
+        public static readonly string ValueBinaryData = "Binary data";
+        public static readonly string ValueDetached = "Detached (no embedded payload)";
+        public static readonly string ValueProtected = "protected";
+        public static readonly string ValueUnprotected = "unprotected";
+        public static readonly string ValueExpiredSuffix = " [EXPIRED]";
+        public static readonly string ValuePreviewSuffix = "...";
+
+        // Value types
+        public static readonly string TypeString = "string";
+        public static readonly string TypeUint = "uint";
+        public static readonly string TypeInt = "int";
+        public static readonly string TypeBytes = "bytes";
+        public static readonly string TypeArray = "array";
+        public static readonly string TypeMap = "map";
+        public static readonly string TypeBool = "bool";
+        public static readonly string TypeUnknown = "unknown";
+        public static readonly string TypeBinary = "binary";
+
+        // Success messages
+        public static readonly string SuccessInspectionComplete = "COSE Sign1 message inspection complete";
+        public static readonly string SuccessPayloadExtracted = "Payload extracted to: {0}";
+
+        // Error messages
+        public static readonly string ErrorFileNotFound = "File not found: {0}";
+        public static readonly string ErrorFailedToDecode = "Failed to decode as COSE Sign1 message: {0}";
+        public static readonly string ErrorInvalidFile = "File may not be a valid COSE Sign1 message";
+        public static readonly string ErrorInspecting = "Error inspecting COSE message: {0}";
+        public static readonly string ErrorReadingFile = "Error reading file: {0}";
+        public static readonly string ErrorExtractingPayload = "Failed to extract payload: {0}";
+
+        // Warning messages
+        public static readonly string WarningCannotExtract = "Cannot extract payload: signature has no embedded payload (detached)";
+
+        // Info messages
+        public static readonly string InfoCertChainUnprotected = "  Certificate Chain found in unprotected headers";
+        public static readonly string InfoCertChainProtected = "  Certificate Chain found in protected headers";
+
+        // Algorithm names
+        public static readonly string AlgES256 = "ES256 (ECDSA w/ SHA-256)";
+        public static readonly string AlgES384 = "ES384 (ECDSA w/ SHA-384)";
+        public static readonly string AlgES512 = "ES512 (ECDSA w/ SHA-512)";
+        public static readonly string AlgPS256 = "PS256 (RSASSA-PSS w/ SHA-256)";
+        public static readonly string AlgPS384 = "PS384 (RSASSA-PSS w/ SHA-384)";
+        public static readonly string AlgPS512 = "PS512 (RSASSA-PSS w/ SHA-512)";
+        public static readonly string AlgRS256 = "RS256 (RSASSA-PKCS1-v1_5 w/ SHA-256)";
+        public static readonly string AlgRS384 = "RS384 (RSASSA-PKCS1-v1_5 w/ SHA-384)";
+        public static readonly string AlgRS512 = "RS512 (RSASSA-PKCS1-v1_5 w/ SHA-512)";
+        public static readonly string AlgSHA256 = "SHA-256";
+        public static readonly string AlgSHA384 = "SHA-384";
+        public static readonly string AlgSHA512 = "SHA-512";
+        public static readonly string AlgUnknown = "Unknown";
+
+        // Well-known header names
+        public static readonly string HeaderNameAlgorithm = "alg (Algorithm)";
+        public static readonly string HeaderNameCritical = "crit (Critical)";
+        public static readonly string HeaderNameContentType = "content type";
+        public static readonly string HeaderNameKeyId = "kid (Key ID)";
+        public static readonly string HeaderNameIV = "IV";
+        public static readonly string HeaderNamePartialIV = "Partial IV";
+        public static readonly string HeaderNameCounterSignature = "counter signature";
+        public static readonly string HeaderNameCwtClaims = "CWT Claims";
+        public static readonly string HeaderNameX5Chain = "x5chain (Certificate Chain)";
+        public static readonly string HeaderNameX5T = "x5t (Certificate Thumbprint)";
+        public static readonly string HeaderNameX5U = "x5u (Certificate URL)";
+        public static readonly string HeaderNamePayloadHashAlg = "payload-hash-alg (Hash Algorithm)";
+        public static readonly string HeaderNamePreimageContentType = "payload-preimage-content-type";
+        public static readonly string HeaderNamePayloadLocation = "payload-location";
+        public static readonly string HeaderNameScittReceipts = "scitt-receipts";
+        public static readonly string HeaderNameScittStatement = "scitt-statement";
+        public static readonly string HeaderNameCustom = "Header (custom)";
+    }
+
     private readonly IOutputFormatter Formatter;
 
     /// <summary>
@@ -37,7 +153,7 @@ public class CoseInspectionService
     {
         if (!File.Exists(filePath))
         {
-            Formatter.WriteError($"File not found: {filePath}");
+            Formatter.WriteError(string.Format(ClassStrings.ErrorFileNotFound, filePath));
             return (int)ExitCode.FileNotFound;
         }
 
@@ -47,9 +163,9 @@ public class CoseInspectionService
             var fileInfo = new FileInfo(filePath);
             var displayName = displayPath ?? fileInfo.FullName;
 
-            Formatter.BeginSection("COSE Sign1 Signature Details");
-            Formatter.WriteKeyValue("File", displayName);
-            Formatter.WriteKeyValue("Size", $"{fileInfo.Length:N0} bytes");
+            Formatter.BeginSection(ClassStrings.SectionSignatureDetails);
+            Formatter.WriteKeyValue(ClassStrings.KeyFile, displayName);
+            Formatter.WriteKeyValue(ClassStrings.KeySize, string.Format(ClassStrings.FormatBytes, fileInfo.Length));
 
             // Try to decode as COSE Sign1
             try
@@ -81,17 +197,17 @@ public class CoseInspectionService
                     await ExtractPayloadAsync(message, extractPayloadPath);
                 }
 
-                Formatter.WriteSuccess("COSE Sign1 message inspection complete");
+                Formatter.WriteSuccess(ClassStrings.SuccessInspectionComplete);
             }
             catch (CborContentException ex)
             {
-                Formatter.WriteWarning($"Failed to decode as COSE Sign1 message: {ex.Message}");
-                Formatter.WriteInfo("File may not be a valid COSE Sign1 message");
+                Formatter.WriteWarning(string.Format(ClassStrings.ErrorFailedToDecode, ex.Message));
+                Formatter.WriteInfo(ClassStrings.ErrorInvalidFile);
                 return (int)ExitCode.InvalidSignature;
             }
             catch (Exception ex)
             {
-                Formatter.WriteError($"Error inspecting COSE message: {ex.Message}");
+                Formatter.WriteError(string.Format(ClassStrings.ErrorInspecting, ex.Message));
                 return (int)ExitCode.InspectionFailed;
             }
 
@@ -100,7 +216,7 @@ public class CoseInspectionService
         }
         catch (Exception ex)
         {
-            Formatter.WriteError($"Error reading file: {ex.Message}");
+            Formatter.WriteError(string.Format(ClassStrings.ErrorReadingFile, ex.Message));
             return (int)ExitCode.InspectionFailed;
         }
     }
@@ -333,43 +449,43 @@ public class CoseInspectionService
             {
                 case CborReaderState.TextString:
                     info.Value = reader.ReadTextString();
-                    info.ValueType = "string";
+                    info.ValueType = ClassStrings.TypeString;
                     break;
                 case CborReaderState.UnsignedInteger:
                     info.Value = reader.ReadUInt64();
-                    info.ValueType = "uint";
+                    info.ValueType = ClassStrings.TypeUint;
                     break;
                 case CborReaderState.NegativeInteger:
                     info.Value = reader.ReadInt64();
-                    info.ValueType = "int";
+                    info.ValueType = ClassStrings.TypeInt;
                     break;
                 case CborReaderState.ByteString:
                     var bytes = reader.ReadByteString();
-                    info.ValueType = "bytes";
+                    info.ValueType = ClassStrings.TypeBytes;
                     info.LengthBytes = bytes.Length;
                     break;
                 case CborReaderState.StartArray:
                     var count = reader.ReadStartArray();
-                    info.ValueType = "array";
+                    info.ValueType = ClassStrings.TypeArray;
                     info.LengthBytes = count ?? 0;
                     break;
                 case CborReaderState.StartMap:
                     var mapCount = reader.ReadStartMap();
-                    info.ValueType = "map";
+                    info.ValueType = ClassStrings.TypeMap;
                     info.LengthBytes = mapCount ?? 0;
                     break;
                 case CborReaderState.Boolean:
                     info.Value = reader.ReadBoolean();
-                    info.ValueType = "bool";
+                    info.ValueType = ClassStrings.TypeBool;
                     break;
                 default:
-                    info.ValueType = "unknown";
+                    info.ValueType = ClassStrings.TypeUnknown;
                     break;
             }
         }
         catch
         {
-            info.ValueType = "binary";
+            info.ValueType = ClassStrings.TypeBinary;
         }
 
         return info;
@@ -475,11 +591,11 @@ public class CoseInspectionService
         var x5chainLabel = new CoseHeaderLabel(33);
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
-            info.CertificateChainLocation = "unprotected";
+            info.CertificateChainLocation = ClassStrings.ValueUnprotected;
         }
         else if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
         {
-            info.CertificateChainLocation = "protected";
+            info.CertificateChainLocation = ClassStrings.ValueProtected;
         }
 
         return info;
@@ -556,7 +672,7 @@ public class CoseInspectionService
 
     private void DisplayProtectedHeaders(CoseSign1Message message)
     {
-        Formatter.WriteInfo("Protected Headers:");
+        Formatter.WriteInfo(ClassStrings.HeaderProtected);
 
         var protectedHeaders = message.ProtectedHeaders;
 
@@ -569,11 +685,11 @@ public class CoseInspectionService
                 var reader = new CborReader(algValue.EncodedValue);
                 var algId = reader.ReadInt32();
                 var algName = GetAlgorithmName(algId);
-                Formatter.WriteKeyValue("  Algorithm", $"{algId} ({algName})");
+                Formatter.WriteKeyValue(ClassStrings.KeyAlgorithm, string.Format(ClassStrings.FormatAlgorithm, algId, algName));
             }
             catch
             {
-                Formatter.WriteKeyValue("  Algorithm", "<unable to parse>");
+                Formatter.WriteKeyValue(ClassStrings.KeyAlgorithm, ClassStrings.ValueUnableToParse);
             }
         }
 
@@ -587,23 +703,23 @@ public class CoseInspectionService
                 var state = reader.PeekState();
                 if (state == CborReaderState.TextString)
                 {
-                    Formatter.WriteKeyValue("  Content Type", reader.ReadTextString());
+                    Formatter.WriteKeyValue(ClassStrings.KeyContentType, reader.ReadTextString());
                 }
                 else if (state == CborReaderState.UnsignedInteger || state == CborReaderState.NegativeInteger)
                 {
-                    Formatter.WriteKeyValue("  Content Type", reader.ReadInt32().ToString());
+                    Formatter.WriteKeyValue(ClassStrings.KeyContentType, reader.ReadInt32().ToString());
                 }
             }
             catch
             {
-                Formatter.WriteKeyValue("  Content Type", "<unable to parse>");
+                Formatter.WriteKeyValue(ClassStrings.KeyContentType, ClassStrings.ValueUnableToParse);
             }
         }
 
         // Critical Headers
         if (protectedHeaders.ContainsKey(CoseHeaderLabel.CriticalHeaders))
         {
-            Formatter.WriteKeyValue("  Critical Headers", "<present>");
+            Formatter.WriteKeyValue(ClassStrings.KeyCriticalHeaders, ClassStrings.ValuePresent);
         }
 
         // Display other protected headers
@@ -629,7 +745,7 @@ public class CoseInspectionService
 
         if (unprotectedHeaders.Count > 0)
         {
-            Formatter.WriteInfo("Unprotected Headers:");
+            Formatter.WriteInfo(ClassStrings.HeaderUnprotected);
 
             foreach (var kvp in unprotectedHeaders)
             {
@@ -645,68 +761,68 @@ public class CoseInspectionService
         // Try to extract CWT Claims from protected headers using extension method
         if (message.ProtectedHeaders.TryGetCwtClaims(out var claims) && claims != null)
         {
-            Formatter.WriteInfo("CWT Claims (SCITT Compliance):");
+            Formatter.WriteInfo(ClassStrings.HeaderCwtClaims);
 
             if (!string.IsNullOrEmpty(claims.Issuer))
             {
-                Formatter.WriteKeyValue("  Issuer (iss)", claims.Issuer);
+                Formatter.WriteKeyValue(ClassStrings.KeyIssuer, claims.Issuer);
             }
 
             if (!string.IsNullOrEmpty(claims.Subject))
             {
-                Formatter.WriteKeyValue("  Subject (sub)", claims.Subject);
+                Formatter.WriteKeyValue(ClassStrings.KeySubject, claims.Subject);
             }
 
             if (!string.IsNullOrEmpty(claims.Audience))
             {
-                Formatter.WriteKeyValue("  Audience (aud)", claims.Audience);
+                Formatter.WriteKeyValue(ClassStrings.KeyAudience, claims.Audience);
             }
 
             if (claims.IssuedAt.HasValue)
             {
-                Formatter.WriteKeyValue("  Issued At (iat)", claims.IssuedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC"));
+                Formatter.WriteKeyValue(ClassStrings.KeyIssuedAt, claims.IssuedAt.Value.ToString(AssemblyStrings.Formats.DateTimeUtc));
             }
 
             if (claims.NotBefore.HasValue)
             {
-                Formatter.WriteKeyValue("  Not Before (nbf)", claims.NotBefore.Value.ToString("yyyy-MM-dd HH:mm:ss UTC"));
+                Formatter.WriteKeyValue(ClassStrings.KeyNotBefore, claims.NotBefore.Value.ToString(AssemblyStrings.Formats.DateTimeUtc));
             }
 
             if (claims.ExpirationTime.HasValue)
             {
                 var expiry = claims.ExpirationTime.Value;
                 var isExpired = expiry < DateTimeOffset.UtcNow;
-                var expiryStr = expiry.ToString("yyyy-MM-dd HH:mm:ss UTC");
+                var expiryStr = expiry.ToString(AssemblyStrings.Formats.DateTimeUtc);
                 if (isExpired)
                 {
-                    Formatter.WriteWarning($"  Expiration (exp): {expiryStr} [EXPIRED]");
+                    Formatter.WriteWarning($"{ClassStrings.KeyExpiration}: {expiryStr}{ClassStrings.ValueExpiredSuffix}");
                 }
                 else
                 {
-                    Formatter.WriteKeyValue("  Expiration (exp)", expiryStr);
+                    Formatter.WriteKeyValue(ClassStrings.KeyExpiration, expiryStr);
                 }
             }
 
             if (claims.CwtId != null && claims.CwtId.Length > 0)
             {
-                Formatter.WriteKeyValue("  CWT ID (cti)", Convert.ToHexString(claims.CwtId));
+                Formatter.WriteKeyValue(ClassStrings.KeyCwtId, Convert.ToHexString(claims.CwtId));
             }
 
             if (claims.CustomClaims.Count > 0)
             {
-                Formatter.WriteKeyValue("  Custom Claims", $"{claims.CustomClaims.Count} additional claims");
+                Formatter.WriteKeyValue(ClassStrings.KeyCustomClaims, string.Format(ClassStrings.FormatCustomClaims, claims.CustomClaims.Count));
             }
         }
     }
 
     private void DisplayPayloadInfo(CoseSign1Message message)
     {
-        Formatter.WriteInfo("Payload:");
+        Formatter.WriteInfo(ClassStrings.HeaderPayload);
 
         var payload = message.Content;
         if (payload.HasValue && payload.Value.Length > 0)
         {
-            Formatter.WriteKeyValue("  Size", $"{payload.Value.Length:N0} bytes");
+            Formatter.WriteKeyValue(ClassStrings.KeyPayloadSize, string.Format(ClassStrings.FormatBytes, payload.Value.Length));
 
             // Try to detect if it's text
             if (IsLikelyText(payload.Value.Span))
@@ -715,19 +831,19 @@ public class CoseInspectionService
                 var preview = System.Text.Encoding.UTF8.GetString(payload.Value.Span.Slice(0, previewLength));
                 if (payload.Value.Length > 100)
                 {
-                    preview += "...";
+                    preview += ClassStrings.ValuePreviewSuffix;
                 }
-                Formatter.WriteKeyValue("  Preview", preview);
+                Formatter.WriteKeyValue(ClassStrings.KeyPreview, preview);
             }
             else
             {
-                Formatter.WriteKeyValue("  Type", "Binary data");
-                Formatter.WriteKeyValue("  SHA-256", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Value.Span)));
+                Formatter.WriteKeyValue(ClassStrings.KeyType, ClassStrings.ValueBinaryData);
+                Formatter.WriteKeyValue(ClassStrings.KeySha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Value.Span)));
             }
         }
         else
         {
-            Formatter.WriteKeyValue("  Content", "Detached (no embedded payload)");
+            Formatter.WriteKeyValue(ClassStrings.KeyContent, ClassStrings.ValueDetached);
         }
     }
 
@@ -737,13 +853,13 @@ public class CoseInspectionService
 
         if (!payload.HasValue || payload.Value.Length == 0)
         {
-            Formatter.WriteWarning("Cannot extract payload: signature has no embedded payload (detached)");
+            Formatter.WriteWarning(ClassStrings.WarningCannotExtract);
             return;
         }
 
         try
         {
-            if (extractPath == "-")
+            if (extractPath == AssemblyStrings.IO.StdinIndicator)
             {
                 // Write to stdout
                 using var stdout = Console.OpenStandardOutput();
@@ -761,33 +877,33 @@ public class CoseInspectionService
                 }
 
                 await File.WriteAllBytesAsync(fullPath, payload.Value.ToArray());
-                Formatter.WriteSuccess($"Payload extracted to: {fullPath}");
-                Formatter.WriteKeyValue("  Extracted Size", $"{payload.Value.Length:N0} bytes");
+                Formatter.WriteSuccess(string.Format(ClassStrings.SuccessPayloadExtracted, fullPath));
+                Formatter.WriteKeyValue(ClassStrings.KeyExtractedSize, string.Format(ClassStrings.FormatBytes, payload.Value.Length));
             }
         }
         catch (Exception ex)
         {
-            Formatter.WriteError($"Failed to extract payload: {ex.Message}");
+            Formatter.WriteError(string.Format(ClassStrings.ErrorExtractingPayload, ex.Message));
         }
     }
 
     private void DisplaySignatureInfo(CoseSign1Message message)
     {
-        Formatter.WriteInfo("Signature:");
+        Formatter.WriteInfo(ClassStrings.HeaderSignature);
         var encoded = message.Encode();
-        Formatter.WriteKeyValue("  Total Size", $"{encoded.Length:N0} bytes");
+        Formatter.WriteKeyValue(ClassStrings.KeyTotalSize, string.Format(ClassStrings.FormatBytes, encoded.Length));
 
         // Try to extract certificate chain from unprotected headers (x5chain is label 33)
         var x5chainLabel = new CoseHeaderLabel(33);
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
-            Formatter.WriteInfo("  Certificate Chain found in unprotected headers");
+            Formatter.WriteInfo(ClassStrings.InfoCertChainUnprotected);
         }
 
         // Check protected headers too
         if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
         {
-            Formatter.WriteInfo("  Certificate Chain found in protected headers");
+            Formatter.WriteInfo(ClassStrings.InfoCertChainProtected);
         }
     }
 
@@ -796,22 +912,22 @@ public class CoseInspectionService
         return algorithm switch
         {
             // ECDSA algorithms
-            -7 => "ES256 (ECDSA w/ SHA-256)",
-            -35 => "ES384 (ECDSA w/ SHA-384)",
-            -36 => "ES512 (ECDSA w/ SHA-512)",
+            -7 => ClassStrings.AlgES256,
+            -35 => ClassStrings.AlgES384,
+            -36 => ClassStrings.AlgES512,
             // RSA-PSS algorithms
-            -37 => "PS256 (RSASSA-PSS w/ SHA-256)",
-            -38 => "PS384 (RSASSA-PSS w/ SHA-384)",
-            -39 => "PS512 (RSASSA-PSS w/ SHA-512)",
+            -37 => ClassStrings.AlgPS256,
+            -38 => ClassStrings.AlgPS384,
+            -39 => ClassStrings.AlgPS512,
             // RSA PKCS#1 algorithms
-            -257 => "RS256 (RSASSA-PKCS1-v1_5 w/ SHA-256)",
-            -258 => "RS384 (RSASSA-PKCS1-v1_5 w/ SHA-384)",
-            -259 => "RS512 (RSASSA-PKCS1-v1_5 w/ SHA-512)",
+            -257 => ClassStrings.AlgRS256,
+            -258 => ClassStrings.AlgRS384,
+            -259 => ClassStrings.AlgRS512,
             // Hash algorithms (for payload-hash-alg)
-            -16 => "SHA-256",
-            -43 => "SHA-384",
-            -44 => "SHA-512",
-            _ => "Unknown"
+            -16 => ClassStrings.AlgSHA256,
+            -43 => ClassStrings.AlgSHA384,
+            -44 => ClassStrings.AlgSHA512,
+            _ => ClassStrings.AlgUnknown
         };
     }
 
@@ -819,10 +935,10 @@ public class CoseInspectionService
     {
         return algorithm switch
         {
-            -16 => "SHA-256",
-            -43 => "SHA-384",
-            -44 => "SHA-512",
-            _ => $"Unknown ({algorithm})"
+            -16 => ClassStrings.AlgSHA256,
+            -43 => ClassStrings.AlgSHA384,
+            -44 => ClassStrings.AlgSHA512,
+            _ => string.Format(ClassStrings.FormatUnknownAlgorithm, algorithm)
         };
     }
 
@@ -871,7 +987,7 @@ public class CoseInspectionService
                     var thumbprint = reader.ReadByteString();
                     reader.ReadEndArray();
                     var hashName = GetHashAlgorithmName(algId);
-                    return $"{hashName}: {Convert.ToHexString(thumbprint)}";
+                    return string.Format(ClassStrings.FormatHashThumbprint, hashName, Convert.ToHexString(thumbprint));
                 }
             }
 
@@ -881,13 +997,13 @@ public class CoseInspectionService
                 CborReaderState.TextString => reader.ReadTextString(),
                 CborReaderState.UnsignedInteger => reader.ReadUInt64().ToString(),
                 CborReaderState.NegativeInteger => reader.ReadInt64().ToString(),
-                CborReaderState.ByteString => $"<{value.EncodedValue.Length} bytes>",
-                _ => $"<{value.EncodedValue.Length} bytes>"
+                CborReaderState.ByteString => string.Format(ClassStrings.FormatBytesLength, value.EncodedValue.Length),
+                _ => string.Format(ClassStrings.FormatBytesLength, value.EncodedValue.Length)
             };
         }
         catch
         {
-            return $"<{value.EncodedValue.Length} bytes>";
+            return string.Format(ClassStrings.FormatBytesLength, value.EncodedValue.Length);
         }
     }
 
@@ -896,26 +1012,26 @@ public class CoseInspectionService
     private static readonly Dictionary<int, string> WellKnownHeaders = new()
     {
         // Standard COSE headers (RFC 9052)
-        { 1, "alg (Algorithm)" },
-        { 2, "crit (Critical)" },
-        { 3, "content type" },
-        { 4, "kid (Key ID)" },
-        { 5, "IV" },
-        { 6, "Partial IV" },
-        { 7, "counter signature" },
+        { 1, ClassStrings.HeaderNameAlgorithm },
+        { 2, ClassStrings.HeaderNameCritical },
+        { 3, ClassStrings.HeaderNameContentType },
+        { 4, ClassStrings.HeaderNameKeyId },
+        { 5, ClassStrings.HeaderNameIV },
+        { 6, ClassStrings.HeaderNamePartialIV },
+        { 7, ClassStrings.HeaderNameCounterSignature },
         // CWT Claims header (RFC 9597) - label 15
-        { 15, "CWT Claims" },
+        { 15, ClassStrings.HeaderNameCwtClaims },
         // X.509 certificate headers
-        { 33, "x5chain (Certificate Chain)" },
-        { 34, "x5t (Certificate Thumbprint)" },
-        { 35, "x5u (Certificate URL)" },
+        { 33, ClassStrings.HeaderNameX5Chain },
+        { 34, ClassStrings.HeaderNameX5T },
+        { 35, ClassStrings.HeaderNameX5U },
         // COSE Hash Envelope headers (RFC 9054)
-        { 258, "payload-hash-alg (Hash Algorithm)" },
-        { 259, "payload-preimage-content-type" },
-        { 260, "payload-location" },
+        { 258, ClassStrings.HeaderNamePayloadHashAlg },
+        { 259, ClassStrings.HeaderNamePreimageContentType },
+        { 260, ClassStrings.HeaderNamePayloadLocation },
         // SCITT transparency headers
-        { 393, "scitt-receipts" },
-        { 394, "scitt-statement" },
+        { 393, ClassStrings.HeaderNameScittReceipts },
+        { 394, ClassStrings.HeaderNameScittStatement },
     };
 
     private static string GetHeaderName(CoseHeaderLabel label)
@@ -923,19 +1039,19 @@ public class CoseInspectionService
         // Check against well-known labels from CoseSign1.Headers constants
         if (label.Equals(CWTClaimsHeaderLabels.CWTClaims))
         {
-            return "CWT Claims";
+            return ClassStrings.HeaderNameCwtClaims;
         }
         if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg))
         {
-            return "payload-hash-alg (Hash Algorithm)";
+            return ClassStrings.HeaderNamePayloadHashAlg;
         }
         if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType))
         {
-            return "payload-preimage-content-type";
+            return ClassStrings.HeaderNamePreimageContentType;
         }
         if (label.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadLocation))
         {
-            return "payload-location";
+            return ClassStrings.HeaderNamePayloadLocation;
         }
 
         // Check against other well-known headers by comparing equality
@@ -948,16 +1064,16 @@ public class CoseInspectionService
         }
 
         // For unknown labels, return a generic description
-        return "Header (custom)";
+        return ClassStrings.HeaderNameCustom;
     }
 
     private static string FormatHeaderValue(CoseHeaderValue value)
     {
         if (value.EncodedValue.Length < 50)
         {
-            return $"<{value.EncodedValue.Length} bytes>";
+            return string.Format(ClassStrings.FormatBytesLength, value.EncodedValue.Length);
         }
-        return $"<{value.EncodedValue.Length} bytes> [{Convert.ToHexString(value.EncodedValue.Span.Slice(0, 20))}...]";
+        return string.Format(ClassStrings.FormatBytesLengthWithHex, value.EncodedValue.Length, Convert.ToHexString(value.EncodedValue.Span.Slice(0, 20)));
     }
 
     private static bool IsLikelyText(ReadOnlySpan<byte> data)

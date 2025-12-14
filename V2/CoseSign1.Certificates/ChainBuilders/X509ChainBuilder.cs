@@ -97,7 +97,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 #endif
 
         LoggerField.LogTrace(
-            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            LogEvents.CertificateChainBuildStartedEvent,
             "X509ChainBuilder initialized. RevocationMode: {RevocationMode}, RevocationFlag: {RevocationFlag}, VerificationFlags: {VerificationFlags}",
             chainPolicy.RevocationMode,
             chainPolicy.RevocationFlag,
@@ -174,7 +174,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 #endif
 
         LoggerField.LogTrace(
-            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            LogEvents.CertificateChainBuildStartedEvent,
             "Building certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
             certificate.Subject,
             certificate.Thumbprint);
@@ -184,7 +184,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         if (result)
         {
             LoggerField.LogTrace(
-                new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
+                LogEvents.CertificateChainBuiltEvent,
                 "Certificate chain built successfully. ChainLength: {ChainLength}",
                 Chain.ChainElements.Count);
         }
@@ -192,7 +192,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         {
             var statusSummary = string.Join(", ", Chain.ChainStatus.Select(s => s.Status.ToString()));
             LoggerField.LogTrace(
-                new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                LogEvents.CertificateChainBuildFailedEvent,
                 "Certificate chain build failed. ChainLength: {ChainLength}, ChainStatus: {ChainStatus}",
                 Chain.ChainElements.Count,
                 statusSummary);

@@ -14,6 +14,17 @@ using CoseSign1.Abstractions;
 /// </summary>
 public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
 {
+    internal static class ClassStrings
+    {
+        // Hash algorithm names (used in switch pattern)
+        public static readonly string AlgSHA256 = nameof(SHA256);
+        public static readonly string AlgSHA384 = nameof(SHA384);
+        public static readonly string AlgSHA512 = nameof(SHA512);
+
+        // Error messages
+        public static readonly string ErrorUnsupportedHashAlgorithm = "Hash algorithm {0} is not supported";
+    }
+
     private readonly HashAlgorithmName HashAlgorithm;
     private readonly string ContentType;
     private readonly string? PayloadLocation;
@@ -70,13 +81,23 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
         }
 
         // Add PayloadHashAlg (258) - COSE algorithm identifier
-        int coseAlgId = HashAlgorithm.Name switch
+        int coseAlgId;
+        if (HashAlgorithm.Name == ClassStrings.AlgSHA256)
         {
-            nameof(SHA256) => -16, // COSE algorithm -16 = SHA-256
-            nameof(SHA384) => -43, // COSE algorithm -43 = SHA-384
-            nameof(SHA512) => -44, // COSE algorithm -44 = SHA-512
-            _ => throw new NotSupportedException($"Hash algorithm {HashAlgorithm.Name} is not supported")
-        };
+            coseAlgId = -16; // COSE algorithm -16 = SHA-256
+        }
+        else if (HashAlgorithm.Name == ClassStrings.AlgSHA384)
+        {
+            coseAlgId = -43; // COSE algorithm -43 = SHA-384
+        }
+        else if (HashAlgorithm.Name == ClassStrings.AlgSHA512)
+        {
+            coseAlgId = -44; // COSE algorithm -44 = SHA-512
+        }
+        else
+        {
+            throw new NotSupportedException(string.Format(ClassStrings.ErrorUnsupportedHashAlgorithm, HashAlgorithm.Name));
+        }
 
         // Add or update PayloadHashAlg (258)
         if (headers.ContainsKey(HeaderLabels.PayloadHashAlg))
@@ -102,7 +123,7 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
         // Add or update PayloadLocation (260) if specified
         if (!string.IsNullOrEmpty(PayloadLocation))
         {
-            var locationValue = CoseHeaderValue.FromString(PayloadLocation);
+            var locationValue = CoseHeaderValue.FromString(PayloadLocation!);
             if (headers.ContainsKey(HeaderLabels.PayloadLocation))
             {
                 headers[HeaderLabels.PayloadLocation] = locationValue;

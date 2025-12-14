@@ -158,7 +158,7 @@ public class SecurePasswordProvider
         // 2. Try password file
         if (!string.IsNullOrEmpty(passwordFilePath) && File.Exists(passwordFilePath))
         {
-            return ReadPasswordFromFile(passwordFilePath);
+            return ReadPasswordFromFile(passwordFilePath!);
         }
 
         // 3. Interactive prompt
@@ -221,7 +221,7 @@ public class SecurePasswordProvider
 
         if (!string.IsNullOrEmpty(plainString))
         {
-            foreach (char c in plainString)
+            foreach (char c in plainString!)
             {
                 secure.AppendChar(c);
             }

@@ -17,6 +17,22 @@ using CoseSign1.Validation;
 /// </remarks>
 public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateSignatureValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeMissingDetachedPayload = "MISSING_DETACHED_PAYLOAD";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageMissingDetachedPayload =
+            "Message has detached content but no payload was provided. " +
+            "Use a constructor overload that accepts a payload for detached signatures.";
+    }
+
     private readonly byte[]? DetachedPayload;
     private readonly bool AllowUnprotectedHeaders;
 
@@ -61,9 +77,9 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
         if (input is null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateSignatureValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         // Determine if the message is embedded or detached
@@ -81,10 +97,9 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
             if (DetachedPayload == null)
             {
                 return ValidationResult.Failure(
-                    nameof(CertificateSignatureValidator),
-                    "Message has detached content but no payload was provided. " +
-                    "Use a constructor overload that accepts a payload for detached signatures.",
-                    "MISSING_DETACHED_PAYLOAD");
+                    ClassStrings.ValidatorName,
+                    ClassStrings.ErrorMessageMissingDetachedPayload,
+                    ClassStrings.ErrorCodeMissingDetachedPayload);
             }
 
             var detachedValidator = new CertificateDetachedSignatureValidator(DetachedPayload, AllowUnprotectedHeaders);

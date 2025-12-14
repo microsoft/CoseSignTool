@@ -12,6 +12,30 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateExpirationValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeCertNotFound = "CERTIFICATE_NOT_FOUND";
+        public static readonly string ErrorCodeNotYetValid = "CERTIFICATE_NOT_YET_VALID";
+        public static readonly string ErrorCodeExpired = "CERTIFICATE_EXPIRED";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageCertNotFound = "Could not extract signing certificate from message";
+        public static readonly string ErrorFormatNotYetValid = "Certificate is not yet valid. NotBefore: {0:u}, ValidationTime: {1:u}";
+        public static readonly string ErrorFormatExpired = "Certificate has expired. NotAfter: {0:u}, ValidationTime: {1:u}";
+
+        // Metadata keys
+        public static readonly string MetaKeyNotBefore = "NotBefore";
+        public static readonly string MetaKeyNotAfter = "NotAfter";
+        public static readonly string MetaKeyValidationTime = "ValidationTime";
+        public static readonly string MetaKeyCertThumbprint = "CertificateThumbprint";
+    }
+
     private readonly DateTime? ValidationTime;
     private readonly bool AllowUnprotectedHeaders;
 
@@ -43,17 +67,17 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateExpirationValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (!input.TryGetSigningCertificate(out var certificate, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
-                nameof(CertificateExpirationValidator),
-                "Could not extract signing certificate from message",
-                "CERTIFICATE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageCertNotFound,
+                ClassStrings.ErrorCodeCertNotFound);
         }
 
         DateTime checkTime = ValidationTime ?? DateTime.UtcNow;
@@ -61,28 +85,28 @@ public sealed class CertificateExpirationValidator : IValidator<CoseSign1Message
         if (checkTime < certificate.NotBefore)
         {
             return ValidationResult.Failure(
-                nameof(CertificateExpirationValidator),
-                $"Certificate is not yet valid. NotBefore: {certificate.NotBefore:u}, ValidationTime: {checkTime:u}",
-                "CERTIFICATE_NOT_YET_VALID");
+                ClassStrings.ValidatorName,
+                string.Format(ClassStrings.ErrorFormatNotYetValid, certificate.NotBefore, checkTime),
+                ClassStrings.ErrorCodeNotYetValid);
         }
 
         if (checkTime > certificate.NotAfter)
         {
             return ValidationResult.Failure(
-                nameof(CertificateExpirationValidator),
-                $"Certificate has expired. NotAfter: {certificate.NotAfter:u}, ValidationTime: {checkTime:u}",
-                "CERTIFICATE_EXPIRED");
+                ClassStrings.ValidatorName,
+                string.Format(ClassStrings.ErrorFormatExpired, certificate.NotAfter, checkTime),
+                ClassStrings.ErrorCodeExpired);
         }
 
         var metadata = new Dictionary<string, object>
         {
-            ["NotBefore"] = certificate.NotBefore,
-            ["NotAfter"] = certificate.NotAfter,
-            ["ValidationTime"] = checkTime,
-            ["CertificateThumbprint"] = certificate.Thumbprint
+            [ClassStrings.MetaKeyNotBefore] = certificate.NotBefore,
+            [ClassStrings.MetaKeyNotAfter] = certificate.NotAfter,
+            [ClassStrings.MetaKeyValidationTime] = checkTime,
+            [ClassStrings.MetaKeyCertThumbprint] = certificate.Thumbprint
         };
 
-        return ValidationResult.Success(nameof(CertificateExpirationValidator), metadata);
+        return ValidationResult.Success(ClassStrings.ValidatorName, metadata);
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

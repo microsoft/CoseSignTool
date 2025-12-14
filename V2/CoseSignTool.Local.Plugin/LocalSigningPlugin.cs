@@ -13,14 +13,21 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class LocalSigningPlugin : IPlugin
 {
-    /// <inheritdoc/>
-    public string Name => "Local Certificate Signing";
+    internal static class ClassStrings
+    {
+        public static readonly string PluginName = "Local Certificate Signing";
+        public static readonly string PluginVersion = "1.0.0";
+        public static readonly string PluginDescription = "Sign with local certificates (PFX, PEM, certificate stores)";
+    }
 
     /// <inheritdoc/>
-    public string Version => "1.0.0";
+    public string Name => ClassStrings.PluginName;
 
     /// <inheritdoc/>
-    public string Description => "Sign with local certificates (PFX, PEM, certificate stores)";
+    public string Version => ClassStrings.PluginVersion;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.PluginDescription;
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;

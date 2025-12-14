@@ -12,6 +12,22 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 internal sealed class CertificateDetachedSignatureValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateDetachedSignatureValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeUnexpectedEmbedded = "UNEXPECTED_EMBEDDED_CONTENT";
+        public static readonly string ErrorCodeSignatureInvalid = "SIGNATURE_INVALID";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageUnexpectedEmbedded = "Message has embedded content but detached signature validator was used";
+        public static readonly string ErrorMessageSignatureInvalid = "Detached signature verification failed";
+    }
+
     private readonly ReadOnlyMemory<byte> Payload;
     private readonly bool AllowUnprotectedHeaders;
 
@@ -47,17 +63,17 @@ internal sealed class CertificateDetachedSignatureValidator : IValidator<CoseSig
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateDetachedSignatureValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (input.Content != null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateDetachedSignatureValidator),
-                "Message has embedded content but detached signature validator was used",
-                "UNEXPECTED_EMBEDDED_CONTENT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageUnexpectedEmbedded,
+                ClassStrings.ErrorCodeUnexpectedEmbedded);
         }
 
         bool isValid = input.VerifySignature(Payload.ToArray(), AllowUnprotectedHeaders);
@@ -65,12 +81,12 @@ internal sealed class CertificateDetachedSignatureValidator : IValidator<CoseSig
         if (!isValid)
         {
             return ValidationResult.Failure(
-                nameof(CertificateDetachedSignatureValidator),
-                "Detached signature verification failed",
-                "SIGNATURE_INVALID");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageSignatureInvalid,
+                ClassStrings.ErrorCodeSignatureInvalid);
         }
 
-        return ValidationResult.Success(nameof(CertificateDetachedSignatureValidator));
+        return ValidationResult.Success(ClassStrings.ValidatorName);
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

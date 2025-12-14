@@ -16,6 +16,25 @@ namespace CoseSignTool.Commands.Handlers;
 /// </summary>
 public class VerifyCommandHandler
 {
+    /// <summary>
+    /// String constants specific to this class.
+    /// </summary>
+    internal static class ClassStrings
+    {
+        public static readonly string ArgumentName = "signature";
+        public static readonly string SectionTitle = "Verification Operation";
+        public static readonly string KeySignature = "Signature";
+        public static readonly string KeyPayload = "Payload";
+        public static readonly string KeyActiveProviders = "Active Providers";
+        public static readonly string ErrorSignatureNotFound = "Signature file not found: {0}";
+        public static readonly string ErrorFailedToDecode = "Failed to decode COSE Sign1 message: {0}";
+        public static readonly string ErrorVerificationFailed = "Signature verification failed";
+        public static readonly string ErrorFailureDetail = "  {0}: {1}";
+        public static readonly string ErrorVerifying = "Error verifying signature: {0}";
+        public static readonly string SuccessVerified = "Signature verified successfully";
+        public static readonly string NullValue = "null";
+    }
+
     private readonly IOutputFormatter Formatter;
     private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
 
@@ -54,7 +73,7 @@ public class VerifyCommandHandler
             string? signaturePath = null;
             foreach (var arg in commandResult.Command.Arguments)
             {
-                if (arg.Name == "signature")
+                if (arg.Name == ClassStrings.ArgumentName)
                 {
                     signaturePath = parseResult.GetValueForArgument(arg) as string;
                     break;
@@ -62,14 +81,14 @@ public class VerifyCommandHandler
             }
 
             // Determine if using stdin
-            bool useStdin = string.IsNullOrEmpty(signaturePath) || signaturePath == "-";
+            bool useStdin = string.IsNullOrEmpty(signaturePath) || signaturePath == AssemblyStrings.IO.StdinIndicator;
 
             // Read signature bytes from stdin or file
             byte[] signatureBytes;
             if (useStdin)
             {
-                Formatter.BeginSection("Verification Operation");
-                Formatter.WriteKeyValue("Signature", "<stdin>");
+                Formatter.BeginSection(ClassStrings.SectionTitle);
+                Formatter.WriteKeyValue(ClassStrings.KeySignature, AssemblyStrings.IO.StdinDisplayName);
 
                 // Read from stdin with timeout wrapper to avoid blocking forever
                 using var rawStdin = Console.OpenStandardInput();
@@ -82,13 +101,12 @@ public class VerifyCommandHandler
                 {
                     if (timeoutStdin.TimedOut)
                     {
-                        Formatter.WriteError($"No signature data received from stdin (timed out after {StdinTimeout.TotalSeconds:F0}s)");
+                        Formatter.WriteError(string.Format(AssemblyStrings.Errors.StdinTimeout, StdinTimeout.TotalSeconds));
                     }
                     else
                     {
-                        Formatter.WriteError("No signature data received from stdin");
+                        Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
                     }
-                    Formatter.WriteError("No signature data received from stdin");
                     Formatter.EndSection();
                     return Task.FromResult((int)ExitCode.FileNotFound);
                 }
@@ -97,12 +115,12 @@ public class VerifyCommandHandler
             {
                 if (!File.Exists(signaturePath))
                 {
-                    Formatter.WriteError($"Signature file not found: {signaturePath}");
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorSignatureNotFound, signaturePath));
                     return Task.FromResult((int)ExitCode.FileNotFound);
                 }
 
-                Formatter.BeginSection("Verification Operation");
-                Formatter.WriteKeyValue("Signature", signaturePath);
+                Formatter.BeginSection(ClassStrings.SectionTitle);
+                Formatter.WriteKeyValue(ClassStrings.KeySignature, signaturePath);
 
                 signatureBytes = File.ReadAllBytes(signaturePath);
             }
@@ -113,14 +131,14 @@ public class VerifyCommandHandler
             }
             catch (Exception ex)
             {
-                Formatter.WriteError($"Failed to decode COSE Sign1 message: {ex.Message}");
+                Formatter.WriteError(string.Format(ClassStrings.ErrorFailedToDecode, ex.Message));
                 Formatter.EndSection();
                 return Task.FromResult((int)ExitCode.InvalidSignature);
             }
 
             // Check if payload is embedded
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
-            Formatter.WriteKeyValue("Payload", hasEmbeddedPayload ? "Embedded" : "Detached");
+            Formatter.WriteKeyValue(ClassStrings.KeyPayload, hasEmbeddedPayload ? AssemblyStrings.Display.Embedded : AssemblyStrings.Display.Detached);
 
             // Build validator with all activated providers
             var validatorBuilder = Cose.Sign1Message()
@@ -143,7 +161,7 @@ public class VerifyCommandHandler
 
             if (activatedProviders.Count > 0)
             {
-                Formatter.WriteKeyValue("Active Providers", string.Join(", ", activatedProviders));
+                Formatter.WriteKeyValue(ClassStrings.KeyActiveProviders, string.Join(", ", activatedProviders));
             }
 
             var compositeValidator = validatorBuilder.Build();
@@ -151,7 +169,7 @@ public class VerifyCommandHandler
 
             if (validationResult.IsValid)
             {
-                Formatter.WriteSuccess("Signature verified successfully");
+                Formatter.WriteSuccess(ClassStrings.SuccessVerified);
 
                 // Add metadata from providers
                 foreach (var provider in VerificationProviders)
@@ -161,7 +179,7 @@ public class VerifyCommandHandler
                         var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult);
                         foreach (var kvp in metadata)
                         {
-                            Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? "null");
+                            Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
                         }
                     }
                 }
@@ -172,10 +190,10 @@ public class VerifyCommandHandler
             }
             else
             {
-                Formatter.WriteError("Signature verification failed");
+                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
                 foreach (var failure in validationResult.Failures)
                 {
-                    Formatter.WriteError($"  {failure.ErrorCode}: {failure.Message}");
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                 }
                 Formatter.EndSection();
                 Formatter.Flush();
@@ -188,7 +206,7 @@ public class VerifyCommandHandler
         }
         catch (Exception ex)
         {
-            Formatter.WriteError($"Error verifying signature: {ex.Message}");
+            Formatter.WriteError(string.Format(ClassStrings.ErrorVerifying, ex.Message));
             Formatter.Flush();
             return Task.FromResult((int)ExitCode.VerificationFailed);
         }

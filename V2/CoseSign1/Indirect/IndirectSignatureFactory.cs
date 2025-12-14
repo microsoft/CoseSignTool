@@ -29,6 +29,28 @@ namespace CoseSign1.Indirect;
 /// </summary>
 public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatureOptions>
 {
+    internal static class ClassStrings
+    {
+        // Logging scope keys
+        public static readonly string KeyOperationId = "OperationId";
+        public static readonly string KeySignatureType = "SignatureType";
+        public static readonly string KeyAsync = "Async";
+        public static readonly string SignatureTypeIndirect = "Indirect";
+
+        // Error messages
+        public static readonly string ErrorFailedToComputeHash = "Failed to compute hash of payload";
+
+        // Log message templates
+        public static readonly string LogSigningStarted = "Starting indirect signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}";
+        public static readonly string LogSigningStartedAsync = "Starting async indirect signature creation. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}";
+        public static readonly string LogHashComputeFailed = "Failed to compute hash of payload using {HashAlgorithm}";
+        public static readonly string LogHashComputed = "Computed payload hash. HashSize: {HashSize}";
+        public static readonly string LogSigningCompleted = "Indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningCompletedAsync = "Async indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningFailed = "Indirect signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningFailedAsync = "Async indirect signature creation failed. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}";
+    }
+
     private readonly DirectSignatureFactory DirectFactory;
     private readonly ILogger<IndirectSignatureFactory> Logger;
     private bool Disposed;
@@ -181,8 +203,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
-            ["OperationId"] = operationId,
-            ["SignatureType"] = "Indirect"
+            [ClassStrings.KeyOperationId] = operationId,
+            [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeIndirect
         });
 
         var stopwatch = Stopwatch.StartNew();
@@ -190,8 +212,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         options ??= new IndirectSignatureOptions();
 
         Logger.LogDebug(
-            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
-            "Starting indirect signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}",
+            LogEvents.SigningStartedEvent,
+            ClassStrings.LogSigningStarted,
             contentType,
             payload.Length,
             options.HashAlgorithm);
@@ -207,16 +229,16 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
             {
                 Logger.LogError(
-                    new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
-                    "Failed to compute hash of payload using {HashAlgorithm}",
+                    LogEvents.SigningFailedEvent,
+                    ClassStrings.LogHashComputeFailed,
                     options.HashAlgorithm);
-                throw new InvalidOperationException("Failed to compute hash of payload");
+                throw new InvalidOperationException(ClassStrings.ErrorFailedToComputeHash);
             }
 
             var hash = hashSpan.Slice(0, bytesWritten);
             Logger.LogTrace(
-                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-                "Computed payload hash. HashSize: {HashSize}",
+                LogEvents.SigningPayloadInfoEvent,
+                ClassStrings.LogHashComputed,
                 bytesWritten);
 
             // Create CoseHashEnvelope header contributor with protected headers
@@ -244,8 +266,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
             stopwatch.Stop();
             Logger.LogDebug(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogSigningCompleted,
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
@@ -255,9 +277,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         {
             stopwatch.Stop();
             Logger.LogError(
-                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                LogEvents.SigningFailedEvent,
                 ex,
-                "Indirect signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogSigningFailed,
                 contentType,
                 payload.Length,
                 options.HashAlgorithm,
@@ -361,9 +383,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
-            ["OperationId"] = operationId,
-            ["SignatureType"] = "Indirect",
-            ["Async"] = true
+            [ClassStrings.KeyOperationId] = operationId,
+            [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeIndirect,
+            [ClassStrings.KeyAsync] = true
         });
 
         var stopwatch = Stopwatch.StartNew();
@@ -371,8 +393,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         options ??= new IndirectSignatureOptions();
 
         Logger.LogDebug(
-            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
-            "Starting async indirect signature creation. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}",
+            LogEvents.SigningStartedEvent,
+            ClassStrings.LogSigningStartedAsync,
             contentType,
             options.HashAlgorithm);
 
@@ -409,8 +431,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 #endif
 
             Logger.LogTrace(
-                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-                "Computed payload hash. HashSize: {HashSize}",
+                LogEvents.SigningPayloadInfoEvent,
+                ClassStrings.LogHashComputed,
                 hashOwner.Length);
 
             // Create CoseHashEnvelope header contributor with protected headers
@@ -439,8 +461,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
             stopwatch.Stop();
             Logger.LogDebug(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Async indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogSigningCompletedAsync,
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
@@ -450,9 +472,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         {
             stopwatch.Stop();
             Logger.LogError(
-                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                LogEvents.SigningFailedEvent,
                 ex,
-                "Async indirect signature creation failed. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogSigningFailedAsync,
                 contentType,
                 options.HashAlgorithm,
                 stopwatch.ElapsedMilliseconds);

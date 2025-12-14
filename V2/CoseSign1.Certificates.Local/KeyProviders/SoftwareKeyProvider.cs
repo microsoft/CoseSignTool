@@ -24,31 +24,48 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class SoftwareKeyProvider : IPrivateKeyProvider
 {
+    internal static class ClassStrings
+    {
+        // Provider name
+        public static readonly string ProviderNameValue = "Software";
+
+        // Error messages
+        public static readonly string ErrorFormatAlgorithmNotSupported = "Algorithm {0} is not supported by {1} provider";
+        public static readonly string ErrorRsaKeySizeRange = "RSA key size must be between 1024 and 16384 bits";
+        public static readonly string ErrorEcdsaKeySizeRange = "ECDSA key size must be 256, 384, or 521 bits";
+        public static readonly string ErrorMldsaParameterSetRange = "ML-DSA parameter set must be 44, 65, or 87";
+    }
+
     /// <inheritdoc />
-    public string ProviderName => "Software";
+    public string ProviderName => ClassStrings.ProviderNameValue;
 
     /// <inheritdoc />
     public bool SupportsAlgorithm(KeyAlgorithm algorithm)
     {
-        return algorithm switch
-        {
-            KeyAlgorithm.RSA => true,
-            KeyAlgorithm.ECDSA => true,
-            KeyAlgorithm.MLDSA => true,
-            _ => false
-        };
+        return algorithm == KeyAlgorithm.RSA
+            || algorithm == KeyAlgorithm.ECDSA
+            || algorithm == KeyAlgorithm.MLDSA;
     }
 
     /// <inheritdoc />
     public IGeneratedKey GenerateKey(KeyAlgorithm algorithm, int? keySize = null)
     {
-        return algorithm switch
+        if (algorithm == KeyAlgorithm.RSA)
         {
-            KeyAlgorithm.RSA => new RsaGeneratedKey(GenerateRsaKey(keySize ?? 2048)),
-            KeyAlgorithm.ECDSA => new EcdsaGeneratedKey(GenerateEcdsaKey(keySize ?? 256)),
-            KeyAlgorithm.MLDSA => new MldsaGeneratedKey(GenerateMldsaKey(keySize ?? 65)),
-            _ => throw new NotSupportedException($"Algorithm {algorithm} is not supported by {ProviderName} provider")
-        };
+            return new RsaGeneratedKey(GenerateRsaKey(keySize ?? 2048));
+        }
+        else if (algorithm == KeyAlgorithm.ECDSA)
+        {
+            return new EcdsaGeneratedKey(GenerateEcdsaKey(keySize ?? 256));
+        }
+        else if (algorithm == KeyAlgorithm.MLDSA)
+        {
+            return new MldsaGeneratedKey(GenerateMldsaKey(keySize ?? 65));
+        }
+        else
+        {
+            throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatAlgorithmNotSupported, algorithm, ProviderName));
+        }
     }
 
     /// <inheritdoc />
@@ -66,8 +83,7 @@ public class SoftwareKeyProvider : IPrivateKeyProvider
     {
         if (keySize < 1024 || keySize > 16384)
         {
-            throw new ArgumentOutOfRangeException(nameof(keySize),
-                "RSA key size must be between 1024 and 16384 bits");
+            throw new ArgumentOutOfRangeException(nameof(keySize), ClassStrings.ErrorRsaKeySizeRange);
         }
 
         var rsa = RSA.Create();
@@ -77,28 +93,46 @@ public class SoftwareKeyProvider : IPrivateKeyProvider
 
     private static ECDsa GenerateEcdsaKey(int keySize)
     {
-        var curve = keySize switch
+        ECCurve curve;
+        if (keySize == 256)
         {
-            256 => ECCurve.NamedCurves.nistP256,
-            384 => ECCurve.NamedCurves.nistP384,
-            521 => ECCurve.NamedCurves.nistP521,
-            _ => throw new ArgumentOutOfRangeException(nameof(keySize),
-                "ECDSA key size must be 256, 384, or 521 bits")
-        };
+            curve = ECCurve.NamedCurves.nistP256;
+        }
+        else if (keySize == 384)
+        {
+            curve = ECCurve.NamedCurves.nistP384;
+        }
+        else if (keySize == 521)
+        {
+            curve = ECCurve.NamedCurves.nistP521;
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException(nameof(keySize), ClassStrings.ErrorEcdsaKeySizeRange);
+        }
 
         return ECDsa.Create(curve);
     }
 
     private static MLDsa GenerateMldsaKey(int parameterSet)
     {
-        var algorithm = parameterSet switch
+        MLDsaAlgorithm algorithm;
+        if (parameterSet == 44)
         {
-            44 => MLDsaAlgorithm.MLDsa44,
-            65 => MLDsaAlgorithm.MLDsa65,
-            87 => MLDsaAlgorithm.MLDsa87,
-            _ => throw new ArgumentOutOfRangeException(nameof(parameterSet),
-                "ML-DSA parameter set must be 44, 65, or 87")
-        };
+            algorithm = MLDsaAlgorithm.MLDsa44;
+        }
+        else if (parameterSet == 65)
+        {
+            algorithm = MLDsaAlgorithm.MLDsa65;
+        }
+        else if (parameterSet == 87)
+        {
+            algorithm = MLDsaAlgorithm.MLDsa87;
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException(nameof(parameterSet), ClassStrings.ErrorMldsaParameterSetRange);
+        }
 
         return MLDsa.GenerateKey(algorithm);
     }

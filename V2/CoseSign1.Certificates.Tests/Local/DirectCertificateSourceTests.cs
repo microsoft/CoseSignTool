@@ -460,6 +460,7 @@ public class DirectCertificateSourceTests
     }
 
     [Test]
+    [Platform("Win")]  // ML-DSA is only supported on Windows
     public void Integration_MLDSA44Certificate_DetectsCorrectMetadata()
     {
         // Arrange: Create real ML-DSA-44 certificate using TestCertificateUtils
@@ -484,6 +485,7 @@ public class DirectCertificateSourceTests
     }
 
     [Test]
+    [Platform("Win")]  // ML-DSA is only supported on Windows
     public void Integration_MLDSA65Certificate_DetectsCorrectMetadata()
     {
         // Arrange: Create real ML-DSA-65 certificate using TestCertificateUtils
@@ -508,6 +510,7 @@ public class DirectCertificateSourceTests
     }
 
     [Test]
+    [Platform("Win")]  // ML-DSA is only supported on Windows
     public void Integration_MLDSA87Certificate_DetectsCorrectMetadata()
     {
         // Arrange: Create real ML-DSA-87 certificate using TestCertificateUtils
@@ -532,6 +535,7 @@ public class DirectCertificateSourceTests
     }
 
     [Test]
+    [Platform("Win")]  // ML-DSA is only supported on Windows
     public void Integration_MLDSAWithRemoteProvider_ReflectsRemoteState()
     {
         // Arrange: ML-DSA certificate with remote provider (simulating hardware security module)
@@ -553,6 +557,7 @@ public class DirectCertificateSourceTests
     }
 
     [Test]
+    [Platform("Win")]  // ML-DSA is only supported on Windows
     public void Integration_RSA_ECDSA_MLDSA_AllHaveDifferentKeyTypes()
     {
         // Arrange: Create one certificate of each supported type

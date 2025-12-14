@@ -16,7 +16,7 @@ CoseSignTool V2 is a complete architectural redesign of the original CoseSignToo
 - **SCITT Compliance** - Native support for Supply Chain Integrity, Transparency and Trust
 - **Transparency Support** - First-class support for MST transparency receipts
 - **DID:x509 Integration** - Native decentralized identifier support
-- **Post-Quantum Ready** - ML-DSA (FIPS 204) algorithm support
+- **Post-Quantum Ready** - ML-DSA (FIPS 204) algorithm support (Windows only)
 
 ## Quick Start
 

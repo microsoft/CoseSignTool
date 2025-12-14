@@ -215,6 +215,8 @@ using var mldsaKey = keyProvider.GenerateKey(KeyAlgorithm.MLDSA, 65);
 
 ## Post-Quantum Cryptography (ML-DSA)
 
+> ⚠️ **Platform Note**: ML-DSA support is currently **Windows only** in .NET 10. Linux and macOS support may be added in future .NET releases.
+
 The library provides full support for ML-DSA (Module Lattice Digital Signature Algorithm) as defined in FIPS 204.
 
 ```csharp

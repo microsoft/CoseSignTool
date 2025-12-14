@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
+
 namespace CoseSign1.Logging;
 
 /// <summary>
@@ -29,4 +31,20 @@ public static class LogEvents
     public const int SigningKeyAcquired = 1030;
     /// <summary>Signing key acquisition failed.</summary>
     public const int SigningKeyAcquisitionFailed = 1031;
+
+    // Static EventId instances to avoid allocations on each log call
+    /// <summary>EventId for signing started.</summary>
+    public static readonly EventId SigningStartedEvent = new(SigningStarted, nameof(SigningStarted));
+    /// <summary>EventId for signing completed.</summary>
+    public static readonly EventId SigningCompletedEvent = new(SigningCompleted, nameof(SigningCompleted));
+    /// <summary>EventId for signing failed.</summary>
+    public static readonly EventId SigningFailedEvent = new(SigningFailed, nameof(SigningFailed));
+    /// <summary>EventId for payload info.</summary>
+    public static readonly EventId SigningPayloadInfoEvent = new(SigningPayloadInfo, nameof(SigningPayloadInfo));
+    /// <summary>EventId for header contribution.</summary>
+    public static readonly EventId SigningHeaderContributionEvent = new(SigningHeaderContribution, nameof(SigningHeaderContribution));
+    /// <summary>EventId for signing key acquired.</summary>
+    public static readonly EventId SigningKeyAcquiredEvent = new(SigningKeyAcquired, nameof(SigningKeyAcquired));
+    /// <summary>EventId for signing key acquisition failed.</summary>
+    public static readonly EventId SigningKeyAcquisitionFailedEvent = new(SigningKeyAcquisitionFailed, nameof(SigningKeyAcquisitionFailed));
 }

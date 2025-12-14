@@ -15,6 +15,28 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateChainValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeCertNotFound = "CERTIFICATE_NOT_FOUND";
+        public static readonly string ErrorCodeChainBuildFailed = "CHAIN_BUILD_FAILED";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageCertNotFound = "Could not extract signing certificate from message";
+        public static readonly string ErrorMessageChainBuildFailed = "Certificate chain validation failed";
+
+        // Metadata keys
+        public static readonly string MetaKeyCertThumbprint = "CertificateThumbprint";
+        public static readonly string MetaKeyRetryAttempts = "RetryAttempts";
+        public static readonly string MetaKeyAllowedUntrusted = "AllowedUntrusted";
+        public static readonly string MetaKeyTrustedCustomRoot = "TrustedCustomRoot";
+    }
+
     private readonly ICertificateChainBuilder ChainBuilder;
     private readonly bool AllowUnprotectedHeaders;
     private readonly bool AllowUntrusted;
@@ -101,17 +123,17 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateChainValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (!input.TryGetSigningCertificate(out var signingCert, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
-                nameof(CertificateChainValidator),
-                "Could not extract signing certificate from message",
-                "CERTIFICATE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageCertNotFound,
+                ClassStrings.ErrorCodeCertNotFound);
         }
 
         // Get the certificate chain from the message
@@ -153,9 +175,9 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
 
         if (chainBuildSuccess)
         {
-            return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
+            return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
-                ["CertificateThumbprint"] = signingCert.Thumbprint
+                [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint
             });
         }
 
@@ -169,10 +191,10 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
                     Thread.Sleep(1000);
                     if (ChainBuilder.Build(signingCert))
                     {
-                        return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
+                        return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                         {
-                            ["CertificateThumbprint"] = signingCert.Thumbprint,
-                            ["RetryAttempts"] = attempt + 1
+                            [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
+                            [ClassStrings.MetaKeyRetryAttempts] = attempt + 1
                         });
                     }
                 }
@@ -186,10 +208,10 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         // Check if we should allow untrusted roots
         if (AllowUntrusted && ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
         {
-            return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
+            return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
-                ["CertificateThumbprint"] = signingCert.Thumbprint,
-                ["AllowedUntrusted"] = true
+                [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
+                [ClassStrings.MetaKeyAllowedUntrusted] = true
             });
         }
 
@@ -202,10 +224,10 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
                 // User-supplied root found in chain
                 if (ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
                 {
-                    return ValidationResult.Success(nameof(CertificateChainValidator), new Dictionary<string, object>
+                    return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                     {
-                        ["CertificateThumbprint"] = signingCert.Thumbprint,
-                        ["TrustedCustomRoot"] = chainRoot.Thumbprint
+                        [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
+                        [ClassStrings.MetaKeyTrustedCustomRoot] = chainRoot.Thumbprint
                     });
                 }
             }
@@ -227,13 +249,13 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
             {
                 new ValidationFailure
                 {
-                    Message = "Certificate chain validation failed",
-                    ErrorCode = "CHAIN_BUILD_FAILED"
+                    Message = ClassStrings.ErrorMessageChainBuildFailed,
+                    ErrorCode = ClassStrings.ErrorCodeChainBuildFailed
                 }
             };
         }
 
-        return ValidationResult.Failure(nameof(CertificateChainValidator), failures);
+        return ValidationResult.Failure(ClassStrings.ValidatorName, failures);
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

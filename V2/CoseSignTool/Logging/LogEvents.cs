@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
+
 namespace CoseSignTool.Logging;
 
 /// <summary>
@@ -23,4 +25,16 @@ public static class LogEvents
     public const int PluginLoadFailed = 5011;
     /// <summary>Plugin initialized.</summary>
     public const int PluginInitialized = 5020;
+
+    // Static EventId instances to avoid allocations on each log call
+    /// <summary>EventId for plugin discovery started.</summary>
+    public static readonly EventId PluginDiscoveryStartedEvent = new(PluginDiscoveryStarted, nameof(PluginDiscoveryStarted));
+    /// <summary>EventId for plugin discovery completed.</summary>
+    public static readonly EventId PluginDiscoveryCompletedEvent = new(PluginDiscoveryCompleted, nameof(PluginDiscoveryCompleted));
+    /// <summary>EventId for plugin loaded.</summary>
+    public static readonly EventId PluginLoadedEvent = new(PluginLoaded, nameof(PluginLoaded));
+    /// <summary>EventId for plugin load failed.</summary>
+    public static readonly EventId PluginLoadFailedEvent = new(PluginLoadFailed, nameof(PluginLoadFailed));
+    /// <summary>EventId for plugin initialized.</summary>
+    public static readonly EventId PluginInitializedEvent = new(PluginInitialized, nameof(PluginInitialized));
 }

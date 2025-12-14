@@ -192,6 +192,7 @@ public class RemoteSigningKeyProvider : ISigningKey
             return new CoseKey(ecdsa, hashAlgorithm);
         }
 
+#if NET10_0_OR_GREATER
         // ML-DSA
         if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
         {
@@ -200,6 +201,7 @@ public class RemoteSigningKeyProvider : ISigningKey
             return new CoseKey(mldsa);
 #pragma warning restore SYSLIB5006
         }
+#endif
 
         throw new NotSupportedException($"Unable to create CoseKey for algorithm OID {publicKeyOid}");
     }

@@ -30,37 +30,83 @@ namespace CoseSignTool.Local.Plugin;
 /// </remarks>
 public class PfxSigningCommandProvider : ISigningCommandProvider
 {
+    internal static class ClassStrings
+    {
+        // Command metadata
+        public static readonly string CommandNameValue = "sign-pfx";
+        public static readonly string CommandDescriptionValue = "Sign a payload with a PFX/PKCS#12 certificate file";
+        public static readonly string ExampleUsageValue = "--pfx cert.pfx";
+
+        // Option names
+        public static readonly string OptionNamePfx = "--pfx";
+        public static readonly string OptionNamePfxPasswordFile = "--pfx-password-file";
+        public static readonly string OptionNamePfxPasswordEnv = "--pfx-password-env";
+        public static readonly string OptionNamePfxPasswordPrompt = "--pfx-password-prompt";
+
+        // Option descriptions
+        public static readonly string DescriptionPfx = "Path to PFX/PKCS#12 file containing the signing certificate";
+        public static readonly string DescriptionPfxPasswordFile =
+            "Path to a file containing the PFX password (more secure than command-line). " +
+            "Alternatively, set COSESIGNTOOL_PFX_PASSWORD environment variable.";
+        public static readonly string DescriptionPfxPasswordEnv =
+            "Name of environment variable containing the PFX password (default: COSESIGNTOOL_PFX_PASSWORD)";
+        public static readonly string DescriptionPfxPasswordPrompt =
+            "Prompt for password interactively (automatic if no password is provided)";
+
+        // Dictionary keys (internal)
+        public static readonly string KeyPfx = "pfx";
+        public static readonly string KeyPfxPasswordEnv = "pfx-password-env";
+        public static readonly string KeyPfxPasswordFile = "pfx-password-file";
+        public static readonly string KeyPfxPasswordPrompt = "pfx-password-prompt";
+        public static readonly string KeyLoggerFactory = "__loggerFactory";
+
+        // Error messages
+        public static readonly string ErrorPfxRequired = "PFX file is required";
+        public static readonly string ErrorPfxNotFound = "PFX file not found: {0}";
+
+        // Info messages
+        public static readonly string InfoUsingEnvPassword = "Using PFX password from environment variable: {0}";
+        public static readonly string InfoReadingPasswordFile = "Reading PFX password from file: {0}";
+        public static readonly string PromptEnterPassword = "Enter PFX password: ";
+
+        // Metadata keys and values
+        public static readonly string MetaKeyCertSource = "Certificate Source";
+        public static readonly string MetaKeyCertSubject = "Certificate Subject";
+        public static readonly string MetaKeyCertThumbprint = "Certificate Thumbprint";
+        public static readonly string MetaValuePfxFile = "PFX file";
+        public static readonly string MetaValueUnknown = "Unknown";
+    }
+
     private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
-    public string CommandName => "sign-pfx";
+    public string CommandName => ClassStrings.CommandNameValue;
 
-    public string CommandDescription => "Sign a payload with a PFX/PKCS#12 certificate file";
+    public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
-    public string ExampleUsage => "--pfx cert.pfx";
+    public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
     public void AddCommandOptions(Command command)
     {
         var pfxOption = new Option<FileInfo>(
-            name: "--pfx",
-            description: "Path to PFX/PKCS#12 file containing the signing certificate")
+            name: ClassStrings.OptionNamePfx,
+            description: ClassStrings.DescriptionPfx)
         {
             IsRequired = true
         };
 
         var pfxPasswordFileOption = new Option<FileInfo?>(
-            name: "--pfx-password-file",
-            description: "Path to a file containing the PFX password (more secure than command-line). " +
-                         "Alternatively, set COSESIGNTOOL_PFX_PASSWORD environment variable.");
+            name: ClassStrings.OptionNamePfxPasswordFile,
+            description: ClassStrings.DescriptionPfxPasswordFile);
 
         var pfxPasswordEnvVarOption = new Option<string?>(
-            name: "--pfx-password-env",
-            description: "Name of environment variable containing the PFX password (default: COSESIGNTOOL_PFX_PASSWORD)");
+            name: ClassStrings.OptionNamePfxPasswordEnv,
+            description: ClassStrings.DescriptionPfxPasswordEnv);
 
         var pfxPasswordPromptOption = new Option<bool>(
-            name: "--pfx-password-prompt",
-            description: "Prompt for password interactively (automatic if no password is provided)");
+            name: ClassStrings.OptionNamePfxPasswordPrompt,
+            description: ClassStrings.DescriptionPfxPasswordPrompt);
 
         command.AddOption(pfxOption);
         command.AddOption(pfxPasswordFileOption);
@@ -70,16 +116,16 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
 
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var pfxFile = options["pfx"] as FileInfo
-            ?? throw new InvalidOperationException("PFX file is required");
+        var pfxFile = options[ClassStrings.KeyPfx] as FileInfo
+            ?? throw new InvalidOperationException(ClassStrings.ErrorPfxRequired);
 
         // Get logger factory if provided
-        var loggerFactory = options.TryGetValue("__loggerFactory", out var lf) ? lf as ILoggerFactory : null;
+        var loggerFactory = options.TryGetValue(ClassStrings.KeyLoggerFactory, out var lf) ? lf as ILoggerFactory : null;
         var logger = loggerFactory?.CreateLogger<PfxCertificateSource>();
 
         if (!pfxFile.Exists)
         {
-            throw new FileNotFoundException($"PFX file not found: {pfxFile.FullName}");
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorPfxNotFound, pfxFile.FullName));
         }
 
         // Get password using secure methods
@@ -112,7 +158,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     private static SecureString? GetSecurePassword(IDictionary<string, object?> options)
     {
         // Check for custom environment variable name
-        var envVarName = options.TryGetValue("pfx-password-env", out var envName) && envName is string customEnvVar
+        var envVarName = options.TryGetValue(ClassStrings.KeyPfxPasswordEnv, out var envName) && envName is string customEnvVar
             ? customEnvVar
             : SecurePasswordProvider.DefaultPfxPasswordEnvVar;
 
@@ -120,20 +166,20 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         var envPassword = SecurePasswordProvider.GetPasswordFromEnvironment(envVarName);
         if (envPassword != null)
         {
-            Console.Error.WriteLine($"Using PFX password from environment variable: {envVarName}");
+            Console.Error.WriteLine(string.Format(ClassStrings.InfoUsingEnvPassword, envVarName));
             return envPassword;
         }
 
         // 2. Try password file
-        var passwordFile = options.TryGetValue("pfx-password-file", out var pwdFile) ? pwdFile as FileInfo : null;
+        var passwordFile = options.TryGetValue(ClassStrings.KeyPfxPasswordFile, out var pwdFile) ? pwdFile as FileInfo : null;
         if (passwordFile?.Exists == true)
         {
-            Console.Error.WriteLine($"Reading PFX password from file: {passwordFile.FullName}");
+            Console.Error.WriteLine(string.Format(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName));
             return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
         }
 
         // 3. Check if explicit prompt requested or if interactive input is available
-        var promptRequested = options.TryGetValue("pfx-password-prompt", out var prompt) && prompt is true;
+        var promptRequested = options.TryGetValue(ClassStrings.KeyPfxPasswordPrompt, out var prompt) && prompt is true;
         var passwordProvider = SecurePasswordProvider.Default;
 
         if (promptRequested || passwordProvider.IsInteractiveInputAvailable())
@@ -141,7 +187,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
             // Only prompt if explicitly requested or if we're interactive
             if (promptRequested)
             {
-                return passwordProvider.ReadPasswordFromConsole("Enter PFX password: ");
+                return passwordProvider.ReadPasswordFromConsole(ClassStrings.PromptEnterPassword);
             }
 
             // For non-prompted case, assume unprotected PFX (silent operation)
@@ -156,9 +202,9 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     {
         return new Dictionary<string, string>
         {
-            ["Certificate Source"] = "PFX file",
-            ["Certificate Subject"] = CertificateSubject ?? "Unknown",
-            ["Certificate Thumbprint"] = CertificateThumbprint ?? "Unknown"
+            [ClassStrings.MetaKeyCertSource] = ClassStrings.MetaValuePfxFile,
+            [ClassStrings.MetaKeyCertSubject] = CertificateSubject ?? ClassStrings.MetaValueUnknown,
+            [ClassStrings.MetaKeyCertThumbprint] = CertificateThumbprint ?? ClassStrings.MetaValueUnknown
         };
     }
 }

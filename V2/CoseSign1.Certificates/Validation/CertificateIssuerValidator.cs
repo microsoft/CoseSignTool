@@ -12,6 +12,31 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificateIssuerValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeCertNotFound = "CERTIFICATE_NOT_FOUND";
+        public static readonly string ErrorCodeIssuerCnNotFound = "ISSUER_CN_NOT_FOUND";
+        public static readonly string ErrorCodeIssuerCnMismatch = "ISSUER_CN_MISMATCH";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageCertNotFound = "Could not extract signing certificate from message";
+        public static readonly string ErrorMessageIssuerCnNotFound = "Certificate issuer does not contain a Common Name (CN)";
+        public static readonly string ErrorFormatIssuerCnMismatch = "Certificate issuer CN '{0}' does not match expected '{1}'";
+
+        // Metadata keys
+        public static readonly string MetaKeyIssuerCn = "IssuerCN";
+        public static readonly string MetaKeyCertThumbprint = "CertificateThumbprint";
+
+        // CN parsing
+        public static readonly string CnPrefix = "CN=";
+    }
+
     private readonly string ExpectedIssuerName;
     private readonly bool AllowUnprotectedHeaders;
 
@@ -32,17 +57,17 @@ public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificateIssuerValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (!input.TryGetSigningCertificate(out var signingCert, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
-                nameof(CertificateIssuerValidator),
-                "Could not extract signing certificate from message",
-                "CERTIFICATE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageCertNotFound,
+                ClassStrings.ErrorCodeCertNotFound);
         }
 
         // Extract issuer CN from certificate
@@ -51,24 +76,24 @@ public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
         if (string.IsNullOrEmpty(issuerCn))
         {
             return ValidationResult.Failure(
-                nameof(CertificateIssuerValidator),
-                "Certificate issuer does not contain a Common Name (CN)",
-                "ISSUER_CN_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageIssuerCnNotFound,
+                ClassStrings.ErrorCodeIssuerCnNotFound);
         }
 
         // Compare issuer CN with expected value (case-insensitive)
         if (!string.Equals(issuerCn, ExpectedIssuerName, StringComparison.OrdinalIgnoreCase))
         {
             return ValidationResult.Failure(
-                nameof(CertificateIssuerValidator),
-                $"Certificate issuer CN '{issuerCn}' does not match expected '{ExpectedIssuerName}'",
-                "ISSUER_CN_MISMATCH");
+                ClassStrings.ValidatorName,
+                string.Format(ClassStrings.ErrorFormatIssuerCnMismatch, issuerCn, ExpectedIssuerName),
+                ClassStrings.ErrorCodeIssuerCnMismatch);
         }
 
-        return ValidationResult.Success(nameof(CertificateIssuerValidator), new Dictionary<string, object>
+        return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
-            ["IssuerCN"] = issuerCn!,
-            ["CertificateThumbprint"] = signingCert.Thumbprint
+            [ClassStrings.MetaKeyIssuerCn] = issuerCn!,
+            [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint
         });
     }
 
@@ -93,7 +118,7 @@ public sealed class CertificateIssuerValidator : IValidator<CoseSign1Message>
         foreach (var part in parts)
         {
             var trimmedPart = part.Trim();
-            if (trimmedPart.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
+            if (trimmedPart.StartsWith(ClassStrings.CnPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 return trimmedPart.Substring(3).Trim();
             }

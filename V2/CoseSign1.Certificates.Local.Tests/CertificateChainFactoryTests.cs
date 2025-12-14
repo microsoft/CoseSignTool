@@ -45,6 +45,12 @@ public class CertificateChainFactoryTests
     [TestCase(KeyAlgorithm.MLDSA)]
     public void CreateChain_WithDifferentAlgorithms_AllCertificatesUseAlgorithm(KeyAlgorithm algorithm)
     {
+        // Skip ML-DSA tests on non-Windows platforms
+        if (algorithm == KeyAlgorithm.MLDSA)
+        {
+            PlatformHelper.SkipIfMLDsaNotSupported();
+        }
+
         // Arrange
         var factory = new CertificateChainFactory();
 

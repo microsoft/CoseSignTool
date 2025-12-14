@@ -229,6 +229,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
         return new RemoteECDsa(this, parameters);
     }
 
+#if NET10_0_OR_GREATER
     /// <summary>
     /// Creates a RemoteMLDsa instance for COSE signing operations.
     /// This wraps the public key but delegates signing to abstract remote methods.
@@ -266,4 +267,5 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
         return new RemoteMLDsa(this, publicKey, securityLevel);
     }
 #pragma warning restore SYSLIB5006
+#endif
 }

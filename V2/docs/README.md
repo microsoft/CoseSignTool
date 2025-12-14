@@ -68,7 +68,7 @@ The V2 CLI tool (`CoseSignTool`) provides command-line signing and verification 
 #### Security & Compliance
 - [SCITT Compliance](guides/scitt-compliance.md) - Supply Chain Integrity, Transparency and Trust
 - [Security Best Practices](guides/security.md) - Security recommendations
-- [Post-Quantum Cryptography](guides/post-quantum.md) - ML-DSA support
+- [Post-Quantum Cryptography](guides/post-quantum.md) - ML-DSA support (Windows only)
 
 #### Advanced Topics
 - [Direct vs Indirect Signatures](guides/direct-vs-indirect.md) - When to use each approach
@@ -97,7 +97,7 @@ V2 represents a fundamental redesign with these major improvements:
 5. **Transparency Support**: First-class support for transparency receipts (MST)
 6. **DID:x509 Integration**: Native support for decentralized identifiers
 7. **SCITT Compliance**: Built-in support for SCITT standards
-8. **Post-Quantum Ready**: ML-DSA (FIPS 204) support
+8. **Post-Quantum Ready**: ML-DSA (FIPS 204) support (Windows only in .NET 10)
 9. **CLI Plugin System**: Extensible command-line tool with pluggable signing providers
 
 ## Version Status

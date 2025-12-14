@@ -5,6 +5,11 @@
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     </PropertyGroup>
 
+    <!--Platform-specific compilation constants-->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    </PropertyGroup>
+
     <!--NuGet package configuration-->
     <PropertyGroup>
         <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -28,6 +33,8 @@
     <!--Exclude net10.0-only files from netstandard2.0-->
     <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
         <Compile Remove="Local\LinuxCertificateStoreCertificateSource.cs" />
+        <Compile Remove="Local\WindowsCertificateStoreCertificateSource.cs" />
+        <Compile Remove="Remote\RemoteMLDsa.cs" />
     </ItemGroup>
 
     <!--Files to include in the package-->

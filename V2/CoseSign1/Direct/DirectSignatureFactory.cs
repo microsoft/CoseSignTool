@@ -24,6 +24,40 @@ namespace CoseSign1.Direct;
 /// </summary>
 public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOptions>, IDisposable
 {
+    internal static class ClassStrings
+    {
+        // Logging scope keys
+        public static readonly string KeyOperationId = "OperationId";
+        public static readonly string KeySignatureType = "SignatureType";
+        public static readonly string KeyAsync = "Async";
+        public static readonly string SignatureTypeDirect = "Direct";
+
+        // Error messages
+        public static readonly string ErrorFailedToGetArray = "Failed to get underlying array";
+        public static readonly string ErrorObjectDisposed = "DirectSignatureFactory has been disposed";
+        public static readonly string ErrorTransparencyFailed = "Failed to add transparency proof. {0}";
+        public static readonly string ErrorTransparencyProviderFailed = "Transparency provider '{0}' failed: {1}";
+
+        // Log message templates
+        public static readonly string LogSigningStarted = "Starting direct signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, EmbedPayload: {EmbedPayload}";
+        public static readonly string LogSigningStartedAsync = "Starting async direct signature creation. ContentType: {ContentType}, StreamLength: {StreamLength}, EmbedPayload: {EmbedPayload}";
+        public static readonly string LogSigningCompleted = "Direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningCompletedAsync = "Async direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningFailed = "Direct signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogSigningFailedAsync = "Async direct signature creation failed. ContentType: {ContentType}, StreamLength: {StreamLength}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogHeaderContributorsCreated = "Created header contributors list with {Count} contributors";
+        public static readonly string LogAcquiringSigner = "Acquiring signer from signing service";
+        public static readonly string LogTransparencyDisabled = "Transparency disabled for this operation, skipping transparency providers";
+        public static readonly string LogNoTransparencyProviders = "No transparency providers configured, skipping transparency application";
+        public static readonly string LogTransparencyStarted = "Starting transparency proof application. ProviderCount: {ProviderCount}, FailOnError: {FailOnError}";
+        public static readonly string LogTransparencyProviderStarted = "Applying transparency provider: {ProviderName}";
+        public static readonly string LogTransparencyProviderCompleted = "Transparency provider '{ProviderName}' completed successfully";
+        public static readonly string LogTransparencyProviderFailed = "Transparency provider '{ProviderName}' failed. FailOnError: {FailOnError}";
+        public static readonly string LogTransparencyAborted = "Transparency application aborted due to provider failure. ProviderName: {ProviderName}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogTransparencyCompletedWithErrors = "Transparency application completed with errors. SuccessCount: {SuccessCount}, FailureCount: {FailureCount}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogTransparencyCompleted = "Transparency application completed successfully. ProviderCount: {ProviderCount}, ElapsedMs: {ElapsedMs}";
+    }
+
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private readonly ISigningService<SigningOptions> SigningService;
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProvidersField;
@@ -104,15 +138,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
-            ["OperationId"] = operationId,
-            ["SignatureType"] = "Direct"
+            [ClassStrings.KeyOperationId] = operationId,
+            [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeDirect
         });
 
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug(
-            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
-            "Starting direct signature creation. ContentType: {ContentType}, PayloadSize: {PayloadSize}, EmbedPayload: {EmbedPayload}",
+            LogEvents.SigningStartedEvent,
+            ClassStrings.LogSigningStarted,
             contentType,
             payload.Length,
             options?.EmbedPayload ?? true);
@@ -129,7 +163,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             var segment = owner.DangerousGetArray();
             if (segment.Array == null)
             {
-                throw new InvalidOperationException("Failed to get underlying array");
+                throw new InvalidOperationException(ClassStrings.ErrorFailedToGetArray);
             }
 
             var payloadMemory = new ReadOnlyMemory<byte>(segment.Array, segment.Offset, payload.Length);
@@ -137,7 +171,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             // Create combined header contributors list with ContentTypeHeaderContributor first
             var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
             Logger.LogTrace(
-                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                LogEvents.SigningHeaderContributionEvent,
                 "Created header contributors list with {Count} contributors",
                 headerContributors.Count);
 
@@ -152,7 +186,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 additionalContext);
 
             Logger.LogTrace(
-                new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+                LogEvents.SigningKeyAcquiredEvent,
                 "Acquiring signer from signing service");
             var signer = SigningService.GetCoseSigner(context);
 
@@ -165,8 +199,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
             stopwatch.Stop();
             Logger.LogDebug(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogSigningCompleted,
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
@@ -176,9 +210,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         {
             stopwatch.Stop();
             Logger.LogError(
-                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                LogEvents.SigningFailedEvent,
                 ex,
-                "Direct signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogSigningFailed,
                 contentType,
                 payload.Length,
                 stopwatch.ElapsedMilliseconds);
@@ -282,17 +316,17 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
-            ["OperationId"] = operationId,
-            ["SignatureType"] = "Direct",
-            ["Async"] = true
+            [ClassStrings.KeyOperationId] = operationId,
+            [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeDirect,
+            [ClassStrings.KeyAsync] = true
         });
 
         var stopwatch = Stopwatch.StartNew();
         var streamLength = payloadStream.CanSeek ? payloadStream.Length : -1;
 
         Logger.LogDebug(
-            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
-            "Starting async direct signature creation. ContentType: {ContentType}, StreamLength: {StreamLength}, EmbedPayload: {EmbedPayload}",
+            LogEvents.SigningStartedEvent,
+            ClassStrings.LogSigningStartedAsync,
             contentType,
             streamLength,
             options?.EmbedPayload ?? true);
@@ -304,8 +338,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             // Create combined header contributors list with ContentTypeHeaderContributor first
             var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
             Logger.LogTrace(
-                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
-                "Created header contributors list with {Count} contributors",
+                LogEvents.SigningHeaderContributionEvent,
+                ClassStrings.LogHeaderContributorsCreated,
                 headerContributors.Count);
 
             // Merge service options into additional context if provided
@@ -318,8 +352,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 additionalContext);
 
             Logger.LogTrace(
-                new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
-                "Acquiring signer from signing service");
+                LogEvents.SigningKeyAcquiredEvent,
+                ClassStrings.LogAcquiringSigner);
             var signer = SigningService.GetCoseSigner(context);
 
             // Get pooled arrays for both payload (if embedded) and additional data
@@ -378,8 +412,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
             stopwatch.Stop();
             Logger.LogDebug(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Async direct signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogSigningCompletedAsync,
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
@@ -389,9 +423,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         {
             stopwatch.Stop();
             Logger.LogError(
-                new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                LogEvents.SigningFailedEvent,
                 ex,
-                "Async direct signature creation failed. ContentType: {ContentType}, StreamLength: {StreamLength}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogSigningFailedAsync,
                 contentType,
                 streamLength,
                 stopwatch.ElapsedMilliseconds);
@@ -593,8 +627,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         if (options?.DisableTransparency == true)
         {
             Logger.LogTrace(
-                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-                "Transparency disabled for this operation, skipping transparency providers");
+                LogEvents.SigningPayloadInfoEvent,
+                ClassStrings.LogTransparencyDisabled);
             return message;
         }
 
@@ -602,15 +636,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         if (TransparencyProvidersField == null || TransparencyProvidersField.Count == 0)
         {
             Logger.LogTrace(
-                new EventId(LogEvents.SigningPayloadInfo, nameof(LogEvents.SigningPayloadInfo)),
-                "No transparency providers configured, skipping transparency application");
+                LogEvents.SigningPayloadInfoEvent,
+                ClassStrings.LogNoTransparencyProviders);
             return message;
         }
 
         var stopwatch = Stopwatch.StartNew();
         Logger.LogDebug(
-            new EventId(LogEvents.SigningStarted, nameof(LogEvents.SigningStarted)),
-            "Starting transparency proof application. ProviderCount: {ProviderCount}, FailOnError: {FailOnError}",
+            LogEvents.SigningStartedEvent,
+            ClassStrings.LogTransparencyStarted,
             TransparencyProvidersField.Count,
             options?.FailOnTransparencyError ?? false);
 
@@ -622,8 +656,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         foreach (var provider in TransparencyProvidersField)
         {
             Logger.LogTrace(
-                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
-                "Applying transparency provider: {ProviderName}",
+                LogEvents.SigningHeaderContributionEvent,
+                ClassStrings.LogTransparencyProviderStarted,
                 provider.ProviderName);
 
             try
@@ -632,8 +666,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 successCount++;
 
                 Logger.LogTrace(
-                    new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
-                    "Transparency provider '{ProviderName}' completed successfully",
+                    LogEvents.SigningHeaderContributionEvent,
+                    ClassStrings.LogTransparencyProviderCompleted,
                     provider.ProviderName);
             }
             catch (Exception ex)
@@ -642,9 +676,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 errors.Add(error);
 
                 Logger.LogWarning(
-                    new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                    LogEvents.SigningFailedEvent,
                     ex,
-                    "Transparency provider '{ProviderName}' failed. FailOnError: {FailOnError}",
+                    ClassStrings.LogTransparencyProviderFailed,
                     provider.ProviderName,
                     options?.FailOnTransparencyError ?? false);
 
@@ -653,9 +687,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 {
                     stopwatch.Stop();
                     Logger.LogError(
-                        new EventId(LogEvents.SigningFailed, nameof(LogEvents.SigningFailed)),
+                        LogEvents.SigningFailedEvent,
                         ex,
-                        "Transparency application aborted due to provider failure. ProviderName: {ProviderName}, ElapsedMs: {ElapsedMs}",
+                        ClassStrings.LogTransparencyAborted,
                         provider.ProviderName,
                         stopwatch.ElapsedMilliseconds);
 
@@ -674,8 +708,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         if (errors.Count > 0)
         {
             Logger.LogWarning(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Transparency application completed with errors. SuccessCount: {SuccessCount}, FailureCount: {FailureCount}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogTransparencyCompletedWithErrors,
                 successCount,
                 errors.Count,
                 stopwatch.ElapsedMilliseconds);
@@ -683,8 +717,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         else
         {
             Logger.LogDebug(
-                new EventId(LogEvents.SigningCompleted, nameof(LogEvents.SigningCompleted)),
-                "Transparency application completed successfully. ProviderCount: {ProviderCount}, ElapsedMs: {ElapsedMs}",
+                LogEvents.SigningCompletedEvent,
+                ClassStrings.LogTransparencyCompleted,
                 successCount,
                 stopwatch.ElapsedMilliseconds);
         }

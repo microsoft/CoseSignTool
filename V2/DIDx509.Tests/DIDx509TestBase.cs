@@ -7,6 +7,8 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
 
+#pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
+
 /// <summary>
 /// Test parameter for certificate algorithm types.
 /// </summary>
@@ -71,10 +73,12 @@ public abstract class DIDx509TestBase
     /// <summary>
     /// Provides test cases for all supported algorithms.
     /// </summary>
-    public static CertAlgorithm[] AllAlgorithms => [CertAlgorithm.RSA, CertAlgorithm.ECDSA, CertAlgorithm.MLDsa];
+    public static CertAlgorithm[] AllAlgorithms => PlatformHelper.IsMLDsaSupported
+        ? [CertAlgorithm.RSA, CertAlgorithm.ECDSA, CertAlgorithm.MLDsa]
+        : [CertAlgorithm.RSA, CertAlgorithm.ECDSA];
 
     /// <summary>
-    /// Converts a certificate's raw data to Base64URL format.
+    /// Gets the base64url-encoded certificate hash.
     /// </summary>
     protected static string GetCertHashBase64Url(X509Certificate2 cert, string hashAlgorithm = "sha256")
     {

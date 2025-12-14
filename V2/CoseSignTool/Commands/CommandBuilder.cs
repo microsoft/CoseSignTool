@@ -18,6 +18,109 @@ namespace CoseSignTool.Commands;
 /// </summary>
 public class CommandBuilder
 {
+    /// <summary>
+    /// String constants specific to this class.
+    /// </summary>
+    internal static class ClassStrings
+    {
+        // Root command
+        public static readonly string RootDescription = "Modern CLI tool for COSE Sign1 signing and verification\n\n" +
+            "PIPELINE SUPPORT:\n" +
+            "  CoseSignTool supports Unix-style pipelines for flexible workflow integration:\n" +
+            "  - Read payload from stdin: omit payload argument or use '-'\n" +
+            "  - Write signature to stdout: use '--output -' or automatic when input is stdin\n" +
+            "  - Chain commands: output can feed directly into verification or encoding\n\n" +
+            "QUICK EXAMPLES:\n" +
+            "  # Sign from stdin to stdout:\n" +
+            "    echo 'data' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose\n\n" +
+            "  # Sign file, verify in pipeline:\n" +
+            "    CoseSignTool sign-pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify -\n\n" +
+            "  # JSON output for scripting:\n" +
+            "    CoseSignTool verify signature.cose --output-format json\n\n" +
+            "Use 'CoseSignTool [command] --help' for detailed command-specific examples.";
+
+        // Global options
+        public static readonly string OptionOutputFormat = "--output-format";
+        public static readonly string OptionOutputFormatAlias = "-f";
+        public static readonly string OptionOutputFormatDescription = "Output format for command results";
+        public static readonly string OptionVerbose = "--verbose";
+        public static readonly string OptionVerboseDescription = "Show detailed help including all options and examples";
+        public static readonly string OptionVerbosity = "--verbosity";
+        public static readonly string OptionVerbosityDescription = "Set logging verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace)";
+        public static readonly string OptionVv = "-vv";
+        public static readonly string OptionVvDescription = "Enable debug logging (equivalent to --verbosity 3)";
+        public static readonly string OptionVvv = "-vvv";
+        public static readonly string OptionVvvDescription = "Enable trace logging (equivalent to --verbosity 4)";
+
+        // Verify command
+        public static readonly string CommandVerify = "verify";
+        public static readonly string VerifyDescription = "Verify a COSE Sign1 signature\n\n" +
+            "EXAMPLES:\n" +
+            "  # Basic verification:\n" +
+            "    cosesigntool verify signature.cose\n\n" +
+            "  # Verify with specific trust roots:\n" +
+            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n" +
+            "  # Allow self-signed certificates (dev/test):\n" +
+            "    cosesigntool verify signature.cose --allow-untrusted\n\n" +
+            "  # Verify with certificate constraints:\n" +
+            "    cosesigntool verify signature.cose --subject-name \"My Company\"\n\n" +
+            "  # Verify from stdin (pipeline):\n" +
+            "    cat signature.cose | cosesigntool verify -\n\n" +
+            "  # JSON output for scripting:\n" +
+            "    cosesigntool verify signature.cose -f json";
+        public static readonly string ArgumentSignature = "signature";
+        public static readonly string ArgumentSignatureDescription = "Path to the COSE signature file. Use '-' to read from stdin.\n" +
+            "  Examples:\n" +
+            "    signature.cose  - Read from file\n" +
+            "    -               - Read from stdin (for pipeline)";
+
+        // Inspect command
+        public static readonly string CommandInspect = "inspect";
+        public static readonly string InspectDescription = "Inspect and display COSE Sign1 signature details\n\n" +
+            "Displays detailed information about a COSE Sign1 message including:\n" +
+            "  - Protected and unprotected headers\n" +
+            "  - Algorithm and content type\n" +
+            "  - Payload size and preview (if embedded)\n" +
+            "  - Certificate chain information\n" +
+            "  - Signature size\n\n" +
+            "EXAMPLES:\n" +
+            "  # Inspect a signature file:\n" +
+            "    cosesigntool inspect signature.cose\n\n" +
+            "  # Extract embedded payload to a file:\n" +
+            "    cosesigntool inspect signature.cose --extract-payload payload.bin\n\n" +
+            "  # Extract payload to stdout:\n" +
+            "    cosesigntool inspect signature.cose --extract-payload - > payload.bin\n\n" +
+            "  # JSON output for scripting:\n" +
+            "    cosesigntool inspect signature.cose -f json\n\n" +
+            "  # Inspect and filter with jq:\n" +
+            "    cosesigntool inspect signature.cose -f json | jq '.headers'";
+        public static readonly string ArgumentFile = "file";
+        public static readonly string ArgumentFileDescription = "Path to the COSE signature file to inspect. Use '-' to read from stdin.\n" +
+            "  Examples:\n" +
+            "    signature.cose  - Read from file\n" +
+            "    -               - Read from stdin (for pipeline)";
+        public static readonly string OptionExtractPayload = "--extract-payload";
+        public static readonly string OptionExtractPayloadAlias = "-x";
+        public static readonly string OptionExtractPayloadDescription = "Extract embedded payload to the specified path. Use '-' for stdout.\n" +
+            "  Only works if the signature contains an embedded payload.";
+
+        // Plugin loading warnings
+        public static readonly string WarningPluginExtensions = "Warning: Failed to get extensions from plugin '{0}': {1}";
+        public static readonly string WarningTransparencyProvider = "Warning: Failed to load transparency provider from plugin '{0}': {1}";
+        public static readonly string WarningVerificationProvider = "Warning: Failed to load verification provider from plugin '{0}': {1}";
+        public static readonly string WarningPluginRegister = "Warning: Failed to register plugin '{0}': {1}";
+        public static readonly string WarningPluginLoad = "Warning: Failed to load plugins: {0}";
+        public static readonly string WarningStackTrace = "Stack trace: {0}";
+        public static readonly string WarningInnerException = "Inner exception: {0}";
+
+        // Option names for handler lookups (without -- prefix)
+        public static readonly string OptionNameOutputFormat = "output-format";
+        public static readonly string OptionNameExtractPayload = "extract-payload";
+
+        // Other
+        public static readonly string PluginsDirectory = "plugins";
+    }
+
     private readonly ILoggerFactory? LoggerFactory;
 
     /// <summary>
@@ -36,49 +139,34 @@ public class CommandBuilder
     /// <returns>The configured root command.</returns>
     public RootCommand BuildRootCommand(IEnumerable<string>? additionalPluginDirectories = null)
     {
-        var description = "Modern CLI tool for COSE Sign1 signing and verification\n\n" +
-            "PIPELINE SUPPORT:\n" +
-            "  CoseSignTool supports Unix-style pipelines for flexible workflow integration:\n" +
-            "  - Read payload from stdin: omit payload argument or use '-'\n" +
-            "  - Write signature to stdout: use '--output -' or automatic when input is stdin\n" +
-            "  - Chain commands: output can feed directly into verification or encoding\n\n" +
-            "QUICK EXAMPLES:\n" +
-            "  # Sign from stdin to stdout:\n" +
-            "    echo 'data' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose\n\n" +
-            "  # Sign file, verify in pipeline:\n" +
-            "    CoseSignTool sign-pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify -\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    CoseSignTool verify signature.cose --output-format json\n\n" +
-            "Use 'CoseSignTool [command] --help' for detailed command-specific examples.";
-
-        var rootCommand = new RootCommand(description);
+        var rootCommand = new RootCommand(ClassStrings.RootDescription);
 
         // Add global options
         var outputFormatOption = new Option<OutputFormat>(
-            name: "--output-format",
+            name: ClassStrings.OptionOutputFormat,
             getDefaultValue: () => OutputFormat.Text,
-            description: "Output format for command results");
-        outputFormatOption.AddAlias("-f");
+            description: ClassStrings.OptionOutputFormatDescription);
+        outputFormatOption.AddAlias(ClassStrings.OptionOutputFormatAlias);
         outputFormatOption.FromAmong("text", "json", "xml", "quiet");
 
         var verboseHelpOption = new Option<bool>(
-            name: "--verbose",
-            description: "Show detailed help including all options and examples");
+            name: ClassStrings.OptionVerbose,
+            description: ClassStrings.OptionVerboseDescription);
 
         // Add logging verbosity options (these are parsed/stripped before System.CommandLine,
         // but we add them so they appear in help)
         var verbosityOption = new Option<int>(
-            name: "--verbosity",
+            name: ClassStrings.OptionVerbosity,
             getDefaultValue: () => 1,
-            description: "Set logging verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace)");
+            description: ClassStrings.OptionVerbosityDescription);
 
         var vvOption = new Option<bool>(
-            name: "-vv",
-            description: "Enable debug logging (equivalent to --verbosity 3)");
+            name: ClassStrings.OptionVv,
+            description: ClassStrings.OptionVvDescription);
 
         var vvvOption = new Option<bool>(
-            name: "-vvv",
-            description: "Enable trace logging (equivalent to --verbosity 4)");
+            name: ClassStrings.OptionVvv,
+            description: ClassStrings.OptionVvvDescription);
 
         rootCommand.AddGlobalOption(outputFormatOption);
         rootCommand.AddGlobalOption(verbosityOption);
@@ -132,7 +220,7 @@ public class CommandBuilder
         {
             // Determine plugin directory (relative to executable)
             var executableDir = AppContext.BaseDirectory;
-            var pluginDir = Path.Combine(executableDir, "plugins");
+            var pluginDir = Path.Combine(executableDir, ClassStrings.PluginsDirectory);
 
             if (!Directory.Exists(pluginDir) && (additionalPluginDirectories == null || !additionalPluginDirectories.Any()))
             {
@@ -159,7 +247,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to get extensions from plugin '{plugin.Name}': {ex.Message}");
+                    Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
                     continue;
                 }
 
@@ -175,7 +263,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to load transparency provider from plugin '{plugin.Name}': {ex.Message}");
+                    Console.Error.WriteLine(string.Format(ClassStrings.WarningTransparencyProvider, plugin.Name, ex.Message));
                 }
 
                 // Collect verification providers
@@ -185,7 +273,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to load verification provider from plugin '{plugin.Name}': {ex.Message}");
+                    Console.Error.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
                 }
             }
 
@@ -215,17 +303,17 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to register plugin '{plugin.Name}': {ex.Message}");
+                    Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginRegister, plugin.Name, ex.Message));
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Warning: Failed to load plugins: {ex.Message}");
-            Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
+            Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginLoad, ex.Message));
+            Console.Error.WriteLine(string.Format(ClassStrings.WarningStackTrace, ex.StackTrace));
             if (ex.InnerException != null)
             {
-                Console.Error.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.Error.WriteLine(string.Format(ClassStrings.WarningInnerException, ex.InnerException.Message));
             }
         }
     }
@@ -235,30 +323,12 @@ public class CommandBuilder
     /// </summary>
     private static Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
     {
-        var description = "Verify a COSE Sign1 signature\n\n" +
-            "EXAMPLES:\n" +
-            "  # Basic verification:\n" +
-            "    cosesigntool verify signature.cose\n\n" +
-            "  # Verify with specific trust roots:\n" +
-            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n" +
-            "  # Allow self-signed certificates (dev/test):\n" +
-            "    cosesigntool verify signature.cose --allow-untrusted\n\n" +
-            "  # Verify with certificate constraints:\n" +
-            "    cosesigntool verify signature.cose --subject-name \"My Company\"\n\n" +
-            "  # Verify from stdin (pipeline):\n" +
-            "    cat signature.cose | cosesigntool verify -\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    cosesigntool verify signature.cose -f json";
-
-        var command = new Command("verify", description);
+        var command = new Command(ClassStrings.CommandVerify, ClassStrings.VerifyDescription);
 
         // Signature argument - accepts file path or '-' for stdin
         var signatureArgument = new Argument<string?>(
-            name: "signature",
-            description: "Path to the COSE signature file. Use '-' to read from stdin.\n" +
-                        "  Examples:\n" +
-                        "    signature.cose  - Read from file\n" +
-                        "    -               - Read from stdin (for pipeline)",
+            name: ClassStrings.ArgumentSignature,
+            description: ClassStrings.ArgumentSignatureDescription,
             getDefaultValue: () => null)
         {
             Arity = ArgumentArity.ZeroOrOne
@@ -278,7 +348,7 @@ public class CommandBuilder
             var outputFormat = OutputFormat.Text; // default
             foreach (var option in context.ParseResult.RootCommandResult.Command.Options)
             {
-                if (option.Name == "output-format")
+                if (option.Name == ClassStrings.OptionNameOutputFormat)
                 {
                     var formatValue = context.ParseResult.GetValueForOption(option);
                     if (formatValue != null && Enum.TryParse<OutputFormat>(formatValue.ToString(), true, out var parsed))
@@ -303,34 +373,12 @@ public class CommandBuilder
     /// </summary>
     private static Command BuildInspectCommand()
     {
-        var description = "Inspect and display COSE Sign1 signature details\n\n" +
-            "Displays detailed information about a COSE Sign1 message including:\n" +
-            "  - Protected and unprotected headers\n" +
-            "  - Algorithm and content type\n" +
-            "  - Payload size and preview (if embedded)\n" +
-            "  - Certificate chain information\n" +
-            "  - Signature size\n\n" +
-            "EXAMPLES:\n" +
-            "  # Inspect a signature file:\n" +
-            "    cosesigntool inspect signature.cose\n\n" +
-            "  # Extract embedded payload to a file:\n" +
-            "    cosesigntool inspect signature.cose --extract-payload payload.bin\n\n" +
-            "  # Extract payload to stdout:\n" +
-            "    cosesigntool inspect signature.cose --extract-payload - > payload.bin\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    cosesigntool inspect signature.cose -f json\n\n" +
-            "  # Inspect and filter with jq:\n" +
-            "    cosesigntool inspect signature.cose -f json | jq '.headers'";
-
-        var command = new Command("inspect", description);
+        var command = new Command(ClassStrings.CommandInspect, ClassStrings.InspectDescription);
 
         // File argument - accepts file path or '-' for stdin
         var fileArgument = new Argument<string?>(
-            name: "file",
-            description: "Path to the COSE signature file to inspect. Use '-' to read from stdin.\n" +
-                        "  Examples:\n" +
-                        "    signature.cose  - Read from file\n" +
-                        "    -               - Read from stdin (for pipeline)",
+            name: ClassStrings.ArgumentFile,
+            description: ClassStrings.ArgumentFileDescription,
             getDefaultValue: () => null)
         {
             Arity = ArgumentArity.ZeroOrOne
@@ -339,10 +387,9 @@ public class CommandBuilder
 
         // Extract payload option
         var extractPayloadOption = new Option<string?>(
-            name: "--extract-payload",
-            description: "Extract embedded payload to the specified path. Use '-' for stdout.\n" +
-                        "  Only works if the signature contains an embedded payload.");
-        extractPayloadOption.AddAlias("-x");
+            name: ClassStrings.OptionExtractPayload,
+            description: ClassStrings.OptionExtractPayloadDescription);
+        extractPayloadOption.AddAlias(ClassStrings.OptionExtractPayloadAlias);
         command.AddOption(extractPayloadOption);
 
         // Set handler
@@ -352,7 +399,7 @@ public class CommandBuilder
             var outputFormat = OutputFormat.Text; // default
             foreach (var option in context.ParseResult.RootCommandResult.Command.Options)
             {
-                if (option.Name == "output-format")
+                if (option.Name == ClassStrings.OptionNameOutputFormat)
                 {
                     var formatValue = context.ParseResult.GetValueForOption(option);
                     if (formatValue != null && Enum.TryParse<OutputFormat>(formatValue.ToString(), true, out var parsed))
@@ -367,7 +414,7 @@ public class CommandBuilder
             string? extractPayload = null;
             foreach (var opt in context.ParseResult.CommandResult.Command.Options)
             {
-                if (opt.Name == "extract-payload")
+                if (opt.Name == ClassStrings.OptionNameExtractPayload)
                 {
                     extractPayload = context.ParseResult.GetValueForOption(opt) as string;
                     break;

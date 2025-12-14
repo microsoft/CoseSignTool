@@ -88,7 +88,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         }
 
         Logger.LogDebug(
-            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            LogEvents.SigningKeyAcquiredEvent,
             "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}",
             context.ContentType,
             IsRemoteField);
@@ -97,7 +97,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         var signingKey = GetSigningKey(context);
 
         Logger.LogTrace(
-            new EventId(LogEvents.SigningKeyAcquired, nameof(LogEvents.SigningKeyAcquired)),
+            LogEvents.SigningKeyAcquiredEvent,
             "Signing key acquired. CoseAlgorithmId: {CoseAlgorithmId}, KeyType: {KeyType}",
             signingKey.Metadata.CoseAlgorithmId,
             signingKey.Metadata.KeyType);
@@ -122,7 +122,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         if (context.TryGetCertificateOptions(out var certOptions) && certOptions.EnableScittCompliance)
         {
             Logger.LogDebug(
-                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                LogEvents.SigningHeaderContributionEvent,
                 "Adding SCITT-compliant CWT claims to signature headers");
             var cwtContributor = CreateScittCwtClaimsContributor(certOptions, signingKey);
             cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
@@ -133,7 +133,7 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         if (context.AdditionalHeaderContributors != null)
         {
             Logger.LogTrace(
-                new EventId(LogEvents.SigningHeaderContribution, nameof(LogEvents.SigningHeaderContribution)),
+                LogEvents.SigningHeaderContributionEvent,
                 "Applying {Count} additional header contributors",
                 context.AdditionalHeaderContributors.Count);
             foreach (var contributor in context.AdditionalHeaderContributors)

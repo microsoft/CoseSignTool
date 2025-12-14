@@ -116,7 +116,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         LogVerbose?.Invoke($"[{ProviderName}] Entry created successfully");
 
         // Get the entryId from the operation result
-        if (!operation.Value.TryGetMstEntryId(out string entryId))
+        if (!operation.Value.TryGetMstEntryId(out string? entryId) || entryId is null)
         {
             string error = "Response did not contain a valid CBOR-encoded entryId";
             LogError?.Invoke($"[{ProviderName}] {error}");

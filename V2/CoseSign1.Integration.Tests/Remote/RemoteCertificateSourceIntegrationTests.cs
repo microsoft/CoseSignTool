@@ -65,6 +65,8 @@ public class RemoteCertificateSourceIntegrationTests
     [Test]
     public void RemoteMLDsaSigning_ThroughDirectFactory_ProducesValidSignature()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange - Create ML-DSA certificate and remote signing infrastructure
         using var signingCert = TestCertificateUtils.CreateMLDsaCertificate("RemoteMLDSA-Test", mlDsaParameterSet: 44);
         var directCertSource = new DirectCertificateSource(signingCert, new[] { signingCert });
@@ -108,6 +110,7 @@ public class RemoteCertificateSourceIntegrationTests
     }
 
     [Test]
+    [Platform("Win")] // P-384 and P-521 curve certificate creation has issues on Linux
     public void RemoteEcdsaSigning_WithDifferentCurves_ProducesValidSignatures()
     {
         var testCases = new[]
@@ -143,6 +146,8 @@ public class RemoteCertificateSourceIntegrationTests
     [Test]
     public void RemoteMLDsaSigning_WithDifferentSecurityLevels_ProducesValidSignatures()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         var testCases = new[]
         {
             (Algorithm: MLDsaAlgorithm.MLDsa44, Level: "44"),

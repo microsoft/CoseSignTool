@@ -12,6 +12,25 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Message>
 {
+    internal static class ClassStrings
+    {
+        // Validator name
+        public static readonly string ValidatorName = nameof(CertificatePredicateValidator);
+
+        // Error codes
+        public static readonly string ErrorCodeNullInput = "NULL_INPUT";
+        public static readonly string ErrorCodeCertNotFound = "CERTIFICATE_NOT_FOUND";
+        public static readonly string ErrorCodePredicateFailed = "CERTIFICATE_PREDICATE_FAILED";
+
+        // Error messages
+        public static readonly string ErrorMessageNullInput = "Input message is null";
+        public static readonly string ErrorMessageCertNotFound = "Certificate not found in message headers";
+        public static readonly string ErrorMessagePredicateFailed = "Certificate does not match the specified predicate";
+
+        // Metadata keys
+        public static readonly string MetaKeyCertThumbprint = "CertificateThumbprint";
+    }
+
     private readonly Func<X509Certificate2, bool> Predicate;
     private readonly string? FailureMessage;
     private readonly bool AllowUnprotectedHeaders;
@@ -37,33 +56,33 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
         if (input == null)
         {
             return ValidationResult.Failure(
-                nameof(CertificatePredicateValidator),
-                "Input message is null",
-                "NULL_INPUT");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageNullInput,
+                ClassStrings.ErrorCodeNullInput);
         }
 
         if (!input.TryGetSigningCertificate(out var cert, AllowUnprotectedHeaders))
         {
             return ValidationResult.Failure(
-                nameof(CertificatePredicateValidator),
-                "Certificate not found in message headers",
-                "CERTIFICATE_NOT_FOUND");
+                ClassStrings.ValidatorName,
+                ClassStrings.ErrorMessageCertNotFound,
+                ClassStrings.ErrorCodeCertNotFound);
         }
 
         if (Predicate(cert))
         {
             return ValidationResult.Success(
-                nameof(CertificatePredicateValidator),
+                ClassStrings.ValidatorName,
                 new Dictionary<string, object>
                 {
-                    ["CertificateThumbprint"] = cert.Thumbprint
+                    [ClassStrings.MetaKeyCertThumbprint] = cert.Thumbprint
                 });
         }
 
         return ValidationResult.Failure(
-            nameof(CertificatePredicateValidator),
-            FailureMessage ?? "Certificate does not match the specified predicate",
-            "CERTIFICATE_PREDICATE_FAILED");
+            ClassStrings.ValidatorName,
+            FailureMessage ?? ClassStrings.ErrorMessagePredicateFailed,
+            ClassStrings.ErrorCodePredicateFailed);
     }
 
     public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)

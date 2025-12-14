@@ -309,49 +309,8 @@ public static class CertificateChainConverter
     /// </summary>
     private static List<SubjectAlternativeName> ParseSanExtension(X509Extension extension)
     {
-        var sans = new List<SubjectAlternativeName>();
-
-        // Parse SAN extension raw data
-        // The format is a sequence of [tag, length, value] triplets
-        // Tag 1 = rfc822Name (email), Tag 2 = dNSName, Tag 6 = uniformResourceIdentifier, Tag 4 = directoryName
-
-        try
-        {
-            // Use the formatted string representation as a fallback
-            string formatted = extension.Format(false);
-            var lines = formatted.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var line in lines)
-            {
-                string trimmed = line.Trim();
-
-                if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
-                {
-                    string value = trimmed.Substring("DNS Name=".Length);
-                    sans.Add(new SubjectAlternativeName(DidX509Constants.SanTypeDns, value));
-                }
-                else if (trimmed.StartsWith("RFC822 Name=", StringComparison.OrdinalIgnoreCase) ||
-                         trimmed.StartsWith("Email=", StringComparison.OrdinalIgnoreCase))
-                {
-                    string prefix = trimmed.StartsWith("RFC822 Name=") ? "RFC822 Name=" : "Email=";
-                    string value = trimmed.Substring(prefix.Length);
-                    sans.Add(new SubjectAlternativeName(DidX509Constants.SanTypeEmail, value));
-                }
-                else if (trimmed.StartsWith("URL=", StringComparison.OrdinalIgnoreCase) ||
-                         trimmed.StartsWith("URI=", StringComparison.OrdinalIgnoreCase))
-                {
-                    string prefix = trimmed.StartsWith("URL=") ? "URL=" : "URI=";
-                    string value = trimmed.Substring(prefix.Length);
-                    sans.Add(new SubjectAlternativeName(DidX509Constants.SanTypeUri, value));
-                }
-            }
-        }
-        catch
-        {
-            // Ignore parsing errors for SAN
-        }
-
-        return sans;
+        // Use cross-platform SAN parser
+        return SanParser.Parse(extension);
     }
 
     /// <summary>

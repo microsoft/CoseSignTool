@@ -32,6 +32,9 @@ public class MLDsaCertificateUtilsTests
     [TestCase(87)]
     public void IsMLDsaCertificate_WithMLDsaCertificate_ReturnsTrue(int parameterSet)
     {
+        // Skip on non-Windows platforms where ML-DSA is not supported
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -90,6 +93,9 @@ public class MLDsaCertificateUtilsTests
     [TestCase(87)]
     public void GetParameterSet_WithMLDsaCertificate_ReturnsExpectedValue(int expectedParameterSet)
     {
+        // Skip on non-Windows platforms where ML-DSA is not supported
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o

@@ -311,6 +311,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void DirectFactory_MLDSA44_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44-Test", mlDsaParameterSet: 44);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA44-Chain", useEcc: false, leafFirst: true);
@@ -333,6 +335,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void DirectFactory_MLDSA65_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65-Test", mlDsaParameterSet: 65);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA65-Chain", useEcc: false, leafFirst: true);
@@ -355,6 +359,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void DirectFactory_MLDSA87_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87-Test", mlDsaParameterSet: 87);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA87-Chain", useEcc: false, leafFirst: true);
@@ -377,6 +383,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void IndirectFactory_MLDSA44_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44-Indirect", mlDsaParameterSet: 44);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA44-Indirect-Chain", useEcc: false, leafFirst: true);
@@ -402,6 +410,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void IndirectFactory_MLDSA65_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65-Indirect", mlDsaParameterSet: 65);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA65-Indirect-Chain", useEcc: false, leafFirst: true);
@@ -428,6 +438,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void IndirectFactory_MLDSA87_CreatesValidCoseSign1Message()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87-Indirect", mlDsaParameterSet: 87);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA87-Indirect-Chain", useEcc: false, leafFirst: true);
@@ -458,6 +470,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void DirectFactory_AllAlgorithms_ProduceDistinctCoseAlgorithmIds()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange & Act
         var results = new Dictionary<string, int>();
 
@@ -504,6 +518,8 @@ public class CertificateSigningIntegrationTests
     [Test]
     public void IndirectFactory_AllAlgorithms_ProduceValidHashEnvelopes()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange & Act - Verify all algorithms work with indirect signatures
         var algorithms = new[] { "RSA2048", "ECDSA-P256", "MLDSA44" };
         var payloadHashAlgLabel = new CoseHeaderLabel(258);

@@ -33,6 +33,11 @@ public class EphemeralCertificateFactoryTests
     [TestCase(KeyAlgorithm.MLDSA, 87)]
     public void CreateCertificate_WithDifferentAlgorithms_CreatesValidCertificate(KeyAlgorithm algorithm, int keySize)
     {
+        if (algorithm == KeyAlgorithm.MLDSA)
+        {
+            PlatformHelper.SkipIfMLDsaNotSupported();
+        }
+
         // Arrange
         var factory = new EphemeralCertificateFactory();
 
@@ -197,14 +202,14 @@ public class EphemeralCertificateFactoryTests
     }
 
     [Test]
-    public async Task CreateCertificateAsync_WithNullConfigure_ThrowsArgumentNullException()
+    public void CreateCertificateAsync_WithNullConfigure_ThrowsArgumentNullException()
     {
         // Arrange
         var factory = new EphemeralCertificateFactory();
 
         // Act & Assert
-        Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await factory.CreateCertificateAsync(null!));
+        Assert.ThrowsAsync<ArgumentNullException>(() =>
+            factory.CreateCertificateAsync(null!));
     }
 
     [Test]
@@ -431,7 +436,7 @@ public class EphemeralCertificateFactoryTests
     }
 
     [Test]
-    public async Task CreateCertificateAsync_WithCancellationToken_RespectsCancellation()
+    public void CreateCertificateAsync_WithCancellationToken_RespectsCancellation()
     {
         // Arrange
         var factory = new EphemeralCertificateFactory();
@@ -439,8 +444,8 @@ public class EphemeralCertificateFactoryTests
         cts.Cancel();
 
         // Act & Assert
-        Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await factory.CreateCertificateAsync(o => o.WithSubjectName("CN=Test"), cts.Token));
+        Assert.ThrowsAsync<OperationCanceledException>(() =>
+            factory.CreateCertificateAsync(o => o.WithSubjectName("CN=Test"), cts.Token));
     }
 
     [Test]
@@ -545,10 +550,13 @@ public class EphemeralCertificateFactoryTests
             .WithSubjectName("CN=Async ECDSA"));
         Assert.That(ecdsaCert, Is.Not.Null);
 
-        // Act & Assert - MLDSA
-        using var mldsaCert = await factory.CreateCertificateAsync(o => o
-            .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
-            .WithSubjectName("CN=Async MLDSA"));
-        Assert.That(mldsaCert, Is.Not.Null);
+        // Act & Assert - MLDSA (Windows only)
+        if (PlatformHelper.IsMLDsaSupported)
+        {
+            using var mldsaCert = await factory.CreateCertificateAsync(o => o
+                .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
+                .WithSubjectName("CN=Async MLDSA"));
+            Assert.That(mldsaCert, Is.Not.Null);
+        }
     }
 }

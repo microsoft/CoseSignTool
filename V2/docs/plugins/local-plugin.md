@@ -162,7 +162,9 @@ By default, creates an RSA-4096 certificate with a full certificate chain (Root 
 | `--validity-days` | No | Certificate validity period |
 | `--no-chain` | No | Generate self-signed instead of chain |
 | `--minimal` | No | Use minimal preset (RSA-2048, 1 day, self-signed) |
-| `--pqc` | No | Use post-quantum preset (ML-DSA-65 with chain) |
+| `--pqc` | No | Use post-quantum preset (ML-DSA-65 with chain) ⚠️ Windows only |
+
+> **Note**: The `--pqc` option and ML-DSA algorithm are **Windows only** in .NET 10. Linux and macOS do not currently support ML-DSA.
 
 **Default Configuration**:
 - Algorithm: RSA-4096
@@ -178,7 +180,7 @@ CoseSignTool sign-ephemeral document.json
 # Quick test with minimal configuration
 CoseSignTool sign-ephemeral document.json --minimal
 
-# Post-quantum signing with ML-DSA
+# Post-quantum signing with ML-DSA (Windows only)
 CoseSignTool sign-ephemeral document.json --pqc
 
 # Custom configuration via JSON file
@@ -289,6 +291,8 @@ The plugin automatically selects the appropriate COSE algorithm based on the cer
 | ECDSA P-256 | ES256 |
 | ECDSA P-384 | ES384 |
 | ECDSA P-521 | ES512 |
-| ML-DSA-44 | ML-DSA-44 (post-quantum) |
-| ML-DSA-65 | ML-DSA-65 (post-quantum) |
-| ML-DSA-87 | ML-DSA-87 (post-quantum) |
+| ML-DSA-44 | ML-DSA-44 (post-quantum) ⚠️ Windows only |
+| ML-DSA-65 | ML-DSA-65 (post-quantum) ⚠️ Windows only |
+| ML-DSA-87 | ML-DSA-87 (post-quantum) ⚠️ Windows only |
+
+> **Platform Note**: ML-DSA algorithms are currently only supported on Windows in .NET 10.

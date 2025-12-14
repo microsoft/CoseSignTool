@@ -24,6 +24,22 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class PfxCertificateSource : CertificateSourceBase
 {
+    internal static class ClassStrings
+    {
+        // Log message templates
+        public static readonly string LogInitializedFromFileSecure = "PfxCertificateSource initialized from file (SecureString). FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}";
+        public static readonly string LogInitializedFromFile = "PfxCertificateSource initialized from file. FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}";
+        public static readonly string LogInitializedFromBytesSecure = "PfxCertificateSource initialized from bytes (SecureString). Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}";
+        public static readonly string LogInitializedFromBytes = "PfxCertificateSource initialized from bytes. Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}";
+        public static readonly string LogLoadingFromFileSecure = "Loading PFX from file (SecureString). FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}";
+        public static readonly string LogLoadingFromFile = "Loading PFX from file. FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}";
+        public static readonly string LogFileNotFound = "PFX file not found. FilePath: {FilePath}";
+        public static readonly string LogLoadingFromBytesSecure = "Loading PFX from bytes (SecureString). DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}";
+        public static readonly string LogLoadingFromBytes = "Loading PFX from bytes. DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}";
+        public static readonly string LogExtractingChain = "Extracting certificate and chain from {Source}. CertificateCount: {Count}";
+        public static readonly string LogExtractedCertificate = "Extracted signing certificate. Subject: {Subject}, ChainCertificateCount: {ChainCount}";
+    }
+
     private readonly X509Certificate2 Certificate;
 
     /// <summary>
@@ -51,8 +67,8 @@ public class PfxCertificateSource : CertificateSourceBase
         : this(LoadFromFile(pfxFilePath, password, keyStorageFlags, logger), chainBuilder, logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "PfxCertificateSource initialized from file (SecureString). FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitializedFromFileSecure,
             pfxFilePath,
             Certificate.Subject,
             Certificate.Thumbprint,
@@ -83,8 +99,8 @@ public class PfxCertificateSource : CertificateSourceBase
         : this(LoadFromFile(pfxFilePath, password, keyStorageFlags, logger), chainBuilder, logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "PfxCertificateSource initialized from file. FilePath: {FilePath}, Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitializedFromFile,
             pfxFilePath,
             Certificate.Subject,
             Certificate.Thumbprint,
@@ -116,8 +132,8 @@ public class PfxCertificateSource : CertificateSourceBase
         : this(LoadFromBytes(pfxData, password, keyStorageFlags, logger), chainBuilder, logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "PfxCertificateSource initialized from bytes (SecureString). Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitializedFromBytesSecure,
             Certificate.Subject,
             Certificate.Thumbprint,
             Certificate.HasPrivateKey);
@@ -147,8 +163,8 @@ public class PfxCertificateSource : CertificateSourceBase
         : this(LoadFromBytes(pfxData, password, keyStorageFlags, logger), chainBuilder, logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "PfxCertificateSource initialized from bytes. Subject: {Subject}, Thumbprint: {Thumbprint}, HasPrivateKey: {HasPrivateKey}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitializedFromBytes,
             Certificate.Subject,
             Certificate.Thumbprint,
             Certificate.HasPrivateKey);
@@ -195,16 +211,16 @@ public class PfxCertificateSource : CertificateSourceBase
 #endif
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Loading PFX from file (SecureString). FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogLoadingFromFileSecure,
             pfxFilePath,
             keyStorageFlags);
 
         if (!File.Exists(pfxFilePath))
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
-                "PFX file not found. FilePath: {FilePath}",
+                LogEvents.CertificateLoadFailedEvent,
+                ClassStrings.LogFileNotFound,
                 pfxFilePath);
             throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
         }
@@ -241,16 +257,16 @@ public class PfxCertificateSource : CertificateSourceBase
 #endif
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Loading PFX from file. FilePath: {FilePath}, KeyStorageFlags: {KeyStorageFlags}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogLoadingFromFile,
             pfxFilePath,
             keyStorageFlags);
 
         if (!File.Exists(pfxFilePath))
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
-                "PFX file not found. FilePath: {FilePath}",
+                LogEvents.CertificateLoadFailedEvent,
+                ClassStrings.LogFileNotFound,
                 pfxFilePath);
             throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
         }
@@ -277,8 +293,8 @@ public class PfxCertificateSource : CertificateSourceBase
 #endif
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Loading PFX from bytes (SecureString). DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogLoadingFromBytesSecure,
             pfxData.Length,
             keyStorageFlags);
 
@@ -314,8 +330,8 @@ public class PfxCertificateSource : CertificateSourceBase
 #endif
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Loading PFX from bytes. DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogLoadingFromBytes,
             pfxData.Length,
             keyStorageFlags);
 
@@ -359,8 +375,8 @@ public class PfxCertificateSource : CertificateSourceBase
         ILogger? logger)
     {
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Extracting certificate and chain from {Source}. CertificateCount: {Count}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogExtractingChain,
             source,
             collection.Count);
 
@@ -372,8 +388,8 @@ public class PfxCertificateSource : CertificateSourceBase
         var chain = collection.Cast<X509Certificate2>().ToList();
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Extracted signing certificate. Subject: {Subject}, ChainCertificateCount: {ChainCount}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogExtractedCertificate,
             certificate.Subject,
             chain.Count);
 

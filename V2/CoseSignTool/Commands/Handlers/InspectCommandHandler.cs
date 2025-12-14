@@ -13,6 +13,15 @@ namespace CoseSignTool.Commands.Handlers;
 /// </summary>
 public class InspectCommandHandler
 {
+    /// <summary>
+    /// String constants specific to this class.
+    /// </summary>
+    internal static class ClassStrings
+    {
+        public static readonly string ArgumentName = "file";
+        public static readonly string ErrorInspecting = "Error inspecting file: {0}";
+    }
+
     private readonly IOutputFormatter Formatter;
     private readonly CoseInspectionService InspectionService;
 
@@ -51,7 +60,7 @@ public class InspectCommandHandler
             string? filePath = null;
             foreach (var arg in commandResult.Command.Arguments)
             {
-                if (arg.Name == "file")
+                if (arg.Name == ClassStrings.ArgumentName)
                 {
                     filePath = parseResult.GetValueForArgument(arg) as string;
                     break;
@@ -59,7 +68,7 @@ public class InspectCommandHandler
             }
 
             // Determine if using stdin
-            bool useStdin = string.IsNullOrEmpty(filePath) || filePath == "-";
+            bool useStdin = string.IsNullOrEmpty(filePath) || filePath == AssemblyStrings.IO.StdinIndicator;
 
             if (useStdin)
             {
@@ -74,11 +83,11 @@ public class InspectCommandHandler
                 {
                     if (timeoutStdin.TimedOut)
                     {
-                        Formatter.WriteError($"No signature data received from stdin (timed out after {StdinTimeout.TotalSeconds:F0}s)");
+                        Formatter.WriteError(string.Format(AssemblyStrings.Errors.StdinTimeout, StdinTimeout.TotalSeconds));
                     }
                     else
                     {
-                        Formatter.WriteError("No signature data received from stdin");
+                        Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
                     }
                     Formatter.Flush();
                     return (int)ExitCode.FileNotFound;
@@ -89,7 +98,7 @@ public class InspectCommandHandler
                 try
                 {
                     await File.WriteAllBytesAsync(tempFile, signatureBytes);
-                    var result = await InspectionService.InspectAsync(tempFile, extractPayloadPath, "<stdin>");
+                    var result = await InspectionService.InspectAsync(tempFile, extractPayloadPath, AssemblyStrings.IO.StdinDisplayName);
                     Formatter.Flush();
                     return result;
                 }
@@ -105,7 +114,7 @@ public class InspectCommandHandler
             {
                 if (!File.Exists(filePath))
                 {
-                    Formatter.WriteError($"File not found: {filePath}");
+                    Formatter.WriteError(string.Format(AssemblyStrings.Errors.FileNotFound, filePath));
                     Formatter.Flush();
                     return (int)ExitCode.FileNotFound;
                 }
@@ -121,7 +130,7 @@ public class InspectCommandHandler
         }
         catch (Exception ex)
         {
-            Formatter.WriteError($"Error inspecting file: {ex.Message}");
+            Formatter.WriteError(string.Format(ClassStrings.ErrorInspecting, ex.Message));
             Formatter.Flush();
             return (int)ExitCode.InspectionFailed;
         }

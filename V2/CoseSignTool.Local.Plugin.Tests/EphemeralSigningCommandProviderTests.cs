@@ -138,6 +138,8 @@ public class EphemeralSigningCommandProviderTests
     [Test]
     public async Task CreateSigningServiceAsync_WithPqcOption_CreatesMlDsaWithChain()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new EphemeralSigningCommandProvider();
         var options = new Dictionary<string, object?>

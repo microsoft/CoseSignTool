@@ -75,7 +75,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         ChainBuilder = new X509ChainBuilder(policy);
 
         LoggerField.LogTrace(
-            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            LogEvents.CertificateChainBuildStartedEvent,
             "ExplicitCertificateChainBuilder initialized. ProvidedCertificateCount: {Count}",
             certificateChain.Count);
     }
@@ -129,7 +129,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 #endif
 
         LoggerField.LogTrace(
-            new EventId(LogEvents.CertificateChainBuildStarted, nameof(LogEvents.CertificateChainBuildStarted)),
+            LogEvents.CertificateChainBuildStartedEvent,
             "Building explicit certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
             certificate.Subject,
             certificate.Thumbprint);
@@ -152,7 +152,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
                 if (!isFromProvidedCerts)
                 {
                     LoggerField.LogTrace(
-                        new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                        LogEvents.CertificateChainBuildFailedEvent,
                         "Chain element not from provided certificates. Subject: {Subject}, Thumbprint: {Thumbprint}",
                         chainElement.Subject,
                         chainElement.Thumbprint);
@@ -165,14 +165,14 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         if (buildResult)
         {
             LoggerField.LogTrace(
-                new EventId(LogEvents.CertificateChainBuilt, nameof(LogEvents.CertificateChainBuilt)),
+                LogEvents.CertificateChainBuiltEvent,
                 "Explicit certificate chain built successfully. ChainLength: {ChainLength}",
                 ChainBuilder.ChainElements.Count);
         }
         else
         {
             LoggerField.LogTrace(
-                new EventId(LogEvents.CertificateChainBuildFailed, nameof(LogEvents.CertificateChainBuildFailed)),
+                LogEvents.CertificateChainBuildFailedEvent,
                 "Explicit certificate chain build failed. ChainLength: {ChainLength}",
                 ChainBuilder.ChainElements.Count);
         }

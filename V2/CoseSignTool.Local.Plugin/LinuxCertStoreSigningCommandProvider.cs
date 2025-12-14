@@ -13,28 +13,58 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
 {
+    internal static class ClassStrings
+    {
+        // Command metadata
+        public static readonly string CommandNameValue = "sign-certstore";
+        public static readonly string CommandDescriptionValue = "Sign a payload by searching system certificate store paths by thumbprint";
+        public static readonly string ExampleUsageValue = "--thumbprint ABC123";
+
+        // Option names
+        public static readonly string OptionNameThumbprint = "--thumbprint";
+        public static readonly string OptionNameStorePaths = "--store-paths";
+
+        // Option descriptions
+        public static readonly string DescriptionThumbprint = "Certificate thumbprint (hex string) to search in system certificate paths";
+        public static readonly string DescriptionStorePaths = "Custom certificate store search paths. Defaults: /etc/ssl/certs, /etc/pki/tls/certs, ~/.certs";
+
+        // Dictionary keys (internal)
+        public static readonly string KeyThumbprint = "thumbprint";
+        public static readonly string KeyStorePaths = "store-paths";
+
+        // Error messages
+        public static readonly string ErrorThumbprintRequired = "Thumbprint is required";
+
+        // Metadata keys and values
+        public static readonly string MetaKeyCertSource = "Certificate Source";
+        public static readonly string MetaKeyCertSubject = "Certificate Subject";
+        public static readonly string MetaKeyCertThumbprint = "Certificate Thumbprint";
+        public static readonly string MetaValueLinuxCertStore = "Linux certificate store";
+        public static readonly string MetaValueUnknown = "Unknown";
+    }
+
     private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
-    public string CommandName => "sign-certstore";
+    public string CommandName => ClassStrings.CommandNameValue;
 
-    public string CommandDescription => "Sign a payload by searching system certificate store paths by thumbprint";
+    public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
-    public string ExampleUsage => "--thumbprint ABC123";
+    public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
     public void AddCommandOptions(Command command)
     {
         var thumbprintOption = new Option<string>(
-            name: "--thumbprint",
-            description: "Certificate thumbprint (hex string) to search in system certificate paths")
+            name: ClassStrings.OptionNameThumbprint,
+            description: ClassStrings.DescriptionThumbprint)
         {
             IsRequired = true
         };
 
         var storePathsOption = new Option<string[]?>(
-            name: "--store-paths",
-            description: "Custom certificate store search paths. Defaults: /etc/ssl/certs, /etc/pki/tls/certs, ~/.certs");
+            name: ClassStrings.OptionNameStorePaths,
+            description: ClassStrings.DescriptionStorePaths);
 
         command.AddOption(thumbprintOption);
         command.AddOption(storePathsOption);
@@ -42,10 +72,10 @@ public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
 
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var thumbprint = options["thumbprint"] as string
-            ?? throw new InvalidOperationException("Thumbprint is required");
+        var thumbprint = options[ClassStrings.KeyThumbprint] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorThumbprintRequired);
 
-        var storePaths = options.TryGetValue("store-paths", out var paths) ? paths as string[] : null;
+        var storePaths = options.TryGetValue(ClassStrings.KeyStorePaths, out var paths) ? paths as string[] : null;
         var searchPaths = storePaths?.AsEnumerable() ?? LinuxCertificateStoreCertificateSource.DefaultCertificateStorePaths;
 
         // Create certificate source by searching system paths
@@ -67,9 +97,9 @@ public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
     {
         return new Dictionary<string, string>
         {
-            ["Certificate Source"] = "Linux certificate store",
-            ["Certificate Subject"] = CertificateSubject ?? "Unknown",
-            ["Certificate Thumbprint"] = CertificateThumbprint ?? "Unknown"
+            [ClassStrings.MetaKeyCertSource] = ClassStrings.MetaValueLinuxCertStore,
+            [ClassStrings.MetaKeyCertSubject] = CertificateSubject ?? ClassStrings.MetaValueUnknown,
+            [ClassStrings.MetaKeyCertThumbprint] = CertificateThumbprint ?? ClassStrings.MetaValueUnknown
         };
     }
 }

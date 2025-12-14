@@ -21,6 +21,22 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
 {
+    internal static class ClassStrings
+    {
+        public static readonly string LogInitByThumbprint = "LinuxCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}";
+        public static readonly string LogInitBySubjectName = "LinuxCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}, Subject: {Subject}";
+        public static readonly string LogInitByPredicate = "LinuxCertificateStoreCertificateSource initialized by predicate. Subject: {Subject}";
+        public static readonly string LogSearchingStorePaths = "Searching for certificate in {StorePathCount} store paths";
+        public static readonly string LogSearchingPath = "Searching for certificate in path: {Path}";
+        public static readonly string LogPathNotDirectory = "Skipping non-directory path: {Path}";
+        public static readonly string LogFoundCertificate = "Found matching certificate. Thumbprint: {Thumbprint}, Subject: {Subject}";
+        public static readonly string LogSearchingThumbprint = "Searching for certificate by thumbprint {Thumbprint} in {StorePathCount} store paths";
+        public static readonly string LogFoundByThumbprint = "Found certificate by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}";
+        public static readonly string LogCertificateNotFound = "Certificate with thumbprint {Thumbprint} not found";
+        public static readonly string LogSearchingSubjectName = "Searching for certificate by subject name {SubjectName} (validOnly: {ValidOnly}) in {StorePathCount} store paths";
+        public static readonly string LogFoundBySubjectName = "Found certificate by subject name. SubjectName: {SubjectName}, Subject: {Subject}";
+    }
+
     private readonly X509Certificate2 Certificate;
 
     /// <summary>
@@ -56,8 +72,8 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "LinuxCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitByThumbprint,
             thumbprint,
             Certificate.Subject);
     }
@@ -84,8 +100,8 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "LinuxCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}, Subject: {Subject}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitBySubjectName,
             subjectName,
             validOnly,
             Certificate.Subject);
@@ -111,8 +127,8 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "LinuxCertificateStoreCertificateSource initialized by predicate. Subject: {Subject}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogInitByPredicate,
             Certificate.Subject);
     }
 
@@ -136,7 +152,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         ArgumentException.ThrowIfNullOrWhiteSpace(privateKeyFilePath);
 
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            LogEvents.CertificateLoadedEvent,
             "Loading certificate from files. CertificateFile: {CertFile}, PrivateKeyFile: {KeyFile}",
             certificateFilePath,
             privateKeyFilePath);
@@ -144,7 +160,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         if (!File.Exists(certificateFilePath))
         {
             Logger.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                LogEvents.CertificateLoadFailedEvent,
                 "Certificate file not found. Path: {Path}",
                 certificateFilePath);
             throw new FileNotFoundException($"Certificate file not found: {certificateFilePath}", certificateFilePath);
@@ -153,7 +169,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         if (!File.Exists(privateKeyFilePath))
         {
             Logger.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                LogEvents.CertificateLoadFailedEvent,
                 "Private key file not found. Path: {Path}",
                 privateKeyFilePath);
             throw new FileNotFoundException($"Private key file not found: {privateKeyFilePath}", privateKeyFilePath);
@@ -170,7 +186,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             rsa.ImportFromPem(keyPem);
             Certificate = cert.CopyWithPrivateKey(rsa);
             Logger.LogTrace(
-                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                LogEvents.CertificateLoadedEvent,
                 "Certificate loaded with RSA private key. Subject: {Subject}",
                 Certificate.Subject);
         }
@@ -182,7 +198,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                 ecdsa.ImportFromPem(keyPem);
                 Certificate = cert.CopyWithPrivateKey(ecdsa);
                 Logger.LogTrace(
-                    new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                    LogEvents.CertificateLoadedEvent,
                     "Certificate loaded with ECDSA private key. Subject: {Subject}",
                     Certificate.Subject);
             }
@@ -190,7 +206,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             {
                 cert.Dispose();
                 Logger.LogTrace(
-                    new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                    LogEvents.CertificateLoadFailedEvent,
                     "Unable to import private key. Path: {Path}",
                     privateKeyFilePath);
                 throw new InvalidOperationException($"Unable to import private key from {privateKeyFilePath}. The key format is not supported or the key is invalid.", ex);
@@ -213,7 +229,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     {
         var paths = storePaths ?? DefaultCertificateStorePaths.Where(Directory.Exists);
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching certificate store paths. Paths: {Paths}",
             string.Join(", ", paths));
         Certificate = certificateFinder(paths, logger);
@@ -246,7 +262,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         string normalizedThumbprint = thumbprint.Replace(" ", "").Replace(":", "").ToUpperInvariant();
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching for certificate by thumbprint. NormalizedThumbprint: {Thumbprint}",
             normalizedThumbprint);
 
@@ -258,7 +274,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
             }
 
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                LogEvents.CertificateStoreAccessEvent,
                 "Searching directory. Path: {Path}",
                 path);
 
@@ -270,7 +286,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                     if (cert.Thumbprint.Equals(normalizedThumbprint, StringComparison.OrdinalIgnoreCase))
                     {
                         logger?.LogTrace(
-                            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                            LogEvents.CertificateLoadedEvent,
                             "Found certificate by thumbprint. File: {File}, Subject: {Subject}",
                             certFile,
                             cert.Subject);
@@ -290,7 +306,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         }
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+            LogEvents.CertificateLoadFailedEvent,
             "Certificate with thumbprint {Thumbprint} not found",
             normalizedThumbprint);
 
@@ -305,7 +321,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching for certificate by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}",
             subjectName,
             validOnly);
@@ -345,7 +361,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         }
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Found {Count} candidate certificates matching subject name",
             candidates.Count);
 
@@ -362,7 +378,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
 
             candidates = validCandidates;
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                LogEvents.CertificateStoreAccessEvent,
                 "{Count} certificates remaining after validity filter",
                 candidates.Count);
         }
@@ -379,7 +395,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         if (result != null)
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                LogEvents.CertificateLoadedEvent,
                 "Selected certificate. Subject: {Subject}, HasPrivateKey: {HasPrivateKey}",
                 result.Subject,
                 result.HasPrivateKey);
@@ -387,7 +403,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         else
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                LogEvents.CertificateLoadFailedEvent,
                 "Certificate with subject name containing '{SubjectName}' not found",
                 subjectName);
         }
@@ -403,7 +419,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         ArgumentNullException.ThrowIfNull(predicate);
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching for certificate by predicate");
 
         foreach (var path in storePaths)
@@ -421,7 +437,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
                     if (predicate(cert))
                     {
                         logger?.LogTrace(
-                            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                            LogEvents.CertificateLoadedEvent,
                             "Found certificate matching predicate. File: {File}, Subject: {Subject}",
                             certFile,
                             cert.Subject);
@@ -441,7 +457,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         }
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+            LogEvents.CertificateLoadFailedEvent,
             "No certificate matching predicate found");
 
         return null;

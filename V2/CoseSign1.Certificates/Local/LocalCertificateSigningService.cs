@@ -15,6 +15,12 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class LocalCertificateSigningService : CertificateSigningService
 {
+    internal static class ClassStrings
+    {
+        public static readonly string LogCreatingService = "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}";
+        public static readonly string LogCreatingServiceWithChain = "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}";
+    }
+
     private readonly CertificateSigningKey SigningKey;
 
     /// <summary>
@@ -47,8 +53,8 @@ public class LocalCertificateSigningService : CertificateSigningService
         }
 
         Logger.LogDebug(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogCreatingService,
             certificate.Subject,
             certificate.Thumbprint);
 
@@ -87,8 +93,8 @@ public class LocalCertificateSigningService : CertificateSigningService
         }
 
         Logger.LogDebug(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
-            "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}",
+            LogEvents.CertificateLoadedEvent,
+            ClassStrings.LogCreatingServiceWithChain,
             certificate.Subject,
             certificateChain.Count);
 

@@ -320,10 +320,11 @@ All packages target **.NET 10** and support:
 - ✅ macOS (x64, ARM64)
 
 Special features by platform:
-- **Windows**: Full certificate store integration
-- **Linux**: Linux certificate store support
-- **macOS**: Keychain integration
-- **All platforms**: ML-DSA (post-quantum) preview support
+- **Windows**: Full certificate store integration, ML-DSA (post-quantum) preview support
+- **Linux**: Linux certificate store support (ML-DSA not currently supported)
+- **macOS**: Keychain integration (ML-DSA not currently supported)
+
+> **Note**: Post-quantum cryptography (ML-DSA/FIPS 204) is currently only supported on Windows in .NET 10.
 
 ---
 

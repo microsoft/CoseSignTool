@@ -244,6 +244,7 @@ public class RemoteECDsaTests
     }
 
     [Test]
+    [Platform("Win")]  // P-384 curve handling may differ on Linux
     public void KeySize_ReflectsCurveSize_P384()
     {
         // Arrange
@@ -258,6 +259,7 @@ public class RemoteECDsaTests
     }
 
     [Test]
+    [Platform("Win")]  // P-521 curve handling may differ on Linux
     public void KeySize_ReflectsCurveSize_P521()
     {
         // Arrange

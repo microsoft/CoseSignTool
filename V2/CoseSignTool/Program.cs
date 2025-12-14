@@ -13,6 +13,20 @@ namespace CoseSignTool;
 /// </summary>
 public static class Program
 {
+    /// <summary>
+    /// String constants specific to this class.
+    /// </summary>
+    internal static class ClassStrings
+    {
+        public static readonly string LoggerCategory = "CoseSignTool";
+        public static readonly string OptionAdditionalPluginDir = "--additional-plugin-dir";
+        public static readonly string ErrorFatal = "Fatal error: {0}";
+
+        // Log message templates
+        public static readonly string LogStarting = "CoseSignTool starting with verbosity level {Verbosity}";
+        public static readonly string LogExiting = "CoseSignTool exiting with code {ExitCode}";
+    }
+
     private static ILoggerFactory? LoggerFactoryInstance;
 
     /// <summary>
@@ -34,9 +48,9 @@ public static class Program
             // Parse verbosity before anything else - this modifies args to remove verbosity args
             var verbosity = LoggingConfiguration.ParseVerbosity(ref args);
             LoggerFactoryInstance = LoggingConfiguration.CreateLoggerFactory(verbosity);
-            var logger = LoggerFactoryInstance.CreateLogger("CoseSignTool");
+            var logger = LoggerFactoryInstance.CreateLogger(ClassStrings.LoggerCategory);
 
-            logger.LogDebug("CoseSignTool starting with verbosity level {Verbosity}", verbosity);
+            logger.LogDebug(ClassStrings.LogStarting, verbosity);
 
             // Parse for global --additional-plugin-dir option before building commands
             var additionalPluginDirs = ExtractAdditionalPluginDirectories(ref args);
@@ -44,7 +58,7 @@ public static class Program
             var rootCommand = CreateRootCommand(additionalPluginDirs);
             var result = rootCommand.Invoke(args);
 
-            logger.LogDebug("CoseSignTool exiting with code {ExitCode}", result);
+            logger.LogDebug(ClassStrings.LogExiting, result);
 
             // Map System.CommandLine exit codes to our ExitCode enum
             return result switch
@@ -60,9 +74,9 @@ public static class Program
         }
         catch (Exception ex)
         {
-            var logger = LoggerFactoryInstance?.CreateLogger("CoseSignTool");
-            logger?.LogCritical(ex, "Fatal error: {Message}", ex.Message);
-            Console.Error.WriteLine($"Fatal error: {ex.Message}");
+            var logger = LoggerFactoryInstance?.CreateLogger(ClassStrings.LoggerCategory);
+            logger?.LogCritical(ex, ClassStrings.ErrorFatal, ex.Message);
+            Console.Error.WriteLine(string.Format(ClassStrings.ErrorFatal, ex.Message));
             return (int)ExitCode.GeneralError;
         }
         finally
@@ -81,7 +95,7 @@ public static class Program
 
         for (int i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--additional-plugin-dir" && i + 1 < args.Length)
+            if (args[i] == ClassStrings.OptionAdditionalPluginDir && i + 1 < args.Length)
             {
                 additionalDirs.Add(args[i + 1]);
                 i++; // Skip next arg (the directory path)

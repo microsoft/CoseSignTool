@@ -24,6 +24,7 @@
   <!--Project references-->
   <ItemGroup>
     <ProjectReference Include="..\CoseSign1.Certificates.Local\CoseSign1.Certificates.Local.csproj" />
+    <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
   </ItemGroup>
 
   <!--Global usings-->

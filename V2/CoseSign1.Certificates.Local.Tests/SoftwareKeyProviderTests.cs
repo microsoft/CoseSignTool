@@ -72,6 +72,9 @@ public class SoftwareKeyProviderTests
     [TestCase(KeyAlgorithm.MLDSA, 87)]
     public void GenerateKey_Mldsa_CreatesValidKey(KeyAlgorithm algorithm, int keySize)
     {
+        // Skip on non-Windows platforms where ML-DSA is not supported
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new SoftwareKeyProvider();
 
@@ -130,6 +133,9 @@ public class SoftwareKeyProviderTests
     [Test]
     public void CreateCertificateRequest_Mldsa_CreatesValidRequest()
     {
+        // Skip on non-Windows platforms where ML-DSA is not supported
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new SoftwareKeyProvider();
         using var key = provider.GenerateKey(KeyAlgorithm.MLDSA);
@@ -238,6 +244,8 @@ public class SoftwareKeyProviderTests
     [Test]
     public void GenerateKey_MldsaInvalidParameterSet_ThrowsArgumentOutOfRangeException()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new SoftwareKeyProvider();
 
@@ -246,7 +254,7 @@ public class SoftwareKeyProviderTests
     }
 
     [Test]
-    public async Task GenerateKeyAsync_WithCancellation_ThrowsOperationCanceledException()
+    public void GenerateKeyAsync_WithCancellation_ThrowsOperationCanceledException()
     {
         // Arrange
         var provider = new SoftwareKeyProvider();
@@ -254,8 +262,8 @@ public class SoftwareKeyProviderTests
         cts.Cancel();
 
         // Act & Assert
-        Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await provider.GenerateKeyAsync(KeyAlgorithm.RSA, cancellationToken: cts.Token));
+        Assert.ThrowsAsync<OperationCanceledException>(() =>
+            provider.GenerateKeyAsync(KeyAlgorithm.RSA, cancellationToken: cts.Token));
     }
 
     [Test]
@@ -287,6 +295,8 @@ public class SoftwareKeyProviderTests
     [Test]
     public void GenerateKey_MldsaDefaultKeySize_Uses65()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new SoftwareKeyProvider();
 
@@ -321,6 +331,8 @@ public class SoftwareKeyProviderTests
     [Test]
     public void CopyPrivateKeyTo_Mldsa_CertificateHasPrivateKey()
     {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Arrange
         var provider = new SoftwareKeyProvider();
         using var key = provider.GenerateKey(KeyAlgorithm.MLDSA);

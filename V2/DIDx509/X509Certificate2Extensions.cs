@@ -274,45 +274,13 @@ public static class X509Certificate2Extensions
             return null;
         }
 
-        // Parse SAN extension
-        var formatted = sanExt.Format(false);
-        var lines = formatted.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        // Use cross-platform SAN parser
+        var sanResult = SanParser.GetFirstSan(sanExt, sanType);
 
-        foreach (var line in lines)
+        if (sanResult.HasValue)
         {
-            var trimmed = line.Trim();
-            string? type = null;
-            string? value = null;
-
-            if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
-            {
-                type = DidX509Constants.SanTypeDns;
-                value = trimmed.Substring("DNS Name=".Length);
-            }
-            else if (trimmed.StartsWith("RFC822 Name=", StringComparison.OrdinalIgnoreCase) ||
-                     trimmed.StartsWith("Email=", StringComparison.OrdinalIgnoreCase))
-            {
-                type = DidX509Constants.SanTypeEmail;
-                var prefix = trimmed.StartsWith("RFC822 Name=") ? "RFC822 Name=" : "Email=";
-                value = trimmed.Substring(prefix.Length);
-            }
-            else if (trimmed.StartsWith("URL=", StringComparison.OrdinalIgnoreCase) ||
-                     trimmed.StartsWith("URI=", StringComparison.OrdinalIgnoreCase))
-            {
-                type = DidX509Constants.SanTypeUri;
-                var prefix = trimmed.StartsWith("URL=") ? "URL=" : "URI=";
-                value = trimmed.Substring(prefix.Length);
-            }
-
-            if (type != null && value != null)
-            {
-                // If sanType specified, only use matching type
-                if (sanType == null || string.Equals(type, sanType, StringComparison.OrdinalIgnoreCase))
-                {
-                    builder.WithSanPolicy(type, value);
-                    return builder.Build();
-                }
-            }
+            builder.WithSanPolicy(sanResult.Value.Type, sanResult.Value.Value);
+            return builder.Build();
         }
 
         return null;

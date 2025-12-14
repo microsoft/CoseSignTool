@@ -122,16 +122,16 @@ public class CertificateChainConverterTests
 
         // Act
         var result = CertificateChainConverter.Convert(certs);
-        var fingerprints = result.Chain[0].Fingerprints;
+        var fingerprints = result.Chain[0].Fingerprints!;
 
         // Assert - Base64url should not contain + / =
         Assert.That(fingerprints.Sha256.Contains('+'), Is.False);
         Assert.That(fingerprints.Sha256.Contains('/'), Is.False);
         Assert.That(fingerprints.Sha256.EndsWith('='), Is.False);
-        Assert.That(fingerprints.Sha384.Contains('+'), Is.False);
+        Assert.That(fingerprints.Sha384!.Contains('+'), Is.False);
         Assert.That(fingerprints.Sha384.Contains('/'), Is.False);
         Assert.That(fingerprints.Sha384.EndsWith('='), Is.False);
-        Assert.That(fingerprints.Sha512.Contains('+'), Is.False);
+        Assert.That(fingerprints.Sha512!.Contains('+'), Is.False);
         Assert.That(fingerprints.Sha512.Contains('/'), Is.False);
         Assert.That(fingerprints.Sha512.EndsWith('='), Is.False);
     }
@@ -145,12 +145,12 @@ public class CertificateChainConverterTests
 
         // Act
         var result = CertificateChainConverter.Convert(certs);
-        var fingerprints = result.Chain[0].Fingerprints;
+        var fingerprints = result.Chain[0].Fingerprints!;
 
         // Assert - SHA256 = 32 bytes = 43 chars base64url, SHA384 = 48 bytes = 64 chars, SHA512 = 64 bytes = 86 chars
         Assert.That(fingerprints.Sha256.Length, Is.EqualTo(43)); // 32 bytes base64url encoded
-        Assert.That(fingerprints.Sha384.Length, Is.EqualTo(64)); // 48 bytes base64url encoded
-        Assert.That(fingerprints.Sha512.Length, Is.EqualTo(86)); // 64 bytes base64url encoded
+        Assert.That(fingerprints.Sha384!.Length, Is.EqualTo(64)); // 48 bytes base64url encoded
+        Assert.That(fingerprints.Sha512!.Length, Is.EqualTo(86)); // 64 bytes base64url encoded
     }
 
     [Test]

@@ -238,19 +238,19 @@ dotnet --version
 ### Windows
 
 - **Certificate stores**: Full support for Windows certificate stores
-- **ML-DSA**: Preview support (requires .NET 10)
+- **ML-DSA**: Preview support (requires .NET 10) ✅
 - **Azure integration**: Native Azure SDK support
 
 ### Linux
 
 - **Certificate stores**: Linux certificate store support
 - **OpenSSL**: May require OpenSSL 3.0+ for some features
-- **ML-DSA**: Preview support (requires .NET 10)
+- **ML-DSA**: Not currently supported (Windows only in .NET 10)
 
 ### macOS
 
 - **Certificate stores**: Keychain support
-- **ML-DSA**: Preview support (requires .NET 10)
+- **ML-DSA**: Not currently supported (Windows only in .NET 10)
 - **Azure integration**: Full Azure SDK support
 
 ## Troubleshooting

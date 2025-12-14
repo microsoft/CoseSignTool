@@ -11,6 +11,11 @@
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
+  <!--Platform-specific compilation constants-->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

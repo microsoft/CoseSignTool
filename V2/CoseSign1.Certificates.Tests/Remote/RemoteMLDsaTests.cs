@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
+using CoseSign1.Tests.Common;
 using NUnit.Framework;
 
 #pragma warning disable CA2252 // Preview Features
@@ -12,9 +13,20 @@ using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Remote;
 
+/// <summary>
+/// Tests for RemoteMLDsa class.
+/// All tests in this class require ML-DSA support, which is currently only available on Windows.
+/// </summary>
 [TestFixture]
+[Platform("Win")]  // ML-DSA is only supported on Windows
 public class RemoteMLDsaTests
 {
+    [SetUp]
+    public void Setup()
+    {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+    }
+
     [Test]
     public void Constructor_WithMLDsa44_CreatesInstance()
     {
@@ -233,6 +245,8 @@ public class RemoteMLDsaTests
         Assert.That(exportedKey, Is.EqualTo(publicKey));
     }
 
+#if WINDOWS
+    // This test uses Windows-specific ML-DSA APIs (PrivateKeySizeInBytes, ExportMLDsaPrivateKey)
     [Test]
     public void ExportMLDsaPrivateKey_ThrowsCryptographicException()
     {
@@ -253,6 +267,7 @@ public class RemoteMLDsaTests
         // Act & Assert
         Assert.Throws<CryptographicException>(() => remoteMLDsa.ExportMLDsaPrivateKey(destination));
     }
+#endif
 
     [Test]
     public void ExportMLDsaPrivateSeed_ThrowsCryptographicException()

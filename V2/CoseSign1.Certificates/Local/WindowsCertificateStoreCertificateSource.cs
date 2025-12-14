@@ -47,7 +47,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            LogEvents.CertificateLoadedEvent,
             "WindowsCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Store: {StoreLocation}\\{StoreName}, Subject: {Subject}",
             thumbprint,
             storeLocation,
@@ -80,7 +80,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            LogEvents.CertificateLoadedEvent,
             "WindowsCertificateStoreCertificateSource initialized by subject name. SubjectName: {SubjectName}, Store: {StoreLocation}\\{StoreName}, ValidOnly: {ValidOnly}, FoundSubject: {Subject}",
             subjectName,
             storeLocation,
@@ -107,7 +107,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             (store, log) =>
             {
                 log?.LogTrace(
-                    new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+                    LogEvents.CertificateStoreAccessEvent,
                     "Searching for certificate by predicate in {StoreLocation}\\{StoreName}",
                     storeLocation,
                     storeName);
@@ -120,7 +120,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+            LogEvents.CertificateLoadedEvent,
             "WindowsCertificateStoreCertificateSource initialized by predicate. Store: {StoreLocation}\\{StoreName}, Subject: {Subject}",
             storeLocation,
             storeName,
@@ -139,7 +139,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         : base(chainBuilder ?? new X509ChainBuilder(), logger)
     {
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Opening certificate store. Store: {StoreLocation}\\{StoreName}",
             storeLocation,
             storeName);
@@ -148,7 +148,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         Store.Open(OpenFlags.ReadOnly);
 
         Logger.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Certificate store opened. CertificateCount: {CertificateCount}",
             Store.Certificates.Count);
 
@@ -187,7 +187,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
             .ToUpperInvariant();
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching for certificate by thumbprint. NormalizedThumbprint: {Thumbprint}",
             normalizedThumbprint);
 
@@ -198,7 +198,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         if (cert == null)
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                LogEvents.CertificateLoadFailedEvent,
                 "Certificate with thumbprint {Thumbprint} not found",
                 normalizedThumbprint);
         }
@@ -219,7 +219,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
 #endif
 
         logger?.LogTrace(
-            new EventId(LogEvents.CertificateStoreAccess, nameof(LogEvents.CertificateStoreAccess)),
+            LogEvents.CertificateStoreAccessEvent,
             "Searching for certificate by subject name. SubjectName: {SubjectName}, ValidOnly: {ValidOnly}",
             subjectName,
             validOnly);
@@ -241,14 +241,14 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         if (cert == null)
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoadFailed, nameof(LogEvents.CertificateLoadFailed)),
+                LogEvents.CertificateLoadFailedEvent,
                 "Certificate with subject name containing '{SubjectName}' not found",
                 subjectName);
         }
         else
         {
             logger?.LogTrace(
-                new EventId(LogEvents.CertificateLoaded, nameof(LogEvents.CertificateLoaded)),
+                LogEvents.CertificateLoadedEvent,
                 "Found certificate by subject name. Subject: {Subject}, HasPrivateKey: {HasPrivateKey}",
                 cert.Subject,
                 cert.HasPrivateKey);

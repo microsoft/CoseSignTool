@@ -9,6 +9,10 @@ namespace CoseSign1.Certificates.Remote;
 /// ML-DSA implementation that delegates signing operations to a remote service.
 /// This class wraps ML-DSA public key information but performs signing through RemoteCertificateSource.
 /// </summary>
+/// <remarks>
+/// Note: ML-DSA API differs between Windows and Linux in .NET 10 preview.
+/// This class uses conditional compilation to handle these differences.
+/// </remarks>
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
 internal sealed class RemoteMLDsa : MLDsa
 {
@@ -52,12 +56,15 @@ internal sealed class RemoteMLDsa : MLDsa
         signature.CopyTo(destination);
     }
 
+#if WINDOWS
+    // Windows-specific ML-DSA API methods (different from Linux in .NET 10 preview)
     protected override void SignMuCore(ReadOnlySpan<byte> mu, Span<byte> destination)
     {
         // ML-DSA pure mode signing (no pre-hashing)
         var signature = CertificateSource.SignDataWithMLDsa(mu.ToArray(), hashAlgorithm: null);
         signature.CopyTo(destination);
     }
+#endif
 
     protected override bool VerifyDataCore(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, ReadOnlySpan<byte> context)
     {
@@ -69,20 +76,32 @@ internal sealed class RemoteMLDsa : MLDsa
         throw new NotSupportedException("Verification should be performed using public key directly, not through remote service.");
     }
 
+#if WINDOWS
+    // Windows-specific ML-DSA API methods (different from Linux in .NET 10 preview)
     protected override bool VerifyMuCore(ReadOnlySpan<byte> mu, ReadOnlySpan<byte> signature)
     {
         throw new NotSupportedException("Verification should be performed using public key directly, not through remote service.");
     }
+#endif
 
     protected override void ExportMLDsaPublicKeyCore(Span<byte> destination)
     {
         PublicKey.CopyTo(destination);
     }
 
+#if WINDOWS
+    // Windows uses ExportMLDsaPrivateKeyCore
     protected override void ExportMLDsaPrivateKeyCore(Span<byte> destination)
     {
         throw new CryptographicException("Private key export is not supported for remote signing.");
     }
+#else
+    // Linux/macOS uses ExportMLDsaSecretKeyCore
+    protected override void ExportMLDsaSecretKeyCore(Span<byte> destination)
+    {
+        throw new CryptographicException("Private key export is not supported for remote signing.");
+    }
+#endif
 
     protected override void ExportMLDsaPrivateSeedCore(Span<byte> destination)
     {

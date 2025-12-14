@@ -17,11 +17,51 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class X509VerificationProvider : IVerificationProvider
 {
-    /// <inheritdoc/>
-    public string ProviderName => "X509";
+    internal static class ClassStrings
+    {
+        // Provider metadata
+        public static readonly string ProviderNameValue = "X509";
+        public static readonly string DescriptionValue = "X.509 certificate trust and identity validation";
+
+        // Option names
+        public static readonly string OptionNameTrustRoots = "--trust-roots";
+        public static readonly string OptionAliasTrustRoots = "-r";
+        public static readonly string OptionNameTrustSystemRoots = "--trust-system-roots";
+        public static readonly string OptionNameAllowUntrusted = "--allow-untrusted";
+        public static readonly string OptionNameSubjectName = "--subject-name";
+        public static readonly string OptionAliasSubjectName = "-s";
+        public static readonly string OptionNameIssuerName = "--issuer-name";
+        public static readonly string OptionAliasIssuerName = "-i";
+        public static readonly string OptionNameRevocationMode = "--revocation-mode";
+
+        // Option descriptions
+        public static readonly string DescriptionTrustRoots = "Path to trusted root certificate(s) in PEM or DER format. Repeat for multiple.";
+        public static readonly string DescriptionTrustSystemRoots = "Trust system certificate store roots (default: true)";
+        public static readonly string DescriptionAllowUntrusted = "Allow self-signed or untrusted root certificates";
+        public static readonly string DescriptionSubjectName = "Required subject name (CN) in the signing certificate";
+        public static readonly string DescriptionIssuerName = "Required issuer name (CN) in the signing certificate";
+        public static readonly string DescriptionRevocationMode = "Certificate revocation check mode: online, offline, or none";
+
+        // Revocation mode values
+        public static readonly string RevocationModeOnline = "online";
+        public static readonly string RevocationModeOffline = "offline";
+        public static readonly string RevocationModeNone = "none";
+
+        // Metadata keys and values
+        public static readonly string MetaKeyTrustMode = "Trust Mode";
+        public static readonly string MetaKeyRequiredSubject = "Required Subject";
+        public static readonly string MetaKeyRequiredIssuer = "Required Issuer";
+        public static readonly string MetaKeyRevocationCheck = "Revocation Check";
+        public static readonly string MetaValueCustomRoots = "Custom Roots";
+        public static readonly string MetaValueUntrustedAllowed = "Untrusted Allowed";
+        public static readonly string MetaValueSystemTrust = "System Trust";
+    }
 
     /// <inheritdoc/>
-    public string Description => "X.509 certificate trust and identity validation";
+    public string ProviderName => ClassStrings.ProviderNameValue;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.DescriptionValue;
 
     /// <inheritdoc/>
     public int Priority => 10; // After signature validation (0)
@@ -39,44 +79,44 @@ public class X509VerificationProvider : IVerificationProvider
     {
         // Trust options
         TrustRootsOption = new Option<FileInfo[]?>(
-            name: "--trust-roots",
-            description: "Path to trusted root certificate(s) in PEM or DER format. Repeat for multiple.")
+            name: ClassStrings.OptionNameTrustRoots,
+            description: ClassStrings.DescriptionTrustRoots)
         {
             Arity = ArgumentArity.ZeroOrMore
         };
-        TrustRootsOption.AddAlias("-r");
+        TrustRootsOption.AddAlias(ClassStrings.OptionAliasTrustRoots);
         command.AddOption(TrustRootsOption);
 
         TrustSystemRootsOption = new Option<bool>(
-            name: "--trust-system-roots",
+            name: ClassStrings.OptionNameTrustSystemRoots,
             getDefaultValue: () => true,
-            description: "Trust system certificate store roots (default: true)");
+            description: ClassStrings.DescriptionTrustSystemRoots);
         command.AddOption(TrustSystemRootsOption);
 
         AllowUntrustedOption = new Option<bool>(
-            name: "--allow-untrusted",
-            description: "Allow self-signed or untrusted root certificates");
+            name: ClassStrings.OptionNameAllowUntrusted,
+            description: ClassStrings.DescriptionAllowUntrusted);
         command.AddOption(AllowUntrustedOption);
 
         // Identity validation
         SubjectNameOption = new Option<string?>(
-            name: "--subject-name",
-            description: "Required subject name (CN) in the signing certificate");
-        SubjectNameOption.AddAlias("-s");
+            name: ClassStrings.OptionNameSubjectName,
+            description: ClassStrings.DescriptionSubjectName);
+        SubjectNameOption.AddAlias(ClassStrings.OptionAliasSubjectName);
         command.AddOption(SubjectNameOption);
 
         IssuerNameOption = new Option<string?>(
-            name: "--issuer-name",
-            description: "Required issuer name (CN) in the signing certificate");
-        IssuerNameOption.AddAlias("-i");
+            name: ClassStrings.OptionNameIssuerName,
+            description: ClassStrings.DescriptionIssuerName);
+        IssuerNameOption.AddAlias(ClassStrings.OptionAliasIssuerName);
         command.AddOption(IssuerNameOption);
 
         // Revocation checking
         RevocationModeOption = new Option<string>(
-            name: "--revocation-mode",
-            getDefaultValue: () => "online",
-            description: "Certificate revocation check mode: online, offline, or none");
-        RevocationModeOption.FromAmong("online", "offline", "none");
+            name: ClassStrings.OptionNameRevocationMode,
+            getDefaultValue: () => ClassStrings.RevocationModeOnline,
+            description: ClassStrings.DescriptionRevocationMode);
+        RevocationModeOption.FromAmong(ClassStrings.RevocationModeOnline, ClassStrings.RevocationModeOffline, ClassStrings.RevocationModeNone);
         command.AddOption(RevocationModeOption);
     }
 
@@ -154,23 +194,23 @@ public class X509VerificationProvider : IVerificationProvider
     {
         var metadata = new Dictionary<string, object?>
         {
-            ["Trust Mode"] = HasCustomTrustRoots(parseResult) ? "Custom Roots" :
-                             IsAllowUntrusted(parseResult) ? "Untrusted Allowed" :
-                             "System Trust"
+            [ClassStrings.MetaKeyTrustMode] = HasCustomTrustRoots(parseResult) ? ClassStrings.MetaValueCustomRoots :
+                             IsAllowUntrusted(parseResult) ? ClassStrings.MetaValueUntrustedAllowed :
+                             ClassStrings.MetaValueSystemTrust
         };
 
         if (HasSubjectNameRequirement(parseResult))
         {
-            metadata["Required Subject"] = GetSubjectName(parseResult);
+            metadata[ClassStrings.MetaKeyRequiredSubject] = GetSubjectName(parseResult);
         }
 
         if (HasIssuerNameRequirement(parseResult))
         {
-            metadata["Required Issuer"] = GetIssuerName(parseResult);
+            metadata[ClassStrings.MetaKeyRequiredIssuer] = GetIssuerName(parseResult);
         }
 
         var revocationMode = ParseRevocationMode(parseResult);
-        metadata["Revocation Check"] = revocationMode.ToString();
+        metadata[ClassStrings.MetaKeyRevocationCheck] = revocationMode.ToString();
 
         return metadata;
     }
@@ -217,14 +257,24 @@ public class X509VerificationProvider : IVerificationProvider
 
     private X509RevocationMode ParseRevocationMode(ParseResult parseResult)
     {
-        var mode = parseResult.GetValueForOption(RevocationModeOption) ?? "online";
-        return mode.ToLowerInvariant() switch
+        var mode = parseResult.GetValueForOption(RevocationModeOption) ?? ClassStrings.RevocationModeOnline;
+        var modeLower = mode.ToLowerInvariant();
+        if (modeLower == ClassStrings.RevocationModeOnline)
         {
-            "online" => X509RevocationMode.Online,
-            "offline" => X509RevocationMode.Offline,
-            "none" => X509RevocationMode.NoCheck,
-            _ => X509RevocationMode.Online
-        };
+            return X509RevocationMode.Online;
+        }
+        else if (modeLower == ClassStrings.RevocationModeOffline)
+        {
+            return X509RevocationMode.Offline;
+        }
+        else if (modeLower == ClassStrings.RevocationModeNone)
+        {
+            return X509RevocationMode.NoCheck;
+        }
+        else
+        {
+            return X509RevocationMode.Online;
+        }
     }
 
     private X509Certificate2Collection LoadCustomRoots(ParseResult parseResult)

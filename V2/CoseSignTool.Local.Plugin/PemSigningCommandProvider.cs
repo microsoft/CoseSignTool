@@ -13,28 +13,61 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class PemSigningCommandProvider : ISigningCommandProvider
 {
+    internal static class ClassStrings
+    {
+        // Command metadata
+        public static readonly string CommandNameValue = "sign-pem";
+        public static readonly string CommandDescriptionValue = "Sign a payload with PEM certificate and private key files";
+        public static readonly string ExampleUsageValue = "--cert-file cert.pem --key-file key.pem";
+
+        // Option names
+        public static readonly string OptionNameCertFile = "--cert-file";
+        public static readonly string OptionNameKeyFile = "--key-file";
+
+        // Option descriptions
+        public static readonly string DescriptionCertFile = "Path to the certificate file (.pem, .crt)";
+        public static readonly string DescriptionKeyFile = "Path to the private key file (.key, .pem)";
+
+        // Dictionary keys (internal)
+        public static readonly string KeyCertFile = "cert-file";
+        public static readonly string KeyKeyFile = "key-file";
+
+        // Error messages
+        public static readonly string ErrorCertRequired = "Certificate file is required";
+        public static readonly string ErrorKeyRequired = "Private key file is required";
+        public static readonly string ErrorCertNotFound = "Certificate file not found: {0}";
+        public static readonly string ErrorKeyNotFound = "Private key file not found: {0}";
+
+        // Metadata keys and values
+        public static readonly string MetaKeyCertSource = "Certificate Source";
+        public static readonly string MetaKeyCertSubject = "Certificate Subject";
+        public static readonly string MetaKeyCertThumbprint = "Certificate Thumbprint";
+        public static readonly string MetaValuePemFiles = "PEM files";
+        public static readonly string MetaValueUnknown = "Unknown";
+    }
+
     private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
-    public string CommandName => "sign-pem";
+    public string CommandName => ClassStrings.CommandNameValue;
 
-    public string CommandDescription => "Sign a payload with PEM certificate and private key files";
+    public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
-    public string ExampleUsage => "--cert-file cert.pem --key-file key.pem";
+    public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
     public void AddCommandOptions(Command command)
     {
         var certFileOption = new Option<FileInfo>(
-            name: "--cert-file",
-            description: "Path to the certificate file (.pem, .crt)")
+            name: ClassStrings.OptionNameCertFile,
+            description: ClassStrings.DescriptionCertFile)
         {
             IsRequired = true
         };
 
         var keyFileOption = new Option<FileInfo>(
-            name: "--key-file",
-            description: "Path to the private key file (.key, .pem)")
+            name: ClassStrings.OptionNameKeyFile,
+            description: ClassStrings.DescriptionKeyFile)
         {
             IsRequired = true
         };
@@ -45,19 +78,19 @@ public class PemSigningCommandProvider : ISigningCommandProvider
 
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var certFile = options["cert-file"] as FileInfo
-            ?? throw new InvalidOperationException("Certificate file is required");
-        var keyFile = options["key-file"] as FileInfo
-            ?? throw new InvalidOperationException("Private key file is required");
+        var certFile = options[ClassStrings.KeyCertFile] as FileInfo
+            ?? throw new InvalidOperationException(ClassStrings.ErrorCertRequired);
+        var keyFile = options[ClassStrings.KeyKeyFile] as FileInfo
+            ?? throw new InvalidOperationException(ClassStrings.ErrorKeyRequired);
 
         if (!certFile.Exists)
         {
-            throw new FileNotFoundException($"Certificate file not found: {certFile.FullName}");
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorCertNotFound, certFile.FullName));
         }
 
         if (!keyFile.Exists)
         {
-            throw new FileNotFoundException($"Private key file not found: {keyFile.FullName}");
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorKeyNotFound, keyFile.FullName));
         }
 
         // Create certificate source from PEM files
@@ -82,9 +115,9 @@ public class PemSigningCommandProvider : ISigningCommandProvider
     {
         return new Dictionary<string, string>
         {
-            ["Certificate Source"] = "PEM files",
-            ["Certificate Subject"] = CertificateSubject ?? "Unknown",
-            ["Certificate Thumbprint"] = CertificateThumbprint ?? "Unknown"
+            [ClassStrings.MetaKeyCertSource] = ClassStrings.MetaValuePemFiles,
+            [ClassStrings.MetaKeyCertSubject] = CertificateSubject ?? ClassStrings.MetaValueUnknown,
+            [ClassStrings.MetaKeyCertThumbprint] = CertificateThumbprint ?? ClassStrings.MetaValueUnknown
         };
     }
 }

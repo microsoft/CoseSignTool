@@ -20,6 +20,131 @@ namespace CoseSignTool.Commands.Builders;
 /// </summary>
 public class SigningCommandBuilder
 {
+    internal static class ClassStrings
+    {
+        // Argument and Option names
+        public static readonly string ArgumentNamePayload = "payload";
+        public static readonly string OptionNameOutput = "--output";
+        public static readonly string OptionAliasOutput = "-o";
+        public static readonly string OptionNameSignatureType = "--signature-type";
+        public static readonly string OptionAliasSignatureTypeT = "-t";
+        public static readonly string OptionAliasSignatureTypeD = "-d";
+        public static readonly string OptionNameContentType = "--content-type";
+        public static readonly string OptionAliasContentType = "-c";
+        public static readonly string OptionNameQuiet = "--quiet";
+        public static readonly string OptionAliasQuiet = "-q";
+        public static readonly string OptionNameOutputFormat = "output-format";
+
+        // Signature type values
+        public static readonly string SignatureTypeIndirect = "indirect";
+        public static readonly string SignatureTypeDetached = "detached";
+        public static readonly string SignatureTypeEmbedded = "embedded";
+
+        // Default values
+        public static readonly string DefaultContentType = "application/octet-stream";
+
+        // Section and key names
+        public static readonly string SectionSigningOperation = "Signing Operation";
+        public static readonly string KeyCommand = "Command";
+        public static readonly string KeyPayload = "Payload";
+        public static readonly string KeyOutput = "Output";
+        public static readonly string KeySignatureType = "Signature Type";
+        public static readonly string KeyEmbedPayload = "Embed Payload";
+        public static readonly string KeyContentType = "Content Type";
+        public static readonly string KeySignatureSize = "Signature Size";
+
+        // Display values
+        public static readonly string EmbedYes = "Yes (embedded)";
+        public static readonly string EmbedNo = "No (detached)";
+
+        // Success and error messages
+        public static readonly string SuccessSigned = "Successfully signed payload";
+        public static readonly string ErrorCancelled = "Operation cancelled by user";
+        public static readonly string ErrorTimeout = "Operation timed out waiting for input/output";
+        public static readonly string ErrorPayloadNotFound = "Payload file not found: {0}";
+        public static readonly string ErrorSigningFailed = "Signing failed: {0}";
+        public static readonly string ErrorUnknownSignatureType = "Unknown signature type: {0}";
+        public static readonly string ErrorFileNotFound = "File not found: {0}";
+
+        // Standard options set
+        public static readonly string StandardOptionOutput = "output";
+        public static readonly string StandardOptionDetached = "detached";
+        public static readonly string StandardOptionSignatureType = "signature-type";
+        public static readonly string StandardOptionContentType = "content-type";
+        public static readonly string StandardOptionQuiet = "quiet";
+        public static readonly string StandardOptionHelp = "help";
+
+        // Plugin options key
+        public static readonly string PluginOptionLoggerFactory = "__loggerFactory";
+
+        // Format strings
+        public static readonly string FormatSignatureSize = "{0:N0} bytes";
+        public static readonly string FormatOutputFileCose = "{0}.cose";
+
+        // Description templates
+        public static readonly string DescriptionPayload = """
+            Path to payload file to sign. Use '-' or omit to read from stdin.
+              Examples:
+                myfile.txt          - Sign file from disk
+                -                   - Read from stdin
+                (omitted)           - Read from stdin (default)
+            """;
+
+        public static readonly string DescriptionOutput = """
+            Output path for the signature file. Use '-' for stdout.
+              Default behavior:
+                - If payload is a file: <payload>.cose
+                - If payload is stdin: stdout
+              Examples:
+                --output signature.cose  - Write to file
+                --output -               - Write to stdout
+                (omitted)                - Use default
+            """;
+
+        public static readonly string DescriptionSignatureType = """
+            Signature generation strategy (default: indirect):
+              detached - Sign the payload directly, do not embed payload in signature
+              embedded - Sign the payload directly, embed payload in signature
+              indirect - Sign a hash envelope of the payload (SCITT-compliant, most efficient)
+            """;
+
+        public static readonly string DescriptionContentType = """
+            MIME type of the payload (default: application/octet-stream).
+              Common examples:
+                application/octet-stream - Binary data (default)
+                text/plain               - Plain text
+                application/json         - JSON data
+                application/xml          - XML data
+            """;
+
+        public static readonly string DescriptionQuiet = """
+            Suppress informational messages (errors still shown).
+              Automatically enabled when writing to stdout.
+              Useful for scripting and pipeline operations.
+            """;
+
+        // Command description template
+        public static readonly string CommandDescriptionTemplate = """
+            {0}
+
+            PIPELINE EXAMPLES:
+              # Sign data from stdin, output to stdout:
+                echo 'Hello World' | CoseSignTool {1} {2} > signed.cose
+
+              # Sign file, write signature to stdout:
+                CoseSignTool {1} myfile.txt {2} --output - > signature.cose
+
+              # Chain with other commands:
+                cat document.txt | CoseSignTool {1} {2} | base64 > signed.b64
+
+              # Sign and verify in pipeline:
+                echo 'test' | CoseSignTool {1} {2} | CoseSignTool verify -
+
+              # Batch signing multiple files:
+                for file in *.txt; do CoseSignTool {1} "$file" {2}; done
+            """;
+    }
+
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
     private readonly ILoggerFactory? LoggerFactory;
 
@@ -38,29 +163,18 @@ public class SigningCommandBuilder
     {
         // Build command description with pipeline examples
         var providerExample = GetProviderExample(provider);
-        var commandDescription = $"{provider.CommandDescription}\n\n" +
-            $"PIPELINE EXAMPLES:\n" +
-            $"  # Sign data from stdin, output to stdout:\n" +
-            $"    echo 'Hello World' | CoseSignTool {provider.CommandName} {providerExample} > signed.cose\n\n" +
-            $"  # Sign file, write signature to stdout:\n" +
-            $"    CoseSignTool {provider.CommandName} myfile.txt {providerExample} --output - > signature.cose\n\n" +
-            $"  # Chain with other commands:\n" +
-            $"    cat document.txt | CoseSignTool {provider.CommandName} {providerExample} | base64 > signed.b64\n\n" +
-            $"  # Sign and verify in pipeline:\n" +
-            $"    echo 'test' | CoseSignTool {provider.CommandName} {providerExample} | CoseSignTool verify -\n\n" +
-            $"  # Batch signing multiple files:\n" +
-            $"    for file in *.txt; do CoseSignTool {provider.CommandName} \"$file\" {providerExample}; done";
+        var commandDescription = string.Format(
+            ClassStrings.CommandDescriptionTemplate,
+            provider.CommandDescription,
+            provider.CommandName,
+            providerExample);
 
         var command = new Command(provider.CommandName, commandDescription);
 
         // Payload argument - optional for stdin support
         var payloadArgument = new Argument<string?>(
-            name: "payload",
-            description: "Path to payload file to sign. Use '-' or omit to read from stdin.\n" +
-                        "  Examples:\n" +
-                        "    myfile.txt          - Sign file from disk\n" +
-                        "    -                   - Read from stdin\n" +
-                        "    (omitted)           - Read from stdin (default)",
+            name: ClassStrings.ArgumentNamePayload,
+            description: ClassStrings.DescriptionPayload,
             getDefaultValue: () => null)
         {
             Arity = ArgumentArity.ZeroOrOne
@@ -68,48 +182,31 @@ public class SigningCommandBuilder
 
         // Standard output option - managed by main exe
         var outputOption = new Option<string?>(
-            name: "--output",
-            description: "Output path for the signature file. Use '-' for stdout.\n" +
-                        "  Default behavior:\n" +
-                        "    - If payload is a file: <payload>.cose\n" +
-                        "    - If payload is stdin: stdout\n" +
-                        "  Examples:\n" +
-                        "    --output signature.cose  - Write to file\n" +
-                        "    --output -               - Write to stdout\n" +
-                        "    (omitted)                - Use default");
-        outputOption.AddAlias("-o");
+            name: ClassStrings.OptionNameOutput,
+            description: ClassStrings.DescriptionOutput);
+        outputOption.AddAlias(ClassStrings.OptionAliasOutput);
 
         // Signature type option - indirect is default
         var signatureTypeOption = new Option<string>(
-            name: "--signature-type",
-            getDefaultValue: () => "indirect",
-            description: "Signature generation strategy (default: indirect):\n" +
-                        "  detached - Sign the payload directly, do not embed payload in signature\n" +
-                        "  embedded - Sign the payload directly, embed payload in signature\n" +
-                        "  indirect - Sign a hash envelope of the payload (SCITT-compliant, most efficient)");
-        signatureTypeOption.FromAmong("detached", "embedded", "indirect");
-        signatureTypeOption.AddAlias("-t");
-        signatureTypeOption.AddAlias("-d"); // -d for detached as shorthand
+            name: ClassStrings.OptionNameSignatureType,
+            getDefaultValue: () => ClassStrings.SignatureTypeIndirect,
+            description: ClassStrings.DescriptionSignatureType);
+        signatureTypeOption.FromAmong(ClassStrings.SignatureTypeDetached, ClassStrings.SignatureTypeEmbedded, ClassStrings.SignatureTypeIndirect);
+        signatureTypeOption.AddAlias(ClassStrings.OptionAliasSignatureTypeT);
+        signatureTypeOption.AddAlias(ClassStrings.OptionAliasSignatureTypeD);
 
         // Standard content-type option
         var contentTypeOption = new Option<string>(
-            name: "--content-type",
-            getDefaultValue: () => "application/octet-stream",
-            description: "MIME type of the payload (default: application/octet-stream).\n" +
-                        "  Common examples:\n" +
-                        "    application/octet-stream - Binary data (default)\n" +
-                        "    text/plain               - Plain text\n" +
-                        "    application/json         - JSON data\n" +
-                        "    application/xml          - XML data");
-        contentTypeOption.AddAlias("-c");
+            name: ClassStrings.OptionNameContentType,
+            getDefaultValue: () => ClassStrings.DefaultContentType,
+            description: ClassStrings.DescriptionContentType);
+        contentTypeOption.AddAlias(ClassStrings.OptionAliasContentType);
 
         // Quiet mode for pipeline-friendly output
         var quietOption = new Option<bool>(
-            name: "--quiet",
-            description: "Suppress informational messages (errors still shown).\n" +
-                        "  Automatically enabled when writing to stdout.\n" +
-                        "  Useful for scripting and pipeline operations.");
-        quietOption.AddAlias("-q");
+            name: ClassStrings.OptionNameQuiet,
+            description: ClassStrings.DescriptionQuiet);
+        quietOption.AddAlias(ClassStrings.OptionAliasQuiet);
 
         command.AddArgument(payloadArgument);
         command.AddOption(outputOption);
@@ -152,7 +249,7 @@ public class SigningCommandBuilder
         var outputFormat = OutputFormat.Text; // default
         foreach (var option in parseResult.RootCommandResult.Command.Options)
         {
-            if (option.Name == "output-format")
+            if (option.Name == ClassStrings.OptionNameOutputFormat)
             {
                 var formatValue = parseResult.GetValueForOption(option);
                 if (formatValue != null && Enum.TryParse<OutputFormat>(formatValue.ToString(), true, out var parsed))
@@ -172,13 +269,13 @@ public class SigningCommandBuilder
             // Get standard options
             string? payloadPath = parseResult.GetValueForArgument(payloadArgument);
             string? outputPath = parseResult.GetValueForOption(outputOption);
-            string signatureType = parseResult.GetValueForOption(signatureTypeOption) ?? "indirect";
-            string contentType = parseResult.GetValueForOption(contentTypeOption) ?? "application/octet-stream";
+            string signatureType = parseResult.GetValueForOption(signatureTypeOption) ?? ClassStrings.SignatureTypeIndirect;
+            string contentType = parseResult.GetValueForOption(contentTypeOption) ?? ClassStrings.DefaultContentType;
             bool quiet = parseResult.GetValueForOption(quietOption);
 
             // Determine I/O mode
-            bool useStdin = string.IsNullOrEmpty(payloadPath) || payloadPath == "-";
-            bool useStdout = outputPath == "-" || (useStdin && string.IsNullOrEmpty(outputPath));
+            bool useStdin = string.IsNullOrEmpty(payloadPath) || payloadPath == AssemblyStrings.IO.StdinIndicator;
+            bool useStdout = outputPath == AssemblyStrings.IO.StdinIndicator || (useStdin && string.IsNullOrEmpty(outputPath));
             bool suppressOutput = quiet || useStdout;
 
             // Extract plugin-specific options
@@ -188,23 +285,34 @@ public class SigningCommandBuilder
             // For "detached" type, payload is never embedded
             // For "embedded" type, payload is always embedded
             // For "indirect" type, hash envelope is embedded, but original payload is not
-            bool willEmbedPayload = signatureType.ToLowerInvariant() switch
+            var normalizedSignatureType = signatureType.ToLowerInvariant();
+            bool willEmbedPayload;
+            if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
             {
-                "detached" => false,
-                "embedded" => true,
-                "indirect" => true, // Hash envelope is embedded
-                _ => true
-            };
+                willEmbedPayload = false;
+            }
+            else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+            {
+                willEmbedPayload = true;
+            }
+            else if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
+            {
+                willEmbedPayload = true; // Hash envelope is embedded
+            }
+            else
+            {
+                willEmbedPayload = true;
+            }
 
             if (!suppressOutput)
             {
-                formatter.BeginSection("Signing Operation");
-                formatter.WriteKeyValue("Command", provider.CommandName);
-                formatter.WriteKeyValue("Payload", useStdin ? "<stdin>" : payloadPath!);
-                formatter.WriteKeyValue("Output", useStdout ? "<stdout>" : (outputPath ?? $"{payloadPath}.cose"));
-                formatter.WriteKeyValue("Signature Type", signatureType);
-                formatter.WriteKeyValue("Embed Payload", willEmbedPayload ? "Yes (embedded)" : "No (detached)");
-                formatter.WriteKeyValue("Content Type", contentType);
+                formatter.BeginSection(ClassStrings.SectionSigningOperation);
+                formatter.WriteKeyValue(ClassStrings.KeyCommand, provider.CommandName);
+                formatter.WriteKeyValue(ClassStrings.KeyPayload, useStdin ? AssemblyStrings.IO.StdinDisplayName : payloadPath!);
+                formatter.WriteKeyValue(ClassStrings.KeyOutput, useStdout ? AssemblyStrings.IO.StdoutDisplayName : (outputPath ?? $"{payloadPath}{AssemblyStrings.IO.CoseFileExtension}"));
+                formatter.WriteKeyValue(ClassStrings.KeySignatureType, signatureType);
+                formatter.WriteKeyValue(ClassStrings.KeyEmbedPayload, willEmbedPayload ? ClassStrings.EmbedYes : ClassStrings.EmbedNo);
+                formatter.WriteKeyValue(ClassStrings.KeyContentType, contentType);
             }
 
             // Create a combined cancellation token with timeout for stdin operations
@@ -222,10 +330,9 @@ public class SigningCommandBuilder
 
             if (useStdin)
             {
-                // Use stdin directly as a stream - don't buffer into memory
-                // The factories support streaming and will read incrementally
-                payloadStream = Console.OpenStandardInput();
-                shouldDisposeStream = false; // Don't dispose stdin
+                // Use stdin with timeout protection - prevents hanging when no input is piped
+                payloadStream = new IO.TimeoutReadStream(Console.OpenStandardInput());
+                shouldDisposeStream = true; // TimeoutReadStream should be disposed
             }
             else
             {
@@ -233,7 +340,7 @@ public class SigningCommandBuilder
                 {
                     if (!suppressOutput)
                     {
-                        formatter.WriteError($"Payload file not found: {payloadPath}");
+                        formatter.WriteError(string.Format(ClassStrings.ErrorPayloadNotFound, payloadPath));
                         formatter.EndSection();
                     }
                     return 3; // FileNotFound
@@ -256,16 +363,25 @@ public class SigningCommandBuilder
 
                 // Create signature based on signature type
                 // Use the combined cancellation token that includes timeout
-                signatureBytes = signatureType.ToLowerInvariant() switch
+                if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
                 {
-                    "indirect" => await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, cancellationToken),
-                    "embedded" => await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: true, cancellationToken),
-                    "detached" => await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: false, cancellationToken),
-                    _ => throw new InvalidOperationException($"Unknown signature type: {signatureType}")
-                };
+                    signatureBytes = await CreateIndirectSignatureAsync(
+                        signingService, payloadStream, contentType, cancellationToken);
+                }
+                else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+                {
+                    signatureBytes = await CreateDirectSignatureAsync(
+                        signingService, payloadStream, contentType, embedPayload: true, cancellationToken);
+                }
+                else if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
+                {
+                    signatureBytes = await CreateDirectSignatureAsync(
+                        signingService, payloadStream, contentType, embedPayload: false, cancellationToken);
+                }
+                else
+                {
+                    throw new InvalidOperationException(string.Format(ClassStrings.ErrorUnknownSignatureType, signatureType));
+                }
             }
             finally
             {
@@ -291,7 +407,7 @@ public class SigningCommandBuilder
             }
             else
             {
-                var finalOutputPath = outputPath ?? $"{payloadPath}.cose";
+                var finalOutputPath = outputPath ?? $"{payloadPath}{AssemblyStrings.IO.CoseFileExtension}";
                 // Use FileStream with larger buffer for PQC-sized signatures
                 await using var fileStream = new FileStream(
                     finalOutputPath,
@@ -305,8 +421,8 @@ public class SigningCommandBuilder
 
             if (!suppressOutput)
             {
-                formatter.WriteSuccess("Successfully signed payload");
-                formatter.WriteKeyValue("Signature Size", $"{signatureBytes.Length:N0} bytes");
+                formatter.WriteSuccess(ClassStrings.SuccessSigned);
+                formatter.WriteKeyValue(ClassStrings.KeySignatureSize, string.Format(ClassStrings.FormatSignatureSize, signatureBytes.Length));
 
                 // Display plugin-provided metadata
                 var metadata = provider.GetSigningMetadata();
@@ -326,7 +442,7 @@ public class SigningCommandBuilder
             // User-initiated cancellation (Ctrl+C)
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
-                formatter.WriteError("Operation cancelled by user");
+                formatter.WriteError(ClassStrings.ErrorCancelled);
             }
             formatter.Flush();
             return 2; // Cancelled
@@ -336,7 +452,7 @@ public class SigningCommandBuilder
             // Timeout occurred (stdin/stdout timeout)
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
-                formatter.WriteError("Operation timed out waiting for input/output");
+                formatter.WriteError(ClassStrings.ErrorTimeout);
             }
             formatter.Flush();
             return 11; // Timeout
@@ -345,7 +461,7 @@ public class SigningCommandBuilder
         {
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
-                formatter.WriteError($"File not found: {ex.Message}");
+                formatter.WriteError(string.Format(ClassStrings.ErrorFileNotFound, ex.Message));
             }
             formatter.Flush();
             return 3;
@@ -354,7 +470,7 @@ public class SigningCommandBuilder
         {
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
-                formatter.WriteError($"Signing failed: {ex.Message}");
+                formatter.WriteError(string.Format(ClassStrings.ErrorSigningFailed, ex.Message));
             }
             formatter.Flush();
             return 10; // SigningFailed
@@ -366,7 +482,15 @@ public class SigningCommandBuilder
         var options = new Dictionary<string, object?>();
 
         // Skip standard options that are handled by the main exe
-        var standardOptions = new HashSet<string> { "output", "detached", "signature-type", "content-type", "quiet", "help" };
+        var standardOptions = new HashSet<string>
+        {
+            ClassStrings.StandardOptionOutput,
+            ClassStrings.StandardOptionDetached,
+            ClassStrings.StandardOptionSignatureType,
+            ClassStrings.StandardOptionContentType,
+            ClassStrings.StandardOptionQuiet,
+            ClassStrings.StandardOptionHelp
+        };
 
         foreach (var option in command.Options)
         {
@@ -380,7 +504,7 @@ public class SigningCommandBuilder
         // Add the logger factory so plugins can use it for their internal operations
         if (LoggerFactory != null)
         {
-            options["__loggerFactory"] = LoggerFactory;
+            options[ClassStrings.PluginOptionLoggerFactory] = LoggerFactory;
         }
 
         return options;

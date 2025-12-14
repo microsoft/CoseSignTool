@@ -149,30 +149,6 @@ public class CertificateExpirationValidatorTests
     }
 
     [Test]
-    [Ignore("Certificate extraction logic tested elsewhere")]
-    public void Validate_WithMessageMissingCertificate_ReturnsFailure()
-    {
-        // This scenario is complex to set up and is tested in certificate extraction tests
-        Assert.Pass("Skipped - tested elsewhere");
-    }
-
-    [Test]
-    [Ignore("Unprotected header handling tested elsewhere")]
-    public void Validate_WithCertificateInUnprotectedHeaders_AllowUnprotectedFalse_ReturnsFailure()
-    {
-        // This scenario is complex to set up and is tested in certificate extraction tests
-        Assert.Pass("Skipped - tested elsewhere");
-    }
-
-    [Test]
-    [Ignore("Unprotected header handling tested elsewhere")]
-    public void Validate_WithCertificateInUnprotectedHeaders_AllowUnprotectedTrue_ReturnsSuccess()
-    {
-        // This scenario is complex to set up and is tested in certificate extraction tests
-        Assert.Pass("Skipped - tested elsewhere");
-    }
-
-    [Test]
     public async Task ValidateAsync_WithValidCertificate_ReturnsSuccess()
     {
         // Arrange

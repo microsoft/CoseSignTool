@@ -1,0 +1,280 @@
+# Code Coverage Guide
+
+This guide explains how to measure and maintain code coverage for CoseSignTool V2.
+
+## Overview
+
+Code coverage measures how much of the codebase is exercised by tests. High coverage helps ensure code quality and catches regressions.
+
+## Coverage Targets
+
+| Category | Target | Notes |
+|----------|--------|-------|
+| Overall | 80%+ | Minimum acceptable coverage |
+| Security-critical | 90%+ | Validators, signing, verification |
+| Public API | 100% | All public methods should be tested |
+| Edge cases | 100% | Error handling, boundary conditions |
+
+## Running Coverage
+
+### Basic Coverage Collection
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+### With Coverage Report
+
+```bash
+# Install report generator
+dotnet tool install -g dotnet-reportgenerator-globaltool
+
+# Run tests with coverage
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+# Generate HTML report
+reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./coverage-report -reporttypes:Html
+
+# Open report
+start coverage-report/index.html
+```
+
+### Specific Projects
+
+```bash
+dotnet test V2/CoseSign1.Tests/CoseSign1.Tests.csproj --collect:"XPlat Code Coverage"
+```
+
+## Coverage Configuration
+
+### coverlet.runsettings
+
+Create a `coverlet.runsettings` file for configuration:
+
+```xml
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura,opencover</Format>
+          <Exclude>[*.Tests]*,[*]*.Migrations.*</Exclude>
+          <Include>[CoseSign1*]*,[CoseIndirectSignature*]*,[CoseHandler*]*</Include>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverage</ExcludeByAttribute>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
+```
+
+Use with:
+
+```bash
+dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
+```
+
+## Excluding Code from Coverage
+
+### Using Attributes
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+
+[ExcludeFromCodeCoverage]
+public class GeneratedCode
+{
+    // This class won't be included in coverage
+}
+
+public class MyClass
+{
+    [ExcludeFromCodeCoverage]
+    public void DebugOnlyMethod()
+    {
+        // This method won't be included
+    }
+}
+```
+
+### Using Configuration
+
+In `coverlet.runsettings`:
+
+```xml
+<Exclude>
+  [*]*.Migrations.*,
+  [*]*.Generated.*,
+  [*.Tests]*
+</Exclude>
+
+<ExcludeByAttribute>
+  Obsolete,
+  GeneratedCodeAttribute,
+  CompilerGeneratedAttribute,
+  ExcludeFromCodeCoverage
+</ExcludeByAttribute>
+```
+
+## Coverage Reports
+
+### Report Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| Cobertura | XML format | CI/CD integration |
+| OpenCover | XML format | Historical tracking |
+| HTML | Interactive web report | Local development |
+| Badges | SVG/PNG images | README display |
+
+### Generating Multiple Formats
+
+```bash
+reportgenerator \
+  -reports:./TestResults/**/coverage.cobertura.xml \
+  -targetdir:./coverage-report \
+  -reporttypes:"Html;Cobertura;Badges"
+```
+
+## CI/CD Integration
+
+### Azure DevOps
+
+```yaml
+- task: DotNetCoreCLI@2
+  displayName: 'Run Tests with Coverage'
+  inputs:
+    command: 'test'
+    projects: '**/*.Tests.csproj'
+    arguments: '--collect:"XPlat Code Coverage" --results-directory $(Agent.TempDirectory)/TestResults'
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish Coverage'
+  inputs:
+    codeCoverageTool: 'Cobertura'
+    summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
+```
+
+### GitHub Actions
+
+```yaml
+- name: Run Tests with Coverage
+  run: dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+- name: Generate Coverage Report
+  run: |
+    dotnet tool install -g dotnet-reportgenerator-globaltool
+    reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./coverage-report
+
+- name: Upload Coverage
+  uses: codecov/codecov-action@v3
+  with:
+    files: ./TestResults/**/coverage.cobertura.xml
+```
+
+## Analyzing Coverage
+
+### Understanding the Report
+
+```
+Assembly Coverage:
+- CoseSign1: 92.5% (185/200 lines)
+  - DirectSignatureFactory: 95.0%
+  - CoseSign1MessageReader: 88.0%
+
+Uncovered Lines:
+- DirectSignatureFactory.cs:45 - Error handling branch
+- CoseSign1MessageReader.cs:78-82 - Rare edge case
+```
+
+### Finding Gaps
+
+1. **Sort by coverage** - Focus on lowest coverage files first
+2. **Check public methods** - Ensure all public API is covered
+3. **Review uncovered branches** - Look for error handling gaps
+4. **Check edge cases** - Null inputs, empty collections, boundaries
+
+## Improving Coverage
+
+### Adding Missing Tests
+
+```csharp
+// Uncovered: null input handling
+[TestMethod]
+public void Method_WithNullInput_ThrowsArgumentNullException()
+{
+    Assert.ThrowsException<ArgumentNullException>(() => _sut.Method(null));
+}
+
+// Uncovered: empty collection
+[TestMethod]
+public void ProcessItems_WithEmptyList_ReturnsEmpty()
+{
+    var result = _sut.ProcessItems(Array.Empty<Item>());
+    Assert.AreEqual(0, result.Count);
+}
+
+// Uncovered: boundary condition
+[TestMethod]
+public void ValidateSize_AtMaximum_Succeeds()
+{
+    var result = _sut.ValidateSize(MaxSize);
+    Assert.IsTrue(result);
+}
+```
+
+### Testing Error Paths
+
+```csharp
+[TestMethod]
+public async Task SignAsync_WhenServiceFails_ThrowsSigningException()
+{
+    // Arrange
+    _mockService.Setup(s => s.SignAsync(It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CoseAlgorithm>(), It.IsAny<CancellationToken>()))
+        .ThrowsAsync(new HttpRequestException("Service unavailable"));
+    
+    // Act & Assert
+    await Assert.ThrowsExceptionAsync<SigningException>(
+        () => _sut.CreateSignatureAsync(payload));
+}
+```
+
+## Coverage Thresholds
+
+### Enforcing Minimum Coverage
+
+```bash
+# Fail if coverage drops below threshold
+dotnet test --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Threshold=80
+```
+
+### In CI/CD
+
+```yaml
+- script: |
+    coverage=$(grep -oP 'line-rate="\K[^"]+' TestResults/**/coverage.cobertura.xml | head -1)
+    coverage_percent=$(echo "$coverage * 100" | bc)
+    if (( $(echo "$coverage_percent < 80" | bc -l) )); then
+      echo "Coverage $coverage_percent% is below threshold of 80%"
+      exit 1
+    fi
+  displayName: 'Check Coverage Threshold'
+```
+
+## Best Practices
+
+1. **Run coverage locally** before committing
+2. **Review coverage in PRs** - Don't merge coverage regressions
+3. **Focus on meaningful coverage** - Quality over quantity
+4. **Test behavior, not implementation** - Coverage should be a side effect
+5. **Exclude generated code** - Don't inflate numbers artificially
+6. **Track coverage trends** - Monitor for regressions over time
+
+## See Also
+
+- [Testing Guide](testing.md)
+- [Development Setup](setup.md)
+- [Guides: Testing](../guides/testing.md)

@@ -21,7 +21,7 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 
 #### Core Libraries
 - [CoseSign1.Abstractions](components/abstractions.md) - Core abstractions and interfaces
-- [CoseSign1](components/cose-sign1.md) - Direct and indirect signature factories
+- [CoseSign1](components/cosesign1.md) - Direct and indirect signature factories
 - [CoseSign1.Headers](components/headers.md) - Header management and CWT claims
 - [CoseSign1.Validation](components/validation.md) - Validation framework
 

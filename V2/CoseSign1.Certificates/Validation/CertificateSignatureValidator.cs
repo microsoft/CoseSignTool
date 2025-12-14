@@ -3,9 +3,9 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation;
-using System.Security.Cryptography.Cose;
 
 /// <summary>
 /// Validates a COSE signature using the certificate from x5t/x5chain headers.
@@ -17,8 +17,8 @@ using System.Security.Cryptography.Cose;
 /// </remarks>
 public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
 {
-    private readonly byte[]? _detachedPayload;
-    private readonly bool _allowUnprotectedHeaders;
+    private readonly byte[]? DetachedPayload;
+    private readonly bool AllowUnprotectedHeaders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class
@@ -27,8 +27,8 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateSignatureValidator(bool allowUnprotectedHeaders = false)
     {
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
-        _detachedPayload = null;
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        DetachedPayload = null;
     }
 
     /// <summary>
@@ -39,8 +39,8 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateSignatureValidator(byte[] detachedPayload, bool allowUnprotectedHeaders = false)
     {
-        _detachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        DetachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <summary>
@@ -51,8 +51,8 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     public CertificateSignatureValidator(ReadOnlyMemory<byte> detachedPayload, bool allowUnprotectedHeaders = false)
     {
-        _detachedPayload = detachedPayload.ToArray();
-        _allowUnprotectedHeaders = allowUnprotectedHeaders;
+        DetachedPayload = detachedPayload.ToArray();
+        AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
     /// <inheritdoc/>
@@ -72,13 +72,13 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
         if (isEmbedded)
         {
             // Embedded signature - use embedded validator
-            var embeddedValidator = new CertificateEmbeddedSignatureValidator(_allowUnprotectedHeaders);
+            var embeddedValidator = new CertificateEmbeddedSignatureValidator(AllowUnprotectedHeaders);
             return embeddedValidator.Validate(input);
         }
         else
         {
             // Detached signature - need payload
-            if (_detachedPayload == null)
+            if (DetachedPayload == null)
             {
                 return ValidationResult.Failure(
                     nameof(CertificateSignatureValidator),
@@ -87,7 +87,7 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
                     "MISSING_DETACHED_PAYLOAD");
             }
 
-            var detachedValidator = new CertificateDetachedSignatureValidator(_detachedPayload, _allowUnprotectedHeaders);
+            var detachedValidator = new CertificateDetachedSignatureValidator(DetachedPayload, AllowUnprotectedHeaders);
             return detachedValidator.Validate(input);
         }
     }

@@ -28,9 +28,9 @@ public class MstReceiptPresenceValidatorTests
         var result = Validator.Validate(null!);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Failures.Should().ContainSingle();
-        result.Failures[0].ErrorCode.Should().Be("NULL_INPUT");
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.EqualTo(1));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("NULL_INPUT"));
     }
 
     [Test]
@@ -40,9 +40,9 @@ public class MstReceiptPresenceValidatorTests
         var result = await Validator.ValidateAsync(null!);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Failures.Should().ContainSingle();
-        result.Failures[0].ErrorCode.Should().Be("NULL_INPUT");
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.EqualTo(1));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("NULL_INPUT"));
     }
 
     [Test]
@@ -60,7 +60,7 @@ public class MstReceiptPresenceValidatorTests
     public void Validator_ImplementsIValidator()
     {
         // Assert
-        Validator.Should().BeAssignableTo<IValidator<CoseSign1Message>>();
+        Assert.That(Validator, Is.AssignableTo<IValidator<CoseSign1Message>>());
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class MstReceiptPresenceValidatorTests
         var asyncResult = await Validator.ValidateAsync(nullMessage!);
 
         // Assert - both should return same failure for null input
-        syncResult.IsValid.Should().Be(asyncResult.IsValid);
-        syncResult.Failures[0].ErrorCode.Should().Be(asyncResult.Failures[0].ErrorCode);
+        Assert.That(syncResult.IsValid, Is.EqualTo(asyncResult.IsValid));
+        Assert.That(syncResult.Failures[0].ErrorCode, Is.EqualTo(asyncResult.Failures[0].ErrorCode));
     }
 }

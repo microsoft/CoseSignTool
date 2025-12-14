@@ -17,4 +17,8 @@
     <PackageReference Include="System.Security.Cryptography.Cose" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Certificates.Local\CoseSign1.Certificates.Local.csproj" />
+  </ItemGroup>
+
 </Project>

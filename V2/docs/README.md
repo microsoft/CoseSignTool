@@ -30,6 +30,7 @@ Welcome to the CoseSignTool V2 documentation. V2 is a complete architectural red
 
 #### Certificate Support
 - [CoseSign1.Certificates](components/certificates.md) - Certificate-based signing
+- [CoseSign1.Certificates.Local](components/certificates-local.md) - Ephemeral certificate generation and local key management
 - [CoseSign1.Certificates.AzureTrustedSigning](components/azure-trusted-signing.md) - Azure Trusted Signing integration
 - [DIDx509](components/didx509.md) - DID:x509 resolution and validation
 

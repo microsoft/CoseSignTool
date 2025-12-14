@@ -32,34 +32,34 @@ public class X509VerificationProviderTests
     public void ProviderName_ReturnsX509()
     {
         // Assert
-        Provider.ProviderName.Should().Be("X509");
+        Assert.That(Provider.ProviderName, Is.EqualTo("X509"));
     }
 
     [Test]
     public void Description_ReturnsExpectedDescription()
     {
         // Assert
-        Provider.Description.Should().Contain("X.509");
-        Provider.Description.Should().Contain("certificate");
+        Assert.That(Provider.Description, Does.Contain("X.509"));
+        Assert.That(Provider.Description, Does.Contain("certificate"));
     }
 
     [Test]
     public void Priority_Returns10()
     {
         // Assert - X509 should run after signature validation (0)
-        Provider.Priority.Should().Be(10);
+        Assert.That(Provider.Priority, Is.EqualTo(10));
     }
 
     [Test]
     public void AddVerificationOptions_AddsAllRequiredOptions()
     {
         // Assert
-        Command.Options.Any(o => o.Name == "trust-roots").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "trust-system-roots").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "allow-untrusted").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "subject-name").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "issuer-name").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "revocation-mode").Should().BeTrue();
+        Assert.That(Command.Options.Any(o => o.Name == "trust-roots"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "trust-system-roots"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "allow-untrusted"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "subject-name"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "issuer-name"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "revocation-mode"), Is.True);
     }
 
     [Test]
@@ -67,13 +67,13 @@ public class X509VerificationProviderTests
     {
         // Assert - check for aliases
         var trustRootsOption = Command.Options.First(o => o.Name == "trust-roots");
-        trustRootsOption.Aliases.Should().Contain("-r");
+        Assert.That(trustRootsOption.Aliases, Does.Contain("-r"));
 
         var subjectNameOption = Command.Options.First(o => o.Name == "subject-name");
-        subjectNameOption.Aliases.Should().Contain("-s");
+        Assert.That(subjectNameOption.Aliases, Does.Contain("-s"));
 
         var issuerNameOption = Command.Options.First(o => o.Name == "issuer-name");
-        issuerNameOption.Aliases.Should().Contain("-i");
+        Assert.That(issuerNameOption.Aliases, Does.Contain("-i"));
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class X509VerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue("chain validation is on by default");
+        Assert.That(isActivated, Is.True, "chain validation is on by default");
     }
 
     [Test]
@@ -99,7 +99,7 @@ public class X509VerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeFalse("chain validation is disabled with --allow-untrusted");
+        Assert.That(isActivated, Is.False, "chain validation is disabled with --allow-untrusted");
     }
 
     [Test]
@@ -112,7 +112,7 @@ public class X509VerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue("subject name validation should activate provider");
+        Assert.That(isActivated, Is.True, "subject name validation should activate provider");
     }
 
     [Test]
@@ -125,7 +125,7 @@ public class X509VerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue("issuer name validation should activate provider");
+        Assert.That(isActivated, Is.True, "issuer name validation should activate provider");
     }
 
     [Test]
@@ -138,8 +138,8 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(1);
-        validators[0].Should().BeOfType<CoseSign1.Certificates.Validation.CertificateChainValidator>();
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
     }
 
     [Test]
@@ -152,8 +152,8 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCountGreaterThan(1);
-        validators.Any(v => v.GetType().Name == "CertificateCommonNameValidator").Should().BeTrue();
+        Assert.That(validators, Has.Count.GreaterThan(1));
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateCommonNameValidator"), Is.True);
     }
 
     [Test]
@@ -166,8 +166,8 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCountGreaterThan(1);
-        validators.Any(v => v.GetType().Name == "CertificateIssuerValidator").Should().BeTrue();
+        Assert.That(validators, Has.Count.GreaterThan(1));
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateIssuerValidator"), Is.True);
     }
 
     [Test]
@@ -180,8 +180,8 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(1);
-        validators[0].Should().BeOfType<CoseSign1.Certificates.Validation.CertificateChainValidator>();
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
     }
 
     [Test]
@@ -197,7 +197,7 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().NotBeEmpty();
+        Assert.That(validators, Is.Not.Empty);
         // The validator is created - the mode is internal to it
     }
 
@@ -211,8 +211,8 @@ public class X509VerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Trust Mode");
-        metadata["Trust Mode"].Should().Be("System Trust");
+        Assert.That(metadata, Does.ContainKey("Trust Mode"));
+        Assert.That(metadata["Trust Mode"], Is.EqualTo("System Trust"));
     }
 
     [Test]
@@ -225,8 +225,8 @@ public class X509VerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Trust Mode");
-        metadata["Trust Mode"].Should().Be("Untrusted Allowed");
+        Assert.That(metadata, Does.ContainKey("Trust Mode"));
+        Assert.That(metadata["Trust Mode"], Is.EqualTo("Untrusted Allowed"));
     }
 
     [Test]
@@ -239,8 +239,8 @@ public class X509VerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Required Subject");
-        metadata["Required Subject"].Should().Be("Test Subject");
+        Assert.That(metadata, Does.ContainKey("Required Subject"));
+        Assert.That(metadata["Required Subject"], Is.EqualTo("Test Subject"));
     }
 
     [Test]
@@ -253,8 +253,8 @@ public class X509VerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Required Issuer");
-        metadata["Required Issuer"].Should().Be("Test Issuer");
+        Assert.That(metadata, Does.ContainKey("Required Issuer"));
+        Assert.That(metadata["Required Issuer"], Is.EqualTo("Test Issuer"));
     }
 
     [Test]
@@ -267,7 +267,7 @@ public class X509VerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Revocation Check");
-        metadata["Revocation Check"].Should().Be("Offline");
+        Assert.That(metadata, Does.ContainKey("Revocation Check"));
+        Assert.That(metadata["Revocation Check"], Is.EqualTo("Offline"));
     }
 }

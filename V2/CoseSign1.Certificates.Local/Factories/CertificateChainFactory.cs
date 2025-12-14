@@ -1,0 +1,207 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace CoseSign1.Certificates.Local;
+
+/// <summary>
+/// Factory for creating certificate chains (root → intermediate → leaf).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Creates hierarchical certificate chains suitable for testing certificate
+/// validation, chain building, and production-like signing scenarios.
+/// </para>
+/// </remarks>
+public class CertificateChainFactory
+{
+    private readonly EphemeralCertificateFactory CertificateFactory;
+    private readonly ILogger<CertificateChainFactory> Logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateChainFactory"/> class.
+    /// </summary>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateChainFactory(ILogger<CertificateChainFactory>? logger = null)
+        : this(new EphemeralCertificateFactory(), logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateChainFactory"/> class
+    /// with a custom certificate factory.
+    /// </summary>
+    /// <param name="certificateFactory">The certificate factory to use.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateChainFactory(
+        EphemeralCertificateFactory certificateFactory,
+        ILogger<CertificateChainFactory>? logger = null)
+    {
+        CertificateFactory = certificateFactory ?? throw new ArgumentNullException(nameof(certificateFactory));
+        Logger = logger ?? NullLogger<CertificateChainFactory>.Instance;
+    }
+
+    /// <summary>
+    /// Creates a certificate chain with default options.
+    /// </summary>
+    /// <returns>Collection of certificates (root, intermediate, leaf).</returns>
+    public X509Certificate2Collection CreateChain()
+    {
+        return CreateChain(_ => { });
+    }
+
+    /// <summary>
+    /// Creates a certificate chain with configured options.
+    /// </summary>
+    /// <param name="configure">Action to configure chain options.</param>
+    /// <returns>Collection of certificates in configured order.</returns>
+    public X509Certificate2Collection CreateChain(Action<CertificateChainOptions> configure)
+    {
+        if (configure == null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var options = new CertificateChainOptions();
+        configure(options);
+
+        return CreateChainInternal(options);
+    }
+
+    private X509Certificate2Collection CreateChainInternal(CertificateChainOptions options)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        Logger.LogDebug(
+            "Creating certificate chain. Algorithm: {Algorithm}, HasIntermediate: {HasIntermediate}",
+            options.KeyAlgorithm,
+            options.IntermediateName != null);
+
+        var result = new X509Certificate2Collection();
+
+        // Create root CA
+        var root = CertificateFactory.CreateCertificate(o => o
+            .WithSubjectName(options.RootName)
+            .WithKeyAlgorithm(options.KeyAlgorithm)
+            .WithKeySize(options.KeySize ?? GetDefaultKeySize(options.KeyAlgorithm))
+            .WithValidity(options.RootValidity)
+            .AsCertificateAuthority(pathLengthConstraint: options.IntermediateName != null ? 1 : 0));
+
+        Logger.LogTrace("Created root CA: {SerialNumber}", root.SerialNumber);
+
+        // Determine the issuer for the leaf
+        X509Certificate2 leafIssuer;
+        X509Certificate2? intermediate = null;
+
+        if (options.IntermediateName != null)
+        {
+            // Create intermediate CA
+            intermediate = CertificateFactory.CreateCertificate(o => o
+                .WithSubjectName(options.IntermediateName)
+                .WithKeyAlgorithm(options.KeyAlgorithm)
+                .WithKeySize(options.KeySize ?? GetDefaultKeySize(options.KeyAlgorithm))
+                .WithValidity(options.IntermediateValidity)
+                .AsCertificateAuthority(pathLengthConstraint: 0)
+                .SignedBy(root));
+
+            Logger.LogTrace("Created intermediate CA: {SerialNumber}", intermediate.SerialNumber);
+
+            leafIssuer = intermediate;
+        }
+        else
+        {
+            leafIssuer = root;
+        }
+
+        // Create leaf certificate
+        var leafOptions = new CertificateOptions()
+            .WithSubjectName(options.LeafName)
+            .WithKeyAlgorithm(options.KeyAlgorithm)
+            .WithKeySize(options.KeySize ?? GetDefaultKeySize(options.KeyAlgorithm))
+            .WithValidity(options.LeafValidity)
+            .WithKeyUsage(X509KeyUsageFlags.DigitalSignature)
+            .SignedBy(leafIssuer);
+
+        if (options.LeafEnhancedKeyUsages != null)
+        {
+            foreach (var eku in options.LeafEnhancedKeyUsages)
+            {
+                leafOptions.WithEnhancedKeyUsages(eku);
+            }
+        }
+
+        var leaf = CertificateFactory.CreateCertificate(o =>
+        {
+            o.SubjectName = leafOptions.SubjectName;
+            o.KeyAlgorithm = leafOptions.KeyAlgorithm;
+            o.KeySize = leafOptions.KeySize;
+            o.Validity = leafOptions.Validity;
+            o.KeyUsage = leafOptions.KeyUsage;
+            o.Issuer = leafOptions.Issuer;
+            o.EnhancedKeyUsages = leafOptions.EnhancedKeyUsages;
+        });
+
+        Logger.LogTrace("Created leaf certificate: {Subject}", leaf.Subject);
+
+        // Optionally strip private keys from root and intermediate
+        if (options.LeafOnlyPrivateKey)
+        {
+            var rootPublic = CreatePublicOnlyCertificate(root);
+            root.Dispose();
+            root = rootPublic;
+
+            if (intermediate != null)
+            {
+                var intermediatePublic = CreatePublicOnlyCertificate(intermediate);
+                intermediate.Dispose();
+                intermediate = intermediatePublic;
+            }
+        }
+
+        // Build result collection in configured order
+        if (options.LeafFirst)
+        {
+            result.Add(leaf);
+            if (intermediate != null)
+            {
+                result.Add(intermediate);
+            }
+            result.Add(root);
+        }
+        else
+        {
+            result.Add(root);
+            if (intermediate != null)
+            {
+                result.Add(intermediate);
+            }
+            result.Add(leaf);
+        }
+
+        stopwatch.Stop();
+        Logger.LogDebug(
+            "Certificate chain created successfully. CertificateCount: {Count}, ElapsedMs: {ElapsedMs}",
+            result.Count,
+            stopwatch.ElapsedMilliseconds);
+
+        return result;
+    }
+
+    private static X509Certificate2 CreatePublicOnlyCertificate(X509Certificate2 certificate)
+    {
+        return X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
+    }
+
+    private static int GetDefaultKeySize(KeyAlgorithm algorithm)
+    {
+        return algorithm switch
+        {
+            KeyAlgorithm.RSA => 2048,
+            KeyAlgorithm.ECDSA => 256,
+            KeyAlgorithm.MLDSA => 65,
+            _ => 0
+        };
+    }
+}

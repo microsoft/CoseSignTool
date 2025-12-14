@@ -32,30 +32,30 @@ public class MstVerificationProviderTests
     public void ProviderName_ReturnsMST()
     {
         // Assert
-        Provider.ProviderName.Should().Be("MST");
+        Assert.That(Provider.ProviderName, Is.EqualTo("MST"));
     }
 
     [Test]
     public void Description_ReturnsExpectedDescription()
     {
         // Assert
-        Provider.Description.Should().Contain("Microsoft Signing Transparency");
+        Assert.That(Provider.Description, Does.Contain("Microsoft Signing Transparency"));
     }
 
     [Test]
     public void Priority_Returns100()
     {
         // Assert - MST should run after signature and chain validation
-        Provider.Priority.Should().Be(100);
+        Assert.That(Provider.Priority, Is.EqualTo(100));
     }
 
     [Test]
     public void AddVerificationOptions_AddsAllRequiredOptions()
     {
         // Assert
-        Command.Options.Any(o => o.Name == "require-receipt").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "mst-endpoint").Should().BeTrue();
-        Command.Options.Any(o => o.Name == "verify-receipt").Should().BeTrue();
+        Assert.That(Command.Options.Any(o => o.Name == "require-receipt"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "mst-endpoint"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "verify-receipt"), Is.True);
     }
 
     [Test]
@@ -68,7 +68,7 @@ public class MstVerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeFalse("MST provider should not be activated by default");
+        Assert.That(isActivated, Is.False, "MST provider should not be activated by default");
     }
 
     [Test]
@@ -81,7 +81,7 @@ public class MstVerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue("provider should activate when receipt is required");
+        Assert.That(isActivated, Is.True, "provider should activate when receipt is required");
     }
 
     [Test]
@@ -94,7 +94,7 @@ public class MstVerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue("provider should activate when endpoint is provided");
+        Assert.That(isActivated, Is.True, "provider should activate when endpoint is provided");
     }
 
     [Test]
@@ -107,7 +107,7 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().BeEmpty("no validators when no MST options specified");
+        Assert.That(validators, Is.Empty, "no validators when no MST options specified");
     }
 
     [Test]
@@ -120,8 +120,8 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(1);
-        validators[0].Should().BeOfType<MstReceiptPresenceValidator>();
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<MstReceiptPresenceValidator>());
     }
 
     [Test]
@@ -134,8 +134,8 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(1);
-        validators[0].Should().BeOfType<CoseSign1.Transparent.MST.Validation.MstReceiptValidator>();
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptValidator>());
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().BeEmpty("no receipt validator when verify-receipt is false");
+        Assert.That(validators, Is.Empty, "no receipt validator when verify-receipt is false");
     }
 
     [Test]
@@ -161,9 +161,9 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(2);
-        validators.Any(v => v is MstReceiptPresenceValidator).Should().BeTrue();
-        validators.Any(v => v.GetType().Name == "MstReceiptValidator").Should().BeTrue();
+        Assert.That(validators, Has.Count.EqualTo(2));
+        Assert.That(validators.Any(v => v is MstReceiptPresenceValidator), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptValidator"), Is.True);
     }
 
     [Test]
@@ -176,8 +176,8 @@ public class MstVerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Receipt Required");
-        metadata["Receipt Required"].Should().Be("No");
+        Assert.That(metadata, Does.ContainKey("Receipt Required"));
+        Assert.That(metadata["Receipt Required"], Is.EqualTo("No"));
     }
 
     [Test]
@@ -190,8 +190,8 @@ public class MstVerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Receipt Required");
-        metadata["Receipt Required"].Should().Be("Yes");
+        Assert.That(metadata, Does.ContainKey("Receipt Required"));
+        Assert.That(metadata["Receipt Required"], Is.EqualTo("Yes"));
     }
 
     [Test]
@@ -204,10 +204,10 @@ public class MstVerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("MST Endpoint");
-        metadata["MST Endpoint"].Should().Be("https://myservice.codetransparency.azure.net");
-        metadata.Should().ContainKey("Verify Receipt");
-        metadata["Verify Receipt"].Should().Be("Yes");
+        Assert.That(metadata, Does.ContainKey("MST Endpoint"));
+        Assert.That(metadata["MST Endpoint"], Is.EqualTo("https://myservice.codetransparency.azure.net"));
+        Assert.That(metadata, Does.ContainKey("Verify Receipt"));
+        Assert.That(metadata["Verify Receipt"], Is.EqualTo("Yes"));
     }
 
     [Test]
@@ -220,7 +220,7 @@ public class MstVerificationProviderTests
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Verify Receipt");
-        metadata["Verify Receipt"].Should().Be("No");
+        Assert.That(metadata, Does.ContainKey("Verify Receipt"));
+        Assert.That(metadata["Verify Receipt"], Is.EqualTo("No"));
     }
 }

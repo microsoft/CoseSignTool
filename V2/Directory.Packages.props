@@ -12,9 +12,9 @@
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.11.2" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.2.0" />
-    <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <!-- Core System.Security.Cryptography packages -->
     <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.X509Certificates" Version="10.0.0" />
     <!-- Runtime packages -->
     <PackageVersion Include="System.Runtime.Caching" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />

@@ -89,9 +89,9 @@ public class IVerificationProviderTests
         var provider = new TestVerificationProvider();
 
         // Act & Assert
-        provider.ProviderName.Should().Be("Test");
-        provider.Description.Should().Be("Test verification provider");
-        provider.Priority.Should().Be(50);
+        Assert.That(provider.ProviderName, Is.EqualTo("Test"));
+        Assert.That(provider.Description, Is.EqualTo("Test verification provider"));
+        Assert.That(provider.Priority, Is.EqualTo(50));
     }
 
     [Test]
@@ -105,10 +105,10 @@ public class IVerificationProviderTests
         provider.AddVerificationOptions(command);
 
         // Assert
-        provider.AddVerificationOptionsCalled.Should().BeTrue();
-        command.Options.Should().HaveCount(2);
-        command.Options.Any(o => o.Name == "test-option").Should().BeTrue();
-        command.Options.Any(o => o.Name == "test-name").Should().BeTrue();
+        Assert.That(provider.AddVerificationOptionsCalled, Is.True);
+        Assert.That(command.Options, Has.Count.EqualTo(2));
+        Assert.That(command.Options.Any(o => o.Name == "test-option"), Is.True);
+        Assert.That(command.Options.Any(o => o.Name == "test-name"), Is.True);
     }
 
     [Test]
@@ -128,7 +128,7 @@ public class IVerificationProviderTests
         var isActivated = provider.IsActivated(parseResult);
 
         // Assert
-        isActivated.Should().BeTrue();
+        Assert.That(isActivated, Is.True);
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class IVerificationProviderTests
         var validators = provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        validators.Should().HaveCount(2);
+        Assert.That(validators, Has.Count.EqualTo(2));
     }
 
     [Test]
@@ -168,8 +168,10 @@ public class IVerificationProviderTests
         var metadata = provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        metadata.Should().ContainKey("Key1").WhoseValue.Should().Be("Value1");
-        metadata.Should().ContainKey("Key2").WhoseValue.Should().Be(42);
+        Assert.That(metadata, Does.ContainKey("Key1"));
+        Assert.That(metadata["Key1"], Is.EqualTo("Value1"));
+        Assert.That(metadata, Does.ContainKey("Key2"));
+        Assert.That(metadata["Key2"], Is.EqualTo(42));
     }
 
     [Test]
@@ -185,7 +187,7 @@ public class IVerificationProviderTests
 
         // Assert
         // Both have same priority (50), so order is preserved
-        ordered.Should().HaveCount(2);
-        ordered.All(p => p.Priority == 50).Should().BeTrue();
+        Assert.That(ordered, Has.Count.EqualTo(2));
+        Assert.That(ordered.All(p => p.Priority == 50), Is.True);
     }
 }

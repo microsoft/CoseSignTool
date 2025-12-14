@@ -317,6 +317,7 @@ V2 is designed for extensibility at multiple levels:
 | Signing Services | `ISigningService<TOptions>` | Custom signing backends (HSM, cloud) |
 | Certificate Sources | `ICertificateSource` | Custom certificate retrieval |
 | Chain Builders | `ICertificateChainBuilder` | Custom chain building logic |
+| Key Providers | `IPrivateKeyProvider` | Custom key generation (HSM, TPM) |
 | Header Contributors | `IHeaderContributor` | Custom header injection |
 | Validators | `IValidator<T>` | Custom validation logic |
 | Transparency | `ITransparencyProvider` | Custom transparency services |
@@ -325,7 +326,38 @@ V2 is designed for extensibility at multiple levels:
 | CLI Verification | `IVerificationProvider` | Custom verification providers |
 | CLI Transparency | `ITransparencyProviderContributor` | Custom transparency integration |
 
-### 10. CLI Plugin Architecture
+### 10. Local Certificate Generation
+
+The `CoseSign1.Certificates.Local` package provides ephemeral certificate generation for testing and development:
+
+**Key Provider** (`IPrivateKeyProvider`):
+```csharp
+public interface IPrivateKeyProvider
+{
+    string ProviderName { get; }
+    bool SupportsAlgorithm(KeyAlgorithm algorithm);
+    IGeneratedKey GenerateKey(KeyAlgorithm algorithm, int? keySize = null);
+}
+```
+
+**Available Key Providers**:
+- **`SoftwareKeyProvider`**: In-memory key generation (default)
+- Custom providers can support HSM, TPM, or cloud-based key storage
+
+**Certificate Factories**:
+- **`EphemeralCertificateFactory`**: Creates single certificates with configurable options
+- **`CertificateChainFactory`**: Creates complete certificate hierarchies (Root → Intermediate → Leaf)
+
+**Supported Algorithms**:
+| Algorithm | Description |
+|-----------|-------------|
+| RSA | RSA with RSASSA-PSS (1024-16384 bit) |
+| ECDSA | ECDSA with NIST curves (P-256, P-384, P-521) |
+| ML-DSA | Post-quantum ML-DSA/Dilithium (44, 65, 87) |
+
+For detailed documentation, see [CoseSign1.Certificates.Local](../components/certificates-local.md).
+
+### 11. CLI Plugin Architecture
 
 The `CoseSignTool.Abstractions` package defines the CLI plugin system:
 

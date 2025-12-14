@@ -41,6 +41,7 @@ public class LocalSigningPlugin : IPlugin
     {
         yield return new PfxSigningCommandProvider();
         yield return new PemSigningCommandProvider();
+        yield return new EphemeralSigningCommandProvider();
 
         // Platform-specific certificate store providers
         if (OperatingSystem.IsWindows())

@@ -3,11 +3,13 @@
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Security;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
+using CoseSignTool.Abstractions.Security;
 
 namespace CoseSignTool.Local.Plugin;
 
@@ -26,6 +28,9 @@ public class X509VerificationProvider : IVerificationProvider
         // Option names
         public static readonly string OptionNameTrustRoots = "--trust-roots";
         public static readonly string OptionAliasTrustRoots = "-r";
+        public static readonly string OptionNameTrustPfx = "--trust-pfx";
+        public static readonly string OptionNameTrustPfxPasswordFile = "--trust-pfx-password-file";
+        public static readonly string OptionNameTrustPfxPasswordEnv = "--trust-pfx-password-env";
         public static readonly string OptionNameTrustSystemRoots = "--trust-system-roots";
         public static readonly string OptionNameAllowUntrusted = "--allow-untrusted";
         public static readonly string OptionNameSubjectName = "--subject-name";
@@ -36,6 +41,12 @@ public class X509VerificationProvider : IVerificationProvider
 
         // Option descriptions
         public static readonly string DescriptionTrustRoots = "Path to trusted root certificate(s) in PEM or DER format. Repeat for multiple.";
+        public static readonly string DescriptionTrustPfx = "Path to PFX/PKCS#12 file containing trusted root certificate(s).";
+        public static readonly string DescriptionTrustPfxPasswordFile = 
+            "Path to a file containing the PFX password (more secure than command-line). " +
+            "Alternatively, set COSESIGNTOOL_TRUST_PFX_PASSWORD environment variable.";
+        public static readonly string DescriptionTrustPfxPasswordEnv = 
+            "Name of environment variable containing the PFX password (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)";
         public static readonly string DescriptionTrustSystemRoots = "Trust system certificate store roots (default: true)";
         public static readonly string DescriptionAllowUntrusted = "Allow self-signed or untrusted root certificates";
         public static readonly string DescriptionSubjectName = "Required subject name (CN) in the signing certificate";
@@ -46,6 +57,17 @@ public class X509VerificationProvider : IVerificationProvider
         public static readonly string RevocationModeOnline = "online";
         public static readonly string RevocationModeOffline = "offline";
         public static readonly string RevocationModeNone = "none";
+
+        // File extensions
+        public static readonly string ExtensionPfx = ".pfx";
+        public static readonly string ExtensionP12 = ".p12";
+
+        // Environment variable default
+        public static readonly string DefaultTrustPfxPasswordEnvVar = "COSESIGNTOOL_TRUST_PFX_PASSWORD";
+
+        // Info messages
+        public static readonly string InfoUsingEnvPassword = "Using trust PFX password from environment variable: {0}";
+        public static readonly string InfoReadingPasswordFile = "Reading trust PFX password from file: {0}";
 
         // Metadata keys and values
         public static readonly string MetaKeyTrustMode = "Trust Mode";
@@ -68,6 +90,9 @@ public class X509VerificationProvider : IVerificationProvider
 
     // Options stored as fields so we can read values from ParseResult
     private Option<FileInfo[]?> TrustRootsOption = null!;
+    private Option<FileInfo?> TrustPfxOption = null!;
+    private Option<FileInfo?> TrustPfxPasswordFileOption = null!;
+    private Option<string?> TrustPfxPasswordEnvOption = null!;
     private Option<bool> TrustSystemRootsOption = null!;
     private Option<bool> AllowUntrustedOption = null!;
     private Option<string?> SubjectNameOption = null!;
@@ -77,7 +102,7 @@ public class X509VerificationProvider : IVerificationProvider
     /// <inheritdoc/>
     public void AddVerificationOptions(Command command)
     {
-        // Trust options
+        // Trust options - PEM/DER certificates
         TrustRootsOption = new Option<FileInfo[]?>(
             name: ClassStrings.OptionNameTrustRoots,
             description: ClassStrings.DescriptionTrustRoots)
@@ -86,6 +111,22 @@ public class X509VerificationProvider : IVerificationProvider
         };
         TrustRootsOption.AddAlias(ClassStrings.OptionAliasTrustRoots);
         command.AddOption(TrustRootsOption);
+
+        // Trust options - PFX with secure password handling
+        TrustPfxOption = new Option<FileInfo?>(
+            name: ClassStrings.OptionNameTrustPfx,
+            description: ClassStrings.DescriptionTrustPfx);
+        command.AddOption(TrustPfxOption);
+
+        TrustPfxPasswordFileOption = new Option<FileInfo?>(
+            name: ClassStrings.OptionNameTrustPfxPasswordFile,
+            description: ClassStrings.DescriptionTrustPfxPasswordFile);
+        command.AddOption(TrustPfxPasswordFileOption);
+
+        TrustPfxPasswordEnvOption = new Option<string?>(
+            name: ClassStrings.OptionNameTrustPfxPasswordEnv,
+            description: ClassStrings.DescriptionTrustPfxPasswordEnv);
+        command.AddOption(TrustPfxPasswordEnvOption);
 
         TrustSystemRootsOption = new Option<bool>(
             name: ClassStrings.OptionNameTrustSystemRoots,
@@ -126,6 +167,7 @@ public class X509VerificationProvider : IVerificationProvider
         // X509 provider is activated if any X509-specific option is set
         // or if we should do chain validation (not allowing untrusted)
         return HasCustomTrustRoots(parseResult)
+            || HasTrustPfx(parseResult)
             || HasSubjectNameRequirement(parseResult)
             || HasIssuerNameRequirement(parseResult)
             || !IsAllowUntrusted(parseResult); // Chain validation is on unless explicitly disabled
@@ -220,7 +262,37 @@ public class X509VerificationProvider : IVerificationProvider
     private bool HasCustomTrustRoots(ParseResult parseResult)
     {
         var roots = parseResult.GetValueForOption(TrustRootsOption);
-        return roots != null && roots.Length > 0;
+        return (roots != null && roots.Length > 0) || HasTrustPfx(parseResult);
+    }
+
+    private bool HasTrustPfx(ParseResult parseResult)
+    {
+        var pfx = parseResult.GetValueForOption(TrustPfxOption);
+        return pfx?.Exists == true;
+    }
+
+    private SecureString? GetTrustPfxPassword(ParseResult parseResult)
+    {
+        // Check password file first
+        var passwordFile = parseResult.GetValueForOption(TrustPfxPasswordFileOption);
+        if (passwordFile?.Exists == true)
+        {
+            Console.WriteLine(string.Format(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName));
+            return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
+        }
+
+        // Check custom env var option, fallback to default env var
+        var customEnvVar = parseResult.GetValueForOption(TrustPfxPasswordEnvOption);
+        var envVarName = string.IsNullOrEmpty(customEnvVar) ? ClassStrings.DefaultTrustPfxPasswordEnvVar : customEnvVar;
+        var envPassword = Environment.GetEnvironmentVariable(envVarName);
+        if (!string.IsNullOrEmpty(envPassword))
+        {
+            Console.WriteLine(string.Format(ClassStrings.InfoUsingEnvPassword, envVarName));
+            return SecurePasswordProvider.ConvertToSecureString(envPassword);
+        }
+
+        // Return null - PFX may be unprotected
+        return null;
     }
 
     private bool IsTrustSystemRoots(ParseResult parseResult)
@@ -281,6 +353,7 @@ public class X509VerificationProvider : IVerificationProvider
     {
         var collection = new X509Certificate2Collection();
 
+        // Load individual certificate files
         var roots = parseResult.GetValueForOption(TrustRootsOption);
         if (roots != null)
         {
@@ -297,6 +370,39 @@ public class X509VerificationProvider : IVerificationProvider
                         // Skip invalid certificates
                     }
                 }
+            }
+        }
+
+        // Load certificates from PFX file
+        var pfxFile = parseResult.GetValueForOption(TrustPfxOption);
+        if (pfxFile?.Exists == true)
+        {
+            try
+            {
+                var password = GetTrustPfxPassword(parseResult);
+                X509Certificate2Collection pfxCollection;
+
+                // Load from PFX using the new X509CertificateLoader API
+                if (password != null)
+                {
+                    pfxCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(
+                        pfxFile.FullName,
+                        SecurePasswordProvider.ConvertToPlainString(password),
+                        X509KeyStorageFlags.DefaultKeySet);
+                }
+                else
+                {
+                    pfxCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(
+                        pfxFile.FullName,
+                        password: null,
+                        X509KeyStorageFlags.DefaultKeySet);
+                }
+
+                collection.AddRange(pfxCollection);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to load PFX trust store: {ex.Message}");
             }
         }
 

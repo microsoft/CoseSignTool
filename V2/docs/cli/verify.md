@@ -31,7 +31,10 @@ The `verify` command validates a COSE Sign1 signature file, checking:
 |--------|-------------|
 | `--payload <file>` | Path to payload file (required for detached signatures, optional for indirect) |
 | `--signature-only` | Verify signature only, skip payload verification (indirect signatures only) |
-| `--trust-root <file>` | Custom trusted root certificate |
+| `-r, --trust-roots <files>` | Custom trusted root certificate(s) in PEM or DER format |
+| `--trust-pfx <file>` | PFX/PKCS#12 file containing trusted root certificate(s) |
+| `--trust-pfx-password-file <file>` | Path to file containing PFX password (more secure) |
+| `--trust-pfx-password-env <name>` | Environment variable containing PFX password (default: `COSESIGNTOOL_TRUST_PFX_PASSWORD`) |
 | `--skip-revocation` | Skip certificate revocation checking |
 | `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
 
@@ -85,8 +88,30 @@ CoseSignTool verify indirect.sig --signature-only
 ### Verify with Custom Trust Root
 
 ```bash
-CoseSignTool verify signed.cose --trust-root my-root-ca.cer
+# Single certificate file
+CoseSignTool verify signed.cose --trust-roots my-root-ca.cer
+
+# Multiple certificate files
+CoseSignTool verify signed.cose -r root1.pem -r root2.pem
 ```
+
+### Verify with PFX Trust Store
+
+PFX files can contain multiple certificates, making them convenient for managing trust bundles:
+
+```bash
+# PFX with password from environment variable (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)
+set COSESIGNTOOL_TRUST_PFX_PASSWORD=mypassword
+CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx
+
+# PFX with password from file
+CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx --trust-pfx-password-file password.txt
+
+# PFX with password from custom environment variable
+CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx --trust-pfx-password-env MY_PFX_PASSWORD
+```
+
+> **Security Note**: Avoid passing passwords directly on the command line as they may be logged in shell history. Use environment variables or password files instead.
 
 ### JSON Output
 

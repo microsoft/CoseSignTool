@@ -270,4 +270,66 @@ public class X509VerificationProviderTests
         Assert.That(metadata, Does.ContainKey("Revocation Check"));
         Assert.That(metadata["Revocation Check"], Is.EqualTo("Offline"));
     }
+
+    #region PFX Trust Store Tests
+
+    [Test]
+    public void AddVerificationOptions_AddsPfxTrustOptions()
+    {
+        // Assert - new PFX trust options should be present
+        Assert.That(Command.Options.Any(o => o.Name == "trust-pfx"), Is.True,
+            "Should have --trust-pfx option");
+        Assert.That(Command.Options.Any(o => o.Name == "trust-pfx-password-file"), Is.True,
+            "Should have --trust-pfx-password-file option");
+        Assert.That(Command.Options.Any(o => o.Name == "trust-pfx-password-env"), Is.True,
+            "Should have --trust-pfx-password-env option");
+    }
+
+    [Test]
+    public void IsActivated_WithTrustPfxOption_ReturnsTrue()
+    {
+        // Arrange - create a temp PFX file to reference
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllBytes(tempPfxPath, new byte[] { 0x30 }); // Dummy data
+            var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\" --allow-untrusted");
+
+            // Act
+            var isActivated = Provider.IsActivated(parseResult);
+
+            // Assert
+            Assert.That(isActivated, Is.True, "PFX trust option should activate provider");
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    [Test]
+    public void GetVerificationMetadata_WithTrustPfx_ReturnsCustomRootsMode()
+    {
+        // Arrange - create a temp PFX file to reference
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllBytes(tempPfxPath, new byte[] { 0x30 }); // Dummy data
+            var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+
+            // Act
+            var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+
+            // Assert
+            Assert.That(metadata, Does.ContainKey("Trust Mode"));
+            Assert.That(metadata["Trust Mode"], Is.EqualTo("Custom Roots"),
+                "PFX trust should be reported as Custom Roots mode");
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    #endregion
 }

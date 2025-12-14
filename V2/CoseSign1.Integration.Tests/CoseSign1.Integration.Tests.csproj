@@ -29,4 +29,9 @@
     <Using Include="NUnit.Framework" />
   </ItemGroup>
 
+  <!-- Include test data files -->
+  <ItemGroup>
+    <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

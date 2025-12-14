@@ -8,6 +8,8 @@ CHANGELOG.md
 
 # Test output files
 *.cose
+# Exception: allow test data .cose files to be checked in
+!**/TestData/*.cose
 test.txt
 
 # User-specific files

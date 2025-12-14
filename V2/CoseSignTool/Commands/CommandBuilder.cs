@@ -7,7 +7,6 @@ using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
 using CoseSignTool.Commands.Handlers;
-using CoseSignTool.Commands.Providers;
 using CoseSignTool.Output;
 using CoseSignTool.Plugins;
 using Microsoft.Extensions.Logging;
@@ -106,9 +105,9 @@ public class CommandBuilder
             transparencyProviders: transparencyProviders,
             loggerFactory: LoggerFactory);
 
-        // Add built-in ephemeral signing command using the same infrastructure as plugins
-        var ephemeralProvider = new EphemeralSigningCommandProvider();
-        rootCommand.AddCommand(signingCommandBuilder.BuildSigningCommand(ephemeralProvider));
+        // NOTE: All signing commands (including sign-ephemeral) are provided by plugins.
+        // The Local.Plugin provides: sign-pfx, sign-pem, sign-ephemeral, sign-cert-store
+        // If no plugins are loaded, only verify and inspect commands will be available.
 
         // Add built-in verify and inspect commands with verification providers
         rootCommand.AddCommand(BuildVerifyCommand(verificationProviders));

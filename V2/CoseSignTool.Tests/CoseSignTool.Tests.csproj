@@ -6,6 +6,8 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <!-- Always deploy plugins for tests -->
+        <DeployPlugins>true</DeployPlugins>
     </PropertyGroup>
 
     <ItemGroup>
@@ -29,4 +31,56 @@
     <ItemGroup>
         <Using Include="NUnit.Framework" />
     </ItemGroup>
+
+    <!-- ========================================== -->
+    <!-- Plugin Deployment for Tests                -->
+    <!-- ========================================== -->
+    <Target Name="DeployPlugin">
+        <PropertyGroup>
+            <PluginsDir>$(OutputPath)plugins</PluginsDir>
+            <PluginSubDir>$(PluginsDir)\$(PluginName)</PluginSubDir>
+            <PluginSourceDir>$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0</PluginSourceDir>
+        </PropertyGroup>
+
+        <MakeDir Directories="$(PluginSubDir)" />
+
+        <ItemGroup>
+            <AllPluginFiles Include="$(PluginSourceDir)\*.dll;$(PluginSourceDir)\*.exe;$(PluginSourceDir)\*.xml;$(PluginSourceDir)\*.pdb;$(PluginSourceDir)\*.json;$(PluginSourceDir)\*.runtimeconfig.json" />
+        </ItemGroup>
+
+        <Message Text="Deploying plugin $(PluginName) to $(PluginSubDir)" Importance="high" />
+
+        <Copy SourceFiles="@(AllPluginFiles)"
+              DestinationFolder="$(PluginSubDir)"
+              SkipUnchangedFiles="true"
+              OverwriteReadOnlyFiles="true" />
+    </Target>
+
+    <Target Name="BuildAndDeployPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+        <Message Text="Building and deploying plugins for tests..." Importance="high" />
+
+        <MSBuild Projects="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build" />
+
+        <MSBuild Projects="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build" />
+
+        <MSBuild Projects="..\CoseSignTool.AzureTrustedSigning.Plugin\CoseSignTool.AzureTrustedSigning.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.Local.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.MST.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.AzureTrustedSigning.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+    </Target>
 </Project>

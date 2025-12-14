@@ -653,4 +653,4 @@ public class SupplyChainAttestationService
 - [Abstractions Package](abstractions.md)
 - [CoseSign1 Package](cosesign1.md)
 - [SCITT Compliance Guide](../guides/scitt-compliance.md)
-- [Transparency Guide](../guides/transparency.md)
+- [Transparency Overview](transparent.md)

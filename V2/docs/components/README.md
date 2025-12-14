@@ -115,7 +115,7 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 ---
 
-### [CoseSign1.Transparent.MST](transparency-mst.md)
+### [CoseSign1.Transparent.MST](mst.md)
 **Microsoft's Signing Transparency** receipts.
 
 **Key Features**:

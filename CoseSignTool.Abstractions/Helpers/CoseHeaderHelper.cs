@@ -151,7 +151,7 @@ public static class CoseHeaderHelper
         try
         {
             string json = File.ReadAllText(filePath);
-            return JsonSerializer.Deserialize<List<CoseHeader<T>>>(json);
+            return JsonSerializer.Deserialize<List<CoseHeaderDto<T>>>(json).ToCoseHeaders();
         }
         catch (Exception ex)
         {

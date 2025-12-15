@@ -283,7 +283,7 @@ public abstract partial class CoseCommand
                 options.Converters.Add(converter);
             }
             
-            List<CoseHeader<TypeV>>? headers = JsonSerializer.Deserialize<List<CoseHeader<TypeV>>>(json, options);
+            List<CoseHeader<TypeV>>? headers = JsonSerializer.Deserialize<List<CoseHeaderDto<TypeV>>>(json, options).ToCoseHeaders();
             return headers ?? defaultValue;
         }
         catch (Exception ex) when (ex is not FileNotFoundException && ex is not ArgumentException)

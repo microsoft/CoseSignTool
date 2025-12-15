@@ -38,7 +38,6 @@
     <!--Project references-->
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
-        <PackageReference Include="System.Text.Json" />
     </ItemGroup>
 
     <!--Files to include in the package-->

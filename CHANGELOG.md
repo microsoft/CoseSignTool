@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- Multi-target libraries for netstandard2.0 and net8.0 [\#152](https://github.com/microsoft/CoseSignTool/pull/152) ([JeromySt](https://github.com/JeromySt))
 - Rename Azure CTS to Microsoft's Signing Transparency \(MST\) [\#151](https://github.com/microsoft/CoseSignTool/pull/151) ([JeromySt](https://github.com/JeromySt))
 
 ## [v1.6.7](https://github.com/microsoft/CoseSignTool/tree/v1.6.7) (2025-12-10)

@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
   </ItemGroup>
 
 </Project>

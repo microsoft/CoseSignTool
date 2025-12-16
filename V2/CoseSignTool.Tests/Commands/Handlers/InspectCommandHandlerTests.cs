@@ -4,7 +4,9 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
+using System.Text.Json;
 using CoseSignTool.Commands.Handlers;
+using CoseSignTool.Inspection;
 using CoseSignTool.Output;
 
 namespace CoseSignTool.Tests.Commands.Handlers;
@@ -262,11 +264,31 @@ public class InspectCommandHandlerTests
 
             // Act
             await handler.HandleAsync(context);
-            formatter.Flush();
 
             // Assert
             var output = stringWriter.ToString();
-            Assert.That(output.Contains("{") || output.Contains("["));
+            Assert.That(output, Does.Contain("\"certificates\""), $"JSON output did not contain 'certificates'. Output:\n{output}");
+
+            var result = JsonSerializer.Deserialize<CoseInspectionResult>(output);
+            Assert.That(result, Is.Not.Null, $"Unable to deserialize JSON output. Output:\n{output}");
+
+            Assert.That(result!.ProtectedHeaders, Is.Not.Null, $"Missing protectedHeaders. Output:\n{output}");
+            Assert.That(result.ProtectedHeaders!.CertificateChainLength, Is.Not.Null.And.GreaterThan(0), $"Missing/invalid certificateChainLength. Output:\n{output}");
+            Assert.That(result.ProtectedHeaders.CertificateThumbprint, Is.Not.Null, $"Missing certificateThumbprint (x5t). Output:\n{output}");
+            Assert.That(result.ProtectedHeaders.CertificateThumbprint!.Algorithm, Is.Not.Empty, $"Missing x5t algorithm. Output:\n{output}");
+            Assert.That(result.ProtectedHeaders.CertificateThumbprint.Value, Is.Not.Empty, $"Missing x5t value. Output:\n{output}");
+
+            Assert.That(result.Certificates, Is.Not.Null.And.Not.Empty, $"Missing decoded certificates from x5chain. Output:\n{output}");
+            Assert.That(result.Certificates!.Count, Is.GreaterThanOrEqualTo(result.ProtectedHeaders.CertificateChainLength!.Value), $"Decoded certificate count did not match chain length. Output:\n{output}");
+
+            foreach (var cert in result.Certificates)
+            {
+                Assert.That(cert.Subject, Is.Not.Empty);
+                Assert.That(cert.Issuer, Is.Not.Empty);
+                Assert.That(cert.Thumbprint, Is.Not.Empty);
+                Assert.That(cert.NotBefore, Is.Not.Empty);
+                Assert.That(cert.NotAfter, Is.Not.Empty);
+            }
         }
         finally
         {
@@ -304,7 +326,6 @@ public class InspectCommandHandlerTests
 
             // Act
             await handler.HandleAsync(context);
-            formatter.Flush();
 
             // Assert
             var output = stringWriter.ToString();

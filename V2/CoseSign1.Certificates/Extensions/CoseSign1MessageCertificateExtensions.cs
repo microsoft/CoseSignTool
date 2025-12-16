@@ -270,71 +270,52 @@ public static class CoseSign1MessageCertificateExtensions
             return false;
         }
 
-        var coseKey = CreateVerificationCoseKey(certificate);
-        if (coseKey == null)
+        // If message has embedded content, verify embedded.
+        // Otherwise, payload is required for detached verification.
+        bool isEmbedded = message.Content != null;
+        if (!isEmbedded && (payload == null || payload.Length == 0))
         {
             return false;
         }
 
-        // If message has embedded content, use VerifyEmbedded
-        // Otherwise, payload is required for detached verification
-        if (message.Content != null)
+        try
         {
-            return message.VerifyEmbedded(coseKey);
-        }
-
-        if (payload == null || payload.Length == 0)
-        {
-            return false;
-        }
-
-        return message.VerifyDetached(coseKey, payload);
-    }
-
-    /// <summary>
-    /// Creates a CoseKey for verification from a certificate's public key.
-    /// Supports RSA, ECDsa, and ML-DSA algorithms.
-    /// </summary>
-    private static CoseKey? CreateVerificationCoseKey(X509Certificate2 certificate)
-    {
-        // Try RSA first
-        var rsa = certificate.GetRSAPublicKey();
-        if (rsa != null)
-        {
-            // Determine hash algorithm based on key size
-            var hashAlgorithm = rsa.KeySize switch
+            // Prefer verifying with the raw public key types for RSA/ECDsa.
+            // The COSE library derives padding/hash from the message's 'alg' header.
+            var rsa = certificate.GetRSAPublicKey();
+            if (rsa != null)
             {
-                >= 4096 => HashAlgorithmName.SHA512, // PS512
-                >= 3072 => HashAlgorithmName.SHA384, // PS384
-                _ => HashAlgorithmName.SHA256        // PS256
-            };
-            return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
-        }
+                return isEmbedded
+                    ? message.VerifyEmbedded(rsa)
+                    : message.VerifyDetached(rsa, payload!);
+            }
 
-        // Try ECDsa
-        var ecdsa = certificate.GetECDsaPublicKey();
-        if (ecdsa != null)
-        {
-            // Determine hash algorithm based on curve size
-            var hashAlgorithm = ecdsa.KeySize switch
+            var ecdsa = certificate.GetECDsaPublicKey();
+            if (ecdsa != null)
             {
-                521 => HashAlgorithmName.SHA512, // ES512 (P-521)
-                384 => HashAlgorithmName.SHA384, // ES384 (P-384)
-                _ => HashAlgorithmName.SHA256    // ES256 (P-256)
-            };
-            return new CoseKey(ecdsa, hashAlgorithm);
-        }
+                return isEmbedded
+                    ? message.VerifyEmbedded(ecdsa)
+                    : message.VerifyDetached(ecdsa, payload!);
+            }
 
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
-        // Try ML-DSA (Post-Quantum)
-        var mlDsa = certificate.GetMLDsaPublicKey();
-        if (mlDsa != null)
-        {
-            return new CoseKey(mlDsa);
-        }
+            // ML-DSA (Post-Quantum) currently uses the CoseKey surface.
+            var mlDsa = certificate.GetMLDsaPublicKey();
+            if (mlDsa != null)
+            {
+                var coseKey = new CoseKey(mlDsa);
+                return isEmbedded
+                    ? message.VerifyEmbedded(coseKey)
+                    : message.VerifyDetached(coseKey, payload!);
+            }
 #pragma warning restore SYSLIB5006
 
-        return null;
+            return false;
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
     }
 
 

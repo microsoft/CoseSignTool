@@ -28,9 +28,7 @@
         <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="TestData\liquid_detached.json" CopyToOutputDirectory="PreserveNewest" />
-    </ItemGroup>
+
 
     <ItemGroup>
         <Using Include="NUnit.Framework" />

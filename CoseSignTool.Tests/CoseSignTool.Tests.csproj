@@ -6,7 +6,6 @@
         <!-- must match the platform set from CoseSignTool    -->
         <Nullable>enable</Nullable>
         <IsPublishable>false</IsPublishable>
-        <EnablePreviewFeatures>true</EnablePreviewFeatures>
         <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
         <SignAssembly>True</SignAssembly>
         <PublicSign>True</PublicSign>

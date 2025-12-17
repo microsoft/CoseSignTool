@@ -53,6 +53,30 @@ public class ProgramTests
     }
 
     [Test]
+    public void Main_WithNullElementInArgs_ReturnsGeneralErrorAndWritesFatalError()
+    {
+        var originalError = Console.Error;
+        var errorWriter = new StringWriter();
+        Console.SetError(errorWriter);
+
+        try
+        {
+            // A string[] can legally contain null at runtime; System.CommandLine isn't expected to handle this.
+            // We verify Program catches unexpected exceptions and returns a general error.
+            string[] args = [null!];
+
+            var exitCode = Program.Main(args);
+
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.GeneralError));
+            Assert.That(errorWriter.ToString(), Does.Contain("Fatal error:"));
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+    }
+
+    [Test]
     public void CreateRootCommand_ReturnsConfiguredCommand()
     {
         // Act

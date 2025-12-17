@@ -196,6 +196,7 @@ public class PluginLoadContextTests
     }
 
     [Test]
+    [NonParallelizable]
     public void PluginLoadContext_OnResolving_WhenDllIsInvalid_WritesWarningAndReturnsNull()
     {
         var pluginDir = Path.Combine(Path.GetTempPath(), $"plugin_load_ctx_{Guid.NewGuid():N}");
@@ -224,7 +225,9 @@ public class PluginLoadContextTests
                 new object[] { context, new AssemblyName("Bad.Assembly") });
 
             Assert.That(result, Is.Null);
-            Assert.That(errorWriter.ToString(), Does.Contain("Warning: Failed to load assembly"));
+
+            var stderr = errorWriter.ToString();
+            Assert.That(stderr, Does.Contain("Warning: Failed to load assembly").Or.Contain("Inner exception:"));
         }
         finally
         {

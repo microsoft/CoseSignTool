@@ -201,6 +201,211 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    public async Task HandleAsync_WhenSignatureLooksLikeBase64Text_WritesHintAndReturnsInvalidSignature()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        // Provide sufficiently long, base64-ish printable ASCII so LooksLikeBase64Text() evaluates to true.
+        var base64ish = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo9PT09QUJDREVGR0hJSktMTU5PUA==";
+        await File.WriteAllTextAsync(tempFile, base64ish);
+
+        var signature = new FileInfo(tempFile);
+        var context = CreateInvocationContext(signature: signature);
+
+        var output = new StringWriter();
+        var formatter = new TextOutputFormatter(output: output, error: output);
+        var handler = new VerifyCommandHandler(formatter);
+
+        try
+        {
+            var exitCode = await handler.HandleAsync(context);
+            formatter.Flush();
+
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidSignature));
+            Assert.That(output.ToString(), Does.Contain("appears to be Base64 text"));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public void LooksLikeBase64Text_WhenNullOrEmpty_ReturnsFalse()
+    {
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "LooksLikeBase64Text",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        Assert.That((bool)method!.Invoke(null, new object?[] { null })!, Is.False);
+        Assert.That((bool)method.Invoke(null, new object?[] { Array.Empty<byte>() })!, Is.False);
+    }
+
+    [Test]
+    public void LooksLikeBase64Text_WhenTooShort_ReturnsFalse()
+    {
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "LooksLikeBase64Text",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        // < 16 bytes inspected
+        var shortBytes = System.Text.Encoding.ASCII.GetBytes("QUJDREVGR0g=");
+        Assert.That((bool)method!.Invoke(null, new object?[] { shortBytes })!, Is.False);
+    }
+
+    [Test]
+    public void LooksLikeBase64Text_WhenBinaryData_ReturnsFalse()
+    {
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "LooksLikeBase64Text",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        // Contains a non-printable byte early, which should return false immediately.
+        var bytes = new byte[32];
+        bytes[0] = 0x00;
+        bytes[1] = 0x01;
+        bytes[2] = 0xFF;
+        Assert.That((bool)method!.Invoke(null, new object?[] { bytes })!, Is.False);
+    }
+
+    [Test]
+    public void LooksLikeBase64Text_WhenBase64ishAscii_ReturnsTrue()
+    {
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "LooksLikeBase64Text",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var bytes = System.Text.Encoding.ASCII.GetBytes(new string('A', 128));
+        Assert.That((bool)method!.Invoke(null, new object?[] { bytes })!, Is.True);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_WhenNoContent_ReturnsFalse()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+
+        var detached = CoseSign1Message.SignDetached(payload, signer);
+        var message = CoseSign1Message.DecodeSign1(detached);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_Private_WhenHeaderMissing_ReturnsFalse()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA256.HashData(payload);
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_WhenAlgorithmUnsupported_ReturnsFalse()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA256.HashData(payload);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-999));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_WhenHashMatches_ReturnsTrue()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA256.HashData(payload);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-16));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_WhenHashMismatches_ReturnsFalse()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA256.HashData(payload);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-16));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var differentPayload = System.Text.Encoding.UTF8.GetBytes("different");
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, differentPayload })!;
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
     public async Task HandleAsync_WithIndirectSignature_WritesIndirectAndPayloadFile()
     {
         // Arrange

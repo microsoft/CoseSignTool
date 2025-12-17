@@ -121,7 +121,7 @@ public class TransparencyExtensionsTests
         // Create a COSE Sign1 message using the factory with TestCertificateUtils
         var cert = TestCertificateUtils.CreateCertificate("CN=Test");
         var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new Direct.DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
 

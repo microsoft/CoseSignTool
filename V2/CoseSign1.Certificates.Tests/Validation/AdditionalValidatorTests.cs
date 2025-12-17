@@ -23,7 +23,7 @@ public class AdditionalValidatorTests
         TestCert = TestCertificateUtils.CreateCertificate("ValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -57,9 +57,45 @@ public class AdditionalValidatorTests
     }
 
     [Test]
+    public void CertificateCommonNameValidator_Constructor_WithWhitespaceName_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => new CertificateCommonNameValidator("   "));
+    }
+
+    [Test]
+    public void CertificateCommonNameValidator_Constructor_WithAllowUnprotectedHeaders_CreatesValidator()
+    {
+        var validator = new CertificateCommonNameValidator("Test", allowUnprotectedHeaders: true);
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
     public void CertificateCommonNameValidator_Validate_WithMatchingName_ReturnsSuccess()
     {
         var validator = new CertificateCommonNameValidator("ValidatorTest");
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public void CertificateCommonNameValidator_Validate_WithMatchingName_ReturnsMetadata()
+    {
+        var validator = new CertificateCommonNameValidator("ValidatorTest");
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata, Is.Not.Null);
+        Assert.That(result.Metadata!.ContainsKey("CommonName"), Is.True);
+        Assert.That(result.Metadata["CommonName"], Is.EqualTo("ValidatorTest"));
+        Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
+    }
+
+    [Test]
+    public void CertificateCommonNameValidator_Validate_CaseInsensitiveMatch_ReturnsSuccess()
+    {
+        // Test case-insensitive matching
+        var validator = new CertificateCommonNameValidator("VALIDATORTEST");
         var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
@@ -75,12 +111,32 @@ public class AdditionalValidatorTests
     }
 
     [Test]
+    public void CertificateCommonNameValidator_Validate_WithNonMatchingName_HasFailureMessage()
+    {
+        var validator = new CertificateCommonNameValidator("WrongName");
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.GreaterThan(0));
+    }
+
+    [Test]
     public void CertificateCommonNameValidator_Validate_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateCommonNameValidator("Test");
         var result = validator.Validate(null!);
 
         Assert.That(result.IsValid, Is.False);
+    }
+
+    [Test]
+    public void CertificateCommonNameValidator_Validate_WithNullInput_HasFailureMessage()
+    {
+        var validator = new CertificateCommonNameValidator("Test");
+        var result = validator.Validate(null!);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.GreaterThan(0));
     }
 
     [Test]
@@ -148,7 +204,7 @@ public class AdditionalValidatorTests
         var cert = TestCertificateUtils.CreateCertificate("DetachedTest");
 #pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
 
@@ -181,7 +237,7 @@ public class AdditionalValidatorTests
         var cert = TestCertificateUtils.CreateCertificate("DetachedAsyncTest");
 #pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
 

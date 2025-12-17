@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Local.Plugin;
@@ -13,6 +14,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class LocalSigningPlugin : IPlugin
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string PluginName = "Local Certificate Signing";

@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Direct;
 using CoseSign1.Extensions;
@@ -30,7 +31,7 @@ public class CoseSign1MessageExtensionsTests
     private static CoseSign1Message CreateTestMessage(byte[] payload, CoseHeaderMap? headers = null)
     {
         using X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
-        using LocalCertificateSigningService signingService = new(cert, new[] { cert });
+        using var signingService = CertificateSigningService.Create(cert, new X509Certificate2[] { cert });
         using DirectSignatureFactory factory = new(signingService);
 
         DirectSignatureOptions? options = headers != null

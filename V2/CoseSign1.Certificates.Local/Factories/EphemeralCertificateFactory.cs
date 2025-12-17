@@ -423,10 +423,10 @@ public class EphemeralCertificateFactory : ICertificateFactory
 
     private static byte[] GenerateSerialNumber()
     {
-        // Use Unix timestamp + random bytes for uniqueness
-        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var unixTime = Convert.ToInt64((DateTime.UtcNow - epoch).TotalSeconds);
-        return BitConverter.GetBytes(unixTime);
+        // Use a GUID for guaranteed uniqueness across all scenarios including
+        // parallel test execution and multiple factory instances.
+        // Take 16 bytes from the GUID - X.509 serial numbers can be up to 20 bytes.
+        return Guid.NewGuid().ToByteArray();
     }
 
     private static int GetDefaultKeySize(KeyAlgorithm algorithm)

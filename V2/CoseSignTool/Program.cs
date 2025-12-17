@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Commands;
 using CoseSignTool.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ public static class Program
     /// <summary>
     /// String constants specific to this class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string LoggerCategory = "CoseSignTool";

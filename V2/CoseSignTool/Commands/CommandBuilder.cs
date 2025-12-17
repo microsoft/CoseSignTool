@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using System.CommandLine.Help;
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
@@ -21,6 +22,7 @@ public class CommandBuilder
     /// <summary>
     /// String constants specific to this class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Root command

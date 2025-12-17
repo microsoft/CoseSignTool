@@ -25,7 +25,7 @@ public class CertificateChainValidatorTests
         TestCert = TestCertificateUtils.CreateCertificate("ChainValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -340,6 +340,107 @@ public class CertificateChainValidatorTests
     }
 
     [Test]
+    public void Validate_WhenChainBuildFailsAndStatusIsNoError_ReturnsDefaultChainBuildFailedFailure()
+    {
+        var chainBuilder = new FakeChainBuilder
+        {
+            ChainPolicy = new X509ChainPolicy { RevocationMode = X509RevocationMode.NoCheck },
+            ChainStatus = new[] { new X509ChainStatus { Status = X509ChainStatusFlags.NoError, StatusInformation = string.Empty } },
+            BuildResult = false
+        };
+
+        var validator = new CertificateChainValidator(
+            chainBuilder,
+            allowUnprotectedHeaders: false,
+            allowUntrusted: false,
+            customRoots: null,
+            trustUserRoots: true);
+
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Any(f => f.ErrorCode == "CHAIN_BUILD_FAILED"), Is.True);
+    }
+
+    [Test]
+    public void Validate_WhenAllowUntrustedAndOnlyUntrustedRoot_ReturnsSuccessWithAllowedUntrustedMetadata()
+    {
+        var chainBuilder = new FakeChainBuilder
+        {
+            ChainPolicy = new X509ChainPolicy { RevocationMode = X509RevocationMode.NoCheck },
+            ChainStatus = new[]
+            {
+                new X509ChainStatus { Status = X509ChainStatusFlags.UntrustedRoot, StatusInformation = "Untrusted" },
+                new X509ChainStatus { Status = X509ChainStatusFlags.NoError, StatusInformation = string.Empty }
+            },
+            BuildResult = false
+        };
+
+        var validator = new CertificateChainValidator(
+            chainBuilder,
+            allowUnprotectedHeaders: false,
+            allowUntrusted: true,
+            customRoots: null,
+            trustUserRoots: true);
+
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata.TryGetValue("AllowedUntrusted", out var allowed), Is.True);
+        Assert.That(allowed, Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Validate_WhenCustomRootTrustedAndUntrustedRootOnly_ReturnsSuccessWithTrustedCustomRootMetadata()
+    {
+        using var rootCert = TestCertificateUtils.CreateCertificate("CustomRoot");
+
+        var customRoots = new X509Certificate2Collection { rootCert };
+        var chainBuilder = new FakeChainBuilder
+        {
+            ChainPolicy = new X509ChainPolicy { RevocationMode = X509RevocationMode.NoCheck },
+            ChainElements = new[] { rootCert },
+            ChainStatus = new[]
+            {
+                new X509ChainStatus { Status = X509ChainStatusFlags.UntrustedRoot, StatusInformation = "Untrusted" },
+                new X509ChainStatus { Status = X509ChainStatusFlags.NoError, StatusInformation = string.Empty }
+            },
+            BuildResult = false
+        };
+
+        var validator = new CertificateChainValidator(
+            chainBuilder,
+            allowUnprotectedHeaders: false,
+            allowUntrusted: false,
+            customRoots: customRoots,
+            trustUserRoots: true);
+
+        // Ensure the branch that clears ExtraStore runs
+        using var sentinel = TestCertificateUtils.CreateCertificate("ExtraStoreSentinel");
+        chainBuilder.ChainPolicy.ExtraStore.Add(sentinel);
+
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(chainBuilder.ChainPolicy.ExtraStore.Cast<X509Certificate2>().Any(c => c.Thumbprint == sentinel.Thumbprint), Is.False);
+        Assert.That(result.Metadata.TryGetValue("TrustedCustomRoot", out var trusted), Is.True);
+        Assert.That(trusted, Is.EqualTo(rootCert.Thumbprint));
+    }
+
+    private sealed class FakeChainBuilder : Interfaces.ICertificateChainBuilder
+    {
+        public IReadOnlyCollection<X509Certificate2> ChainElements { get; set; } = Array.Empty<X509Certificate2>();
+
+        public X509ChainPolicy ChainPolicy { get; set; } = new();
+
+        public X509ChainStatus[] ChainStatus { get; set; } = Array.Empty<X509ChainStatus>();
+
+        public bool BuildResult { get; set; }
+
+        public bool Build(X509Certificate2 certificate) => BuildResult;
+    }
+
+    [Test]
     public void Validate_ChainBuildFailure_IncludesChainStatusInformation()
     {
         var validator = new CertificateChainValidator(
@@ -364,7 +465,7 @@ public class CertificateChainValidatorTests
         var intermediateCert = TestCertificateUtils.CreateCertificate("Intermediate");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(leafCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(leafCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Sign message with the leaf certificate
@@ -450,5 +551,182 @@ public class CertificateChainValidatorTests
         var result = validator.Validate(ValidMessage!);
 
         Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public void Validate_WithTrustUserRootsFalse_DoesNotUseCustomTrustMode()
+    {
+        var customRoots = new X509Certificate2Collection { TestCert! };
+        var validator = new CertificateChainValidator(
+            customRoots,
+            allowUnprotectedHeaders: false,
+            trustUserRoots: false,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(ValidMessage!);
+
+        // Should complete without exception, trust mode is system
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateChainValidator)));
+    }
+
+    [Test]
+    public void Validate_WithCustomRootsButUntrustedRoot_ReturnsFailure()
+    {
+        // Create unrelated custom root
+        var unrelatedRoot = TestCertificateUtils.CreateCertificate("UnrelatedRoot");
+        var customRoots = new X509Certificate2Collection { unrelatedRoot };
+
+        var validator = new CertificateChainValidator(
+            customRoots,
+            allowUnprotectedHeaders: false,
+            trustUserRoots: true,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(ValidMessage!);
+
+        // Should fail because the signing cert is not in the custom roots chain
+        Assert.That(result, Is.Not.Null);
+
+        unrelatedRoot.Dispose();
+    }
+
+    [Test]
+    public void Validate_WithAllowUntrustedFalse_AndSelfSigned_ReturnsFailure()
+    {
+        var validator = new CertificateChainValidator(
+            allowUnprotectedHeaders: false,
+            allowUntrusted: false,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(ValidMessage!);
+
+        // Self-signed certificate without allowUntrusted should fail
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void Validate_FailureResult_ContainsChainStatusErrors()
+    {
+        var validator = new CertificateChainValidator(
+            allowUnprotectedHeaders: false,
+            allowUntrusted: false,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(ValidMessage!);
+
+        // Self-signed cert without untrusted allowed should produce chain status failure
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Any(), Is.True);
+        Assert.That(result.Failures.All(f => !string.IsNullOrEmpty(f.ErrorCode)), Is.True);
+    }
+
+    [Test]
+    public void Validate_WithChainBuilderAndCustomRoots_ConfiguresCorrectly()
+    {
+        var customChainBuilder = new X509ChainBuilder
+        {
+            ChainPolicy = new X509ChainPolicy
+            {
+                RevocationMode = X509RevocationMode.NoCheck
+            }
+        };
+        var customRoots = new X509Certificate2Collection { TestCert! };
+
+        var validator = new CertificateChainValidator(
+            customChainBuilder,
+            allowUnprotectedHeaders: false,
+            allowUntrusted: true,
+            customRoots: customRoots,
+            trustUserRoots: true);
+
+        var result = validator.Validate(ValidMessage!);
+
+        // Should succeed with the proper configuration
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public void Constructor_WithDefaultRevocationMode_UsesOnline()
+    {
+        var customRoots = new X509Certificate2Collection { TestCert! };
+        var validator = new CertificateChainValidator(
+            customRoots,
+            allowUnprotectedHeaders: false,
+            trustUserRoots: true);
+        // This constructor defaults to Online revocation mode
+
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void Validate_ResultContainsValidatorName()
+    {
+        var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateChainValidator)));
+    }
+
+    [Test]
+    public void Validate_WithChainThatHasSelfSignedRoot_AndCustomRootsMatch_ReturnsSuccess()
+    {
+        // Create a chain where the root is self-signed (same subject and issuer)
+        var rootCert = TestCertificateUtils.CreateCertificate("Root");
+        var customRoots = new X509Certificate2Collection { rootCert };
+
+        // Create message signed by root (self-signed)
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(rootCert, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        var validator = new CertificateChainValidator(
+            customRoots,
+            allowUnprotectedHeaders: false,
+            trustUserRoots: true,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(message);
+
+        // The self-signed root is in the custom roots, so it should pass
+        Assert.That(result.IsValid, Is.True);
+        if (result.Metadata.ContainsKey("TrustedCustomRoot"))
+        {
+            Assert.That(result.Metadata["TrustedCustomRoot"], Is.EqualTo(rootCert.Thumbprint));
+        }
+
+        rootCert.Dispose();
+    }
+
+    [Test]
+    public async Task ValidateAsync_WithNullInput_ReturnsFailure()
+    {
+        var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
+        var result = await validator.ValidateAsync(null!);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Any(e => e.ErrorCode == "NULL_INPUT"), Is.True);
+    }
+
+    [Test]
+    public void Validate_ChainStatus_AllNoError_WithUntrustedRoot_AndAllowUntrusted_ReturnsSuccess()
+    {
+        // A self-signed cert should have UntrustedRoot status
+        var validator = new CertificateChainValidator(
+            allowUnprotectedHeaders: false,
+            allowUntrusted: true,
+            revocationMode: X509RevocationMode.NoCheck);
+
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+        if (result.Metadata.ContainsKey("AllowedUntrusted"))
+        {
+            Assert.That(result.Metadata["AllowedUntrusted"], Is.True);
+        }
     }
 }

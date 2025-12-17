@@ -96,6 +96,33 @@ public class LinuxCertificateStoreCertificateSourceTests
     }
 
     [Test]
+    public void Constructor_WithInvalidPrivateKeyFile_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invalidKeyPath = Path.Combine(TestCertDirectory!, "invalid.key");
+        // Provide both RSA and EC blocks with invalid key material so that:
+        // - RSA.ImportFromPem throws CryptographicException (caught)
+        // - ECDsa.ImportFromPem throws CryptographicException (caught)
+        // which drives the constructor into the final InvalidOperationException path.
+        File.WriteAllText(invalidKeyPath,
+            "-----BEGIN RSA PRIVATE KEY-----\nAA==\n-----END RSA PRIVATE KEY-----\n" +
+            "-----BEGIN EC PRIVATE KEY-----\nAA==\n-----END EC PRIVATE KEY-----\n");
+
+        try
+        {
+            // Act & Assert
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                new LinuxCertificateStoreCertificateSource(CertFilePath!, invalidKeyPath));
+
+            Assert.That(ex!.Message, Does.Contain("Unable to import private key"));
+        }
+        catch (PlatformNotSupportedException)
+        {
+            Assert.Inconclusive("Test requires Linux/Unix platform");
+        }
+    }
+
+    [Test]
     public void Constructor_WithThumbprint_SearchesDefaultPaths()
     {
         // Create certificate in test directory
@@ -110,6 +137,38 @@ public class LinuxCertificateStoreCertificateSourceTests
                 storePaths: new[] { TestCertDirectory! });
 
             Assert.That(source, Is.Not.Null);
+            Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(anotherCert.Thumbprint));
+        }
+        catch (PlatformNotSupportedException)
+        {
+            Assert.Inconclusive("Test requires Linux/Unix platform");
+        }
+        finally
+        {
+            anotherCert.Dispose();
+        }
+    }
+
+    [Test]
+    public void Constructor_WithThumbprintContainingSpacesAndColons_FindsCertificate()
+    {
+        // Arrange
+        var anotherCert = TestCertificateUtils.CreateCertificate("AnotherTestNormalizedThumbprint");
+        var anotherCertPath = Path.Combine(TestCertDirectory!, "another2.pem");
+        File.WriteAllText(anotherCertPath, anotherCert.ExportCertificatePem());
+
+        // Introduce spaces and colons to validate normalization.
+        var normalized = anotherCert.Thumbprint;
+        var thumbprintWithColons = string.Join(":", Enumerable.Range(0, normalized.Length / 2)
+            .Select(i => normalized.Substring(i * 2, 2)));
+        var thumbprintWithNoise = thumbprintWithColons.Insert(5, " ");
+
+        try
+        {
+            using var source = new LinuxCertificateStoreCertificateSource(
+                thumbprintWithNoise,
+                storePaths: new[] { TestCertDirectory! });
+
             Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(anotherCert.Thumbprint));
         }
         catch (PlatformNotSupportedException)
@@ -235,7 +294,7 @@ public class LinuxCertificateStoreCertificateSourceTests
             }
 
             var chainBuilder = source.GetChainBuilder();
-            using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+            using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
             Assert.That(signingService, Is.Not.Null);
             Assert.That(signingService.IsRemote, Is.False);

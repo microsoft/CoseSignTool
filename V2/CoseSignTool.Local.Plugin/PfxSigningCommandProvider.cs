@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Security;
@@ -30,6 +32,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </remarks>
 public class PfxSigningCommandProvider : ISigningCommandProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Command metadata
@@ -141,10 +144,10 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         CertificateThumbprint = signingCert.Thumbprint;
 
         // Create logger for signing service
-        var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
+        var signingServiceLogger = loggerFactory?.CreateLogger<CertificateSigningService>();
 
         // Create and return signing service
-        SigningService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
+        SigningService = CertificateSigningService.Create(signingCert, chainBuilder, signingServiceLogger);
 
         return await Task.FromResult(SigningService);
     }

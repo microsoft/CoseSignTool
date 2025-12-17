@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Direct;
@@ -325,7 +327,7 @@ public class CoseSign1MessageIndirectExtensionsTests
     private CoseSign1Message CreateDirectSignature()
     {
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
+        using var signingService = CertificateSigningService.Create(cert, new X509Certificate2[] { cert });
         using var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -335,7 +337,7 @@ public class CoseSign1MessageIndirectExtensionsTests
     private CoseSign1Message CreateTestMessage(byte[] payload, CoseHeaderMap? protectedHeaders = null, CoseHeaderMap? unprotectedHeaders = null)
     {
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
+        using var signingService = CertificateSigningService.Create(cert, new X509Certificate2[] { cert });
         using var factory = new DirectSignatureFactory(signingService);
 
         DirectSignatureOptions? options = null;

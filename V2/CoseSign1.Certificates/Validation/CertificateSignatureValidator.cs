@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation;
@@ -17,6 +18,7 @@ using CoseSign1.Validation;
 /// </remarks>
 public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Validator name

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.MST.Plugin;

@@ -25,7 +25,7 @@ public class CertificateValidationExtensionsTests
         TestCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -192,6 +192,80 @@ public class CertificateValidationExtensionsTests
         var result = builder.ValidateCertificateKeyUsage(
             X509KeyUsageFlags.DigitalSignature,
             allowUnprotectedHeaders: true);
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateEnhancedKeyUsage_WithOid_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        var codeSigningOid = new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.3", "Code Signing");
+
+        var result = builder.ValidateCertificateEnhancedKeyUsage(codeSigningOid);
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateEnhancedKeyUsage_WithOidAndUnprotectedHeaders_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        var codeSigningOid = new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.3", "Code Signing");
+
+        var result = builder.ValidateCertificateEnhancedKeyUsage(codeSigningOid, allowUnprotectedHeaders: true);
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateEnhancedKeyUsage_WithOidString_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+
+        var result = builder.ValidateCertificateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3");
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateEnhancedKeyUsage_WithOidStringAndUnprotectedHeaders_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+
+        var result = builder.ValidateCertificateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3", allowUnprotectedHeaders: true);
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateChain_WithChainBuilderAndAllOptions_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        var chainBuilder = new X509ChainBuilder();
+        var customRoots = new X509Certificate2Collection();
+
+        var result = builder.ValidateCertificateChain(
+            chainBuilder,
+            allowUnprotectedHeaders: true,
+            allowUntrusted: true,
+            customRoots: customRoots,
+            trustUserRoots: false);
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void ValidateCertificateChain_WithCustomRootsAndOptions_AddsValidator()
+    {
+        var builder = Cose.Sign1Message();
+        var customRoots = new X509Certificate2Collection { TestCert! };
+
+        var result = builder.ValidateCertificateChain(
+            customRoots,
+            allowUnprotectedHeaders: true,
+            trustUserRoots: false,
+            revocationMode: X509RevocationMode.NoCheck);
 
         Assert.That(result, Is.SameAs(builder));
     }

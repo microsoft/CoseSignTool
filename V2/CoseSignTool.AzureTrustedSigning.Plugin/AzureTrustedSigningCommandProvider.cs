@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using Azure.Developer.TrustedSigning.CryptoProvider;
 using Azure.Identity;
 using CoseSign1.Abstractions;

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 namespace CoseSignTool.Configuration;
@@ -10,6 +11,7 @@ namespace CoseSignTool.Configuration;
 /// </summary>
 public static class LoggingConfiguration
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Console formatter

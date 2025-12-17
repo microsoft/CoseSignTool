@@ -9,7 +9,11 @@ namespace CoseSignTool.Tests.Configuration;
 /// <summary>
 /// Tests for the ConfigurationLoader class.
 /// </summary>
+/// <remarks>
+/// These tests modify environment variables, so they must run sequentially to avoid conflicts.
+/// </remarks>
 [TestFixture]
+[NonParallelizable]
 public class ConfigurationLoaderTests
 {
     [Test]

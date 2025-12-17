@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Reflection;
 using CoseSignTool.Commands;
 
 namespace CoseSignTool.Tests.Commands;
@@ -210,6 +211,104 @@ public class CommandBuilderTests
     }
 
     [Test]
+    public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsBadPlugin_PrintsWarningAndStillBuilds()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"bad_plugins_{Guid.NewGuid():N}");
+        var badPluginDir = Path.Combine(tempDir, "bad");
+        Directory.CreateDirectory(badPluginDir);
+
+        // PluginLoader scans subdirectories and loads *.Plugin.dll files.
+        var badPluginPath = Path.Combine(badPluginDir, "Bad.Plugin.dll");
+        File.WriteAllBytes(badPluginPath, [0x01, 0x02, 0x03, 0x04]);
+
+        var originalError = Console.Error;
+        var sw = new StringWriter();
+        Console.SetError(sw);
+
+        try
+        {
+            // Act
+            var rootCommand = builder.BuildRootCommand([tempDir]);
+
+            // Assert
+            Assert.That(rootCommand, Is.Not.Null);
+            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "verify"), Is.True);
+            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "inspect"), Is.True);
+            Assert.That(sw.ToString(), Does.Contain("Warning: Failed to load plugins"));
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsAssemblyWithFaultyPlugins_PrintsPerPluginWarnings()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"test_plugins_{Guid.NewGuid():N}");
+        var pluginSubdir = Path.Combine(tempDir, "test");
+        Directory.CreateDirectory(pluginSubdir);
+
+        // PluginLoader scans subdirectories and loads *.Plugin.dll files.
+        // Use the dedicated minimal test plugin assembly to avoid loading the full test assembly.
+        var sourceAssemblyPath = typeof(CoseSignTool.TestPlugins.Plugin.ThrowingGetExtensionsPlugin).Assembly.Location;
+        var pluginAssemblyPath = Path.Combine(pluginSubdir, Path.GetFileName(sourceAssemblyPath));
+        File.Copy(sourceAssemblyPath, pluginAssemblyPath, overwrite: true);
+
+        var originalError = Console.Error;
+        var sw = new StringWriter();
+        Console.SetError(sw);
+
+        try
+        {
+            // Act
+            var rootCommand = builder.BuildRootCommand([tempDir]);
+
+            // Assert
+            Assert.That(rootCommand, Is.Not.Null);
+            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "verify"), Is.True);
+            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "inspect"), Is.True);
+            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "sign-test"), Is.True);
+
+            var output = sw.ToString();
+            Assert.That(output, Does.Contain("Warning: Failed to get extensions from plugin 'ThrowExt':"));
+            Assert.That(output, Does.Contain("boom"));
+            Assert.That(output, Does.Contain("Warning: Failed to load transparency provider from plugin 'ThrowProviders':"));
+            Assert.That(output, Does.Contain("transparency fail"));
+            Assert.That(output, Does.Contain("Warning: Failed to load verification provider from plugin 'ThrowProviders':"));
+            Assert.That(output, Does.Contain("verification fail"));
+            Assert.That(output, Does.Contain("Warning: Failed to register plugin 'ThrowRegister':"));
+            Assert.That(output, Does.Contain("register fail"));
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // On Windows, assemblies loaded from disk can remain locked.
+                // Best-effort cleanup to keep the test stable.
+            }
+        }
+    }
+
+    [Test]
     public void BuildRootCommand_OutputFormatOptionHasAlias()
     {
         // Arrange
@@ -222,6 +321,46 @@ public class CommandBuilderTests
         var outputFormatOption = rootCommand.Options.FirstOrDefault(o => o.Name == "output-format");
         Assert.That(outputFormatOption, Is.Not.Null);
         Assert.That(outputFormatOption!.Aliases, Does.Contain("-f"));
+    }
+
+    [Test]
+    public async Task InvokeAsync_VerifyCommand_WithMissingFile_ReturnsFileNotFound()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var missingSignature = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.cose");
+
+        // Act
+        var exitCode = await rootCommand.InvokeAsync(new[]
+        {
+            "--output-format", "quiet",
+            "verify",
+            missingSignature
+        });
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
+    }
+
+    [Test]
+    public async Task InvokeAsync_InspectCommand_WithMissingFile_ReturnsFileNotFound()
+    {
+        // Arrange
+        var builder = new CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var missingSignature = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.cose");
+
+        // Act
+        var exitCode = await rootCommand.InvokeAsync(new[]
+        {
+            "--output-format", "quiet",
+            "inspect",
+            missingSignature
+        });
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
     }
 
     [Test]

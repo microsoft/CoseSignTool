@@ -733,7 +733,7 @@ public void Validate_WithValidSignature_ReturnsSuccess()
 {
     // Arrange
     using var cert = TestCertificateProvider.GetTestCertificate();
-    using var service = new LocalCertificateSigningService(cert);
+    using var service = CertificateSigningService.Create(cert);
     var factory = new DirectSignatureFactory(service);
     var message = await factory.CreateAsync(new byte[] { 1, 2, 3 });
     

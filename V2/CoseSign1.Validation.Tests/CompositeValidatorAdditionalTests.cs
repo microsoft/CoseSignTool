@@ -21,7 +21,7 @@ public class CompositeValidatorAdditionalTests
     {
         var cert = TestCertificateUtils.CreateCertificate("CompositeAdditionalTest");
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -55,21 +55,24 @@ public class CompositeValidatorAdditionalTests
     [Test]
     public async Task ValidateAsync_WithParallelExecution_RunsInParallel()
     {
+        var probe = new ConcurrencyProbe();
         var validators = new List<IValidator<CoseSign1Message>>
         {
-            new DelayedValidator(100, true),
-            new DelayedValidator(100, true),
-            new DelayedValidator(100, true)
+            new ConcurrencyTrackingValidator(probe),
+            new ConcurrencyTrackingValidator(probe),
+            new ConcurrencyTrackingValidator(probe)
         };
         var composite = new CompositeValidator(validators, runInParallel: true);
 
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await composite.ValidateAsync(ValidMessage!);
-        sw.Stop();
+        var validateTask = composite.ValidateAsync(ValidMessage!);
 
+        // If running in parallel, multiple validators should start before we release them.
+        await probe.StartedAtLeastTwoTask.WaitAsync(TimeSpan.FromSeconds(5));
+        probe.Release.TrySetResult();
+
+        var result = await validateTask;
         Assert.That(result.IsValid, Is.True);
-        // If running truly in parallel, should finish in ~100ms, not 300ms
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(250));
+        Assert.That(probe.MaxConcurrency, Is.GreaterThanOrEqualTo(2));
     }
 
     [Test]
@@ -271,6 +274,83 @@ public class CompositeValidatorAdditionalTests
         {
             await Task.Delay(100, cancellationToken);
             return ValidationResult.Success("CancellableValidator");
+        }
+    }
+
+    private sealed class ConcurrencyProbe
+    {
+        private int Current;
+        private int StartedCount;
+        private int Max;
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private TaskCompletionSource StartedAtLeastTwo { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task StartedAtLeastTwoTask => StartedAtLeastTwo.Task;
+
+        public int MaxConcurrency => Volatile.Read(ref Max);
+
+        public void OnStart()
+        {
+            var now = Interlocked.Increment(ref Current);
+            UpdateMax(now);
+
+            if (Interlocked.Increment(ref StartedCount) >= 2)
+            {
+                StartedAtLeastTwo.TrySetResult();
+            }
+        }
+
+        public void OnFinish()
+        {
+            Interlocked.Decrement(ref Current);
+        }
+
+        private void UpdateMax(int value)
+        {
+            while (true)
+            {
+                var snapshot = Volatile.Read(ref Max);
+                if (value <= snapshot)
+                {
+                    return;
+                }
+
+                if (Interlocked.CompareExchange(ref Max, value, snapshot) == snapshot)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    private sealed class ConcurrencyTrackingValidator : IValidator<CoseSign1Message>
+    {
+        private readonly ConcurrencyProbe Probe;
+
+        public ConcurrencyTrackingValidator(ConcurrencyProbe probe)
+        {
+            Probe = probe;
+        }
+
+        public ValidationResult Validate(CoseSign1Message input)
+        {
+            throw new NotSupportedException("Use ValidateAsync for this validator.");
+        }
+
+        public async Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        {
+            Probe.OnStart();
+            try
+            {
+                await Probe.Release.Task.WaitAsync(cancellationToken);
+                return ValidationResult.Success("ConcurrencyTrackingValidator");
+            }
+            finally
+            {
+                Probe.OnFinish();
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ public class CertificateSignatureValidatorTests
         TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -120,4 +120,121 @@ public class CertificateSignatureValidatorTests
 
         Assert.That(result.IsValid, Is.False);
     }
+
+    #region Detached Signature Tests
+
+    [Test]
+    public void Constructor_WithDetachedPayload_CreatesValidator()
+    {
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var validator = new CertificateSignatureValidator(payload);
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void Constructor_WithDetachedPayloadAndAllowUnprotected_CreatesValidator()
+    {
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var validator = new CertificateSignatureValidator(payload, allowUnprotectedHeaders: true);
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void Constructor_WithReadOnlyMemoryPayload_CreatesValidator()
+    {
+        ReadOnlyMemory<byte> payload = new byte[] { 1, 2, 3, 4, 5 };
+        var validator = new CertificateSignatureValidator(payload);
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void Constructor_WithReadOnlyMemoryAndAllowUnprotected_CreatesValidator()
+    {
+        ReadOnlyMemory<byte> payload = new byte[] { 1, 2, 3, 4, 5 };
+        var validator = new CertificateSignatureValidator(payload, allowUnprotectedHeaders: true);
+        Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+    public void Constructor_WithNullDetachedPayload_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new CertificateSignatureValidator((byte[])null!));
+    }
+
+    [Test]
+#pragma warning disable CA2252 // Preview features
+    public void Validate_DetachedSignature_WithPayload_ReturnsSuccess()
+    {
+        // Create a detached signature
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+
+        // Create detached signature (embedPayload: false)
+        var options = new DirectSignatureOptions { EmbedPayload = false };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
+        var detachedMessage = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // Validate with the payload
+        var validator = new CertificateSignatureValidator(payload);
+        var result = validator.Validate(detachedMessage);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateDetachedSignatureValidator)));
+    }
+#pragma warning restore CA2252
+
+    [Test]
+#pragma warning disable CA2252 // Preview features
+    public void Validate_DetachedSignature_WithoutPayload_ReturnsFailure()
+    {
+        // Create a detached signature
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+
+        // Create detached signature (embedPayload: false)
+        var options = new DirectSignatureOptions { EmbedPayload = false };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
+        var detachedMessage = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // Try to validate without payload - should fail
+        var validator = new CertificateSignatureValidator(); // No payload provided
+        var result = validator.Validate(detachedMessage);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Failures, Has.Count.GreaterThan(0));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MISSING_DETACHED_PAYLOAD"));
+        });
+    }
+#pragma warning restore CA2252
+
+    [Test]
+#pragma warning disable CA2252 // Preview features
+    public async Task ValidateAsync_DetachedSignature_WithPayload_ReturnsSuccess()
+    {
+        // Create a detached signature
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+
+        // Create detached signature (embedPayload: false)
+        var options = new DirectSignatureOptions { EmbedPayload = false };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", options);
+        var detachedMessage = CoseSign1Message.DecodeSign1(messageBytes);
+
+        // Validate with the payload
+        var validator = new CertificateSignatureValidator(payload);
+        var result = await validator.ValidateAsync(detachedMessage, CancellationToken.None);
+
+        Assert.That(result.IsValid, Is.True);
+    }
+#pragma warning restore CA2252
+
+    #endregion
 }

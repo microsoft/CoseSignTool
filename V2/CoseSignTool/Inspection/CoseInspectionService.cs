@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Headers;
@@ -15,6 +16,7 @@ namespace CoseSignTool.Inspection;
 /// </summary>
 public class CoseInspectionService
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Section titles
@@ -201,6 +203,22 @@ public class CoseInspectionService
             }
             catch (CborContentException ex)
             {
+                Formatter.WriteWarning(string.Format(ClassStrings.ErrorFailedToDecode, ex.Message));
+                Formatter.WriteInfo(ClassStrings.ErrorInvalidFile);
+                return (int)ExitCode.InvalidSignature;
+            }
+            catch (System.Security.Cryptography.CryptographicException ex) when (ex.InnerException is CborContentException cborEx)
+            {
+                // Some COSE decoding failures are surfaced as CryptographicException with an inner CborContentException.
+                // Treat these as invalid signatures for consistency.
+                Formatter.WriteWarning(string.Format(ClassStrings.ErrorFailedToDecode, cborEx.Message));
+                Formatter.WriteInfo(ClassStrings.ErrorInvalidFile);
+                return (int)ExitCode.InvalidSignature;
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                // DecodeSign1 can also throw CryptographicException without an inner CborContentException.
+                // These are still decode failures and should be treated as invalid input/signature.
                 Formatter.WriteWarning(string.Format(ClassStrings.ErrorFailedToDecode, ex.Message));
                 Formatter.WriteInfo(ClassStrings.ErrorInvalidFile);
                 return (int)ExitCode.InvalidSignature;

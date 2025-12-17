@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Tests.Common;
 using CoseSignTool.Local.Plugin;
 
 namespace CoseSignTool.Local.Plugin.Tests;
@@ -176,5 +178,149 @@ public class PfxSigningCommandProviderTests
         // Assert
         Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
         Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
+    }
+
+    [Test]
+    public async Task CreateSigningServiceAsync_WithValidPfxNoPassword_ReturnsSigningService()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+        var tempDir = Path.Combine(Path.GetTempPath(), $"pfxtest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(tempDir);
+        var pfxPath = Path.Combine(tempDir, "test.pfx");
+
+        try
+        {
+            // Create a certificate and export to PFX without password
+            using var cert = LocalCertificateFactory.CreateRsaCertificate("PfxTest", 2048);
+            var pfxBytes = cert.Export(X509ContentType.Pfx);
+            await File.WriteAllBytesAsync(pfxPath, pfxBytes);
+
+            var options = new Dictionary<string, object?>
+            {
+                ["pfx"] = new FileInfo(pfxPath)
+            };
+
+            // Act
+            var service = await provider.CreateSigningServiceAsync(options);
+
+            // Assert
+            Assert.That(service, Is.Not.Null);
+
+            // Verify metadata is set after service creation
+            var metadata = provider.GetSigningMetadata();
+            Assert.That(metadata["Certificate Subject"], Does.Contain("PfxTest"));
+            Assert.That(metadata["Certificate Thumbprint"], Is.Not.EqualTo("Unknown"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task CreateSigningServiceAsync_WithPasswordFile_ReadsPassword()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+        var tempDir = Path.Combine(Path.GetTempPath(), $"pfxtest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(tempDir);
+        var pfxPath = Path.Combine(tempDir, "test.pfx");
+        var passwordFilePath = Path.Combine(tempDir, "password.txt");
+        var password = "test-password-123";
+
+        try
+        {
+            // Create a certificate and export to PFX with password
+            using var cert = LocalCertificateFactory.CreateRsaCertificate("PfxTest", 2048);
+            var pfxBytes = cert.Export(X509ContentType.Pfx, password);
+            await File.WriteAllBytesAsync(pfxPath, pfxBytes);
+            await File.WriteAllTextAsync(passwordFilePath, password);
+
+            var options = new Dictionary<string, object?>
+            {
+                ["pfx"] = new FileInfo(pfxPath),
+                ["pfx-password-file"] = new FileInfo(passwordFilePath)
+            };
+
+            // Act
+            var service = await provider.CreateSigningServiceAsync(options);
+
+            // Assert
+            Assert.That(service, Is.Not.Null);
+            var metadata = provider.GetSigningMetadata();
+            Assert.That(metadata["Certificate Subject"], Does.Contain("PfxTest"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task CreateSigningServiceAsync_WithEnvironmentVariable_ReadsPassword()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+        var tempDir = Path.Combine(Path.GetTempPath(), $"pfxtest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(tempDir);
+        var pfxPath = Path.Combine(tempDir, "test.pfx");
+        var password = "test-env-password-456";
+        var envVarName = "TEST_PFX_PASSWORD_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+        try
+        {
+            // Create a certificate and export to PFX with password
+            using var cert = LocalCertificateFactory.CreateRsaCertificate("PfxEnvTest", 2048);
+            var pfxBytes = cert.Export(X509ContentType.Pfx, password);
+            await File.WriteAllBytesAsync(pfxPath, pfxBytes);
+
+            // Set environment variable
+            Environment.SetEnvironmentVariable(envVarName, password);
+
+            var options = new Dictionary<string, object?>
+            {
+                ["pfx"] = new FileInfo(pfxPath),
+                ["pfx-password-env"] = envVarName
+            };
+
+            // Act
+            var service = await provider.CreateSigningServiceAsync(options);
+
+            // Assert
+            Assert.That(service, Is.Not.Null);
+            var metadata = provider.GetSigningMetadata();
+            Assert.That(metadata["Certificate Subject"], Does.Contain("PfxEnvTest"));
+        }
+        finally
+        {
+            // Clean up environment variable
+            Environment.SetEnvironmentVariable(envVarName, null);
+
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public void ExampleUsage_ReturnsNonEmpty()
+    {
+        // Arrange
+        var provider = new PfxSigningCommandProvider();
+
+        // Act
+        var usage = provider.ExampleUsage;
+
+        // Assert
+        Assert.That(usage, Is.Not.Null.And.Not.Empty);
+        Assert.That(usage, Does.Contain("--pfx"));
     }
 }

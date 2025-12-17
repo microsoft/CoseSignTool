@@ -12,7 +12,7 @@ namespace CoseSign1.Integration.Tests.Remote;
 
 /// <summary>
 /// Integration tests for remote signing architecture using TestRemoteCertificateSource.
-/// Tests the entire flow: TestRemoteCertificateSource -> RemoteSigningKeyProvider -> Remote* wrappers -> CoseKey -> DirectSignatureFactory
+/// Tests the entire flow: TestRemoteCertificateSource -> RemoteCertificateSigningKey -> Remote* wrappers -> CoseKey -> DirectSignatureFactory
 /// </summary>
 [TestFixture]
 public class RemoteCertificateSourceIntegrationTests

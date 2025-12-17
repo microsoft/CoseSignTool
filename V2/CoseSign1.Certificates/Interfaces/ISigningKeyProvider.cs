@@ -10,7 +10,7 @@ namespace CoseSign1.Certificates.Interfaces;
 /// Separates certificate management from how signing is performed.
 /// Implementations:
 /// - DirectSigningKeyProvider: Uses X509Certificate2 private keys directly (local)
-/// - RemoteSigningKeyProvider: Delegates to remote signing service
+/// - Remote implementations delegate to remote signing services via RemoteCertificateSigningKey
 /// </summary>
 public interface ISigningKeyProvider : IDisposable
 {

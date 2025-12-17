@@ -27,11 +27,11 @@ This package provides concrete implementations for creating COSE Sign1 messages.
 
 ```csharp
 using CoseSign1.Direct;
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 
 // Create signing service with certificate
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 
 // Create factory
 using var factory = new DirectSignatureFactory(service);

@@ -128,4 +128,116 @@ public class WindowsCertStoreSigningCommandProviderTests
         Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
         Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
+
+    [Test]
+    public void ExampleUsage_ContainsThumbprint()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+
+        // Act
+        var usage = provider.ExampleUsage;
+
+        // Assert
+        Assert.That(usage, Does.Contain("--thumbprint"));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithNullThumbprint_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = null
+        };
+
+        // Act & Assert
+        Assert.ThrowsAsync<InvalidOperationException>(
+            () => provider.CreateSigningServiceAsync(options));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithInvalidStoreLocation_ThrowsArgumentException()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = "ABCD1234",
+            ["store-location"] = "InvalidLocation"
+        };
+
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentException>(
+            () => provider.CreateSigningServiceAsync(options));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithInvalidStoreName_ThrowsArgumentException()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = "ABCD1234",
+            ["store-location"] = "CurrentUser",
+            ["store-name"] = "InvalidStoreName"
+        };
+
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentException>(
+            () => provider.CreateSigningServiceAsync(options));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithDefaultStoreSettings_UsesCurrentUserMy()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = "ABCD1234"
+            // store-location and store-name not provided, should use defaults
+        };
+
+        // Act & Assert - Will throw because cert doesn't exist, but that's expected
+        var ex = Assert.ThrowsAsync<InvalidOperationException>(
+            () => provider.CreateSigningServiceAsync(options));
+
+        // The exception message should indicate it tried to find the cert in CurrentUser\My (the defaults)
+        Assert.That(ex?.Message ?? "",
+            Does.Contain("ABCD1234").And.Contain("CurrentUser").And.Contain("My"));
+    }
+
+    [Test]
+    public void AddCommandOptions_StoreNameHasDefault()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+        var command = new Command("test");
+
+        // Act
+        provider.AddCommandOptions(command);
+
+        // Assert
+        var storeNameOption = command.Options.FirstOrDefault(o => o.Name == "store-name");
+        Assert.That(storeNameOption, Is.Not.Null);
+        Assert.That(storeNameOption!.IsRequired, Is.False);
+    }
+
+    [Test]
+    public void GetSigningMetadata_ContainsAllExpectedKeys()
+    {
+        // Arrange
+        var provider = new WindowsCertStoreSigningCommandProvider();
+
+        // Act
+        var metadata = provider.GetSigningMetadata();
+
+        // Assert
+        Assert.That(metadata, Does.ContainKey("Certificate Source"));
+        Assert.That(metadata, Does.ContainKey("Certificate Subject"));
+        Assert.That(metadata, Does.ContainKey("Certificate Thumbprint"));
+    }
 }

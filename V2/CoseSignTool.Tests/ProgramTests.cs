@@ -13,6 +13,13 @@ namespace CoseSignTool.Tests;
 public class ProgramTests
 {
     [Test]
+    public void LoggerFactory_WhenAccessed_IsCreated()
+    {
+        var factory = Program.LoggerFactory;
+        Assert.That(factory, Is.Not.Null);
+    }
+
+    [Test]
     public void Main_WithHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -85,6 +92,46 @@ public class ProgramTests
 
         // Assert
         Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "inspect"));
+    }
+
+    [Test]
+    public void ExtractAdditionalPluginDirectories_RemovesArgsAndReturnsDirectories()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"plugins_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        string[] args = [
+            "--additional-plugin-dir",
+            tempDir,
+            "--help"
+        ];
+
+        var method = typeof(Program).GetMethod(
+            "ExtractAdditionalPluginDirectories",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        try
+        {
+            var parameters = new object[] { args };
+
+            // Act
+            var dirs = (List<string>)method!.Invoke(null, parameters)!;
+            var remainingArgs = (string[])parameters[0];
+
+            // Assert
+            Assert.That(dirs, Is.EquivalentTo(new[] { tempDir }));
+            Assert.That(remainingArgs, Is.EquivalentTo(new[] { "--help" }));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
     }
 
     [Test]

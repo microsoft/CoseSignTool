@@ -11,7 +11,14 @@
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
     <!-- This is a test helper library, not a packable product -->
     <IsPackable>false</IsPackable>
+    <!-- Exclude from coverage since this is a test helper library -->
+    <ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
   </PropertyGroup>
+
+  <!-- Add ExcludeFromCodeCoverage assembly attribute -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NUnit" />

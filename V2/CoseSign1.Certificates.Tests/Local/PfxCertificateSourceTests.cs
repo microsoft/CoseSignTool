@@ -145,7 +145,7 @@ public class PfxCertificateSourceTests
         var cert = source.GetSigningCertificate();
         var chainBuilder = source.GetChainBuilder();
 
-        using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
         Assert.That(signingService, Is.Not.Null);
         Assert.That(signingService.IsRemote, Is.False);
@@ -262,7 +262,7 @@ public class PfxCertificateSourceTests
         var cert = source.GetSigningCertificate();
         var chainBuilder = source.GetChainBuilder();
 
-        using var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
         Assert.That(signingService, Is.Not.Null);
         Assert.That(signingService.IsRemote, Is.False);

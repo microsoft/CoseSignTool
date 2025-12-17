@@ -45,7 +45,7 @@ public interface ISigningService : IDisposable
 ```csharp
 // Using built-in certificate-based signing service
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 
 byte[] signature = await service.SignAsync(dataToSign);
 Console.WriteLine($"Algorithm: {service.Algorithm}");
@@ -449,7 +449,7 @@ services.AddSingleton<ISigningService>(sp =>
 {
     var certSource = sp.GetRequiredService<ICertificateSource>();
     var cert = certSource.GetCertificate();
-    return new LocalCertificateSigningService(cert);
+    return CertificateSigningService.Create(cert);
 });
 
 // Register factory
@@ -537,7 +537,7 @@ public class TestSigningService : ISigningService
 
 1. **Dispose Resources**: Always dispose `ISigningService` and `ISigningKey` implementations
    ```csharp
-   using var service = new LocalCertificateSigningService(cert);
+   using var service = CertificateSigningService.Create(cert);
    ```
 
 2. **Thread Safety**: Implementations should be thread-safe if registered as singletons

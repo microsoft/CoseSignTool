@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
@@ -19,6 +20,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class X509VerificationProvider : IVerificationProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Provider metadata

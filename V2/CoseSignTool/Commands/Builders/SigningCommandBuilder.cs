@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
@@ -20,6 +21,7 @@ namespace CoseSignTool.Commands.Builders;
 /// </summary>
 public class SigningCommandBuilder
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Argument and Option names

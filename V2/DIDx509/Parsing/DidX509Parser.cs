@@ -48,16 +48,6 @@ public static class DidX509Parser
             throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Expected format 'did:x509:version:algorithm:fingerprint'");
         }
 
-        if (!string.Equals(prefixComponents[0], DidX509Constants.DidMethod, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Must start with 'did:'");
-        }
-
-        if (!string.Equals(prefixComponents[1], DidX509Constants.MethodName, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Method must be 'x509'");
-        }
-
         string version = prefixComponents[2];
         string hashAlgorithm = prefixComponents[3].ToLowerInvariant();
         string caFingerprint = prefixComponents[4];
@@ -197,11 +187,6 @@ public static class DidX509Parser
             // Decode percent-encoded value
             string decodedValue = PercentEncoding.Decode(encodedValue);
             result[key] = decodedValue;
-        }
-
-        if (result.Count == 0)
-        {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidSubjectPolicy}: Must contain at least one key-value pair");
         }
 
         return result;

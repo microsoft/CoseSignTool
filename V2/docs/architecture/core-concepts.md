@@ -26,7 +26,7 @@ Every operation is explicit and intentional:
 var signature = CoseHandler.Sign(payload);
 
 // ✅ V2: Explicit signing service configuration
-var service = new LocalCertificateSigningService(certificate);
+var service = CertificateSigningService.Create(certificate);
 var factory = new DirectSignatureFactory(service);
 var signature = await factory.CreateAsync(payload);
 ```
@@ -53,7 +53,7 @@ All services use DI patterns:
 ```csharp
 // Register services
 builder.Services
-    .AddSingleton<ISigningService, LocalCertificateSigningService>()
+    .AddSingleton<ISigningService>(sp => CertificateSigningService.Create(certificate))
     .AddSingleton<IValidator<CoseSign1Message>, CompositeValidator>();
 
 // Inject and use
@@ -123,13 +123,13 @@ services.AddTransient<ICoseSign1MessageFactory, DirectSignatureFactory>();
 ```csharp
 // Simple registration
 services.AddSingleton<ISigningService>(sp => 
-    new LocalCertificateSigningService(certificate));
+    CertificateSigningService.Create(certificate));
 
 // Factory pattern
 services.AddSingleton<ISigningService>(sp => 
 {
     var certSource = sp.GetRequiredService<ICertificateSource>();
-    return new LocalCertificateSigningService(certSource.GetCertificate()!);
+    return CertificateSigningService.Create(certSource.GetCertificate()!);
 });
 
 // Configuration-based
@@ -323,7 +323,7 @@ V2 follows .NET resource management patterns.
 ### IDisposable Implementation
 
 ```csharp
-public class LocalCertificateSigningService : ISigningService
+public class CertificateSigningServiceImpl : ISigningService
 {
     private readonly X509Certificate2 _certificate;
     private bool _disposed;
@@ -341,7 +341,7 @@ public class LocalCertificateSigningService : ISigningService
 
 ```csharp
 // Automatic disposal
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 using var factory = new DirectSignatureFactory(service);
 var message = await factory.CreateAsync(payload);
 // service disposed here
@@ -352,12 +352,12 @@ var message = await factory.CreateAsync(payload);
 ```csharp
 // Service takes ownership of certificate
 using var cert = new X509Certificate2(path, password);
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 // service will dispose cert
 
 // Service does NOT take ownership (use certificate source)
 var cert = certificateStore.GetCertificate();
-var service = new LocalCertificateSigningService(cert);
+var service = CertificateSigningService.Create(cert);
 // You must dispose cert
 ```
 
@@ -384,7 +384,7 @@ V2 uses exceptions for exceptional cases, results for validation.
 
 ```csharp
 // Throw for programming errors or system failures
-public class LocalCertificateSigningService(X509Certificate2 certificate)
+public class CertificateSigningServiceImpl(X509Certificate2 certificate)
 {
     public Task<byte[]> SignAsync(byte[] data, CancellationToken ct)
     {

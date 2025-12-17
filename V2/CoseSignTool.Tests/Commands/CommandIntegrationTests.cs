@@ -131,8 +131,8 @@ public class CommandIntegrationTests
             // Act
             var exitCode = rootCommand.Invoke($"inspect \"{tempFile}\"");
 
-            // Assert - invalid COSE data returns InspectionFailed
-            Assert.That(exitCode, Is.EqualTo((int)ExitCode.InspectionFailed));
+            // Assert - invalid COSE data returns InvalidSignature
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidSignature));
         }
         finally
         {

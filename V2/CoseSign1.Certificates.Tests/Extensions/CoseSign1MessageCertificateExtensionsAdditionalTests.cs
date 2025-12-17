@@ -436,7 +436,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
             RSASignaturePadding.Pss);
         using var rsaCert = certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
 
-        using var signingService = new LocalCertificateSigningService(rsaCert, new[] { rsaCert });
+        using var signingService = CertificateSigningService.Create(rsaCert, new X509Certificate2[] { rsaCert });
         using var factory = new DirectSignatureFactory(signingService);
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/test");
         var message = CoseMessage.DecodeSign1(messageBytes);
@@ -460,7 +460,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
             RSASignaturePadding.Pss);
         using var rsaCert = certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
 
-        using var signingService = new LocalCertificateSigningService(rsaCert, new[] { rsaCert });
+        using var signingService = CertificateSigningService.Create(rsaCert, new X509Certificate2[] { rsaCert });
         using var factory = new DirectSignatureFactory(signingService);
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/test");
         var message = CoseMessage.DecodeSign1(messageBytes);
@@ -477,7 +477,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithECDsaP384_UsesSHA384), useEcc: true, keySize: 384);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/test");
         var message = CoseMessage.DecodeSign1(messageBytes);
@@ -494,7 +494,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithECDsaP521_UsesSHA512), useEcc: true, keySize: 521);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/test");
         var message = CoseMessage.DecodeSign1(messageBytes);
@@ -538,7 +538,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithAllowUnprotectedTrue_UsesUnprotectedHeaders), useEcc: true);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
 
         // Create message with unprotected headers using factory
         using var factory = new DirectSignatureFactory(signingService);
@@ -561,7 +561,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithDetachedContent_AndNullPayload_ReturnsFalse), useEcc: true);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
 
         var options = new DirectSignatureOptions { EmbedPayload = false };

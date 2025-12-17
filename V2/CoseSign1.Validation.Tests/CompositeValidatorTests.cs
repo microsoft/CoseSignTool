@@ -21,7 +21,7 @@ public class CompositeValidatorTests
     {
         var cert = TestCertificateUtils.CreateCertificate("CompositeTest");
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(cert, chainBuilder);
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

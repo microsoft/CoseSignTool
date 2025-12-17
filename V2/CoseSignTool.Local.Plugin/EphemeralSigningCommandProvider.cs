@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -41,6 +43,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </remarks>
 public class EphemeralSigningCommandProvider : ISigningCommandProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Command metadata
@@ -332,10 +335,10 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
         KeyAlgorithmField = string.Format(ClassStrings.FormatKeyAlgorithm, config.Algorithm, config.EffectiveKeySize);
 
         // Create logger for signing service
-        var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
+        var signingServiceLogger = loggerFactory?.CreateLogger<CertificateSigningService>();
 
         // Create and return signing service
-        SigningService = new LocalCertificateSigningService(signingCert, chain, signingServiceLogger);
+        SigningService = CertificateSigningService.Create(signingCert, (IReadOnlyList<X509Certificate2>)chain, signingServiceLogger);
 
         return await Task.FromResult(SigningService);
     }

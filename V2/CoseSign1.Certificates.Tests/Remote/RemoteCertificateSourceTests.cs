@@ -202,6 +202,21 @@ public class RemoteCertificateSourceTests
         Assert.That(ex!.Message, Does.Contain("ECDsa public key"));
     }
 
+#if NET10_0_OR_GREATER
+    [Test]
+    public void GetRemoteMLDsa_WithNonMLDsaCertificate_ReturnsRemoteMLDsa()
+    {
+        // Arrange
+        using var source = new TestRemoteCertificateSource(TestCertificateUtils.CreateCertificate("rsa"));
+
+        // Act
+        var mldsa = source.GetRemoteMLDsaPublic();
+
+        // Assert
+        Assert.That(mldsa, Is.Not.Null);
+    }
+#endif
+
     [Test]
     public void GetRemoteECDsa_WithP256_CanExportParameters()
     {
@@ -540,6 +555,11 @@ public class RemoteCertificateSourceTests
         public int GetKeySizePublic() => GetKeySize();
         public RSA GetRemoteRsaPublic() => GetRemoteRsa();
         public ECDsa GetRemoteECDsaPublic() => GetRemoteECDsa();
+    #if NET10_0_OR_GREATER
+    #pragma warning disable SYSLIB5006 // ML-DSA APIs are preview
+        public MLDsa GetRemoteMLDsaPublic() => GetRemoteMLDsa();
+    #pragma warning restore SYSLIB5006
+    #endif
 
         protected override void Dispose(bool disposing)
         {

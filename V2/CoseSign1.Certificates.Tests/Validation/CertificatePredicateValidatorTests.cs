@@ -288,7 +288,7 @@ public class CertificatePredicateValidatorTests
     private CoseSign1Message CreateSignedMessage()
     {
         using var cert = TestCertificateUtils.CreateCertificate("PredicateTest");
-        using var signingService = new LocalCertificateSigningService(cert, new[] { cert });
+        using var signingService = CertificateSigningService.Create(cert, new X509Certificate2[] { cert });
         using var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

@@ -3,7 +3,9 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using System.Reflection;
 using System.Text;
+using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 using CoseSign1.Indirect;
 using Moq;
@@ -20,6 +22,13 @@ public class IndirectSignatureFactoryTests
 {
     private Mock<ISigningService<SigningOptions>> MockSigningService = null!;
 
+    private sealed class DerivedIndirectSignatureFactory : IndirectSignatureFactory
+    {
+        public DerivedIndirectSignatureFactory()
+        {
+        }
+    }
+
     [SetUp]
     public void SetUp()
     {
@@ -31,6 +40,27 @@ public class IndirectSignatureFactoryTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new IndirectSignatureFactory((ISigningService<SigningOptions>)null!));
+    }
+
+    [Test]
+    public void Constructor_WithNullDirectFactory_ShouldThrowArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new IndirectSignatureFactory((DirectSignatureFactory)null!));
+    }
+
+    [Test]
+    public void ProtectedConstructor_CanBeInvokedByDerivedType()
+    {
+        var factory = new DerivedIndirectSignatureFactory();
+        Assert.That(factory, Is.Not.Null);
+    }
+
+    [Test]
+    public void CreateCoseSign1MessageBytesAsync_WithNullPayload_ThrowsArgumentNullException()
+    {
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateCoseSign1MessageBytesAsync((byte[])null!, "text/plain"));
     }
 
     [Test]
@@ -57,6 +87,53 @@ public class IndirectSignatureFactoryTests
         // Verify content type remains original (CoseHashEnvelope format)
         MockSigningService.Verify(s => s.GetCoseSigner(It.Is<SigningContext>(ctx =>
             ctx.ContentType == "application/json")), Times.Once);
+    }
+
+    [Test]
+    public void CreateCoseSign1MessageBytes_WithSpanPayloadAndNullContentType_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            factory.CreateCoseSign1MessageBytes(payload.AsSpan(), contentType: null!, options: null, serviceOptions: null));
+    }
+
+    [Test]
+    public void CreateCoseSign1MessageBytes_WithAdditionalHeaderContributors_AppendsToHashEnvelopeContributor()
+    {
+        // Arrange
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+        var contentType = "application/json";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        SigningContext? capturedContext = null;
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Callback<SigningContext>(ctx => capturedContext = ctx)
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var options = new IndirectSignatureOptions
+        {
+            AdditionalHeaderContributors = new List<IHeaderContributor> { new NoOpHeaderContributor() }
+        };
+
+        // Act
+        factory.CreateCoseSign1MessageBytes(payload, contentType, options);
+
+        // Assert
+        Assert.That(capturedContext, Is.Not.Null);
+        Assert.That(capturedContext!.AdditionalHeaderContributors, Is.Not.Null);
+
+        // DirectSignatureFactory always prepends ContentTypeHeaderContributor.
+        // IndirectSignatureFactory should include our contributor plus the CoseHashEnvelopeHeaderContributor.
+        Assert.That(capturedContext.AdditionalHeaderContributors!.Count, Is.EqualTo(3));
+        Assert.That(capturedContext.AdditionalHeaderContributors[0], Is.TypeOf<ContentTypeHeaderContributor>());
+        Assert.That(capturedContext.AdditionalHeaderContributors[1], Is.TypeOf<NoOpHeaderContributor>());
+        Assert.That(capturedContext.AdditionalHeaderContributors[2], Is.InstanceOf<CoseHashEnvelopeHeaderContributor>());
     }
 
     [Test]
@@ -151,6 +228,77 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload for streaming");
+        using var stream = new MemoryStream(payload);
+        var contentType = "application/octet-stream";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act
+        var result = await factory.CreateCoseSign1MessageBytesAsync(stream, contentType);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CreateCoseSign1MessageBytesAsync_WithByteArray_ShouldHashAndSign()
+    {
+        // Arrange
+        var payload = Encoding.UTF8.GetBytes("Test payload for byte[] async");
+        var contentType = "application/octet-stream";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act
+        var result = await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<byte[]>());
+        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CreateCoseSign1MessageBytesAsync_WithReadOnlyMemory_ShouldHashAndSign()
+    {
+        // Arrange
+        var payload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("Test payload for ReadOnlyMemory async"));
+        var contentType = "application/octet-stream";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act
+        var result = await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<byte[]>());
+        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CreateCoseSign1MessageBytesAsync_WithLargeStream_ShouldHashAcrossMultipleReads()
+    {
+        // Arrange
+        // Ensure the internal 8KB buffer path reads multiple chunks.
+        var payload = new byte[64 * 1024];
+        RandomNumberGenerator.Fill(payload);
         using var stream = new MemoryStream(payload);
         var contentType = "application/octet-stream";
 
@@ -449,6 +597,42 @@ public class IndirectSignatureFactoryTests
     }
 
     [Test]
+    public void Dispose_CalledTwice_ShouldOnlyDisposeSigningServiceOnce()
+    {
+        // Arrange
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act
+        factory.Dispose();
+        factory.Dispose();
+
+        // Assert
+        MockSigningService.Verify(s => s.Dispose(), Times.Once);
+    }
+
+    [Test]
+    public void TransparencyProviders_ShouldReturnProvidersPassedToConstructor()
+    {
+        // Arrange
+        var provider = new Mock<ITransparencyProvider>().Object;
+        IReadOnlyList<ITransparencyProvider> providers = new List<ITransparencyProvider> { provider };
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object, providers);
+
+        // Act
+        var returned = factory.TransparencyProviders;
+
+        // Assert
+        Assert.That(returned, Is.Not.Null);
+        Assert.That(returned, Is.EquivalentTo(providers));
+    }
+
+    [Test]
     public void CreateCoseSign1MessageBytes_AfterDispose_ShouldThrowObjectDisposedException()
     {
         // Arrange
@@ -500,10 +684,98 @@ public class IndirectSignatureFactoryTests
         MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
+    [Test]
+    public void CreateCoseSign1MessageBytes_WithUnsupportedHashAlgorithm_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() =>
+            factory.CreateCoseSign1MessageBytes(
+                payload,
+                "application/json",
+                new IndirectSignatureOptions { HashAlgorithm = new HashAlgorithmName("MD5") }));
+    }
+
+    [Test]
+    public void CreateCoseSign1MessageBytes_WithServiceOptions_UsesSigningService()
+    {
+        // Arrange
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        MockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+
+        // Act
+        var result = factory.CreateCoseSign1MessageBytes(
+            payload,
+            "application/json",
+            options: null,
+            serviceOptions: new SigningOptions());
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+    }
+
+    [Test]
+    public void GetHashAlgorithmName_WithSupportedAlgorithms_ReturnsExpectedStrings()
+    {
+        // Arrange
+        var method = typeof(IndirectSignatureFactory).GetMethod(
+            "GetHashAlgorithmName",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.That(method, Is.Not.Null);
+
+        // Act
+        var sha256 = (string)method!.Invoke(null, new object[] { HashAlgorithmName.SHA256 })!;
+        var sha384 = (string)method.Invoke(null, new object[] { HashAlgorithmName.SHA384 })!;
+        var sha512 = (string)method.Invoke(null, new object[] { HashAlgorithmName.SHA512 })!;
+
+        // Assert
+        Assert.That(sha256, Is.EqualTo("sha256"));
+        Assert.That(sha384, Is.EqualTo("sha384"));
+        Assert.That(sha512, Is.EqualTo("sha512"));
+    }
+
+    [Test]
+    public void GetHashAlgorithmName_WithUnsupportedAlgorithm_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var method = typeof(IndirectSignatureFactory).GetMethod(
+            "GetHashAlgorithmName",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.That(method, Is.Not.Null);
+
+        // Act & Assert
+        var ex = Assert.Throws<TargetInvocationException>(() =>
+            method!.Invoke(null, new object[] { new HashAlgorithmName("MD5") }));
+        Assert.That(ex!.InnerException, Is.TypeOf<NotSupportedException>());
+    }
+
     private CoseSigner CreateMockCoseSigner()
     {
         // Create a real CoseSigner with RSA key for testing
         var rsa = RSA.Create(2048);
         return new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
+    }
+
+    private sealed class NoOpHeaderContributor : IHeaderContributor
+    {
+        public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+        public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+        {
+        }
+
+        public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+        {
+        }
     }
 }

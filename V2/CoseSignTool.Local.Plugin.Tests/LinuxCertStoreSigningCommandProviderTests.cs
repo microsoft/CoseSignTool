@@ -127,4 +127,50 @@ public class LinuxCertStoreSigningCommandProviderTests
         Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
         Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
+
+    [Test]
+    public void ExampleUsage_ReturnsExpectedUsageString()
+    {
+        // Arrange
+        var provider = new LinuxCertStoreSigningCommandProvider();
+
+        // Act
+        var usage = provider.ExampleUsage;
+
+        // Assert
+        Assert.That(usage, Is.Not.Null);
+        Assert.That(usage, Does.Contain("--thumbprint"));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithNullThumbprint_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var provider = new LinuxCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = null
+        };
+
+        // Act & Assert - Null thumbprint should throw
+        Assert.ThrowsAsync<InvalidOperationException>(
+            () => provider.CreateSigningServiceAsync(options));
+    }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithCustomStorePaths_UsesProvidedPaths()
+    {
+        // Arrange
+        var provider = new LinuxCertStoreSigningCommandProvider();
+        var options = new Dictionary<string, object?>
+        {
+            ["thumbprint"] = "ABC123",
+            ["store-paths"] = new string[] { "/nonexistent/path1", "/nonexistent/path2" }
+        };
+
+        // Act & Assert - Will fail because paths don't exist, but tests the path handling
+        // The specific exception is InvalidOperationException when cert not found
+        Assert.ThrowsAsync<InvalidOperationException>(
+            () => provider.CreateSigningServiceAsync(options));
+    }
 }

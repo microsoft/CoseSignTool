@@ -13,7 +13,6 @@ namespace CoseSignTool.Abstractions.Security;
 /// It is excluded from code coverage because it cannot be meaningfully tested without
 /// actual console interaction.
 /// </remarks>
-[ExcludeFromCodeCoverage]
 public sealed class SystemConsole : IConsole
 {
     /// <summary>

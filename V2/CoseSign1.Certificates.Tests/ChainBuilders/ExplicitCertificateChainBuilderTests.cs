@@ -35,8 +35,6 @@ public class ExplicitCertificateChainBuilderTests
     [Test]
     public void Build_WithMatchingCertificate_ReturnsTrue()
     {
-        // CreateTestChain returns: [root, intermediate, leaf]
-        // For a valid chain from leaf's perspective, we need [leaf, intermediate, root]
         var certs = TestCertificateUtils.CreateTestChain().Cast<X509Certificate2>().ToArray();
         var chain = new[] { certs[2], certs[1], certs[0] }; // Reverse to leaf-first
         using var builder = new ExplicitCertificateChainBuilder(chain);

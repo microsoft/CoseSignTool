@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Validation;

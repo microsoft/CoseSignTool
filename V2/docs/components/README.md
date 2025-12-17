@@ -49,9 +49,8 @@ This section provides comprehensive documentation for each NuGet package in the 
 **Certificate-based signing** and validation with full X.509 support.
 
 **Key Features**:
-- `LocalCertificateSigningService` - Local certificate signing
-- `RemoteCertificateSigningService` - Remote signing base
-- Certificate sources (File, Store, Base64)
+- `CertificateSigningService.Create()` - Factory methods for local and remote signing
+- Certificate sources (File, Store, Base64, Remote)
 - Certificate chain building and validation
 - EKU and SAN policy validators
 - Certificate expiration validation

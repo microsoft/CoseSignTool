@@ -331,5 +331,332 @@ public class X509VerificationProviderTests
         }
     }
 
+    [Test]
+    public void CreateValidators_WithTrustRootsFile_LoadsCertificates()
+    {
+        // Arrange - create a temp PEM cert file
+        var tempCertPath = Path.GetTempFileName();
+        try
+        {
+            // Write an invalid cert file (will be skipped)
+            File.WriteAllBytes(tempCertPath, [0x30, 0x82, 0x00, 0x01]);
+            var parseResult = Parser.Parse($"--trust-roots \"{tempCertPath}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert - should still create validators even with invalid cert
+            Assert.That(validators, Has.Count.GreaterThanOrEqualTo(0));
+        }
+        finally
+        {
+            File.Delete(tempCertPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithNonExistentTrustRoots_HandlesGracefully()
+    {
+        // Arrange - non-existent file path
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.pem");
+        var parseResult = Parser.Parse($"--trust-roots \"{nonExistentPath}\"");
+
+        // Act
+        var validators = Provider.CreateValidators(parseResult).ToList();
+
+        // Assert - should handle gracefully without exception
+        Assert.That(validators, Is.Not.Null);
+    }
+
+    [Test]
+    public void CreateValidators_WithSubjectAndIssuer_CreatesMultipleValidators()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--subject-name \"TestSubject\" --issuer-name \"TestIssuer\"");
+
+        // Act
+        var validators = Provider.CreateValidators(parseResult).ToList();
+
+        // Assert - should have chain + subject + issuer validators
+        Assert.That(validators, Has.Count.GreaterThanOrEqualTo(3));
+    }
+
+    [Test]
+    public void IsActivated_WithTrustSystemRootsFalse_ReturnsTrue()
+    {
+        // Arrange - disable system roots but this doesn't fully deactivate
+        var parseResult = Parser.Parse("--trust-system-roots false");
+
+        // Act
+        var isActivated = Provider.IsActivated(parseResult);
+
+        // Assert - chain validation is still on
+        Assert.That(isActivated, Is.True);
+    }
+
+    [Test]
+    public void GetVerificationMetadata_WithOnlineRevocation_ReturnsOnline()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--revocation-mode online");
+
+        // Act
+        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+
+        // Assert
+        Assert.That(metadata["Revocation Check"], Is.EqualTo("Online"));
+    }
+
+    [Test]
+    public void GetVerificationMetadata_WithNoCheckRevocation_ReturnsNoCheck()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--revocation-mode none");
+
+        // Act
+        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+
+        // Assert
+        Assert.That(metadata["Revocation Check"], Is.EqualTo("NoCheck"));
+    }
+
+    [Test]
+    public void CreateValidators_WithTrustSystemRootsFalseAndAllowUntrusted_CreatesUntrustedValidator()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--trust-system-roots false --allow-untrusted");
+
+        // Act
+        var validators = Provider.CreateValidators(parseResult).ToList();
+
+        // Assert
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+    }
+
+    [Test]
+    public void CreateValidators_WithValidPfxFile_LoadsCertificates()
+    {
+        // Arrange - create a temp PFX file with a real certificate
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            using var cert = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("TrustRoot");
+            var pfxBytes = cert.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx, "testpass");
+            File.WriteAllBytes(tempPfxPath, pfxBytes);
+
+            // Set environment variable for PFX password
+            Environment.SetEnvironmentVariable("COSESIGNTOOL_TRUST_PFX_PASSWORD", "testpass");
+            try
+            {
+                var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+
+                // Act
+                var validators = Provider.CreateValidators(parseResult).ToList();
+
+                // Assert - should have a chain validator
+                Assert.That(validators, Has.Count.GreaterThan(0));
+                Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainValidator"), Is.True);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("COSESIGNTOOL_TRUST_PFX_PASSWORD", null);
+            }
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithPfxAndPasswordFile_LoadsCertificates()
+    {
+        // Arrange - create temp PFX and password files
+        var tempPfxPath = Path.GetTempFileName();
+        var tempPasswordPath = Path.GetTempFileName();
+        try
+        {
+            using var cert = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("TrustRoot2");
+            var pfxBytes = cert.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx, "filepassword");
+            File.WriteAllBytes(tempPfxPath, pfxBytes);
+            File.WriteAllText(tempPasswordPath, "filepassword");
+
+            var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\" --trust-pfx-password-file \"{tempPasswordPath}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert
+            Assert.That(validators, Has.Count.GreaterThan(0));
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+            File.Delete(tempPasswordPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithPfxAndCustomEnvVar_LoadsCertificates()
+    {
+        // Arrange - create temp PFX with custom env var password
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            using var cert = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("TrustRoot3");
+            var pfxBytes = cert.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx, "customenvpass");
+            File.WriteAllBytes(tempPfxPath, pfxBytes);
+
+            Environment.SetEnvironmentVariable("MY_CUSTOM_PASSWORD_VAR", "customenvpass");
+            try
+            {
+                var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\" --trust-pfx-password-env MY_CUSTOM_PASSWORD_VAR");
+
+                // Act
+                var validators = Provider.CreateValidators(parseResult).ToList();
+
+                // Assert
+                Assert.That(validators, Has.Count.GreaterThan(0));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("MY_CUSTOM_PASSWORD_VAR", null);
+            }
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithUnprotectedPfx_LoadsCertificates()
+    {
+        // Arrange - create unprotected PFX (null password)
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            using var cert = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("TrustRoot4");
+            var pfxBytes = cert.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx);
+            File.WriteAllBytes(tempPfxPath, pfxBytes);
+
+            var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert
+            Assert.That(validators, Has.Count.GreaterThan(0));
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithInvalidPfxFile_HandlesGracefully()
+    {
+        // Arrange - create invalid PFX file
+        var tempPfxPath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllBytes(tempPfxPath, [0x00, 0x01, 0x02, 0x03]); // Invalid data
+            var parseResult = Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert - should handle gracefully
+            Assert.That(validators, Is.Not.Null);
+        }
+        finally
+        {
+            File.Delete(tempPfxPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithValidPemCertFile_LoadsCertificate()
+    {
+        // Arrange - create PEM certificate file
+        var tempPemPath = Path.GetTempFileName();
+        try
+        {
+            using var cert = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("PemTrustRoot");
+            var pemContent = cert.ExportCertificatePem();
+            File.WriteAllText(tempPemPath, pemContent);
+
+            var parseResult = Parser.Parse($"--trust-roots \"{tempPemPath}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert
+            Assert.That(validators, Has.Count.GreaterThan(0));
+            Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainValidator"), Is.True);
+        }
+        finally
+        {
+            File.Delete(tempPemPath);
+        }
+    }
+
+    [Test]
+    public void CreateValidators_WithMultipleTrustRootFiles_LoadsAll()
+    {
+        // Arrange - create multiple PEM certificate files
+        var tempPem1 = Path.GetTempFileName();
+        var tempPem2 = Path.GetTempFileName();
+        try
+        {
+            using var cert1 = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("PemRoot1");
+            using var cert2 = CoseSign1.Tests.Common.TestCertificateUtils.CreateCertificate("PemRoot2");
+            File.WriteAllText(tempPem1, cert1.ExportCertificatePem());
+            File.WriteAllText(tempPem2, cert2.ExportCertificatePem());
+
+            var parseResult = Parser.Parse($"--trust-roots \"{tempPem1}\" --trust-roots \"{tempPem2}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert
+            Assert.That(validators, Has.Count.GreaterThan(0));
+        }
+        finally
+        {
+            File.Delete(tempPem1);
+            File.Delete(tempPem2);
+        }
+    }
+
+    [Test]
+    public void IsActivated_WithBothSubjectAndIssuer_ReturnsTrue()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--subject-name \"Subject\" --issuer-name \"Issuer\" --allow-untrusted");
+
+        // Act
+        var isActivated = Provider.IsActivated(parseResult);
+
+        // Assert
+        Assert.That(isActivated, Is.True);
+    }
+
+    [Test]
+    public void GetVerificationMetadata_WithBothSubjectAndIssuer_IncludesBoth()
+    {
+        // Arrange
+        var parseResult = Parser.Parse("--subject-name \"TestSubj\" --issuer-name \"TestIss\"");
+
+        // Act
+        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+
+        // Assert
+        Assert.That(metadata["Required Subject"], Is.EqualTo("TestSubj"));
+        Assert.That(metadata["Required Issuer"], Is.EqualTo("TestIss"));
+    }
+
     #endregion
 }

@@ -343,4 +343,71 @@ public class EphemeralSigningCommandProviderTests
         Assert.That(metadata["Key Algorithm"], Does.Contain("ECDSA"));
         Assert.That(metadata["Key Algorithm"], Does.Contain("521"));
     }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithMissingConfigFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var provider = new EphemeralSigningCommandProvider();
+        var missingConfig = new FileInfo(Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.json"));
+        var options = new Dictionary<string, object?>
+        {
+            ["config"] = missingConfig
+        };
+
+        // Act & Assert
+        Assert.ThrowsAsync<FileNotFoundException>(async () => await provider.CreateSigningServiceAsync(options));
+    }
+
+    [Test]
+    public async Task CreateSigningServiceAsync_WithConfigFile_LoadsConfigurationAndUsesEkuAliases()
+    {
+        // Arrange
+        var provider = new EphemeralSigningCommandProvider();
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ephemeral_cfg_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var configPath = Path.Combine(tempDir, "ephemeral.json");
+
+        // Include several EKU forms to cover alias mapping and raw OID handling.
+        var config = new EphemeralCertificateConfig
+        {
+            Subject = "CN=Config File Subject",
+            Algorithm = "RSA",
+            KeySize = 2048,
+            ValidityDays = 1,
+            GenerateChain = false,
+            EnhancedKeyUsages = new List<string>
+            {
+                "TimeStamping",
+                "ServerAuth",
+                "1.2.3.4.5"
+            }
+        };
+        await File.WriteAllTextAsync(configPath, config.ToJson());
+
+        var options = new Dictionary<string, object?>
+        {
+            ["config"] = new FileInfo(configPath)
+        };
+
+        try
+        {
+            // Act
+            var service = await provider.CreateSigningServiceAsync(options);
+            var metadata = provider.GetSigningMetadata();
+
+            // Assert
+            Assert.That(service, Is.Not.Null);
+            Assert.That(metadata["Configuration"], Does.Contain("Config file:"));
+            Assert.That(metadata["Certificate Chain"], Does.Contain("Self-signed"));
+            Assert.That(metadata["Certificate Subject"], Does.Contain("Config File Subject"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
 }

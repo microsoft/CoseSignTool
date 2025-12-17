@@ -19,16 +19,29 @@ This package provides comprehensive support for X.509 certificate-based COSE sig
 
 ## Core Components
 
-### LocalCertificateSigningService
+### CertificateSigningService Factory Methods
 
-Signs data using a local X.509 certificate with private key.
+Create signing services using static factory methods on `CertificateSigningService`.
 
 ```csharp
-public class LocalCertificateSigningService : ISigningService
+public static class CertificateSigningService
 {
-    public LocalCertificateSigningService(
+    // Local signing with automatic chain building
+    public static ICertificateSigningService Create(
         X509Certificate2 certificate,
-        CertificateSigningOptions? options = null);
+        ICertificateChainBuilder? chainBuilder = null,
+        ILogger? logger = null);
+    
+    // Local signing with explicit certificate chain
+    public static ICertificateSigningService Create(
+        X509Certificate2 certificate,
+        IReadOnlyList<X509Certificate2> certificateChain,
+        ILogger? logger = null);
+    
+    // Remote signing from a RemoteCertificateSource
+    public static ICertificateSigningService Create(
+        RemoteCertificateSource source,
+        ILogger? logger = null);
 }
 ```
 
@@ -36,7 +49,7 @@ public class LocalCertificateSigningService : ISigningService
 ```csharp
 // From file
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 
 byte[] signature = await service.SignAsync(data);
 ```
@@ -50,60 +63,72 @@ var cert = store.Certificates
     .Find(X509FindType.FindByThumbprint, thumbprint, validOnly: false)
     .FirstOrDefault();
 
-using var service = new LocalCertificateSigningService(cert!);
+using var service = CertificateSigningService.Create(cert!);
 ```
 
-**With Options**:
+**With Custom Chain Builder**:
 ```csharp
-var options = new CertificateSigningOptions
+var chainBuilder = new X509ChainBuilder
 {
-    IncludeCertificateChain = true,
-    ChainBuildingOptions = new X509ChainPolicy
+    Policy = new X509ChainPolicy
     {
         RevocationMode = X509RevocationMode.Online,
         VerificationFlags = X509VerificationFlags.NoFlag
     }
 };
 
-using var service = new LocalCertificateSigningService(cert, options);
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 ```
 
-### RemoteCertificateSigningService
+### Remote Signing with RemoteCertificateSource
 
-Abstract base for remote signing services (Azure Key Vault, HSM, etc.).
+For remote signing services (Azure Key Vault, HSM, etc.), implement `RemoteCertificateSource` and use the factory method.
 
 ```csharp
-public abstract class RemoteCertificateSigningService : ISigningService
+public abstract class RemoteCertificateSource
 {
-    protected abstract Task<byte[]> SignRemotelyAsync(
+    public abstract Task<byte[]> SignAsync(
         byte[] data, 
         CancellationToken cancellationToken);
     
-    protected abstract Task<X509Certificate2> GetCertificateAsync(
+    public abstract Task<X509Certificate2> GetCertificateAsync(
+        CancellationToken cancellationToken);
+    
+    public abstract Task<IReadOnlyList<X509Certificate2>> GetCertificateChainAsync(
         CancellationToken cancellationToken);
 }
 ```
 
 **Custom Implementation**:
 ```csharp
-public class MyHsmSigningService : RemoteCertificateSigningService
+public class MyHsmCertificateSource : RemoteCertificateSource
 {
     private readonly HsmClient _client;
     private readonly string _keyId;
     
-    protected override async Task<byte[]> SignRemotelyAsync(
+    public override async Task<byte[]> SignAsync(
         byte[] data, 
         CancellationToken ct)
     {
         return await _client.SignAsync(_keyId, data, ct);
     }
     
-    protected override async Task<X509Certificate2> GetCertificateAsync(
+    public override async Task<X509Certificate2> GetCertificateAsync(
         CancellationToken ct)
     {
         return await _client.GetCertificateAsync(_keyId, ct);
     }
+    
+    public override async Task<IReadOnlyList<X509Certificate2>> GetCertificateChainAsync(
+        CancellationToken ct)
+    {
+        return await _client.GetCertificateChainAsync(_keyId, ct);
+    }
 }
+
+// Usage
+var source = new MyHsmCertificateSource(client, keyId);
+using var service = CertificateSigningService.Create(source);
 ```
 
 ### Certificate Sources
@@ -121,7 +146,7 @@ public class FileCertificateSource : CertificateSourceBase
 // Usage
 using var certSource = new FileCertificateSource("cert.pfx", "password");
 var cert = certSource.GetCertificate();
-using var service = new LocalCertificateSigningService(cert!);
+using var service = CertificateSigningService.Create(cert!);
 ```
 
 #### StoreCertificateSource
@@ -467,22 +492,13 @@ public async Task<CoseSign1Message> SignWithFullChainAsync(
     IEnumerable<X509Certificate2> intermediateCerts,
     X509Certificate2 rootCert)
 {
-    // Build certificate chain
+    // Create signing options with chain builder
     var chainBuilder = new CertificateChainBuilder()
         .WithRootCertificates(new[] { rootCert })
         .WithIntermediateCertificates(intermediateCerts);
     
-    using var chain = chainBuilder.Build();
-    
-    // Create signing options
-    var options = new CertificateSigningOptions
-    {
-        IncludeCertificateChain = true,
-        ChainBuildingOptions = chain.ChainPolicy
-    };
-    
-    // Create service and factory
-    using var service = new LocalCertificateSigningService(signingCert, options);
+    // Create service and factory using the factory method
+    using var service = CertificateSigningService.Create(signingCert, chainBuilder);
     
     var headerContributors = new IHeaderContributor[]
     {
@@ -603,7 +619,7 @@ public async Task<CoseSign1Message[]> SignWithMultipleCertsAsync(
     
     foreach (var cert in certificates)
     {
-        using var service = new LocalCertificateSigningService(cert);
+        using var service = CertificateSigningService.Create(cert);
         var factory = new DirectSignatureFactory(service);
         var message = await factory.CreateAsync(payload);
         messages.Add(message);
@@ -629,7 +645,7 @@ services.AddSingleton<ISigningService>(sp =>
 {
     var certSource = sp.GetRequiredService<ICertificateSource>();
     var cert = certSource.GetCertificate();
-    return new LocalCertificateSigningService(cert!);
+    return CertificateSigningService.Create(cert!);
 });
 
 // Usage
@@ -669,7 +685,7 @@ public class CertificateSigningFunction
         var thumbprint = Environment.GetEnvironmentVariable("CERT_THUMBPRINT");
         using var certSource = new StoreCertificateSource(thumbprint!);
         var cert = certSource.GetCertificate();
-        _signingService = new LocalCertificateSigningService(cert!);
+        _signingService = CertificateSigningService.Create(cert!);
     }
     
     [FunctionName("Sign")]
@@ -727,7 +743,7 @@ public async Task SignAsync_WithTestCertificate_Success()
 {
     // Arrange
     using var cert = TestCertificateProvider.CreateTestCertificate();
-    using var service = new LocalCertificateSigningService(cert);
+    using var service = CertificateSigningService.Create(cert);
     var factory = new DirectSignatureFactory(service);
     
     // Act

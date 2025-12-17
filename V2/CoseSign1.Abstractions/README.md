@@ -246,11 +246,10 @@ public class TimestampHeaderContributor : IHeaderContributor
 
 ```csharp
 // Register services
-services.AddSingleton<ISigningService<CertificateSigningOptions>, 
-    LocalCertificateSigningService>(sp =>
+services.AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
 {
     var cert = sp.GetRequiredService<X509Certificate2>();
-    return new LocalCertificateSigningService(cert);
+    return CertificateSigningService.Create(cert);
 });
 
 // Inject and use

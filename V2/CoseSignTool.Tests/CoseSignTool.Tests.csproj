@@ -26,6 +26,8 @@
         <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
         <ProjectReference Include="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj" />
         <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSignTool.TestPlugins.Plugin\CoseSignTool.TestPlugins.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
     </ItemGroup>
 
     <ItemGroup>

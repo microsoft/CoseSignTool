@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Cryptography.X509Certificates;
@@ -24,6 +25,7 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class PfxCertificateSource : CertificateSourceBase
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Log message templates

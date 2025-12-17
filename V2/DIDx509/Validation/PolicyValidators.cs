@@ -4,6 +4,7 @@
 namespace DIDx509.Validation;
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using DIDx509.Models;
 using DIDx509.Parsing;

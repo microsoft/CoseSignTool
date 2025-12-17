@@ -41,7 +41,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA2048-Test", useEcc: false, keySize: 2048, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -64,7 +64,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA3072-Test", useEcc: false, keySize: 3072, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -85,7 +85,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA4096-Test", useEcc: false, keySize: 4096, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -106,7 +106,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA2048-Indirect", useEcc: false, keySize: 2048, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Uses default SHA256 for payload hash (RSA2048 standard)
@@ -131,7 +131,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA3072-Indirect", useEcc: false, keySize: 3072, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA384 for payload hash to match key size
@@ -153,7 +153,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("RSA4096-Indirect", useEcc: false, keySize: 4096, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA512 for payload hash to match key size
@@ -179,7 +179,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P256-Test", useEcc: true, keySize: 256, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -200,7 +200,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P384-Test", useEcc: true, keySize: 384, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -221,7 +221,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P521-Test", useEcc: true, keySize: 521, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -242,7 +242,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P256-Indirect", useEcc: true, keySize: 256, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act
@@ -266,7 +266,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P384-Indirect", useEcc: true, keySize: 384, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA384 for payload hash to match curve
@@ -288,7 +288,7 @@ public class CertificateSigningIntegrationTests
         // Arrange
         var chain = TestCertificateUtils.CreateTestChain("ECDSA-P521-Indirect", useEcc: true, keySize: 521, leafFirst: true);
         using var signingCert = chain[0];
-        using var signingService = new LocalCertificateSigningService(signingCert, chain.Cast<X509Certificate2>().ToArray());
+        using var signingService = CertificateSigningService.Create(signingCert, chain.Cast<X509Certificate2>().ToArray());
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA512 for payload hash to match curve
@@ -317,7 +317,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44-Test", mlDsaParameterSet: 44);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA44-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -341,7 +341,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65-Test", mlDsaParameterSet: 65);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA65-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -365,7 +365,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87-Test", mlDsaParameterSet: 87);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA87-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new DirectSignatureFactory(signingService);
 
         // Act
@@ -389,7 +389,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44-Indirect", mlDsaParameterSet: 44);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA44-Indirect-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act
@@ -416,7 +416,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65-Indirect", mlDsaParameterSet: 65);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA65-Indirect-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA384 for payload hash (ML-DSA-65 standard)
@@ -444,7 +444,7 @@ public class CertificateSigningIntegrationTests
         using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87-Indirect", mlDsaParameterSet: 87);
         var rsaChain = TestCertificateUtils.CreateTestChain("MLDSA87-Indirect-Chain", useEcc: false, leafFirst: true);
         var chain = new List<X509Certificate2> { mldsaCert, rsaChain[1], rsaChain[2] };
-        using var signingService = new LocalCertificateSigningService(mldsaCert, chain);
+        using var signingService = CertificateSigningService.Create(mldsaCert, chain);
         using var factory = new IndirectSignatureFactory(signingService);
 
         // Act - Use SHA512 for payload hash (ML-DSA-87 standard)
@@ -479,7 +479,7 @@ public class CertificateSigningIntegrationTests
         {
             var rsaChain = TestCertificateUtils.CreateTestChain("RSA-CrossAlgo", useEcc: false, keySize: 2048, leafFirst: true);
             using var rsaCert = rsaChain[0];
-            using var service = new LocalCertificateSigningService(rsaCert, rsaChain.Cast<X509Certificate2>().ToArray());
+            using var service = CertificateSigningService.Create(rsaCert, rsaChain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(service);
             var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["RSA2048"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
@@ -489,7 +489,7 @@ public class CertificateSigningIntegrationTests
         {
             var ecdsaChain = TestCertificateUtils.CreateTestChain("ECDSA-CrossAlgo", useEcc: true, keySize: 256, leafFirst: true);
             using var ecdsaCert = ecdsaChain[0];
-            using var service = new LocalCertificateSigningService(ecdsaCert, ecdsaChain.Cast<X509Certificate2>().ToArray());
+            using var service = CertificateSigningService.Create(ecdsaCert, ecdsaChain.Cast<X509Certificate2>().ToArray());
             using var factory = new DirectSignatureFactory(service);
             var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["ECDSA-P256"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
@@ -500,7 +500,7 @@ public class CertificateSigningIntegrationTests
             using var mldsaCert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA-CrossAlgo", mlDsaParameterSet: 44);
             var tempChain = TestCertificateUtils.CreateTestChain("MLDSA-CrossAlgo-Chain", useEcc: false, leafFirst: true);
             var mldsaChain = new List<X509Certificate2> { mldsaCert, tempChain[1], tempChain[2] };
-            using var service = new LocalCertificateSigningService(mldsaCert, mldsaChain);
+            using var service = CertificateSigningService.Create(mldsaCert, mldsaChain);
             using var factory = new DirectSignatureFactory(service);
             var msg = CoseMessage.DecodeSign1(factory.CreateCoseSign1MessageBytes(TestPayload, ContentType));
             results["MLDSA44"] = ReadInt32FromCoseHeaderValue(msg.ProtectedHeaders[CoseHeaderLabel.Algorithm]);
@@ -550,7 +550,7 @@ public class CertificateSigningIntegrationTests
                     chain = new List<X509Certificate2> { cert, tempChain[1], tempChain[2] };
                 }
 
-                using var service = new LocalCertificateSigningService(cert, chain);
+                using var service = CertificateSigningService.Create(cert, chain);
                 using var factory = new IndirectSignatureFactory(service);
 
                 var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, ContentType);

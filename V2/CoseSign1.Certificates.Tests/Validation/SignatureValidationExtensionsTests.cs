@@ -25,7 +25,7 @@ public class SignatureValidationExtensionsTests
         TestCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         Payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(Payload, "application/test");

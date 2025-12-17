@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace CoseSignTool.Output;
 
 /// <summary>
@@ -11,6 +13,7 @@ public class TextOutputFormatter : IOutputFormatter
     /// <summary>
     /// String constants specific to this class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string SuccessPrefix = "✓ ";

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -21,6 +22,7 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string LogInitByThumbprint = "LinuxCertificateStoreCertificateSource initialized by thumbprint. Thumbprint: {Thumbprint}, Subject: {Subject}";

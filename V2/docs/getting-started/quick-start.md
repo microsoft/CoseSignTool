@@ -45,15 +45,15 @@ cosesigntool inspect signed.cose
 ### 1. Sign a Message with a Certificate
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
 // Load your certificate
 using var cert = new X509Certificate2("certificate.pfx", "password");
 
-// Create a local signing service
-using var signingService = new LocalCertificateSigningService(cert);
+// Create a signing service using the factory method
+using var signingService = CertificateSigningService.Create(cert);
 
 // Create a signature factory
 using var factory = new DirectSignatureFactory(signingService);

@@ -3,3 +3,4 @@
 
 global using System;
 global using System.Security.Cryptography;
+global using CoseSign1.Certificates;

@@ -149,7 +149,7 @@ When V2 reaches stable:
 Create a simple test file to verify installation:
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
@@ -157,7 +157,7 @@ Console.WriteLine("CoseSignTool V2 is installed!");
 
 // Test basic functionality
 using var cert = new X509Certificate2(/* your cert */);
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 using var factory = new DirectSignatureFactory(service);
 
 Console.WriteLine("All packages loaded successfully!");
@@ -176,7 +176,6 @@ Add common namespaces to `GlobalUsings.cs`:
 global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
 global using CoseSign1.Certificates;
-global using CoseSign1.Certificates.Local;
 global using CoseSign1.Certificates.Extensions;
 global using CoseSign1.Direct;
 global using CoseSign1.Validation;

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Validation.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -12,6 +13,7 @@ namespace CoseSign1.Validation;
 /// </summary>
 public sealed class CompositeValidator : IValidator<CoseSign1Message>
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Log message templates

@@ -156,4 +156,39 @@ public class CertificateChainFactoryTests
         Assert.That(eku, Is.Not.Null);
         Assert.That(eku!.EnhancedKeyUsages.Count, Is.EqualTo(2));
     }
+
+    [Test]
+    public void CreateChain_ChainCanBeVerifiedWithX509Chain()
+    {
+        // Arrange
+        var factory = new CertificateChainFactory();
+
+        // Act
+        var chain = factory.CreateChain();
+        var root = chain[0];
+        var intermediate = chain[1];
+        var leaf = chain[2];
+
+        // Verify chain using X509Chain
+        using var x509Chain = new X509Chain();
+        x509Chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        x509Chain.ChainPolicy.VerificationFlags =
+            X509VerificationFlags.AllowUnknownCertificateAuthority |
+            X509VerificationFlags.IgnoreNotTimeValid |
+            X509VerificationFlags.IgnoreNotTimeNested;
+
+        // Add the chain certs to extra store
+        x509Chain.ChainPolicy.ExtraStore.Add(root);
+        x509Chain.ChainPolicy.ExtraStore.Add(intermediate);
+
+        // Build from leaf
+        var result = x509Chain.Build(leaf);
+
+        // Get status info for diagnostic
+        var statusInfo = string.Join("; ", x509Chain.ChainStatus.Select(s => $"{s.Status}: {s.StatusInformation}"));
+
+        // Assert
+        Assert.That(result, Is.True, () => $"Chain build failed. Status: {statusInfo}. " +
+            $"Root: {root.Subject}, Intermediate: {intermediate.Subject}, Leaf: {leaf.Subject}");
+    }
 }

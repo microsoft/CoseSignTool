@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine.Invocation;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Inspection;
 using CoseSignTool.IO;
 using CoseSignTool.Output;
@@ -16,6 +17,7 @@ public class InspectCommandHandler
     /// <summary>
     /// String constants specific to this class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string ArgumentName = "file";
@@ -38,6 +40,11 @@ public class InspectCommandHandler
     {
         Formatter = formatter ?? new TextOutputFormatter();
         InspectionService = new CoseInspectionService(Formatter);
+    }
+
+    protected virtual Stream OpenStandardInput()
+    {
+        return Console.OpenStandardInput();
     }
 
     /// <summary>
@@ -73,7 +80,7 @@ public class InspectCommandHandler
             if (useStdin)
             {
                 // Read from stdin with timeout wrapper to avoid blocking forever
-                using var rawStdin = Console.OpenStandardInput();
+                using var rawStdin = OpenStandardInput();
                 using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
                 using var ms = new MemoryStream();
                 await timeoutStdin.CopyToAsync(ms);

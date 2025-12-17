@@ -4,3 +4,4 @@
 global using System;
 global using System.Collections.Generic;
 global using CoseSign1.Abstractions;
+global using CoseSign1.Certificates;

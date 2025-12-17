@@ -55,7 +55,7 @@ using CoseSign1.Certificates;
 
 **V2:**
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 using CoseSign1.Certificates.Extensions;
@@ -82,7 +82,7 @@ var message = handler.Sign(
 ```csharp
 // V2 approach - more explicit, more testable
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var signingService = new LocalCertificateSigningService(cert);
+using var signingService = CertificateSigningService.Create(cert);
 using var factory = new DirectSignatureFactory(signingService);
 
 byte[] message = factory.CreateCoseSign1MessageBytes(
@@ -111,7 +111,7 @@ var options = new DirectSignatureOptions
     EmbedPayload = false  // Detached signature
 };
 
-// Chain is included automatically by LocalCertificateSigningService
+// Chain is included automatically by CertificateSigningService
 byte[] message = factory.CreateCoseSign1MessageBytes(
     payload,
     contentType: "application/json",
@@ -241,7 +241,7 @@ var explicitChain = new ExplicitCertificateChainBuilder(
     new[] { leafCert, intermediateCert, rootCert }
 );
 
-using var signingService = new LocalCertificateSigningService(
+using var signingService = CertificateSigningService.Create(
     leafCert,
     chainBuilder
 );
@@ -373,7 +373,7 @@ var chain = TestCertificateUtils.CreateTestChain(
 
 ### Changed Behaviors
 
-1. **Certificate chain**: Now included by default in LocalCertificateSigningService
+1. **Certificate chain**: Now included by default in CertificateSigningService
 2. **Header placement**: X5T/X5Chain in protected headers by default
 3. **Error handling**: More specific exceptions with detailed messages
 
@@ -390,7 +390,7 @@ var chain = TestCertificateUtils.CreateTestChain(
 **Best Practice:**
 ```csharp
 // Create once, reuse multiple times
-using var signingService = new LocalCertificateSigningService(cert);
+using var signingService = CertificateSigningService.Create(cert);
 using var factory = new DirectSignatureFactory(signingService);
 
 // Sign multiple messages

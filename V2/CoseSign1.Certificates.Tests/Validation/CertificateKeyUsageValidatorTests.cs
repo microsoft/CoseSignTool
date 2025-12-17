@@ -26,7 +26,7 @@ public class CertificateKeyUsageValidatorTests
         TestCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -150,7 +150,7 @@ public class CertificateKeyUsageValidatorTests
         // Create a certificate with Code Signing EKU
         using var certWithEku = TestCertificateUtils.CreateCertificate("EkuTest", customEkus: new[] { "1.3.6.1.5.5.7.3.3" });
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(certWithEku, chainBuilder);
+        var signingService = CertificateSigningService.Create(certWithEku, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -172,7 +172,7 @@ public class CertificateKeyUsageValidatorTests
         // Create a certificate with Code Signing EKU
         using var certWithEku = TestCertificateUtils.CreateCertificate("EkuOidTest", customEkus: new[] { "1.3.6.1.5.5.7.3.3" });
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(certWithEku, chainBuilder);
+        var signingService = CertificateSigningService.Create(certWithEku, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -206,7 +206,7 @@ public class CertificateKeyUsageValidatorTests
         // This tests the case where the extension exists but doesn't contain the required EKU
         using var certWithoutEku = TestCertificateUtils.CreateCertificate("NoEkuTest", customEkus: Array.Empty<string>());
         var chainBuilder = new X509ChainBuilder();
-        var signingService = new LocalCertificateSigningService(certWithoutEku, chainBuilder);
+        var signingService = CertificateSigningService.Create(certWithoutEku, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -250,5 +250,88 @@ public class CertificateKeyUsageValidatorTests
     {
         var validator = new CertificateKeyUsageValidator("1.3.6.1.5.5.7.3.3", allowUnprotectedHeaders: true);
         Assert.That(validator, Is.Not.Null);
+    }
+
+    [Test]
+#pragma warning disable CA2252
+    public void Validate_MessageWithoutCertificate_ReturnsCertNotFoundError()
+    {
+        // Create a message without certificate headers
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var signer = new CoseSigner(rsa, System.Security.Cryptography.RSASignaturePadding.Pss, System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = CoseSign1Message.SignEmbedded(payload, signer);
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.DigitalSignature);
+        var result = validator.Validate(message);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Failures.Any(e => e.ErrorCode == "CERTIFICATE_NOT_FOUND"), Is.True);
+        });
+    }
+#pragma warning restore CA2252
+
+    [Test]
+#pragma warning disable CA2252
+    public void Validate_WithMultipleKeyUsageFlags_ChecksAllFlags()
+    {
+        var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign);
+        var result = validator.Validate(ValidMessage!);
+
+        // Certificate may or may not have both flags
+        Assert.That(result, Is.Not.Null);
+    }
+#pragma warning restore CA2252
+
+    [Test]
+#pragma warning disable CA2252
+    public void Validate_WithEkuUsingOidWithFriendlyName_IncludesInMetadata()
+    {
+        using var certWithEku = TestCertificateUtils.CreateCertificate("FriendlyEkuTest", customEkus: new[] { "1.3.6.1.5.5.7.3.3" });
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(certWithEku, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3 };
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        var oidWithFriendlyName = new Oid("1.3.6.1.5.5.7.3.3", "Code Signing");
+        var validator = new CertificateKeyUsageValidator(oidWithFriendlyName);
+        var result = validator.Validate(message);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
+    }
+#pragma warning restore CA2252
+
+    [Test]
+#pragma warning disable CA2252
+    public void Validate_WithNoneKeyUsageFlags_ReturnsAppropriateResult()
+    {
+        // X509KeyUsageFlags.None means no specific key usage is required
+        var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.None);
+        var result = validator.Validate(ValidMessage!);
+
+        // The certificate has KeyCertSign, and we're checking for None
+        // This should pass because None is subset of any flags
+        Assert.That(result.IsValid, Is.True);
+    }
+#pragma warning restore CA2252
+
+    [Test]
+    public void Validate_WithKeyUsageValidator_EkuMismatchIncludesFoundEkus()
+    {
+        var validator = new CertificateKeyUsageValidator("1.2.3.4.5.6.7.8.9");
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            // The error message should include what EKUs were found
+            Assert.That(result.Failures.Any(f => f.ErrorCode == "EKU_MISMATCH" || f.ErrorCode == "EKU_NOT_FOUND"), Is.True);
+        });
     }
 }

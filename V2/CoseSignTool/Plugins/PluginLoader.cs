@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Logging;
@@ -15,6 +16,7 @@ namespace CoseSignTool.Plugins;
 /// </summary>
 public class PluginLoader
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string PluginsDirectoryName = "plugins";
@@ -219,7 +221,7 @@ public class PluginLoader
         Type[] types;
         try
         {
-            types = assembly.GetTypes();
+            types = GetAssemblyTypes(assembly);
         }
         catch (ReflectionTypeLoadException ex)
         {
@@ -259,5 +261,10 @@ public class PluginLoader
                 await RegisterPluginAsync(plugin);
             }
         }
+    }
+
+    protected virtual Type[] GetAssemblyTypes(Assembly assembly)
+    {
+        return assembly.GetTypes();
     }
 }

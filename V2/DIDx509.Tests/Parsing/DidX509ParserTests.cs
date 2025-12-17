@@ -4,6 +4,7 @@
 using DIDx509;
 using DIDx509.Models;
 using DIDx509.Parsing;
+using System.Reflection;
 
 namespace DIDx509.Tests.Parsing;
 
@@ -479,5 +480,120 @@ public class DidX509ParserTests
         // Act & Assert
         var ex = Assert.Throws<FormatException>(() => DidX509Parser.Parse(invalidDid));
         Assert.That(ex!.Message, Does.Contain("Must be a valid OID"));
+    }
+
+    [Test]
+    public void Parse_WithFulcioIssuerPolicyEmptyValue_ThrowsFormatException()
+    {
+        // Arrange
+        string invalidDid = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::fulcio-issuer:";
+
+        // Act & Assert
+        var ex = Assert.Throws<FormatException>(() => DidX509Parser.Parse(invalidDid));
+        Assert.That(ex!.Message, Does.Contain("Policy value cannot be empty"));
+    }
+
+    [Test]
+    public void Parse_WithPercentEncodedFulcioIssuer_DecodesCorrectly()
+    {
+        // Arrange - Fulcio issuer with percent-encoded characters
+        string did = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::fulcio-issuer:test%20issuer";
+
+        // Act
+        var result = DidX509Parser.Parse(did);
+
+        // Assert
+        Assert.That(result.Policies[0].ParsedValue, Is.EqualTo("test issuer"));
+    }
+
+    [Test]
+    public void Parse_WithInvalidSanPolicyType_ThrowsFormatException()
+    {
+        // Arrange - SAN with invalid type
+        string invalidDid = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::san:invalid:value";
+
+        // Act & Assert
+        var ex = Assert.Throws<FormatException>(() => DidX509Parser.Parse(invalidDid));
+        Assert.That(ex!.Message, Does.Contain("SAN type must be"));
+    }
+
+    [Test]
+    public void Parse_WithSanUriType_ParsesCorrectly()
+    {
+        // Arrange - URI SAN type
+        string did = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::san:uri:https%3A%2F%2Fexample.com";
+
+        // Act
+        var result = DidX509Parser.Parse(did);
+
+        // Assert
+        Assert.That(result.Policies[0].Name, Is.EqualTo("san"));
+        var parsed = result.Policies[0].ParsedValue as (string Type, string Value)?;
+        Assert.That(parsed, Is.Not.Null);
+        Assert.That(parsed!.Value.Type, Is.EqualTo("uri"));
+        Assert.That(parsed.Value.Value, Is.EqualTo("https://example.com"));
+    }
+
+    [Test]
+    public void Parse_UnknownPolicyType_KeepsRawValueOnly()
+    {
+        // Arrange - Unknown policy should parse but have null ParsedValue
+        string did = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::customPolicy:someValue";
+
+        // Act
+        var result = DidX509Parser.Parse(did);
+
+        // Assert
+        Assert.That(result.Policies[0].Name, Is.EqualTo("customPolicy"));
+        Assert.That(result.Policies[0].RawValue, Is.EqualTo("someValue"));
+        Assert.That(result.Policies[0].ParsedValue, Is.Null); // Unknown policy = null ParsedValue
+    }
+
+    [Test]
+    public void Parse_EkuPolicyWithSingleDigitComponents_IsInvalid()
+    {
+        // Arrange - Single component OID is invalid
+        string invalidDid = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::eku:1";
+
+        // Act & Assert
+        var ex = Assert.Throws<FormatException>(() => DidX509Parser.Parse(invalidDid));
+        Assert.That(ex!.Message, Does.Contain("Must be a valid OID"));
+    }
+
+    [Test]
+    public void Parse_SanPolicyWithMissingValue_ThrowsFormatException()
+    {
+        // Arrange - SAN without value part
+        string invalidDid = "did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::san:email";
+
+        // Act & Assert
+        var ex = Assert.Throws<FormatException>(() => DidX509Parser.Parse(invalidDid));
+        Assert.That(ex!.Message, Does.Contain("Must have format 'type:value'").Or.Contains("Policy value cannot be empty"));
+    }
+
+    [Test]
+    public void Private_ParseFulcioIssuerPolicy_WithWhitespace_ThrowsFormatException()
+    {
+        var method = typeof(DidX509Parser).GetMethod(
+            "ParseFulcioIssuerPolicy",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var ex = Assert.Throws<TargetInvocationException>(() => method!.Invoke(null, new object?[] { "   " }));
+        Assert.That(ex!.InnerException, Is.TypeOf<FormatException>());
+    }
+
+    [Test]
+    public void Private_IsValidOid_WithNullOrWhitespace_ReturnsFalse()
+    {
+        var method = typeof(DidX509Parser).GetMethod(
+            "IsValidOid",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        Assert.That((bool)method!.Invoke(null, new object?[] { null })!, Is.False);
+        Assert.That((bool)method!.Invoke(null, new object?[] { "   " })!, Is.False);
     }
 }

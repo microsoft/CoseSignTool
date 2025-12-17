@@ -27,7 +27,7 @@ public class CoseSign1MessageCertificateExtensionsTests
     private static CoseSign1Message CreateMessageWithCertificates(X509Certificate2 cert, X509Certificate2[]? chain = null)
     {
         chain ??= new[] { cert };
-        using var signingService = new LocalCertificateSigningService(cert, chain);
+        using var signingService = CertificateSigningService.Create(cert, chain);
         using var factory = new DirectSignatureFactory(signingService);
 
         var messageBytes = factory.CreateCoseSign1MessageBytes(TestPayload, "application/json");
@@ -338,7 +338,7 @@ public class CoseSign1MessageCertificateExtensionsTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithDetachedContent_RequiresPayload), useEcc: true);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
 
         var options = new DirectSignatureOptions { EmbedPayload = false };
@@ -373,7 +373,7 @@ public class CoseSign1MessageCertificateExtensionsTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithDetachedContent_AndEmptyPayload_ReturnsFalse), useEcc: true);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
 
         var options = new DirectSignatureOptions { EmbedPayload = false };
@@ -389,7 +389,7 @@ public class CoseSign1MessageCertificateExtensionsTests
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithDetachedContent_AndWrongPayload_ReturnsFalse), useEcc: true);
-        using var signingService = new LocalCertificateSigningService(testCert, new[] { testCert });
+        using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
         using var factory = new DirectSignatureFactory(signingService);
 
         var options = new DirectSignatureOptions { EmbedPayload = false };

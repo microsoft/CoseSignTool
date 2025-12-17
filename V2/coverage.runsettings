@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Code coverage configuration for V2 projects -->
+<!-- Code coverage configuration for V2 projects with parallel execution -->
 <!-- Usage: dotnet test --settings coverage.runsettings --collect:"XPlat Code Coverage" -->
 <RunSettings>
   <DataCollectionRunSettings>
@@ -26,16 +26,24 @@
   </DataCollectionRunSettings>
   
   <RunConfiguration>
+    <!-- Use all available CPU cores (0 = auto-detect) -->
     <MaxCpuCount>0</MaxCpuCount>
     <ResultsDirectory>.\TestResults</ResultsDirectory>
     <TreatNoTestsAsError>true</TreatNoTestsAsError>
   </RunConfiguration>
+
+  <NUnit>
+    <!-- Number of test workers (0 = use processor count) -->
+    <NumberOfTestWorkers>0</NumberOfTestWorkers>
+    <!-- Default timeout per test (60 seconds for coverage collection) -->
+    <DefaultTimeout>60000</DefaultTimeout>
+  </NUnit>
   
   <LoggerRunSettings>
     <Loggers>
       <Logger friendlyName="console" enabled="True">
         <Configuration>
-          <Verbosity>normal</Verbosity>
+          <Verbosity>minimal</Verbosity>
         </Configuration>
       </Logger>
       <Logger friendlyName="trx" enabled="True" />

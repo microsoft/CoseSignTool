@@ -1,12 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace CoseSignTool;
 
 /// <summary>
 /// Internal static strings shared across multiple classes within the CoseSignTool assembly.
 /// For strings unique to a single class, use a private static ClassStrings nested class instead.
 /// </summary>
+[ExcludeFromCodeCoverage]
 internal static class AssemblyStrings
 {
     /// <summary>

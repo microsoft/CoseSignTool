@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 
@@ -13,6 +15,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class PemSigningCommandProvider : ISigningCommandProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Command metadata
@@ -106,7 +109,7 @@ public class PemSigningCommandProvider : ISigningCommandProvider
         CertificateThumbprint = signingCert.Thumbprint;
 
         // Create signing service
-        SigningService = new LocalCertificateSigningService(signingCert, chainBuilder);
+        SigningService = CertificateSigningService.Create(signingCert, chainBuilder);
 
         return await Task.FromResult(SigningService);
     }

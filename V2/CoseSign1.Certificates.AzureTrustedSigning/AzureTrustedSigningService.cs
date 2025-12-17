@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using Azure.Core;
 using Azure.Developer.TrustedSigning.CryptoProvider;
 using CoseSign1.Abstractions;
@@ -60,6 +61,8 @@ public class AzureTrustedSigningService : CertificateSigningService
             });
     }
 
+    private Remote.RemoteCertificateSigningKey? SigningKeyField;
+
     /// <summary>
     /// Gets the signing key for the current context.
     /// Returns the same certificate source instance for all operations (Azure Trusted Signing uses a single key per profile).
@@ -69,8 +72,9 @@ public class AzureTrustedSigningService : CertificateSigningService
     protected override ISigningKey GetSigningKey(SigningContext context)
     {
         // Azure Trusted Signing uses a single key per signing profile
-        // Return a signing key provider that wraps our reusable certificate source
-        return new Remote.RemoteSigningKeyProvider(CertificateSource, this);
+        // Return a signing key that wraps our reusable certificate source
+        SigningKeyField ??= new Remote.RemoteCertificateSigningKey(CertificateSource, this);
+        return SigningKeyField;
     }
 
     /// <inheritdoc/>
@@ -78,6 +82,7 @@ public class AzureTrustedSigningService : CertificateSigningService
     {
         if (disposing)
         {
+            SigningKeyField?.Dispose();
             CertificateSource?.Dispose();
         }
 

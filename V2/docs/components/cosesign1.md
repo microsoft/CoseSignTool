@@ -35,7 +35,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory
 **Basic Usage**:
 ```csharp
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 var factory = new DirectSignatureFactory(service);
 
 byte[] payload = Encoding.UTF8.GetBytes("Document content");
@@ -101,7 +101,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory
 
 **Basic Usage**:
 ```csharp
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 var factory = new IndirectSignatureFactory(service);
 
 byte[] payload = File.ReadAllBytes("large-file.bin");
@@ -188,7 +188,7 @@ public class DocumentSigningService
 public async Task<List<CoseSign1Message>> SignBatchAsync(
     IEnumerable<byte[]> documents)
 {
-    using var service = new LocalCertificateSigningService(cert);
+    using var service = CertificateSigningService.Create(cert);
     var factory = new DirectSignatureFactory(service);
     
     var signatures = new List<CoseSign1Message>();
@@ -327,7 +327,7 @@ services.AddSingleton<ISigningService>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
     var cert = LoadCertificate(config["Signing:Certificate"]);
-    return new LocalCertificateSigningService(cert);
+    return CertificateSigningService.Create(cert);
 });
 
 services.AddScoped<ICoseSign1MessageFactory>(sp =>
@@ -436,7 +436,7 @@ await outputStream.WriteAsync(message.Encode());
 
 ```csharp
 // ✅ Reuse factory for multiple signatures
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 var factory = new DirectSignatureFactory(service);
 
 foreach (var file in Directory.GetFiles("documents"))
@@ -519,7 +519,7 @@ public async Task EndToEnd_CreateAndVerify_Success()
 {
     // Arrange
     using var cert = TestCertificateProvider.GetTestCertificate();
-    using var service = new LocalCertificateSigningService(cert);
+    using var service = CertificateSigningService.Create(cert);
     var factory = new DirectSignatureFactory(service);
     var payload = Encoding.UTF8.GetBytes("Test payload");
     

@@ -244,7 +244,7 @@ public class CertificateSignatureValidatorAdditionalTests
     private CoseSign1Message CreateValidEmbeddedSignature()
     {
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -255,7 +255,7 @@ public class CertificateSignatureValidatorAdditionalTests
     {
         // Create a valid embedded signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -297,7 +297,7 @@ public class CertificateSignatureValidatorAdditionalTests
     {
         // Create a valid signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = new LocalCertificateSigningService(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

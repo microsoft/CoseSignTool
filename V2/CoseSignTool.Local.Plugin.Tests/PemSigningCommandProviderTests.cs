@@ -164,4 +164,50 @@ public class PemSigningCommandProviderTests
         Assert.That(metadata["Certificate Subject"], Is.EqualTo("Unknown"));
         Assert.That(metadata["Certificate Thumbprint"], Is.EqualTo("Unknown"));
     }
+
+    [Test]
+    public void CreateSigningServiceAsync_WithNonExistentKeyFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var provider = new PemSigningCommandProvider();
+
+        // Create a real temp file for cert but non-existent for key
+        var tempCertFile = Path.Combine(Path.GetTempPath(), $"test_cert_{Guid.NewGuid()}.pem");
+        File.WriteAllText(tempCertFile, "temp cert content");
+        try
+        {
+            var certFileInfo = new FileInfo(tempCertFile);
+            var nonExistentKeyFile = new FileInfo(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.key"));
+
+            var options = new Dictionary<string, object?>
+            {
+                ["cert-file"] = certFileInfo,
+                ["key-file"] = nonExistentKeyFile
+            };
+
+            // Act & Assert - Key file doesn't exist, should throw FileNotFoundException
+            var ex = Assert.ThrowsAsync<FileNotFoundException>(
+                () => provider.CreateSigningServiceAsync(options));
+            Assert.That(ex!.Message, Does.Contain("Private key file not found"));
+        }
+        finally
+        {
+            File.Delete(tempCertFile);
+        }
+    }
+
+    [Test]
+    public void ExampleUsage_ReturnsExpectedUsageString()
+    {
+        // Arrange
+        var provider = new PemSigningCommandProvider();
+
+        // Act
+        var usage = provider.ExampleUsage;
+
+        // Assert
+        Assert.That(usage, Is.Not.Null);
+        Assert.That(usage, Does.Contain("--cert-file"));
+        Assert.That(usage, Does.Contain("--key-file"));
+    }
 }

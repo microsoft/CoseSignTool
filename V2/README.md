@@ -36,7 +36,7 @@ dotnet add package CoseSign1.Validation --version 2.0.0-preview
 ### Sign a Message
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
@@ -44,7 +44,7 @@ using System.Security.Cryptography.X509Certificates;
 using var cert = new X509Certificate2("certificate.pfx", "password");
 
 // Create signing service and factory
-using var signingService = new LocalCertificateSigningService(cert);
+using var signingService = CertificateSigningService.Create(cert);
 using var factory = new DirectSignatureFactory(signingService);
 
 // Sign your payload
@@ -104,7 +104,7 @@ V2 follows a layered architecture:
 │     DirectSignatureFactory    IndirectSignatureFactory           │
 ├─────────────────────────────────────────────────────────────────┤
 │                   Service Layer                                  │
-│    LocalCertificateSigningService   AzureTrustedSigningService   │
+│      CertificateSigningService      AzureTrustedSigningService   │
 ├─────────────────────────────────────────────────────────────────┤
 │                 Abstractions Layer                               │
 │   ISigningService   ICoseSign1MessageFactory   IHeaderContributor│

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -22,6 +23,7 @@ namespace CoseSign1.Transparent.MST;
 public class MstTransparencyProvider : ITransparencyProvider
 {
     private readonly CodeTransparencyClient Client;
+    private readonly ICodeTransparencyVerifier Verifier;
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
     private readonly CodeTransparencyClientOptions? ClientOptions;
     private readonly Action<string>? LogVerbose;
@@ -37,7 +39,7 @@ public class MstTransparencyProvider : ITransparencyProvider
     /// </summary>
     /// <param name="client">The CodeTransparency client for MST operations.</param>
     public MstTransparencyProvider(CodeTransparencyClient client)
-        : this(client, null, null, null, null)
+        : this(client, CodeTransparencyVerifierAdapter.Default, null, null, null, null)
     {
     }
 
@@ -51,7 +53,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         CodeTransparencyClient client,
         CodeTransparencyVerificationOptions? verificationOptions,
         CodeTransparencyClientOptions? clientOptions)
-        : this(client, verificationOptions, clientOptions, null, null)
+        : this(client, CodeTransparencyVerifierAdapter.Default, verificationOptions, clientOptions, null, null)
     {
     }
 
@@ -69,8 +71,29 @@ public class MstTransparencyProvider : ITransparencyProvider
         CodeTransparencyClientOptions? clientOptions,
         Action<string>? logVerbose,
         Action<string>? logError)
+        : this(client, CodeTransparencyVerifierAdapter.Default, verificationOptions, clientOptions, logVerbose, logError)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MstTransparencyProvider"/> class with a custom verifier.
+    /// </summary>
+    /// <param name="client">The CodeTransparency client for MST operations.</param>
+    /// <param name="verifier">The verifier for transparent statement validation. Use a mock implementation for testing.</param>
+    /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <param name="logVerbose">Optional verbose logging callback.</param>
+    /// <param name="logError">Optional error logging callback.</param>
+    public MstTransparencyProvider(
+        CodeTransparencyClient client,
+        ICodeTransparencyVerifier verifier,
+        CodeTransparencyVerificationOptions? verificationOptions,
+        CodeTransparencyClientOptions? clientOptions,
+        Action<string>? logVerbose,
+        Action<string>? logError)
     {
         Client = client ?? throw new ArgumentNullException(nameof(client));
+        Verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
         LogVerbose = logVerbose;
@@ -177,11 +200,11 @@ public class MstTransparencyProvider : ITransparencyProvider
             LogVerbose.Invoke($"[{ProviderName}] Unauthorized receipt behavior: {VerificationOptions.UnauthorizedReceiptBehavior}");
         }
 
-        // Verify using MST client
+        // Verify using injected verifier (allows mocking for tests)
         try
         {
             LogVerbose?.Invoke($"[{ProviderName}] Calling VerifyTransparentStatement");
-            CodeTransparencyClient.VerifyTransparentStatement(
+            Verifier.VerifyTransparentStatement(
                 message.Encode(),
                 VerificationOptions,
                 ClientOptions);

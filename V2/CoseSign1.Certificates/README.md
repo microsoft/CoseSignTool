@@ -14,7 +14,7 @@ Comprehensive X.509 certificate support for COSE signing operations, including l
 
 ## Key Features
 
-- ✅ **LocalCertificateSigningService** - Sign with local X.509 certificates
+- ✅ **CertificateSigningService.Create()** - Factory methods for local and remote certificate signing
 - ✅ **Certificate Sources** - PFX, Windows Store, Linux Store, Direct
 - ✅ **Chain Building** - Automatic and explicit certificate chain construction
 - ✅ **Certificate Validators** - Signature, expiration, chain, EKU, CN validation
@@ -26,14 +26,14 @@ Comprehensive X.509 certificate support for COSE signing operations, including l
 ### Sign with Certificate from File
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 using CoseSign1.Direct;
 
 // Load certificate with private key
 using var cert = new X509Certificate2("cert.pfx", "password");
 
-// Create signing service
-using var service = new LocalCertificateSigningService(cert);
+// Create signing service using factory method
+using var service = CertificateSigningService.Create(cert);
 
 // Create factory and sign
 using var factory = new DirectSignatureFactory(service);
@@ -45,7 +45,7 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 ### Sign with Certificate from Windows Store
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 
 // Find certificate by thumbprint
 using var source = new WindowsCertificateStoreCertificateSource(
@@ -54,13 +54,13 @@ using var source = new WindowsCertificateStoreCertificateSource(
     storeLocation: StoreLocation.CurrentUser);
 
 var cert = source.GetCertificate();
-using var service = new LocalCertificateSigningService(cert!);
+using var service = CertificateSigningService.Create(cert!);
 ```
 
 ### Sign with Certificate from Linux Store
 
 ```csharp
-using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates;
 
 // Load from Linux certificate store
 using var source = new LinuxCertificateStoreCertificateSource(
@@ -68,7 +68,7 @@ using var source = new LinuxCertificateStoreCertificateSource(
     keyPath: "/etc/ssl/private/my-key.pem");
 
 var cert = source.GetCertificate();
-using var service = new LocalCertificateSigningService(cert!);
+using var service = CertificateSigningService.Create(cert!);
 ```
 
 ## Certificate Sources
@@ -280,7 +280,7 @@ Add X5T and X5Chain headers automatically:
 using CoseSign1.Certificates;
 
 // CertificateHeaderContributor is automatically used by
-// LocalCertificateSigningService to add:
+// CertificateSigningService.Create() to add:
 // - X5T (certificate thumbprint)
 // - X5Chain (full certificate chain)
 ```

@@ -162,79 +162,111 @@ public class RemoteSigningTests
     }
 
     [Test]
-    public void RemoteSigningKeyProvider_Constructor_WithValidParameters_CreatesInstance()
+    public void RemoteCertificateSigningKey_Constructor_WithValidParameters_CreatesInstance()
     {
 #pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
 #pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
-        using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
 
-        Assert.That(provider, Is.Not.Null);
-        Assert.That(provider.Metadata, Is.Not.Null);
-        Assert.That(provider.SigningService, Is.EqualTo(mockSigningService));
+        Assert.That(signingKey, Is.Not.Null);
+        Assert.That(signingKey.Metadata, Is.Not.Null);
+        Assert.That(signingKey.SigningService, Is.EqualTo(mockSigningService));
     }
 
     [Test]
-    public void RemoteSigningKeyProvider_GetCoseKey_ReturnsValidKey()
+    public void RemoteCertificateSigningKey_GetCoseKey_ReturnsValidKey()
     {
 #pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
 #pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
-        using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
 
-        var coseKey = provider.GetCoseKey();
+        var coseKey = signingKey.GetCoseKey();
 
         Assert.That(coseKey, Is.Not.Null);
     }
 
     [Test]
-    public void RemoteSigningKeyProvider_GetCoseKey_CalledTwice_ReturnsSameInstance()
+    public void RemoteCertificateSigningKey_GetCoseKey_CalledTwice_ReturnsSameInstance()
     {
 #pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
 #pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
-        using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
 
-        var coseKey1 = provider.GetCoseKey();
-        var coseKey2 = provider.GetCoseKey();
+        var coseKey1 = signingKey.GetCoseKey();
+        var coseKey2 = signingKey.GetCoseKey();
 
         Assert.That(coseKey1, Is.SameAs(coseKey2));
     }
 
     [Test]
-    public void RemoteSigningKeyProvider_Metadata_ContainsKeyInformation()
+    public void RemoteCertificateSigningKey_Metadata_ContainsKeyInformation()
     {
 #pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
 #pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
-        using var provider = new RemoteSigningKeyProvider(source, mockSigningService);
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
 
-        var metadata = provider.Metadata;
+        var metadata = signingKey.Metadata;
 
         Assert.That(metadata.IsRemote, Is.True);
         Assert.That(metadata.KeyType, Is.EqualTo(CryptographicKeyType.RSA));
     }
 
     [Test]
-    public void RemoteSigningKeyProvider_Dispose_CanBeCalledMultipleTimes()
+    public void RemoteCertificateSigningKey_Dispose_CanBeCalledMultipleTimes()
     {
 #pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
 #pragma warning restore CA2252
         using var source = new TestRemoteCertificateSource(cert);
         var mockSigningService = new MockSigningService();
-        var provider = new RemoteSigningKeyProvider(source, mockSigningService);
+        var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
 
-        provider.Dispose();
-        Assert.DoesNotThrow(() => provider.Dispose());
+        signingKey.Dispose();
+        Assert.DoesNotThrow(() => signingKey.Dispose());
+    }
+
+    [Test]
+    public void RemoteCertificateSigningKey_GetSigningCertificate_ReturnsCertificate()
+    {
+#pragma warning disable CA2252
+        var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
+#pragma warning restore CA2252
+        using var source = new TestRemoteCertificateSource(cert);
+        var mockSigningService = new MockSigningService();
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
+
+        var signingCert = signingKey.GetSigningCertificate();
+
+        Assert.That(signingCert, Is.Not.Null);
+        Assert.That(signingCert.Subject, Does.Contain("RemoteKeyTest"));
+    }
+
+    [Test]
+    public void RemoteCertificateSigningKey_GetCertificateChain_ReturnsChain()
+    {
+#pragma warning disable CA2252
+        var cert = TestCertificateUtils.CreateCertificate("RemoteKeyTest");
+#pragma warning restore CA2252
+        using var source = new TestRemoteCertificateSource(cert);
+        var mockSigningService = new MockSigningService();
+        using var signingKey = new RemoteCertificateSigningKey(source, mockSigningService);
+
+        var chain = signingKey.GetCertificateChain(X509ChainSortOrder.LeafFirst).ToList();
+
+        Assert.That(chain, Is.Not.Null);
+        Assert.That(chain.Count, Is.GreaterThan(0));
     }
 
     // Test implementation of RemoteCertificateSource

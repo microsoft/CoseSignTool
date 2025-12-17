@@ -5,6 +5,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -29,6 +30,7 @@ namespace CoseSign1.Indirect;
 /// </summary>
 public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatureOptions>
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Logging scope keys

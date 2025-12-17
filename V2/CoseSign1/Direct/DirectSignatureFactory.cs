@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.Cose;
@@ -24,6 +25,7 @@ namespace CoseSign1.Direct;
 /// </summary>
 public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOptions>, IDisposable
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Logging scope keys

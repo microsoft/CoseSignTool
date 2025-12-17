@@ -15,7 +15,7 @@ Local signing services perform cryptographic operations using keys available on 
 ```csharp
 // Local certificate-based signing
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = new LocalCertificateSigningService(cert);
+using var service = CertificateSigningService.Create(cert);
 ```
 
 **When to use:**

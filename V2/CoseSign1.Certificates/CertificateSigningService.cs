@@ -1,10 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
+using CoseSign1.Certificates.Interfaces;
+using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Logging;
+using CoseSign1.Certificates.Remote;
 using CoseSign1.Headers;
 using DIDx509;
 using Microsoft.Extensions.Logging;
@@ -13,21 +18,190 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace CoseSign1.Certificates;
 
 /// <summary>
-/// Abstract base class for certificate-based signing services.
-/// Implements template method pattern where GetSigningKey() is the extension point.
+/// Certificate-based signing service that works with any <see cref="ICertificateSigningKey"/>.
+/// Provides a unified signing experience for both local and remote certificate scenarios.
 /// Thread-safe: All operations are stateless or use proper locking.
-/// Per V3 architecture: Keys are acquired dynamically within GetCoseSigner().
 /// </summary>
-public abstract class CertificateSigningService : ISigningService<CertificateSigningOptions>
+/// <remarks>
+/// <para>
+/// Use the static factory methods for common scenarios:
+/// <list type="bullet">
+/// <item><description><see cref="Create(X509Certificate2, ICertificateChainBuilder, ILogger?)"/> - Local certificate with chain builder</description></item>
+/// <item><description><see cref="Create(X509Certificate2, IReadOnlyList{X509Certificate2}, ILogger?)"/> - Local certificate with explicit chain</description></item>
+/// <item><description><see cref="Create(RemoteCertificateSource, ILogger?)"/> - Remote certificate source</description></item>
+/// </list>
+/// </para>
+/// <para>
+/// Example usage:
+/// <code>
+/// // For local certificates with chain builder
+/// using var service = CertificateSigningService.Create(certificate, chainBuilder);
+/// 
+/// // For local certificates with explicit chain
+/// using var service = CertificateSigningService.Create(certificate, certificateChain);
+/// 
+/// // For remote certificates (Azure Key Vault, etc.)
+/// var source = new AzureKeyVaultCertificateSource(factory, certName);
+/// await source.InitializeAsync();
+/// using var service = CertificateSigningService.Create(source);
+/// </code>
+/// </para>
+/// </remarks>
+public class CertificateSigningService : ISigningService<CertificateSigningOptions>
 {
     private static readonly CertificateHeaderContributor CertificateContributor = new();
     private bool Disposed;
     private readonly SigningServiceMetadata ServiceMetadataField;
     private readonly bool IsRemoteField;
+
+    /// <summary>
+    /// The certificate signing key when provided directly or via factory methods.
+    /// </summary>
+    private ICertificateSigningKey? SigningKeyField;
+
     /// <summary>
     /// The logger for this service instance.
     /// </summary>
     protected readonly ILogger Logger;
+
+    #region Factory Methods
+
+    /// <summary>
+    /// Creates a signing service for a local certificate with a chain builder.
+    /// </summary>
+    /// <param name="certificate">Certificate with private key for signing.</param>
+    /// <param name="chainBuilder">Chain builder to construct the certificate chain.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <returns>A signing service configured for local certificate signing.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when certificate or chainBuilder is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when certificate does not have a private key.</exception>
+    public static CertificateSigningService Create(
+        X509Certificate2 certificate,
+        ICertificateChainBuilder chainBuilder,
+        ILogger? logger = null)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(certificate);
+        ArgumentNullException.ThrowIfNull(chainBuilder);
+#else
+        if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
+        if (chainBuilder == null) { throw new ArgumentNullException(nameof(chainBuilder)); }
+#endif
+
+        if (!certificate.HasPrivateKey)
+        {
+            throw new ArgumentException(
+                "Certificate must have a private key for local signing.",
+                nameof(certificate));
+        }
+
+        var service = new CertificateSigningService(isRemote: false, logger: logger);
+        var certificateSource = new DirectCertificateSource(certificate, chainBuilder);
+        var signingKeyProvider = new DirectSigningKeyProvider(certificate);
+        service.SigningKeyField = new CertificateSigningKey(certificateSource, signingKeyProvider, service);
+
+        logger?.LogDebug(
+            LogEvents.CertificateLoadedEvent,
+            "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            certificate.Subject,
+            certificate.Thumbprint);
+
+        return service;
+    }
+
+    /// <summary>
+    /// Creates a signing service for a local certificate with an explicit certificate chain.
+    /// </summary>
+    /// <param name="certificate">Certificate with private key for signing.</param>
+    /// <param name="certificateChain">The complete certificate chain including the signing certificate.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <returns>A signing service configured for local certificate signing.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when certificate or certificateChain is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when certificate does not have a private key.</exception>
+    public static CertificateSigningService Create(
+        X509Certificate2 certificate,
+        IReadOnlyList<X509Certificate2> certificateChain,
+        ILogger? logger = null)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(certificate);
+        ArgumentNullException.ThrowIfNull(certificateChain);
+#else
+        if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
+        if (certificateChain == null) { throw new ArgumentNullException(nameof(certificateChain)); }
+#endif
+
+        if (!certificate.HasPrivateKey)
+        {
+            throw new ArgumentException(
+                "Certificate must have a private key for local signing.",
+                nameof(certificate));
+        }
+
+        var service = new CertificateSigningService(isRemote: false, logger: logger);
+        var certificateSource = new DirectCertificateSource(certificate, certificateChain);
+        var signingKeyProvider = new DirectSigningKeyProvider(certificate);
+        service.SigningKeyField = new CertificateSigningKey(certificateSource, signingKeyProvider, service);
+
+        logger?.LogDebug(
+            LogEvents.CertificateLoadedEvent,
+            "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}",
+            certificate.Subject,
+            certificateChain.Count);
+
+        return service;
+    }
+
+    /// <summary>
+    /// Creates a signing service for a remote certificate source.
+    /// </summary>
+    /// <param name="source">The remote certificate source (e.g., Azure Key Vault, Azure Trusted Signing).</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <returns>A signing service configured for remote certificate signing.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when source is null.</exception>
+    public static CertificateSigningService Create(
+        RemoteCertificateSource source,
+        ILogger? logger = null)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(source);
+#else
+        if (source == null) { throw new ArgumentNullException(nameof(source)); }
+#endif
+
+        var service = new CertificateSigningService(isRemote: true, logger: logger);
+        service.SigningKeyField = new RemoteCertificateSigningKey(source, service);
+
+        logger?.LogDebug(
+            LogEvents.CertificateLoadedEvent,
+            "Creating remote signing service for certificate source");
+
+        return service;
+    }
+
+    #endregion
+
+    #region Constructors
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateSigningService"/> class with a certificate signing key.
+    /// </summary>
+    /// <param name="signingKey">The certificate signing key to use.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    public CertificateSigningService(ICertificateSigningKey signingKey, ILogger? logger = null)
+        : this(signingKey?.Metadata.IsRemote ?? false,
+               new SigningServiceMetadata(
+                   "CertificateSigningService",
+                   "Certificate-based signing service"),
+               logger)
+    {
+#if NET5_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(signingKey);
+#else
+        if (signingKey == null) { throw new ArgumentNullException(nameof(signingKey)); }
+#endif
+        SigningKeyField = signingKey;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateSigningService"/> class.
@@ -35,6 +209,10 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// <param name="isRemote">Whether this is a remote signing service.</param>
     /// <param name="serviceMetadata">Optional service metadata. If null, default metadata is created.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    /// <remarks>
+    /// This constructor is for derived classes that provide their own signing key implementation
+    /// via the <see cref="GetSigningKey"/> method.
+    /// </remarks>
     protected CertificateSigningService(bool isRemote, SigningServiceMetadata? serviceMetadata = null, ILogger? logger = null)
     {
         IsRemoteField = isRemote;
@@ -43,6 +221,10 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
             $"Certificate-based signing service: {GetType().Name}");
         Logger = logger ?? NullLogger.Instance;
     }
+
+    #endregion
+
+    #region Properties
 
     /// <summary>
     /// Gets a value indicating whether this is a remote signing service.
@@ -53,6 +235,13 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// Gets metadata about the signing service.
     /// </summary>
     public SigningServiceMetadata ServiceMetadata => ServiceMetadataField;
+
+    /// <summary>
+    /// Gets the certificate signing key if one was provided directly.
+    /// </summary>
+    protected ICertificateSigningKey? CertificateSigningKey => SigningKeyField;
+
+    #endregion
 
     /// <summary>
     /// Creates a new instance of CertificateSigningOptions appropriate for certificate-based signing.
@@ -205,7 +394,20 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
     /// </summary>
     /// <param name="context">The signing context (may be used for key selection).</param>
     /// <returns>The signing key to use for this operation.</returns>
-    protected abstract ISigningKey GetSigningKey(SigningContext context);
+    /// <exception cref="InvalidOperationException">Thrown if no signing key is available.</exception>
+    protected virtual ISigningKey GetSigningKey(SigningContext context)
+    {
+        // If this instance was created with a signing key, use that
+        if (SigningKeyField != null)
+        {
+            return SigningKeyField;
+        }
+
+        // Derived classes should override this method
+        throw new InvalidOperationException(
+            $"No signing key available. Derived class {GetType().Name} must override GetSigningKey() " +
+            "or provide an ICertificateSigningKey to the constructor.");
+    }
 
     /// <summary>
     /// Disposes the signing service and underlying resources.
@@ -227,8 +429,8 @@ public abstract class CertificateSigningService : ISigningService<CertificateSig
         {
             if (disposing)
             {
-                // Derived classes should dispose their signing keys
-                // Base class doesn't own the key, so nothing to dispose here
+                // Dispose signing key if we own it
+                SigningKeyField?.Dispose();
             }
 
             Disposed = true;

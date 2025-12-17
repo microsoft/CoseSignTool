@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
 
@@ -12,6 +13,7 @@ namespace CoseSign1.Certificates.Validation;
 /// </summary>
 internal sealed class CertificateEmbeddedSignatureValidator : IValidator<CoseSign1Message>
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Validator name

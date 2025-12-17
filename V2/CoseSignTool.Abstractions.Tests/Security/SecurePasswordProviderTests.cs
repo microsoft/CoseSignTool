@@ -10,7 +10,11 @@ namespace CoseSignTool.Abstractions.Tests.Security;
 /// <summary>
 /// Tests for SecurePasswordProvider.
 /// </summary>
+/// <remarks>
+/// These tests modify environment variables, so they must run sequentially to avoid conflicts.
+/// </remarks>
 [TestFixture]
+[NonParallelizable]
 public class SecurePasswordProviderTests
 {
     private string? TempPasswordFile;

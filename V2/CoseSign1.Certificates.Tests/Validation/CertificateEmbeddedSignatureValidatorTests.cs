@@ -1,0 +1,288 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Direct;
+using CoseSign1.Tests.Common;
+using CoseSign1.Validation;
+using NUnit.Framework;
+using System.Security.Cryptography.Cose;
+using System.Reflection;
+
+namespace CoseSign1.Certificates.Tests.Validation;
+
+/// <summary>
+/// Tests for CertificateEmbeddedSignatureValidator.
+/// Note: This is an internal class, so we test it via CertificateSignatureValidator.
+/// </summary>
+[TestFixture]
+public class CertificateEmbeddedSignatureValidatorTests
+{
+    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
+    private CoseSign1Message? ValidEmbeddedMessage;
+    private CoseSign1Message? DetachedMessage;
+
+    [SetUp]
+#pragma warning disable CA2252 // Preview features
+    public void SetUp()
+    {
+        TestCert = TestCertificateUtils.CreateCertificate("EmbeddedValidatorTest");
+
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+
+        // Create embedded message
+        var embeddedOptions = new DirectSignatureOptions { EmbedPayload = true };
+        var embeddedBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", embeddedOptions);
+        ValidEmbeddedMessage = CoseSign1Message.DecodeSign1(embeddedBytes);
+
+        // Create detached message
+        var detachedOptions = new DirectSignatureOptions { EmbedPayload = false };
+        var detachedBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", detachedOptions);
+        DetachedMessage = CoseSign1Message.DecodeSign1(detachedBytes);
+    }
+#pragma warning restore CA2252
+
+    [TearDown]
+    public void TearDown()
+    {
+        TestCert?.Dispose();
+    }
+
+    [Test]
+    public void Validate_WithNullInput_ReturnsNullInputFailure()
+    {
+        // Use CertificateSignatureValidator to trigger embedded validator
+        var validator = new CertificateSignatureValidator();
+        var result = validator.Validate(null!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
+            Assert.That(result.Failures, Has.Count.GreaterThan(0));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("NULL_INPUT"));
+        });
+    }
+
+    [Test]
+    public void EmbeddedValidator_Validate_WithNullInput_ReturnsNullInputFailure()
+    {
+        var validator = CreateEmbeddedValidator();
+        var result = validator.Validate(null!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+            Assert.That(result.Failures, Has.Count.EqualTo(1));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("NULL_INPUT"));
+        });
+    }
+
+    [Test]
+    public void EmbeddedValidator_Validate_WithDetachedMessage_ReturnsDetachedNotSupported()
+    {
+        var validator = CreateEmbeddedValidator();
+        var result = validator.Validate(DetachedMessage!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+            Assert.That(result.Failures, Has.Count.EqualTo(1));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("DETACHED_CONTENT_NOT_SUPPORTED"));
+        });
+    }
+
+    [Test]
+    public void EmbeddedValidator_Validate_WithTamperedSignature_ReturnsSignatureInvalid()
+    {
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test").ToArray();
+        if (messageBytes.Length > 10)
+        {
+            messageBytes[messageBytes.Length - 1] ^= 0xFF;
+            messageBytes[messageBytes.Length - 2] ^= 0xFF;
+        }
+
+        var tamperedMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        var validator = CreateEmbeddedValidator();
+        var result = validator.Validate(tamperedMessage);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+            Assert.That(result.Failures, Has.Count.EqualTo(1));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("SIGNATURE_INVALID"));
+        });
+    }
+
+    [Test]
+    public async Task EmbeddedValidator_ValidateAsync_ForwardsToValidate()
+    {
+        var validator = CreateEmbeddedValidator();
+        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.True);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+        });
+    }
+
+    [Test]
+    public void Validate_WithValidEmbeddedSignature_ReturnsSuccess()
+    {
+        var validator = new CertificateSignatureValidator();
+        var result = validator.Validate(ValidEmbeddedMessage!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.True);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+            Assert.That(result.Failures, Has.Count.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void Validate_WithAllowUnprotectedHeaders_ValidatesSuccessfully()
+    {
+        var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
+        var result = validator.Validate(ValidEmbeddedMessage!);
+
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public async Task ValidateAsync_WithValidEmbeddedSignature_ReturnsSuccess()
+    {
+        var validator = new CertificateSignatureValidator();
+        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.True);
+            Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateEmbeddedSignatureValidator)));
+        });
+    }
+
+    [Test]
+    public async Task ValidateAsync_WithCancellation_CompletesOrThrows()
+    {
+        var validator = new CertificateSignatureValidator();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        try
+        {
+            var result = await validator.ValidateAsync(ValidEmbeddedMessage!, cts.Token);
+            // If we get here, the validation completed before cancellation was observed
+            Assert.That(result, Is.Not.Null);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected - cancellation was observed
+            Assert.Pass();
+        }
+    }
+
+    [Test]
+    public void Validate_DetachedMessageAsEmbedded_ReturnsDetachedNotSupported()
+    {
+        // Create a validator without detached payload - trying to validate detached as embedded
+        var validator = new CertificateSignatureValidator();
+        var result = validator.Validate(DetachedMessage!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Failures, Has.Count.GreaterThan(0));
+            // Should indicate that detached content is not supported or missing
+            Assert.That(result.Failures[0].ErrorCode, Is.AnyOf("DETACHED_CONTENT_NOT_SUPPORTED", "MISSING_DETACHED_PAYLOAD"));
+        });
+    }
+
+    [Test]
+#pragma warning disable CA2252 // Preview features
+    public void Validate_WithTamperedSignature_ReturnsSignatureInvalid()
+    {
+        // Create a valid message then tamper with it
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test").ToArray();
+
+        // Tamper with the signature bytes (last bytes are the signature)
+        if (messageBytes.Length > 10)
+        {
+            messageBytes[messageBytes.Length - 1] ^= 0xFF; // Flip bits in signature
+            messageBytes[messageBytes.Length - 2] ^= 0xFF;
+        }
+
+        var tamperedMessage = CoseSign1Message.DecodeSign1(messageBytes);
+        var validator = new CertificateSignatureValidator();
+        var result = validator.Validate(tamperedMessage);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Failures, Has.Count.GreaterThan(0));
+            Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("SIGNATURE_INVALID"));
+        });
+    }
+#pragma warning restore CA2252
+
+    [Test]
+    public void Validate_MultipleTimesOnSameMessage_ReturnsSameResult()
+    {
+        var validator = new CertificateSignatureValidator();
+
+        var result1 = validator.Validate(ValidEmbeddedMessage!);
+        var result2 = validator.Validate(ValidEmbeddedMessage!);
+        var result3 = validator.Validate(ValidEmbeddedMessage!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result1.IsValid, Is.EqualTo(result2.IsValid));
+            Assert.That(result2.IsValid, Is.EqualTo(result3.IsValid));
+            Assert.That(result1.ValidatorName, Is.EqualTo(result2.ValidatorName));
+        });
+    }
+
+    [Test]
+    public async Task ValidateAsync_MultipleTimesInParallel_AllSucceed()
+    {
+        var validator = new CertificateSignatureValidator();
+
+        var tasks = Enumerable.Range(0, 5)
+            .Select(_ => validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None))
+            .ToList();
+
+        var results = await Task.WhenAll(tasks);
+
+        Assert.That(results.All(r => r.IsValid), Is.True);
+    }
+
+    private static IValidator<CoseSign1Message> CreateEmbeddedValidator(bool allowUnprotectedHeaders = false)
+    {
+        var validatorType = typeof(CertificateSignatureValidator)
+            .Assembly
+            .GetType("CoseSign1.Certificates.Validation.CertificateEmbeddedSignatureValidator", throwOnError: true)!;
+
+        var instance = Activator.CreateInstance(validatorType, [allowUnprotectedHeaders]);
+        Assert.That(instance, Is.Not.Null);
+        return (IValidator<CoseSign1Message>)instance!;
+    }
+}

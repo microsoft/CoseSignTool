@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine.Invocation;
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -22,6 +23,7 @@ public class VerifyCommandHandler
     /// <summary>
     /// String constants specific to this class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public static readonly string ArgumentName = "signature";

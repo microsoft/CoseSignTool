@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace CoseSign1.Certificates.Local;
 
 /// <summary>
@@ -24,6 +26,7 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class SoftwareKeyProvider : IPrivateKeyProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Provider name

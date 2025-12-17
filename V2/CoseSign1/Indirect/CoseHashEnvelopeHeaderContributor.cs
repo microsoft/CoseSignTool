@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Indirect;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
@@ -14,6 +15,7 @@ using CoseSign1.Abstractions;
 /// </summary>
 public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Hash algorithm names (used in switch pattern)

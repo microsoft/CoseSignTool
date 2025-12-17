@@ -15,4 +15,8 @@
         <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    </ItemGroup>
+
 </Project>

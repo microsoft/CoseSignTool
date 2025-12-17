@@ -11,12 +11,12 @@ namespace CoseSign1.Integration.Tests.Remote;
 
 /// <summary>
 /// Test implementation of a remote certificate signing service that uses TestRemoteCertificateSource.
-/// This demonstrates how a remote signing service implementation would work - each remote service
-/// (Azure Key Vault, Trusted Signing, HSM, etc.) would implement their own signing service.
+/// This demonstrates how a remote signing service implementation would work.
 /// </summary>
 internal sealed class DirectSigningRemoteCertificateSigningService : CertificateSigningService
 {
-    private readonly RemoteCertificateSource RemoteCertificateSource;
+    private readonly RemoteCertificateSource Source;
+    private readonly RemoteCertificateSigningKey SigningKey;
 
     public DirectSigningRemoteCertificateSigningService(
         X509Certificate2 certificate,
@@ -25,7 +25,8 @@ internal sealed class DirectSigningRemoteCertificateSigningService : Certificate
         : base(isRemote: true)
     {
         _ = certificate ?? throw new ArgumentNullException(nameof(certificate));
-        RemoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        Source = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        SigningKey = new RemoteCertificateSigningKey(Source, this);
     }
 
     public DirectSigningRemoteCertificateSigningService(
@@ -35,18 +36,17 @@ internal sealed class DirectSigningRemoteCertificateSigningService : Certificate
         : base(isRemote: true)
     {
         _ = certificate ?? throw new ArgumentNullException(nameof(certificate));
-        RemoteCertificateSource = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        Source = remoteCertificateSource ?? throw new ArgumentNullException(nameof(remoteCertificateSource));
+        SigningKey = new RemoteCertificateSigningKey(Source, this);
     }
 
-    protected override ISigningKey GetSigningKey(SigningContext context)
-    {
-        return new RemoteSigningKeyProvider(RemoteCertificateSource, this);
-    }
+    protected override ISigningKey GetSigningKey(SigningContext context) => SigningKey;
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            SigningKey.Dispose();
             // Remote certificate source is owned by the caller, don't dispose it here
         }
         base.Dispose(disposing);

@@ -28,7 +28,7 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
 ┌─────────────────────────────────────────────────────────────┐
 │                 Signing Service Layer                       │
 │  ISigningService<TOptions>                                  │
-│  - LocalCertificateSigningService                           │
+│  - CertificateSigningService.Create()                       │
 │  - AzureTrustedSigningService                               │
 │  - CertificateSigningService (base)                         │
 └─────────────────────────────────────────────────────────────┘
@@ -109,7 +109,7 @@ public interface ISigningService<out TSigningOptions> : IDisposable
 ```
 
 **Available Implementations**:
-- **`LocalCertificateSigningService`**: Signs with local X.509 certificates
+- **`CertificateSigningService.Create()`**: Factory methods for local and remote certificate signing
 - **`AzureTrustedSigningService`**: Signs using Azure Trusted Signing
 - **`CertificateSigningService`**: Abstract base class for certificate-based signing
 

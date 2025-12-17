@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test configuration for V2 projects with parallel execution -->
+<!-- Usage: dotnet test --settings test.runsettings -->
+<RunSettings>
+  <RunConfiguration>
+    <!-- Use all available CPU cores (0 = auto-detect) -->
+    <MaxCpuCount>0</MaxCpuCount>
+    <ResultsDirectory>.\TestResults</ResultsDirectory>
+    <TreatNoTestsAsError>true</TreatNoTestsAsError>
+    <!-- Don't create deployment folder per test -->
+    <DisableAppDomain>false</DisableAppDomain>
+  </RunConfiguration>
+
+  <NUnit>
+    <!-- 
+      NUnit Parallel Execution Settings
+      See: https://docs.nunit.org/articles/nunit/running-tests/Parallel-Test-Execution.html
+    -->
+    <!-- Number of test assemblies to run in parallel -->
+    <NumberOfTestWorkers>0</NumberOfTestWorkers>
+    <!-- Enable parallel execution within test assemblies -->
+    <InternalTraceLevel>Off</InternalTraceLevel>
+    <!-- Default timeout per test (30 seconds) -->
+    <DefaultTimeout>30000</DefaultTimeout>
+    <!-- Work directory for test output -->
+    <WorkDirectory>.\TestResults</WorkDirectory>
+    <!-- Random seed for test ordering (helps reproduce failures) -->
+    <RandomSeed>0</RandomSeed>
+    <!-- Stop on first failure for faster feedback during development -->
+    <StopOnError>false</StopOnError>
+  </NUnit>
+
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="console" enabled="True">
+        <Configuration>
+          <Verbosity>minimal</Verbosity>
+        </Configuration>
+      </Logger>
+      <Logger friendlyName="trx" enabled="True" />
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>

@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -15,6 +17,7 @@ namespace CoseSignTool.Local.Plugin;
 /// </summary>
 public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
 {
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Command metadata
@@ -117,10 +120,10 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         CertificateThumbprint = signingCert.Thumbprint;
 
         // Create logger for signing service
-        var signingServiceLogger = loggerFactory?.CreateLogger<LocalCertificateSigningService>();
+        var signingServiceLogger = loggerFactory?.CreateLogger<CertificateSigningService>();
 
         // Create signing service
-        SigningService = new LocalCertificateSigningService(signingCert, chainBuilder, signingServiceLogger);
+        SigningService = CertificateSigningService.Create(signingCert, chainBuilder, signingServiceLogger);
 
         return await Task.FromResult(SigningService);
     }

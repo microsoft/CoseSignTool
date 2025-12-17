@@ -5,6 +5,7 @@ namespace DIDx509;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using DIDx509.Models;
@@ -21,6 +22,7 @@ internal static class SanParser
     /// <summary>
     /// Static string constants for the SanParser class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         // Windows-style format prefixes
@@ -56,6 +58,33 @@ internal static class SanParser
 #if NET10_0_OR_GREATER
         return ParseUsingAsnReader(extension.RawData);
 #else
+        return ParseUsingFormattedString(extension);
+#endif
+    }
+
+    /// <summary>
+    /// Parses a SAN extension using the specified parsing strategy.
+    /// This method is exposed for testing to verify both code paths work correctly.
+    /// </summary>
+    /// <param name="extension">The SAN X509Extension.</param>
+    /// <param name="useFormattedStringParser">If true, uses the Format()-based parser; if false, uses ASN.1 parser (NET10+ only).</param>
+    /// <returns>List of parsed SAN entries.</returns>
+    internal static List<SubjectAlternativeName> Parse(X509Extension extension, bool useFormattedStringParser)
+    {
+        if (extension == null)
+        {
+            throw new ArgumentNullException(nameof(extension));
+        }
+
+        if (useFormattedStringParser)
+        {
+            return ParseUsingFormattedString(extension);
+        }
+
+#if NET10_0_OR_GREATER
+        return ParseUsingAsnReader(extension.RawData);
+#else
+        // On netstandard2.0, ASN.1 reader is not available, fall back to formatted string
         return ParseUsingFormattedString(extension);
 #endif
     }

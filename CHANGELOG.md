@@ -1,11 +1,12 @@
 # Changelog
 
-## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+## [v1.6.8](https://github.com/microsoft/CoseSignTool/tree/v1.6.8) (2025-12-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.7...HEAD)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.7...v1.6.8)
 
 **Merged pull requests:**
 
+- Remove System.Text.Json dependency from CoseSign1.Headers library [\#153](https://github.com/microsoft/CoseSignTool/pull/153) ([JeromySt](https://github.com/JeromySt))
 - Multi-target libraries for netstandard2.0 and net8.0 [\#152](https://github.com/microsoft/CoseSignTool/pull/152) ([JeromySt](https://github.com/JeromySt))
 - Rename Azure CTS to Microsoft's Signing Transparency \(MST\) [\#151](https://github.com/microsoft/CoseSignTool/pull/151) ([JeromySt](https://github.com/JeromySt))
 
@@ -19,12 +20,16 @@
 
 ## [v1.6.6](https://github.com/microsoft/CoseSignTool/tree/v1.6.6) (2025-11-25)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.5...v1.6.6)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.4...v1.6.6)
 
 **Merged pull requests:**
 
 - Users/jstatia/azure trusted signing [\#148](https://github.com/microsoft/CoseSignTool/pull/148) ([JeromySt](https://github.com/JeromySt))
 - Users/jstatia/package upgrades [\#145](https://github.com/microsoft/CoseSignTool/pull/145) ([JeromySt](https://github.com/JeromySt))
+
+## [v1.6.4](https://github.com/microsoft/CoseSignTool/tree/v1.6.4) (2025-08-05)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.5...v1.6.4)
 
 ## [v1.6.5](https://github.com/microsoft/CoseSignTool/tree/v1.6.5) (2025-08-05)
 
@@ -32,11 +37,7 @@
 
 ## [v1.6.3](https://github.com/microsoft/CoseSignTool/tree/v1.6.3) (2025-08-05)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.4...v1.6.3)
-
-## [v1.6.4](https://github.com/microsoft/CoseSignTool/tree/v1.6.4) (2025-08-05)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre4...v1.6.4)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre4...v1.6.3)
 
 ## [v1.5.4-pre4](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre4) (2025-08-05)
 
@@ -52,19 +53,19 @@
 
 ## [v1.5.4-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre3) (2025-08-05)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.1...v1.5.4-pre3)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre2...v1.5.4-pre3)
 
 **Merged pull requests:**
 
 - Move to central package management in the repo, also tabs to spaces [\#142](https://github.com/microsoft/CoseSignTool/pull/142) ([JeromySt](https://github.com/JeromySt))
 
-## [v1.6.1](https://github.com/microsoft/CoseSignTool/tree/v1.6.1) (2025-07-30)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre2...v1.6.1)
-
 ## [v1.5.4-pre2](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre2) (2025-07-30)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.0...v1.5.4-pre2)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.1...v1.5.4-pre2)
+
+## [v1.6.1](https://github.com/microsoft/CoseSignTool/tree/v1.6.1) (2025-07-30)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.0...v1.6.1)
 
 **Merged pull requests:**
 
@@ -90,15 +91,15 @@
 
 ## [v1.5.6](https://github.com/microsoft/CoseSignTool/tree/v1.5.6) (2025-07-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre1...v1.5.6)
-
-## [v1.5.4-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre1) (2025-07-15)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v.1.5.5...v1.5.4-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v.1.5.5...v1.5.6)
 
 ## [v.1.5.5](https://github.com/microsoft/CoseSignTool/tree/v.1.5.5) (2025-07-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4...v.1.5.5)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre1...v.1.5.5)
+
+## [v1.5.4-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre1) (2025-07-15)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4...v1.5.4-pre1)
 
 **Merged pull requests:**
 
@@ -400,19 +401,19 @@
 
 ## [v1.2.3-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.3-pre1) (2024-05-31)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.2-pre1...v1.2.3-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.3...v1.2.3-pre1)
 
 **Merged pull requests:**
 
 - upgrade to .NET 8, add docs to package, add retry loop for revocation server [\#89](https://github.com/microsoft/CoseSignTool/pull/89) ([lemccomb](https://github.com/lemccomb))
 
-## [v1.2.2-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.2-pre1) (2024-03-20)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.3...v1.2.2-pre1)
-
 ## [v1.2.3](https://github.com/microsoft/CoseSignTool/tree/v1.2.3) (2024-03-20)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1-pre2...v1.2.3)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.2-pre1...v1.2.3)
+
+## [v1.2.2-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.2-pre1) (2024-03-20)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1-pre2...v1.2.2-pre1)
 
 **Merged pull requests:**
 
@@ -420,31 +421,31 @@
 
 ## [v1.2.1-pre2](https://github.com/microsoft/CoseSignTool/tree/v1.2.1-pre2) (2024-03-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1-pre1...v1.2.1-pre2)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.2...v1.2.1-pre2)
 
 **Merged pull requests:**
 
 - more granular error codes [\#86](https://github.com/microsoft/CoseSignTool/pull/86) ([lemccomb](https://github.com/lemccomb))
 
-## [v1.2.1-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.1-pre1) (2024-03-12)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.2...v1.2.1-pre1)
-
 ## [v1.2.2](https://github.com/microsoft/CoseSignTool/tree/v1.2.2) (2024-03-12)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1...v1.2.2)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1-pre1...v1.2.2)
+
+## [v1.2.1-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.1-pre1) (2024-03-12)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.0-pre1...v1.2.1-pre1)
 
 **Merged pull requests:**
 
 - Revert "Add .exe to CoseSignTool NuGet" [\#83](https://github.com/microsoft/CoseSignTool/pull/83) ([elantiguamsft](https://github.com/elantiguamsft))
 
-## [v1.2.1](https://github.com/microsoft/CoseSignTool/tree/v1.2.1) (2024-03-07)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.0-pre1...v1.2.1)
-
 ## [v1.2.0-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.2.0-pre1) (2024-03-07)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.exeTest...v1.2.0-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.1...v1.2.0-pre1)
+
+## [v1.2.1](https://github.com/microsoft/CoseSignTool/tree/v1.2.1) (2024-03-07)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.2.exeTest...v1.2.1)
 
 **Merged pull requests:**
 
@@ -460,19 +461,19 @@
 
 ## [v1.1.8-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.8-pre1) (2024-03-04)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.7-pre3...v1.1.8-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.8...v1.1.8-pre1)
 
 **Merged pull requests:**
 
 - Update Nuspec for CoseIndirectSignature [\#80](https://github.com/microsoft/CoseSignTool/pull/80) ([elantiguamsft](https://github.com/elantiguamsft))
 
-## [v1.1.7-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.1.7-pre3) (2024-03-02)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.8...v1.1.7-pre3)
-
 ## [v1.1.8](https://github.com/microsoft/CoseSignTool/tree/v1.1.8) (2024-03-02)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.7-pre2...v1.1.8)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.7-pre3...v1.1.8)
+
+## [v1.1.7-pre3](https://github.com/microsoft/CoseSignTool/tree/v1.1.7-pre3) (2024-03-02)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.7-pre2...v1.1.7-pre3)
 
 **Merged pull requests:**
 
@@ -508,31 +509,31 @@
 
 ## [v1.1.6](https://github.com/microsoft/CoseSignTool/tree/v1.1.6) (2024-02-07)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.4-pre1...v1.1.6)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.5...v1.1.6)
 
 **Merged pull requests:**
 
 - Only hit iterator once [\#75](https://github.com/microsoft/CoseSignTool/pull/75) ([JeromySt](https://github.com/JeromySt))
 
-## [v1.1.4-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.4-pre1) (2024-01-31)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.5...v1.1.4-pre1)
-
 ## [v1.1.5](https://github.com/microsoft/CoseSignTool/tree/v1.1.5) (2024-01-31)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.4...v1.1.5)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.4-pre1...v1.1.5)
+
+## [v1.1.4-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.4-pre1) (2024-01-31)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.3-pre1...v1.1.4-pre1)
 
 **Merged pull requests:**
 
 - write validation output to standard out [\#74](https://github.com/microsoft/CoseSignTool/pull/74) ([elantiguamsft](https://github.com/elantiguamsft))
 
-## [v1.1.4](https://github.com/microsoft/CoseSignTool/tree/v1.1.4) (2024-01-26)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.3-pre1...v1.1.4)
-
 ## [v1.1.3-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.3-pre1) (2024-01-26)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.2-pre1...v1.1.3-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.4...v1.1.3-pre1)
+
+## [v1.1.4](https://github.com/microsoft/CoseSignTool/tree/v1.1.4) (2024-01-26)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.2-pre1...v1.1.4)
 
 **Merged pull requests:**
 
@@ -564,19 +565,19 @@
 
 ## [v1.1.1-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.1-pre1) (2024-01-17)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre7...v1.1.1-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.1...v1.1.1-pre1)
 
 **Merged pull requests:**
 
 - Move CreateChangelog to after build in PR build [\#70](https://github.com/microsoft/CoseSignTool/pull/70) ([lemccomb](https://github.com/lemccomb))
 
-## [v1.1.0-pre7](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre7) (2024-01-12)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.1...v1.1.0-pre7)
-
 ## [v1.1.1](https://github.com/microsoft/CoseSignTool/tree/v1.1.1) (2024-01-12)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre6...v1.1.1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre7...v1.1.1)
+
+## [v1.1.0-pre7](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre7) (2024-01-12)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0-pre6...v1.1.0-pre7)
 
 **Merged pull requests:**
 
@@ -625,7 +626,7 @@
 
 ## [v1.1.0-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.1.0-pre1) (2023-11-03)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0...v1.1.0-pre1)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v1.1.0-pre1)
 
 **Merged pull requests:**
 
@@ -635,13 +636,13 @@
 - DetachedSignatureFactory accepts pre-hashed content as payload [\#53](https://github.com/microsoft/CoseSignTool/pull/53) ([elantiguamsft](https://github.com/elantiguamsft))
 - Add password support for certificate files [\#52](https://github.com/microsoft/CoseSignTool/pull/52) ([lemccomb](https://github.com/lemccomb))
 
-## [v1.1.0](https://github.com/microsoft/CoseSignTool/tree/v1.1.0) (2023-10-10)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.10...v1.1.0)
-
 ## [v0.3.1-pre.10](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.10) (2023-10-10)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.10)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.1.0...v0.3.1-pre.10)
+
+## [v1.1.0](https://github.com/microsoft/CoseSignTool/tree/v1.1.0) (2023-10-10)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v1.1.0)
 
 **Merged pull requests:**
 
@@ -651,13 +652,13 @@
 - Port changes from ADO repo to GitHub repo [\#46](https://github.com/microsoft/CoseSignTool/pull/46) ([lemccomb](https://github.com/lemccomb))
 - Re-enable CodeQL [\#45](https://github.com/microsoft/CoseSignTool/pull/45) ([lemccomb](https://github.com/lemccomb))
 
-## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
-
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.9...v0.3.2)
-
 ## [v0.3.1-pre.9](https://github.com/microsoft/CoseSignTool/tree/v0.3.1-pre.9) (2023-09-28)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.1-pre.9)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.2...v0.3.1-pre.9)
+
+## [v0.3.2](https://github.com/microsoft/CoseSignTool/tree/v0.3.2) (2023-09-28)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v0.3.1-pre.8...v0.3.2)
 
 **Merged pull requests:**
 

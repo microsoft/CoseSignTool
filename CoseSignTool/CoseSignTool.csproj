@@ -9,7 +9,6 @@
 
     <!--Code style and static analysis-->
     <PropertyGroup>
-        <EnablePreviewFeatures>true</EnablePreviewFeatures>
         <Nullable>enable</Nullable>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <EnableNETAnalyzers>true</EnableNETAnalyzers>

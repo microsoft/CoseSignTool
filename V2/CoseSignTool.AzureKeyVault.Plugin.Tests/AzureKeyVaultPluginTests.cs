@@ -117,7 +117,7 @@ public class AzureKeyVaultPluginTests
     }
 
     [Test]
-    public void GetExtensions_VerificationProviders_ReturnsEmpty()
+    public void GetExtensions_VerificationProviders_ReturnsProvider()
     {
         // Arrange
         var plugin = new AzureKeyVaultPlugin();
@@ -127,7 +127,9 @@ public class AzureKeyVaultPluginTests
         var providers = extensions.VerificationProviders.ToList();
 
         // Assert
-        Assert.That(providers, Is.Empty);
+        Assert.That(providers, Is.Not.Empty);
+        Assert.That(providers, Has.Count.EqualTo(1));
+        Assert.That(providers[0].ProviderName, Is.EqualTo("AzureKeyVault"));
     }
 
     [Test]

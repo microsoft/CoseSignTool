@@ -6,6 +6,7 @@ namespace CoseSign1.Certificates.Validation;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
+using CoseSign1.Certificates;
 using CoseSign1.Validation;
 
 /// <summary>
@@ -16,7 +17,7 @@ using CoseSign1.Validation;
 /// For embedded signatures, the payload is taken from the message content.
 /// For detached signatures, the payload must be provided via the constructor.
 /// </remarks>
-public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
+public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>, ISignatureValidator
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -37,6 +38,22 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
 
     private readonly byte[]? DetachedPayload;
     private readonly bool AllowUnprotectedHeaders;
+
+    public bool IsApplicable(CoseSign1Message input)
+    {
+        if (input is null)
+        {
+            return false;
+        }
+
+        // Certificate-based validation requires x5t + x5chain.
+        bool hasX5t = input.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T)
+            || (AllowUnprotectedHeaders && input.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T));
+        bool hasX5chain = input.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain)
+            || (AllowUnprotectedHeaders && input.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain));
+
+        return hasX5t && hasX5chain;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateSignatureValidator"/> class

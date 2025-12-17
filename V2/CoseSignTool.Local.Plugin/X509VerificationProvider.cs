@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
@@ -180,6 +181,26 @@ public class X509VerificationProvider : IVerificationProvider
     {
         var validators = new List<IValidator<CoseSign1Message>>();
 
+        bool HasX509Headers(CoseSign1Message message)
+        {
+            if (message == null)
+            {
+                return false;
+            }
+
+            bool hasX5t = message.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T)
+                || message.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T);
+            bool hasX5chain = message.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain)
+                || message.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain);
+
+            return hasX5t && hasX5chain;
+        }
+
+        IValidator<CoseSign1Message> WhenX509Headers(IValidator<CoseSign1Message> inner)
+        {
+            return new ConditionalX509Validator(inner, HasX509Headers);
+        }
+
         // Parse revocation mode
         var revocationMode = ParseRevocationMode(parseResult);
 
@@ -198,36 +219,55 @@ public class X509VerificationProvider : IVerificationProvider
         }
         else if (IsTrustSystemRoots(parseResult))
         {
-            validators.Add(new CertificateChainValidator(
+            validators.Add(WhenX509Headers(new CertificateChainValidator(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: IsAllowUntrusted(parseResult),
-                revocationMode: revocationMode));
+                revocationMode: revocationMode)));
         }
         else if (IsAllowUntrusted(parseResult))
         {
             // Skip chain validation when explicitly allowing untrusted
             // but still add a minimal validator that accepts any chain
-            validators.Add(new CertificateChainValidator(
+            validators.Add(WhenX509Headers(new CertificateChainValidator(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: true,
-                revocationMode: X509RevocationMode.NoCheck));
+                revocationMode: X509RevocationMode.NoCheck)));
         }
 
         // Add subject name validation
         if (HasSubjectNameRequirement(parseResult))
         {
             string subjectName = GetSubjectName(parseResult)!;
-            validators.Add(new CertificateCommonNameValidator(subjectName, allowUnprotectedHeaders: true));
+            validators.Add(WhenX509Headers(new CertificateCommonNameValidator(subjectName, allowUnprotectedHeaders: true)));
         }
 
         // Add issuer name validation
         if (HasIssuerNameRequirement(parseResult))
         {
             string issuerName = GetIssuerName(parseResult)!;
-            validators.Add(new CertificateIssuerValidator(issuerName, allowUnprotectedHeaders: true));
+            validators.Add(WhenX509Headers(new CertificateIssuerValidator(issuerName, allowUnprotectedHeaders: true)));
         }
 
         return validators;
+    }
+
+    private sealed class ConditionalX509Validator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>
+    {
+        private readonly IValidator<CoseSign1Message> Inner;
+        private readonly Func<CoseSign1Message, bool> Predicate;
+
+        public ConditionalX509Validator(IValidator<CoseSign1Message> inner, Func<CoseSign1Message, bool> predicate)
+        {
+            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
+        }
+
+        public bool IsApplicable(CoseSign1Message input) => Predicate(input);
+
+        public ValidationResult Validate(CoseSign1Message input) => Inner.Validate(input);
+
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+            => Inner.ValidateAsync(input, cancellationToken);
     }
 
     /// <inheritdoc/>

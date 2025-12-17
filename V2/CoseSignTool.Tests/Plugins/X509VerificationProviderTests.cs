@@ -3,6 +3,8 @@
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Reflection;
+using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Local.Plugin;
@@ -139,7 +141,8 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        var inner = UnwrapConditional(validators[0]);
+        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
     }
 
     [Test]
@@ -153,7 +156,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateCommonNameValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateCommonNameValidator"), Is.True);
     }
 
     [Test]
@@ -167,7 +170,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateIssuerValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateIssuerValidator"), Is.True);
     }
 
     [Test]
@@ -181,7 +184,8 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        var inner = UnwrapConditional(validators[0]);
+        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
     }
 
     [Test]
@@ -431,7 +435,20 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        var inner = UnwrapConditional(validators[0]);
+        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+    }
+
+    private static object UnwrapConditional(IValidator<CoseSign1Message> validator)
+    {
+        var t = validator.GetType();
+        if (!string.Equals(t.Name, "ConditionalX509Validator", StringComparison.Ordinal))
+        {
+            return validator;
+        }
+
+        var innerField = t.GetField("Inner", BindingFlags.NonPublic | BindingFlags.Instance);
+        return innerField?.GetValue(validator) ?? validator;
     }
 
     [Test]

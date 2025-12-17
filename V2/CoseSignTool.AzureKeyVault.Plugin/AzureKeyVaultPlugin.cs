@@ -35,7 +35,10 @@ public class AzureKeyVaultPlugin : IPlugin
             new AzureKeyVaultCertificateCommandProvider(),
             new AzureKeyVaultKeyCommandProvider()
         ],
-        verificationProviders: [],
+        verificationProviders:
+        [
+            new AzureKeyVaultVerificationProvider()
+        ],
         transparencyProviders: []);
 
     /// <inheritdoc/>

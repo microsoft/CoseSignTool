@@ -184,6 +184,27 @@ public class MstReceiptPresenceValidatorTests
         Assert.That(receiptSizes, Has.Length.EqualTo(3));
     }
 
+    [Test]
+    public void Validate_WithUnreadableReceipt_ReturnsExtractionFailed()
+    {
+        // Arrange: receipt header is present, but contains a receipt that cannot be decoded.
+        var arrayWriter = new CborWriter();
+        arrayWriter.WriteStartArray(1);
+        arrayWriter.WriteByteString(new byte[] { 0x00 });
+        arrayWriter.WriteEndArray();
+        var receiptsArrayBytes = arrayWriter.Encode();
+
+        var messageWithUnreadableReceipt = CreateMessageWithReceiptHeader(receiptsArrayBytes);
+
+        // Act
+        var result = Validator.Validate(messageWithUnreadableReceipt);
+
+        // Assert
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Has.Count.EqualTo(1));
+        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_RECEIPT_EXTRACTION_FAILED"));
+    }
+
     #region Helper Methods
 
     private CoseSign1Message CreateMessageWithValidMstReceipt()

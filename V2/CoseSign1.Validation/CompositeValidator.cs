@@ -21,6 +21,7 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
         public static readonly string LogNoValidators = "Validation completed with no validators configured";
         public static readonly string LogValidationStarted = "Starting validation with {ValidatorCount} validators. StopOnFirstFailure: {StopOnFirstFailure}, RunInParallel: {RunInParallel}";
         public static readonly string LogExecutingValidator = "Executing validator: {ValidatorType}";
+        public static readonly string LogSkippingValidator = "Skipping validator (not applicable): {ValidatorType}";
         public static readonly string LogValidatorFailed = "Validator {ValidatorType} failed with {FailureCount} failures";
         public static readonly string LogStoppingOnFirstFailure = "Stopping validation on first failure";
         public static readonly string LogValidatorPassed = "Validator {ValidatorType} passed";
@@ -92,6 +93,15 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
 
         foreach (var validator in Validators)
         {
+            if (validator is IConditionalValidator<CoseSign1Message> conditional && !conditional.IsApplicable(input))
+            {
+                Logger.LogTrace(
+                    LogEvents.ValidatorExecutingEvent,
+                    ClassStrings.LogSkippingValidator,
+                    validator.GetType().Name);
+                continue;
+            }
+
             Logger.LogTrace(
                 LogEvents.ValidatorExecutingEvent,
                 ClassStrings.LogExecutingValidator,
@@ -177,7 +187,11 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
         if (RunInParallelField)
         {
             // Run validators in parallel
-            var tasks = Validators.Select(v => v.ValidateAsync(input, cancellationToken));
+            var applicableValidators = Validators
+                .Where(v => v is not IConditionalValidator<CoseSign1Message> c || c.IsApplicable(input))
+                .ToArray();
+
+            var tasks = applicableValidators.Select(v => v.ValidateAsync(input, cancellationToken));
             var parallelResults = await Task.WhenAll(tasks).ConfigureAwait(false);
             results.AddRange(parallelResults);
 
@@ -194,6 +208,11 @@ public sealed class CompositeValidator : IValidator<CoseSign1Message>
             // Run validators sequentially
             foreach (var validator in Validators)
             {
+                if (validator is IConditionalValidator<CoseSign1Message> conditional && !conditional.IsApplicable(input))
+                {
+                    continue;
+                }
+
                 var result = await validator.ValidateAsync(input, cancellationToken).ConfigureAwait(false);
                 results.Add(result);
 

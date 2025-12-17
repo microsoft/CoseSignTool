@@ -297,6 +297,11 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         // This ensures the Azure Key Vault key URI is embedded for verification
         state.KeyIdContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
 
+        // Embed the public key as COSE_Key in (by default) unprotected headers for self-contained verification.
+        // This does not require network access to Key Vault during verification.
+        PublicKeyHeaderContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
+        PublicKeyHeaderContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
+
         // Add content type if specified
         if (!string.IsNullOrEmpty(context.ContentType))
         {

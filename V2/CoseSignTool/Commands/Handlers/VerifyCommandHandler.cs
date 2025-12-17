@@ -221,7 +221,7 @@ public class VerifyCommandHandler
             }
 
             // For detached signatures (non-indirect), payload is REQUIRED to verify the signature
-            if (!hasEmbeddedPayload && !isIndirectSignature && payloadFile == null && !signatureOnly)
+            if (!hasEmbeddedPayload && !isIndirectSignature && payloadFile == null)
             {
                 Formatter.WriteError(ClassStrings.ErrorDetachedRequiresPayload);
                 Formatter.EndSection();
@@ -236,35 +236,59 @@ public class VerifyCommandHandler
                 payloadBytes = File.ReadAllBytes(payloadFile.FullName);
             }
 
-            // Build validator with all activated providers
-            // For detached signatures, pass the payload to the signature validator
-            ICoseMessageValidationBuilder validatorBuilder;
-            if (!hasEmbeddedPayload && !isIndirectSignature && payloadBytes != null)
+            // Build validators from activated providers (some may need runtime context such as detached payload)
+            var verificationContext = new VerificationContext(detachedPayload: payloadBytes);
+
+            var providerValidators = new List<IValidator<CoseSign1Message>>();
+            var activatedProviders = new List<string>();
+
+            foreach (var provider in VerificationProviders)
             {
-                // Detached signature: use detached validator with payload
-                validatorBuilder = Cose.Sign1Message()
-                    .ValidateCertificateSignature(payloadBytes, allowUnprotectedHeaders: true);
+                if (!provider.IsActivated(parseResult))
+                {
+                    continue;
+                }
+
+                activatedProviders.Add(provider.ProviderName);
+
+                IEnumerable<IValidator<CoseSign1Message>> validators = provider is IVerificationProviderWithContext withContext
+                    ? withContext.CreateValidators(parseResult, verificationContext)
+                    : provider.CreateValidators(parseResult);
+
+                providerValidators.AddRange(validators);
+            }
+
+            // Signature verification stage: require at least one applicable signature validator to succeed.
+            // Always include the built-in X.509 signature verifier; other providers may contribute additional signature validators.
+            var signatureValidators = new List<IValidator<CoseSign1Message>>();
+
+            if (!hasEmbeddedPayload && !isIndirectSignature)
+            {
+                // Detached signatures require payload to verify cryptographically.
+                signatureValidators.Add(new CertificateSignatureValidator(payloadBytes!, allowUnprotectedHeaders: true));
             }
             else
             {
-                // Embedded or indirect: use standard validator
-                validatorBuilder = Cose.Sign1Message()
-                    .ValidateCertificateSignature(allowUnprotectedHeaders: true);
+                signatureValidators.Add(new CertificateSignatureValidator(allowUnprotectedHeaders: true));
             }
 
-            // Add validators from each activated provider
-            var activatedProviders = new List<string>();
-            foreach (var provider in VerificationProviders)
+            foreach (var v in providerValidators)
             {
-                if (provider.IsActivated(parseResult))
+                if (v is ISignatureValidator)
                 {
-                    activatedProviders.Add(provider.ProviderName);
-                    var validators = provider.CreateValidators(parseResult);
-                    foreach (var validator in validators)
-                    {
-                        validatorBuilder = validatorBuilder.AddValidator(validator);
-                    }
+                    signatureValidators.Add(v);
                 }
+            }
+
+            var nonSignatureValidators = providerValidators.Where(v => v is not ISignatureValidator);
+
+            ICoseMessageValidationBuilder validatorBuilder = Cose.Sign1Message()
+                .AddValidator(new AnySignatureValidator(signatureValidators));
+
+            // Add non-signature validators from providers
+            foreach (var validator in nonSignatureValidators)
+            {
+                validatorBuilder = validatorBuilder.AddValidator(validator);
             }
 
             if (activatedProviders.Count > 0)

@@ -19,7 +19,7 @@ namespace CoseSign1.Transparent.MST.Validation;
 /// This validator checks for the presence of MST receipts in the message's unprotected headers
 /// and verifies their validity using the Azure Code Transparency client.
 /// </remarks>
-public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
+public sealed class MstReceiptValidator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>
 {
     private readonly MstTransparencyProvider Provider;
 
@@ -79,6 +79,16 @@ public sealed class MstReceiptValidator : IValidator<CoseSign1Message>
     {
         // Synchronous validation - run async method synchronously
         return ValidateAsync(input, CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    public bool IsApplicable(CoseSign1Message input)
+    {
+        if (input == null)
+        {
+            return false;
+        }
+
+        return input.HasMstReceipt();
     }
 
     /// <summary>

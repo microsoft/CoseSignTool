@@ -323,7 +323,7 @@ public class CoseSign1MessageIndirectExtensionsTests
         Assert.That(contentType, Is.Null.Or.Empty);
     }
 
-#pragma warning disable CA2252
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     private CoseSign1Message CreateDirectSignature()
     {
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
@@ -334,6 +334,7 @@ public class CoseSign1MessageIndirectExtensionsTests
         return CoseMessage.DecodeSign1(messageBytes);
     }
 
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     private CoseSign1Message CreateTestMessage(byte[] payload, CoseHeaderMap? protectedHeaders = null, CoseHeaderMap? unprotectedHeaders = null)
     {
         using var cert = TestCertificateUtils.CreateCertificate("IndirectExtTest");
@@ -391,5 +392,4 @@ public class CoseSign1MessageIndirectExtensionsTests
             }
         }
     }
-#pragma warning restore CA2252
 }

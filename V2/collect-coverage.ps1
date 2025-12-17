@@ -14,6 +14,7 @@ Write-Host ""
 Write-Host "Cleaning previous coverage results..." -ForegroundColor Yellow
 Remove-Item coverage.cobertura.xml -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force coverage-report -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force TestResults -ErrorAction SilentlyContinue
 
 # Build all projects
 Write-Host "Building all V2 projects..." -ForegroundColor Yellow
@@ -25,8 +26,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Running tests with coverage collection (parallel execution enabled)..." -ForegroundColor Yellow
-# Collect coverage using dotnet-coverage - test the entire V2 solution with runsettings for parallelization
-dotnet-coverage collect --output coverage.cobertura.xml --output-format cobertura "dotnet test CoseSignToolV2.sln --no-build --settings coverage.runsettings"
+# Collect coverage using XPlat Code Coverage (coverlet collector).
+# The runsettings file controls parallelization/loggers/threshold, and we aggregate results afterward.
+dotnet test CoseSignToolV2.sln --no-build --settings coverage.runsettings --collect:"XPlat Code Coverage" --results-directory TestResults
 
 # Continue even if tests fail to generate coverage report
 $testExitCode = $LASTEXITCODE
@@ -36,10 +38,15 @@ Write-Host "Generating coverage report..." -ForegroundColor Yellow
 # Generate HTML and text summary reports
 # Classes requiring external services/dependencies use [ExcludeFromCodeCoverage] attribute
 reportgenerator `
-    -reports:coverage.cobertura.xml `
+    -reports:"TestResults/**/coverage.cobertura.xml" `
     -targetdir:coverage-report `
-    -reporttypes:"Html;TextSummary;Badges" `
+    -reporttypes:"Html;TextSummary;Badges;Cobertura" `
     -verbosity:Info
+
+# Copy merged Cobertura output to the expected location
+if (Test-Path "coverage-report\Cobertura.xml") {
+    Copy-Item "coverage-report\Cobertura.xml" "coverage.cobertura.xml" -Force
+}
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan

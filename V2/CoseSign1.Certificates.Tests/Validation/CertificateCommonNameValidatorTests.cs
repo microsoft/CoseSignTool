@@ -16,6 +16,7 @@ namespace CoseSign1.Certificates.Tests.Validation;
 /// Tests for CertificateCommonNameValidator.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateCommonNameValidatorTests
 {
     private X509Certificate2? TestCert;
@@ -23,7 +24,6 @@ public class CertificateCommonNameValidatorTests
     private const string TestCertCN = "CommonNameTest";
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate(TestCertCN);
@@ -35,7 +35,6 @@ public class CertificateCommonNameValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -161,7 +160,6 @@ public class CertificateCommonNameValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_MessageWithoutCertificate_ReturnsFailure()
     {
         // Create a message without certificate headers
@@ -180,7 +178,6 @@ public class CertificateCommonNameValidatorTests
             Assert.That(result.Failures.Any(f => f.ErrorCode == "CERTIFICATE_NOT_FOUND"), Is.True);
         });
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithPartialCnMatch_ReturnsFailure()

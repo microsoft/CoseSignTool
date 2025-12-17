@@ -11,13 +11,13 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AdditionalValidatorTests
 {
     private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate("ValidatorTest");
@@ -29,7 +29,6 @@ public class AdditionalValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -200,9 +199,7 @@ public class AdditionalValidatorTests
     {
         // For detached signatures, the message doesn't contain the payload
         // So we need to create a detached message
-#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("DetachedTest");
-#pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
@@ -233,9 +230,7 @@ public class AdditionalValidatorTests
     public async Task CertificateDetachedSignatureValidator_ValidateAsync_CompletesSuccessfully()
     {
         // Create detached signature
-#pragma warning disable CA2252
         var cert = TestCertificateUtils.CreateCertificate("DetachedAsyncTest");
-#pragma warning restore CA2252
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);

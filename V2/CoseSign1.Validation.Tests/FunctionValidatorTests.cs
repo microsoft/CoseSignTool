@@ -6,11 +6,10 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
 using NUnit.Framework;
 
-#pragma warning disable CA2252 // Preview Features
-
 namespace CoseSign1.Validation.Tests;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class FunctionValidatorTests
 {
     private CoseSign1Message? ValidMessage;

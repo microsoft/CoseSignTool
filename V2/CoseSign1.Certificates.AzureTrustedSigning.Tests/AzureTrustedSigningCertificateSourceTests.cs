@@ -11,6 +11,7 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 /// Uses mocked AzSignContext to test signing operations.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningCertificateSourceTests
 {
     private Mock<AzSignContext> MockSignContext = null!;

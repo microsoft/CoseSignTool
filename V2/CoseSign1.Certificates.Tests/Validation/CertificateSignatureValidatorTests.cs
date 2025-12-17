@@ -11,13 +11,13 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateSignatureValidatorTests
 {
     private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
@@ -29,7 +29,6 @@ public class CertificateSignatureValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -162,7 +161,6 @@ public class CertificateSignatureValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252 // Preview features
     public void Validate_DetachedSignature_WithPayload_ReturnsSuccess()
     {
         // Create a detached signature
@@ -183,10 +181,8 @@ public class CertificateSignatureValidatorTests
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateDetachedSignatureValidator)));
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252 // Preview features
     public void Validate_DetachedSignature_WithoutPayload_ReturnsFailure()
     {
         // Create a detached signature
@@ -211,10 +207,8 @@ public class CertificateSignatureValidatorTests
             Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MISSING_DETACHED_PAYLOAD"));
         });
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252 // Preview features
     public async Task ValidateAsync_DetachedSignature_WithPayload_ReturnsSuccess()
     {
         // Create a detached signature
@@ -234,7 +228,6 @@ public class CertificateSignatureValidatorTests
 
         Assert.That(result.IsValid, Is.True);
     }
-#pragma warning restore CA2252
 
     #endregion
 }

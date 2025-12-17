@@ -289,6 +289,7 @@ public class AzureKeyVaultCertificateCommandProviderTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task CreateSigningServiceAsync_WithValidOptions_UsesInjectedFactoryAndReturnsSigningService()
     {
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvProvider", 2048);

@@ -20,18 +20,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <!-- Test runner configuration (NUnit only) -->
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     <EnableNUnitRunner>true</EnableNUnitRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <!-- Suppress MTP0001: VSTest properties ignored when using Microsoft.Testing.Platform -->
     <NoWarn>$(NoWarn);MTP0001</NoWarn>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MTP0001</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <!-- Code analysis -->

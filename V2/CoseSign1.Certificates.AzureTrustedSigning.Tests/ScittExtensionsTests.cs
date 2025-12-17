@@ -12,6 +12,7 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 /// Tests for <see cref="ScittExtensions"/>.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class ScittExtensionsTests
 {
     private X509Certificate2 TestCert = null!;

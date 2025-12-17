@@ -16,7 +16,7 @@ public class CompositeValidatorTests
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public void SetUp()
     {
         var cert = TestCertificateUtils.CreateCertificate("CompositeTest");
@@ -28,7 +28,6 @@ public class CompositeValidatorTests
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Constructor_WithValidValidators_CreatesInstance()

@@ -7,8 +7,6 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
-
-#pragma warning disable CA2252 // Preview Features
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
 
 namespace CoseSign1.Certificates.Tests.Remote;
@@ -19,6 +17,7 @@ namespace CoseSign1.Certificates.Tests.Remote;
 /// </summary>
 [TestFixture]
 [Platform("Win")]  // ML-DSA is only supported on Windows
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class RemoteMLDsaTests
 {
     [SetUp]
@@ -441,4 +440,3 @@ public class RemoteMLDsaTests
 }
 
 #pragma warning restore SYSLIB5006
-#pragma warning restore CA2252

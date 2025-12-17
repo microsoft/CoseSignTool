@@ -9,6 +9,7 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 /// Tests for <see cref="AzureTrustedSigningDidX509"/>.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningDidX509Tests
 {
     private X509Certificate2 TestCert = null!;

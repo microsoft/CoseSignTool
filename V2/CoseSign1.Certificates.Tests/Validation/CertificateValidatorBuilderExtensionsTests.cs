@@ -13,13 +13,13 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateValidatorBuilderExtensionsTests
 {
     private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         // Create a self-signed cert with subject CN = "ExtensionTest".
@@ -32,7 +32,6 @@ public class CertificateValidatorBuilderExtensionsTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()

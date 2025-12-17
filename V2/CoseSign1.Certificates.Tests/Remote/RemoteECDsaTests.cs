@@ -8,11 +8,10 @@ using CoseSign1.Certificates.Remote;
 using CoseSign1.Tests.Common;
 using NUnit.Framework;
 
-#pragma warning disable CA2252 // Preview Features
-
 namespace CoseSign1.Certificates.Tests.Remote;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class RemoteECDsaTests
 {
     [Test]
@@ -350,5 +349,3 @@ public class RemoteECDsaTests
         }
     }
 }
-
-#pragma warning restore CA2252

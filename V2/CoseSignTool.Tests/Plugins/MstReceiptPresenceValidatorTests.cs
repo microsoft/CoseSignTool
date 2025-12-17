@@ -25,7 +25,7 @@ public class MstReceiptPresenceValidatorTests
     private X509Certificate2? TestCert;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public void Setup()
     {
         Validator = new MstReceiptPresenceValidator();
@@ -48,7 +48,6 @@ public class MstReceiptPresenceValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessageWithoutReceipt = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()

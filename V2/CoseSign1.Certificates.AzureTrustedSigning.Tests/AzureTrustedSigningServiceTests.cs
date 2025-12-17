@@ -10,6 +10,7 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 /// Tests for <see cref="AzureTrustedSigningService"/>.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningServiceTests
 {
     private Mock<AzSignContext> MockSignContext = null!;

@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Code coverage configuration for V2 projects with parallel execution -->
-<!-- Usage: dotnet test --settings coverage.runsettings --collect:"XPlat Code Coverage" -->
+<!-- Usage: dotnet test with the coverage.runsettings file and the XPlat Code Coverage collector -->
 <RunSettings>
   <DataCollectionRunSettings>
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <Format>cobertura,opencover,json</Format>
-          <Exclude>[*.Tests]*,[*]*.Tests.*,[*.Tests.Common]*</Exclude>
+          <Format>cobertura</Format>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           <ExcludeByFile>**/obj/**,**/bin/**,**/*.Designer.cs,**/*.g.cs,**/*.g.i.cs</ExcludeByFile>
           <IncludeDirectory>../</IncludeDirectory>
           <SingleHit>false</SingleHit>
           <UseSourceLink>true</UseSourceLink>
-          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <IncludeTestAssembly>true</IncludeTestAssembly>
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicReport>true</DeterministicReport>
           <!-- Thresholds -->

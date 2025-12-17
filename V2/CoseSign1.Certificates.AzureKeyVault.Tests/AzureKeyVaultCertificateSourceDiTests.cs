@@ -18,6 +18,7 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.AzureKeyVault.Tests;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureKeyVaultCertificateSourceDiTests
 {
     private const string TestCertificateName = "test-signing-cert";

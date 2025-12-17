@@ -107,13 +107,13 @@ public class TransparencyValidationResultTests
 }
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class TransparencyExtensionsTests
 {
     private Mock<ITransparencyProvider> MockProvider = null!;
     private CoseSign1Message Message = null!;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         MockProvider = new Mock<ITransparencyProvider>();
@@ -128,7 +128,6 @@ public class TransparencyExtensionsTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         Message = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [Test]
     public async Task VerifyTransparencyAsync_WithValidMessage_CallsProvider()

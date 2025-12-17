@@ -14,13 +14,13 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateKeyUsageValidatorTests
 {
     private X509Certificate2? TestCert;
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
@@ -32,7 +32,6 @@ public class CertificateKeyUsageValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -144,7 +143,6 @@ public class CertificateKeyUsageValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithValidEKU_ReturnsSuccess()
     {
         // Create a certificate with Code Signing EKU
@@ -163,10 +161,8 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
         Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithValidEKUOid_ReturnsSuccess()
     {
         // Create a certificate with Code Signing EKU
@@ -185,7 +181,6 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithWrongEKU_ReturnsFailure()
@@ -199,7 +194,6 @@ public class CertificateKeyUsageValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithMissingEKUExtension_ReturnsFailure()
     {
         // Create a certificate without any EKU extension (empty array still creates extension with 0 entries)
@@ -219,7 +213,6 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "EKU_NOT_FOUND" || e.ErrorCode == "EKU_MISMATCH"), Is.True);
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithAllowUnprotectedHeaders_UsesUnprotectedHeaders()
@@ -253,7 +246,6 @@ public class CertificateKeyUsageValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_MessageWithoutCertificate_ReturnsCertNotFoundError()
     {
         // Create a message without certificate headers
@@ -272,10 +264,8 @@ public class CertificateKeyUsageValidatorTests
             Assert.That(result.Failures.Any(e => e.ErrorCode == "CERTIFICATE_NOT_FOUND"), Is.True);
         });
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithMultipleKeyUsageFlags_ChecksAllFlags()
     {
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign);
@@ -284,10 +274,8 @@ public class CertificateKeyUsageValidatorTests
         // Certificate may or may not have both flags
         Assert.That(result, Is.Not.Null);
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithEkuUsingOidWithFriendlyName_IncludesInMetadata()
     {
         using var certWithEku = TestCertificateUtils.CreateCertificate("FriendlyEkuTest", customEkus: new[] { "1.3.6.1.5.5.7.3.3" });
@@ -305,10 +293,8 @@ public class CertificateKeyUsageValidatorTests
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("EnhancedKeyUsage"), Is.True);
     }
-#pragma warning restore CA2252
 
     [Test]
-#pragma warning disable CA2252
     public void Validate_WithNoneKeyUsageFlags_ReturnsAppropriateResult()
     {
         // X509KeyUsageFlags.None means no specific key usage is required
@@ -319,7 +305,6 @@ public class CertificateKeyUsageValidatorTests
         // This should pass because None is subset of any flags
         Assert.That(result.IsValid, Is.True);
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Validate_WithKeyUsageValidator_EkuMismatchIncludesFoundEkus()

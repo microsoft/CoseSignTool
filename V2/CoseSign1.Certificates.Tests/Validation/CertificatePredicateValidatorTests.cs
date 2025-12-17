@@ -284,7 +284,7 @@ public class CertificatePredicateValidatorTests
         Assert.That(result.Failures[0].Message, Is.EqualTo(""));
     }
 
-#pragma warning disable CA2252
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     private CoseSign1Message CreateSignedMessage()
     {
         using var cert = TestCertificateUtils.CreateCertificate("PredicateTest");
@@ -294,5 +294,4 @@ public class CertificatePredicateValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         return CoseMessage.DecodeSign1(messageBytes);
     }
-#pragma warning restore CA2252
 }

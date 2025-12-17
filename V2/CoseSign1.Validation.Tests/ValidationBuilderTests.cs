@@ -16,7 +16,7 @@ public class ValidationBuilderTests
     private CoseSign1Message? ValidMessage;
 
     [SetUp]
-#pragma warning disable CA2252
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public void SetUp()
     {
         var cert = TestCertificateUtils.CreateCertificate("BuilderTest");
@@ -28,7 +28,6 @@ public class ValidationBuilderTests
         ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
         cert.Dispose();
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Cose_Sign1Message_ReturnsBuilder()

@@ -11,19 +11,18 @@ using NUnit.Framework;
 namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateDetachedSignatureValidatorTests
 {
     private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
     private byte[]? Payload;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
         Payload = new byte[] { 1, 2, 3, 4, 5 };
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()

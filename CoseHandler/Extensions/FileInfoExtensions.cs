@@ -174,7 +174,7 @@ public static class FileInfoExtensions
 
             if (delay > 0)
             {
-                Task.Delay(delay).Wait();
+                await Task.Delay(delay);
             }
 
             await fs.WriteAsync(bytes, offset, bytesToWrite);

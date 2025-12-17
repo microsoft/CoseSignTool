@@ -18,6 +18,7 @@ namespace CoseSign1.Certificates.Tests.Validation;
 /// Note: This is an internal class, so we test it via CertificateSignatureValidator.
 /// </summary>
 [TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateEmbeddedSignatureValidatorTests
 {
     private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
@@ -25,7 +26,6 @@ public class CertificateEmbeddedSignatureValidatorTests
     private CoseSign1Message? DetachedMessage;
 
     [SetUp]
-#pragma warning disable CA2252 // Preview features
     public void SetUp()
     {
         TestCert = TestCertificateUtils.CreateCertificate("EmbeddedValidatorTest");
@@ -45,7 +45,6 @@ public class CertificateEmbeddedSignatureValidatorTests
         var detachedBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test", detachedOptions);
         DetachedMessage = CoseSign1Message.DecodeSign1(detachedBytes);
     }
-#pragma warning restore CA2252
 
     [TearDown]
     public void TearDown()
@@ -213,7 +212,6 @@ public class CertificateEmbeddedSignatureValidatorTests
     }
 
     [Test]
-#pragma warning disable CA2252 // Preview features
     public void Validate_WithTamperedSignature_ReturnsSignatureInvalid()
     {
         // Create a valid message then tamper with it
@@ -242,7 +240,6 @@ public class CertificateEmbeddedSignatureValidatorTests
             Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("SIGNATURE_INVALID"));
         });
     }
-#pragma warning restore CA2252
 
     [Test]
     public void Validate_MultipleTimesOnSameMessage_ReturnsSameResult()

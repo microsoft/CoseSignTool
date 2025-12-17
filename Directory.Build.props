@@ -1,10 +1,13 @@
 ﻿<Project>
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     <!-- Central package management is enabled via Directory.Packages.props -->
     <EnableNUnitRunner>true</EnableNUnitRunner>
     <EnableMSTestRunner>true</EnableMSTestRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!-- Suppress MTP0001: VSTest properties ignored when using Microsoft.Testing.Platform -->
+    <NoWarn>$(NoWarn);MTP0001</NoWarn>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MTP0001</MSBuildWarningsAsMessages>
     <!-- Configure architecture for macOS ARM64 runners -->
     <TestingPlatformArchitecture Condition="'$(OS)' == 'Unix' AND $([MSBuild]::IsOSPlatform('OSX'))">arm64</TestingPlatformArchitecture>
     <!-- Alternative: Use RuntimeIdentifier on macOS -->

@@ -590,6 +590,7 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task HandleAsync_WithValidSignatureAndActivatedProvider_WritesMetadataAndReturnsSuccess()
     {
         var output = new StringWriter();
@@ -601,13 +602,11 @@ public class VerifyCommandHandlerTests
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerTest");
 
-#pragma warning disable CA2252 // Preview features
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var signatureBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-#pragma warning restore CA2252
 
         var tempSignaturePath = Path.Combine(Path.GetTempPath(), $"valid_{Guid.NewGuid():N}.cose");
         File.WriteAllBytes(tempSignaturePath, signatureBytes);
@@ -637,6 +636,7 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task HandleAsync_WithValidSignature_WhenSignatureOnly_ReturnsSuccessAndWritesSignatureVerifiedMessage()
     {
         var output = new StringWriter();
@@ -646,13 +646,11 @@ public class VerifyCommandHandlerTests
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerSignatureOnlyTest");
 
-#pragma warning disable CA2252 // Preview features
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 9, 8, 7 };
         var signatureBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-#pragma warning restore CA2252
 
         var tempSignaturePath = Path.Combine(Path.GetTempPath(), $"sigonly_{Guid.NewGuid():N}.cose");
         File.WriteAllBytes(tempSignaturePath, signatureBytes);
@@ -677,6 +675,7 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task HandleAsync_WithIndirectSignature_WhenPayloadHashMismatch_ReturnsVerificationFailed()
     {
         var output = new StringWriter();
@@ -686,13 +685,11 @@ public class VerifyCommandHandlerTests
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerIndirectMismatchTest");
 
-#pragma warning disable CA2252 // Preview features
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new IndirectSignatureFactory(signingService);
         var originalPayload = "original payload"u8.ToArray();
         var signatureBytes = factory.CreateCoseSign1MessageBytes(originalPayload, "application/test");
-#pragma warning restore CA2252
 
         var tempSignaturePath = Path.Combine(Path.GetTempPath(), $"indirect_{Guid.NewGuid():N}.cose");
         var tempPayloadPath = Path.Combine(Path.GetTempPath(), $"indirect_payload_{Guid.NewGuid():N}.bin");

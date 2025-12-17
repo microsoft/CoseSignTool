@@ -21,9 +21,20 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
 
     public int Priority => 0; // Signature validation
 
+    private Option<bool> AllowOnlineVerifyOption = null!;
+    private Option<bool> RequireAzKeyOption = null!;
+
     public void AddVerificationOptions(Command command)
     {
-        // No options currently.
+        AllowOnlineVerifyOption = new Option<bool>(
+            name: "--allow-online-verify",
+            description: "Allow network calls to Azure Key Vault to fetch the public key by kid when needed for verification");
+        command.AddOption(AllowOnlineVerifyOption);
+
+        RequireAzKeyOption = new Option<bool>(
+            name: "--require-az-key",
+            description: "Require an Azure Key Vault key-only signature (kid + COSE_Key) to be present");
+        command.AddOption(RequireAzKeyOption);
     }
 
     public bool IsActivated(ParseResult parseResult)
@@ -41,17 +52,28 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
 
     public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult, VerificationContext context)
     {
+        bool allowOnlineVerify = AllowOnlineVerifyOption != null && parseResult.GetValueForOption(AllowOnlineVerifyOption);
+        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
+
         return new[]
         {
-            new AzureKeyVaultSignatureValidator(context.DetachedPayload)
+            new AzureKeyVaultSignatureValidator(
+                context.DetachedPayload,
+                requireAzureKey: requireAzKey,
+                allowOnlineVerify: allowOnlineVerify)
         };
     }
 
     public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
     {
+        bool allowOnlineVerify = AllowOnlineVerifyOption != null && parseResult.GetValueForOption(AllowOnlineVerifyOption);
+        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
+
         return new Dictionary<string, object?>
         {
-            ["AKV Key-Only Verification"] = "Enabled"
+            ["AKV Key-Only Verification"] = "Enabled",
+            ["Allow Online Verify"] = allowOnlineVerify ? "Yes" : "No",
+            ["Require AKV Key"] = requireAzKey ? "Yes" : "No"
         };
     }
 }

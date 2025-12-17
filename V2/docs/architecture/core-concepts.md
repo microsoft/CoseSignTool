@@ -26,9 +26,10 @@ Every operation is explicit and intentional:
 var signature = CoseHandler.Sign(payload);
 
 // ✅ V2: Explicit signing service configuration
-var service = CertificateSigningService.Create(certificate);
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+var service = CertificateSigningService.Create(certificate, chainBuilder);
 var factory = new DirectSignatureFactory(service);
-var signature = await factory.CreateAsync(payload);
+var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
 ```
 
 ### 2. Composition Over Configuration
@@ -40,9 +41,11 @@ Build functionality through composition rather than configuration strings:
 CoseHandler.SetValidation("RequireEku:1.3.6.1.4.1.311.10.3.13");
 
 // ✅ V2: Composable validators
-var validator = new ValidatorBuilder()
-    .WithEkuPolicy(new[] { "1.3.6.1.4.1.311.10.3.13" })
-    .WithSignatureValidator()
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .AllowUnprotectedHeaders()
+        .ValidateSignature()
+        .ValidateEnhancedKeyUsage("1.3.6.1.4.1.311.10.3.13"))
     .Build();
 ```
 
@@ -53,15 +56,20 @@ All services use DI patterns:
 ```csharp
 // Register services
 builder.Services
-    .AddSingleton<ISigningService>(sp => CertificateSigningService.Create(certificate))
-    .AddSingleton<IValidator<CoseSign1Message>, CompositeValidator>();
+    .AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
+    {
+        using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+        return CertificateSigningService.Create(certificate, cb);
+    })
+    .AddSingleton<IValidator<CoseSign1Message>>(sp =>
+        Cose.Sign1Message().AddCertificateValidator(b => b.AllowUnprotectedHeaders().ValidateSignature()).Build());
 
 // Inject and use
-public class DocumentSigner(ISigningService signingService)
+public class DocumentSigner(ISigningService<SigningOptions> signingService)
 {
     public async Task<CoseSign1Message> SignAsync(byte[] document)
         => await new DirectSignatureFactory(signingService)
-            .CreateAsync(document);
+            .CreateCoseSign1MessageAsync(document, contentType: "application/octet-stream");
 }
 ```
 
@@ -70,13 +78,13 @@ public class DocumentSigner(ISigningService signingService)
 Every component is designed for testing:
 
 ```csharp
-// Mock signing service for testing
-var mockService = new Mock<ISigningService>();
-mockService.Setup(s => s.SignAsync(It.IsAny<byte[]>(), CancellationToken.None))
-    .ReturnsAsync(new byte[64]);
+// Prefer real signing services + test certificates for high-fidelity tests
+using var cert = TestCertificates.CreateEcdsa();
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
+using var factory = new DirectSignatureFactory(signingService);
 
-var factory = new DirectSignatureFactory(mockService.Object);
-var result = await factory.CreateAsync(payload);
+byte[] signed = factory.CreateCoseSign1MessageBytes(payload, contentType: "application/octet-stream");
 ```
 
 ## Dependency Injection and Services
@@ -86,20 +94,17 @@ var result = await factory.CreateAsync(payload);
 V2 defines clear service interfaces:
 
 ```csharp
-public interface ISigningService : IDisposable
+public interface ISigningService<out TSigningOptions> : IDisposable
 {
-    Task<byte[]> SignAsync(byte[] data, CancellationToken cancellationToken = default);
-    CoseAlgorithm Algorithm { get; }
+    CoseSigner GetCoseSigner(SigningContext context);
+    TSigningOptions CreateSigningOptions();
+    bool IsRemote { get; }
+    SigningServiceMetadata ServiceMetadata { get; }
 }
 
 public interface IValidator<T>
 {
-    ValidationResult Validate(T message, ValidationOptions? options = null);
-}
-
-public interface ICertificateSource : IDisposable
-{
-    X509Certificate2? GetCertificate();
+    ValidationResult Validate(T input);
 }
 ```
 
@@ -108,33 +113,30 @@ public interface ICertificateSource : IDisposable
 Different services have different lifetimes:
 
 ```csharp
-// Singleton: Stateless services, expensive to create
-services.AddSingleton<ICertificateValidator, CertificateSignatureValidator>();
+// Singleton: stateless validators/builders
+services.AddSingleton<IValidator<CoseSign1Message>>(sp =>
+    Cose.Sign1Message().AddCertificateValidator(b => b.AllowUnprotectedHeaders().ValidateSignature()).Build());
 
-// Scoped: Per-request services with state
-services.AddScoped<ISigningService, AzureTrustedSigningService>();
-
-// Transient: Lightweight, stateful services
-services.AddTransient<ICoseSign1MessageFactory, DirectSignatureFactory>();
+// Scoped/Transient: your app decides based on lifecycle of credentials/certs
+services.AddScoped<ISigningService<CertificateSigningOptions>>(sp =>
+{
+    var cert = sp.GetRequiredService<X509Certificate2>();
+    using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+    return CertificateSigningService.Create(cert, cb);
+});
 ```
 
 ### Service Registration Patterns
 
 ```csharp
 // Simple registration
-services.AddSingleton<ISigningService>(sp => 
-    CertificateSigningService.Create(certificate));
-
-// Factory pattern
-services.AddSingleton<ISigningService>(sp => 
+services.AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
 {
-    var certSource = sp.GetRequiredService<ICertificateSource>();
-    return CertificateSigningService.Create(certSource.GetCertificate()!);
+    using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+    return CertificateSigningService.Create(certificate, cb);
 });
 
-// Configuration-based
-services.Configure<SigningOptions>(Configuration.GetSection("Signing"));
-services.AddSingleton<ISigningService, ConfiguredSigningService>();
+// Configuration-based: bind options in your application and construct the signing service from those values.
 ```
 
 ## Factory Pattern
@@ -146,12 +148,12 @@ Factories create COSE Sign1 messages with different characteristics.
 ```csharp
 // Direct signature: Payload embedded in message
 var directFactory = new DirectSignatureFactory(signingService);
-var directMessage = await directFactory.CreateAsync(payload);
+var directMessage = await directFactory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
 // Message contains payload
 
 // Indirect signature: Payload referenced by hash
 var indirectFactory = new IndirectSignatureFactory(signingService);
-var indirectMessage = await indirectFactory.CreateAsync(payload);
+var indirectMessage = await indirectFactory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
 // Message contains hash(payload), not payload
 ```
 
@@ -160,15 +162,19 @@ var indirectMessage = await indirectFactory.CreateAsync(payload);
 Factories accept optional configuration:
 
 ```csharp
-var factory = new DirectSignatureFactory(
-    signingService: service,
-    headerContributors: new IHeaderContributor[] 
-    { 
+var factory = new DirectSignatureFactory(signingService);
+
+var options = new DirectSignatureOptions
+{
+    EmbedPayload = false,
+    AdditionalHeaderContributors = new IHeaderContributor[]
+    {
         new CwtClaimsHeaderContributor(),
-        new TimestampHeaderContributor()
-    },
-    embeddedPayloadSupport: EmbeddedPayloadSupport.DetachedButEmbeddedHint
-);
+        new TimestampHeaderContributor(),
+    }
+};
+
+var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream", options);
 ```
 
 ### Factory Extensibility
@@ -280,29 +286,28 @@ V2 emphasizes immutable objects where appropriate.
 ### Immutable Configuration
 
 ```csharp
-public record SigningOptions
+public class SigningOptions
 {
-    public required CoseAlgorithm Algorithm { get; init; }
-    public required string CertificateThumbprint { get; init; }
-    public bool IncludeChain { get; init; } = true;
+    public bool DisableTransparency { get; set; }
+    public bool FailOnTransparencyError { get; set; } = true;
+    public IReadOnlyList<IHeaderContributor>? AdditionalHeaderContributors { get; set; }
 }
 
 // Once created, cannot be modified
 var options = new SigningOptions 
 { 
-    Algorithm = CoseAlgorithm.ES256,
-    CertificateThumbprint = "..." 
+    DisableTransparency = true
 };
 ```
 
 ### Immutable Results
 
 ```csharp
-public record ValidationResult
+public sealed class ValidationResult
 {
-    public required bool Success { get; init; }
-    public required IReadOnlyList<ValidationFailure> Failures { get; init; }
-    public required CoseSign1Message Message { get; init; }
+    public bool IsValid { get; init; }
+    public string ValidatorName { get; init; } = string.Empty;
+    public IReadOnlyList<ValidationFailure> Failures { get; init; } = Array.Empty<ValidationFailure>();
 }
 
 // Result cannot be modified after creation
@@ -323,17 +328,22 @@ V2 follows .NET resource management patterns.
 ### IDisposable Implementation
 
 ```csharp
-public class CertificateSigningServiceImpl : ISigningService
+public sealed class MySigningService : ISigningService<SigningOptions>
 {
-    private readonly X509Certificate2 _certificate;
-    private bool _disposed;
+    private bool disposed;
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _certificate?.Dispose();
-        _disposed = true;
+        disposed = true;
     }
+
+    public CoseSigner GetCoseSigner(SigningContext context) => throw new NotImplementedException();
+
+    public SigningOptions CreateSigningOptions() => new();
+
+    public bool IsRemote => false;
+
+    public SigningServiceMetadata ServiceMetadata => new("MySigningService", "Example signing service");
 }
 ```
 
@@ -341,24 +351,21 @@ public class CertificateSigningServiceImpl : ISigningService
 
 ```csharp
 // Automatic disposal
-using var service = CertificateSigningService.Create(cert);
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new DirectSignatureFactory(service);
-var message = await factory.CreateAsync(payload);
+var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
 // service disposed here
 ```
 
 ### Certificate Ownership
 
 ```csharp
-// Service takes ownership of certificate
+// CertificateSigningService does not dispose the provided certificate.
+// The caller owns and must dispose the certificate.
 using var cert = new X509Certificate2(path, password);
-using var service = CertificateSigningService.Create(cert);
-// service will dispose cert
-
-// Service does NOT take ownership (use certificate source)
-var cert = certificateStore.GetCertificate();
-var service = CertificateSigningService.Create(cert);
-// You must dispose cert
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 ```
 
 ### Async Disposal
@@ -384,19 +391,10 @@ V2 uses exceptions for exceptional cases, results for validation.
 
 ```csharp
 // Throw for programming errors or system failures
-public class CertificateSigningServiceImpl(X509Certificate2 certificate)
-{
-    public Task<byte[]> SignAsync(byte[] data, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        
-        if (!certificate.HasPrivateKey)
-            throw new CoseSign1CertificateException(
-                "Certificate must have a private key");
-        
-        // ... signing logic
-    }
-}
+// Example: factory methods validate inputs and throw if required state is missing.
+using var cert = new X509Certificate2(path, password);
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder); // throws if cert has no private key
 ```
 
 ### Results for Validation
@@ -405,19 +403,15 @@ public class CertificateSigningServiceImpl(X509Certificate2 certificate)
 // Return results for expected failures (validation)
 public ValidationResult Validate(CoseSign1Message message)
 {
-    var failures = new List<ValidationFailure>();
-    
     if (!VerifySignature(message))
-        failures.Add(new ValidationFailure(
-            ValidationFailureCode.SignatureVerificationFailed,
-            "Cryptographic signature verification failed"));
-    
-    return new ValidationResult
     {
-        Success = failures.Count == 0,
-        Failures = failures,
-        Message = message
-    };
+        return ValidationResult.Failure(
+            validatorName: nameof(MyValidator),
+            message: "Cryptographic signature verification failed",
+            errorCode: "SignatureVerificationFailed");
+    }
+
+    return ValidationResult.Success(nameof(MyValidator));
 }
 ```
 

@@ -27,13 +27,15 @@ Comprehensive X.509 certificate support for COSE signing operations, including l
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Direct;
 
 // Load certificate with private key
 using var cert = new X509Certificate2("cert.pfx", "password");
 
 // Create signing service using factory method
-using var service = CertificateSigningService.Create(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 
 // Create factory and sign
 using var factory = new DirectSignatureFactory(service);
@@ -46,6 +48,7 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 
 // Find certificate by thumbprint
 using var source = new WindowsCertificateStoreCertificateSource(
@@ -54,13 +57,15 @@ using var source = new WindowsCertificateStoreCertificateSource(
     storeLocation: StoreLocation.CurrentUser);
 
 var cert = source.GetCertificate();
-using var service = CertificateSigningService.Create(cert!);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert!, chainBuilder);
 ```
 
 ### Sign with Certificate from Linux Store
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 
 // Load from Linux certificate store
 using var source = new LinuxCertificateStoreCertificateSource(
@@ -68,7 +73,8 @@ using var source = new LinuxCertificateStoreCertificateSource(
     keyPath: "/etc/ssl/private/my-key.pem");
 
 var cert = source.GetCertificate();
-using var service = CertificateSigningService.Create(cert!);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert!, chainBuilder);
 ```
 
 ## Certificate Sources
@@ -290,11 +296,18 @@ using CoseSign1.Certificates;
 Validate signature when payload is stored separately:
 
 ```csharp
-var validator = new CertificateDetachedSignatureValidator(
-    originalPayload,
+// Preferred: use CertificateSignatureValidator with the detached payload
+var validator = new CertificateSignatureValidator(
+    detachedPayload: originalPayload,
     allowUnprotectedHeaders: false);
 
 var result = validator.Validate(message);
+
+// Or, when using the fluent builder:
+// var result = Cose.Sign1Message()
+//     .ValidateCertificateSignature(originalPayload, allowUnprotectedHeaders: false)
+//     .Build()
+//     .Validate(message);
 ```
 
 ## Supported Algorithms

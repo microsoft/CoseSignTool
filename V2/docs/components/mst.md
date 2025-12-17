@@ -23,22 +23,21 @@ Microsoft's Signing Transparency (MST) is a transparency service that:
 
 ## Quick Start
 
-### Verifying with MST Receipt
+### Verifying MST Proofs
 
 ```csharp
+using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
+using System.Security.Cryptography.Cose;
 
-// Configure MST verification options
-var mstOptions = new MstOptions
-{
-    ServiceUri = new Uri("https://mst.microsoft.com"),
-    VerifyReceipt = true
-};
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var provider = new MstTransparencyProvider(client);
 
-var provider = new MstTransparencyProvider(mstOptions);
+// A CoseSign1Message that already contains an MST receipt in its unprotected headers
+CoseSign1Message messageWithReceipt = /* ... */;
 
-// Verify a signature has a valid MST receipt
-bool isValid = await provider.VerifyReceiptAsync(signature, receipt);
+var result = await provider.VerifyTransparencyProofAsync(messageWithReceipt);
+bool isValid = result.IsValid;
 ```
 
 ### CLI Usage
@@ -46,25 +45,23 @@ bool isValid = await provider.VerifyReceiptAsync(signature, receipt);
 With the MST plugin installed, additional options are available on the `verify` command:
 
 ```bash
-# Verify signature with MST receipt validation
+# Verify receipt against an MST endpoint
 CoseSignTool verify signed.cose \
-    --mst-service-uri https://mst.microsoft.com \
-    --verify-mst-receipt
+    --mst-endpoint https://dataplane.codetransparency.azure.net
 
-# Verify and require a valid MST receipt
+# Require a receipt to be present (no network call)
 CoseSignTool verify signed.cose \
-    --mst-service-uri https://mst.microsoft.com \
-    --require-mst-receipt
+    --require-receipt
+
+# Require a receipt and verify it against an endpoint
+CoseSignTool verify signed.cose \
+    --require-receipt \
+    --mst-endpoint https://dataplane.codetransparency.azure.net
 ```
 
-## MstOptions Configuration
+## Verification Options
 
-| Property | Description | Default |
-|----------|-------------|---------|
-| `ServiceUri` | MST service endpoint | Required |
-| `VerifyReceipt` | Whether to verify receipt signatures | `true` |
-| `RequireReceipt` | Fail validation if no receipt present | `false` |
-| `TimeoutSeconds` | Request timeout | `30` |
+Advanced verification behavior can be configured via `CodeTransparencyVerificationOptions`.
 
 ## MST Receipts
 
@@ -124,15 +121,21 @@ When verifying with MST:
 Add MST validation to the validation pipeline:
 
 ```csharp
-using CoseSign1.Transparent.MST.Validators;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator()
-    .AddMstReceiptValidator(mstOptions)
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var provider = new MstTransparencyProvider(client);
+
+var validator = Cose.Sign1Message()
+    .AddMstReceiptValidator(b => b.UseProvider(provider))
     .Build();
 
-var result = await validator.ValidateAsync(signature);
+CoseSign1Message message = /* ... */;
+var result = await validator.ValidateAsync(message);
 ```
 
 ## Security Considerations
@@ -147,17 +150,11 @@ var result = await validator.ValidateAsync(signature);
 ```csharp
 try
 {
-    var result = await provider.VerifyReceiptAsync(signature, receipt);
+    var result = await provider.VerifyTransparencyProofAsync(messageWithReceipt);
 }
-catch (MstServiceException ex)
+catch (Azure.RequestFailedException ex)
 {
-    // Handle MST service errors
-    Console.WriteLine($"MST Error: {ex.Message}");
-}
-catch (MstReceiptValidationException ex)
-{
-    // Handle invalid receipt
-    Console.WriteLine($"Invalid Receipt: {ex.Message}");
+    Console.WriteLine($"MST service error: {ex.Message}");
 }
 ```
 

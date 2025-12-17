@@ -148,32 +148,24 @@ var contributor = new HybridAlgorithmHeaderContributor(
 ### Verifying ML-DSA Signatures
 
 ```csharp
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddMlDsaCertificateValidator()
-    .Build();
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
 
-var result = await validator.ValidateAsync(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
-if (result.IsValid)
+// Automatically verifies RSA, ECDSA, and (on supported platforms) ML-DSA certificates.
+bool isValid = message.VerifySignature();
+
+if (isValid)
 {
-    Console.WriteLine("ML-DSA signature verified successfully");
+    Console.WriteLine("Signature verified successfully");
 }
 ```
 
 ### Algorithm Negotiation
 
-```csharp
-// Accept multiple algorithms
-var acceptedAlgorithms = new[]
-{
-    CoseAlgorithm.ES384,      // Classical
-    CoseAlgorithm.MlDsa65,    // Post-quantum
-    CoseAlgorithm.MlDsa87
-};
-
-var validator = new SignatureValidator(acceptedAlgorithms);
-```
+In most scenarios, the algorithm is determined by the COSE `alg` header and the signing certificate's key type.
+If you need to enforce a specific policy (for example, requiring ML-DSA), implement a custom validator that inspects the message headers/certificate metadata.
 
 ## Cross-Platform Considerations
 

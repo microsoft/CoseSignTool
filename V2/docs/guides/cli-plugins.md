@@ -33,9 +33,9 @@ Adds Microsoft's Signing Transparency options to verification:
 
 | Options | Description |
 |---------|-------------|
-| `--mst-service-uri` | MST service endpoint |
-| `--verify-mst-receipt` | Verify MST receipt on signature |
-| `--require-mst-receipt` | Fail if no valid MST receipt |
+| `--mst-endpoint` | MST service endpoint |
+| `--verify-receipt` | Verify MST receipt (default: true) |
+| `--require-receipt` | Fail if no receipt is present |
 
 ### Indirect Signature Plugin
 

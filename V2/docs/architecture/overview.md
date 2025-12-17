@@ -208,24 +208,26 @@ Composable validation architecture in `CoseSign1.Validation`:
 public interface IValidator<in T>
 {
     ValidationResult Validate(T input);
+
+    Task<ValidationResult> ValidateAsync(T input, CancellationToken cancellationToken = default);
 }
 ```
 
 **Entry Point** - Fluent builder API:
 ```csharp
 var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasCommonName("TrustedSigner"))
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateExpiration()
+        .ValidateCommonName("TrustedSigner"))
     .Build();
 ```
 
 **Core Types**:
-- `CoseMessageValidationBuilder`: Builder for message validators
+- `ICoseMessageValidationBuilder`: Builder for message validators
 - `CompositeValidator`: Combines multiple validators
 - `FunctionValidator`: Wraps lambda functions as validators
-- `ValidationResult`: Success/failure with `ValidationError` collection
+- `ValidationResult`: Success/failure with `Failures` collection
 
 **Certificate Validators** (in `CoseSign1.Certificates.Validation`):
 - `CertificateSignatureValidator`: Verifies cryptographic signature
@@ -303,7 +305,7 @@ Native support for decentralized identifiers in `DIDx509`:
                 ↓
 4. Returns ValidationResult
    - IsValid: true/false
-   - Errors: list of ValidationError (if any)
+    - Failures: list of ValidationFailure (if any)
                 ↓
 5. Application acts on validation result
 ```

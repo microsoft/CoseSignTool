@@ -10,8 +10,8 @@ Core interfaces and types for COSE signing operations.
 
 | Type | Description |
 |------|-------------|
-| `ISigningService` | Interface for signing operations |
-| `IValidator` | Interface for signature validation |
+| `ISigningService<TSigningOptions>` | Interface for signing operations |
+| `IValidator<T>` | Interface for validation |
 | `IHeaderContributor` | Interface for adding headers to signatures |
 | `CoseAlgorithm` | COSE algorithm identifiers |
 | `ValidationResult` | Result of validation operations |
@@ -23,16 +23,16 @@ Direct signature implementation.
 | Type | Description |
 |------|-------------|
 | `DirectSignatureFactory` | Creates COSE_Sign1 messages |
-| `CoseSign1MessageReader` | Reads and parses COSE_Sign1 messages |
+| `CoseMessage.DecodeSign1(...)` | Parses COSE_Sign1 messages (from `System.Security.Cryptography.Cose`) |
 
-### CoseIndirectSignature
+### CoseSign1.Indirect
 
-Indirect (hash envelope) signature implementation.
+Indirect (hash envelope) signing.
 
 | Type | Description |
 |------|-------------|
 | `IndirectSignatureFactory` | Creates indirect signatures |
-| `CoseHashEnvelope` | Hash envelope payload structure |
+| `CoseHashEnvelopeHeaderContributor` | Adds COSE hash-envelope headers during signing |
 
 ## Certificate Packages
 
@@ -42,9 +42,9 @@ Certificate management and chain building.
 
 | Type | Description |
 |------|-------------|
-| `CertificateChainBuilder` | Builds certificate chains |
+| `ICertificateChainBuilder` | Builds certificate chains |
 | `ICertificateSource` | Interface for certificate sources |
-| `LocalSigningService` | Signing with local certificates |
+| `CertificateSigningService` | Signing with certificates (local or remote sources) |
 
 ### CoseSign1.Certificates.AzureTrustedSigning
 
@@ -73,7 +73,7 @@ Microsoft's Signing Transparency integration.
 | Type | Description |
 |------|-------------|
 | `MstTransparencyProvider` | MST provider implementation |
-| `MstOptions` | MST configuration options |
+| `CodeTransparencyClient` | Azure Code Transparency client used by MST |
 
 ## Header Packages
 
@@ -91,32 +91,24 @@ Header contribution and management.
 ### ValidationResult
 
 ```csharp
-public class ValidationResult
+public sealed class ValidationResult
 {
-    public bool IsValid { get; }
-    public IReadOnlyList<ValidationError> Errors { get; }
-    
-    public static ValidationResult Success();
-    public static ValidationResult Failure(string message);
-    public static ValidationResult Failure(ValidationFailureCode code, string message);
+    public bool IsValid { get; init; }
+    public string ValidatorName { get; init; } = string.Empty;
+    public IReadOnlyList<ValidationFailure> Failures { get; init; } = Array.Empty<ValidationFailure>();
+
+    public static ValidationResult Success(string validatorName, IDictionary<string, object>? metadata = null);
+    public static ValidationResult Failure(string validatorName, params ValidationFailure[] failures);
+    public static ValidationResult Failure(string validatorName, string message, string? errorCode = null);
 }
-```
 
-### ValidationFailureCode
-
-```csharp
-public enum ValidationFailureCode
+public sealed class ValidationFailure
 {
-    None,
-    SignatureMismatch,
-    CertificateExpired,
-    CertificateRevoked,
-    ChainBuildFailed,
-    UntrustedRoot,
-    InvalidAlgorithm,
-    MissingRequiredHeader,
-    PayloadMismatch,
-    // ... additional codes
+    public string Message { get; init; } = string.Empty;
+    public string? ErrorCode { get; init; }
+    public string? PropertyName { get; init; }
+    public object? AttemptedValue { get; init; }
+    public Exception? Exception { get; init; }
 }
 ```
 
@@ -149,8 +141,13 @@ public static class CoseAlgorithm
 ### Creating a Signature
 
 ```csharp
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Direct;
+
 // 1. Create signing service
-ISigningService service = new LocalSigningService(certificate);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(certificate, chainBuilder);
 
 // 2. Create factory
 var factory = new DirectSignatureFactory(service);
@@ -162,14 +159,22 @@ byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType);
 ### Validating a Signature
 
 ```csharp
-// 1. Build validator
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator()
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
+// 1. Decode COSE
+var message = CoseMessage.DecodeSign1(signature);
+
+// 2. Build validator
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateChain())
     .Build();
 
-// 2. Validate
-var result = await validator.ValidateAsync(signature);
+// 3. Validate
+var result = await validator.ValidateAsync(message);
 
 // 3. Check result
 if (result.IsValid)
@@ -184,14 +189,14 @@ if (result.IsValid)
 // 1. Create contributor
 public class MyHeaderContributor : IHeaderContributor
 {
-    public int Order => 50;
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
     
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         headers.Add(new CoseHeaderLabel("my-header"), "value");
     }
     
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Add unprotected headers if needed
     }

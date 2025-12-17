@@ -14,6 +14,12 @@ Use ephemeral (temporary self-signed) certificates for testing:
 
 ```csharp
 using CoseSign1.Tests.Common;
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Direct;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
 [TestClass]
 public class SigningTests
@@ -23,16 +29,21 @@ public class SigningTests
     {
         // Create ephemeral certificate
         using var cert = TestCertificates.CreateEphemeral();
-        
+
         // Use for signing
-        var service = new LocalSigningService(cert);
-        var factory = new DirectSignatureFactory(service);
+        using var chainBuilder = new X509ChainBuilder();
+        using var service = CertificateSigningService.Create(cert, chainBuilder);
+        using var factory = new DirectSignatureFactory(service);
         
         var payload = Encoding.UTF8.GetBytes("test payload");
         var signature = factory.CreateCoseSign1MessageBytes(payload);
-        
+
         // Verify
-        var result = validator.Validate(signature);
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = Cose.Sign1Message()
+            .AddCertificateValidator(b => b.ValidateSignature())
+            .Build();
+        var result = validator.Validate(message);
         Assert.IsTrue(result.IsValid);
     }
 }
@@ -71,10 +82,9 @@ public class CustomValidatorTests
     {
         // Arrange
         var message = CreateValidTestMessage();
-        var context = new ValidationContext();
         
         // Act
-        var result = await _validator.ValidateAsync(message, context);
+        var result = await _validator.ValidateAsync(message);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -85,14 +95,13 @@ public class CustomValidatorTests
     {
         // Arrange
         var message = CreateInvalidTestMessage();
-        var context = new ValidationContext();
         
         // Act
-        var result = await _validator.ValidateAsync(message, context);
+        var result = await _validator.ValidateAsync(message);
         
         // Assert
         Assert.IsFalse(result.IsValid);
-        Assert.AreEqual(ValidationFailureCode.CustomError, result.Errors.First().Code);
+        Assert.AreEqual("CUSTOM_ERROR", result.Failures.First().ErrorCode);
     }
 }
 ```
@@ -109,7 +118,7 @@ public class CustomHeaderContributorTests
         // Arrange
         var contributor = new CustomHeaderContributor("test-value");
         var headers = new CoseHeaderMap();
-        var context = new HeaderContext();
+        var context = /* create a HeaderContributorContext */;
         
         // Act
         contributor.ContributeProtectedHeaders(headers, context);
@@ -124,22 +133,26 @@ public class CustomHeaderContributorTests
 
 ```csharp
 [TestClass]
-public class LocalSigningServiceTests
+public class SigningServiceTests
 {
     [TestMethod]
-    public async Task SignAsync_WithValidData_ReturnsSignature()
+    public void SignAndVerify_WithValidData_ReturnsValidSignature()
     {
         // Arrange
         using var cert = TestCertificates.CreateEcdsa();
-        var service = new LocalSigningService(cert);
-        var data = new byte[] { 1, 2, 3, 4, 5 };
-        
-        // Act
-        var signature = await service.SignAsync(data, CoseAlgorithm.ES256);
-        
-        // Assert
-        Assert.IsNotNull(signature);
-        Assert.IsTrue(signature.Length > 0);
+        using var chainBuilder = new X509ChainBuilder();
+        using var service = CertificateSigningService.Create(cert, chainBuilder);
+        using var factory = new DirectSignatureFactory(service);
+
+        byte[] payload = new byte[] { 1, 2, 3, 4, 5 };
+        byte[] signatureBytes = factory.CreateCoseSign1MessageBytes(payload);
+
+        var message = CoseMessage.DecodeSign1(signatureBytes);
+        var validator = Cose.Sign1Message()
+            .AddCertificateValidator(b => b.ValidateSignature())
+            .Build();
+
+        Assert.IsTrue(validator.Validate(message).IsValid);
     }
 }
 ```
@@ -157,8 +170,9 @@ public class SignVerifyIntegrationTests
     {
         // Arrange
         using var cert = TestCertificates.CreateEcdsa();
-        var signingService = new LocalSigningService(cert);
-        var factory = new DirectSignatureFactory(signingService);
+        using var chainBuilder = new X509ChainBuilder();
+        using var signingService = CertificateSigningService.Create(cert, chainBuilder);
+        using var factory = new DirectSignatureFactory(signingService);
         
         var payload = Encoding.UTF8.GetBytes("""
             {
@@ -173,11 +187,12 @@ public class SignVerifyIntegrationTests
             "application/json");
         
         // Act - Verify
-        var validator = ValidationBuilder.Create()
-            .AddSignatureValidator()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = Cose.Sign1Message()
+            .AddCertificateValidator(b => b.ValidateSignature())
             .Build();
-        
-        var result = await validator.ValidateAsync(signature);
+
+        var result = await validator.ValidateAsync(message);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -188,8 +203,9 @@ public class SignVerifyIntegrationTests
     {
         // Arrange
         using var cert = TestCertificates.CreateEcdsa();
-        var signingService = new LocalSigningService(cert);
-        var factory = new IndirectSignatureFactory(signingService);
+        using var chainBuilder = new X509ChainBuilder();
+        using var signingService = CertificateSigningService.Create(cert, chainBuilder);
+        using var factory = new IndirectSignatureFactory(signingService);
         
         var payload = new byte[10000]; // Large payload
         Random.Shared.NextBytes(payload);
@@ -199,9 +215,14 @@ public class SignVerifyIntegrationTests
             payload,
             HashAlgorithmName.SHA256,
             "application/octet-stream");
-        
-        // Act - Verify
-        var result = await validator.ValidateIndirectAsync(signature, payload);
+
+        // Act - Verify signature over the hash envelope (payload is not required for signature verification)
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = Cose.Sign1Message()
+            .AddCertificateValidator(b => b.ValidateSignature())
+            .Build();
+
+        var result = await validator.ValidateAsync(message);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -219,24 +240,24 @@ public async Task Verify_WithFullChain_Succeeds()
     var (root, intermediate, leaf) = TestCertificates.CreateChain();
     
     // Sign with leaf
-    var service = new LocalSigningService(leaf);
-    var factory = new DirectSignatureFactory(service, new SigningOptions
-    {
-        CertificateChain = new[] { intermediate, root }
-    });
+    using var service = CertificateSigningService.Create(
+        leaf,
+        new[] { leaf, intermediate, root });
+    using var factory = new DirectSignatureFactory(service);
     
     var signature = factory.CreateCoseSign1MessageBytes(payload);
     
     // Verify with custom trust root
-    var validator = ValidationBuilder.Create()
-        .AddSignatureValidator()
-        .AddCertificateChainValidator(options =>
-        {
-            options.TrustedRoots = new X509Certificate2Collection { root };
-        })
+    var message = CoseMessage.DecodeSign1(signature);
+    var trustedRoots = new X509Certificate2Collection { root };
+
+    var validator = Cose.Sign1Message()
+        .AddCertificateValidator(b => b
+            .ValidateSignature()
+            .ValidateChain(trustedRoots))
         .Build();
-    
-    var result = await validator.ValidateAsync(signature);
+
+    var result = await validator.ValidateAsync(message);
     Assert.IsTrue(result.IsValid);
 }
 ```
@@ -291,48 +312,12 @@ public class CliIntegrationTests
 
 ## Mock Objects
 
-### Mock Signing Service
+When testing validation composition, you can register lightweight validators directly on the builder:
 
 ```csharp
-public class MockSigningService : ISigningService
-{
-    public byte[] SignatureToReturn { get; set; } = new byte[64];
-    public Exception? ExceptionToThrow { get; set; }
-    public int SignCallCount { get; private set; }
-    
-    public Task<byte[]> SignAsync(ReadOnlyMemory<byte> data, CoseAlgorithm algorithm, CancellationToken ct)
-    {
-        SignCallCount++;
-        
-        if (ExceptionToThrow != null)
-            throw ExceptionToThrow;
-            
-        return Task.FromResult(SignatureToReturn);
-    }
-    
-    public Task<X509Certificate2> GetSigningCertificateAsync(CancellationToken ct)
-    {
-        return Task.FromResult(TestCertificates.CreateEphemeral());
-    }
-}
-```
-
-### Mock Validator
-
-```csharp
-public class MockValidator : IValidator
-{
-    public ValidationResult ResultToReturn { get; set; } = ValidationResult.Success();
-    public int ValidateCallCount { get; private set; }
-    
-    public int Order => 0;
-    
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationContext context, CancellationToken ct)
-    {
-        ValidateCallCount++;
-        return Task.FromResult(ResultToReturn);
-    }
-}
+var validator = Cose.Sign1Message()
+    .AddValidator(_ => ValidationResult.Success("AlwaysPass"))
+    .Build();
 ```
 
 ## Test Data

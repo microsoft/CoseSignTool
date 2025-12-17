@@ -37,6 +37,7 @@ dotnet add package CoseSign1.Validation --version 2.0.0-preview
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
@@ -44,7 +45,8 @@ using System.Security.Cryptography.X509Certificates;
 using var cert = new X509Certificate2("certificate.pfx", "password");
 
 // Create signing service and factory
-using var signingService = CertificateSigningService.Create(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new DirectSignatureFactory(signingService);
 
 // Sign your payload
@@ -90,6 +92,7 @@ bool isValid = message.VerifySignature();
 | `CoseSignTool.Local.Plugin` | Local certificate signing plugin |
 | `CoseSignTool.MST.Plugin` | MST transparency verification plugin |
 | `CoseSignTool.AzureTrustedSigning.Plugin` | Azure Trusted Signing plugin |
+| `CoseSignTool.AzureKeyVault.Plugin` | Azure Key Vault signing + verification plugin |
 
 ## Architecture
 
@@ -124,7 +127,7 @@ V2 follows a layered architecture:
 ### Signing Options
 
 ```csharp
-// Direct signature (embedded payload)
+// Direct signature (embedded payload, SCITT complint if Embed signed)
 using var directFactory = new DirectSignatureFactory(signingService);
 byte[] embedded = directFactory.CreateCoseSign1MessageBytes(payload, "text/plain");
 
@@ -132,7 +135,7 @@ byte[] embedded = directFactory.CreateCoseSign1MessageBytes(payload, "text/plain
 using var indirectFactory = new IndirectSignatureFactory(signingService);
 byte[] indirect = indirectFactory.CreateCoseSign1MessageBytes(payload, "text/plain");
 
-// Detached signature
+// Detached signature (NOT SCiTT compliant)
 var options = new DirectSignatureOptions { EmbedPayload = false };
 byte[] detached = directFactory.CreateCoseSign1MessageBytes(payload, "text/plain", options);
 ```
@@ -210,7 +213,7 @@ See [CLI Plugin Documentation](docs/plugins/README.md) for more details.
 
 ## Test Coverage
 
-V2 maintains high test coverage: **95.5%** with 1,732 tests.
+V2 maintains high test coverage: **95.5%** with 2,924 tests.
 
 ## Contributing
 
@@ -222,6 +225,6 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 
 ## Related Projects
 
-- [Microsoft COSE](https://github.com/microsoft/dotnet-cose) - .NET COSE implementation
+- [Microsoft COSE](https://github.com/dotnet/runtime/blob/main/src/libraries/System.Security.Cryptography.Cose/README.md) - .NET COSE implementation
 - [Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/) - Azure cloud signing service
 - [SCITT](https://datatracker.ietf.org/doc/draft-ietf-scitt-architecture/) - Supply Chain Integrity architecture

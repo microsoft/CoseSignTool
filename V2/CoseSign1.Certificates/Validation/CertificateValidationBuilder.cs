@@ -26,8 +26,8 @@ internal sealed class CertificateValidationBuilder : ICertificateValidationBuild
 
     public ICertificateValidationBuilder IsIssuedBy(string issuerName)
     {
-        // TODO: Implement issuer validator
-        throw new NotImplementedException("Issuer validation not yet implemented");
+        ValidatorsField.Add(new CertificateIssuerValidator(issuerName, AllowUnprotectedHeadersField));
+        return this;
     }
 
     public ICertificateValidationBuilder NotExpired()

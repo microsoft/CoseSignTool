@@ -13,6 +13,21 @@ public class AzureKeyVaultKeyCommandProviderTests
     private const string TestKeyVersion = "v1";
     private static readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
 
+    private sealed class TestableAzureKeyVaultKeyCommandProvider : AzureKeyVaultKeyCommandProvider
+    {
+        public Azure.Core.TokenCredential CreateCredentialPublic() => CreateCredential();
+
+        public Task<CoseSign1.AzureKeyVault.AzureKeyVaultSigningService> CreateAzureKeyVaultSigningServiceAsyncPublic(
+            Uri vaultUri,
+            string keyName,
+            Azure.Core.TokenCredential credential,
+            string? keyVersion,
+            TimeSpan? autoRefreshInterval)
+        {
+            return CreateAzureKeyVaultSigningServiceAsync(vaultUri, keyName, credential, keyVersion, autoRefreshInterval);
+        }
+    }
+
     [Test]
     public void CommandName_ReturnsSignAkvKey()
     {
@@ -188,6 +203,32 @@ public class AzureKeyVaultKeyCommandProviderTests
         var refreshOption = command.Options.FirstOrDefault(o => o.Name == "akv-refresh-interval");
         Assert.That(refreshOption, Is.Not.Null);
         Assert.That(refreshOption!.IsRequired, Is.False);
+    }
+
+    [Test]
+    public void CreateCredential_ReturnsNonNullTokenCredential()
+    {
+        var provider = new TestableAzureKeyVaultKeyCommandProvider();
+
+        var credential = provider.CreateCredentialPublic();
+
+        Assert.That(credential, Is.Not.Null);
+    }
+
+    [Test]
+    public void CreateAzureKeyVaultSigningServiceAsync_WithNullCredential_ThrowsArgumentNullException()
+    {
+        var provider = new TestableAzureKeyVaultKeyCommandProvider();
+
+        var ex = Assert.ThrowsAsync<ArgumentNullException>(() =>
+            provider.CreateAzureKeyVaultSigningServiceAsyncPublic(
+                new Uri("https://example.vault.azure.net"),
+                "key",
+                credential: null!,
+                keyVersion: null,
+                autoRefreshInterval: null));
+
+        Assert.That(ex!.ParamName, Is.EqualTo("credential"));
     }
 
     [Test]

@@ -13,16 +13,30 @@ The validation framework provides a composable, extensible system for validating
 ```csharp
 public interface IValidator<T>
 {
-    string Name { get; }
-    string Description { get; }
-    
-    ValidationResult Validate(T target);
-    
+    ValidationResult Validate(T input);
+
     Task<ValidationResult> ValidateAsync(
-        T target, 
+        T input,
         CancellationToken cancellationToken = default);
 }
 ```
+
+### Conditional Validators
+
+Some validators are only meaningful when a message contains certain headers/content.
+
+Validators can optionally implement `IConditionalValidator<T>` to indicate whether they apply to a given input. When used under `CompositeValidator`, non-applicable validators are skipped.
+
+```csharp
+public interface IConditionalValidator<in T>
+{
+    bool IsApplicable(T input);
+}
+```
+
+Examples:
+- X.509 / certificate validators only apply when `x5t` + `x5chain` headers exist.
+- MST receipt validation only applies when a receipt is present.
 
 ### ValidationResult
 
@@ -30,11 +44,8 @@ public interface IValidator<T>
 public sealed class ValidationResult
 {
     public bool IsValid { get; }
+    public string ValidatorName { get; }
     public IReadOnlyList<ValidationFailure> Failures { get; }
-    
-    public static ValidationResult Success() => new(true, []);
-    public static ValidationResult Failure(string message) => 
-        new(false, [new ValidationFailure(message)]);
 }
 ```
 
@@ -42,11 +53,12 @@ public sealed class ValidationResult
 
 ### Signature Validators
 
+Signature validation is treated as a distinct stage during verification. Multiple signature validators may exist (certificate-based, key-based, plugin-provided, etc.).
+
 | Validator | Description |
 |-----------|-------------|
-| `SignatureValidator` | Validates cryptographic signature |
-| `CertificateSignatureValidator` | Validates signature with certificate |
-| `CertificateDetachedSignatureValidator` | Validates detached signatures |
+| `CertificateSignatureValidator` | Verifies signature using certificate from `x5t`/`x5chain` headers (embedded or detached) |
+| `AnySignatureValidator` | Aggregates multiple signature validators; requires at least one applicable validator to succeed |
 
 ### Certificate Validators
 
@@ -70,9 +82,9 @@ public sealed class ValidationResult
 
 ```csharp
 var validator = new CompositeValidator<CoseSign1Message>(
-    new SignatureValidator(),
-    new CertificateChainValidator(trustedRoots),
-    new CertificateExpirationValidator()
+    new CertificateSignatureValidator(allowUnprotectedHeaders: true),
+    new CertificateChainValidator(allowUnprotectedHeaders: true),
+    new CertificateExpirationValidator(allowUnprotectedHeaders: true)
 );
 
 var result = validator.Validate(message);
@@ -81,23 +93,26 @@ var result = validator.Validate(message);
 ### Using Validation Builder
 
 ```csharp
-var validator = new CoseMessageValidationBuilder()
-    .AddValidator(new SignatureValidator())
-    .AddCertificateValidator(cert => cert
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .AllowUnprotectedHeaders()
         .ValidateSignature()
-        .NotExpired()
-        .HasCommonName("Trusted Signer")
-        .HasEku(Oids.CodeSigning))
+        .ValidateExpiration()
+        .ValidateCommonName("Trusted Signer"))
     .Build();
 ```
 
 ### Using Fluent Extensions
 
 ```csharp
-var result = message.ValidateSignature()
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasCommonName("My CA"));
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateExpiration()
+        .ValidateCommonName("My CA"))
+    .Build();
+
+var result = await validator.ValidateAsync(message);
 ```
 
 ## Creating Custom Validators
@@ -106,22 +121,23 @@ var result = message.ValidateSignature()
 public class PayloadSizeValidator : IValidator<CoseSign1Message>
 {
     private readonly int _maxSize;
-    
-    public string Name => "PayloadSize";
-    public string Description => $"Validates payload is under {_maxSize} bytes";
+
+    private const string ValidatorName = nameof(PayloadSizeValidator);
     
     public PayloadSizeValidator(int maxSize) => _maxSize = maxSize;
     
     public ValidationResult Validate(CoseSign1Message message)
     {
-        if (!message.Content.HasValue)
-            return ValidationResult.Success(); // Detached signature
+        // Detached signature: no embedded payload to validate for size.
+        if (message is null || message.Content is null)
+            return ValidationResult.Success(ValidatorName);
             
         if (message.Content.Value.Length > _maxSize)
             return ValidationResult.Failure(
+                ValidatorName,
                 $"Payload size {message.Content.Value.Length} exceeds maximum {_maxSize}");
-                
-        return ValidationResult.Success();
+
+        return ValidationResult.Success(ValidatorName);
     }
     
     public Task<ValidationResult> ValidateAsync(
@@ -133,22 +149,14 @@ public class PayloadSizeValidator : IValidator<CoseSign1Message>
 }
 ```
 
-## Validation Pipeline
+## Signature Validation Orchestration
 
-```
-Message → Signature Validation → Certificate Extraction → Chain Validation → Custom Validators → Result
-```
+Verification composes signature validators so that **at least one applicable signature validator must succeed**.
 
-### Pipeline Configuration
-
-```csharp
-var pipeline = new ValidationPipelineBuilder()
-    .AddStage("signature", new SignatureValidator())
-    .AddStage("chain", new CertificateChainValidator())
-    .AddStage("expiration", new CertificateExpirationValidator())
-    .AddStage("custom", new PayloadSizeValidator(1024 * 1024))
-    .Build();
-```
+This enables scenarios like:
+- verifying signatures using embedded X.509 headers when present,
+- verifying “key-only” signatures supplied by a plugin (for example, when a public key is embedded as a `COSE_Key` header),
+- skipping irrelevant validators automatically.
 
 ## Error Handling
 

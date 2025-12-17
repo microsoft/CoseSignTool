@@ -14,19 +14,19 @@ Header contributors implement the `IHeaderContributor` interface:
 public interface IHeaderContributor
 {
     /// <summary>
+    /// Gets the merge strategy for handling conflicts when headers already exist.
+    /// </summary>
+    HeaderMergeStrategy MergeStrategy { get; }
+
+    /// <summary>
     /// Adds headers to the protected header bucket.
     /// </summary>
-    void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context);
-    
+    void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context);
+
     /// <summary>
     /// Adds headers to the unprotected header bucket.
     /// </summary>
-    void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context);
-    
-    /// <summary>
-    /// Order in which this contributor runs.
-    /// </summary>
-    int Order { get; }
+    void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context);
 }
 ```
 
@@ -39,15 +39,15 @@ using CoseSign1.Headers;
 
 public class MyCustomHeaderContributor : IHeaderContributor
 {
-    public int Order => 100;
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
 
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Add headers that must be integrity-protected
         headers.Add(new CoseHeaderLabel("my-protected-header"), "value");
     }
 
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Add headers that don't need integrity protection
         headers.Add(new CoseHeaderLabel("my-unprotected-header"), "value");
@@ -68,10 +68,10 @@ public class BuildInfoHeaderContributor : IHeaderContributor
         _buildId = buildId;
         _buildPipeline = buildPipeline;
     }
-    
-    public int Order => 50;
 
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Build info in protected headers for integrity
         headers.Add(new CoseHeaderLabel("build-id"), _buildId);
@@ -79,7 +79,7 @@ public class BuildInfoHeaderContributor : IHeaderContributor
         headers.Add(new CoseHeaderLabel("build-timestamp"), DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // No unprotected headers needed
     }
@@ -97,15 +97,15 @@ public class EnvironmentTagHeaderContributor : IHeaderContributor
     {
         _environment = environment;
     }
-    
-    public int Order => 60;
 
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         headers.Add(new CoseHeaderLabel("environment"), _environment);
     }
 
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Environment is protected, nothing unprotected
     }
@@ -117,17 +117,20 @@ public class EnvironmentTagHeaderContributor : IHeaderContributor
 ### With Signature Factory
 
 ```csharp
-var contributors = new List<IHeaderContributor>
+var options = new DirectSignatureOptions
 {
-    new BuildInfoHeaderContributor("12345", "main-ci"),
-    new EnvironmentTagHeaderContributor("production")
+    AdditionalHeaderContributors =
+    [
+        new BuildInfoHeaderContributor("12345", "main-ci"),
+        new EnvironmentTagHeaderContributor("production")
+    ]
 };
 
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: contributors);
-
-var signature = factory.CreateCoseSign1MessageBytes(payload);
+var factory = new DirectSignatureFactory(signingService);
+var signatureBytes = factory.CreateCoseSign1MessageBytes(
+    payload,
+    contentType: "application/octet-stream",
+    options: options);
 ```
 
 ### With Dependency Injection
@@ -141,36 +144,25 @@ services.AddSingleton<IHeaderContributor>(sp =>
 services.AddSingleton<IHeaderContributor>(sp => 
     new EnvironmentTagHeaderContributor(
         Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "development"));
+
+// Later, when signing:
+var contributors = serviceProvider.GetServices<IHeaderContributor>().ToArray();
+var options = new DirectSignatureOptions { AdditionalHeaderContributors = contributors };
 ```
 
 ## Header Context
 
-The `HeaderContext` provides information about the signing operation:
+The `HeaderContributorContext` provides information about the signing operation:
 
 ```csharp
-public class HeaderContext
+public class HeaderContributorContext
 {
-    /// <summary>
-    /// The payload being signed.
-    /// </summary>
-    public ReadOnlyMemory<byte> Payload { get; }
-    
-    /// <summary>
-    /// The content type of the payload.
-    /// </summary>
-    public string? ContentType { get; }
-    
-    /// <summary>
-    /// The signing certificate.
-    /// </summary>
-    public X509Certificate2? SigningCertificate { get; }
-    
-    /// <summary>
-    /// Whether this is a detached signature.
-    /// </summary>
-    public bool IsDetached { get; }
+    public SigningContext SigningContext { get; }
+    public ISigningKey SigningKey { get; }
 }
 ```
+
+Payload and content type are available on `context.SigningContext`.
 
 ## COSE Header Labels
 
@@ -218,27 +210,21 @@ headers.Add(new CoseHeaderLabel(12345), value); // Integer label
 For CWT (CBOR Web Token) claims, use the CWT claims header contributor:
 
 ```csharp
-var cwtContributor = new CwtClaimsHeaderContributor(claims =>
-{
-    claims.Issuer = "my-service";
-    claims.Subject = "document-id-12345";
-    claims.Audience = "my-audience";
-    claims.IssuedAt = DateTimeOffset.UtcNow;
-    claims.Expiration = DateTimeOffset.UtcNow.AddHours(1);
-});
+var cwtContributor = new CwtClaimsHeaderContributor()
+    .SetIssuer("my-service")
+    .SetSubject("document-id-12345")
+    .SetAudience("my-audience")
+    .SetIssuedAt(DateTimeOffset.UtcNow)
+    .SetExpirationTime(DateTimeOffset.UtcNow.AddHours(1));
 ```
 
-## Contributor Ordering
+## Ordering
 
-Contributors run in order of their `Order` property:
+Contributor ordering is controlled by the signing service / factory.
 
-| Order Range | Typical Usage |
-|-------------|---------------|
-| 0-20 | Core headers (algorithm, content type) |
-| 20-40 | Certificate headers |
-| 40-60 | Application headers |
-| 60-80 | CWT claims |
-| 80-100 | Custom/extension headers |
+- Factory-required contributors run first (for example, the content-type contributor).
+- `SigningOptions.AdditionalHeaderContributors` are appended after required contributors.
+- Within `AdditionalHeaderContributors`, contributors are invoked in the order provided.
 
 ## Reading Custom Headers
 
@@ -274,7 +260,21 @@ public class BuildInfoHeaderContributorTests
         // Arrange
         var contributor = new BuildInfoHeaderContributor("build-123", "main-pipeline");
         var headers = new CoseHeaderMap();
-        var context = new HeaderContext();
+
+        // Header contributors need a HeaderContributorContext.
+        // In unit tests, it's typical to use a mock/fake ISigningKey.
+        var signingKey = new Mock<ISigningKey>();
+        signingKey.SetupGet(k => k.Metadata).Returns(new SigningKeyMetadata(
+            coseAlgorithmId: -7,
+            keyType: CryptographicKeyType.ECDsa,
+            isRemote: false));
+        signingKey.SetupGet(k => k.SigningService).Returns(Mock.Of<ISigningService<SigningOptions>>());
+
+        var signingContext = new SigningContext(
+            payloadBytes: ReadOnlyMemory<byte>.Empty,
+            contentType: "application/octet-stream");
+
+        var context = new HeaderContributorContext(signingContext, signingKey.Object);
         
         // Act
         contributor.ContributeProtectedHeaders(headers, context);

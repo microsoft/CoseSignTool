@@ -82,7 +82,8 @@ var message = handler.Sign(
 ```csharp
 // V2 approach - more explicit, more testable
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var signingService = CertificateSigningService.Create(cert);
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new DirectSignatureFactory(signingService);
 
 byte[] message = factory.CreateCoseSign1MessageBytes(
@@ -167,12 +168,12 @@ var result = handler.Validate(signedMessage, options);
 using CoseSign1.Validation;
 using CoseSign1.Certificates.Validation;
 
-var validator = new CoseMessageValidationBuilder()
-    .AddCertificateValidator(builder => builder
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .AllowUnprotectedHeaders(true)
         .ValidateSignature()
         .ValidateExpiration()
-        .ValidateEku("1.3.6.1.5.5.7.3.3")
-    )
+        .ValidateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
     .Build();
 
 var message = CoseMessage.DecodeSign1(signedMessage);
@@ -325,18 +326,19 @@ byte[] message = factory.CreateCoseSign1MessageBytes(payload, "application/json"
 
 **V2:**
 ```csharp
+using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
 
 // Create signature
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+var signedMessage = factory.CreateCoseSign1Message(payload, "application/json");
 
-// Get MST receipt
-var receiptFactory = new MstReceiptFactory(serviceEndpoint);
-var receipt = await receiptFactory.CreateReceiptAsync(signedMessage);
+// Add MST receipt
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var provider = new MstTransparencyProvider(client);
+var signedMessageWithReceipt = await provider.AddTransparencyProofAsync(signedMessage);
 
-// Validate receipt
-var receiptValidator = new MstReceiptValidator();
-var result = await receiptValidator.ValidateAsync(receipt);
+// Verify receipt
+var result = await provider.VerifyTransparencyProofAsync(signedMessageWithReceipt);
 ```
 
 ### 9. Testing
@@ -390,7 +392,8 @@ var chain = TestCertificateUtils.CreateTestChain(
 **Best Practice:**
 ```csharp
 // Create once, reuse multiple times
-using var signingService = CertificateSigningService.Create(cert);
+using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new DirectSignatureFactory(signingService);
 
 // Sign multiple messages
@@ -403,12 +406,12 @@ byte[] message2 = factory.CreateCoseSign1MessageBytes(payload2, "application/xml
 **Best Practice:**
 ```csharp
 // Build once, validate multiple messages
-var validator = new CoseMessageValidationBuilder()
-    .AddCertificateValidator(builder => builder
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .AllowUnprotectedHeaders()
         .ValidateSignature()
         .ValidateExpiration()
-        .ValidateCommonName("TrustedSigner")
-    )
+        .ValidateCommonName("TrustedSigner"))
     .Build();
 
 // Validate multiple messages

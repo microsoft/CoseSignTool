@@ -85,12 +85,19 @@ Benefits:
 Never trust a signature without verification:
 
 ```csharp
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator()
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(signature);
+
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateChain())
     .Build();
 
-var result = await validator.ValidateAsync(signature);
+var result = await validator.ValidateAsync(message);
 
 if (!result.IsValid)
 {

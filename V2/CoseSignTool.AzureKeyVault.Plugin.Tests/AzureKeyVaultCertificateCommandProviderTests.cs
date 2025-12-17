@@ -13,6 +13,18 @@ public class AzureKeyVaultCertificateCommandProviderTests
     private const string TestCertificateVersion = "v1";
     private static readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
 
+    private sealed class TestableAzureKeyVaultCertificateCommandProvider : AzureKeyVaultCertificateCommandProvider
+    {
+        public Azure.Core.TokenCredential CreateCredentialPublic() => CreateCredential();
+
+        public CoseSign1.AzureKeyVault.Common.IKeyVaultClientFactory CreateClientFactoryPublic(
+            Uri vaultUri,
+            Azure.Core.TokenCredential credential)
+        {
+            return CreateClientFactory(vaultUri, credential);
+        }
+    }
+
     [Test]
     public void CommandName_ReturnsSignAkvCert()
     {
@@ -175,6 +187,27 @@ public class AzureKeyVaultCertificateCommandProviderTests
         var refreshOption = command.Options.FirstOrDefault(o => o.Name == "akv-refresh-interval");
         Assert.That(refreshOption, Is.Not.Null);
         Assert.That(refreshOption!.IsRequired, Is.False);
+    }
+
+    [Test]
+    public void CreateCredential_ReturnsNonNullTokenCredential()
+    {
+        var provider = new TestableAzureKeyVaultCertificateCommandProvider();
+
+        var credential = provider.CreateCredentialPublic();
+
+        Assert.That(credential, Is.Not.Null);
+    }
+
+    [Test]
+    public void CreateClientFactory_WithNullCredential_ThrowsArgumentNullException()
+    {
+        var provider = new TestableAzureKeyVaultCertificateCommandProvider();
+
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+            provider.CreateClientFactoryPublic(new Uri("https://example.vault.azure.net"), credential: null!));
+
+        Assert.That(ex!.ParamName, Is.EqualTo("credential"));
     }
 
     [Test]

@@ -171,12 +171,17 @@ CoseSignTool sign-pfx large-file.bin ^
 ### Direct Signature Verification
 
 ```csharp
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(signature);
+
 // Embedded - payload in signature, fully self-contained
-var result = validator.Validate(signature);
+bool isValid = message.VerifySignature();
 
 // Detached - payload REQUIRED to verify signature
 // (the payload is part of the signed data structure)
-var result = validator.Validate(signature, detachedPayload);
+bool isValidDetached = message.VerifySignature(detachedPayload);
 ```
 
 ### Indirect Signature Verification
@@ -186,20 +191,12 @@ Indirect signatures have two verification steps:
 1. **Signature verification** - Verify the signature over the hash envelope (no payload needed)
 2. **Payload verification** - Verify the payload matches the signed hash (payload required)
 
-```csharp
-// Step 1: Verify signature is valid (no payload needed)
-var signatureResult = validator.ValidateSignature(signature);
+Indirect signatures sign a *hash envelope* instead of the original payload.
 
-// Step 2: Verify payload matches the signed hash (payload required)
-var payloadResult = validator.ValidatePayload(signature, originalPayload);
+- Signature verification is self-contained (the signed bytes are the hash envelope), so you can verify the COSE signature without the original payload.
+- Payload verification is a separate step: compute the expected hash of the payload using the algorithm encoded in the message headers, then compare it to the signed hash content.
 
-// Combined: Verify both signature and payload in one call
-var result = validator.ValidateIndirect(signature, originalPayload);
-
-// Or from stream for large files
-using var stream = File.OpenRead("large-file.bin");
-var result = await validator.ValidateIndirectAsync(signature, stream);
-```
+For most callers, the CLI provides this end-to-end verification via `cosesigntool verify` with `--payload` (and `--signature-only` to skip payload verification).
 
 ### CLI Verification
 

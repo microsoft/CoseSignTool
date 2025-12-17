@@ -46,6 +46,7 @@ cosesigntool inspect signed.cose
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
@@ -53,7 +54,8 @@ using System.Security.Cryptography.X509Certificates;
 using var cert = new X509Certificate2("certificate.pfx", "password");
 
 // Create a signing service using the factory method
-using var signingService = CertificateSigningService.Create(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
 // Create a signature factory
 using var factory = new DirectSignatureFactory(signingService);
@@ -115,13 +117,13 @@ using CoseSign1.Validation;
 using CoseSign1.Certificates.Validation;
 
 // Build a validation pipeline
-var validator = new CoseMessageValidationBuilder()
-    .AddCertificateValidator(builder => builder
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .AllowUnprotectedHeaders()
         .ValidateSignature()
         .ValidateExpiration()
         .ValidateCommonName("MyTrustedSigner")
-        .ValidateEku("1.3.6.1.5.5.7.3.3") // Code signing EKU
-    )
+        .ValidateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing EKU
     .Build();
 
 // Validate the message
@@ -189,15 +191,26 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(payload, "application
 ### Working with Transparency Receipts
 
 ```csharp
+using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
 
-// Create signature with MST receipt
-var receiptFactory = new MstReceiptFactory(serviceEndpoint);
-var receipt = await receiptFactory.CreateReceiptAsync(signedMessage);
+// Create a signed message
+var signedMessage = factory.CreateCoseSign1Message(payload, "application/json");
 
-// Validate the receipt
-var receiptValidator = new MstReceiptValidator();
-var result = await receiptValidator.ValidateAsync(receipt);
+// Add an MST receipt (transparency proof)
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var provider = new MstTransparencyProvider(client);
+var signedMessageWithReceipt = await provider.AddTransparencyProofAsync(signedMessage);
+
+// Verify the receipt
+var result = await provider.VerifyTransparencyProofAsync(signedMessageWithReceipt);
+if (!result.IsValid)
+{
+    foreach (var error in result.Errors)
+    {
+        Console.WriteLine(error);
+    }
+}
 ```
 
 ## Troubleshooting

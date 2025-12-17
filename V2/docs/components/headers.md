@@ -62,10 +62,11 @@ public class CwtClaims
     public byte[]? CwtId { get; set; }
     
     /// <summary>
-    /// Additional custom claims
+    /// Custom claims with integer labels not in the standard set.
+    /// The key is the claim label, and the value is the claim value.
     /// </summary>
-    public IDictionary<string, object> AdditionalClaims { get; }
-        = new Dictionary<string, object>();
+    public Dictionary<int, object> CustomClaims { get; }
+        = new Dictionary<int, object>();
 }
 ```
 
@@ -90,10 +91,10 @@ var claims = new CwtClaims
     IssuedAt = DateTimeOffset.UtcNow
 };
 
-// Add custom claims
-claims.AdditionalClaims["build_id"] = "build-12345";
-claims.AdditionalClaims["commit_sha"] = "a1b2c3d4";
-claims.AdditionalClaims["repo"] = "https://github.com/contoso/myrepo";
+// Add custom claims (custom claim labels are integer keys)
+claims.CustomClaims[1000] = "build-12345";
+claims.CustomClaims[1001] = "a1b2c3d4";
+claims.CustomClaims[1002] = "https://github.com/contoso/myrepo";
 ```
 
 ### CwtClaimsHeaderContributor
@@ -119,11 +120,16 @@ var claims = new CwtClaims
 
 var contributor = new CwtClaimsHeaderContributor(claims);
 
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: new[] { contributor });
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = [contributor]
+};
 
-var message = await factory.CreateAsync(payload);
+var factory = new DirectSignatureFactory(signingService);
+var message = await factory.CreateCoseSign1MessageAsync(
+    payload,
+    contentType: "application/octet-stream",
+    options: options);
 ```
 
 **Dynamic Claims**:
@@ -136,39 +142,35 @@ public class DynamicCwtClaimsContributor : IHeaderContributor
     {
         _issuer = issuer;
     }
-    
-    public Task ContributeAsync(
-        CoseHeaderMap protectedHeaders,
-        CoseHeaderMap unprotectedHeaders,
-        byte[] payload,
-        SigningContext context,
-        CancellationToken ct)
+
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        // Calculate subject from payload
-        var payloadHash = SHA256.HashData(payload);
-        var subject = $"artifact:sha256:{Convert.ToHexString(payloadHash)}";
-        
-        var claims = new CwtClaims
+        // Pick up dynamic values from per-operation context.
+        // (For example, subject and build id can be passed via SigningOptions.AdditionalContext.)
+        var additional = context.SigningContext.AdditionalContext;
+        var subject = additional != null && additional.TryGetValue("Subject", out var subjectValue)
+            ? subjectValue?.ToString() ?? "unknown"
+            : "unknown";
+
+        var cwtContributor = new CwtClaimsHeaderContributor()
+            .SetIssuer(_issuer)
+            .SetSubject(subject)
+            .SetIssuedAt(DateTimeOffset.UtcNow);
+
+        if (additional != null && additional.TryGetValue("BuildId", out var buildId))
         {
-            Issuer = _issuer,
-            Subject = subject,
-            IssuedAt = DateTimeOffset.UtcNow,
-            CwtId = Guid.NewGuid().ToByteArray()
-        };
-        
-        // Add to context if needed
-        if (context.Metadata.TryGetValue("BuildId", out var buildId))
-        {
-            claims.AdditionalClaims["build_id"] = buildId;
+            // 1000 is an example custom claim label for "build_id".
+            cwtContributor.SetCustomClaim(label: 1000, value: buildId);
         }
-        
-        var contributor = new CwtClaimsHeaderContributor(claims);
-        return contributor.ContributeAsync(
-            protectedHeaders, 
-            unprotectedHeaders, 
-            payload, 
-            context, 
-            ct);
+
+        cwtContributor.ContributeProtectedHeaders(headers, context);
+    }
+
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        // No unprotected headers.
     }
 }
 ```
@@ -180,26 +182,26 @@ Standard CWT claim header label constants.
 ```csharp
 public static class CWTClaimsHeaderLabels
 {
-    public static readonly CoseHeaderLabel Issuer = new(1);
-    public static readonly CoseHeaderLabel Subject = new(2);
-    public static readonly CoseHeaderLabel Audience = new(3);
-    public static readonly CoseHeaderLabel ExpirationTime = new(4);
-    public static readonly CoseHeaderLabel NotBefore = new(5);
-    public static readonly CoseHeaderLabel IssuedAt = new(6);
-    public static readonly CoseHeaderLabel CwtId = new(7);
+    public static readonly CoseHeaderLabel CWTClaims = new(15);
+
+    public const int Issuer = 1;
+    public const int Subject = 2;
+    public const int Audience = 3;
+    public const int ExpirationTime = 4;
+    public const int NotBefore = 5;
+    public const int IssuedAt = 6;
+    public const int CwtId = 7;
 }
 ```
 
 **Usage**:
 ```csharp
 // Reading claims from message
-var issuer = message.ProtectedHeaders.GetValueOrDefault<string>(
-    CWTClaimsHeaderLabels.Issuer);
-
-var issuedAt = message.ProtectedHeaders.GetValueOrDefault<long>(
-    CWTClaimsHeaderLabels.IssuedAt);
-
-var timestamp = DateTimeOffset.FromUnixTimeSeconds(issuedAt);
+if (message.ProtectedHeaders.TryGetCwtClaims(out var claims) && claims != null)
+{
+    var issuer = claims.Issuer;
+    var issuedAt = claims.IssuedAt;
+}
 ```
 
 ## Extension Methods
@@ -239,13 +241,13 @@ Create SCITT-compliant statements:
 ```csharp
 public class ScittStatementFactory
 {
-    private readonly ISigningService _signingService;
+    private readonly ISigningService<SigningOptions> _signingService;
     private readonly string _issuer;
     
     public async Task<CoseSign1Message> CreateStatementAsync(
-        byte[] payload,
+        ReadOnlyMemory<byte> payload,
         string subject,
-        Dictionary<string, object>? additionalClaims = null)
+        Dictionary<int, object>? additionalClaims = null)
     {
         var claims = new CwtClaims
         {
@@ -259,16 +261,22 @@ public class ScittStatementFactory
         {
             foreach (var claim in additionalClaims)
             {
-                claims.AdditionalClaims[claim.Key] = claim.Value;
+                claims.CustomClaims[claim.Key] = claim.Value;
             }
         }
         
         var contributor = new CwtClaimsHeaderContributor(claims);
-        var factory = new DirectSignatureFactory(
-            _signingService,
-            headerContributors: new[] { contributor });
-        
-        return await factory.CreateAsync(payload);
+        var factory = new DirectSignatureFactory(_signingService);
+
+        var options = new DirectSignatureOptions
+        {
+            AdditionalHeaderContributors = [contributor]
+        };
+
+        return await factory.CreateCoseSign1MessageAsync(
+            payload,
+            contentType: "application/octet-stream",
+            options: options);
     }
 }
 
@@ -278,10 +286,10 @@ var factory = new ScittStatementFactory(signingService, "https://contoso.com");
 var statement = await factory.CreateStatementAsync(
     payload: artifactBytes,
     subject: "package:npm/my-package@1.0.0",
-    additionalClaims: new Dictionary<string, object>
+    additionalClaims: new Dictionary<int, object>
     {
-        ["commit"] = "a1b2c3d4",
-        ["pipeline"] = "release-pipeline"
+        [1001] = "a1b2c3d4",
+        [1003] = "release-pipeline"
     });
 ```
 
@@ -323,10 +331,10 @@ var claims = new CwtClaims
 ```csharp
 public class MultiIssuerAttestationService
 {
-    private readonly Dictionary<string, ISigningService> _issuers;
+    private readonly Dictionary<string, ISigningService<SigningOptions>> _issuers;
     
     public async Task<CoseSign1Message[]> CreateAttestationsAsync(
-        byte[] payload,
+        ReadOnlyMemory<byte> payload,
         string subject)
     {
         var attestations = new List<CoseSign1Message>();
@@ -341,11 +349,17 @@ public class MultiIssuerAttestationService
             };
             
             var contributor = new CwtClaimsHeaderContributor(claims);
-            var factory = new DirectSignatureFactory(
-                service,
-                headerContributors: new[] { contributor });
-            
-            var attestation = await factory.CreateAsync(payload);
+
+            var factory = new DirectSignatureFactory(service);
+            var options = new DirectSignatureOptions
+            {
+                AdditionalHeaderContributors = [contributor]
+            };
+
+            var attestation = await factory.CreateCoseSign1MessageAsync(
+                payload,
+                contentType: "application/octet-stream",
+                options: options);
             attestations.Add(attestation);
         }
         
@@ -362,30 +376,35 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
     private readonly string[]? _allowedIssuers;
     private readonly bool _requireSubject;
     private readonly bool _checkExpiration;
-    
-    public ValidationResult Validate(
-        CoseSign1Message message, 
-        ValidationOptions? options = null)
+
+    public CwtClaimsValidator(
+        string[]? allowedIssuers = null,
+        bool requireSubject = false,
+        bool checkExpiration = true)
     {
-        var failures = new List<ValidationFailure>();
-        var claims = message.GetCwtClaims();
-        
-        if (claims == null)
+        _allowedIssuers = allowedIssuers;
+        _requireSubject = requireSubject;
+        _checkExpiration = checkExpiration;
+    }
+
+    public ValidationResult Validate(CoseSign1Message message)
+    {
+        if (!message.ProtectedHeaders.TryGetCwtClaims(out var claims) || claims == null)
         {
-            failures.Add(new ValidationFailure
-            {
-                Code = ValidationFailureCode.MissingRequiredHeader,
-                Message = "CWT claims are required"
-            });
-            return ValidationResult.Failed(failures, message);
+            return ValidationResult.Failure(
+                nameof(CwtClaimsValidator),
+                message: "CWT claims are required",
+                errorCode: "CWT_CLAIMS_MISSING");
         }
+
+        var failures = new List<ValidationFailure>();
         
         // Validate issuer
         if (_allowedIssuers != null && !_allowedIssuers.Contains(claims.Issuer))
         {
             failures.Add(new ValidationFailure
             {
-                Code = ValidationFailureCode.CustomValidationFailed,
+                ErrorCode = "CWT_ISSUER_NOT_ALLOWED",
                 Message = $"Issuer '{claims.Issuer}' is not allowed"
             });
         }
@@ -395,7 +414,7 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
         {
             failures.Add(new ValidationFailure
             {
-                Code = ValidationFailureCode.MissingRequiredHeader,
+                ErrorCode = "CWT_SUBJECT_REQUIRED",
                 Message = "Subject claim is required"
             });
         }
@@ -403,12 +422,12 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
         // Validate expiration
         if (_checkExpiration && claims.ExpirationTime.HasValue)
         {
-            var validationTime = options?.ValidationTime ?? DateTimeOffset.UtcNow;
+            var validationTime = DateTimeOffset.UtcNow;
             if (claims.ExpirationTime.Value < validationTime)
             {
                 failures.Add(new ValidationFailure
                 {
-                    Code = ValidationFailureCode.CustomValidationFailed,
+                    ErrorCode = "CWT_EXPIRED",
                     Message = "CWT claims have expired"
                 });
             }
@@ -417,32 +436,32 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
         // Validate not-before
         if (claims.NotBefore.HasValue)
         {
-            var validationTime = options?.ValidationTime ?? DateTimeOffset.UtcNow;
+            var validationTime = DateTimeOffset.UtcNow;
             if (claims.NotBefore.Value > validationTime)
             {
                 failures.Add(new ValidationFailure
                 {
-                    Code = ValidationFailureCode.CustomValidationFailed,
+                    ErrorCode = "CWT_NOT_YET_VALID",
                     Message = "CWT claims not yet valid"
                 });
             }
         }
         
         return failures.Count == 0
-            ? ValidationResult.Success(message)
-            : ValidationResult.Failed(failures, message);
+            ? ValidationResult.Success(nameof(CwtClaimsValidator))
+            : ValidationResult.Failure(nameof(CwtClaimsValidator), failures.ToArray());
     }
+
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(input));
 }
 
 // Usage
-var validator = new ValidatorBuilder()
-    .WithSignatureValidator()
-    .AddValidator(new CwtClaimsValidator
-    {
-        AllowedIssuers = new[] { "https://contoso.com", "https://build.contoso.com" },
-        RequireSubject = true,
-        CheckExpiration = true
-    })
+var validator = Cose.Sign1Message()
+    .AddValidator(new CwtClaimsValidator(
+        allowedIssuers: ["https://contoso.com", "https://build.contoso.com"],
+        requireSubject: true,
+        checkExpiration: true))
     .Build();
 ```
 
@@ -454,7 +473,7 @@ public class CwtClaimsTemplate
     public string IssuerTemplate { get; set; } = "";
     public string SubjectTemplate { get; set; } = "";
     public TimeSpan? Lifetime { get; set; }
-    public Dictionary<string, object> DefaultClaims { get; set; } = new();
+    public Dictionary<int, object> DefaultCustomClaims { get; set; } = new();
     
     public CwtClaims CreateClaims(Dictionary<string, object> variables)
     {
@@ -470,9 +489,9 @@ public class CwtClaimsTemplate
             claims.ExpirationTime = DateTimeOffset.UtcNow.Add(Lifetime.Value);
         }
         
-        foreach (var claim in DefaultClaims)
+        foreach (var claim in DefaultCustomClaims)
         {
-            claims.AdditionalClaims[claim.Key] = claim.Value;
+            claims.CustomClaims[claim.Key] = claim.Value;
         }
         
         return claims;
@@ -495,7 +514,7 @@ var template = new CwtClaimsTemplate
     IssuerTemplate = "https://{environment}.contoso.com",
     SubjectTemplate = "package:{ecosystem}/{name}@{version}",
     Lifetime = TimeSpan.FromDays(365),
-    DefaultClaims = { ["organization"] = "Contoso" }
+    DefaultCustomClaims = { [1004] = "Contoso" }
 };
 
 var claims = template.CreateClaims(new Dictionary<string, object>
@@ -517,42 +536,47 @@ public class TransparencyLogHeaderContributor : IHeaderContributor
 {
     private readonly string _logId;
     private readonly ITransparencyService _transparencyService;
-    
-    public async Task ContributeAsync(
-        CoseHeaderMap protectedHeaders,
-        CoseHeaderMap unprotectedHeaders,
-        byte[] payload,
-        SigningContext context,
-        CancellationToken ct)
+
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
+        var additional = context.SigningContext.AdditionalContext;
+        var issuer = additional != null && additional.TryGetValue("Issuer", out var issuerValue)
+            ? issuerValue?.ToString()
+            : null;
+        var subject = additional != null && additional.TryGetValue("Subject", out var subjectValue)
+            ? subjectValue?.ToString()
+            : null;
+
         // Add standard CWT claims
-        var claims = new CwtClaims
+        var cwtContributor = new CwtClaimsHeaderContributor();
+        if (!string.IsNullOrWhiteSpace(issuer))
         {
-            Issuer = context.Metadata["Issuer"]?.ToString(),
-            Subject = context.Metadata["Subject"]?.ToString(),
-            IssuedAt = DateTimeOffset.UtcNow
-        };
-        
-        var cwtContributor = new CwtClaimsHeaderContributor(claims);
-        await cwtContributor.ContributeAsync(
-            protectedHeaders, 
-            unprotectedHeaders, 
-            payload, 
-            context, 
-            ct);
-        
-        // Add transparency log identifier
-        protectedHeaders.SetValue(
-            new CoseHeaderLabel("log_id"),
-            new CoseHeaderValue(_logId));
-        
-        // Add feed identifier if present
-        if (context.Metadata.TryGetValue("FeedId", out var feedId))
-        {
-            protectedHeaders.SetValue(
-                new CoseHeaderLabel("feed"),
-                new CoseHeaderValue(feedId!));
+            cwtContributor.SetIssuer(issuer);
         }
+
+        if (!string.IsNullOrWhiteSpace(subject))
+        {
+            cwtContributor.SetSubject(subject);
+        }
+
+        cwtContributor.SetIssuedAt(DateTimeOffset.UtcNow);
+        cwtContributor.ContributeProtectedHeaders(headers, context);
+
+        // Add transparency log identifier
+        headers.Add(new CoseHeaderLabel("log_id"), _logId);
+
+        // Add feed identifier if present
+        if (additional != null && additional.TryGetValue("FeedId", out var feedId) && feedId != null)
+        {
+            headers.Add(new CoseHeaderLabel("feed"), feedId);
+        }
+    }
+
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        // No unprotected headers.
     }
 }
 ```
@@ -577,7 +601,7 @@ services.AddSingleton<CwtClaimsTemplate>(sp =>
 // Controller
 public class AttestationController : ControllerBase
 {
-    private readonly ISigningService _signingService;
+    private readonly ISigningService<SigningOptions> _signingService;
     private readonly CwtClaimsTemplate _template;
     
     [HttpPost("attest")]
@@ -592,11 +616,17 @@ public class AttestationController : ControllerBase
         });
         
         var contributor = new CwtClaimsHeaderContributor(claims);
-        var factory = new DirectSignatureFactory(
-            _signingService,
-            headerContributors: new[] { contributor });
-        
-        var message = await factory.CreateAsync(request.Payload);
+
+        var factory = new DirectSignatureFactory(_signingService);
+        var options = new DirectSignatureOptions
+        {
+            AdditionalHeaderContributors = [contributor]
+        };
+
+        var message = await factory.CreateCoseSign1MessageAsync(
+            request.Payload,
+            contentType: "application/octet-stream",
+            options: options);
         
         return File(message.Encode(), "application/cose");
     }
@@ -621,19 +651,26 @@ public class SupplyChainAttestationService
             Subject = subject,
             IssuedAt = DateTimeOffset.UtcNow
         };
-        
-        claims.AdditionalClaims["build_id"] = build.Id;
-        claims.AdditionalClaims["commit_sha"] = build.CommitSha;
-        claims.AdditionalClaims["repository"] = build.Repository;
-        claims.AdditionalClaims["branch"] = build.Branch;
-        claims.AdditionalClaims["build_time"] = build.Timestamp.ToUnixTimeSeconds();
+
+        // Custom claims use integer labels; choose a private range for your application.
+        claims.CustomClaims[1000] = build.Id;
+        claims.CustomClaims[1001] = build.CommitSha;
+        claims.CustomClaims[1002] = build.Repository;
+        claims.CustomClaims[1003] = build.Branch;
+        claims.CustomClaims[1005] = build.Timestamp.ToUnixTimeSeconds();
         
         var contributor = new CwtClaimsHeaderContributor(claims);
-        var factory = new DirectSignatureFactory(
-            _signingService,
-            headerContributors: new[] { contributor });
-        
-        return await factory.CreateAsync(artifact);
+
+        var factory = new DirectSignatureFactory(_signingService);
+        var options = new DirectSignatureOptions
+        {
+            AdditionalHeaderContributors = [contributor]
+        };
+
+        return await factory.CreateCoseSign1MessageAsync(
+            artifact,
+            contentType: "application/octet-stream",
+            options: options);
     }
 }
 ```

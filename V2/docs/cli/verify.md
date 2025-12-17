@@ -17,6 +17,11 @@ The `verify` command validates a COSE Sign1 signature file, checking:
 3. **Certificate status** - Expiration and revocation checks
 4. **Payload integrity** - For detached signatures
 
+Verification is composed from multiple validators:
+- Signature validation is orchestrated so that **at least one applicable signature validator must succeed**.
+- X.509-related validation (chain, expiry, EKU, etc.) is only applicable when the message includes certificate headers (`x5t` + `x5chain`).
+- Plugins can contribute additional verification providers and signature validators (for example, key-only signatures identified by `kid`).
+
 ## Arguments
 
 | Argument | Description |
@@ -30,7 +35,7 @@ The `verify` command validates a COSE Sign1 signature file, checking:
 | Option | Description |
 |--------|-------------|
 | `--payload <file>` | Path to payload file (required for detached signatures, optional for indirect) |
-| `--signature-only` | Verify signature only, skip payload verification (indirect signatures only) |
+| `--signature-only` | For indirect signatures: verify the signature but skip verifying the payload hash match (does not apply to detached signatures) |
 | `-r, --trust-roots <files>` | Custom trusted root certificate(s) in PEM or DER format |
 | `--trust-pfx <file>` | PFX/PKCS#12 file containing trusted root certificate(s) |
 | `--trust-pfx-password-file <file>` | Path to file containing PFX password (more secure) |
@@ -53,9 +58,9 @@ Additional options may be available from installed plugins:
 **MST Plugin:**
 | Option | Description |
 |--------|-------------|
-| `--mst-service-uri <uri>` | MST service endpoint |
-| `--verify-mst-receipt` | Verify MST receipt |
-| `--require-mst-receipt` | Require valid MST receipt |
+| `--mst-endpoint <uri>` | MST service endpoint |
+| `--verify-receipt` | Verify MST receipt (default: true) |
+| `--require-receipt` | Fail if no receipt is present |
 
 ## Examples
 
@@ -123,8 +128,8 @@ CoseSignTool verify signed.cose --output-format json
 
 ```bash
 CoseSignTool verify signed.cose ^
-    --mst-service-uri https://mst.microsoft.com ^
-    --verify-mst-receipt
+  --require-receipt ^
+  --mst-endpoint https://dataplane.codetransparency.azure.net
 ```
 
 ### Verify with MST Receipt Only (Bypass Certificate Validation)

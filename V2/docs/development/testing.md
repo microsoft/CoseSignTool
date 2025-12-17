@@ -21,11 +21,11 @@ This guide covers testing practices and procedures for CoseSignTool V2 developme
 ### Test Categories
 
 ```csharp
-[TestCategory("Unit")]       // Fast, isolated tests
-[TestCategory("Integration")]// Tests with dependencies
-[TestCategory("PQC")]        // Post-quantum specific
-[TestCategory("Slow")]       // Long-running tests
-[TestCategory("Windows")]    // Windows-only tests
+[Category("Unit")]        // Fast, isolated tests
+[Category("Integration")] // Tests with dependencies
+[Category("PQC")]         // Post-quantum specific
+[Category("Slow")]        // Long-running tests
+[Category("Windows")]     // Windows-only tests
 ```
 
 ## Running Tests
@@ -46,13 +46,13 @@ dotnet test V2/CoseSign1.Tests/CoseSign1.Tests.csproj
 
 ```bash
 # Only unit tests
-dotnet test --filter "TestCategory=Unit"
+dotnet test --filter "Category=Unit"
 
 # Exclude slow tests
-dotnet test --filter "TestCategory!=Slow"
+dotnet test --filter "Category!=Slow"
 
 # Multiple categories
-dotnet test --filter "TestCategory=Unit|TestCategory=Integration"
+dotnet test --filter "Category=Unit|Category=Integration"
 ```
 
 ### By Name Pattern
@@ -80,24 +80,24 @@ dotnet test --verbosity detailed
 ### Test Structure
 
 ```csharp
-[TestClass]
-public class MyClassTests
+[TestFixture]
+public sealed class MyClassTests
 {
     private MyClass _sut; // System Under Test
     
-    [TestInitialize]
+    [SetUp]
     public void Setup()
     {
         _sut = new MyClass();
     }
     
-    [TestCleanup]
+    [TearDown]
     public void Cleanup()
     {
         // Dispose resources
     }
     
-    [TestMethod]
+    [Test]
     public void MethodName_Scenario_ExpectedResult()
     {
         // Arrange
@@ -107,7 +107,7 @@ public class MyClassTests
         var result = _sut.Method(input);
         
         // Assert
-        Assert.AreEqual(expected, result);
+        Assert.That(result, Is.EqualTo(expected));
     }
 }
 ```
@@ -115,7 +115,7 @@ public class MyClassTests
 ### Async Tests
 
 ```csharp
-[TestMethod]
+[Test]
 public async Task AsyncMethod_Scenario_ExpectedResult()
 {
     // Arrange
@@ -125,51 +125,49 @@ public async Task AsyncMethod_Scenario_ExpectedResult()
     var result = await _sut.MethodAsync(input);
     
     // Assert
-    Assert.AreEqual(expected, result);
+    Assert.That(result, Is.EqualTo(expected));
 }
 ```
 
 ### Data-Driven Tests
 
 ```csharp
-[TestMethod]
-[DataRow("ES256", -7)]
-[DataRow("ES384", -35)]
-[DataRow("ES512", -36)]
+[TestCase("ES256", -7)]
+[TestCase("ES384", -35)]
+[TestCase("ES512", -36)]
 public void ParseAlgorithm_ValidInput_ReturnsCorrectValue(string name, int expected)
 {
     var result = CoseAlgorithm.Parse(name);
-    Assert.AreEqual(expected, result);
+    Assert.That(result, Is.EqualTo(expected));
 }
 ```
 
 ### Exception Testing
 
 ```csharp
-[TestMethod]
+[Test]
 public void Method_WithNullInput_ThrowsArgumentNullException()
 {
-    Assert.ThrowsException<ArgumentNullException>(() => _sut.Method(null));
+    Assert.Throws<ArgumentNullException>(() => _sut.Method(null));
 }
 
-[TestMethod]
+[Test]
 public async Task AsyncMethod_WithInvalidInput_ThrowsArgumentException()
 {
-    await Assert.ThrowsExceptionAsync<ArgumentException>(
-        () => _sut.MethodAsync("invalid"));
+    Assert.ThrowsAsync<ArgumentException>(() => _sut.MethodAsync("invalid"));
 }
 ```
 
 ### Platform-Specific Tests
 
 ```csharp
-[TestMethod]
-[TestCategory("Windows")]
+[Test]
+[Category("Windows")]
 public void MlDsa_OnWindows_Available()
 {
     if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
-        Assert.Inconclusive("Test requires Windows");
+        Assert.Ignore("Test requires Windows");
     }
     
     // Test ML-DSA functionality
@@ -208,15 +206,11 @@ var large = TestPayloads.Large(size: 1024 * 1024);
 ### Mock Objects
 
 ```csharp
-// Mock signing service
-var mockService = new Mock<ISigningService>();
-mockService.Setup(s => s.SignAsync(It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CoseAlgorithm>(), It.IsAny<CancellationToken>()))
-    .ReturnsAsync(new byte[64]);
-
 // Mock validator
-var mockValidator = new Mock<IValidator>();
-mockValidator.Setup(v => v.ValidateAsync(It.IsAny<CoseSign1Message>(), It.IsAny<ValidationContext>(), It.IsAny<CancellationToken>()))
-    .ReturnsAsync(ValidationResult.Success());
+var mockValidator = new Mock<IValidator<CoseSign1Message>>();
+mockValidator
+    .Setup(v => v.ValidateAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()))
+    .ReturnsAsync(ValidationResult.Success("MockValidator"));
 ```
 
 ## Test Data
@@ -261,16 +255,17 @@ public class SignVerifyIntegrationTests
         using var cert = TestCertificates.CreateEcdsa();
         
         // Sign
-        var service = new LocalSigningService(cert);
+        var service = CertificateSigningService.Create(cert, new X509ChainBuilder());
         var factory = new DirectSignatureFactory(service);
         var payload = Encoding.UTF8.GetBytes("test payload");
         var signature = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
         
         // Verify
-        var validator = ValidationBuilder.Create()
-            .AddSignatureValidator()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = Cose.Sign1Message()
+            .AddCertificateValidator(b => b.ValidateSignature())
             .Build();
-        var result = await validator.ValidateAsync(signature);
+        var result = await validator.ValidateAsync(message);
         
         Assert.IsTrue(result.IsValid);
     }

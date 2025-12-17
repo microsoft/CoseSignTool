@@ -150,6 +150,7 @@ Create a simple test file to verify installation:
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Direct;
 using System.Security.Cryptography.X509Certificates;
 
@@ -157,7 +158,8 @@ Console.WriteLine("CoseSignTool V2 is installed!");
 
 // Test basic functionality
 using var cert = new X509Certificate2(/* your cert */);
-using var service = CertificateSigningService.Create(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new DirectSignatureFactory(service);
 
 Console.WriteLine("All packages loaded successfully!");

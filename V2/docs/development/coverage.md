@@ -8,14 +8,44 @@ Code coverage measures how much of the codebase is exercised by tests. High cove
 
 ## Coverage Targets
 
+V2 uses a strict **coverage gate** that must remain green.
+
 | Category | Target | Notes |
 |----------|--------|-------|
-| Overall | 80%+ | Minimum acceptable coverage |
-| Security-critical | 90%+ | Validators, signing, verification |
-| Public API | 100% | All public methods should be tested |
-| Edge cases | 100% | Error handling, boundary conditions |
+| Overall (V2 gate) | 95%+ | Enforced by `V2/collect-coverage.ps1` |
+| Security-critical | 95%+ | Validators, signing, verification |
+| Public API | As high as practical | Prefer tests for public surface |
 
 ## Running Coverage
+
+### Coverage Gate (Recommended)
+
+Run the same script used by the repo’s coverage gate:
+
+```powershell
+cd V2
+powershell -ExecutionPolicy Bypass -File .\collect-coverage.ps1
+```
+
+Output:
+- `V2/coverage.cobertura.xml`
+- `V2/coverage-report/index.html`
+
+The script exits non-zero if:
+- the build fails,
+- line coverage is below 95%, or
+- tests fail (even if the coverage percentage is met).
+
+### Prerequisites
+
+The gate script requires these .NET tools to be available on PATH:
+
+```powershell
+dotnet tool install -g dotnet-coverage
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
+
+If you already have them installed, you can skip this step.
 
 ### Basic Coverage Collection
 
@@ -35,8 +65,8 @@ dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
 # Generate HTML report
 reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./coverage-report -reporttypes:Html
 
-# Open report
-start coverage-report/index.html
+# Open report (PowerShell)
+Start-Process .\coverage-report\index.html
 ```
 
 ### Specific Projects
@@ -203,33 +233,33 @@ Uncovered Lines:
 
 ```csharp
 // Uncovered: null input handling
-[TestMethod]
+[Test]
 public void Method_WithNullInput_ThrowsArgumentNullException()
 {
-    Assert.ThrowsException<ArgumentNullException>(() => _sut.Method(null));
+  Assert.Throws<ArgumentNullException>(() => _sut.Method(null));
 }
 
 // Uncovered: empty collection
-[TestMethod]
+[Test]
 public void ProcessItems_WithEmptyList_ReturnsEmpty()
 {
     var result = _sut.ProcessItems(Array.Empty<Item>());
-    Assert.AreEqual(0, result.Count);
+  Assert.That(result, Is.Empty);
 }
 
 // Uncovered: boundary condition
-[TestMethod]
+[Test]
 public void ValidateSize_AtMaximum_Succeeds()
 {
     var result = _sut.ValidateSize(MaxSize);
-    Assert.IsTrue(result);
+  Assert.That(result, Is.True);
 }
 ```
 
 ### Testing Error Paths
 
 ```csharp
-[TestMethod]
+[Test]
 public async Task SignAsync_WhenServiceFails_ThrowsSigningException()
 {
     // Arrange
@@ -237,8 +267,7 @@ public async Task SignAsync_WhenServiceFails_ThrowsSigningException()
         .ThrowsAsync(new HttpRequestException("Service unavailable"));
     
     // Act & Assert
-    await Assert.ThrowsExceptionAsync<SigningException>(
-        () => _sut.CreateSignatureAsync(payload));
+    Assert.ThrowsAsync<SigningException>(() => _sut.CreateSignatureAsync(payload));
 }
 ```
 
@@ -246,10 +275,9 @@ public async Task SignAsync_WhenServiceFails_ThrowsSigningException()
 
 ### Enforcing Minimum Coverage
 
-```bash
-# Fail if coverage drops below threshold
-dotnet test --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Threshold=80
-```
+The repo’s enforced threshold is implemented in `V2/collect-coverage.ps1`.
+
+If you want a quick local check without the full gate script, you can still run coverage with `dotnet test --collect:"XPlat Code Coverage"`, but it will not match the gate’s tooling/output.
 
 ### In CI/CD
 

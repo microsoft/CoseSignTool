@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST;
 using CoseSignTool.MST.Plugin;
+using Moq;
 
 namespace CoseSignTool.MST.Plugin.Tests;
 
@@ -134,5 +137,72 @@ public class MstTransparencyPluginTests
 
         // Assert - MST plugin does not add commands (I/O is handled by main exe)
         Assert.That(rootCommand.Subcommands.Count, Is.EqualTo(initialCount));
+    }
+
+    [Test]
+    public void AddMstValidator_WithPresenceOnly_AddsValidator()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var result = builder.AddMstValidator(b => b.RequireReceiptPresence());
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void AddMstValidator_WithVerifyReceiptClient_AddsValidator()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var client = new Mock<CodeTransparencyClient>().Object;
+
+        var result = builder.AddMstValidator(b => b.VerifyReceipt(client));
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void AddMstValidator_WithVerifyReceiptProvider_AddsValidator()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var client = new Mock<CodeTransparencyClient>().Object;
+        var provider = new MstTransparencyProvider(client);
+
+        var result = builder.AddMstValidator(b => b.VerifyReceipt(provider));
+
+        Assert.That(result, Is.SameAs(builder));
+    }
+
+    [Test]
+    public void AddMstValidator_WithNoValidatorsConfigured_ThrowsInvalidOperationException()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.AddMstValidator(_ => { }));
+        Assert.That(ex!.Message, Is.EqualTo("No MST validators configured"));
+    }
+
+    [Test]
+    public void AddMstValidator_WithNullBuilder_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => MstValidationExtensions.AddMstValidator(null!, _ => { }));
+    }
+
+    [Test]
+    public void AddMstValidator_WithNullConfigure_ThrowsArgumentNullException()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        Assert.Throws<ArgumentNullException>(() => builder.AddMstValidator(null!));
+    }
+
+    [Test]
+    public void AddMstValidator_VerifyReceiptWithNullClient_ThrowsArgumentNullException()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        Assert.Throws<ArgumentNullException>(() => builder.AddMstValidator(b => b.VerifyReceipt((CodeTransparencyClient)null!)));
+    }
+
+    [Test]
+    public void AddMstValidator_VerifyReceiptWithNullProvider_ThrowsArgumentNullException()
+    {
+        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        Assert.Throws<ArgumentNullException>(() => builder.AddMstValidator(b => b.VerifyReceipt((MstTransparencyProvider)null!)));
     }
 }

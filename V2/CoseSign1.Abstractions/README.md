@@ -249,7 +249,8 @@ public class TimestampHeaderContributor : IHeaderContributor
 services.AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
 {
     var cert = sp.GetRequiredService<X509Certificate2>();
-    return CertificateSigningService.Create(cert);
+    using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
+    return CertificateSigningService.Create(cert, chainBuilder);
 });
 
 // Inject and use

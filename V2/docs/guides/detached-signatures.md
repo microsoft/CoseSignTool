@@ -228,14 +228,19 @@ During verification:
 Be careful about TOCTOU issues:
 
 ```csharp
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(signature);
+
 // ❌ Bad: Read payload, verify, then use different read
 var payload1 = File.ReadAllBytes(path); // For verification
-var result = validator.Validate(signature, payload1);
+bool ok1 = message.VerifySignature(payload1);
 var payload2 = File.ReadAllBytes(path); // For use - might differ!
 
 // ✅ Good: Read once, verify, use same bytes
 var payload = File.ReadAllBytes(path);
-var result = validator.Validate(signature, payload);
+bool ok = message.VerifySignature(payload);
 // Use 'payload' variable, not another read
 ```
 
@@ -244,11 +249,13 @@ var result = validator.Validate(signature, payload);
 ### Missing Payload
 
 ```csharp
-try
-{
-    var result = validator.Validate(detachedSignature);
-}
-catch (CoseSignatureException ex) when (ex.Message.Contains("detached"))
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(detachedSignature);
+
+// For detached signatures, the payload is required. Without it, verification returns false.
+if (!message.VerifySignature(payload: null))
 {
     Console.Error.WriteLine("Payload required for detached signature verification");
 }
@@ -257,8 +264,12 @@ catch (CoseSignatureException ex) when (ex.Message.Contains("detached"))
 ### Payload Mismatch
 
 ```csharp
-var result = validator.Validate(signature, wrongPayload);
-if (!result.IsValid && result.ErrorCode == ValidationFailureCode.SignatureMismatch)
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(signature);
+bool ok = message.VerifySignature(wrongPayload);
+if (!ok)
 {
     Console.Error.WriteLine("Provided payload does not match signed content");
 }

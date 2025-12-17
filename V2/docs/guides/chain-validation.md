@@ -132,50 +132,41 @@ var validator = new CertificateChainValidator(trustedRoots);
 
 ### Pinned Certificates
 
-Pin specific certificates:
-
-```csharp
-var pinnedCerts = new X509Certificate2Collection();
-pinnedCerts.Add(new X509Certificate2("known-signing-cert.cer"));
-
-var validator = new CertificateChainValidator(
-    pinnedCertificates: pinnedCerts,
-    requirePinnedCertificate: true);
-```
+Pinning is an application-specific policy (for example, enforcing an exact certificate thumbprint).
+Implement this as a custom validator that extracts the signing certificate and applies your policy.
 
 ## Validation Pipeline Integration
 
 ### Add to Validation Builder
 
 ```csharp
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator(options =>
-    {
-        options.RevocationMode = X509RevocationMode.Online;
-        options.RequireRevocationCheck = true;
-    })
+var message = CoseMessage.DecodeSign1(signature);
+
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateChain(revocationMode: X509RevocationMode.Online))
     .Build();
 
-var result = await validator.ValidateAsync(signature);
+var result = await validator.ValidateAsync(message);
 ```
 
 ### Validation Results
 
 ```csharp
-var result = await validator.ValidateAsync(signature);
+var result = await validator.ValidateAsync(message);
 
 if (!result.IsValid)
 {
-    foreach (var error in result.Errors)
+    foreach (var failure in result.Failures)
     {
-        if (error.Code == ValidationFailureCode.ChainBuildFailed)
+        if (failure.ErrorCode == "CHAIN_BUILD_FAILED")
         {
-            Console.WriteLine($"Chain error: {error.Message}");
+            Console.WriteLine($"Chain error: {failure.Message}");
         }
-        else if (error.Code == ValidationFailureCode.CertificateRevoked)
+        else if (string.Equals(failure.ErrorCode, X509ChainStatusFlags.Revoked.ToString(), StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine($"Certificate revoked: {error.Message}");
+            Console.WriteLine($"Certificate revoked: {failure.Message}");
         }
     }
 }

@@ -439,6 +439,129 @@ public class KeyVaultCryptoClientWrapperTests
 
     #endregion
 
+    #region Generic Signing Tests
+
+    [Test]
+    public async Task SignHashAsync_WithRsaKeyAndNullPadding_DefaultsToPss()
+    {
+        // Arrange
+        var expectedSignature = new byte[] { 9, 9, 9 };
+        var hash = SHA256.HashData("test"u8);
+
+        var mockCryptoClient = new Mock<CryptographyClient>();
+        mockCryptoClient
+            .Setup(c => c.SignAsync(SignatureAlgorithm.PS256, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSignResult(SignatureAlgorithm.PS256, expectedSignature));
+
+        var rsaKey = CreateMockRsaKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(rsaKey, mockCryptoClient.Object);
+
+        // Act
+        var signature = await wrapper.SignHashAsync(hash, HashAlgorithmName.SHA256, rsaPadding: null);
+
+        // Assert
+        Assert.That(signature, Is.EqualTo(expectedSignature));
+        mockCryptoClient.Verify(c => c.SignAsync(SignatureAlgorithm.PS256, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public void SignHashAsync_WithUnsupportedKeyType_ThrowsNotSupportedException()
+    {
+        // Arrange
+        using var rsa = RSA.Create(2048);
+        var jsonWebKey = new JsonWebKey(rsa, includePrivateParameters: false)
+        {
+            KeyType = KeyType.Oct
+        };
+
+        var key = KeyModelFactory.KeyVaultKey(
+            properties: KeyModelFactory.KeyProperties(
+                id: TestKeyId,
+                vaultUri: TestVaultUri,
+                name: TestKeyName,
+                version: TestKeyVersion),
+            key: jsonWebKey);
+
+        var mockCryptoClient = CreateMockCryptographyClient(Array.Empty<byte>());
+        var wrapper = new KeyVaultCryptoClientWrapper(key, mockCryptoClient.Object);
+
+        // Act & Assert
+        Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await wrapper.SignHashAsync(SHA256.HashData("test"u8), HashAlgorithmName.SHA256, rsaPadding: RSASignaturePadding.Pss));
+    }
+
+    [Test]
+    public void SignDataWithRsa_WithUnsupportedHashAlgorithm_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var mockCryptoClient = CreateMockCryptographyClient(Array.Empty<byte>());
+        var rsaKey = CreateMockRsaKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(rsaKey, mockCryptoClient.Object);
+
+        // Act & Assert
+        Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await wrapper.SignDataWithRsaAsync("test"u8.ToArray(), HashAlgorithmName.MD5, RSASignaturePadding.Pss));
+    }
+
+    [Test]
+    public async Task CreateAsync_WithKeyClient_ReturnsWrapperWithExpectedMetadata()
+    {
+        // Arrange
+        using var rsa = RSA.Create(2048);
+        var jsonWebKey = new JsonWebKey(rsa, includePrivateParameters: false);
+        var keyProperties = KeyModelFactory.KeyProperties(
+            id: TestKeyId,
+            vaultUri: TestVaultUri,
+            name: TestKeyName,
+            version: TestKeyVersion);
+
+        var keyVaultKey = KeyModelFactory.KeyVaultKey(properties: keyProperties, key: jsonWebKey);
+
+        var mockKeyClient = new Mock<KeyClient>(MockBehavior.Strict);
+        mockKeyClient
+            .Setup(c => c.GetKeyAsync(TestKeyName, TestKeyVersion, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(keyVaultKey, new Mock<Response>().Object));
+
+        var credential = new Mock<TokenCredential>(MockBehavior.Strict).Object;
+
+        // Act
+        using var wrapper = await KeyVaultCryptoClientWrapper.CreateAsync(
+            mockKeyClient.Object,
+            credential,
+            TestKeyName,
+            keyVersion: TestKeyVersion);
+
+        // Assert
+        Assert.That(wrapper.Name, Is.EqualTo(TestKeyName));
+        Assert.That(wrapper.Version, Is.EqualTo(TestKeyVersion));
+        Assert.That(wrapper.KeyId, Is.EqualTo(TestKeyId.ToString()));
+    }
+
+    [Test]
+    public async Task SignHashAsync_WithEcKey_UsesEcdsaPath()
+    {
+        // Arrange
+        var expectedSignature = new byte[] { 6, 6, 6 };
+        var hash = SHA256.HashData("test"u8);
+
+        var mockCryptoClient = new Mock<CryptographyClient>();
+        mockCryptoClient
+            .Setup(c => c.SignAsync(SignatureAlgorithm.ES256, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSignResult(SignatureAlgorithm.ES256, expectedSignature));
+
+        var ecKey = CreateMockEcKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(ecKey, mockCryptoClient.Object);
+
+        // Act
+        var signature = await wrapper.SignHashAsync(hash, HashAlgorithmName.SHA256);
+
+        // Assert
+        Assert.That(signature, Is.EqualTo(expectedSignature));
+        mockCryptoClient.Verify(c => c.SignAsync(SignatureAlgorithm.ES256, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    #endregion
+
     #region Dispose Tests
 
     [Test]

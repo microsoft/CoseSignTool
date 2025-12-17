@@ -9,15 +9,18 @@ This section provides code examples for common CoseSignTool V2 scenarios.
 ```csharp
 using CoseSign1;
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Direct;
 
 // Load certificate
 var cert = new X509Certificate2("signing-cert.pfx", password);
 
 // Create signing service
-var service = new LocalSigningService(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 
 // Create factory and sign
-var factory = new DirectSignatureFactory(service);
+using var factory = new DirectSignatureFactory(service);
 var payload = File.ReadAllBytes("document.json");
 var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json");
 
@@ -29,18 +32,23 @@ File.WriteAllBytes("document.json.cose", signature);
 
 ```csharp
 using CoseSign1;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
 // Load signature
 var signature = File.ReadAllBytes("document.json.cose");
+var message = CoseMessage.DecodeSign1(signature);
 
 // Build validator
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator()
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateChain())
     .Build();
 
 // Verify
-var result = await validator.ValidateAsync(signature);
+var result = await validator.ValidateAsync(message);
 
 if (result.IsValid)
 {
@@ -48,7 +56,7 @@ if (result.IsValid)
 }
 else
 {
-    Console.WriteLine($"Validation failed: {result.Errors.First().Message}");
+    Console.WriteLine($"Validation failed: {result.Failures.First().Message}");
 }
 ```
 
@@ -95,15 +103,15 @@ public class BuildInfoHeaderContributor : IHeaderContributor
     private readonly string _buildId;
     
     public BuildInfoHeaderContributor(string buildId) => _buildId = buildId;
-    public int Order => 50;
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
 
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         headers.Add(new CoseHeaderLabel("build-id"), _buildId);
         headers.Add(new CoseHeaderLabel("build-time"), DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContext context) { }
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context) { }
 }
 
 // Usage

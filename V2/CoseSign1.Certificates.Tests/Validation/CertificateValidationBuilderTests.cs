@@ -221,17 +221,20 @@ public class CertificateValidationBuilderTests
     }
 
     [Test]
-    public void ValidateCertificate_IsIssuedBy_ThrowsNotImplementedException()
+    public void ValidateCertificate_IsIssuedBy_AddsIssuerValidator()
     {
         var builder = Cose.Sign1Message();
 
-        Assert.Throws<NotImplementedException>(() =>
+        builder.ValidateCertificate(certBuilder =>
         {
-            builder.ValidateCertificate(certBuilder =>
-            {
-                certBuilder.IsIssuedBy("TestIssuer");
-            });
+            // Self-signed test certificate uses the same CN for subject and issuer.
+            certBuilder.IsIssuedBy("BuilderTest");
         });
+
+        var validator = builder.Build();
+        var result = validator.Validate(ValidMessage!);
+
+        Assert.That(result.IsValid, Is.True);
     }
 
     [Test]

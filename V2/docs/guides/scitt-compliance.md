@@ -57,15 +57,15 @@ var signature = factory.CreateCoseSign1MessageBytes(payload, contentType);
 SCITT uses CWT (CBOR Web Token) claims:
 
 ```csharp
-var cwtContributor = new CwtClaimsHeaderContributor(claims =>
-{
-    claims.Issuer = "https://my-issuer.example.com";
-    claims.Subject = "artifact-digest-sha256:abc123...";
-    claims.IssuedAt = DateTimeOffset.UtcNow;
-    
-    // SCITT-specific claims
-    claims.SetClaim("scitt_statement_type", "software_artifact");
-});
+using CoseSign1.Headers;
+
+var cwtContributor = new CwtClaimsHeaderContributor()
+    .SetIssuer("https://my-issuer.example.com")
+    .SetSubject("artifact-digest-sha256:abc123...")
+    .SetIssuedAt(DateTimeOffset.UtcNow)
+    // Custom claim labels are integer keys.
+    // Pick a label according to your SCITT profile (this is just an example).
+    .SetCustomClaim(label: 1000, value: "software_artifact");
 ```
 
 ### Feed Header
@@ -81,11 +81,17 @@ public class ScittFeedHeaderContributor : IHeaderContributor
     {
         _feed = feed;
     }
-    
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContext context)
+
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // SCITT feed header (registered COSE header)
         headers.Add(new CoseHeaderLabel(392), _feed);
+    }
+
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
     }
 }
 ```
@@ -95,14 +101,16 @@ public class ScittFeedHeaderContributor : IHeaderContributor
 ### Submit to Transparency Service
 
 ```csharp
-using CoseSign1.Transparent;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST;
 
 // Create signed statement
-var statement = factory.CreateCoseSign1MessageBytes(payload, contentType);
+var statement = factory.CreateCoseSign1Message(payload, contentType);
 
-// Register with transparency service
-var transparencyProvider = new TransparencyProvider(serviceOptions);
-var receipt = await transparencyProvider.RegisterAsync(statement);
+// Add an MST receipt to the statement
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var mstProvider = new MstTransparencyProvider(client);
+var statementWithReceipt = await mstProvider.AddTransparencyProofAsync(statement);
 ```
 
 ### Embed Receipt
@@ -110,8 +118,8 @@ var receipt = await transparencyProvider.RegisterAsync(statement);
 Receipts can be embedded in the signature's unprotected headers:
 
 ```csharp
-// Add receipt to unprotected headers
-var messageWithReceipt = EmbedReceipt(statement, receipt);
+// Receipts are embedded by the transparency provider.
+// (See AddTransparencyProofAsync above.)
 ```
 
 ## Verification
@@ -119,35 +127,45 @@ var messageWithReceipt = EmbedReceipt(statement, receipt);
 ### Verify Signed Statement
 
 ```csharp
-var validator = ValidationBuilder.Create()
-    .AddSignatureValidator()
-    .AddCertificateChainValidator()
-    .AddScittComplianceValidator()
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
+var message = CoseMessage.DecodeSign1(statement);
+
+var validator = Cose.Sign1Message()
+    .AddCertificateValidator(b => b
+        .ValidateSignature()
+        .ValidateChain())
     .Build();
 
-var result = await validator.ValidateAsync(statement);
+var result = await validator.ValidateAsync(message);
 ```
 
 ### Verify Receipt
 
 ```csharp
-var receiptValidator = new ReceiptValidator(transparencyServiceOptions);
-var isValid = await receiptValidator.ValidateAsync(statement, receipt);
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST;
+
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var provider = new MstTransparencyProvider(client);
+var receiptResult = await provider.VerifyTransparencyProofAsync(message);
+
+if (!receiptResult.IsValid)
+{
+    foreach (var error in receiptResult.Errors)
+    {
+        Console.WriteLine(error);
+    }
+}
 ```
 
 ### Full SCITT Verification
 
 ```csharp
-var scittValidator = new ScittValidator(options);
-var result = await scittValidator.ValidateAsync(statement);
-
-if (result.IsValid)
-{
-    Console.WriteLine($"Statement verified");
-    Console.WriteLine($"Issuer: {result.Issuer}");
-    Console.WriteLine($"Subject: {result.Subject}");
-    Console.WriteLine($"Registered at: {result.ReceiptTimestamp}");
-}
+// There isn't a single "SCITT validator" type.
+// Compose the checks you need (cert chain, claims, receipts, etc.) using the validation builder.
 ```
 
 ## CLI Usage
@@ -165,8 +183,8 @@ CoseSignTool sign-pfx artifact-manifest.json ^
 
 ```bash
 CoseSignTool verify statement.cose ^
-    --transparency-service https://ts.example.com ^
-    --verify-receipt
+    --require-receipt ^
+    --mst-endpoint https://dataplane.codetransparency.azure.net
 ```
 
 ## SCITT Content Types
@@ -215,15 +233,12 @@ COSE_Sign1 {
 MST is a SCITT-compatible transparency service:
 
 ```csharp
+using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
 
-var mstOptions = new MstOptions
-{
-    ServiceUri = new Uri("https://mst.microsoft.com")
-};
-
-var mstProvider = new MstTransparencyProvider(mstOptions);
-var receipt = await mstProvider.RegisterAsync(statement);
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var mstProvider = new MstTransparencyProvider(client);
+var statementWithReceipt = await mstProvider.AddTransparencyProofAsync(statement);
 ```
 
 ## See Also

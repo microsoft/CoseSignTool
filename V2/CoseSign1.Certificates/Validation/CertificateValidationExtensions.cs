@@ -15,6 +15,38 @@ namespace CoseSign1.Certificates.Validation;
 public static class CertificateValidationExtensions
 {
     /// <summary>
+    /// Adds certificate-related validators using a fluent domain-specific builder.
+    /// This is a convenience wrapper that can add multiple certificate validators in one call.
+    /// </summary>
+    /// <param name="builder">The validation builder.</param>
+    /// <param name="configure">Configuration action for the certificate validator builder.</param>
+    /// <returns>The builder for method chaining.</returns>
+    public static ICoseMessageValidationBuilder AddCertificateValidator(
+        this ICoseMessageValidationBuilder builder,
+        Action<ICertificateValidatorBuilder> configure)
+    {
+        if (builder == null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
+        if (configure == null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var certBuilder = new CertificateValidatorBuilder();
+        configure(certBuilder);
+
+        foreach (var v in certBuilder.BuildValidators())
+        {
+            builder.AddValidator(v);
+        }
+
+        return builder;
+    }
+
+    /// <summary>
     /// Validates certificate properties using a domain-specific builder.
     /// Transfers control to ICertificateValidationBuilder for certificate-specific configuration.
     /// </summary>
@@ -46,6 +78,21 @@ public static class CertificateValidationExtensions
         bool allowUnprotectedHeaders = false)
     {
         return builder.AddValidator(new CertificateCommonNameValidator(expectedCommonName, allowUnprotectedHeaders));
+    }
+
+    /// <summary>
+    /// Validates that the signing certificate's issuer common name (CN) matches the expected value.
+    /// </summary>
+    /// <param name="builder">The validation builder.</param>
+    /// <param name="expectedIssuerCommonName">The expected issuer common name (CN) value.</param>
+    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <returns>The builder for method chaining.</returns>
+    public static ICoseMessageValidationBuilder ValidateCertificateIssuer(
+        this ICoseMessageValidationBuilder builder,
+        string expectedIssuerCommonName,
+        bool allowUnprotectedHeaders = false)
+    {
+        return builder.AddValidator(new CertificateIssuerValidator(expectedIssuerCommonName, allowUnprotectedHeaders));
     }
 
     /// <summary>

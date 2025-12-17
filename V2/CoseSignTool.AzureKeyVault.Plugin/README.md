@@ -4,6 +4,8 @@ Azure Key Vault plugin for CoseSignTool providing two signing modes:
 1. **Certificate-based signing** (`sign-akv-cert`) - Uses certificates with optional auto-refresh
 2. **Key-only signing** (`sign-akv-key`) - Uses keys directly with RFC 9052 kid headers
 
+The plugin also contributes verification support for key-only signatures.
+
 ## Installation
 
 The plugin is loaded automatically when placed in the CoseSignTool plugins directory.
@@ -33,7 +35,11 @@ cosesigntool sign-akv-cert \
 
 ### sign-akv-key - Key-only Signing
 
-Sign using a key stored in Azure Key Vault (no certificate). Adds RFC 9052 compliant `kid` header to identify the signing key.
+Sign using a key stored in Azure Key Vault (no certificate).
+
+This mode:
+- Adds an RFC 9052 compliant `kid` header to identify the signing key.
+- Embeds the public key as a `COSE_Key` header so verification can typically be performed offline.
 
 ```bash
 cosesigntool sign-akv-key \
@@ -142,6 +148,45 @@ Includes RFC 9052 `kid` header with the Key Vault key URI:
     "kid": "https://my-vault.vault.azure.net/keys/my-key/version123"
   }
 }
+```
+
+In addition, the signature includes a `COSE_Key` public key header to enable **offline verification**.
+
+## Verification
+
+The plugin contributes a verification provider that validates key-only signatures when the message identifies an Azure Key Vault key via `kid`.
+
+### Offline vs Online
+
+- **Offline verification (default):** Uses the embedded `COSE_Key` public key.
+- **Online verification (optional):** When enabled, fetches the public key from Azure Key Vault using the `kid` header.
+
+Online verification is only attempted when `--allow-online-verify` is specified, and is required when:
+- The message does not include an embedded `COSE_Key` (but does include a `kid`).
+- The `kid` in the message does not match the `kid` inside the embedded `COSE_Key`.
+
+### Verify Options
+
+The plugin adds two options to `CoseSignTool verify`:
+
+- `--allow-online-verify`: Allow network calls to Azure Key Vault to fetch the public key by `kid` when needed.
+- `--require-az-key`: Require an Azure Key Vault key-only signature (a `kid` that looks like an AKV key id, and typically an embedded `COSE_Key`).
+
+Notes:
+- Detached signatures still require `CoseSignTool verify <sig> --payload <file>` to verify cryptographically.
+- X.509 chain validation only applies when the message includes certificate headers (`x5t` + `x5chain`).
+
+Examples:
+
+```bash
+# Offline verification (embedded COSE_Key)
+CoseSignTool verify signature.cose --payload payload.bin
+
+# Allow online verification if required
+CoseSignTool verify signature.cose --payload payload.bin --allow-online-verify
+
+# Require an AKV key-only signature
+CoseSignTool verify signature.cose --payload payload.bin --require-az-key
 ```
 
 ## License

@@ -6,6 +6,7 @@ The CoseSignTool V2 CLI supports a plugin architecture that allows extending the
 
 Plugins provide:
 - **Signing Command Providers**: Add new signing commands (e.g., `sign-pfx`, `sign-azure`)
+- **Verification Providers**: Add validators and verification metadata to the `verify` command
 - **Transparency Provider Contributors**: Add transparency receipt support to signing operations
 
 ## Available Plugins
@@ -32,6 +33,21 @@ Cloud-based signing using Azure Trusted Signing service.
 - `sign-azure` - Sign using Azure Trusted Signing
 
 **Use When**: Using Azure for centralized, managed code signing.
+
+---
+
+### [CoseSignTool.AzureKeyVault.Plugin](azure-keyvault-plugin.md)
+
+Azure Key Vault signing and verification.
+
+**Commands Added**:
+- `sign-akv-cert` - Sign using an Azure Key Vault certificate
+- `sign-akv-key` - Sign using an Azure Key Vault key (key-only)
+
+**Verification**:
+- Contributes a signature validator for key-only signatures when the message identifies an Azure Key Vault key (via `kid`), enabling verification without requiring Key Vault access.
+
+**Use When**: Using Key Vault for HSM-backed signing keys/certificates.
 
 ---
 
@@ -127,6 +143,19 @@ public interface IVerificationProvider
         ValidationResult validationResult);
 }
 ```
+
+#### Context-Aware Verification Providers
+
+Some verification providers need additional runtime context (for example, detached payload bytes) to build correct validators. These providers can implement `IVerificationProviderWithContext`:
+
+```csharp
+public interface IVerificationProviderWithContext : IVerificationProvider
+{
+    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult, VerificationContext context);
+}
+```
+
+The `verify` command passes a `VerificationContext` that can include the detached payload bytes when a `--payload` file is supplied.
 
 ### Transparency Provider Contributor
 

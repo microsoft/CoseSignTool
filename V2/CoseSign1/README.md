@@ -28,10 +28,12 @@ This package provides concrete implementations for creating COSE Sign1 messages.
 ```csharp
 using CoseSign1.Direct;
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 
 // Create signing service with certificate
 using var cert = new X509Certificate2("cert.pfx", "password");
-using var service = CertificateSigningService.Create(cert);
+using var chainBuilder = new X509ChainBuilder();
+using var service = CertificateSigningService.Create(cert, chainBuilder);
 
 // Create factory
 using var factory = new DirectSignatureFactory(service);
@@ -50,7 +52,7 @@ File.WriteAllBytes("document.cose", signedMessage);
 
 ```csharp
 // Create factory with detached payload option
-var options = new DirectSigningOptions { EmbedPayload = false };
+var options = new DirectSignatureOptions { EmbedPayload = false };
 
 byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
     payload, 

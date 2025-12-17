@@ -35,7 +35,11 @@ public class VerifyCommandHandler
         public static readonly string KeyActiveProviders = "Active Providers";
         public static readonly string ErrorSignatureNotFound = "Signature file not found: {0}";
         public static readonly string ErrorPayloadNotFound = "Payload file not found: {0}";
-        public static readonly string ErrorFailedToDecode = "Failed to decode COSE Sign1 message: {0}";
+        public static readonly string ErrorFailedToDecode = "Failed to decode COSE Sign1 message.";
+        public static readonly string ErrorFailedToDecodeDetails = "Details: {0}";
+        public static readonly string ErrorFailedToDecodeHintBase64 =
+            "The signature input appears to be Base64 text, not binary COSE bytes. " +
+            "Decode it to bytes first (e.g., PowerShell: [IO.File]::WriteAllBytes('signature.cose', [Convert]::FromBase64String((Get-Content -Raw 'signature.b64'))) ).";
         public static readonly string ErrorVerificationFailed = "Signature verification failed";
         public static readonly string ErrorFailureDetail = "  {0}: {1}";
         public static readonly string ErrorVerifying = "Error verifying signature: {0}";
@@ -168,7 +172,19 @@ public class VerifyCommandHandler
             }
             catch (Exception ex)
             {
-                Formatter.WriteError(string.Format(ClassStrings.ErrorFailedToDecode, ex.Message));
+                Formatter.WriteError(ClassStrings.ErrorFailedToDecode);
+
+                var details = ex.InnerException?.Message ?? ex.Message;
+                if (!string.IsNullOrWhiteSpace(details))
+                {
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailedToDecodeDetails, details));
+                }
+
+                if (LooksLikeBase64Text(signatureBytes))
+                {
+                    Formatter.WriteError(ClassStrings.ErrorFailedToDecodeHintBase64);
+                }
+
                 Formatter.EndSection();
                 return Task.FromResult((int)ExitCode.InvalidSignature);
             }
@@ -323,6 +339,54 @@ public class VerifyCommandHandler
             Formatter.Flush();
             return Task.FromResult((int)ExitCode.VerificationFailed);
         }
+    }
+
+    private static bool LooksLikeBase64Text(byte[] bytes)
+    {
+        if (bytes == null || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        // If the input is mostly printable ASCII and consists only of Base64 chars/whitespace,
+        // it's probably a Base64-encoded string saved to disk instead of raw COSE bytes.
+        int inspected = 0;
+        int base64ish = 0;
+
+        foreach (var b in bytes.Take(4096))
+        {
+            inspected++;
+            char c = (char)b;
+
+            if (c is '\r' or '\n' or '\t' or ' ')
+            {
+                base64ish++;
+                continue;
+            }
+
+            bool isBase64Char =
+                (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                (c >= '0' && c <= '9') ||
+                c == '+' || c == '/' || c == '=' || c == '-' || c == '_';
+
+            if (isBase64Char)
+            {
+                base64ish++;
+            }
+            else if (c < 0x20 || c > 0x7E)
+            {
+                // Non-printable / binary data: very unlikely to be Base64 text.
+                return false;
+            }
+        }
+
+        if (inspected < 16)
+        {
+            return false;
+        }
+
+        return base64ish >= (inspected * 0.98);
     }
 
     /// <summary>

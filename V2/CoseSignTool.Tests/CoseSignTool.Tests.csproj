@@ -30,6 +30,8 @@
         <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
     </ItemGroup>
 
+
+
     <ItemGroup>
         <Using Include="NUnit.Framework" />
     </ItemGroup>
@@ -63,15 +65,15 @@
 
         <MSBuild Projects="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj"
                  Properties="Configuration=$(Configuration)"
-                 Targets="Build" />
+                 Targets="Restore;Build" />
 
         <MSBuild Projects="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj"
                  Properties="Configuration=$(Configuration)"
-                 Targets="Build" />
+                 Targets="Restore;Build" />
 
         <MSBuild Projects="..\CoseSignTool.AzureTrustedSigning.Plugin\CoseSignTool.AzureTrustedSigning.Plugin.csproj"
                  Properties="Configuration=$(Configuration)"
-                 Targets="Build" />
+                 Targets="Restore;Build" />
 
         <MSBuild Projects="$(MSBuildProjectFile)"
                  Properties="PluginName=CoseSignTool.Local.Plugin;Configuration=$(Configuration)"

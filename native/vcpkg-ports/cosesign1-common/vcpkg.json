@@ -1,0 +1,12 @@
+{
+  "name": "cosesign1-common",
+  "version-string": "0.1.2",
+  "description": "Shared COSE/CBOR parsing helpers for CoseSignTool native validators.",
+  "homepage": "https://github.com/microsoft/CoseSignTool",
+  "license": "MIT",
+  "dependencies": [
+    "tinycbor",
+    "vcpkg-cmake",
+    "vcpkg-cmake-config"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "cosesign1-x509",
+  "version-string": "0.1.0",
+  "description": "X.509 (x5c) validator helpers for cosesign1-signature.",
+  "homepage": "https://github.com/microsoft/CoseSignTool",
+  "license": "MIT",
+  "dependencies": [
+    "openssl",
+    "tinycbor",
+    "catch2",
+    "cosesign1-common",
+    "cosesign1-signature"
+  ]
+}

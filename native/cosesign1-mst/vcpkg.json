@@ -1,0 +1,15 @@
+{
+  "name": "cosesign1-mst",
+  "version-string": "0.1.0",
+  "description": "MST (Microsoft Signing Transparency) receipt verification for COSE_Sign1 transparent statements.",
+  "dependencies": [
+    "cosesign1-signature",
+    "cosesign1-x509",
+    "cosesign1-common",
+    "openssl",
+    "tinycbor",
+    "nlohmann-json",
+    "curl",
+    "catch2"
+  ]
+}

@@ -2,6 +2,8 @@
 
 This folder contains cross-platform C++ implementations that mirror the V2 validation style.
 
+Documentation: see `native/docs/README.md`.
+
 ## Packages (vcpkg overlay ports)
 
 These are provided as **overlay ports** under `native/vcpkg-ports`:

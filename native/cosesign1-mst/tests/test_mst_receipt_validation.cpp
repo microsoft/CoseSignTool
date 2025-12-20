@@ -18,6 +18,7 @@
 #include <fstream>
 
 #include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
@@ -119,6 +120,23 @@ std::string Base64UrlEncode(const std::vector<std::uint8_t>& bytes) {
 }
 
 cosesign1::mst::JwkEcPublicKey MakeP256JwkFromKey(EVP_PKEY* key, std::string kid) {
+  REQUIRE(key != nullptr);
+
+  const int bits = EVP_PKEY_get_bits(key);
+  REQUIRE(bits > 0);
+  const std::size_t coord_size = (static_cast<std::size_t>(bits) + 7) / 8;
+
+  BnPtr x(nullptr, &BN_free);
+  BnPtr y(nullptr, &BN_free);
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(LIBRESSL_VERSION_NUMBER)
+  BIGNUM* x_raw = nullptr;
+  BIGNUM* y_raw = nullptr;
+  REQUIRE(EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_EC_PUB_X, &x_raw) == 1);
+  REQUIRE(EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_EC_PUB_Y, &y_raw) == 1);
+  x.reset(x_raw);
+  y.reset(y_raw);
+#else
   EC_KEY* ec_raw = EVP_PKEY_get1_EC_KEY(key);
   REQUIRE(ec_raw != nullptr);
   EcKeyPtr ec(ec_raw, &EC_KEY_free);
@@ -128,15 +146,17 @@ cosesign1::mst::JwkEcPublicKey MakeP256JwkFromKey(EVP_PKEY* key, std::string kid
   REQUIRE(group != nullptr);
   REQUIRE(point != nullptr);
 
-  const int degree = EC_GROUP_get_degree(group);
-  REQUIRE(degree > 0);
-  const std::size_t coord_size = (static_cast<std::size_t>(degree) + 7) / 8;
+  BIGNUM* x_raw = BN_new();
+  BIGNUM* y_raw = BN_new();
+  REQUIRE(x_raw != nullptr);
+  REQUIRE(y_raw != nullptr);
+  x.reset(x_raw);
+  y.reset(y_raw);
 
-  BnPtr x(BN_new(), &BN_free);
-  BnPtr y(BN_new(), &BN_free);
+  REQUIRE(EC_POINT_get_affine_coordinates(group, point, x.get(), y.get(), nullptr) == 1);
+#endif
   REQUIRE(x != nullptr);
   REQUIRE(y != nullptr);
-  REQUIRE(EC_POINT_get_affine_coordinates(group, point, x.get(), y.get(), nullptr) == 1);
 
   std::vector<std::uint8_t> x_bytes(coord_size);
   std::vector<std::uint8_t> y_bytes(coord_size);
@@ -145,7 +165,8 @@ cosesign1::mst::JwkEcPublicKey MakeP256JwkFromKey(EVP_PKEY* key, std::string kid
 
   cosesign1::mst::JwkEcPublicKey jwk;
   jwk.kty = "EC";
-  jwk.crv = "P-256";
+  // The MST tests only generate P-256 keys today, but keep this generic.
+  jwk.crv = (bits == 256) ? "P-256" : (bits == 384) ? "P-384" : (bits == 521) ? "P-521" : "EC";
   jwk.kid = std::move(kid);
   jwk.x_b64url = Base64UrlEncode(x_bytes);
   jwk.y_b64url = Base64UrlEncode(y_bytes);

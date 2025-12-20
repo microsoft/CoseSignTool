@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 
@@ -221,4 +222,29 @@ TEST_CASE("VerifyEs256 returns false for invalid COSE raw signature") {
   const std::vector<std::uint8_t> tbs = {1, 2, 3, 4};
   const std::vector<std::uint8_t> bad_sig; // empty => invalid
   REQUIRE_FALSE(cosesign1::internal::VerifyEs256(key.get(), tbs, bad_sig));
+}
+
+TEST_CASE("VerifyRawSignature returns false on null key") {
+  const std::vector<std::uint8_t> msg = {1, 2, 3, 4};
+  const std::vector<std::uint8_t> sig = {0x00};
+  REQUIRE_FALSE(cosesign1::internal::VerifyRawSignature(nullptr, msg, sig));
+}
+
+TEST_CASE("VerifyRawSignature returns false for invalid RSA signature") {
+  EVP_PKEY_CTX* pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+  REQUIRE(pctx != nullptr);
+  REQUIRE(EVP_PKEY_keygen_init(pctx) == 1);
+  REQUIRE(EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, 2048) == 1);
+
+  EVP_PKEY* key = nullptr;
+  REQUIRE(EVP_PKEY_keygen(pctx, &key) == 1);
+  EVP_PKEY_CTX_free(pctx);
+  REQUIRE(key != nullptr);
+
+  const std::vector<std::uint8_t> msg = {1, 2, 3, 4, 5};
+  // 2048-bit RSA signatures are 256 bytes.
+  const std::vector<std::uint8_t> bad_sig(256, 0x00);
+  REQUIRE_FALSE(cosesign1::internal::VerifyRawSignature(key, msg, bad_sig));
+
+  EVP_PKEY_free(key);
 }

@@ -60,6 +60,14 @@ TEST_CASE("ILastCoseSign1Validator virtual destructor executes") {
   SUCCEED();
 }
 
+TEST_CASE("ILastCoseSign1Validator destructor is coverable (direct instance)") {
+  {
+    cosesign1::validation::ILastCoseSign1Validator v;
+    (void)v;
+  }
+  SUCCEED();
+}
+
 TEST_CASE("ICoseSign1Validator virtual destructor executes") {
   struct V final : cosesign1::validation::ICoseSign1Validator {
     cosesign1::validation::ValidationResult Validate(const cosesign1::validation::ParsedCoseSign1&,

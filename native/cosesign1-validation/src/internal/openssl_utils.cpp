@@ -241,4 +241,27 @@ bool VerifyRs256(EVP_PKEY* key, std::span<const std::uint8_t> to_be_signed, std:
   return EVP_DigestVerifyFinal(ctx.get(), signature.data(), signature.size()) == 1;
 }
 
+bool VerifyRawSignature(EVP_PKEY* key,
+                        std::span<const std::uint8_t> message,
+                        std::span<const std::uint8_t> signature) {
+  if (!key) {
+    return false;
+  }
+
+  EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(key, nullptr);
+  if (!ctx) {
+    return false;
+  }
+
+  const bool ok = (EVP_PKEY_verify_init(ctx) == 1) &&
+                  (EVP_PKEY_verify(ctx,
+                                  signature.data(),
+                                  signature.size(),
+                                  message.data(),
+                                  message.size()) == 1);
+
+  EVP_PKEY_CTX_free(ctx);
+  return ok;
+}
+
 } // namespace cosesign1::internal

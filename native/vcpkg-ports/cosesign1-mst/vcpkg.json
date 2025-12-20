@@ -1,11 +1,11 @@
 {
   "name": "cosesign1-mst",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "COSE_Sign1 MST receipt verification (offline) for CoseSignTool native validators",
   "homepage": "https://github.com/microsoft",
   "license": "MIT",
   "dependencies": [
-    "cosesign1-signature",
+    "cosesign1-validation",
     "cosesign1-x509",
     "openssl",
     "tinycbor",

@@ -4,6 +4,8 @@ set(SOURCE_PATH "${CURRENT_PORT_DIR}/../../cosesign1-common")
 
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
+    OPTIONS
+        -DBUILD_TESTING=OFF
 )
 
 vcpkg_cmake_install()
@@ -29,5 +31,11 @@ file(REMOVE_RECURSE
 )
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
+
+# Avoid leaving an empty debug directory around (vcpkg post-build check).
+file(GLOB _cosesign1_common_debug_children "${CURRENT_PACKAGES_DIR}/debug/*")
+if (NOT _cosesign1_common_debug_children)
+    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug")
+endif()
 
 vcpkg_install_copyright(FILE_LIST "${CURRENT_PORT_DIR}/../../../LICENSE")

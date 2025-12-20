@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(cosesign1_signature VERSION 0.1.0 LANGUAGES CXX)
+project(cosesign1_validation VERSION 0.1.6 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -44,7 +44,7 @@ else()
   set(_cbor_target tinycbor::tinycbor)
 endif()
 
-add_library(cosesign1_signature
+add_library(cosesign1_validation
   src/cose_sign1_verifier.cpp
   src/cose_sign1_hash_message_verifier.cpp
   src/cose_sign1_validation_builder.cpp
@@ -56,13 +56,13 @@ add_library(cosesign1_signature
   src/internal/oqs_utils.cpp
 )
 
-target_include_directories(cosesign1_signature
+target_include_directories(cosesign1_validation
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_link_libraries(cosesign1_signature
+target_link_libraries(cosesign1_validation
   PUBLIC
     OpenSSL::Crypto
     ${_cbor_target}
@@ -70,20 +70,20 @@ target_link_libraries(cosesign1_signature
 )
 
 if (COSESIGN1_ENABLE_PQC)
-  target_compile_definitions(cosesign1_signature PUBLIC COSESIGN1_ENABLE_PQC=1)
+  target_compile_definitions(cosesign1_validation PUBLIC COSESIGN1_ENABLE_PQC=1)
 endif()
 
-target_compile_features(cosesign1_signature PUBLIC cxx_std_20)
+target_compile_features(cosesign1_validation PUBLIC cxx_std_20)
 
 # Conservative warnings; keep cross-platform.
 if (MSVC)
-  target_compile_options(cosesign1_signature PRIVATE /W4 /permissive-)
+  target_compile_options(cosesign1_validation PRIVATE /W4 /permissive-)
 else()
-  target_compile_options(cosesign1_signature PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(cosesign1_validation PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-install(TARGETS cosesign1_signature
-  EXPORT cosesign1_signatureTargets
+install(TARGETS cosesign1_validation
+  EXPORT cosesign1_validationTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -94,33 +94,33 @@ install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 include(CMakePackageConfigHelpers)
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_signatureConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_validationConfigVersion.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 
 configure_package_config_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cosesign1_signatureConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_signatureConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_signature
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cosesign1_validationConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_validationConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_validation
 )
 
-install(EXPORT cosesign1_signatureTargets
-  FILE cosesign1_signatureTargets.cmake
+install(EXPORT cosesign1_validationTargets
+  FILE cosesign1_validationTargets.cmake
   NAMESPACE cosesign1::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_signature
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_validation
 )
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_signatureConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_signatureConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_signature
+  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_validationConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/cosesign1_validationConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cosesign1_validation
 )
 
 if (BUILD_TESTING)
   find_package(Catch2 3 CONFIG REQUIRED)
 
-  add_executable(cosesign1_signature_tests
+  add_executable(cosesign1_validation_tests
     tests/test_validation_result.cpp
     tests/test_cose_sign1_validation_builder.cpp
     tests/test_verify_es256.cpp
@@ -135,14 +135,14 @@ if (BUILD_TESTING)
     tests/test_utils.cpp
   )
 
-  target_link_libraries(cosesign1_signature_tests PRIVATE cosesign1_signature Catch2::Catch2WithMain)
+  target_link_libraries(cosesign1_validation_tests PRIVATE cosesign1_validation Catch2::Catch2WithMain)
 
   if (MSVC)
-    target_compile_options(cosesign1_signature_tests PRIVATE /W4 /permissive-)
+    target_compile_options(cosesign1_validation_tests PRIVATE /W4 /permissive-)
   else()
-    target_compile_options(cosesign1_signature_tests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(cosesign1_validation_tests PRIVATE -Wall -Wextra -Wpedantic)
   endif()
 
   include(Catch)
-  catch_discover_tests(cosesign1_signature_tests)
+  catch_discover_tests(cosesign1_validation_tests)
 endif()

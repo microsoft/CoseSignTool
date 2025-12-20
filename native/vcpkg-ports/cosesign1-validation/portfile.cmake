@@ -11,8 +11,8 @@ vcpkg_cmake_configure(
 vcpkg_cmake_install()
 
 vcpkg_cmake_config_fixup(
-    PACKAGE_NAME cosesign1_signature
-    CONFIG_PATH "lib/cmake/cosesign1_signature"
+    PACKAGE_NAME cosesign1_validation
+    CONFIG_PATH "lib/cmake/cosesign1_validation"
 )
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")

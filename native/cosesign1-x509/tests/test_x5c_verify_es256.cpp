@@ -88,6 +88,82 @@ std::vector<std::uint8_t> EncodeProtectedAlgAndX5cRawFallbackShape(const std::ve
   }
 }
 
+std::vector<std::uint8_t> EncodeProtectedAlgAndX5cArray(const std::vector<std::vector<std::uint8_t>>& certs_der) {
+  // protected header is a bstr of CBOR map. Include alg=-7 and x5c=[cert0, cert1, ...]
+  std::size_t estimated = 4096;
+  for (const auto& c : certs_der) {
+    estimated += c.size();
+  }
+  std::vector<std::uint8_t> buf(estimated);
+  while (true) {
+    CborEncoder enc;
+    cbor_encoder_init(&enc, buf.data(), buf.size(), 0);
+
+    CborEncoder map;
+    const auto err = cbor_encoder_create_map(&enc, &map, 2);
+    if (err == CborErrorOutOfMemory) {
+      buf.resize(buf.size() * 2);
+      continue;
+    }
+    REQUIRE(err == CborNoError);
+
+    REQUIRE(cbor_encode_int(&map, 1) == CborNoError);
+    REQUIRE(cbor_encode_int(&map, -7) == CborNoError);
+
+    REQUIRE(cbor_encode_int(&map, 33) == CborNoError);
+    CborEncoder arr;
+    REQUIRE(cbor_encoder_create_array(&map, &arr, certs_der.size()) == CborNoError);
+    for (const auto& cert : certs_der) {
+      REQUIRE(cbor_encode_byte_string(&arr, cert.data(), cert.size()) == CborNoError);
+    }
+    REQUIRE(cbor_encoder_close_container(&map, &arr) == CborNoError);
+
+    REQUIRE(cbor_encoder_close_container(&enc, &map) == CborNoError);
+    buf.resize(cbor_encoder_get_buffer_size(&enc, buf.data()));
+    return buf;
+  }
+}
+
+std::vector<std::uint8_t> EncodeProtectedAlgAndX5cRawFallbackEmptyFirstElement() {
+  // protected header is a bstr of CBOR map.
+  // Include alg=-7 and x5c=[h'', 1] to force raw-value fallback parsing.
+  std::vector<std::uint8_t> empty;
+  std::vector<std::uint8_t> buf(4096);
+  while (true) {
+    CborEncoder enc;
+    cbor_encoder_init(&enc, buf.data(), buf.size(), 0);
+
+    CborEncoder map;
+    const auto err = cbor_encoder_create_map(&enc, &map, 2);
+    if (err == CborErrorOutOfMemory) {
+      buf.resize(buf.size() * 2);
+      continue;
+    }
+    REQUIRE(err == CborNoError);
+
+    REQUIRE(cbor_encode_int(&map, 1) == CborNoError);
+    REQUIRE(cbor_encode_int(&map, -7) == CborNoError);
+
+    REQUIRE(cbor_encode_int(&map, 33) == CborNoError);
+    CborEncoder arr;
+    REQUIRE(cbor_encoder_create_array(&map, &arr, 2) == CborNoError);
+    REQUIRE(cbor_encode_byte_string(&arr, empty.data(), empty.size()) == CborNoError);
+    REQUIRE(cbor_encode_int(&arr, 1) == CborNoError);
+    REQUIRE(cbor_encoder_close_container(&map, &arr) == CborNoError);
+
+    REQUIRE(cbor_encoder_close_container(&enc, &map) == CborNoError);
+    buf.resize(cbor_encoder_get_buffer_size(&enc, buf.data()));
+    return buf;
+  }
+}
+
+bool HasErrorCode(const cosesign1::validation::ValidationResult& r, std::string_view code) {
+  for (const auto& f : r.failures) {
+    if (f.error_code == code) return true;
+  }
+  return false;
+}
+
 std::vector<std::uint8_t> MakeCoseSign1WithUnprotectedX5cIndefinite(
     const std::vector<std::uint8_t>& protected_hdr,
     const std::vector<std::uint8_t>& leaf_der,
@@ -337,6 +413,114 @@ TEST_CASE("VerifyCoseSign1WithX5c fails when missing x5c") {
   REQUIRE(!r.is_valid);
 }
 
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns MISSING_X5C when x5c header is absent") {
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {'h', 'i'};
+  const std::vector<std::uint8_t> sig = {'x'};
+
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_hdr, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(!r.is_valid);
+  REQUIRE(HasErrorCode(r, "MISSING_X5C"));
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns INVALID_X5C when x5c leaf is empty") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+  const std::vector<std::uint8_t> payload = {'h', 'i'};
+
+  const std::vector<std::uint8_t> empty_leaf;
+  const auto protected_map = EncodeProtectedAlgAndX5c(empty_leaf);
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_map, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_map, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(!r.is_valid);
+  REQUIRE(HasErrorCode(r, "INVALID_X5C"));
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns signature failure when signature is invalid") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+  const std::vector<std::uint8_t> payload = {'h', 'i'};
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto protected_map = EncodeProtectedAlgAndX5c(leaf_der);
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_map, payload);
+  auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  REQUIRE(!sig.empty());
+  sig[0] ^= 0x01;
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_map, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.allow_untrusted_roots = true;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(!r.is_valid);
+  REQUIRE(HasErrorCode(r, "SIGNATURE_INVALID"));
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns MISSING_X5C for raw fallback shape with empty first element") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+  const std::vector<std::uint8_t> payload = {'h', 'i'};
+
+  const auto protected_map = EncodeProtectedAlgAndX5cRawFallbackEmptyFirstElement();
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_map, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_map, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(!r.is_valid);
+  REQUIRE(HasErrorCode(r, "MISSING_X5C"));
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) exercises intermediate store loop and online revocation flags") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+  const std::vector<std::uint8_t> payload = {'h', 'i'};
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const std::vector<std::uint8_t> empty_intermediate;
+  const std::vector<std::uint8_t> garbage_intermediate = {0x01, 0x02, 0x03};
+  const auto protected_map = EncodeProtectedAlgAndX5cArray({leaf_der, empty_intermediate, garbage_intermediate});
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_map, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_map, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kOnline;
+  chain.allow_untrusted_roots = true;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+  REQUIRE(!r.failures.empty());
+}
+
 TEST_CASE("VerifyCoseSign1WithX5c succeeds when x5c is in protected headers") {
   auto key = cosesign1::tests::GenerateEcP256Key();
 
@@ -531,4 +715,262 @@ TEST_CASE("VerifyCoseSign1WithX5c returns INVALID_X5C for empty leaf DER") {
   REQUIRE(r.failures.size() >= 1);
   REQUIRE(r.failures[0].error_code.has_value());
   REQUIRE(*r.failures[0].error_code == "INVALID_X5C");
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) fails for self-signed leaf in system trust mode") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {1, 2, 3, 4, 5};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.allow_untrusted_roots = false;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE(r.failures.size() >= 1);
+  REQUIRE(r.failures[0].error_code.has_value());
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) succeeds for self-signed leaf when explicitly trusted") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {6, 7, 8, 9};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der = {leaf_der};
+  chain.allow_untrusted_roots = false;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) succeeds via unprotected raw-value fallback") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {13, 14, 15, 16};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto cose = MakeCoseSign1WithUnprotectedX5cIndefinite(protected_hdr, leaf_der, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der = {leaf_der};
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) fails in custom roots mode with no trust anchors") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {17, 18, 19};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der.clear();
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+  REQUIRE(r.failures[0].error_code.has_value());
+  REQUIRE(*r.failures[0].error_code == "CERT_CHAIN_NO_TRUST_ANCHORS");
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) fails when chain does not build to an exact caller root") {
+  auto signingKey = cosesign1::tests::GenerateEcP256Key();
+  auto otherKey = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {20, 21, 22, 23};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(signingKey.get(), tbs);
+
+  const auto signingLeafDer = MakeSelfSignedCertDer(signingKey.get());
+  const auto otherRootDer = MakeSelfSignedCertDer(otherKey.get());
+
+  const auto unprotected = EncodeUnprotectedWithX5c(signingLeafDer);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der = {otherRootDer};
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+  REQUIRE(r.failures[0].error_code.has_value());
+  REQUIRE(*r.failures[0].error_code == "CERT_CHAIN_NOT_AN_EXACT_TRUST_ANCHOR");
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns MISSING_X5C on CBOR parse error") {
+  const std::vector<std::uint8_t> not_cbor = {0x01, 0x02, 0x03};
+
+  cosesign1::validation::VerifyOptions opt;
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", not_cbor, opt, chain);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+  REQUIRE(r.failures[0].error_code.has_value());
+  REQUIRE(*r.failures[0].error_code == "MISSING_X5C");
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) succeeds with detached payload and external_payload option") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {31, 32, 33, 34};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, true);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+  opt.external_payload = payload;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der = {leaf_der};
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) executes offline revocation flag path") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {41, 42, 43};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kOffline;
+  chain.allow_untrusted_roots = true;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) returns CERT_CHAIN_TRUST_ANCHOR_ERROR for empty root DER") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {51, 52, 53};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kCustomRoots;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.trusted_roots_der = {std::vector<std::uint8_t>{}};
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+  REQUIRE(r.failures[0].error_code.has_value());
+  REQUIRE(*r.failures[0].error_code == "CERT_CHAIN_TRUST_ANCHOR_ERROR");
+}
+
+TEST_CASE("VerifyCoseSign1WithX5c (chain) allows untrusted roots but returns chain errors") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-7);
+  const std::vector<std::uint8_t> payload = {10, 11, 12};
+
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, payload);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+
+  const auto leaf_der = MakeSelfSignedCertDer(key.get());
+  const auto unprotected = EncodeUnprotectedWithX5c(leaf_der);
+  const auto cose = MakeCoseSign1WithX5c(protected_hdr, unprotected, payload, sig, false);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::ES256;
+
+  cosesign1::x509::X509ChainVerifyOptions chain;
+  chain.trust_mode = cosesign1::x509::X509TrustMode::kSystem;
+  chain.revocation_mode = cosesign1::x509::X509RevocationMode::kNoCheck;
+  chain.allow_untrusted_roots = true;
+
+  auto r = cosesign1::x509::VerifyCoseSign1WithX5c("X5cVerifier", cose, opt, chain);
+  REQUIRE(r.is_valid);
+  REQUIRE_FALSE(r.failures.empty());
+  REQUIRE(r.failures[0].error_code.has_value());
 }

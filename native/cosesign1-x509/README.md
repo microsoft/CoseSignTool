@@ -1,6 +1,6 @@
 # cosesign1-x509 (C++)
 
-Helpers/validators for X.509-based COSE_Sign1 verification (x5c), designed to be used alongside `cosesign1-signature`.
+Helpers/validators for X.509-based COSE_Sign1 verification (x5c), designed to be used alongside `cosesign1-validation`.
 
 ## Build (vcpkg)
 

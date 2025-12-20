@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(cosesign1_mst VERSION 0.1.0 LANGUAGES CXX)
+project(cosesign1_mst VERSION 0.1.2 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -18,8 +18,8 @@ find_package(tinycbor CONFIG QUIET)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 
-# cosesign1_signature is provided by the sibling port.
-find_package(cosesign1_signature CONFIG REQUIRED)
+# cosesign1_validation is provided by the sibling port.
+find_package(cosesign1_validation CONFIG REQUIRED)
 
 set(_cbor_target "")
 if(TARGET tinycbor::tinycbor)
@@ -76,7 +76,7 @@ target_include_directories(cosesign1_mst
 
 target_link_libraries(cosesign1_mst
   PUBLIC
-    cosesign1::cosesign1_signature
+    cosesign1::cosesign1_validation
     OpenSSL::Crypto
     ${_cbor_target}
     nlohmann_json::nlohmann_json

@@ -82,7 +82,7 @@ sequenceDiagram
   participant App
   participant MST as VerifyTransparentStatement
   participant Store as OfflineEcKeyStore
-  participant Sig as cosesign1_signature
+  participant Sig as cosesign1_validation
 
   App->>MST: VerifyTransparentStatement(name, statement_cose, store, opt)
   MST->>MST: parse statement + enumerate receipts

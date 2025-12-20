@@ -358,4 +358,20 @@ TEST_CASE("VerifyCoseSign1 MLDsa44 accepts public_key_bytes input") {
   REQUIRE_FALSE(r.is_valid);
   REQUIRE(HasErrorCode(r, "SIGNATURE_INVALID"));
 }
+
+TEST_CASE("VerifyCoseSign1 MLDsa44 returns INVALID_PUBLIC_KEY for DER-like bytes") {
+  const auto protected_hdr = cosesign1::tests::MakeProtectedHeaderAlg(-48);
+  const std::vector<std::uint8_t> payload = {1, 2, 3};
+  const std::vector<std::uint8_t> sig = {0x01, 0x02, 0x03};
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_hdr, false, payload, sig);
+
+  cosesign1::validation::VerifyOptions opt;
+  opt.expected_alg = cosesign1::validation::CoseAlgorithm::MLDsa44;
+  // 0x30 is SEQUENCE, so this will be treated as DER and parsed by OpenSSL.
+  opt.public_key_bytes = std::vector<std::uint8_t>(16, 0x30);
+
+  const auto r = cosesign1::validation::VerifyCoseSign1("Sig", cose, opt);
+  REQUIRE_FALSE(r.is_valid);
+  REQUIRE(HasErrorCode(r, "INVALID_PUBLIC_KEY"));
+}
 #endif

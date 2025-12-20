@@ -42,4 +42,10 @@ bool VerifyEs512(EVP_PKEY* key, std::span<const std::uint8_t> to_be_signed, std:
 bool VerifyPs256(EVP_PKEY* key, std::span<const std::uint8_t> to_be_signed, std::span<const std::uint8_t> signature);
 bool VerifyRs256(EVP_PKEY* key, std::span<const std::uint8_t> to_be_signed, std::span<const std::uint8_t> signature);
 
+// Verifies a signature where the signing algorithm operates directly on the provided message bytes,
+// with no additional hashing performed by OpenSSL (e.g., provider-backed PQC algorithms).
+bool VerifyRawSignature(EVP_PKEY* key,
+						std::span<const std::uint8_t> message,
+						std::span<const std::uint8_t> signature);
+
 } // namespace cosesign1::internal

@@ -1,6 +1,6 @@
 {
-  "name": "cosesign1-signature",
-  "version-string": "0.1.5",
+  "name": "cosesign1-validation",
+  "version-string": "0.1.6",
   "description": "COSE_Sign1 signature verification + V2-inspired validation framework (C++).",
   "homepage": "https://github.com/microsoft/CoseSignTool",
   "license": "MIT",
@@ -9,6 +9,7 @@
     "tinycbor",
     "cosesign1-common",
     "liboqs",
+    "oqs-provider",
     "vcpkg-cmake",
     "vcpkg-cmake-config"
   ]

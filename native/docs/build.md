@@ -14,7 +14,8 @@ This repo supports **local development builds** (manifest-mode vcpkg + CMake pre
 
 Each library has a `vcpkg.json` and `CMakePresets.json` in its folder:
 
-- `native/cosesign1-validation` → builds `cosesign1_signature`
+- `native/cosesign1-common` → builds `cosesign1_common`
+- `native/cosesign1-validation` → builds `cosesign1_validation`
 - `native/cosesign1-x509` → builds `cosesign1_x509`
 - `native/cosesign1-mst` → builds `cosesign1_mst`
 
@@ -49,7 +50,8 @@ From the repo root:
 
 ```powershell
 # Install overlay ports
-vcpkg install cosesign1-signature --overlay-ports=native/vcpkg-ports
+vcpkg install cosesign1-common --overlay-ports=native/vcpkg-ports
+vcpkg install cosesign1-validation --overlay-ports=native/vcpkg-ports
 vcpkg install cosesign1-x509 --overlay-ports=native/vcpkg-ports
 vcpkg install cosesign1-mst --overlay-ports=native/vcpkg-ports
 ```
@@ -68,7 +70,7 @@ Output artifacts are written under `native/coverage-report/`.
 
 ### PQC support (liboqs)
 
-`cosesign1_signature` defines `COSESIGN1_ENABLE_PQC`:
+`cosesign1_validation` defines `COSESIGN1_ENABLE_PQC`:
 
 - Default: ON
 - When ON: links `OQS::oqs` and enables ML-DSA verification logic.

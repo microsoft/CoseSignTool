@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(cosesign1_common VERSION 0.1.0 LANGUAGES CXX)
+project(cosesign1_common VERSION 0.1.5 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)

@@ -1,4 +1,4 @@
-# cosesign1-signature (C++)
+# cosesign1-validation (C++)
 
 A small, cross-platform C++ validation framework inspired by the V2 .NET validation pattern in this repo, plus a real COSE_Sign1 signature verifier.
 

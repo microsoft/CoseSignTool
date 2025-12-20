@@ -7,7 +7,7 @@ These native libraries are designed as small, composable layers:
 - **`cosesign1_common`**
   - CBOR primitives + a parsed COSE_Sign1 model (`cosesign1::common::cbor::ParsedCoseSign1`).
 
-- **`cosesign1_signature`** (source folder: `native/cosesign1-validation`)
+- **`cosesign1_validation`** (source folder: `native/cosesign1-validation`)
   - Base types for validation results.
   - Low-level COSE_Sign1 signature verification.
   - Optional post-quantum signature verification (ML-DSA) via liboqs.
@@ -25,7 +25,7 @@ These native libraries are designed as small, composable layers:
 ```mermaid
 graph TD
   common[cosesign1_common]
-  signature[cosesign1_signature]
+  signature[cosesign1_validation]
   x509[cosesign1_x509]
   mst[cosesign1_mst]
 
@@ -36,9 +36,9 @@ graph TD
 
 External dependencies are kept at the edges:
 
-- OpenSSL: used by `cosesign1_signature`, `cosesign1_x509`, `cosesign1_mst`
+- OpenSSL: used by `cosesign1_validation`, `cosesign1_x509`, `cosesign1_mst`
 - tinycbor: used to parse/emit CBOR structures
-- liboqs (optional): used by `cosesign1_signature` when PQC is enabled
+- liboqs (optional): used by `cosesign1_validation` when PQC is enabled
 - nlohmann-json + libcurl: used by `cosesign1_mst` for JWKS parsing and optional network fetch
 
 ## Validation results
@@ -74,7 +74,7 @@ In practice:
 ```mermaid
 sequenceDiagram
   participant App
-  participant Sig as cosesign1_signature
+  participant Sig as cosesign1_validation
   participant CBOR as cosesign1_common
   participant OpenSSL
 
@@ -92,7 +92,7 @@ sequenceDiagram
 sequenceDiagram
   participant App
   participant X as cosesign1_x509
-  participant Sig as cosesign1_signature
+  participant Sig as cosesign1_validation
   participant OpenSSL
 
   App->>X: VerifyCoseSign1WithX5c(name, cose_bytes, options)
@@ -109,7 +109,7 @@ sequenceDiagram
 sequenceDiagram
   participant App
   participant MST as cosesign1_mst
-  participant Sig as cosesign1_signature
+  participant Sig as cosesign1_validation
   participant Store as OfflineEcKeyStore
 
   App->>MST: VerifyTransparentStatement(name, statement_cose, store, options)

@@ -1,4 +1,4 @@
-# COSE_Sign1 signature verifier (`cosesign1_signature`)
+# COSE_Sign1 signature verifier (`cosesign1_validation`)
 
 ## Entry points
 
@@ -16,7 +16,9 @@ Key fields in `VerifyOptions`:
 
 - `public_key_bytes`:
   - classic algorithms: DER SPKI *or* DER X.509 certificate
-  - PQC (ML-DSA): raw public key bytes (liboqs format)
+  - PQC (ML-DSA):
+    - preferred: DER SPKI *or* DER X.509 certificate (when an OpenSSL provider supports ML-DSA)
+    - fallback: raw public key bytes (liboqs format)
 - `external_payload` / `external_payload_provider`: required if the COSE payload is detached (`null`)
 - `expected_alg`: optional enforcement of the COSE `alg` header
 

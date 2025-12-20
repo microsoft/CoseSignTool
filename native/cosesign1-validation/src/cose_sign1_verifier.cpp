@@ -10,8 +10,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 #include "internal/openssl_utils.h"
@@ -44,6 +46,12 @@ std::optional<std::int64_t> ReadAlgFromHeaders(const ParsedSign1& parsed) {
     return prot;
   }
   return parsed.unprotected_headers.TryGetInt64(1);
+}
+
+bool LooksLikeDer(std::span<const std::uint8_t> bytes) {
+  // Very small heuristic: DER objects begin with a SEQUENCE (0x30). This is deliberately
+  // permissive and only used as a fast-path to attempt OpenSSL parsing for keys/certs.
+  return bytes.size() >= 4 && bytes[0] == 0x30;
 }
 
 } // namespace
@@ -183,10 +191,27 @@ ValidationResult VerifyParsedCoseSign1(std::string_view validator_name,
     case CoseAlgorithm::MLDsa87: {
 #if defined(COSESIGN1_ENABLE_PQC)
       if (!options.public_key_bytes) {
-        return Fail(validator_name, "No PQC verification key provided (set VerifyOptions.public_key_bytes)", "MISSING_KEY");
+        return Fail(validator_name,
+                    "No verification key/certificate provided (set VerifyOptions.public_key_bytes)",
+                    "MISSING_KEY");
       }
 
-      ok = internal::VerifyMlDsa(static_cast<std::int64_t>(*alg), tbs, parsed.signature, *options.public_key_bytes);
+      // Prefer OpenSSL EVP verification when the caller provides a DER-encoded SPKI/certificate.
+      // This enables consistent "key bytes" handling across algorithms when an OpenSSL provider
+      // for ML-DSA is available (e.g., oqs-provider).
+      const std::span<const std::uint8_t> key_bytes(options.public_key_bytes->data(), options.public_key_bytes->size());
+      if (LooksLikeDer(key_bytes)) {
+        auto key = internal::LoadPublicKeyOrCertFromDer(key_bytes);
+        if (!key) {
+          return Fail(validator_name, "Failed to parse public key/certificate bytes", "INVALID_PUBLIC_KEY");
+        }
+
+        ok = internal::VerifyRawSignature(key.get(), tbs, parsed.signature);
+        break;
+      }
+
+      // Back-compat / no-provider path: treat public_key_bytes as raw liboqs public key bytes.
+      ok = internal::VerifyMlDsa(static_cast<std::int64_t>(*alg), tbs, parsed.signature, key_bytes);
 #else
       (void)tbs;
       return Fail(validator_name, "PQC algorithms are not enabled in this build", "PQC_DISABLED", "alg");

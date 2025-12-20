@@ -50,7 +50,10 @@ struct VerifyOptions {
 
   // Public key bytes (algorithm-specific):
   // - For ECDSA/RSA/RSASSA-PSS: DER-encoded SubjectPublicKeyInfo or DER-encoded X.509 certificate.
-  // - For PQC (ML-DSA): raw public key bytes (as required by liboqs).
+  // - For PQC (ML-DSA):
+  //   - Preferred: DER-encoded SubjectPublicKeyInfo or DER-encoded X.509 certificate (requires an
+  //     OpenSSL provider that supports ML-DSA, e.g., oqs-provider).
+  //   - Fallback: raw public key bytes (liboqs format) when PQC is enabled.
   std::optional<std::vector<std::uint8_t>> public_key_bytes;
 
   // If provided, require the COSE alg header to match.

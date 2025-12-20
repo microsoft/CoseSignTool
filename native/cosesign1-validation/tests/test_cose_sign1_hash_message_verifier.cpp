@@ -54,6 +54,22 @@ std::vector<std::uint8_t> ComputeSha256(std::span<const std::uint8_t> data) {
   return out;
 }
 
+std::vector<std::uint8_t> ComputeSha512(std::span<const std::uint8_t> data) {
+  std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(EVP_MD_CTX_new(), &EVP_MD_CTX_free);
+  REQUIRE(ctx != nullptr);
+
+  REQUIRE(EVP_DigestInit_ex(ctx.get(), EVP_sha512(), nullptr) == 1);
+  if (!data.empty()) {
+    REQUIRE(EVP_DigestUpdate(ctx.get(), data.data(), data.size()) == 1);
+  }
+
+  unsigned int out_len = EVP_MD_size(EVP_sha512());
+  std::vector<std::uint8_t> out(static_cast<std::size_t>(out_len));
+  REQUIRE(EVP_DigestFinal_ex(ctx.get(), out.data(), &out_len) == 1);
+  out.resize(static_cast<std::size_t>(out_len));
+  return out;
+}
+
 std::vector<std::uint8_t> MakeProtectedHeaderAlgAndPayloadHashAlg(std::int64_t sig_alg, std::int64_t payload_hash_alg) {
   // Encoded header map: { 1: sig_alg, 258: payload_hash_alg }
   std::vector<std::uint8_t> buf(64);
@@ -203,6 +219,48 @@ TEST_CASE("CoseSign1HashMessageVerifier validates payload hash") {
   ParsedCoseSign1 parsed;
   std::string parse_error;
   REQUIRE(cosesign1::common::cbor::ParseCoseSign1(cose, parsed, &parse_error));
+
+  cosesign1::validation::CoseSign1ValidationBuilder b;
+  b.AddValidator(std::make_shared<cosesign1::validation::CoseSign1HashMessageVerifier>());
+
+  const auto r = b.Validate(parsed, std::span<const std::uint8_t>(external_payload.data(), external_payload.size()));
+  REQUIRE(r.is_valid);
+}
+
+TEST_CASE("CoseSign1HashMessageVerifier validates empty external payload") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const std::vector<std::uint8_t> external_payload;
+  const auto embedded_hash = ComputeSha256(external_payload);
+
+  const auto protected_hdr = MakeProtectedHeaderAlgAndPayloadHashAlg(-7 /* ES256 */, -16 /* SHA-256 */);
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, embedded_hash);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_hdr, false /* embedded payload */, embedded_hash, sig);
+
+  ParsedCoseSign1 parsed;
+  REQUIRE(cosesign1::common::cbor::ParseCoseSign1(cose, parsed));
+
+  cosesign1::validation::CoseSign1ValidationBuilder b;
+  b.AddValidator(std::make_shared<cosesign1::validation::CoseSign1HashMessageVerifier>());
+
+  const auto r = b.Validate(parsed, std::span<const std::uint8_t>(external_payload.data(), external_payload.size()));
+  REQUIRE(r.is_valid);
+}
+
+TEST_CASE("CoseSign1HashMessageVerifier validates payload hash (SHA-512)") {
+  auto key = cosesign1::tests::GenerateEcP256Key();
+
+  const std::vector<std::uint8_t> external_payload = {9, 8, 7, 6, 5, 4, 3, 2, 1};
+  const auto embedded_hash = ComputeSha512(external_payload);
+
+  const auto protected_hdr = MakeProtectedHeaderAlgAndPayloadHashAlg(-7 /* ES256 */, -44 /* SHA-512 */);
+  const auto tbs = cosesign1::tests::BuildSigStructure(protected_hdr, embedded_hash);
+  const auto sig = cosesign1::tests::SignEs256ToCoseRaw(key.get(), tbs);
+  const auto cose = cosesign1::tests::MakeCoseSign1(protected_hdr, false /* embedded payload */, embedded_hash, sig);
+
+  ParsedCoseSign1 parsed;
+  REQUIRE(cosesign1::common::cbor::ParseCoseSign1(cose, parsed));
 
   cosesign1::validation::CoseSign1ValidationBuilder b;
   b.AddValidator(std::make_shared<cosesign1::validation::CoseSign1HashMessageVerifier>());

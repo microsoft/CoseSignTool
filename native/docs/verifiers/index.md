@@ -2,10 +2,10 @@
 
 This repo provides several verification entry points depending on your scenario:
 
-- **COSE_Sign1 signature verification** (`cosesign1_signature`)
+- **COSE_Sign1 signature verification** (`cosesign1_validation`)
   - Low-level signature verification and basic validation result reporting.
 
-- **COSE Hash Envelope payload-hash verification** (`cosesign1_signature`)
+- **COSE Hash Envelope payload-hash verification** (`cosesign1_validation`)
   - Verifies a “hash-in-payload” envelope where the COSE_Sign1 payload is expected to be a hash of external bytes.
 
 - **X.509 / x5c verification** (`cosesign1_x509`)

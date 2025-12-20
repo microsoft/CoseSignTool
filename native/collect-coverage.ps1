@@ -1,6 +1,14 @@
 # Native C++ Code Coverage Collection Script
 # Target: 95% line coverage across native libraries
 
+param(
+  # Which native projects to run coverage for. Default is all.
+  # Example: .\native\collect-coverage.ps1 -Projects cosesign1-x509
+  [Parameter(Mandatory=$false)]
+  [ValidateSet('cosesign1-common', 'cosesign1-validation','cosesign1-x509','cosesign1-mst')]
+  [string[]]$Projects = @('cosesign1-common','cosesign1-validation','cosesign1-x509','cosesign1-mst')
+)
+
 Set-Location $PSScriptRoot
 
 Write-Host "================================================" -ForegroundColor Cyan
@@ -195,15 +203,18 @@ function Invoke-CoveredCtest {
 }
 
 try {
-  $r1 = Invoke-CoveredCtest -ProjectDir (Join-Path $PSScriptRoot "cosesign1-validation") -BuildDir (Join-Path $PSScriptRoot "cosesign1-validation\out\build\coverage") -ProjectName "cosesign1-validation"
-  $r2 = Invoke-CoveredCtest -ProjectDir (Join-Path $PSScriptRoot "cosesign1-x509") -BuildDir (Join-Path $PSScriptRoot "cosesign1-x509\out\build\coverage") -ProjectName "cosesign1-x509"
-  $r3 = Invoke-CoveredCtest -ProjectDir (Join-Path $PSScriptRoot "cosesign1-mst") -BuildDir (Join-Path $PSScriptRoot "cosesign1-mst\out\build\coverage") -ProjectName "cosesign1-mst"
+  if (-not $Projects -or $Projects.Count -eq 0) {
+    throw "No projects specified. Valid values: cosesign1-common cosesign1-validation, cosesign1-x509, cosesign1-mst."
+  }
 
-  $s1 = Write-CoverageDetails -ProjectName "cosesign1-validation" -CoberturaPath $r1
-  $s2 = Write-CoverageDetails -ProjectName "cosesign1-x509" -CoberturaPath $r2
-  $s3 = Write-CoverageDetails -ProjectName "cosesign1-mst" -CoberturaPath $r3
+  $results = @()
+  foreach ($p in $Projects) {
+    $cobertura = Invoke-CoveredCtest -ProjectDir (Join-Path $PSScriptRoot $p) -BuildDir (Join-Path $PSScriptRoot "$p\out\build\coverage") -ProjectName $p
+    $summary = Write-CoverageDetails -ProjectName $p -CoberturaPath $cobertura
+    $results += $summary
+  }
 
-  $minPct = ($s1.Percent, $s2.Percent, $s3.Percent | Measure-Object -Minimum).Minimum
+  $minPct = ($results.Percent | Measure-Object -Minimum).Minimum
 
   Write-Host "" 
   Write-Host "================================================" -ForegroundColor Cyan

@@ -1,5 +1,5 @@
 {
-  "name": "cosesign1-signature",
+  "name": "cosesign1-validation",
   "version-string": "0.1.0",
   "description": "Cross-platform C++ COSE_Sign1 signature verification + V2-inspired validation framework.",
   "homepage": "https://github.com/microsoft/CoseSignTool",
@@ -9,6 +9,7 @@
     "tinycbor",
     "cosesign1-common",
     "liboqs",
+    "oqs-provider",
     "catch2"
   ]
 }

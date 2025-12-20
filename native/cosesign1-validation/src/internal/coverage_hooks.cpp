@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file coverage_hooks.cpp
+ * @brief Coverage-only code paths exercised by unit tests.
+ */
+
 #include "coverage_hooks.h"
 
 #include <cstdint>
@@ -9,6 +17,7 @@
 #include "cosesign1/common/cose_sign1.h"
 
 #include "cosesign1/validation/cose_sign1_validation_builder.h"
+#include "cosesign1/validation/validator_markers.h"
 #include "cosesign1/validation/validator.h"
 
 namespace cosesign1::internal {

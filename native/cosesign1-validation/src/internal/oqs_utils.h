@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file oqs_utils.h
+ * @brief Internal liboqs helper declarations.
+ */
+
 #pragma once
 
 #include <cstdint>

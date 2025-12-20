@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cose_header_map.h
+ * @brief Normalized access to COSE header label/value shapes.
+ */
 
 #include <any>
 #include <cstdint>

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file jwk_ec_key.cpp
+ * @brief EC JWK parsing and conversion utilities used by MST verification.
+ */
+
 #include "cosesign1/mst/jwk_ec_key.h"
 
 #include <algorithm>

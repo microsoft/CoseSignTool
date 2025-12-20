@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file jwks_fetcher_curl.cpp
+ * @brief libcurl-based implementation of IJwksFetcher.
+ */
+
 #include "cosesign1/mst/jwks_fetcher.h"
 
 #include <cstdint>

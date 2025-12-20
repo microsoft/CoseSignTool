@@ -47,6 +47,9 @@ endif()
 add_library(cosesign1_signature
   src/cose_sign1_verifier.cpp
   src/cose_sign1_hash_message_verifier.cpp
+  src/cose_sign1_validation_builder.cpp
+  src/composite_cose_sign1_validator.cpp
+  src/cose_sign1_signature_validator.cpp
   src/internal/openssl_utils.cpp
   src/internal/coverage_anchors.cpp
   src/internal/coverage_hooks.cpp

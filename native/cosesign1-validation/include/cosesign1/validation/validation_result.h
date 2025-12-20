@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file validation_result.h
+ * @brief Standard result type returned by validators.
+ */
 
 #include <string>
 #include <unordered_map>

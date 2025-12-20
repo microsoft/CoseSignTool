@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_cose_sign1_validation_builder.cpp
+ * @brief Unit tests for CoseSign1ValidationBuilder.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
@@ -10,6 +18,7 @@
 #include <cosesign1/common/cbor.h>
 
 #include "cosesign1/validation/cose_sign1_validation_builder.h"
+#include "cosesign1/validation/validator_markers.h"
 #include "test_utils.h"
 
 namespace {

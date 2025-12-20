@@ -6,6 +6,14 @@
 # Pipeline-generated changelog -- this has to be ignored to prevent the PR pipeline from trying to trigger a new build and prevent merge conflict on user commits.
 CHANGELOG.md
 
+# Test output files
+*.cose
+# Exception: allow test data .cose files to be checked in
+!**/TestData/*.cose
+!**/testdata/**/*.cose
+!**/TestData/**/*.cose
+test.txt
+
 # User-specific files
 *.rsuser
 *.suo
@@ -51,6 +59,11 @@ Generated\ Files/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Code Coverage
+coverage-report/
+coverage.cobertura.xml
+*.coverage
 
 # Build Results of an ATL Project
 [Dd]ebugPS/
@@ -366,3 +379,6 @@ FodyWeavers.xsd
 
 # Visual Studio live unit testing configuration files.
 *.lutconfig
+
+# VCPKG Build output
+build/

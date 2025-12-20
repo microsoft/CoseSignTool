@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_mst_receipt_validation.cpp
+ * @brief Unit tests for MST receipt parsing and verification.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

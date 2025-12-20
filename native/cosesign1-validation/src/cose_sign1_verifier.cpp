@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file cose_sign1_verifier.cpp
+ * @brief COSE_Sign1 verification entry points.
+ */
+
 #include "cosesign1/validation/cose_sign1_verifier.h"
 
 #include <cstdint>

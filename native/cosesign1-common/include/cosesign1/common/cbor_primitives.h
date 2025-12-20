@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cbor_primitives.h
+ * @brief Small CBOR decoding primitives shared across native modules.
+ */
 
 #include <cstddef>
 #include <cstdint>

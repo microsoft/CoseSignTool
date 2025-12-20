@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_openssl_utils.cpp
+ * @brief Unit tests for internal OpenSSL helpers.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

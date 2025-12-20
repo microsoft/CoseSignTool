@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_coverage_misc.cpp
+ * @brief Tests that exercise hard-to-reach coverage paths.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_utils.h
+ * @brief Test helper declarations.
+ */
+
 #pragma once
 
 #include <cstdint>

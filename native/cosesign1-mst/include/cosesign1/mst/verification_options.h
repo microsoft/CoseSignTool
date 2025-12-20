@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file verification_options.h
+ * @brief Options controlling MST verification behavior.
+ */
 
 #include <cstdint>
 #include <string>
@@ -6,18 +14,27 @@
 
 namespace cosesign1::mst {
 
+/**
+ * @brief How to treat receipts whose issuer is considered authorized.
+ */
 enum class AuthorizedReceiptBehavior {
   VerifyAnyMatching,
   VerifyAllMatching,
   RequireAll,
 };
 
+/**
+ * @brief How to treat receipts whose issuer is considered unauthorized.
+ */
 enum class UnauthorizedReceiptBehavior {
   VerifyAll,
   IgnoreAll,
   FailIfPresent,
 };
 
+/**
+ * @brief Configuration for verifying transparent statements and receipts.
+ */
 struct VerificationOptions {
   std::vector<std::string> authorized_domains;
 

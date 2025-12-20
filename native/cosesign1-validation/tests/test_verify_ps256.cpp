@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_ps256.cpp
+ * @brief Verification tests for PS256.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

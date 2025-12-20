@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file oqs_utils.cpp
+ * @brief liboqs helpers for PQC signature verification.
+ */
+
 #include "oqs_utils.h"
 
 #include <oqs/oqs.h>

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_x5c_verify_es256.cpp
+ * @brief Unit tests for x5c-based COSE_Sign1 verification.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

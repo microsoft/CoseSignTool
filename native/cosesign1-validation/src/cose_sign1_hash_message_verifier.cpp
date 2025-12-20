@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file cose_sign1_hash_message_verifier.cpp
+ * @brief Implementation of CoseSign1HashMessageVerifier.
+ */
+
 #include "cosesign1/validation/cose_sign1_hash_message_verifier.h"
 
 #include <algorithm>

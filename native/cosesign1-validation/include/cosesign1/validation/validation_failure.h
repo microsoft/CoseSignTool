@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file validation_failure.h
+ * @brief Structured failure details produced by validators.
+ */
 
 #include <optional>
 #include <string>

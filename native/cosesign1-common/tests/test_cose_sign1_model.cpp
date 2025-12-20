@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_cose_sign1_model.cpp
+ * @brief Unit tests for the COSE_Sign1 model types.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

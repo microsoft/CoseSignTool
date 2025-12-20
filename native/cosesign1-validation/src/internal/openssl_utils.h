@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file openssl_utils.h
+ * @brief Internal OpenSSL helper declarations.
+ */
+
 #pragma once
 
 #include <cstdint>

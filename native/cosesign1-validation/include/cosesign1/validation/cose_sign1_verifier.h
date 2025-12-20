@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cose_sign1_verifier.h
+ * @brief Low-level COSE_Sign1 signature verification API.
+ */
 
 #include <cstdint>
 #include <functional>

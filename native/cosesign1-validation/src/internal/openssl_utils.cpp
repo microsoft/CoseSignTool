@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file openssl_utils.cpp
+ * @brief OpenSSL helpers shared across COSE_Sign1 validation.
+ */
+
 #include "openssl_utils.h"
 
 #include <cstring>

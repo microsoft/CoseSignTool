@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cbor.h
+ * @brief CBOR parsing helpers used by the COSE_Sign1 model.
+ */
 
 // Umbrella header for cosesign1-common CBOR/COSE helpers.
 //

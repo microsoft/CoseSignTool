@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file online_key_resolver.cpp
+ * @brief Offline-first key resolution with optional JWKS network fallback.
+ */
+
 #include "cosesign1/mst/online_key_resolver.h"
 
 #include <utility>

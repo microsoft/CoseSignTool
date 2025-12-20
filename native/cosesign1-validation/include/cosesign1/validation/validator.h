@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file validator.h
+ * @brief Generic validator interface used by some helpers and tests.
+ */
 
 #include "cosesign1/validation/validation_result.h"
 

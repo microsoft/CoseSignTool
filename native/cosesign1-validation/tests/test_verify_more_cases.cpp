@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_more_cases.cpp
+ * @brief Additional COSE_Sign1 verification test cases.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

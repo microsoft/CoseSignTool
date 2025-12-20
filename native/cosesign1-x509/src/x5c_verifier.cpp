@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file x5c_verifier.cpp
+ * @brief X.509 (x5c) certificate-chain based COSE_Sign1 verification.
+ */
+
 #include "cosesign1/x509/x5c_verifier.h"
 
 #include <cstddef>

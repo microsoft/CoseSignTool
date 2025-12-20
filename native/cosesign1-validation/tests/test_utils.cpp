@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_utils.cpp
+ * @brief Test helper implementations.
+ */
+
 #include "test_utils.h"
 
 #include <functional>

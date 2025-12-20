@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file validator_markers.h
+ * @brief Marker interfaces used to express validator ordering requirements.
+ */
 
 namespace cosesign1::validation {
 

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file coverage_hooks.h
+ * @brief Internal declarations for coverage-only helpers.
+ */
+
 #pragma once
 
 namespace cosesign1::internal {

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_bad_signature.cpp
+ * @brief Verification tests for invalid signatures.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

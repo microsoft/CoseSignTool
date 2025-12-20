@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_detached_payload.cpp
+ * @brief Verification tests for detached payload behavior.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

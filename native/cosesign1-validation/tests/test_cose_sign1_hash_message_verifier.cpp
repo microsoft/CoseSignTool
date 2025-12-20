@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_cose_sign1_hash_message_verifier.cpp
+ * @brief Unit tests for CoseSign1HashMessageVerifier.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_es256.cpp
+ * @brief Verification tests for ES256.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

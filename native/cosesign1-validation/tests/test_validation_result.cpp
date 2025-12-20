@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_validation_result.cpp
+ * @brief Unit tests for ValidationResult.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "cosesign1/validation/validation_result.h"

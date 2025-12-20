@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file mst_verifier.cpp
+ * @brief MST receipt parsing and verification implementation.
+ */
+
 #include "cosesign1/mst/mst_verifier.h"
 
 #include <algorithm>

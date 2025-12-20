@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cose_sign1_hash_message_verifier.h
+ * @brief Validates COSE hash-envelope external payloads by comparing embedded hash payload.
+ */
 
 #include <cstdint>
 #include <functional>

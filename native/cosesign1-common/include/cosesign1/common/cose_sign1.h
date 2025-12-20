@@ -1,4 +1,12 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
+
+/**
+ * @file cose_sign1.h
+ * @brief Parsed COSE_Sign1 view types used by validators/verifiers.
+ */
 
 #include <cstddef>
 #include <cstdint>

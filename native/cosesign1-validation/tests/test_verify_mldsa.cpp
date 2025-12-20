@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+/**
+ * @file test_verify_mldsa.cpp
+ * @brief Verification tests for ML-DSA.
+ */
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>

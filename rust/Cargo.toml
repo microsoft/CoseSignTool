@@ -18,6 +18,7 @@ repository = "https://github.com/microsoft/CoseSignTool"
 [workspace.dependencies]
 thiserror = "2"
 minicbor = { version = "0.26", features = ["alloc", "std"] }
+base64 = "0.22"
 ml-dsa = { version = "0.0.4", default-features = false, features = ["alloc", "pkcs8"] }
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
 p384 = { version = "0.13", features = ["ecdsa", "pkcs8"] }

@@ -7,6 +7,14 @@ Licensed under the MIT License.
 
 This folder contains end-user documentation and a minimal example CLI that consumes the Rust verifier crates.
 
+## Architecture and extending
+
+- Architecture overview: `architecture.md`
+- MST verifier details: `mst-verifier.md`
+- Sequence diagrams (Mermaid): `sequence-diagrams.md`
+- Extending guide: `extending.md`
+- Testing and coverage: `testing-and-coverage.md`
+
 ## Quick start
 
 From `rust/`:

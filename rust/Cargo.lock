@@ -130,10 +130,16 @@ dependencies = [
 name = "cosesign1-mst"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "cosesign1-common",
  "cosesign1-validation",
+ "minicbor",
+ "p256",
+ "p384",
+ "p521",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.17",
 ]
 

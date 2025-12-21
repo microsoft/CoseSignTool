@@ -10,6 +10,7 @@ The Rust port provides a small set of crates:
 - `cosesign1-common`: COSE_Sign1 parsing and Sig_structure encoding
 - `cosesign1-validation`: signature verification (ES256/384/512, RS256, PS256, and ML-DSA-44/65/87)
 - `cosesign1-x509`: x5c extraction and leaf-certificate-based verification helpers
+- `cosesign1-mst`: Microsoft Transparent Statement (MST) receipt verification
 
 ## Basic verification
 
@@ -90,3 +91,93 @@ For ML-DSA (-48/-49/-50), the verifier accepts:
 - DER X.509 certificate (OID is checked when present)
 
 If you pass a certificate/SPKI with a non-matching OID for the selected ML-DSA algorithm, validation fails with `INVALID_PUBLIC_KEY`.
+
+## MST (transparent statement) receipt verification
+
+`cosesign1-mst` verifies receipts embedded in the statement’s unprotected header and returns a `ValidationResult`.
+
+For detailed behavior and header-label semantics, see `mst-verifier.md`.
+
+### MST offline verification (keys provided by caller)
+
+Use `OfflineEcKeyStore` and insert keys by `(issuer_host, kid)`.
+
+```rust
+use cosesign1_mst::{
+    verify_transparent_statement, OfflineEcKeyStore, ResolvedKey, VerificationOptions,
+};
+use cosesign1_validation::CoseAlgorithm;
+
+fn verify_mst_offline(statement: &[u8], issuer: &str, kid: &str, spki_der: Vec<u8>) -> bool {
+    let mut key_store = OfflineEcKeyStore::default();
+    key_store.insert(
+        issuer,
+        kid,
+        ResolvedKey {
+            public_key_bytes: spki_der,
+            expected_alg: CoseAlgorithm::ES256,
+        },
+    );
+
+    let mut opts = VerificationOptions::default();
+    opts.authorized_domains = vec![issuer.to_string()];
+    // Configure other behaviors if needed:
+    // opts.authorized_receipt_behavior = ...;
+    // opts.unauthorized_receipt_behavior = ...;
+
+    verify_transparent_statement("MST", statement, &key_store, &opts).is_valid
+}
+```
+
+Notes:
+
+- `public_key_bytes` should be a DER SubjectPublicKeyInfo (SPKI) for the receipt public key.
+- The MST verifier also supports `kid` values that are not ASCII by normalizing them to lowercase hex.
+
+### MST online verification (JWKS fallback)
+
+Online mode is a **two-pass** strategy:
+
+1. Attempt offline verification using keys already present in the cache.
+2. If invalid and `allow_network_key_fetch == true`, fetch JWKS for authorized issuers, populate the cache, then retry.
+
+The MST crate does not pick an HTTP client. Your application provides a `JwksFetcher` implementation.
+
+```rust
+use cosesign1_mst::{
+    verify_transparent_statement_online, JwksFetcher, OfflineEcKeyStore, VerificationOptions,
+};
+
+struct MyJwksFetcher;
+
+impl JwksFetcher for MyJwksFetcher {
+    fn fetch_jwks(&self, issuer_host: &str, jwks_path: &str, timeout_ms: u32) -> Result<Vec<u8>, String> {
+        // Implement with your preferred HTTP stack.
+        // Expected return: raw JWKS JSON bytes.
+        // Example URL shape: https://{issuer_host}{jwks_path}
+        let _ = (issuer_host, jwks_path, timeout_ms);
+        Err("not implemented".to_string())
+    }
+}
+
+fn verify_mst_online(statement: &[u8], authorized_issuers: Vec<String>) -> bool {
+    let mut cache = OfflineEcKeyStore::default();
+    let fetcher = MyJwksFetcher;
+
+    let mut opts = VerificationOptions::default();
+    opts.authorized_domains = authorized_issuers;
+    opts.allow_network_key_fetch = true;
+    opts.jwks_path = "/jwks".to_string();
+    opts.jwks_timeout_ms = 5_000;
+
+    verify_transparent_statement_online("MST", statement, &mut cache, &fetcher, &opts).is_valid
+}
+```
+
+Notes:
+
+- JWKS keys are filtered to EC JWKs and inserted into the cache by `(issuer, kid)`.
+- The verifier maps EC curves to expected COSE algorithms:
+  - `P-256` → `ES256`
+  - `P-384` → `ES384`
+  - `P-521` → `ES512`

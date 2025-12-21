@@ -366,3 +366,7 @@ FodyWeavers.xsd
 
 # Visual Studio live unit testing configuration files.
 *.lutconfig
+
+# Rust
+/rust/target/
+/rust/**/target/

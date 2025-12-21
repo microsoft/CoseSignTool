@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Verification tests for additional algorithms and input encodings.
+//!
+//! Covers success paths for ES384/ES512/RSA variants and a handful of common
+//! failure modes.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1};
 use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 use signature::Signer;
@@ -8,6 +13,7 @@ use signature::SignatureEncoding as _;
 use p256::pkcs8::DecodePrivateKey as _;
 use p256::pkcs8::EncodePublicKey as _;
 
+// Helper to build protected headers containing `{ 1: alg }`.
 fn encode_protected_map(alg: i64) -> Vec<u8> {
     let mut out = Vec::new();
     let mut enc = minicbor::Encoder::new(&mut out);
@@ -17,6 +23,8 @@ fn encode_protected_map(alg: i64) -> Vec<u8> {
     out
 }
 
+// Helper to build a minimal COSE_Sign1 structure.
+// `payload: None` encodes a detached payload (`null`).
 fn encode_sign1(protected: &[u8], payload: Option<&[u8]>, signature: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut enc = minicbor::Encoder::new(&mut out);

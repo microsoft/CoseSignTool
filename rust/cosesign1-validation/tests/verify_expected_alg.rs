@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Tests for the `expected_alg` guard.
+//!
+//! When callers know the expected algorithm out-of-band, they can require it.
+//! This prevents algorithm confusion and fails fast.
+
 use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 use minicbor::Encoder;
 

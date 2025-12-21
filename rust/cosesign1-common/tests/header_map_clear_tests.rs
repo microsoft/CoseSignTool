@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Tests for `CoseHeaderMap` container behavior.
+//!
+//! Verifies helper semantics like `.clear()` and the intended behavior that
+//! unprotected headers do not preserve an encoded-map byte representation.
+
 use cosesign1_common::{parse_cose_sign1, CoseHeaderMap};
 
 #[test]

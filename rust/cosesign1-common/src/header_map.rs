@@ -1,6 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! COSE header map decoding.
+//!
+//! COSE header parameters live in two header maps:
+//! - Protected headers: encoded as a CBOR bstr containing a CBOR map
+//! - Unprotected headers: encoded as an inline CBOR map
+//!
+//! This module decodes those CBOR maps into a small set of strongly typed values.
+//! The implementation is intentionally conservative:
+//! - Only supports the CBOR types this project needs.
+//! - Rejects indefinite-length arrays/maps.
+//! - Rejects unsupported key/value types with clear errors.
+
 use std::collections::BTreeMap;
 
 use minicbor::data::Type;
@@ -8,37 +20,56 @@ use minicbor::Decoder;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HeaderKey {
+    /// Integer label (the most common COSE header key form).
     Int(i64),
+    /// Text label (used by some ecosystems, e.g., "kid").
     Text(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HeaderValue {
+    /// Integer value.
     Int(i64),
+    /// Byte string value.
     Bytes(Vec<u8>),
+    /// Text string value.
     Text(String),
+    /// Array of nested header values.
     Array(Vec<HeaderValue>),
+    /// Nested map.
     Map(BTreeMap<HeaderKey, HeaderValue>),
+    /// Boolean value.
     Bool(bool),
+    /// Null value.
     Null,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct CoseHeaderMap {
+    // For protected headers, COSE requires the original CBOR bytes (bstr) to be
+    // included in Sig_structure. We retain those bytes to avoid re-encoding.
     encoded_map_cbor: Vec<u8>,
+    // Decoded map used for lookups.
     map: BTreeMap<HeaderKey, HeaderValue>,
 }
 
 impl CoseHeaderMap {
+    /// Clear both the stored CBOR encoding and the decoded map.
     pub fn clear(&mut self) {
         self.encoded_map_cbor.clear();
         self.map.clear();
     }
 
+    /// Return the original CBOR encoding of this header map.
+    ///
+    /// For protected headers, this is the bstr content (CBOR-encoded map bytes).
+    /// For unprotected headers, this is intentionally empty.
     pub fn encoded_map_cbor(&self) -> &[u8] {
         &self.encoded_map_cbor
     }
 
+    /// Convenience getter: integer value for an integer key.
+    /// Returns `None` when the key is missing or the value is a different type.
     pub fn get_i64(&self, key: i64) -> Option<i64> {
         self.map.get(&HeaderKey::Int(key)).and_then(|v| match v {
             HeaderValue::Int(i) => Some(*i),
@@ -46,6 +77,8 @@ impl CoseHeaderMap {
         })
     }
 
+    /// Convenience getter: bytes value for an integer key.
+    /// Returns `None` when the key is missing or the value is a different type.
     pub fn get_bytes(&self, key: i64) -> Option<&[u8]> {
         self.map.get(&HeaderKey::Int(key)).and_then(|v| match v {
             HeaderValue::Bytes(b) => Some(b.as_slice()),
@@ -53,6 +86,8 @@ impl CoseHeaderMap {
         })
     }
 
+    /// Convenience getter: array value for an integer key.
+    /// Returns `None` when the key is missing or the value is a different type.
     pub fn get_array(&self, key: i64) -> Option<&[HeaderValue]> {
         self.map.get(&HeaderKey::Int(key)).and_then(|v| match v {
             HeaderValue::Array(a) => Some(a.as_slice()),
@@ -60,6 +95,7 @@ impl CoseHeaderMap {
         })
     }
 
+    /// Access the decoded map (primarily for diagnostics and testing).
     pub fn map(&self) -> &BTreeMap<HeaderKey, HeaderValue> {
         &self.map
     }
@@ -73,6 +109,9 @@ impl CoseHeaderMap {
     }
 }
 
+/// Decode a header map from the CBOR bytes contained within a protected header bstr.
+///
+/// This expects the provided `bytes` to be the CBOR encoding of a map.
 pub(crate) fn decode_header_map_from_cbor(bytes: &[u8]) -> Result<BTreeMap<HeaderKey, HeaderValue>, String> {
     let mut dec = Decoder::new(bytes);
 
@@ -100,6 +139,9 @@ pub(crate) fn decode_header_map_from_cbor(bytes: &[u8]) -> Result<BTreeMap<Heade
     Ok(map)
 }
 
+/// Decode a header map directly from a CBOR decoder.
+///
+/// This is used for unprotected headers, which appear inline in COSE_Sign1.
 pub(crate) fn decode_header_map_from_decoder(dec: &mut Decoder<'_>) -> Result<BTreeMap<HeaderKey, HeaderValue>, String> {
     let len = dec
         .map()
@@ -116,6 +158,9 @@ pub(crate) fn decode_header_map_from_decoder(dec: &mut Decoder<'_>) -> Result<BT
     Ok(map)
 }
 
+/// Decode a COSE header map key.
+///
+/// COSE keys are most often small integers, but may also be text.
 fn decode_header_key(dec: &mut Decoder<'_>) -> Result<HeaderKey, String> {
     match dec.datatype().map_err(|e| e.to_string())? {
         Type::I8
@@ -142,6 +187,9 @@ fn decode_header_key(dec: &mut Decoder<'_>) -> Result<HeaderKey, String> {
     }
 }
 
+/// Decode a COSE header map value.
+///
+/// Only a subset of CBOR types are supported.
 fn decode_header_value(dec: &mut Decoder<'_>) -> Result<HeaderValue, String> {
     match dec.datatype().map_err(|e| e.to_string())? {
         Type::Null => {

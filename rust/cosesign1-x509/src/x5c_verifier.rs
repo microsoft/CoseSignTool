@@ -1,27 +1,46 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Verification entry points that use the COSE `x5c` header.
+//!
+//! The COSE header parameter `x5c` (label 33) contains a certificate chain.
+//! This module:
+//! - Extracts the leaf certificate DER from `x5c[0]`.
+//! - Uses that DER certificate as the public key input to the core verifier.
+//!
+//! This provides a practical interoperability bridge while full X.509 chain
+//! evaluation is still being built in the Rust port.
+
 use cosesign1_common::{parse_cose_sign1, HeaderValue, ParsedCoseSign1};
 use cosesign1_validation::{verify_parsed_cose_sign1, ValidationResult, VerifyOptions};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum X509TrustMode {
+    /// Use system trust.
     System = 0,
+    /// Use explicitly provided trusted roots.
     CustomRoots = 1,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum X509RevocationMode {
+    /// Do not perform revocation checks.
     NoCheck = 0,
+    /// Perform online revocation checks.
     Online = 1,
+    /// Perform offline revocation checks.
     Offline = 2,
 }
 
 #[derive(Debug, Clone)]
 pub struct X509ChainVerifyOptions {
+    /// Trust mode used for evaluating the chain.
     pub trust_mode: X509TrustMode,
+    /// Revocation checking mode.
     pub revocation_mode: X509RevocationMode,
+    /// Root certificates (DER) used when `trust_mode` is `CustomRoots`.
     pub trusted_roots_der: Vec<Vec<u8>>,
+    /// Diagnostic/compatibility mode. When true, allow untrusted roots.
     pub allow_untrusted_roots: bool,
 }
 
@@ -42,6 +61,7 @@ pub fn verify_cose_sign1_with_x5c(
     options: &VerifyOptions,
     chain_options: Option<&X509ChainVerifyOptions>,
 ) -> ValidationResult {
+    // Parse first; x5c extraction requires the headers.
     let parsed = match parse_cose_sign1(cose_sign1) {
         Ok(p) => p,
         Err(e) => return ValidationResult::failure_message(validator_name, e, Some("COSE_PARSE_ERROR".to_string())),
@@ -57,6 +77,7 @@ pub fn verify_parsed_cose_sign1_with_x5c(
     chain_options: Option<&X509ChainVerifyOptions>,
 ) -> ValidationResult {
     // x5c header label is 33.
+    // COSE allows headers to be in protected or unprotected maps.
     let x5c = parsed
         .protected_headers
         .get_array(33)
@@ -67,6 +88,7 @@ pub fn verify_parsed_cose_sign1_with_x5c(
     };
 
     let mut certs_der = Vec::new();
+    // x5c must be an array of bstr elements.
     for v in x5c {
         match v {
             HeaderValue::Bytes(b) => certs_der.push(b.clone()),
@@ -80,6 +102,7 @@ pub fn verify_parsed_cose_sign1_with_x5c(
 
     match chain_options {
         Some(chain) => {
+            // Parity gap: revocation checking is not implemented in the Rust port.
             if chain.revocation_mode != X509RevocationMode::NoCheck {
                 return ValidationResult::failure_message(
                     validator_name,
@@ -101,9 +124,12 @@ pub fn verify_parsed_cose_sign1_with_x5c(
         None => {}
     }
 
+    // Clone and override the public key input so the core verifier uses the leaf certificate.
+    // The core verifier accepts cert DER and will extract SPKI as needed.
     let mut opts = options.clone();
     opts.public_key_bytes = Some(leaf_der.clone());
 
+    // Detached payload handling is delegated to the core verifier.
     let external = options.external_payload.as_deref().or_else(|| parsed.payload.as_deref());
     verify_parsed_cose_sign1(validator_name, parsed, external, &opts)
 }

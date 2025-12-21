@@ -1,12 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Error-path coverage tests for signature verification.
+//!
+//! These tests intentionally feed invalid/malformed keys, signatures, and COSE
+//! structures to ensure the verifier returns deterministic error codes and
+//! exercises non-happy-path logic.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1};
 use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
 use ml_dsa::{KeyGen, MlDsa65};
 use signature::Signer;
 use p256::pkcs8::EncodePublicKey as _;
 
+// Helper to build protected headers containing `{ 1: alg }`.
 fn encode_protected_map(alg: i64) -> Vec<u8> {
     let mut out = Vec::new();
     let mut enc = minicbor::Encoder::new(&mut out);
@@ -16,6 +23,8 @@ fn encode_protected_map(alg: i64) -> Vec<u8> {
     out
 }
 
+// Helper to build a minimal COSE_Sign1 structure.
+// `payload: None` encodes a detached payload (`null`).
 fn encode_sign1(protected: &[u8], payload: Option<&[u8]>, signature: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut enc = minicbor::Encoder::new(&mut out);

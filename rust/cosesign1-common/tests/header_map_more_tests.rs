@@ -1,9 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Header map decoding tests.
+//!
+//! These tests validate the supported subset of CBOR types and ensure we fail
+//! fast on unsupported or malformed encodings.
+
+/// Decode a protected-header map by embedding it into a minimal COSE_Sign1.
+///
+/// This intentionally routes through the same parsing code paths used in
+/// production (ParseCoseSign1 + header decoding).
 fn decode_map(bytes: &[u8]) -> std::collections::BTreeMap<cosesign1_common::HeaderKey, cosesign1_common::HeaderValue> {
-    // This uses the same internal parser as production code by going through ParseCoseSign1.
-    // For header-map-only tests, we construct a minimal COSE_Sign1 whose protected header bytes are the map bytes.
+    // For header-map-only tests, we construct a minimal COSE_Sign1 whose
+    // protected header bytes are the map bytes.
     let protected = bytes.to_vec();
 
     let mut msg = Vec::new();

@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Smoke tests for MST stub APIs.
+//!
+//! These ensure the MST parity surface remains wired up and returns consistent
+//! `NOT_IMPLEMENTED` failures until the full verifier is implemented.
+
 use cosesign1_mst::{verify_transparent_statement, verify_transparent_statement_receipt, VerificationOptions};
 
 #[test]

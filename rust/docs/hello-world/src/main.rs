@@ -1,8 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Minimal “hello world” consumer for the Rust COSE_Sign1 verifier.
+//!
+//! This binary demonstrates how external consumers can call into
+//! `cosesign1-validation` using file inputs.
+//!
+//! Inputs:
+//! - COSE_Sign1 bytes (CBOR)
+//! - Public key bytes (raw, SPKI DER, or cert DER; depending on algorithm)
+//! - Optional external payload bytes (for detached payload COSE_Sign1)
+
 use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
 
+/// Read a file to bytes or exit with a clear error.
 fn read(path: &str) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|e| {
         eprintln!("failed to read {path}: {e}");
@@ -13,6 +24,8 @@ fn read(path: &str) -> Vec<u8> {
 fn main() {
     // Usage:
     //   hello-world.exe <cose_sign1_file> <public_key_file> [external_payload_file]
+    //
+    // We keep this intentionally small: parse args, call verifier, print result.
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 3 || args.len() > 4 {

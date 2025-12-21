@@ -1,12 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Detached payload verification tests.
+//!
+//! COSE_Sign1 may omit the payload (set it to `null`). In that case, callers
+//! must supply the external payload bytes for verification to succeed.
+
 use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 use minicbor::Encoder;
 use p256::ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
 use p256::pkcs8::EncodePublicKey;
 
+// Build a minimal ES256 COSE_Sign1 with a detached payload.
 fn build_detached_es256(external_payload: &[u8], sk: &SigningKey) -> Vec<u8> {
     let protected = {
         let mut buf = Vec::new();

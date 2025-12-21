@@ -1,9 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Positive COSE_Sign1 parsing tests.
+//!
+//! These focus on accepted encodings (tagged/untagged, detached payload) and
+//! basic header-map decoding behavior.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1, HeaderValue};
 use minicbor::{Encoder};
 
+// Helper to build a minimal, mostly-well-formed COSE_Sign1.
 fn make_basic_sign1(tagged: bool, detached: bool) -> Vec<u8> {
     // COSE_Sign1 = [ protected : bstr, unprotected : map, payload : bstr / nil, signature : bstr ]
     let protected = {
@@ -48,6 +54,7 @@ fn parse_supports_detached_payload() {
     let cose = make_basic_sign1(false, true);
     let parsed = parse_cose_sign1(&cose).expect("parse");
     assert!(parsed.payload.is_none());
+    // Detached payload must be provided externally for Sig_structure encoding.
     let sig_struct = encode_signature1_sig_structure(&parsed, Some(b"external")).expect("sig");
     assert!(!sig_struct.is_empty());
 }

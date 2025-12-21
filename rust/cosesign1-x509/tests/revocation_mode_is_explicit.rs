@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Documents current revocation behavior.
+//!
+//! The Rust port does not implement revocation checking yet; this test exists
+//! to keep that limitation explicit and stable.
+
 use cosesign1_x509::{verify_cose_sign1_with_x5c, X509ChainVerifyOptions, X509RevocationMode};
 
 #[test]

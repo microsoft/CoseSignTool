@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Basic unit tests for `ValidationResult` helpers.
+
 use cosesign1_validation::ValidationResult;
 
 #[test]

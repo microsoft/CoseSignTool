@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Tests for Sig_structure encoding.
+//!
+//! Sig_structure is the canonical byte array that signature algorithms verify.
+//! These tests ensure detached-payload handling and the view helper behave as expected.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1, ParsedCoseSign1};
 
 #[test]

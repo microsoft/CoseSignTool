@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Tests for decoding unprotected header maps.
+//!
+//! Unprotected headers are encoded inline as a CBOR map and are not included in
+//! the Sig_structure bytes.
+
 use cosesign1_common::parse_cose_sign1;
 
 #[test]

@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Additional COSE_Sign1 parsing error-path coverage.
+//!
+//! Focuses on truncated inputs and unsupported CBOR encodings (e.g.,
+//! indefinite-length arrays).
+
 use cosesign1_common::parse_cose_sign1;
 
 #[test]

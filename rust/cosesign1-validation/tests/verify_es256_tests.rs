@@ -1,6 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! End-to-end ES256 verification tests.
+//!
+//! These tests build a valid COSE_Sign1 and validate that the verifier accepts
+//! the correct key and rejects the wrong key.
+
 use cosesign1_common::parse_cose_sign1;
 use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 use minicbor::Encoder;
@@ -8,6 +13,7 @@ use p256::ecdsa::signature::Signer;
 use p256::pkcs8::EncodePublicKey;
 use p256::ecdsa::SigningKey;
 
+// Build a minimal ES256 COSE_Sign1 and sign its Sig_structure.
 fn build_sign1_es256(payload: &[u8], sk: &SigningKey) -> Vec<u8> {
     // protected = { 1: -7 }
     let protected = {

@@ -1,0 +1,40 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[workspace]
+resolver = "2"
+members = [
+  "cosesign1-common",
+  "cosesign1-validation",
+  "cosesign1-x509",
+  "cosesign1-mst",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/microsoft/CoseSignTool"
+
+[workspace.dependencies]
+thiserror = "2"
+minicbor = { version = "0.26", features = ["alloc", "std"] }
+base64 = "0.22"
+ml-dsa = { version = "0.0.4", default-features = false, features = ["alloc", "pkcs8"] }
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
+p384 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
+p521 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
+rsa = { version = "0.9", features = ["sha2"] }
+sha2 = "0.10"
+signature = "2"
+x509-parser = "0.16"
+rustls-native-certs = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rcgen = "0.13"
+
+[profile.dev]
+# Make local iteration faster while keeping debuginfo for coverage.
+debug = 1
+
+[profile.test]
+debug = 1

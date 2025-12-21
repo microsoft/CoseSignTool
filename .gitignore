@@ -386,3 +386,7 @@ FodyWeavers.xsd
 
 # VCPKG Build output
 build/
+
+# Rust
+/rust/target/
+/rust/**/target/

@@ -19,7 +19,10 @@ Requirements:
 
 - V2-like `ValidationResult` / `ValidationFailure`
 - `CoseSign1ValidationBuilder` that composes COSE validators (optionally parallel)
-- COSE_Sign1 verifier (currently ES256 + PS256)
+- COSE_Sign1 signature verifier
+	- ECDSA: ES256 / ES384 / ES512
+	- RSA: RS256 + PS256
+	- Optional PQC: ML-DSA-44/65/87 when built with `COSESIGN1_ENABLE_PQC` + liboqs
 
 ## Notes
 

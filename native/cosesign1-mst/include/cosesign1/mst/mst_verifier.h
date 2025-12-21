@@ -5,7 +5,7 @@
 
 /**
  * @file mst_verifier.h
- * @brief Verification entry points for Microsoft Transparent Statement (MST) receipts.
+ * @brief Verification entry points for Microsoft Signing Transparency (MST) receipts.
  */
 
 #include <cstdint>

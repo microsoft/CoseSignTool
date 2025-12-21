@@ -1,6 +1,6 @@
 # MST receipt verifier (`cosesign1_mst`)
 
-This package verifies Microsoft Transparent Statement (MST) receipts embedded in a “transparent statement” COSE_Sign1.
+This package verifies Microsoft Signing Transparency (MST) receipts embedded in a “transparent statement” COSE_Sign1.
 
 ## Entry points
 

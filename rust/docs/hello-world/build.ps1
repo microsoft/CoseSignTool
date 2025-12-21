@@ -12,9 +12,9 @@ try {
     throw "cargo build failed (exit $LASTEXITCODE)"
   }
 
-  $exe = Join-Path $PSScriptRoot 'target/release/hello-world.exe'
+  $exe = Join-Path $PSScriptRoot 'target/release/cosesign1_hello_world.exe'
   Write-Host "Built: $exe" -ForegroundColor Green
-  Write-Host "Run:   $exe <cose_sign1_file> <public_key_file> [external_payload_file]" -ForegroundColor Cyan
+  Write-Host "Run:   $exe <mode> [args...]" -ForegroundColor Cyan
 } finally {
   Pop-Location
 }

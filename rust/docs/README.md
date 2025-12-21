@@ -15,6 +15,11 @@ This folder contains end-user documentation and a minimal example CLI that consu
 - Extending guide: `extending.md`
 - Testing and coverage: `testing-and-coverage.md`
 
+## Using the libraries
+
+- Verification guide: `verification.md`
+- Copy/paste snippets: `examples.md`
+
 ## Quick start
 
 From `rust/`:
@@ -22,7 +27,7 @@ From `rust/`:
 - Run tests: `cargo test --workspace`
 - Run coverage gate (95% lines): `./collect-coverage.ps1`
 
-## Example CLI ("hello world")
+## Example CLI (consumer app)
 
 A small, standalone Rust binary crate lives in `rust/docs/hello-world/`.
 
@@ -31,15 +36,14 @@ Build (Windows PowerShell):
 - `pwsh -NoProfile -Command "Set-Location rust/docs/hello-world; ./build.ps1"`
 
 Run:
-
-- `rust/docs/hello-world/target/release/hello-world.exe <cose_sign1_file> <public_key_file> [external_payload_file]`
+- `rust/docs/hello-world/target/release/cosesign1_hello_world.exe <mode> [args...]`
 
 Notes:
 
 - `public_key_file` can be one of:
-  - raw public key bytes (for ML-DSA this is the encoded verifying key bytes)
+  - raw public key bytes (ML-DSA only; these are the encoded verifying key bytes)
   - DER SubjectPublicKeyInfo
   - DER X.509 certificate (the leaf SPKI is extracted)
-- For detached payload COSE_Sign1, pass `external_payload_file`.
+- See `rust/docs/hello-world/README.md` for the supported modes and flags.
 
 See `verification.md` for library usage examples.

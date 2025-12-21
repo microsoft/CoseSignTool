@@ -10,7 +10,7 @@ The Rust port provides a small set of crates:
 - `cosesign1-common`: COSE_Sign1 parsing and Sig_structure encoding
 - `cosesign1-validation`: signature verification (ES256/384/512, RS256, PS256, and ML-DSA-44/65/87)
 - `cosesign1-x509`: x5c extraction and leaf-certificate-based verification helpers
-- `cosesign1-mst`: Microsoft Transparent Statement (MST) receipt verification
+- `cosesign1-mst`: Microsoft Signing Transparency (MST) receipt verification
 
 ## Basic verification
 
@@ -20,7 +20,7 @@ The Rust port provides a small set of crates:
 use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
 
 let cose_sign1_bytes: Vec<u8> = std::fs::read("message.cose")?;
-let public_key_bytes: Vec<u8> = std::fs::read("public_key.der")?; // SPKI DER, cert DER, or raw key bytes
+let public_key_bytes: Vec<u8> = std::fs::read("public_key.der")?; // DER SPKI or DER X.509 cert (ML-DSA also supports raw verifying key bytes)
 
 let opts = VerifyOptions {
     public_key_bytes: Some(public_key_bytes),
@@ -68,17 +68,19 @@ let opts = VerifyOptions {
 
 ## x5c / certificate-based verification
 
-The x5c helper verifies a COSE_Sign1 using the leaf certificate embedded in the message.
+The x5c helper verifies a COSE_Sign1 signature using the **leaf certificate** embedded in the message.
+
+Note: unlike the native `cosesign1_x509`, the Rust port does not currently implement X.509 chain trust evaluation or revocation checking.
 
 ```rust
 use cosesign1_validation::VerifyOptions;
-use cosesign1_x509::{verify_cose_sign1_with_x5c, X509ChainVerifyOptions};
+use cosesign1_x509::verify_cose_sign1_with_x5c;
 
 let cose_sign1_bytes = std::fs::read("message_with_x5c.cose")?;
 let opts = VerifyOptions::default();
-let chain = X509ChainVerifyOptions::default();
 
-let res = verify_cose_sign1_with_x5c("X5c", &cose_sign1_bytes, &opts, Some(&chain));
+// Pass `None` to perform signature verification using the embedded leaf certificate.
+let res = verify_cose_sign1_with_x5c("X5c", &cose_sign1_bytes, &opts, None);
 assert!(res.is_valid, "{res:?}");
 ```
 
@@ -92,7 +94,7 @@ For ML-DSA (-48/-49/-50), the verifier accepts:
 
 If you pass a certificate/SPKI with a non-matching OID for the selected ML-DSA algorithm, validation fails with `INVALID_PUBLIC_KEY`.
 
-## MST (transparent statement) receipt verification
+## MST (Signing Transparency) receipt verification
 
 `cosesign1-mst` verifies receipts embedded in the statement’s unprotected header and returns a `ValidationResult`.
 

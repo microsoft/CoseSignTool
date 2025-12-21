@@ -24,7 +24,7 @@ This repo contains a Rust port of the COSE_Sign1 verification stack and related 
   - Bridges “certificate inputs” (DER cert / SPKI) into the `public_key_bytes` expected by `cosesign1-validation`.
 
 - `cosesign1-mst`
-  - Verifies Microsoft Transparent Statement (MST) receipts embedded in the statement.
+  - Verifies Microsoft Signing Transparency (MST) receipts embedded in the statement.
   - Supports offline verification using caller-provided keys (`OfflineEcKeyStore`).
   - Supports optional online JWKS fetching via the `JwksFetcher` trait.
 

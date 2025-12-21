@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Microsoft Transparent Statement (MST) receipt verification.
+//! Microsoft Signing Transparency (MST) receipt verification.
 //!
 //! This is a Rust port of the native `native/cosesign1-mst` verifier logic.
 //! It focuses on offline verification (keys supplied by the caller) and mirrors
@@ -413,7 +413,13 @@ fn compute_accumulator(leaf: &Leaf, proof: &[ProofElement]) -> Vec<u8> {
     acc
 }
 
-fn expected_alg_from_crv(crv: &str) -> Option<CoseAlgorithm> {
+/// Determines the expected COSE algorithm from an EC curve name.
+///
+/// Matches the native helper behavior:
+/// - `P-256` => `ES256`
+/// - `P-384` => `ES384`
+/// - `P-521` => `ES512`
+pub fn expected_alg_from_crv(crv: &str) -> Option<CoseAlgorithm> {
     match crv {
         "P-256" => Some(CoseAlgorithm::ES256),
         "P-384" => Some(CoseAlgorithm::ES384),
@@ -422,7 +428,8 @@ fn expected_alg_from_crv(crv: &str) -> Option<CoseAlgorithm> {
     }
 }
 
-fn jwk_ec_to_spki_der(jwk: &JwkEcPublicKey) -> Result<Vec<u8>, String> {
+/// Converts an EC JWK public key into a DER-encoded SubjectPublicKeyInfo.
+pub fn jwk_ec_to_spki_der(jwk: &JwkEcPublicKey) -> Result<Vec<u8>, String> {
     if jwk.kty != "EC" {
         return Err("only EC JWK supported".to_string());
     }
@@ -451,6 +458,42 @@ fn jwk_ec_to_spki_der(jwk: &JwkEcPublicKey) -> Result<Vec<u8>, String> {
         }
         _ => Err("unsupported EC curve".to_string()),
     }
+}
+
+/// Parses a JWKS JSON document (RFC 7517).
+///
+/// Supported key form:
+/// - EC JWKs with (kty=EC, crv, x, y, kid)
+pub fn parse_jwks(jwks_json: &[u8]) -> Result<JwksDocument, String> {
+    serde_json::from_slice(jwks_json).map_err(|e| format!("invalid JWKS JSON: {e}"))
+}
+
+/// Adds supported EC JWK keys from a JWKS document into an offline key store.
+///
+/// Keys are inserted by `(issuer_host, kid)`.
+///
+/// Returns the number of keys inserted.
+pub fn add_issuer_keys(store: &mut OfflineEcKeyStore, issuer_host: &str, doc: &JwksDocument) -> Result<usize, String> {
+    let mut inserted = 0usize;
+    for jwk in &doc.keys {
+        if jwk.kty != "EC" {
+            continue;
+        }
+        let Some(expected_alg) = expected_alg_from_crv(&jwk.crv) else {
+            continue;
+        };
+        let spki_der = jwk_ec_to_spki_der(jwk)?;
+        store.insert(
+            issuer_host,
+            &jwk.kid,
+            ResolvedKey {
+                public_key_bytes: spki_der,
+                expected_alg,
+            },
+        );
+        inserted += 1;
+    }
+    Ok(inserted)
 }
 
 fn read_vdp_inclusion_maps(parsed_receipt: &ParsedCoseSign1) -> Result<Vec<Vec<u8>>, ValidationFailure> {

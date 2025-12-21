@@ -34,5 +34,5 @@ Run:
 See `rust/docs/README.md` for:
 
 - library usage docs
-- a minimal consumer CLI (`rust/docs/hello-world/`) that builds `hello-world.exe`
+- a minimal consumer CLI (`rust/docs/hello-world/`) that builds `cosesign1_hello_world.exe`
 

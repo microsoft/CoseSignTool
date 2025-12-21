@@ -370,3 +370,8 @@ FodyWeavers.xsd
 # Rust
 /rust/target/
 /rust/**/target/
+
+coverage-report/
+
+*.cose
+_tmp_*

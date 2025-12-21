@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

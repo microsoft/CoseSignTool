@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1, HeaderValue};
 use minicbor::{Encoder};
 

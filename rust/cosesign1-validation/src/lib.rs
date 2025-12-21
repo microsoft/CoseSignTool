@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 pub mod cose_sign1_verifier;
 pub mod validation_result;
 

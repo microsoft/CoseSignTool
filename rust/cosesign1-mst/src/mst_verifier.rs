@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_validation::ValidationResult;
 
 #[derive(Debug, Clone, Default)]

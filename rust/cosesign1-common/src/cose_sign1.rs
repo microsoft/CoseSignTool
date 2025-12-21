@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use minicbor::data::Tag;
 use minicbor::data::Type;
 use minicbor::{Decoder, Encoder};

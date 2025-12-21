@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 use minicbor::Encoder;
 

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 // MST parity crate (work-in-progress).
 //
 // Native APIs to mirror:

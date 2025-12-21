@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 fn decode_map(bytes: &[u8]) -> std::collections::BTreeMap<cosesign1_common::HeaderKey, cosesign1_common::HeaderValue> {
     // This uses the same internal parser as production code by going through ParseCoseSign1.
     // For header-map-only tests, we construct a minimal COSE_Sign1 whose protected header bytes are the map bytes.

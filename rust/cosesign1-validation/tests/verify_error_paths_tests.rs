@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1};
 use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
 use ml_dsa::{KeyGen, MlDsa65};

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_mst::{verify_transparent_statement, verify_transparent_statement_receipt, VerificationOptions};
 
 #[test]

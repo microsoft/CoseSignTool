@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_common::parse_cose_sign1;
 
 fn encode_sign1(protected: &[u8], unprotected_is_map: bool, payload_kind: PayloadKind, signature_is_bytes: bool) -> Vec<u8> {

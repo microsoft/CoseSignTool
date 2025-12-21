@@ -1,0 +1,13 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[package]
+name = "hello-world"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# This is a standalone consumer example and is intentionally NOT a member of the rust/ workspace.
+
+[dependencies]
+cosesign1-validation = { path = "../../cosesign1-validation" }

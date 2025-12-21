@@ -1,3 +1,8 @@
+<!--
+Copyright (c) Microsoft Corporation.
+Licensed under the MIT License.
+-->
+
 # Rust (parity with `native/`)
 
 This folder hosts Rust equivalents of the native (C++/vcpkg) validator libraries:
@@ -23,4 +28,11 @@ Prereqs (one-time):
 Run:
 
 - `cargo llvm-cov --workspace --fail-under-lines 95`
+
+## Docs and consumer example
+
+See `rust/docs/README.md` for:
+
+- library usage docs
+- a minimal consumer CLI (`rust/docs/hello-world/`) that builds `hello-world.exe`
 

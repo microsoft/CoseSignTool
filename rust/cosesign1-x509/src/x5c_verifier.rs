@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 use cosesign1_common::{parse_cose_sign1, HeaderValue, ParsedCoseSign1};
 use cosesign1_validation::{verify_parsed_cose_sign1, ValidationResult, VerifyOptions};
 

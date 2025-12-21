@@ -1,0 +1,4 @@
+The package provides CMake targets:
+
+  find_package(cosesign1_mst CONFIG REQUIRED)
+  target_link_libraries(your_target PRIVATE cosesign1::cosesign1_mst)

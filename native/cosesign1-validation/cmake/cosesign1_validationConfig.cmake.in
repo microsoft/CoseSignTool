@@ -1,0 +1,14 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# The exported target links against OpenSSL::Crypto.
+find_dependency(OpenSSL)
+
+# Consumers typically find OpenSSL/tinycbor themselves, but PQC builds require
+# liboqs because the exported target links against OQS::oqs.
+if (@COSESIGN1_ENABLE_PQC@)
+	find_dependency(liboqs CONFIG)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/cosesign1_validationTargets.cmake")

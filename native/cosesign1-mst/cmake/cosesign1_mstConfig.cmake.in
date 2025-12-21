@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# The exported target links against OpenSSL::Crypto.
+find_dependency(OpenSSL)
+
+# The exported target links against nlohmann_json::nlohmann_json and CURL::libcurl.
+find_dependency(nlohmann_json CONFIG)
+find_dependency(CURL CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/cosesign1_mstTargets.cmake")

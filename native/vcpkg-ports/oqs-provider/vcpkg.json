@@ -1,0 +1,13 @@
+{
+  "name": "oqs-provider",
+  "version-string": "0.10.0",
+  "description": "Open Quantum Safe provider module for OpenSSL 3.x.",
+  "homepage": "https://github.com/open-quantum-safe/oqs-provider",
+  "license": "MIT",
+  "dependencies": [
+    "openssl",
+    "liboqs",
+    "vcpkg-cmake",
+    "vcpkg-cmake-config"
+  ]
+}

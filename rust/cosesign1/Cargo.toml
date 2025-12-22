@@ -24,3 +24,12 @@ sha2.workspace = true
 # MST support is optional at this layer for now; the MST verifier operates on
 # transparent statements (which are COSE_Sign1), but its verification model is
 # distinct from key/x509 signature verification.
+
+[dev-dependencies]
+cosesign1-x509 = { path = "../cosesign1-x509" }
+cosesign1-mst = { path = "../cosesign1-mst" }
+rcgen.workspace = true
+uuid.workspace = true
+base64.workspace = true
+rand = "0.8"
+rand_core = "0.6"

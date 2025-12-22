@@ -69,13 +69,7 @@ pub fn parse_cose_sign1(input: &[u8]) -> Result<ParsedCoseSign1, String> {
         .map_err(|e| format!("failed to read protected headers (bstr): {e}"))?
         .to_vec();
 
-    let protected_map = decode_header_map_from_cbor(&protected_bstr).map_err(|e| {
-        if e.is_empty() {
-            "failed to parse protected headers".to_string()
-        } else {
-            e
-        }
-    })?;
+    let protected_map = decode_header_map_from_cbor(&protected_bstr)?;
 
     // unprotected headers (map)
     // This is an inline CBOR map (not wrapped in a bstr).
@@ -83,13 +77,7 @@ pub fn parse_cose_sign1(input: &[u8]) -> Result<ParsedCoseSign1, String> {
         return Err("unprotected headers are not a map".to_string());
     }
 
-    let unprotected_map = decode_header_map_from_decoder(&mut dec).map_err(|e| {
-        if e.is_empty() {
-            "failed to parse unprotected headers map".to_string()
-        } else {
-            e
-        }
-    })?;
+    let unprotected_map = decode_header_map_from_decoder(&mut dec)?;
 
     // payload (bstr or null)
     // COSE_Sign1 uses `null` to represent a detached payload.

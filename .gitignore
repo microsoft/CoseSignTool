@@ -166,6 +166,10 @@ coverage*.json
 coverage*.xml
 coverage*.info
 
+# Rust coverage artifacts (cargo-llvm-cov)
+rust/lcov.info
+rust/cov.txt
+
 # Visual Studio code coverage results
 *.coverage
 *.coveragexml

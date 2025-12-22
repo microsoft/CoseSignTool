@@ -128,15 +128,22 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "cosesign1"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "cosesign1-abstractions",
+ "cosesign1-mst",
+ "cosesign1-x509",
  "minicbor",
  "ml-dsa",
  "p256",
  "p384",
  "p521",
+ "rand",
+ "rand_core",
+ "rcgen",
  "rsa",
  "sha2",
  "signature",
+ "uuid",
  "x509-parser",
 ]
 
@@ -714,6 +721,7 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
+ "libc",
  "rand_chacha",
  "rand_core",
 ]

@@ -197,6 +197,90 @@ fn build_receipt_es256(
     encode_receipt(&protected, &inclusion_map, &sig_bytes)
 }
 
+#[test]
+fn receipt_parses_proof_path_when_path_is_bstr_encoded_array() {
+    // Exercise the "path is bstr" decode branch in proof parsing.
+    let issuer = "issuer.example";
+    let kid = "kid";
+    let claims = b"claims";
+
+    // Inclusion proof leaf values.
+    let tx_hash = sha256(b"tx");
+    let evidence = "evidence";
+    let data_hash = sha256(claims);
+
+    // Path value is a bstr containing CBOR array (empty array = 0x80).
+    let path_cbor = vec![0x80u8];
+
+    let mut inclusion_map = Vec::new();
+    {
+        let mut enc = Encoder::new(&mut inclusion_map);
+        enc.map(2).unwrap();
+        enc.i64(1).unwrap();
+        enc.array(3).unwrap();
+        enc.bytes(&tx_hash).unwrap();
+        enc.str(evidence).unwrap();
+        enc.bytes(&data_hash).unwrap();
+        enc.i64(2).unwrap();
+        enc.bytes(&path_cbor).unwrap();
+    }
+
+    let protected = encode_receipt_headers(kid, Some(issuer), Some(2), false);
+    // Signature is intentionally invalid, but it must be the right size.
+    let receipt = encode_receipt(&protected, &inclusion_map, &[0u8; 64]);
+
+    let sk = p256::ecdsa::SigningKey::from_bytes(&[14u8; 32].into()).expect("sk");
+    let vk = sk.verifying_key();
+    let jwk = build_jwk_from_p256(kid, vk);
+
+    let res = verify_transparent_statement_receipt("mst", &jwk, &receipt, claims);
+    assert!(!res.is_valid);
+    assert_eq!(
+        res.failures.first().and_then(|f| f.error_code.as_deref()),
+        Some("MST_RECEIPT_SIGNATURE_INVALID")
+    );
+}
+
+#[test]
+fn receipt_reports_path_parse_error_for_invalid_path_type() {
+    // Exercise the MST_PATH_PARSE_ERROR early return by making the inclusion map's
+    // path value a non-array/non-bstr type.
+    let issuer = "issuer.example";
+    let kid = "kid";
+    let claims = b"claims";
+
+    let tx_hash = sha256(b"tx");
+    let evidence = "evidence";
+    let data_hash = sha256(claims);
+
+    let mut inclusion_map = Vec::new();
+    {
+        let mut enc = Encoder::new(&mut inclusion_map);
+        enc.map(2).unwrap();
+        enc.i64(1).unwrap();
+        enc.array(3).unwrap();
+        enc.bytes(&tx_hash).unwrap();
+        enc.str(evidence).unwrap();
+        enc.bytes(&data_hash).unwrap();
+        enc.i64(2).unwrap();
+        enc.i64(1).unwrap();
+    }
+
+    let protected = encode_receipt_headers(kid, Some(issuer), Some(2), false);
+    let receipt = encode_receipt(&protected, &inclusion_map, &[0u8; 64]);
+
+    let sk = p256::ecdsa::SigningKey::from_bytes(&[14u8; 32].into()).expect("sk");
+    let vk = sk.verifying_key();
+    let jwk = build_jwk_from_p256(kid, vk);
+
+    let res = verify_transparent_statement_receipt("mst", &jwk, &receipt, claims);
+    assert!(!res.is_valid);
+    assert_eq!(
+        res.failures.first().and_then(|f| f.error_code.as_deref()),
+        Some("MST_PATH_PARSE_ERROR")
+    );
+}
+
 fn encode_receipt_headers(kid: &str, issuer: Option<&str>, vds: Option<i64>, cwt_as_bytes: bool) -> Vec<u8> {
     let mut protected = Vec::new();
     {

@@ -16,6 +16,11 @@ pub mod validation;
 use cosesign1_abstractions::ParsedCoseSign1;
 use crate::validation::VerifyOptions;
 use std::collections::HashMap;
+use std::io::{Read, Seek};
+
+/// Helper trait for `Read + Seek` as a single trait object.
+pub trait ReadSeek: Read + Seek {}
+impl<T: Read + Seek> ReadSeek for T {}
 
 pub use cosesign1_abstractions::{ValidationFailure, ValidationResult};
 
@@ -168,6 +173,59 @@ fn hash_matches(alg: CoseHashAlgorithm, expected_hash: &[u8], payload: &[u8]) ->
     }
 }
 
+fn hash_matches_reader(
+    alg: CoseHashAlgorithm,
+    expected_hash: &[u8],
+    payload_reader: &mut dyn Read,
+) -> Result<bool, String> {
+    let mut buf = [0u8; 64 * 1024];
+
+    match alg {
+        CoseHashAlgorithm::Sha256 => {
+            use sha2::Digest as _;
+            let mut h = sha2::Sha256::new();
+            loop {
+                let n = payload_reader
+                    .read(&mut buf)
+                    .map_err(|e| format!("failed to read payload: {e}"))?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(AsRef::<[u8]>::as_ref(&h.finalize()) == expected_hash)
+        }
+        CoseHashAlgorithm::Sha384 => {
+            use sha2::Digest as _;
+            let mut h = sha2::Sha384::new();
+            loop {
+                let n = payload_reader
+                    .read(&mut buf)
+                    .map_err(|e| format!("failed to read payload: {e}"))?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(AsRef::<[u8]>::as_ref(&h.finalize()) == expected_hash)
+        }
+        CoseHashAlgorithm::Sha512 => {
+            use sha2::Digest as _;
+            let mut h = sha2::Sha512::new();
+            loop {
+                let n = payload_reader
+                    .read(&mut buf)
+                    .map_err(|e| format!("failed to read payload: {e}"))?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(AsRef::<[u8]>::as_ref(&h.finalize()) == expected_hash)
+        }
+    }
+}
+
 /// A parsed COSE_Sign1 message.
 #[derive(Debug, Clone)]
 pub struct CoseSign1 {
@@ -201,6 +259,123 @@ impl CoseSign1 {
         public_key_bytes: Option<&[u8]>,
     ) -> ValidationResult {
         self.verify_signature_with_settings(payload_to_verify, public_key_bytes, &Default::default())
+    }
+
+    /// Verify the COSE signature using a streamed payload.
+    ///
+    /// Supported cases:
+    /// - Detached payload (`null`): verifies signature by streaming payload bytes (no buffering).
+    /// - COSE Hash Envelope: verifies the provided payload stream hashes to the embedded digest.
+    ///
+    /// Notes:
+    /// - For detached payload signatures, the reader must be seekable so we can determine
+    ///   the CBOR bstr length prefix for Sig_structure.
+    pub fn verify_signature_with_payload_reader(
+        &self,
+        payload_reader: &mut dyn ReadSeek,
+        public_key_bytes: Option<&[u8]>,
+    ) -> ValidationResult {
+        // If this is a COSE Hash Envelope, verify the preimage payload matches by streaming.
+        match is_cose_hash_envelope(&self.parsed) {
+            Ok(Some(hash_alg)) => {
+                let expected = self.parsed.payload.as_deref().unwrap_or_default();
+                if expected.is_empty() {
+                    return ValidationResult::failure_message(
+                        "Signature",
+                        "COSE Hash Envelope payload hash bytes were empty",
+                        Some("INVALID_INDIRECT_SIGNATURE".to_string()),
+                    );
+                }
+
+                match hash_matches_reader(hash_alg, expected, payload_reader) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        return ValidationResult::failure(
+                            "Signature".to_string(),
+                            vec![ValidationFailure {
+                                message: "payload does not match embedded COSE Hash Envelope digest".to_string(),
+                                error_code: Some("PAYLOAD_MISMATCH".to_string()),
+                            }],
+                        )
+                    }
+                    Err(e) => {
+                        return ValidationResult::failure_message(
+                            "Signature",
+                            e,
+                            Some("PAYLOAD_READ_ERROR".to_string()),
+                        )
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return ValidationResult::failure_message(
+                    "Signature",
+                    e,
+                    Some("INVALID_INDIRECT_SIGNATURE".to_string()),
+                )
+            }
+        }
+
+        let mut opts = VerifyOptions {
+            external_payload: None,
+            public_key_bytes: public_key_bytes.map(|b| b.to_vec()),
+            expected_alg: None,
+        };
+
+        // If we resolve a key via provider, we keep it so we can optionally validate it later.
+        let mut resolved_by_provider: Option<cosesign1_abstractions::ResolvedSigningKey> = None;
+
+        // If no key was supplied, consult registered providers.
+        if opts.public_key_bytes.is_none() {
+            match cosesign1_abstractions::resolve_signing_key(&self.parsed) {
+                Ok(resolved) => {
+                    opts.public_key_bytes = Some(resolved.public_key_bytes.clone());
+                    resolved_by_provider = Some(resolved);
+                }
+                Err(cosesign1_abstractions::ResolvePublicKeyError::NoProviderMatched) => {
+                    return ValidationResult::failure_message(
+                        "Signature",
+                        "public key not provided and no supported key provider found in message",
+                        Some("MISSING_PUBLIC_KEY".to_string()),
+                    )
+                }
+                Err(e) => {
+                    return ValidationResult::failure_message(
+                        "Signature",
+                        e.to_string(),
+                        Some("PUBLIC_KEY_PROVIDER_ERROR".to_string()),
+                    )
+                }
+            }
+        }
+
+        let mut sig = if self.parsed.payload.is_none() {
+            crate::validation::verify_parsed_cose_sign1_detached_payload_reader(
+                "Signature",
+                &self.parsed,
+                payload_reader,
+                &opts,
+            )
+        } else {
+            crate::validation::verify_parsed_cose_sign1(
+                "Signature",
+                &self.parsed,
+                self.parsed.payload.as_deref(),
+                &opts,
+            )
+        };
+
+        // Record the key source.
+        if public_key_bytes.is_some() {
+            sig.metadata
+                .insert("signing_key.provider".to_string(), "override".to_string());
+        } else if let Some(resolved) = resolved_by_provider.as_ref() {
+            sig.metadata
+                .insert("signing_key.provider".to_string(), resolved.provider_name.to_string());
+        }
+
+        sig
     }
 
     /// Verify a COSE message using a configurable pipeline.

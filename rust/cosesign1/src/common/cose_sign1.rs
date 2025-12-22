@@ -20,6 +20,7 @@
 
 use minicbor::data::{Tag, Type};
 use minicbor::{Decoder, Encoder};
+use std::io::Read;
 
 use cosesign1_abstractions::{
     CoseHeaderMap, ParsedCoseSign1, COSE_SIGN1_TAG, SIG_STRUCTURE_CONTEXT_SIGNATURE1,
@@ -113,6 +114,41 @@ pub fn parse_cose_sign1(input: &[u8]) -> Result<ParsedCoseSign1, String> {
         payload,
         signature,
     })
+}
+
+/// Parse a COSE_Sign1 structure from an input stream.
+///
+/// Note: `minicbor` operates on in-memory buffers, so this function reads the entire
+/// COSE message into memory. For huge *payloads*, prefer detached payload COSE_Sign1
+/// (`null` payload) and stream the external payload via the streaming verification APIs.
+pub fn parse_cose_sign1_from_reader(mut reader: impl Read) -> Result<ParsedCoseSign1, String> {
+    let mut bytes = Vec::new();
+    reader
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("failed to read COSE_Sign1 bytes: {e}"))?;
+    parse_cose_sign1(&bytes)
+}
+
+/// Parse a COSE_Sign1 structure from an input stream, enforcing a maximum size.
+pub fn parse_cose_sign1_from_reader_with_max_len(
+    mut reader: impl Read,
+    max_len: usize,
+) -> Result<ParsedCoseSign1, String> {
+    let mut bytes = Vec::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = reader
+            .read(&mut buf)
+            .map_err(|e| format!("failed to read COSE_Sign1 bytes: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        if bytes.len().saturating_add(n) > max_len {
+            return Err(format!("COSE_Sign1 exceeded max length ({max_len} bytes)"));
+        }
+        bytes.extend_from_slice(&buf[..n]);
+    }
+    parse_cose_sign1(&bytes)
 }
 
 /// Encode the COSE Sig_structure bytes for COSE_Sign1.

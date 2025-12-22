@@ -69,6 +69,10 @@ coverage-report/
 coverage.cobertura.xml
 *.coverage
 
+# Rust local coverage artifacts
+rust/cov*.txt
+rust/cov.txt
+
 # Build Results of an ATL Project
 [Dd]ebugPS/
 [Rr]eleasePS/

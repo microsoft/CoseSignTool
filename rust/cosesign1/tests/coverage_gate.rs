@@ -1,7 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cosesign1::common::{encode_signature1_sig_structure, parse_cose_sign1};
+use cosesign1::common::{
+    encode_signature1_sig_structure,
+    parse_cose_sign1,
+    parse_cose_sign1_from_reader,
+    parse_cose_sign1_from_reader_with_max_len,
+};
 use cosesign1::validation::{verify_cose_sign1, verify_sig_structure, CoseAlgorithm, VerifyOptions};
 use cosesign1::{CoseSign1, VerificationSettings};
 use cosesign1_abstractions::{MessageValidatorId, SigningKeyProviderId};
@@ -12,6 +17,59 @@ use p256::pkcs8::DecodePrivateKey as _;
 use rsa::pkcs8::EncodePublicKey as _;
 use rand_core::OsRng;
 use signature::Signer as _;
+use std::io::SeekFrom;
+
+struct ErrorReadSeek {
+    err: &'static str,
+}
+
+impl std::io::Read for ErrorReadSeek {
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, self.err))
+    }
+}
+
+impl std::io::Seek for ErrorReadSeek {
+    fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, self.err))
+    }
+}
+
+/// A seekable reader with a virtual length.
+///
+/// Used to hit CBOR bstr-length-prefix branches without allocating huge payloads.
+struct VirtualLenEofReader {
+    len: u64,
+    pos: u64,
+}
+
+impl std::io::Read for VirtualLenEofReader {
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        // Return EOF immediately.
+        Ok(0)
+    }
+}
+
+impl std::io::Seek for VirtualLenEofReader {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let new_pos_i128: i128 = match pos {
+            SeekFrom::Start(n) => n as i128,
+            SeekFrom::End(off) => (self.len as i128).saturating_add(off as i128),
+            SeekFrom::Current(off) => (self.pos as i128).saturating_add(off as i128),
+        };
+
+        if new_pos_i128 < 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid seek",
+            ));
+        }
+
+        let new_pos = new_pos_i128 as u64;
+        self.pos = new_pos;
+        Ok(self.pos)
+    }
+}
 
 fn encode_protected_header_bytes(entries: &[(i64, TestCborValue)]) -> Vec<u8> {
     let mut enc = minicbor::Encoder::new(Vec::new());
@@ -54,6 +112,225 @@ fn encode_cose_sign1(
     enc.bytes(signature).unwrap();
 
     enc.into_writer()
+}
+
+#[test]
+fn parse_rejects_empty_and_rejects_unexpected_tag_and_trailing_bytes() {
+    assert!(parse_cose_sign1(&[]).unwrap_err().contains("empty input"));
+
+    // Unexpected tag (not 18).
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let mut enc = minicbor::Encoder::new(Vec::new());
+    enc.tag(Tag::new(19)).unwrap();
+    enc.array(4).unwrap();
+    enc.bytes(&protected).unwrap();
+    enc.map(0).unwrap();
+    enc.bytes(b"hello").unwrap();
+    enc.bytes(&[0u8; 64]).unwrap();
+    let msg = enc.into_writer();
+    let err = parse_cose_sign1(&msg).unwrap_err();
+    assert!(err.contains("unexpected CBOR tag"));
+
+    // Trailing bytes after a valid COSE_Sign1.
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b"hello"), &[0u8; 64]);
+    let mut msg_with_trailing = msg.clone();
+    msg_with_trailing.push(0x00);
+    let err = parse_cose_sign1(&msg_with_trailing).unwrap_err();
+    assert!(err.contains("trailing bytes after COSE_Sign1"));
+}
+
+#[test]
+fn parse_from_reader_variants_work_and_enforce_max_len() {
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b"hello"), &[0u8; 64]);
+
+    let parsed = parse_cose_sign1_from_reader(std::io::Cursor::new(msg.clone())).unwrap();
+    assert_eq!(parsed.payload.as_deref(), Some(b"hello".as_slice()));
+
+    let parsed = parse_cose_sign1_from_reader_with_max_len(std::io::Cursor::new(msg.clone()), msg.len()).unwrap();
+    assert_eq!(parsed.payload.as_deref(), Some(b"hello".as_slice()));
+
+    let err = parse_cose_sign1_from_reader_with_max_len(std::io::Cursor::new(msg), 1).unwrap_err();
+    assert!(err.contains("exceeded max length"));
+}
+
+#[test]
+fn parse_from_reader_reports_io_errors() {
+    let err = parse_cose_sign1_from_reader(ErrorReadSeek { err: "boom" }).unwrap_err();
+    assert!(err.contains("failed to read COSE_Sign1 bytes"));
+}
+
+#[test]
+fn header_map_rejects_unsupported_key_and_value_types() {
+    // Unsupported key type (bytes) inside protected header map.
+    let mut enc = minicbor::Encoder::new(Vec::new());
+    enc.map(1).unwrap();
+    enc.bytes(b"k").unwrap();
+    enc.i64(1).unwrap();
+    let protected = enc.into_writer();
+
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b"hello"), &[0u8; 64]);
+    let err = parse_cose_sign1(&msg).unwrap_err();
+    assert!(err.contains("unsupported header key type"));
+
+    // Unsupported value type (tag) inside protected header map.
+    let mut enc = minicbor::Encoder::new(Vec::new());
+    enc.map(1).unwrap();
+    enc.i64(1).unwrap();
+    enc.tag(Tag::new(1)).unwrap();
+    enc.null().unwrap();
+    let protected = enc.into_writer();
+
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b"hello"), &[0u8; 64]);
+    let err = parse_cose_sign1(&msg).unwrap_err();
+    assert!(err.contains("unsupported header value type"));
+}
+
+#[test]
+fn verify_signature_with_payload_reader_exercises_hash_envelope_errors_and_mismatch() {
+    use sha2::Digest as _;
+
+    // Empty embedded digest is invalid.
+    let protected = encode_protected_header_bytes(&[
+        (1, TestCborValue::Int(-7)),
+        (258, TestCborValue::Int(-16)),
+    ]);
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b""), &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"abc".to_vec());
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("INVALID_INDIRECT_SIGNATURE")));
+
+    // Digest mismatch.
+    let digest = sha2::Sha256::digest(b"expected");
+    let msg = encode_cose_sign1(false, &protected, &[], Some(AsRef::<[u8]>::as_ref(&digest)), &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"different".to_vec());
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("PAYLOAD_MISMATCH")));
+
+    // Unprotected header must not contain payload-hash-alg.
+    let unprotected = [(TestCborKey::Int(258), TestCborValue::Int(-16))];
+    let msg = encode_cose_sign1(false, &protected, &unprotected, Some(AsRef::<[u8]>::as_ref(&digest)), &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"expected".to_vec());
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("INVALID_INDIRECT_SIGNATURE")));
+
+    // Unsupported payload-hash-alg value.
+    let protected_unsupported = encode_protected_header_bytes(&[
+        (1, TestCborValue::Int(-7)),
+        (258, TestCborValue::Int(12345)),
+    ]);
+    let msg = encode_cose_sign1(false, &protected_unsupported, &[], Some(AsRef::<[u8]>::as_ref(&digest)), &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"expected".to_vec());
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("INVALID_INDIRECT_SIGNATURE")));
+
+    // Payload read error.
+    let msg = encode_cose_sign1(false, &protected, &[], Some(AsRef::<[u8]>::as_ref(&digest)), &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = ErrorReadSeek { err: "read-fail" };
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("PAYLOAD_READ_ERROR")));
+}
+
+#[test]
+fn streaming_detached_payload_reports_missing_public_key_when_no_provider_matches() {
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"payload".to_vec());
+
+    let res = cose.verify_signature_with_payload_reader(&mut payload, None);
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("MISSING_PUBLIC_KEY")));
+}
+
+#[test]
+fn streaming_detached_payload_reports_seek_error() {
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[0u8; 64]);
+    let cose = CoseSign1::from_bytes(&msg).unwrap();
+
+    let mut payload = ErrorReadSeek { err: "seek-fail" };
+    let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("SIGSTRUCT_ERROR")));
+}
+
+#[test]
+fn detached_streaming_hits_cbor_bstr_header_length_branches() {
+    use cosesign1::validation::verify_parsed_cose_sign1_detached_payload_reader;
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[]);
+    let parsed = parse_cose_sign1(&msg).unwrap();
+
+    let opts = VerifyOptions {
+        external_payload: None,
+        public_key_bytes: Some(vec![0u8; 1]),
+        expected_alg: None,
+    };
+
+    for len in [0u64, 24u64, 256u64, 70_000u64, (u32::MAX as u64) + 1] {
+        let mut payload = VirtualLenEofReader { len, pos: 0 };
+        let res = verify_parsed_cose_sign1_detached_payload_reader("Signature", &parsed, &mut payload, &opts);
+        assert!(!res.is_valid);
+        // Expect a key or signature-related failure (we supplied an invalid public key).
+        assert!(res
+            .failures
+            .iter()
+            .any(|f| matches!(f.error_code.as_deref(), Some("INVALID_PUBLIC_KEY") | Some("BAD_SIGNATURE") | Some("SIGSTRUCT_ERROR"))));
+    }
+}
+
+#[test]
+fn detached_streaming_rejects_when_payload_is_embedded() {
+    use cosesign1::validation::verify_parsed_cose_sign1_detached_payload_reader;
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let msg = encode_cose_sign1(false, &protected, &[], Some(b"embedded"), &[0u8; 64]);
+    let parsed = parse_cose_sign1(&msg).unwrap();
+    let opts = VerifyOptions {
+        external_payload: None,
+        public_key_bytes: Some(vec![0u8; 1]),
+        expected_alg: None,
+    };
+    let mut payload = std::io::Cursor::new(b"payload".to_vec());
+    let res = verify_parsed_cose_sign1_detached_payload_reader("Signature", &parsed, &mut payload, &opts);
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("SIGSTRUCT_ERROR")));
 }
 
 #[test]
@@ -645,6 +922,357 @@ fn verify_detached_payload_requires_external_payload() {
     let res2 = msg.verify_signature(Some(b"detached"), Some(&[0u8; 1]));
     assert!(!res2.is_valid);
     assert!(res2.failures.iter().any(|f| f.error_code.as_deref() == Some("INVALID_PUBLIC_KEY")));
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds() {
+    let (cert_der, signing_key) = make_self_signed_p256_cert_and_key();
+
+    let protected = [(1i64, TestCborValue::Int(CoseAlgorithm::ES256 as i64))];
+    let unprotected: Vec<(TestCborKey, TestCborValue)> = vec![];
+
+    let payload = b"this is a detached payload";
+    let cose = sign_es256_detached_with_key(payload, &protected, &unprotected, &signing_key);
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(cert_der.as_slice()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_es384() {
+    use p384::pkcs8::EncodePublicKey as _;
+    use signature::Signer as _;
+
+    let signing_key = p384::ecdsa::SigningKey::random(&mut OsRng);
+    let public_key_der = signing_key
+        .verifying_key()
+        .to_public_key_der()
+        .unwrap();
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::ES384 as i64))]);
+    let payload = b"es384-detached";
+
+    let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+    let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+    let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+    let sig: p384::ecdsa::Signature = signing_key.sign(&sig_structure);
+    let sig_bytes = sig.to_bytes();
+
+    let cose = encode_cose_sign1(false, &protected, &[], None, AsRef::<[u8]>::as_ref(&sig_bytes));
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(public_key_der.as_bytes()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_es512() {
+    use p521::pkcs8::EncodePublicKey as _;
+    use signature::Signer as _;
+
+    let signing_key = p521::ecdsa::SigningKey::random(&mut OsRng);
+    let verifying_key = p521::ecdsa::VerifyingKey::from(&signing_key);
+    let point = verifying_key.to_encoded_point(false);
+    let pk = p521::PublicKey::from_sec1_bytes(point.as_bytes()).unwrap();
+    let public_key_der = pk.to_public_key_der().unwrap();
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::ES512 as i64))]);
+    let payload = b"es512-detached";
+
+    let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+    let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+    let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+    let sig: p521::ecdsa::Signature = signing_key.sign(&sig_structure);
+    let sig_bytes = sig.to_bytes();
+
+    let cose = encode_cose_sign1(false, &protected, &[], None, AsRef::<[u8]>::as_ref(&sig_bytes));
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(public_key_der.as_bytes()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_rs256() {
+    use rsa::pkcs1v15::SigningKey as RsaPkcs1SigningKey;
+    use rsa::signature::RandomizedSigner as _;
+    use rsa::signature::SignatureEncoding as _;
+
+    let mut rng = rand::rngs::OsRng;
+    let rsa_priv = rsa::RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let rsa_pub = rsa::RsaPublicKey::from(&rsa_priv);
+    let rsa_spki = rsa_pub.to_public_key_der().unwrap();
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::RS256 as i64))]);
+    let payload = b"rsa-detached";
+
+    // Build Sig_structure bytes by parsing a temporary detached message.
+    let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+    let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+    let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+    let signer = RsaPkcs1SigningKey::<sha2::Sha256>::new(rsa_priv);
+    let signature = signer.sign_with_rng(&mut rng, &sig_structure);
+    let signature_bytes = signature.to_vec();
+
+    let cose = encode_cose_sign1(false, &protected, &[], None, signature_bytes.as_slice());
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(rsa_spki.as_bytes()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_ps256() {
+    use rsa::pss::SigningKey as RsaPssSigningKey;
+    use rsa::signature::RandomizedSigner as _;
+    use rsa::signature::SignatureEncoding as _;
+
+    let mut rng = rand::rngs::OsRng;
+    let rsa_priv = rsa::RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let rsa_pub = rsa::RsaPublicKey::from(&rsa_priv);
+    let rsa_spki = rsa_pub.to_public_key_der().unwrap();
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::PS256 as i64))]);
+    let payload = b"pss-detached";
+
+    let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+    let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+    let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+    let signer = RsaPssSigningKey::<sha2::Sha256>::new(rsa_priv);
+    let signature = signer.sign_with_rng(&mut rng, &sig_structure);
+    let signature_bytes = signature.to_vec();
+
+    let cose = encode_cose_sign1(false, &protected, &[], None, signature_bytes.as_slice());
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(rsa_spki.as_bytes()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_mldsa44() {
+    use ml_dsa::{KeyGen as _, MlDsa44};
+    use ml_dsa::signature::Signer as _;
+
+    let seed: ml_dsa::B32 = [7u8; 32].into();
+    let kp = MlDsa44::key_gen_internal(&seed);
+    let public_key = kp.verifying_key().encode();
+
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::MLDsa44 as i64))]);
+    let payload = b"mldsa-detached";
+
+    let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+    let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+    let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+    let sig = kp.signing_key().sign(&sig_structure);
+    let signature = sig.encode();
+
+    let cose = encode_cose_sign1(false, &protected, &[], None, signature.as_ref());
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let mut rdr = std::io::Cursor::new(payload);
+    let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(public_key.as_ref()));
+    assert!(res.is_valid, "{res:?}");
+}
+
+#[test]
+fn verify_detached_payload_with_streaming_reader_succeeds_mldsa65_and_87() {
+    use ml_dsa::{KeyGen as _, MlDsa65, MlDsa87};
+    use ml_dsa::signature::Signer as _;
+
+    // ML-DSA-65
+    {
+        let seed: ml_dsa::B32 = [9u8; 32].into();
+        let kp = MlDsa65::key_gen_internal(&seed);
+        let public_key = kp.verifying_key().encode();
+
+        let alg = CoseAlgorithm::MLDsa65;
+        let payload = b"mldsa65-detached";
+        let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(alg as i64))]);
+
+        let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+        let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+        let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+        let sig = kp.signing_key().sign(&sig_structure);
+        let signature = sig.encode();
+
+        let cose = encode_cose_sign1(false, &protected, &[], None, signature.as_ref());
+        let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+        let mut rdr = std::io::Cursor::new(payload);
+        let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(public_key.as_ref()));
+        assert!(res.is_valid, "{alg:?} failed: {res:?}");
+    }
+
+    // ML-DSA-87
+    {
+        let seed: ml_dsa::B32 = [10u8; 32].into();
+        let kp = MlDsa87::key_gen_internal(&seed);
+        let public_key = kp.verifying_key().encode();
+
+        let alg = CoseAlgorithm::MLDsa87;
+        let payload = b"mldsa87-detached";
+        let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(alg as i64))]);
+
+        let tmp = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+        let parsed_for_sig = parse_cose_sign1(&tmp).unwrap();
+        let sig_structure = encode_signature1_sig_structure(&parsed_for_sig, Some(payload)).unwrap();
+        let sig = kp.signing_key().sign(&sig_structure);
+        let signature = sig.encode();
+
+        let cose = encode_cose_sign1(false, &protected, &[], None, signature.as_ref());
+        let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+        let mut rdr = std::io::Cursor::new(payload);
+        let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(public_key.as_ref()));
+        assert!(res.is_valid, "{alg:?} failed: {res:?}");
+    }
+}
+
+#[test]
+fn detached_streaming_reports_expected_alg_mismatch_missing_alg_and_missing_public_key_bytes() {
+    use cosesign1::validation::verify_parsed_cose_sign1_detached_payload_reader;
+
+    // expected_alg mismatch
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::ES256 as i64))]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[0u8; 64]);
+    let parsed = parse_cose_sign1(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"p".to_vec());
+    let opts = VerifyOptions {
+        external_payload: None,
+        public_key_bytes: Some(vec![0u8; 1]),
+        expected_alg: Some(CoseAlgorithm::ES384),
+    };
+    let res = verify_parsed_cose_sign1_detached_payload_reader("Signature", &parsed, &mut payload, &opts);
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("ALG_MISMATCH")));
+
+    // missing alg header
+    let protected = encode_protected_header_bytes(&[]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[0u8; 64]);
+    let parsed = parse_cose_sign1(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"p".to_vec());
+    let opts = VerifyOptions {
+        external_payload: None,
+        public_key_bytes: Some(vec![0u8; 1]),
+        expected_alg: None,
+    };
+    let res = verify_parsed_cose_sign1_detached_payload_reader("Signature", &parsed, &mut payload, &opts);
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("MISSING_OR_INVALID_ALG")));
+
+    // missing public key bytes (this is the detached-streaming verifier's own branch)
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(CoseAlgorithm::ES256 as i64))]);
+    let msg = encode_cose_sign1(false, &protected, &[], None, &[0u8; 64]);
+    let parsed = parse_cose_sign1(&msg).unwrap();
+    let mut payload = std::io::Cursor::new(b"p".to_vec());
+    let opts = VerifyOptions {
+        external_payload: None,
+        public_key_bytes: None,
+        expected_alg: None,
+    };
+    let res = verify_parsed_cose_sign1_detached_payload_reader("Signature", &parsed, &mut payload, &opts);
+    assert!(!res.is_valid);
+    assert!(res
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("MISSING_PUBLIC_KEY")));
+}
+
+#[test]
+fn verify_signature_with_payload_reader_hash_envelope_sha384_and_sha512_match_executes_signature_step() {
+    use sha2::Digest as _;
+
+    for (hash_alg_header, digest_bytes) in [
+        (-43i64, sha2::Sha384::digest(b"preimage").to_vec()),
+        (-44i64, sha2::Sha512::digest(b"preimage").to_vec()),
+    ] {
+        let protected = encode_protected_header_bytes(&[
+            (1, TestCborValue::Int(-7)),
+            (258, TestCborValue::Int(hash_alg_header)),
+        ]);
+        let msg = encode_cose_sign1(false, &protected, &[], Some(digest_bytes.as_slice()), &[0u8; 64]);
+        let cose = CoseSign1::from_bytes(&msg).unwrap();
+
+        let mut payload = std::io::Cursor::new(b"preimage".to_vec());
+        let res = cose.verify_signature_with_payload_reader(&mut payload, Some(b"bad-key"));
+        assert!(!res.is_valid);
+        // Crucially: digest check passed, so we should not report PAYLOAD_MISMATCH.
+        assert!(!res
+            .failures
+            .iter()
+            .any(|f| f.error_code.as_deref() == Some("PAYLOAD_MISMATCH")));
+    }
+}
+
+#[test]
+fn rsa_detached_streaming_maps_bad_signature_bytes_in_prehash_verifiers() {
+    use rsa::pkcs8::EncodePublicKey as _;
+
+    let mut rng = rand::rngs::OsRng;
+    let rsa_priv = rsa::RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let rsa_pub = rsa::RsaPublicKey::from(&rsa_priv);
+    let rsa_spki = rsa_pub.to_public_key_der().unwrap();
+
+    for alg in [CoseAlgorithm::RS256, CoseAlgorithm::PS256] {
+        let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(alg as i64))]);
+        let cose = encode_cose_sign1(false, &protected, &[], None, &[0u8; 1]);
+        let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+        let mut rdr = std::io::Cursor::new(b"".to_vec());
+        let res = msg.verify_signature_with_payload_reader(&mut rdr, Some(rsa_spki.as_bytes()));
+        assert!(!res.is_valid);
+        assert!(res
+            .failures
+            .iter()
+            .any(|f| f.error_code.as_deref() == Some("BAD_SIGNATURE")));
+    }
+}
+
+#[test]
+fn mldsa_verifier_exercises_spki_parsing_branch() {
+    // Provide an SPKI DER (not a certificate) for a non-ML-DSA key.
+    // This should hit the SubjectPublicKeyInfo::from_der branch.
+    use rsa::pkcs8::EncodePublicKey as _;
+
+    let mut rng = rand::rngs::OsRng;
+    let rsa_priv = rsa::RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let rsa_pub = rsa::RsaPublicKey::from(&rsa_priv);
+    let rsa_spki = rsa_pub.to_public_key_der().unwrap();
+
+    let err = verify_sig_structure(CoseAlgorithm::MLDsa44, rsa_spki.as_bytes(), b"msg", &[0u8; 1]).unwrap_err();
+    assert_eq!(err.0, "INVALID_PUBLIC_KEY");
+    assert!(err.1.contains("unexpected public key algorithm OID"));
+}
+
+#[test]
+fn verify_pipeline_records_validator_not_run_when_it_returns_none() {
+    // Configure the pipeline to skip signature verification, and enable MST.
+    // With no MST options configured, MST should return Ok(None) and we should record ran=false.
+    let protected = encode_protected_header_bytes(&[(1, TestCborValue::Int(-7))]);
+    let cose = encode_cose_sign1(false, &protected, &[], Some(b"hello"), &[0u8; 64]);
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+
+    let settings = VerificationSettings::default()
+        .without_cose_signature()
+        .with_validator(cosesign1_mst::MST_VALIDATOR_ID);
+
+    let res = msg.verify(None, None, &settings);
+    assert!(res.is_valid, "{res:?}");
+    assert_eq!(res.metadata.get("signature.verified").map(|s| s.as_str()), Some("false"));
+    assert_eq!(res.metadata.get("validator.mst.ran").map(|s| s.as_str()), Some("false"));
 }
 
 #[test]

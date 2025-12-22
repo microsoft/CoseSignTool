@@ -13,17 +13,20 @@ These diagrams are intended to help new contributors understand the call flow an
 sequenceDiagram
     autonumber
     participant App as Caller
-    participant Val as cosesign1-validation
-    participant Common as cosesign1-common
+    participant Facade as cosesign1
+    participant Providers as SigningKeyProviders
 
-    App->>Val: verify_cose_sign1(name, cose_bytes, opts)
-    Val->>Common: parse_cose_sign1(cose_bytes)
-    Common-->>Val: ParsedCoseSign1
-    Val->>Common: encode_signature1_sig_structure(parsed, opts.external_payload)
-    Common-->>Val: sig_structure_bytes
-    Val->>Val: select algorithm (alg header / opts.expected_alg)
-    Val->>Val: verify signature with opts.public_key_bytes
-    Val-->>App: ValidationResult { is_valid, failures }
+    App->>Facade: CoseSign1::from_bytes(cose_bytes)
+    Facade-->>App: CoseSign1
+    App->>Facade: verify_signature(payload_to_verify, public_key_bytes?)
+    alt public_key_bytes provided
+        Facade->>Facade: verify signature
+    else no public_key_bytes
+        Facade->>Providers: resolve_signing_key(parsed)
+        Providers-->>Facade: ResolvedSigningKey
+        Facade->>Facade: verify signature
+    end
+    Facade-->>App: ValidationResult
 ```
 
 ## MST offline verification (transparent statement)
@@ -33,19 +36,16 @@ sequenceDiagram
     autonumber
     participant App as Caller
     participant MST as cosesign1-mst
-    participant Common as cosesign1-common
     participant KS as OfflineEcKeyStore
-    participant Val as cosesign1-validation
+    participant Val as cosesign1::validation
 
     App->>MST: verify_transparent_statement(name, statement, ks, opts)
-    MST->>Common: parse_cose_sign1(statement)
-    Common-->>MST: ParsedCoseSign1 (statement)
+    MST->>MST: parse COSE_Sign1 statement
     MST->>MST: read embedded receipts (hdr 394)
     MST->>MST: encode statement with empty unprotected
 
     loop For each receipt
-        MST->>Common: parse_cose_sign1(receipt_bytes)
-        Common-->>MST: ParsedCoseSign1 (receipt)
+        MST->>MST: parse COSE_Sign1 receipt
         MST->>MST: read issuer from protected CWT map (15/1)
         MST->>MST: read kid (label 4)
         MST->>KS: resolve(issuer, kid)

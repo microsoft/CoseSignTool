@@ -4,10 +4,10 @@
 [workspace]
 resolver = "2"
 members = [
-  "cosesign1-common",
-  "cosesign1-validation",
+  "cosesign1-abstractions",
   "cosesign1-x509",
   "cosesign1-mst",
+  "cosesign1",
 ]
 
 [workspace.package]
@@ -19,6 +19,7 @@ repository = "https://github.com/microsoft/CoseSignTool"
 thiserror = "2"
 minicbor = { version = "0.26", features = ["alloc", "std"] }
 base64 = "0.22"
+uuid = { version = "1", features = ["macro-diagnostics"] }
 ml-dsa = { version = "0.0.4", default-features = false, features = ["alloc", "pkcs8"] }
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
 p384 = { version = "0.13", features = ["ecdsa", "pkcs8"] }

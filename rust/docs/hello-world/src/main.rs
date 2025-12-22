@@ -6,10 +6,10 @@
 //! This binary intentionally mirrors the native example app:
 //! `native/examples/cosesign1-hello-world`.
 
-use cosesign1_common::parse_cose_sign1;
-use cosesign1_mst::{add_issuer_keys, parse_jwks, verify_transparent_statement, OfflineEcKeyStore, VerificationOptions};
-use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, ValidationResult, VerifyOptions};
-use cosesign1_x509::{verify_cose_sign1_with_x5c, X509ChainVerifyOptions, X509RevocationMode, X509TrustMode};
+use cosesign1::CoseSign1;
+use cosesign1_mst::{add_issuer_keys, parse_jwks, OfflineEcKeyStore, VerificationOptions};
+use cosesign1::ValidationResult;
+use cosesign1_x509::{X509ChainVerifyOptions, X509RevocationMode, X509TrustMode};
 
 /// Read a file to bytes or exit with a clear error.
 fn read(path: &str) -> Vec<u8> {
@@ -58,28 +58,13 @@ fn has_flag(args: &[String], name: &str) -> bool {
     args.iter().any(|a| a == name)
 }
 
-fn parse_alg(s: &str) -> Option<CoseAlgorithm> {
-    match s {
-        "" => None,
-        "ES256" => Some(CoseAlgorithm::ES256),
-        "ES384" => Some(CoseAlgorithm::ES384),
-        "ES512" => Some(CoseAlgorithm::ES512),
-        "PS256" => Some(CoseAlgorithm::PS256),
-        "RS256" => Some(CoseAlgorithm::RS256),
-        "MLDsa44" => Some(CoseAlgorithm::MLDsa44),
-        "MLDsa65" => Some(CoseAlgorithm::MLDsa65),
-        "MLDsa87" => Some(CoseAlgorithm::MLDsa87),
-        _ => None,
-    }
-}
-
 fn usage_and_exit(exe: &str) -> ! {
     eprintln!("Usage:");
     eprintln!(
-        "  {exe} key --cose <file> --public-key <der> [--payload <file>] [--expected-alg <ES256|PS256|...>]"
+        "  {exe} key --cose <file> --public-key <der> [--payload <file>]"
     );
     eprintln!(
-        "  {exe} x5c --cose <file> [--payload <file>] [--expected-alg <ES256|...>] --trust <system|custom> [--root <der>] [--revocation <online|offline|none>] [--allow-untrusted]"
+        "  {exe} x5c --cose <file> [--payload <file>] --trust <system|custom> [--root <der>] [--revocation <online|offline|none>] [--allow-untrusted]"
     );
     eprintln!("  {exe} mst --statement <file> --issuer-host <host> --jwks <file>");
     std::process::exit(2);
@@ -97,37 +82,31 @@ fn main() {
         let cose_path = get_arg_value(&args, "--cose").unwrap_or_default();
         let key_path = get_arg_value(&args, "--public-key").unwrap_or_default();
         let payload_path = get_arg_value(&args, "--payload").unwrap_or_default();
-        let alg_str = get_arg_value(&args, "--expected-alg").unwrap_or_default();
 
         if cose_path.is_empty() || key_path.is_empty() {
             usage_and_exit(exe);
         }
 
         let cose = read(&cose_path);
-        let parsed = parse_cose_sign1(&cose).unwrap_or_else(|e| {
+
+        let msg = CoseSign1::from_bytes(&cose).unwrap_or_else(|e| {
             eprintln!("COSE parse failed: {e}");
             std::process::exit(1);
         });
 
-        let mut opt = VerifyOptions::default();
-        opt.public_key_bytes = Some(read(&key_path));
-        if !alg_str.is_empty() {
-            opt.expected_alg = parse_alg(&alg_str);
-            if opt.expected_alg.is_none() {
-                eprintln!("unknown --expected-alg value: {alg_str}");
-                std::process::exit(2);
-            }
+        let payload_bytes = if payload_path.is_empty() {
+            None
+        } else {
+            Some(read(&payload_path))
+        };
+
+        if msg.parsed.payload.is_none() && payload_bytes.is_none() {
+            eprintln!("COSE payload is detached (null); provide --payload <file>");
+            std::process::exit(1);
         }
 
-        if parsed.payload.is_none() {
-            if payload_path.is_empty() {
-                eprintln!("COSE payload is detached (null); provide --payload <file>");
-                std::process::exit(1);
-            }
-            opt.external_payload = Some(read(&payload_path));
-        }
-
-        let r = verify_cose_sign1("Signature", &cose, &opt);
+        let public_key = read(&key_path);
+        let r = msg.verify_signature(payload_bytes.as_deref(), Some(public_key.as_slice()));
         print_result(&r);
         std::process::exit(if r.is_valid { 0 } else { 3 });
     }
@@ -135,10 +114,9 @@ fn main() {
     if mode == "x5c" {
         let cose_path = get_arg_value(&args, "--cose").unwrap_or_default();
         let payload_path = get_arg_value(&args, "--payload").unwrap_or_default();
-        let alg_str = get_arg_value(&args, "--expected-alg").unwrap_or_default();
 
         let trust = get_arg_value(&args, "--trust").unwrap_or_default();
-        let _root_path = get_arg_value(&args, "--root").unwrap_or_default();
+        let root_path = get_arg_value(&args, "--root").unwrap_or_default();
         let revocation = get_arg_value(&args, "--revocation").unwrap_or_default();
         let allow_untrusted = has_flag(&args, "--allow-untrusted");
 
@@ -146,32 +124,22 @@ fn main() {
             usage_and_exit(exe);
         }
 
-        if !revocation.is_empty() && revocation != "none" {
-            eprintln!("revocation checking not supported in the Rust port; use --revocation none");
-            std::process::exit(2);
-        }
-
         let cose = read(&cose_path);
-        let parsed = parse_cose_sign1(&cose).unwrap_or_else(|e| {
+
+        let msg = CoseSign1::from_bytes(&cose).unwrap_or_else(|e| {
             eprintln!("COSE parse failed: {e}");
             std::process::exit(1);
         });
 
-        let mut opt = VerifyOptions::default();
-        if !alg_str.is_empty() {
-            opt.expected_alg = parse_alg(&alg_str);
-            if opt.expected_alg.is_none() {
-                eprintln!("unknown --expected-alg value: {alg_str}");
-                std::process::exit(2);
-            }
-        }
+        let payload_bytes = if payload_path.is_empty() {
+            None
+        } else {
+            Some(read(&payload_path))
+        };
 
-        if parsed.payload.is_none() {
-            if payload_path.is_empty() {
-                eprintln!("COSE payload is detached (null); provide --payload <file>");
-                std::process::exit(1);
-            }
-            opt.external_payload = Some(read(&payload_path));
+        if msg.parsed.payload.is_none() && payload_bytes.is_none() {
+            eprintln!("COSE payload is detached (null); provide --payload <file>");
+            std::process::exit(1);
         }
 
         let trust_mode = match trust.as_str() {
@@ -183,12 +151,37 @@ fn main() {
             }
         };
 
+        let revocation_mode = match revocation.as_str() {
+            "" | "none" => X509RevocationMode::NoCheck,
+            "online" => X509RevocationMode::Online,
+            "offline" => X509RevocationMode::Offline,
+            _ => {
+                eprintln!("unknown --revocation value: {revocation}");
+                std::process::exit(2);
+            }
+        };
+
         let mut chain = X509ChainVerifyOptions::default();
         chain.trust_mode = trust_mode;
-        chain.revocation_mode = X509RevocationMode::NoCheck;
+        chain.revocation_mode = revocation_mode;
         chain.allow_untrusted_roots = allow_untrusted;
 
-        let r = verify_cose_sign1_with_x5c("X5c", &cose, &opt, Some(&chain));
+        if chain.trust_mode == X509TrustMode::CustomRoots {
+            if root_path.is_empty() {
+                eprintln!("--trust custom requires --root <der>");
+                std::process::exit(2);
+            }
+            chain.trusted_roots_der = vec![read(&root_path)];
+        }
+
+        // Pipeline:
+        // - Verify the COSE signature (required by default).
+        // - Resolve the public key from `x5c` via the registered provider.
+        // - Enforce X.509 trust as a message validator (not in the provider).
+        let settings = cosesign1::VerificationSettings::default()
+            .with_validator_options(cosesign1_x509::x5c_chain_validation_options(chain));
+
+        let r = msg.verify(payload_bytes.as_deref(), None, &settings);
         print_result(&r);
         std::process::exit(if r.is_valid { 0 } else { 3 });
     }
@@ -221,7 +214,19 @@ fn main() {
         let mut opt = VerificationOptions::default();
         opt.authorized_domains = vec![issuer_host];
 
-        let r = verify_transparent_statement("MST", &statement, &store, &opt);
+        // Receipt-based verification pipeline:
+        // - Do NOT require trusting the COSE signing key.
+        // - Validate the MST receipt which binds to the statement.
+        let msg = CoseSign1::from_bytes(&statement).unwrap_or_else(|e| {
+            eprintln!("COSE parse failed: {e}");
+            std::process::exit(1);
+        });
+
+        let settings = cosesign1::VerificationSettings::default()
+            .without_cose_signature()
+            .with_validator_options(cosesign1_mst::mst_message_validation_options(store, opt));
+
+        let r = msg.verify(None, None, &settings);
         print_result(&r);
         std::process::exit(if r.is_valid { 0 } else { 3 });
     }

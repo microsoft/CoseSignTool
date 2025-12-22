@@ -5,13 +5,13 @@
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use cosesign1_common::{encode_signature1_sig_structure, parse_cose_sign1};
+use cosesign1::common::{encode_signature1_sig_structure, parse_cose_sign1};
 use cosesign1_mst::{
     verify_transparent_statement, verify_transparent_statement_online, verify_transparent_statement_receipt,
     AuthorizedReceiptBehavior, JwkEcPublicKey, JwksDocument, JwksFetcher, OfflineEcKeyStore, ResolvedKey,
     UnauthorizedReceiptBehavior, VerificationOptions,
 };
-use cosesign1_validation::CoseAlgorithm;
+use cosesign1::validation::CoseAlgorithm;
 use minicbor::Encoder;
 use sha2::{Digest, Sha256};
 use p256::ecdsa::signature::Signer;

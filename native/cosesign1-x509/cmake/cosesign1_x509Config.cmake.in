@@ -1,8 +1,0 @@
-@PACKAGE_INIT@
-
-include(CMakeFindDependencyMacro)
-
-# The exported target links against OpenSSL::Crypto.
-find_dependency(OpenSSL)
-
-include("${CMAKE_CURRENT_LIST_DIR}/cosesign1_x509Targets.cmake")

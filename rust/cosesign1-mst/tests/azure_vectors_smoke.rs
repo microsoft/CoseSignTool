@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! MST native test-vector wiring smoke test.
+//! MST test-vector wiring smoke test.
 //!
-//! This test checks that (when present) native MST vectors are reachable from
-//! the Rust workspace. It intentionally skips in environments that do not
-//! include the native vector files.
+//! This test checks that (when present) MST vectors are reachable from the Rust
+//! workspace. It intentionally skips in environments that do not include the
+//! vector files.
 
 use cosesign1_mst::{verify_transparent_statement_receipt, JwksDocument, VerificationOptions};
 
@@ -16,10 +16,9 @@ fn azure_sdk_vectors_exist_and_are_readable() {
         .join("..")
         .join("..");
 
-    let receipt_path = repo_root.join("native/cosesign1-mst/tests/testdata/azure-sdk-for-net/receipt.cose");
-    let statement_path =
-        repo_root.join("native/cosesign1-mst/tests/testdata/azure-sdk-for-net/transparent_statement.cose");
-    let jwks_kid_mismatch_path = repo_root.join("native/cosesign1-mst/tests/testdata/azure-sdk-for-net/jwks_kid_mismatch.json");
+    let receipt_path = repo_root.join("testdata/mst/azure-sdk-for-net/receipt.cose");
+    let statement_path = repo_root.join("testdata/mst/azure-sdk-for-net/transparent_statement.cose");
+    let jwks_kid_mismatch_path = repo_root.join("testdata/mst/azure-sdk-for-net/jwks_kid_mismatch.json");
 
     if !receipt_path.exists() || !statement_path.exists() || !jwks_kid_mismatch_path.exists() {
         // Some checkouts/tasks may not include the native test vectors.

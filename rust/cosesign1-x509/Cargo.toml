@@ -9,9 +9,16 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-cosesign1-common = { path = "../cosesign1-common" }
-cosesign1-validation = { path = "../cosesign1-validation" }
+cosesign1-abstractions = { path = "../cosesign1-abstractions" }
+inventory = "0.3"
+uuid.workspace = true
 rustls-native-certs.workspace = true
+sha2.workspace = true
+signature.workspace = true
+rsa.workspace = true
+p256.workspace = true
+p384.workspace = true
+p521.workspace = true
 thiserror.workspace = true
 x509-parser.workspace = true
 
@@ -20,3 +27,6 @@ minicbor.workspace = true
 rcgen.workspace = true
 p256.workspace = true
 signature.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }

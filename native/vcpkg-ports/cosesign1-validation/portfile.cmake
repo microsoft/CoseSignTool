@@ -1,11 +1,16 @@
 set(VCPKG_LIBRARY_LINKAGE static)
 
-set(SOURCE_PATH "${CURRENT_PORT_DIR}/../../cosesign1-validation")
+set(SOURCE_PATH "${CURRENT_PORT_DIR}/../../shim")
 
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
         -DBUILD_TESTING=OFF
+    -DCOSESIGN1_SHIM_PACKAGE_NAME=cosesign1_validation
+    -DCOSESIGN1_SHIM_BUILD_COMMON=OFF
+    -DCOSESIGN1_SHIM_BUILD_VALIDATION=ON
+    -DCOSESIGN1_SHIM_BUILD_X509=OFF
+    -DCOSESIGN1_SHIM_BUILD_MST=OFF
 )
 
 vcpkg_cmake_install()

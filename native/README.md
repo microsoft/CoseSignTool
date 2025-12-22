@@ -1,6 +1,6 @@
-# Native (C++ / vcpkg)
+# Native (C ABI / vcpkg)
 
-This folder contains cross-platform C++ implementations that mirror the V2 validation style.
+This folder contains Rust-backed native (C ABI) libraries plus vcpkg overlay ports.
 
 Documentation: see `native/docs/README.md`.
 
@@ -29,9 +29,10 @@ From a shell where `VCPKG_ROOT` points at your vcpkg clone:
 
 ## Local development builds
 
-Each project folder has a `vcpkg.json` and `CMakePresets.json` for manifest-mode development builds:
+For local builds (without vcpkg), build the CMake backend in `native/shim` which drives Cargo and installs headers + static libraries.
 
-- `native/cosesign1-common` (cosesign1-common)
-- `native/cosesign1-validation` (cosesign1-validation)
-- `native/cosesign1-x509` (cosesign1-x509)
-- `native/cosesign1-mst` (cosesign1-mst)
+Example:
+
+- `cmake -S native/shim -B out/shim-build`
+- `cmake --build out/shim-build --config Release`
+- `cmake --install out/shim-build --config Release --prefix out/shim-install`

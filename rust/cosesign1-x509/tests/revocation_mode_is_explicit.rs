@@ -1,22 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Documents current revocation behavior.
+//! Documents current revocation option behavior.
 //!
-//! The Rust port does not implement revocation checking yet; this test exists
-//! to keep that limitation explicit and stable.
+//! Revocation behavior is platform-dependent; this test mainly ensures the API
+//! accepts explicit revocation modes.
 
-use cosesign1_x509::{verify_cose_sign1_with_x5c, X509ChainVerifyOptions, X509RevocationMode};
+use cosesign1_x509::{validate_x5c_chain, X509ChainVerifyOptions, X509RevocationMode};
 
 #[test]
 fn revocation_modes_fail_fast_for_now() {
-    // Dummy COSE value; parse will fail first, but this test documents intent.
-    let cose = [0x80u8];
-    let opts = cosesign1_validation::VerifyOptions::default();
-
     let mut chain = X509ChainVerifyOptions::default();
     chain.revocation_mode = X509RevocationMode::Online;
 
-    let res = verify_cose_sign1_with_x5c("X5c", &cose, &opts, Some(&chain));
+    // Intentionally provide an empty chain; validation should fail before
+    // any revocation-specific behavior matters.
+    let res = validate_x5c_chain("X509Chain", &[], &chain);
     assert!(!res.is_valid);
 }

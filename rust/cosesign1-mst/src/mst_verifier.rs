@@ -3,9 +3,9 @@
 
 //! Microsoft Signing Transparency (MST) receipt verification.
 //!
-//! This is a Rust port of the native `native/cosesign1-mst` verifier logic.
-//! It focuses on offline verification (keys supplied by the caller) and mirrors
-//! the native behavior closely:
+//! This is a Rust implementation of the MST verifier logic.
+//! It focuses on offline verification (keys supplied by the caller) and is
+//! designed to be consumed via the Rust API and the Rust-backed C ABI.
 //! - Receipts are embedded in the transparent statement unprotected header
 //!   label `394` as an array of receipt COSE_Sign1 byte strings.
 //! - Receipt verification validates:
@@ -23,8 +23,9 @@ use std::collections::{HashMap, HashSet};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use cosesign1_common::{parse_cose_sign1, HeaderKey, HeaderValue, ParsedCoseSign1};
-use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, ValidationFailure, ValidationResult, VerifyOptions};
+use cosesign1::common::parse_cose_sign1;
+use cosesign1::validation::{verify_cose_sign1, CoseAlgorithm, ValidationFailure, ValidationResult, VerifyOptions};
+use cosesign1_abstractions::{CoseHeaderMap, HeaderKey, HeaderValue, ParsedCoseSign1};
 use minicbor::{Decoder, Encoder};
 use p256::pkcs8::EncodePublicKey;
 use serde::{Deserialize, Serialize};
@@ -297,11 +298,11 @@ fn read_embedded_receipts(statement: &ParsedCoseSign1) -> Result<Vec<Vec<u8>>, S
     }
 }
 
-fn read_receipt_kid(protected: &cosesign1_common::CoseHeaderMap) -> Option<Vec<u8>> {
+fn read_receipt_kid(protected: &CoseHeaderMap) -> Option<Vec<u8>> {
     protected.get_bytes(4).map(|b| b.to_vec())
 }
 
-fn read_receipt_issuer_host(protected: &cosesign1_common::CoseHeaderMap) -> Option<String> {
+fn read_receipt_issuer_host(protected: &CoseHeaderMap) -> Option<String> {
     let v = protected.map().get(&HeaderKey::Int(COSE_RECEIPT_CWT_MAP_LABEL))?;
 
     let map_val = match v {

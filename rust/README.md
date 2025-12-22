@@ -5,12 +5,14 @@ Licensed under the MIT License.
 
 # Rust (parity with `native/`)
 
-This folder hosts Rust equivalents of the native (C++/vcpkg) validator libraries:
+This folder hosts the Rust COSE_Sign1 verification stack.
 
-- `cosesign1-common`: CBOR + COSE_Sign1 parsing primitives
-- `cosesign1-validation`: signature verification + validation result types
-- `cosesign1-x509`: x5c / X.509 helpers
-- `cosesign1-mst`: Microsoft Signing Transparency (MST) receipt verification
+Crates:
+
+- `cosesign1-abstractions`: shared types + plugin interfaces (key providers, message validators)
+- `cosesign1`: high-level verification facade (parsing + signature verification + validator pipeline)
+- `cosesign1-x509`: `x5c` key provider + X.509 chain trust validator
+- `cosesign1-mst`: Microsoft Signing Transparency (MST) receipt validator (+ MST helper APIs)
 
 ## Build + Test
 

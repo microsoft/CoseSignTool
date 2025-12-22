@@ -5,29 +5,23 @@ Licensed under the MIT License.
 
 # Verifying COSE_Sign1 in Rust
 
-The Rust port provides a small set of crates:
+The Rust port is intentionally small:
 
-- `cosesign1-common`: COSE_Sign1 parsing and Sig_structure encoding
-- `cosesign1-validation`: signature verification (ES256/384/512, RS256, PS256, and ML-DSA-44/65/87)
-- `cosesign1-x509`: x5c extraction and leaf-certificate-based verification helpers
-- `cosesign1-mst`: Microsoft Signing Transparency (MST) receipt verification
+- `cosesign1`: high-level verification facade (parse + signature verification + validator pipeline)
+- `cosesign1-x509`: `x5c` public-key extraction + X.509 chain trust validation (as a message validator)
+- `cosesign1-mst`: MST receipt verification (as a message validator)
+- `cosesign1-abstractions`: shared types + plugin interfaces/registries
 
-## Basic verification
-
-`cosesign1-validation` exposes `verify_cose_sign1`:
+## Basic signature verification
 
 ```rust
-use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
+use cosesign1::CoseSign1;
 
 let cose_sign1_bytes: Vec<u8> = std::fs::read("message.cose")?;
-let public_key_bytes: Vec<u8> = std::fs::read("public_key.der")?; // DER SPKI or DER X.509 cert (ML-DSA also supports raw verifying key bytes)
+let public_key_bytes: Vec<u8> = std::fs::read("public_key.der")?; // DER SPKI (or other encodings supported by the selected alg)
 
-let opts = VerifyOptions {
-    public_key_bytes: Some(public_key_bytes),
-    ..Default::default()
-};
-
-let res = verify_cose_sign1("Verifier", &cose_sign1_bytes, &opts);
+let msg = CoseSign1::from_bytes(&cose_sign1_bytes)?;
+let res = msg.verify_signature(None, Some(public_key_bytes.as_slice()));
 assert!(res.is_valid, "{res:?}");
 ```
 
@@ -36,51 +30,58 @@ assert!(res.is_valid, "{res:?}");
 If the COSE_Sign1 payload is detached (payload is `null`), pass the external payload bytes:
 
 ```rust
-use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
+use cosesign1::CoseSign1;
 
 let cose_sign1_bytes = std::fs::read("detached.cose")?;
 let public_key_bytes = std::fs::read("public_key.der")?;
 let external_payload = std::fs::read("payload.bin")?;
 
-let opts = VerifyOptions {
-    public_key_bytes: Some(public_key_bytes),
-    external_payload: Some(external_payload),
-    ..Default::default()
-};
+let msg = CoseSign1::from_bytes(&cose_sign1_bytes)?;
+let res = msg.verify_signature(Some(&external_payload), Some(&public_key_bytes));
+assert!(res.is_valid, "{res:?}");
+```
+
+## Advanced controls (expected algorithm, etc.)
+
+If you need lower-level knobs (e.g., enforce an expected algorithm), use the lower-level API:
+
+```rust
+use cosesign1::validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
+
+let cose_sign1_bytes = std::fs::read("message.cose")?;
+let public_key_bytes = std::fs::read("public_key.der")?;
+
+let mut opts = VerifyOptions::default();
+opts.public_key_bytes = Some(public_key_bytes);
+opts.expected_alg = Some(CoseAlgorithm::ES256);
 
 let res = verify_cose_sign1("Verifier", &cose_sign1_bytes, &opts);
-assert!(res.is_valid);
+assert!(res.is_valid, "{res:?}");
 ```
 
-## Expected algorithm
+## x5c + X.509 chain trust (validator)
 
-If you want to enforce a specific algorithm (instead of trusting the COSE header), set `expected_alg`:
+If the message includes an `x5c` chain, the `cosesign1-x509` crate registers:
 
-```rust
-use cosesign1_validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
-
-let opts = VerifyOptions {
-    public_key_bytes: Some(std::fs::read("public_key.der")?),
-    expected_alg: Some(CoseAlgorithm::ES256),
-    ..Default::default()
-};
-```
-
-## x5c / certificate-based verification
-
-The x5c helper verifies a COSE_Sign1 signature using the **leaf certificate** embedded in the message.
-
-Note: unlike the native `cosesign1_x509`, the Rust port does not currently implement X.509 chain trust evaluation or revocation checking.
+- a signing key provider that can extract the public key from `x5c` for signature verification
+- a message validator that can enforce trust (chain building / revocation policy)
 
 ```rust
-use cosesign1_validation::VerifyOptions;
-use cosesign1_x509::verify_cose_sign1_with_x5c;
+use cosesign1::{CoseSign1, VerificationSettings};
+use cosesign1_x509::{X509ChainVerifyOptions, X509RevocationMode, X509TrustMode};
 
 let cose_sign1_bytes = std::fs::read("message_with_x5c.cose")?;
-let opts = VerifyOptions::default();
+let msg = CoseSign1::from_bytes(&cose_sign1_bytes)?;
 
-// Pass `None` to perform signature verification using the embedded leaf certificate.
-let res = verify_cose_sign1_with_x5c("X5c", &cose_sign1_bytes, &opts, None);
+let mut chain = X509ChainVerifyOptions::default();
+chain.trust_mode = X509TrustMode::System;
+chain.revocation_mode = X509RevocationMode::NoCheck;
+
+let settings = VerificationSettings::default()
+    .with_validator_options(cosesign1_x509::x5c_chain_validation_options(chain));
+
+// No explicit public key: the `x5c` provider supplies it.
+let res = msg.verify(None, None, &settings);
 assert!(res.is_valid, "{res:?}");
 ```
 
@@ -102,33 +103,26 @@ For detailed behavior and header-label semantics, see `mst-verifier.md`.
 
 ### MST offline verification (keys provided by caller)
 
-Use `OfflineEcKeyStore` and insert keys by `(issuer_host, kid)`.
+You can either call the MST verifier directly, or enable it as a message validator in the `cosesign1` pipeline.
+
+Validator pipeline example:
 
 ```rust
-use cosesign1_mst::{
-    verify_transparent_statement, OfflineEcKeyStore, ResolvedKey, VerificationOptions,
-};
-use cosesign1_validation::CoseAlgorithm;
+use cosesign1::{CoseSign1, VerificationSettings};
+use cosesign1_mst::{OfflineEcKeyStore, VerificationOptions};
 
-fn verify_mst_offline(statement: &[u8], issuer: &str, kid: &str, spki_der: Vec<u8>) -> bool {
-    let mut key_store = OfflineEcKeyStore::default();
-    key_store.insert(
-        issuer,
-        kid,
-        ResolvedKey {
-            public_key_bytes: spki_der,
-            expected_alg: CoseAlgorithm::ES256,
-        },
-    );
+let cose_sign1_bytes = std::fs::read("statement.cose")?;
+let msg = CoseSign1::from_bytes(&cose_sign1_bytes)?;
 
-    let mut opts = VerificationOptions::default();
-    opts.authorized_domains = vec![issuer.to_string()];
-    // Configure other behaviors if needed:
-    // opts.authorized_receipt_behavior = ...;
-    // opts.unauthorized_receipt_behavior = ...;
+let store = OfflineEcKeyStore::default();
+let opts = VerificationOptions::default();
 
-    verify_transparent_statement("MST", statement, &key_store, &opts).is_valid
-}
+let settings = VerificationSettings::default()
+    .without_cose_signature()
+    .with_validator_options(cosesign1_mst::mst_message_validation_options(store, opts));
+
+let res = msg.verify(None, None, &settings);
+assert!(res.is_valid, "{res:?}");
 ```
 
 Notes:

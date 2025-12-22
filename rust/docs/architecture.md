@@ -9,35 +9,32 @@ This repo contains a Rust port of the COSE_Sign1 verification stack and related 
 
 ## Crates and responsibilities
 
-- `cosesign1-common`
-  - Parses COSE_Sign1 (tagged or untagged) into a structured view (`ParsedCoseSign1`).
-  - Decodes protected/unprotected header maps into a typed `CoseHeaderMap`.
-  - Encodes the COSE Sig_structure (`Signature1`) for verification.
-
-- `cosesign1-validation`
-  - Verifies signatures over the Sig_structure via `verify_cose_sign1`.
-  - Supports ES256/384/512, RS256, PS256, and ML-DSA-44/65/87.
-  - Produces a `ValidationResult` containing `is_valid`, `failures`, and optional metadata.
+- `cosesign1-abstractions`
+  - Shared datatypes and plugin interfaces (signing key providers + message validators).
+  - Exists to prevent circular dependencies between the facade and plugins.
 
 - `cosesign1-x509`
-  - Extracts `x5c` (certificate chain) from COSE headers and verifies using the leaf certificate.
-  - Bridges “certificate inputs” (DER cert / SPKI) into the `public_key_bytes` expected by `cosesign1-validation`.
+  - Registers an `x5c` signing key provider (extract public key for signature verification).
+  - Registers an X.509 trust validator (chain policy / revocation) as a message validator.
 
 - `cosesign1-mst`
-  - Verifies Microsoft Signing Transparency (MST) receipts embedded in the statement.
-  - Supports offline verification using caller-provided keys (`OfflineEcKeyStore`).
-  - Supports optional online JWKS fetching via the `JwksFetcher` trait.
+  - Registers MST receipt verification as a message validator.
+  - Also exposes MST helper APIs (offline keystore, optional JWKS fetching).
+
+- `cosesign1`
+  - High-level facade that parses COSE_Sign1, verifies signatures, and runs message validators.
+  - Owns the signature verification implementation (`cosesign1::validation`).
+  - Uses link-time registration (`inventory`) to discover providers/validators when their crates are linked.
 
 ## Data flow (high level)
 
-1. **Parse**: `cosesign1-common::parse_cose_sign1` parses CBOR and header maps.
-2. **Sig_structure**: `cosesign1-common` encodes the verification bytes.
-3. **Verify**: `cosesign1-validation::verify_cose_sign1` selects algorithm + verifies.
-4. **Compose**: Higher-level verifiers (x5c / MST) are thin orchestration layers on top of (1–3).
+1. **Parse**: `cosesign1::CoseSign1::from_bytes` parses CBOR and header maps.
+2. **Signature**: `cosesign1` verifies the COSE signature (optional).
+3. **Trust**: additional trust checks (X.509 chain, MST receipts, etc.) run as message validators.
 
 ## Error model
 
-All verifiers return `cosesign1-validation::ValidationResult`.
+All verifiers return `cosesign1::ValidationResult`.
 
 - `is_valid` indicates overall success.
 - `failures` is a list of `ValidationFailure` entries, each having:
@@ -48,8 +45,9 @@ This pattern keeps callers from needing to match on Rust error types and makes i
 
 ## Extension points
 
-- Algorithms: add to `cosesign1-validation` algorithm dispatch (and tests).
-- Certificate handling: extend `cosesign1-x509` for additional chain policies.
+- Algorithms: extend `cosesign1::validation` algorithm dispatch (and tests).
+- New key sources: implement `cosesign1_abstractions::SigningKeyProvider` in a plugin crate.
+- New trust policies: implement `cosesign1_abstractions::MessageValidator` in a plugin crate.
 - MST key sources:
-  - Offline: implement key provisioning into `OfflineEcKeyStore`.
+  - Offline: provision keys into `OfflineEcKeyStore`.
   - Online: implement `JwksFetcher` in your application (this repo intentionally does not pick an HTTP client).

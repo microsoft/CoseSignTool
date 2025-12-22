@@ -1,17 +1,10 @@
 {
   "name": "cosesign1-mst",
-  "version": "0.1.2",
-  "description": "COSE_Sign1 MST receipt verification (offline) for CoseSignTool native validators",
-  "homepage": "https://github.com/microsoft",
+  "version-string": "0.2.0",
+  "description": "Rust-backed MST receipt verification exposed via a small C ABI for C/C++ consumers.",
+  "homepage": "https://github.com/microsoft/CoseSignTool",
   "license": "MIT",
   "dependencies": [
-    "cosesign1-validation",
-    "cosesign1-x509",
-    "openssl",
-    "tinycbor",
-    "cosesign1-common",
-    "nlohmann-json",
-    "curl",
     "vcpkg-cmake",
     "vcpkg-cmake-config"
   ]

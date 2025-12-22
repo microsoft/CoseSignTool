@@ -391,3 +391,4 @@ build/
 /rust/target/
 /rust/**/target/
 /rust/docs/hello-world/Cargo.lock
+out/

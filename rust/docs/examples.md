@@ -10,28 +10,25 @@ This page contains copy/paste-friendly snippets to consume the Rust port.
 ## Verify from bytes (in-memory)
 
 ```rust
-use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
+use cosesign1::CoseSign1;
 
 fn verify(cose: &[u8], pubkey: &[u8]) -> bool {
-    let opts = VerifyOptions {
-        public_key_bytes: Some(pubkey.to_vec()),
-        ..Default::default()
-    };
-    verify_cose_sign1("Verifier", cose, &opts).is_valid
+    let msg = CoseSign1::from_bytes(cose).expect("parse");
+    msg.verify_signature(None, Some(pubkey)).is_valid
 }
 ```
 
 ## Minimal CLI pattern
 
 ```rust
-use cosesign1_validation::{verify_cose_sign1, VerifyOptions};
+use cosesign1::CoseSign1;
 
 fn main() {
     let cose = std::fs::read("message.cose").unwrap();
     let pubkey = std::fs::read("public_key.der").unwrap();
 
-    let opts = VerifyOptions { public_key_bytes: Some(pubkey), ..Default::default() };
-    let res = verify_cose_sign1("Verifier", &cose, &opts);
+    let msg = CoseSign1::from_bytes(&cose).unwrap();
+    let res = msg.verify_signature(None, Some(&pubkey));
 
     if res.is_valid {
         println!("OK");

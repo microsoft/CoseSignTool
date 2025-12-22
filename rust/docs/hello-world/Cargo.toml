@@ -14,9 +14,8 @@ name = "cosesign1_hello_world"
 path = "src/main.rs"
 
 [dependencies]
-cosesign1-common = { path = "../../cosesign1-common" }
+cosesign1 = { path = "../../cosesign1" }
 cosesign1-mst = { path = "../../cosesign1-mst" }
-cosesign1-validation = { path = "../../cosesign1-validation" }
 cosesign1-x509 = { path = "../../cosesign1-x509" }
 
 # Opt out of the parent `rust/` workspace; this is a standalone consumer example.

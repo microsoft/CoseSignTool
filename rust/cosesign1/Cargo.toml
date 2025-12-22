@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 [package]
-name = "cosesign1-mst"
+name = "cosesign1"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -10,17 +10,17 @@ repository.workspace = true
 
 [dependencies]
 cosesign1-abstractions = { path = "../cosesign1-abstractions" }
-cosesign1 = { path = "../cosesign1" }
-inventory = "0.3"
-uuid.workspace = true
-base64.workspace = true
+
 minicbor.workspace = true
+ml-dsa.workspace = true
 p256.workspace = true
 p384.workspace = true
 p521.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+rsa.workspace = true
+signature.workspace = true
+x509-parser.workspace = true
 sha2.workspace = true
-thiserror.workspace = true
 
-[dev-dependencies]
+# MST support is optional at this layer for now; the MST verifier operates on
+# transparent statements (which are COSE_Sign1), but its verification model is
+# distinct from key/x509 signature verification.

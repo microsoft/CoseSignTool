@@ -26,11 +26,11 @@ Or from repo root:
 Modes:
 
 - `key` — verify a COSE_Sign1 using a known public key or certificate
-	- `key --cose <file> --public-key <der> [--payload <file>] [--expected-alg <ES256|ES384|ES512|PS256|RS256|MLDsa44|MLDsa65|MLDsa87>]`
+	- `key --cose <file> --public-key <der> [--payload <file>]`
 
 - `x5c` — verify a COSE_Sign1 using embedded `x5c`
-	- `x5c --cose <file> [--payload <file>] [--expected-alg <...>] --trust <system|custom> [--root <der>] [--revocation <online|offline|none>] [--allow-untrusted]`
-	- Notes: the Rust port currently verifies the signature using the leaf certificate but does not implement chain trust evaluation.
+	- `x5c --cose <file> [--payload <file>] --trust <system|custom> [--root <der>] [--revocation <online|offline|none>] [--allow-untrusted]`
+	- Notes: this mode verifies the COSE signature and then enforces X.509 chain trust via the `x5c_chain` message validator.
 
 - `mst` — verify an MST transparent statement using an offline JWKS file
 	- `mst --statement <file> --issuer-host <host> --jwks <file>`

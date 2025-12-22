@@ -11,8 +11,8 @@ This guide focuses on the most common extension tasks: adding algorithms, adding
 
 Typical steps:
 
-1. Add the algorithm identifier (if needed) to the algorithm enum/model used by `cosesign1-validation`.
-2. Extend algorithm dispatch in `cosesign1-validation` to:
+1. Add the algorithm identifier (if needed) to the algorithm enum/model used by `cosesign1::validation`.
+2. Extend algorithm dispatch in `cosesign1::validation` to:
    - Validate key encoding expectations.
    - Validate signature format expectations.
    - Perform the cryptographic verification.
@@ -23,15 +23,14 @@ Typical steps:
    - Unsupported/mismatched `alg`
 4. Ensure the workspace coverage gate still passes.
 
-The repo’s pattern is: keep `cosesign1-common` purely structural (CBOR/COSE parsing) and keep cryptography isolated in `cosesign1-validation`.
+The repo’s pattern is: keep the consumer surface small (`cosesign1`), and push trust decisions into message validators.
 
 ## Add a new verifier crate
 
-A “verifier crate” in this repo usually:
+A “plugin crate” in this repo usually implements either:
 
-- Uses `cosesign1-common` to parse COSE.
-- Uses `cosesign1-validation` to verify signatures.
-- Returns `ValidationResult` and stable-ish error codes.
+- a signing key provider (`cosesign1_abstractions::SigningKeyProvider`) to extract a key for signature verification
+- a message validator (`cosesign1_abstractions::MessageValidator`) to enforce trust/receipts/policy
 
 Recommended structure:
 

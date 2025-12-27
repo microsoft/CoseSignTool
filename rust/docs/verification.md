@@ -46,7 +46,7 @@ assert!(res.is_valid, "{res:?}");
 If you need lower-level knobs (e.g., enforce an expected algorithm), use the lower-level API:
 
 ```rust
-use cosesign1::validation::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
+use cosesign1::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
 
 let cose_sign1_bytes = std::fs::read("message.cose")?;
 let public_key_bytes = std::fs::read("public_key.der")?;

@@ -1,0 +1,67 @@
+# This package installs a Rust-built static library and headers.
+# We define a single imported target: <pkg>::<pkg>
+
+# NOTE: This is a template configured by CMake (the @...@ tokens are replaced
+# at install/configure time).
+
+# vcpkg-cmake-config fixup typically relocates configs into:
+#   <prefix>/share/<pkg>/<pkg>Config.cmake
+# while a plain CMake install places them under:
+#   <prefix>/lib/cmake/<pkg>/<pkg>Config.cmake
+# Compute the prefix robustly for both layouts.
+get_filename_component(_COSE_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+if(NOT EXISTS "${_COSE_PREFIX}/include/cosesign1")
+  get_filename_component(_COSE_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+endif()
+
+set(_COSE_PACKAGE_NAME "@COSESIGN1_NATIVE_PACKAGE_NAME@")
+set(_COSE_IMPORTED_TARGET "${_COSE_PACKAGE_NAME}::${_COSE_PACKAGE_NAME}")
+
+if(WIN32)
+  set(_COSE_LIB_PREFIX "")
+  set(_COSE_LIB_SUFFIX ".lib")
+else()
+  set(_COSE_LIB_PREFIX "lib")
+  set(_COSE_LIB_SUFFIX ".a")
+endif()
+
+set(_COSE_LIB_NAME "${_COSE_LIB_PREFIX}${_COSE_PACKAGE_NAME}${_COSE_LIB_SUFFIX}")
+
+add_library(${_COSE_IMPORTED_TARGET} STATIC IMPORTED)
+
+set_target_properties(${_COSE_IMPORTED_TARGET} PROPERTIES
+  IMPORTED_LOCATION "${_COSE_PREFIX}/lib/${_COSE_LIB_NAME}"
+  INTERFACE_INCLUDE_DIRECTORIES "${_COSE_PREFIX}/include"
+)
+
+if(WIN32)
+  # Rust std (and dependencies like getrandom) require these system libraries when the
+  # Rust code is consumed as a static library from MSVC.
+  set_property(TARGET ${_COSE_IMPORTED_TARGET} APPEND PROPERTY
+    INTERFACE_LINK_LIBRARIES
+      bcrypt
+      crypt32
+      ntdll
+      userenv
+      ws2_32
+  )
+endif()
+
+# Provide a friendly alias target in the `cosesign1::` namespace.
+if(_COSE_PACKAGE_NAME STREQUAL "cosesign1_abstractions_ffi")
+  if(NOT TARGET cosesign1::abstractions)
+    add_library(cosesign1::abstractions ALIAS ${_COSE_IMPORTED_TARGET})
+  endif()
+elseif(_COSE_PACKAGE_NAME STREQUAL "cosesign1_validation")
+  if(NOT TARGET cosesign1::validation)
+    add_library(cosesign1::validation ALIAS ${_COSE_IMPORTED_TARGET})
+  endif()
+elseif(_COSE_PACKAGE_NAME STREQUAL "cosesign1_x509")
+  if(NOT TARGET cosesign1::x509)
+    add_library(cosesign1::x509 ALIAS ${_COSE_IMPORTED_TARGET})
+  endif()
+elseif(_COSE_PACKAGE_NAME STREQUAL "cosesign1_mst")
+  if(NOT TARGET cosesign1::mst)
+    add_library(cosesign1::mst ALIAS ${_COSE_IMPORTED_TARGET})
+  endif()
+endif()

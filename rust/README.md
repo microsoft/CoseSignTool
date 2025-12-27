@@ -29,7 +29,7 @@ Prereqs (one-time):
 
 Run:
 
-- `cargo llvm-cov --workspace --fail-under-lines 95`
+- `cargo llvm-cov --workspace --tests --fail-under-lines 95`
 
 ## Docs and consumer example
 

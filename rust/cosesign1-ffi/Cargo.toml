@@ -1,0 +1,19 @@
+[package]
+name = "cosesign1-ffi"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+# Keep the produced library name for the existing vcpkg port: cosesign1_validation
+name = "cosesign1_validation"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+cosesign1 = { path = "../cosesign1" }
+cosesign1-abstractions = { path = "../cosesign1-abstractions" }
+# Use an explicit dependency rename so Rust code can import it consistently.
+cosesign1_abstractions_ffi = { package = "cosesign1-ffi-abstractions", path = "../cosesign1-ffi-abstractions" }
+
+[dev-dependencies]
+minicbor = { workspace = true, features = ["alloc", "std"] }

@@ -11,6 +11,7 @@ pub mod x5c_verifier;
 
 mod x5c_public_key_provider;
 mod x5c_chain_message_validator;
+mod x5c_header;
 
 /// Provider name for COSE `x5c`-based signing key resolution.
 pub const X5C_PROVIDER_NAME: &str = "x5c";

@@ -1,0 +1,17 @@
+[package]
+name = "cosesign1-ffi-abstractions"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+# Exposed FFI library name (also becomes the Rust crate name).
+name = "cosesign1_abstractions_ffi"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+cosesign1 = { path = "../cosesign1" }
+cosesign1-abstractions = { path = "../cosesign1-abstractions" }
+
+[dev-dependencies]
+minicbor = { workspace = true, features = ["alloc", "std"] }

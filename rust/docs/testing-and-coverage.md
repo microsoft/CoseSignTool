@@ -21,11 +21,11 @@ The workspace uses `cargo-llvm-cov` with a minimum line coverage threshold.
 
 From `rust/`:
 
-- `cargo llvm-cov --workspace --tests --fail-under-lines 95`
-
+ `cargo llvm-cov --workspace --tests --fail-under-lines 95`
+ `cargo llvm-cov --workspace --tests --show-missing-lines`
 To list uncovered lines:
 
-- `cargo llvm-cov --workspace --tests --show-missing-lines`
+- `cargo llvm-cov --workspace --tests --show-missing-lines --exclude cosesign1-ffi-abstractions --exclude cosesign1-ffi --exclude cosesign1-ffi-x509 --exclude cosesign1-ffi-mst`
 
 ## Interpreting common llvm-cov warnings
 

@@ -1,0 +1,10 @@
+{
+  "name": "cosesign1-c-hello-world",
+  "version-string": "0.0.0",
+  "dependencies": [
+    "cosesign1-abstractions",
+    "cosesign1",
+    "cosesign1-mst",
+    "cosesign1-x509"
+  ]
+}

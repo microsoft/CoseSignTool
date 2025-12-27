@@ -23,8 +23,9 @@ use std::collections::{HashMap, HashSet};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use cosesign1::common::parse_cose_sign1;
-use cosesign1::validation::{verify_cose_sign1, CoseAlgorithm, ValidationFailure, ValidationResult, VerifyOptions};
+use cosesign1::parse_cose_sign1;
+use cosesign1::{verify_cose_sign1, CoseAlgorithm, VerifyOptions};
+use cosesign1_abstractions::{ValidationFailure, ValidationResult};
 use cosesign1_abstractions::{CoseHeaderMap, HeaderKey, HeaderValue, ParsedCoseSign1};
 use minicbor::{Decoder, Encoder};
 use p256::pkcs8::EncodePublicKey;
@@ -987,6 +988,7 @@ pub fn verify_transparent_statement_online(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
 
     #[test]
     fn verify_receipt_against_claims_reports_parse_error_for_invalid_receipt_bytes() {
@@ -998,5 +1000,147 @@ mod tests {
         let err = verify_receipt_against_claims(b"not-cbor", b"claims", &key, None).unwrap_err();
         assert!(!err.is_empty());
         assert_eq!(err[0].error_code.as_deref(), Some("MST_RECEIPT_PARSE_ERROR"));
+    }
+
+    #[test]
+    fn read_receipt_issuer_host_returns_none_when_cwt_map_decodes_to_non_map() {
+        // CBOR: [1]
+        let cwt_map_bytes = vec![0x81, 0x01];
+
+        let mut map = BTreeMap::new();
+        map.insert(
+            HeaderKey::Int(COSE_RECEIPT_CWT_MAP_LABEL),
+            HeaderValue::Bytes(cwt_map_bytes),
+        );
+
+        let protected = CoseHeaderMap::new_protected(Vec::new(), map);
+        assert_eq!(read_receipt_issuer_host(&protected), None);
+    }
+
+    #[test]
+    fn read_embedded_receipts_reports_not_array_for_non_array_value() {
+        let mut unprotected = BTreeMap::new();
+        unprotected.insert(
+            HeaderKey::Int(COSE_HEADER_EMBEDDED_RECEIPTS),
+            HeaderValue::Text("nope".to_string()),
+        );
+
+        let parsed = ParsedCoseSign1 {
+            protected_headers: CoseHeaderMap::new_protected(Vec::new(), BTreeMap::new()),
+            unprotected_headers: CoseHeaderMap::new_unprotected(unprotected),
+            payload: Some(b"claims".to_vec()),
+            signature: Vec::new(),
+        };
+
+        let err = read_embedded_receipts(&parsed).unwrap_err();
+        assert!(err.contains("embedded receipts value was not an array"));
+    }
+
+    #[test]
+    fn verify_receipt_against_claims_reports_path_missing() {
+        let key = ResolvedKey {
+            public_key_bytes: Vec::new(),
+            expected_alg: CoseAlgorithm::ES256,
+        };
+
+        // Protected header bytes: { 4: b"kid", 395: 2 }
+        let protected_map_cbor = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.map(2).unwrap();
+            enc.i64(4).unwrap();
+            enc.bytes(b"kid").unwrap();
+            enc.i64(COSE_PHDR_VDS_LABEL).unwrap();
+            enc.i64(CCF_TREE_ALG_LABEL).unwrap();
+            out
+        };
+
+        // inclusion_map CBOR: { 1: [ bstr(32), tstr, bstr(32) ] }  (path missing)
+        let inclusion_map_bytes = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.map(1).unwrap();
+            enc.i64(CCF_PROOF_LEAF_LABEL).unwrap();
+            enc.array(3).unwrap();
+            enc.bytes(&vec![0u8; 32]).unwrap();
+            enc.str("evidence").unwrap();
+            enc.bytes(&vec![0u8; 32]).unwrap();
+            out
+        };
+
+        // receipt COSE_Sign1: [ protected, unprotected, null, signature ]
+        let receipt_bytes = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.array(4).unwrap();
+            enc.bytes(&protected_map_cbor).unwrap();
+            enc.map(1).unwrap();
+            enc.i64(COSE_PHDR_VDP_LABEL).unwrap();
+            enc.map(1).unwrap();
+            enc.i64(COSE_RECEIPT_INCLUSION_PROOF_LABEL).unwrap();
+            enc.array(1).unwrap();
+            enc.bytes(&inclusion_map_bytes).unwrap();
+            enc.null().unwrap();
+            enc.bytes(&[]).unwrap();
+            out
+        };
+
+        let err = verify_receipt_against_claims(&receipt_bytes, b"claims", &key, Some("kid")).unwrap_err();
+        assert!(err.iter().any(|f| f.error_code.as_deref() == Some("MST_PATH_MISSING")));
+    }
+
+    #[test]
+    fn verify_receipt_against_claims_reports_path_parse_error_for_invalid_path_type() {
+        let key = ResolvedKey {
+            public_key_bytes: Vec::new(),
+            expected_alg: CoseAlgorithm::ES256,
+        };
+
+        // Protected header bytes: { 4: b"kid", 395: 2 }
+        let protected_map_cbor = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.map(2).unwrap();
+            enc.i64(4).unwrap();
+            enc.bytes(b"kid").unwrap();
+            enc.i64(COSE_PHDR_VDS_LABEL).unwrap();
+            enc.i64(CCF_TREE_ALG_LABEL).unwrap();
+            out
+        };
+
+        // inclusion_map CBOR: { leaf: [..], path: true } (invalid type for path)
+        let inclusion_map_bytes = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.map(2).unwrap();
+            enc.i64(CCF_PROOF_LEAF_LABEL).unwrap();
+            enc.array(3).unwrap();
+            enc.bytes(&vec![0u8; 32]).unwrap();
+            enc.str("evidence").unwrap();
+            enc.bytes(&vec![0u8; 32]).unwrap();
+            enc.i64(CCF_PROOF_PATH_LABEL).unwrap();
+            enc.bool(true).unwrap();
+            out
+        };
+
+        // receipt COSE_Sign1: [ protected, unprotected, null, signature ]
+        let receipt_bytes = {
+            let mut out = Vec::new();
+            let mut enc = Encoder::new(&mut out);
+            enc.array(4).unwrap();
+            enc.bytes(&protected_map_cbor).unwrap();
+            enc.map(1).unwrap();
+            enc.i64(COSE_PHDR_VDP_LABEL).unwrap();
+            enc.map(1).unwrap();
+            enc.i64(COSE_RECEIPT_INCLUSION_PROOF_LABEL).unwrap();
+            enc.array(1).unwrap();
+            enc.bytes(&inclusion_map_bytes).unwrap();
+            enc.null().unwrap();
+            enc.bytes(&[]).unwrap();
+            out
+        };
+
+        let err = verify_receipt_against_claims(&receipt_bytes, b"claims", &key, Some("kid")).unwrap_err();
+        assert!(err.iter().any(|f| f.error_code.as_deref() == Some("MST_PATH_PARSE_ERROR")));
     }
 }

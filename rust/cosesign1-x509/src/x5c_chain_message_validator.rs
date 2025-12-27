@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cosesign1_abstractions::HeaderValue;
 use cosesign1_abstractions::{
     MessageValidationContext, MessageValidator, MessageValidatorError, MessageValidatorRegistration,
     ValidationResult,
 };
 
+use crate::x5c_header::extract_x5c_certs_der;
 use crate::x5c_verifier::validate_x5c_chain;
 
 struct X5cChainMessageValidator;
@@ -41,29 +41,12 @@ impl MessageValidator for X5cChainMessageValidator {
                 )
             })?;
 
-        // Extract x5c from protected/unprotected headers.
-        let x5c = ctx
-            .parsed
-            .protected_headers
-            .get_array(33)
-            .or_else(|| ctx.parsed.unprotected_headers.get_array(33));
-
-        let Some(x5c) = x5c else {
+        let Some(certs_der) = extract_x5c_certs_der(ctx.parsed) else {
             // Not applicable: no x5c header.
             return Ok(None);
         };
 
-        let mut certs_der: Vec<Vec<u8>> = Vec::new();
-        for v in x5c {
-            match v {
-                HeaderValue::Bytes(b) => certs_der.push(b.clone()),
-                _ => {
-                    return Err(MessageValidatorError::Message(
-                        "x5c must be array of bstr".to_string(),
-                    ))
-                }
-            }
-        }
+        let certs_der = certs_der.map_err(MessageValidatorError::Message)?;
 
         Ok(Some(validate_x5c_chain(
             "X509Chain",

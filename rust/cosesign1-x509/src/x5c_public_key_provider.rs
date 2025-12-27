@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cosesign1_abstractions::{HeaderValue, ParsedCoseSign1};
+use cosesign1_abstractions::ParsedCoseSign1;
 use cosesign1_abstractions::{
     PublicKeyProviderError, ResolvedSigningKey, SigningKeyProvider, SigningKeyProviderRegistration,
 };
+
+use crate::x5c_header::extract_x5c_certs_der;
 
 struct X5cPublicKeyProvider;
 
@@ -17,29 +19,11 @@ impl SigningKeyProvider for X5cPublicKeyProvider {
         &self,
         parsed: &ParsedCoseSign1,
     ) -> Result<Option<ResolvedSigningKey>, PublicKeyProviderError> {
-        // x5c header label is 33.
-        // COSE allows headers to be in protected or unprotected maps.
-        let x5c = parsed
-            .protected_headers
-            .get_array(33)
-            .or_else(|| parsed.unprotected_headers.get_array(33));
-
-        let Some(x5c) = x5c else {
+        let Some(certs_der) = extract_x5c_certs_der(parsed) else {
             return Ok(None);
         };
 
-        // x5c must be an array of bstr elements.
-        let mut certs_der: Vec<Vec<u8>> = Vec::new();
-        for v in x5c {
-            match v {
-                HeaderValue::Bytes(b) => certs_der.push(b.clone()),
-                _ => {
-                    return Err(PublicKeyProviderError::Message(
-                        "x5c must be array of bstr".to_string(),
-                    ))
-                }
-            }
-        }
+        let certs_der = certs_der.map_err(PublicKeyProviderError::Message)?;
 
         let Some(leaf_der) = certs_der.first() else {
             return Err(PublicKeyProviderError::Message("x5c is empty".to_string()));

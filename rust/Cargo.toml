@@ -8,6 +8,10 @@ members = [
   "cosesign1-x509",
   "cosesign1-mst",
   "cosesign1",
+  "cosesign1-ffi-abstractions",
+  "cosesign1-ffi",
+  "cosesign1-ffi-x509",
+  "cosesign1-ffi-mst",
 ]
 
 [workspace.package]

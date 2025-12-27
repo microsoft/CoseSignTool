@@ -8,7 +8,7 @@
 
 use cosesign1::CoseSign1;
 use cosesign1_mst::{add_issuer_keys, parse_jwks, OfflineEcKeyStore, VerificationOptions};
-use cosesign1::ValidationResult;
+use cosesign1_abstractions::ValidationResult;
 use cosesign1_x509::{X509ChainVerifyOptions, X509RevocationMode, X509TrustMode};
 
 /// Read a file to bytes or exit with a clear error.

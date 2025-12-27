@@ -157,6 +157,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosesign1-ffi"
+version = "0.2.0"
+dependencies = [
+ "cosesign1",
+ "cosesign1-abstractions",
+ "cosesign1-ffi-abstractions",
+ "minicbor",
+]
+
+[[package]]
+name = "cosesign1-ffi-abstractions"
+version = "0.2.0"
+dependencies = [
+ "cosesign1",
+ "cosesign1-abstractions",
+ "minicbor",
+]
+
+[[package]]
+name = "cosesign1-ffi-mst"
+version = "0.2.0"
+dependencies = [
+ "base64",
+ "cosesign1-abstractions",
+ "cosesign1-ffi-abstractions",
+ "cosesign1-mst",
+ "p256",
+]
+
+[[package]]
+name = "cosesign1-ffi-x509"
+version = "0.2.0"
+dependencies = [
+ "cosesign1",
+ "cosesign1-abstractions",
+ "cosesign1-ffi-abstractions",
+ "cosesign1-x509",
+]
+
+[[package]]
 name = "cosesign1-mst"
 version = "0.1.0"
 dependencies = [

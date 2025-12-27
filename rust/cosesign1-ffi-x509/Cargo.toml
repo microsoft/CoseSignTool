@@ -1,0 +1,15 @@
+[package]
+name = "cosesign1-ffi-x509"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "cosesign1_x509"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+cosesign1 = { path = "../cosesign1" }
+cosesign1_x509_core = { package = "cosesign1-x509", path = "../cosesign1-x509" }
+cosesign1-abstractions = { path = "../cosesign1-abstractions" }
+cosesign1_abstractions_ffi = { package = "cosesign1-ffi-abstractions", path = "../cosesign1-ffi-abstractions" }

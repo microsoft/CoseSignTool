@@ -1,0 +1,2 @@
+# Ignore native build output directories created by CMake presets/examples/tests
+**/out*/

@@ -34,7 +34,7 @@ This repo contains a Rust port of the COSE_Sign1 verification stack and related 
 
 ## Error model
 
-All verifiers return `cosesign1::ValidationResult`.
+All verifiers return `cosesign1_abstractions::ValidationResult`.
 
 - `is_valid` indicates overall success.
 - `failures` is a list of `ValidationFailure` entries, each having:

@@ -60,7 +60,7 @@ Given a transparent statement `S`:
       - Compute accumulator using SHA-256.
       - Verify receipt signature **as detached**:
         - Re-encode the receipt with `payload = null`
-        - Pass `external_payload = accumulator` to `cosesign1::validation::verify_cose_sign1`
+        - Pass `external_payload = accumulator` to `cosesign1::verify_cose_sign1`
       - Check `leaf.data_hash == sha256(statement_without_unprotected_headers)`.
 
 If any required receipt fails (based on behavior options), verification returns failures.

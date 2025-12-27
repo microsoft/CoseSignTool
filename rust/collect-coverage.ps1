@@ -25,7 +25,7 @@ try {
     }
   }
 
-  & cargo llvm-cov --workspace --fail-under-lines $FailUnderLines
+  & cargo llvm-cov --workspace --tests --fail-under-lines $FailUnderLines
   if ($LASTEXITCODE -ne 0) {
     throw "Coverage gate failed: expected >= $FailUnderLines% line coverage (exit $LASTEXITCODE)"
   }

@@ -7,7 +7,7 @@ Licensed under the MIT License.
 
 This is a small, buildable Rust console app showing how to consume the Rust verifier crates.
 
-It mirrors the native example app in `native/examples/cosesign1-hello-world`.
+It mirrors the native C ABI surface documented under `native/`.
 
 ## Build
 

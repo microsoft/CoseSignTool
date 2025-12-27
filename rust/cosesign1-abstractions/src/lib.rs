@@ -24,11 +24,11 @@ pub use validation_result::{ValidationFailure, ValidationResult};
 pub use options::OpaqueOptions;
 
 pub use key_provider::{
-	provider_name, resolve_signing_key, providers_ordered, PublicKeyProviderError, ResolvePublicKeyError,
-	ResolvedSigningKey, SigningKeyProvider, SigningKeyProviderId, SigningKeyProviderRegistration,
+    provider_name, resolve_signing_key, providers_ordered, PublicKeyProviderError, ResolvePublicKeyError,
+    ResolvedSigningKey, SigningKeyProvider, SigningKeyProviderId, SigningKeyProviderRegistration,
 };
 
 pub use message_validator::{
-	run_validator_by_id, validator_name, validators_ordered, MessageValidationContext, MessageValidator,
-	MessageValidatorError, MessageValidatorId, MessageValidatorRegistration, RunValidatorError,
+    run_validator_by_id, validator_name, validators_ordered, MessageValidationContext, MessageValidator,
+    MessageValidatorError, MessageValidatorId, MessageValidatorRegistration, RunValidatorError,
 };

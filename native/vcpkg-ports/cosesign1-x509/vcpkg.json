@@ -1,10 +1,12 @@
-{
+﻿{
   "name": "cosesign1-x509",
-  "version-string": "0.2.0",
+  "version-string": "0.2.4",
+  "port-version": 1,
   "description": "Rust-backed X.509 (x5c) COSE_Sign1 helpers exposed via a small C ABI for C/C++ consumers.",
   "homepage": "https://github.com/microsoft/CoseSignTool",
   "license": "MIT",
   "dependencies": [
+    "cosesign1-abstractions",
     "vcpkg-cmake",
     "vcpkg-cmake-config"
   ]

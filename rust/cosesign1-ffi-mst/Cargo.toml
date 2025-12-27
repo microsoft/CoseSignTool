@@ -1,0 +1,18 @@
+[package]
+name = "cosesign1-ffi-mst"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "cosesign1_mst"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+cosesign1_mst_core = { package = "cosesign1-mst", path = "../cosesign1-mst" }
+cosesign1-abstractions = { path = "../cosesign1-abstractions" }
+cosesign1_abstractions_ffi = { package = "cosesign1-ffi-abstractions", path = "../cosesign1-ffi-abstractions" }
+
+[dev-dependencies]
+base64 = { workspace = true }
+p256 = { workspace = true, features = ["ecdsa"] }

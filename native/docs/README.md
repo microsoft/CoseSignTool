@@ -12,6 +12,7 @@ The canonical, end-to-end Windows instructions (vcpkg overlay ports + CMake) liv
 - Verification guide: `verification.md`
 - Copy/paste snippets: `examples.md`
 - Testing and coverage: `testing-and-coverage.md`
+- Consuming via vcpkg (overlay ports + CMake): `consuming-with-vcpkg.md`
 
 ## Consumer apps (hello-world)
 
@@ -41,4 +42,6 @@ target_link_libraries(your_target PRIVATE
   cosesign1::mst
   cosesign1::x509
 )
+
+For a step-by-step guide (manifest mode vs classic mode, overlay ports, and CMake toolchain configuration), see `consuming-with-vcpkg.md`.
 ```

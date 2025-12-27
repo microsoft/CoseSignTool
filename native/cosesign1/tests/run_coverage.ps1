@@ -3,6 +3,8 @@ param(
     [string]$Configuration = "Release",
     [string]$VcpkgRoot = $env:VCPKG_ROOT,
     [string]$OpenCppCoveragePath = $env:OPENCPPCOVERAGE_PATH,
+    [string]$Generator = "",
+    [string]$Architecture = "x64",
     [switch]$AutoInstallTools
 )
 
@@ -92,12 +94,82 @@ function Resolve-OpenCppCoverage {
     ))
 }
 
-$cmake = Resolve-ExePath -Name "cmake" -FallbackPaths @(
-    "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"
-)
-$ctest = Resolve-ExePath -Name "ctest" -FallbackPaths @(
-    "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe"
-)
+function Resolve-VsCMakeBinDir {
+    $vswhere = Resolve-ExePath -Name "vswhere" -FallbackPaths @(
+        "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe",
+        "${env:ProgramFiles}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+    )
+
+    if (-not $vswhere) {
+        return $null
+    }
+
+    $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if ($LASTEXITCODE -ne 0 -or -not $installPath) {
+        return $null
+    }
+
+    $installPath = $installPath.Trim()
+    if (-not $installPath) {
+        return $null
+    }
+
+    $cmakeBin = Join-Path $installPath "Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin"
+    if (Test-Path $cmakeBin) {
+        return $cmakeBin
+    }
+
+    return $null
+}
+
+function Resolve-VsGenerator {
+    param(
+        [string]$Explicit
+    )
+
+    if ($Explicit) {
+        return $Explicit
+    }
+
+    $vswhere = Resolve-ExePath -Name "vswhere" -FallbackPaths @(
+        "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe",
+        "${env:ProgramFiles}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+    )
+
+    if (-not $vswhere) {
+        # Default to the most common currently-supported VS generator.
+        return "Visual Studio 17 2022"
+    }
+
+    $ver = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
+    if ($LASTEXITCODE -ne 0 -or -not $ver) {
+        return "Visual Studio 17 2022"
+    }
+
+    $major = ($ver.Trim() -split '\.')[0]
+    switch ($major) {
+        "17" { return "Visual Studio 17 2022" }
+        "18" { return "Visual Studio 18 2026" }
+        default { return "Visual Studio 17 2022" }
+    }
+}
+
+$cmake = Resolve-ExePath -Name "cmake" -FallbackPaths @()
+$ctest = Resolve-ExePath -Name "ctest" -FallbackPaths @()
+
+if (-not $cmake -or -not $ctest) {
+    $vsCmakeBin = Resolve-VsCMakeBinDir
+    if ($vsCmakeBin) {
+        if (-not $cmake) {
+            $candidate = Join-Path $vsCmakeBin "cmake.exe"
+            if (Test-Path $candidate) { $cmake = $candidate }
+        }
+        if (-not $ctest) {
+            $candidate = Join-Path $vsCmakeBin "ctest.exe"
+            if (Test-Path $candidate) { $ctest = $candidate }
+        }
+    }
+}
 
 if (-not (Test-Path $cmake)) {
     throw "cmake.exe not found. Install CMake or the Visual Studio CMake tools."
@@ -112,7 +184,7 @@ if (-not $occExe) {
     throw "OpenCppCoverage not found. Re-run with -AutoInstallTools, or install it manually (e.g. winget install OpenCppCoverage.OpenCppCoverage), or set OPENCPPCOVERAGE_PATH."
 }
 
-& $cmake -S $here -B $buildPath -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE="$VcpkgRoot\\scripts\\buildsystems\\vcpkg.cmake"
+& $cmake -S $here -B $buildPath -G (Resolve-VsGenerator -Explicit $Generator) -A $Architecture -DCMAKE_TOOLCHAIN_FILE="$VcpkgRoot\\scripts\\buildsystems\\vcpkg.cmake"
 & $cmake --build $buildPath --config $Configuration -j
 & $ctest --test-dir $buildPath -C $Configuration --output-on-failure
 

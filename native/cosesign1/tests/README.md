@@ -7,17 +7,16 @@ This folder contains a small Catch2-based test target that exists primarily to e
 From this folder:
 
 ```powershell
-# Note: This repo often has both VS 2022 and VS 2026 installed; vcpkg will pick the newest toolset.
-# Use the VS 2026 generator here so the toolset matches and Catch2 links cleanly.
+# Use CMake from PATH (or Visual Studio's CMake tools) and point it at vcpkg.
 
-& "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -S . -B out-vs18 -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake
-& "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" --build out-vs18 --config Release -j
+cmake -S . -B out-vs -A x64 -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake
+cmake --build out-vs --config Release -j
 ```
 
 ## Run tests
 
 ```powershell
-& "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe" --test-dir out-vs18 -C Release --output-on-failure
+ctest --test-dir out-vs -C Release --output-on-failure
 ```
 
 ## Coverage

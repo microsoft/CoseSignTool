@@ -18,7 +18,7 @@ These are provided as **overlay ports** under `native/vcpkg-ports`:
 From a shell where `VCPKG_ROOT` points at your vcpkg clone:
 
 - Set overlay ports:
-  - PowerShell: `setx VCPKG_OVERLAY_PORTS "c:\src\repos\CoseSignTool\native\vcpkg-ports"`
+  - PowerShell (example): `setx VCPKG_OVERLAY_PORTS "<repo-root>\native\vcpkg-ports"`
   - Or pass `--overlay-ports=<path>` directly to vcpkg
 
 - Install:

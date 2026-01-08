@@ -59,7 +59,12 @@ Convenience extension methods exist on `X509Certificate2`:
 ```csharp
 using DIDx509;
 
-string did = leaf.ToDid(policy: "0");
+string did1 = leaf.GetDidBuilder()
+    .WithCaCertificate(root)
+    .WithHashAlgorithm(DidX509Constants.HashAlgorithmSha256)
+    .WithSubjectFromCertificate()
+    .Build();
+
 string did2 = leaf.GetDidWithRoot(chain, hashAlgorithm: DidX509Constants.HashAlgorithmSha256);
 ```
 

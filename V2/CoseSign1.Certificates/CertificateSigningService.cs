@@ -2,17 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
-using CoseSign1.Certificates.Logging;
 using CoseSign1.Certificates.Remote;
 using CoseSign1.Headers;
 using DIDx509;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates;
@@ -49,6 +43,28 @@ namespace CoseSign1.Certificates;
 /// </remarks>
 public class CertificateSigningService : ISigningService<CertificateSigningOptions>
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorCertificateMustHavePrivateKeyForLocalSigning = "Certificate must have a private key for local signing.";
+        public static readonly string ErrorScittComplianceRequiresCertificateSigningKey = "SCITT compliance requires a certificate-based signing key";
+
+        public const string DefaultServiceName = "CertificateSigningService";
+        public const string DefaultServiceDescription = "Certificate-based signing service";
+        public const string ServiceDescriptionForDerivedTypeFormat = "Certificate-based signing service: {0}";
+
+        public const string ErrorNoSigningKeyAvailableFormat = "No signing key available. Derived class {0} must override GetSigningKey() or provide an ICertificateSigningKey to the constructor.";
+
+        public static readonly string LogCreatingLocalSigningService = "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}";
+        public static readonly string LogCreatingLocalSigningServiceWithExplicitChain = "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}";
+
+        public static readonly string LogCreatingRemoteSigningService = "Creating remote signing service for certificate source";
+        public static readonly string LogAcquiringSigningKeyFormat = "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}";
+        public static readonly string LogSigningKeyAcquiredFormat = "Signing key acquired. CoseAlgorithmId: {CoseAlgorithmId}, KeyType: {KeyType}";
+        public static readonly string LogAddingScittCwtClaims = "Adding SCITT-compliant CWT claims to signature headers";
+        public static readonly string LogApplyingAdditionalHeaderContributorsFormat = "Applying {Count} additional header contributors";
+    }
+
     private static readonly CertificateHeaderContributor CertificateContributor = new();
     private bool Disposed;
     private readonly SigningServiceMetadata ServiceMetadataField;
@@ -91,7 +107,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         if (!certificate.HasPrivateKey)
         {
             throw new ArgumentException(
-                "Certificate must have a private key for local signing.",
+                ClassStrings.ErrorCertificateMustHavePrivateKeyForLocalSigning,
                 nameof(certificate));
         }
 
@@ -102,7 +118,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         logger?.LogDebug(
             LogEvents.CertificateLoadedEvent,
-            "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            ClassStrings.LogCreatingLocalSigningService,
             certificate.Subject,
             certificate.Thumbprint);
 
@@ -134,7 +150,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         if (!certificate.HasPrivateKey)
         {
             throw new ArgumentException(
-                "Certificate must have a private key for local signing.",
+                ClassStrings.ErrorCertificateMustHavePrivateKeyForLocalSigning,
                 nameof(certificate));
         }
 
@@ -145,7 +161,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         logger?.LogDebug(
             LogEvents.CertificateLoadedEvent,
-            "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}",
+            ClassStrings.LogCreatingLocalSigningServiceWithExplicitChain,
             certificate.Subject,
             certificateChain.Count);
 
@@ -158,7 +174,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
     /// <param name="source">The remote certificate source (e.g., Azure Key Vault, Azure Trusted Signing).</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <returns>A signing service configured for remote certificate signing.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when source is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     public static CertificateSigningService Create(
         RemoteCertificateSource source,
         ILogger? logger = null)
@@ -174,7 +190,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         logger?.LogDebug(
             LogEvents.CertificateLoadedEvent,
-            "Creating remote signing service for certificate source");
+            ClassStrings.LogCreatingRemoteSigningService);
 
         return service;
     }
@@ -188,11 +204,12 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
     /// </summary>
     /// <param name="signingKey">The certificate signing key to use.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingKey"/> is null.</exception>
     public CertificateSigningService(ICertificateSigningKey signingKey, ILogger? logger = null)
         : this(signingKey?.Metadata.IsRemote ?? false,
                new SigningServiceMetadata(
-                   "CertificateSigningService",
-                   "Certificate-based signing service"),
+                   ClassStrings.DefaultServiceName,
+                   ClassStrings.DefaultServiceDescription),
                logger)
     {
 #if NET5_0_OR_GREATER
@@ -218,7 +235,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         IsRemoteField = isRemote;
         ServiceMetadataField = serviceMetadata ?? new SigningServiceMetadata(
             GetType().Name,
-            $"Certificate-based signing service: {GetType().Name}");
+            string.Format(ClassStrings.ServiceDescriptionForDerivedTypeFormat, GetType().Name));
         Logger = logger ?? NullLogger.Instance;
     }
 
@@ -267,6 +284,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
     /// </summary>
     /// <param name="context">The signing context.</param>
     /// <returns>A CoseSigner ready to sign the message.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is null.</exception>
     public CoseSigner GetCoseSigner(SigningContext context)
     {
         ThrowIfDisposed();
@@ -278,7 +296,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         Logger.LogDebug(
             LogEvents.SigningKeyAcquiredEvent,
-            "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}",
+            ClassStrings.LogAcquiringSigningKeyFormat,
             context.ContentType,
             IsRemoteField);
 
@@ -287,7 +305,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         Logger.LogTrace(
             LogEvents.SigningKeyAcquiredEvent,
-            "Signing key acquired. CoseAlgorithmId: {CoseAlgorithmId}, KeyType: {KeyType}",
+            ClassStrings.LogSigningKeyAcquiredFormat,
             signingKey.Metadata.CoseAlgorithmId,
             signingKey.Metadata.KeyType);
 
@@ -312,7 +330,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         {
             Logger.LogDebug(
                 LogEvents.SigningHeaderContributionEvent,
-                "Adding SCITT-compliant CWT claims to signature headers");
+                ClassStrings.LogAddingScittCwtClaims);
             var cwtContributor = CreateScittCwtClaimsContributor(certOptions, signingKey);
             cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
             cwtContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
@@ -323,7 +341,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         {
             Logger.LogTrace(
                 LogEvents.SigningHeaderContributionEvent,
-                "Applying {Count} additional header contributors",
+                ClassStrings.LogApplyingAdditionalHeaderContributorsFormat,
                 context.AdditionalHeaderContributors.Count);
             foreach (var contributor in context.AdditionalHeaderContributors)
             {
@@ -362,7 +380,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
             // Cast to ICertificateSigningKey to access certificate chain
             if (signingKey is not ICertificateSigningKey certKey)
             {
-                throw new InvalidOperationException("SCITT compliance requires a certificate-based signing key");
+                throw new InvalidOperationException(ClassStrings.ErrorScittComplianceRequiresCertificateSigningKey);
             }
 
             var certificateChain = certKey.GetCertificateChain(X509ChainSortOrder.LeafFirst);
@@ -404,9 +422,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         }
 
         // Derived classes should override this method
-        throw new InvalidOperationException(
-            $"No signing key available. Derived class {GetType().Name} must override GetSigningKey() " +
-            "or provide an ICertificateSigningKey to the constructor.");
+        throw new InvalidOperationException(string.Format(ClassStrings.ErrorNoSigningKeyAvailableFormat, GetType().Name));
     }
 
     /// <summary>

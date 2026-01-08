@@ -1,19 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions.Transparency;
-using CoseSign1.Logging;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Direct;
@@ -28,6 +19,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
+        // Formatting
+        public static readonly string GuidFormatCompact = "N";
+
         // Logging scope keys
         public static readonly string KeyOperationId = "OperationId";
         public static readonly string KeySignatureType = "SignatureType";
@@ -78,6 +72,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="signingService">The signing service to use for creating signatures.</param>
     /// <param name="transparencyProviders">Optional transparency providers to apply to all signed messages. Can be overridden per-operation.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingService"/> is <see langword="null"/>.</exception>
     public DirectSignatureFactory(
         ISigningService<SigningOptions> signingService,
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
@@ -124,6 +119,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="options">Optional signing options. If null, default options are used.</param>
     /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the underlying buffer could not be acquired.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         ReadOnlySpan<byte> payload,
         string contentType,
@@ -137,7 +134,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
-        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatCompact).Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
             [ClassStrings.KeyOperationId] = operationId,
@@ -174,7 +171,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             var headerContributors = CreateHeaderContributorsList(options.AdditionalHeaderContributors);
             Logger.LogTrace(
                 LogEvents.SigningHeaderContributionEvent,
-                "Created header contributors list with {Count} contributors",
+                ClassStrings.LogHeaderContributorsCreated,
                 headerContributors.Count);
 
             // Merge service options into additional context if provided
@@ -189,7 +186,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
             Logger.LogTrace(
                 LogEvents.SigningKeyAcquiredEvent,
-                "Acquiring signer from signing service");
+                ClassStrings.LogAcquiringSigner);
             var signer = SigningService.GetCoseSigner(context);
 
             // Use the original payload span and AdditionalData span - no additional allocations
@@ -246,6 +243,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="options">Optional signing options. If null, default options are used.</param>
     /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         byte[] payload,
         string contentType,
@@ -296,6 +294,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payloadStream"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public virtual async Task<byte[]> CreateCoseSign1MessageBytesAsync(
         Stream payloadStream,
         string contentType,
@@ -315,7 +314,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
         ThrowIfDisposed();
 
-        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatCompact).Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
             [ClassStrings.KeyOperationId] = operationId,
@@ -443,6 +442,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="options">Optional signing options. If null, default options are used.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> is <see langword="null"/>.</exception>
     public virtual Task<byte[]> CreateCoseSign1MessageBytesAsync(
         byte[] payload,
         string contentType,
@@ -674,7 +674,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             }
             catch (Exception ex)
             {
-                var error = $"Transparency provider '{provider.ProviderName}' failed: {ex.Message}";
+                var error = string.Format(ClassStrings.ErrorTransparencyProviderFailed, provider.ProviderName, ex.Message);
                 errors.Add(error);
 
                 Logger.LogWarning(
@@ -696,7 +696,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                         stopwatch.ElapsedMilliseconds);
 
                     throw new InvalidOperationException(
-                        $"Failed to add transparency proof. {error}",
+                        string.Format(ClassStrings.ErrorTransparencyFailed, error),
                         ex);
                 }
 

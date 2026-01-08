@@ -207,10 +207,10 @@ var large = TestPayloads.Large(size: 1024 * 1024);
 
 ```csharp
 // Mock validator
-var mockValidator = new Mock<IValidator<CoseSign1Message>>();
+var mockValidator = new Mock<IValidator>();
 mockValidator
-    .Setup(v => v.ValidateAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()))
-    .ReturnsAsync(ValidationResult.Success("MockValidator"));
+    .Setup(v => v.ValidateAsync(It.IsAny<CoseSign1Message>(), It.IsAny<ValidationStage>(), It.IsAny<CancellationToken>()))
+    .ReturnsAsync(ValidationResult.Success("MockValidator", ValidationStage.PostSignature));
 ```
 
 ## Test Data
@@ -263,9 +263,9 @@ public class SignVerifyIntegrationTests
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
         
         Assert.IsTrue(result.IsValid);
     }

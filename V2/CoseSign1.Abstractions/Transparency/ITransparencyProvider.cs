@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace CoseSign1.Abstractions.Transparency;
 
 /// <summary>

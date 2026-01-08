@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Directory.Build.props is imported before each project file, so conditions based on properties
+    set inside individual .csproj files (like IsTestProject) may not evaluate as expected.
+
+    Directory.Build.targets is imported after each project file, so it can reliably apply
+    test-only overrides.
+  -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <!-- Test projects are not part of the public shipping surface; avoid requiring XML docs here. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

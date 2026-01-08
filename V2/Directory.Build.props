@@ -21,17 +21,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <!-- Test runner configuration (NUnit only) -->
   <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <!-- Test projects are not part of the public shipping surface; avoid requiring XML docs here. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <EnableNUnitRunner>true</EnableNUnitRunner>
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <!-- Suppress MTP0001: VSTest properties ignored when using Microsoft.Testing.Platform -->
-    <NoWarn>$(NoWarn);MTP0001</NoWarn>
-    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MTP0001</MSBuildWarningsAsMessages>
+    <NoWarn>$(NoWarn);MTP0001;CS1591;MSB0000</NoWarn>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MTP0001;MSB0000</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <!-- Code analysis -->
@@ -40,6 +41,14 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
+
+  <!-- Documentation enforcement (non-test projects) -->
+  <ItemGroup Condition="'$(IsTestProject)' != 'true' AND '$(MSBuildProjectName)' != 'CoseSignTool.DocumentationAnalyzers'">
+    <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)CoseSignTool.DocumentationAnalyzers\CoseSignTool.DocumentationAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
 
   <!-- Strong name signing (apply to all non-test projects) -->
   <PropertyGroup Condition="'$(IsTestProject)' != 'true'">
@@ -51,11 +60,12 @@
   <!-- NuGet package defaults for library projects -->
   <PropertyGroup Condition="'$(IsPackable)' != 'false' AND '$(IsTestProject)' != 'true'">
     <IsPackable>true</IsPackable>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages\</PackageOutputPath>
     <Company>Microsoft</Company>
     <Authors>Microsoft</Authors>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>https://github.com/microsoft/CoseSignTool</PackageProjectUrl>
     <RepositoryUrl>https://github.com/microsoft/CoseSignTool</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -84,10 +94,9 @@
   <!-- 
     NUnit Parallel Test Execution Configuration
     Include shared parallel configuration in all test projects.
-    This enables fixture-level parallelism with 8 workers.
   -->
   <ItemGroup Condition="'$(IsTestProject)' == 'true'">
-    <Compile Include="$(MSBuildThisFileDirectory)NUnitParallelConfig.cs" Link="Properties\NUnitParallelConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CoseSign1.Tests.Common\NUnitParallelConfig.cs" Link="Properties\NUnitParallelConfig.cs" />
   </ItemGroup>
 
   <!-- Strong name public key for InternalsVisibleTo (35MSSharedLib1024.snk) -->

@@ -136,7 +136,7 @@ public interface IVerificationProvider
     
     void AddVerificationOptions(Command command);
     bool IsActivated(ParseResult parseResult);
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
     IDictionary<string, object?> GetVerificationMetadata(
         ParseResult parseResult,
         CoseSign1Message message,
@@ -151,9 +151,14 @@ Some verification providers need additional runtime context (for example, detach
 ```csharp
 public interface IVerificationProviderWithContext : IVerificationProvider
 {
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult, VerificationContext context);
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext context);
 }
 ```
+
+#### Trust policies
+
+Verification providers can optionally contribute a `TrustPolicy` by implementing `IVerificationProviderWithTrustPolicy`.
+When multiple active providers return a policy, the CLI requires **all** policies to be satisfied (logical AND).
 
 The `verify` command passes a `VerificationContext` that can include the detached payload bytes when a `--payload` file is supplied.
 

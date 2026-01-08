@@ -7,7 +7,6 @@ using System.Text;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 using Moq;
-using NUnit.Framework;
 
 namespace CoseSign1.Tests;
 

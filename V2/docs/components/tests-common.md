@@ -67,10 +67,10 @@ public class SigningTests
         var message = CoseMessage.DecodeSign1(coseBytes);
 
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.True);
     }
 }

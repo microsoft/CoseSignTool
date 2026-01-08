@@ -486,7 +486,8 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var sw = new StringWriter();
+        var builder = new SigningCommandBuilder(standardOutput: sw, standardError: TextWriter.Null);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -497,10 +498,6 @@ public class SigningCommandBuilderTests
         await File.WriteAllBytesAsync(payloadPath, [0x01, 0x02, 0x03]);
 
         var outputPath = Path.Combine(tempDir, "signature.cose");
-
-        var originalOut = Console.Out;
-        var sw = new StringWriter();
-        Console.SetOut(sw);
 
         try
         {
@@ -522,7 +519,6 @@ public class SigningCommandBuilderTests
         }
         finally
         {
-            Console.SetOut(originalOut);
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, recursive: true);
@@ -535,7 +531,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = new SigningCommandBuilder(standardOutputProvider: () => Stream.Null);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 

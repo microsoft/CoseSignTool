@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using DIDx509.Resolution;
-using NUnit.Framework;
 
 namespace DIDx509.Tests.Resolution;
 

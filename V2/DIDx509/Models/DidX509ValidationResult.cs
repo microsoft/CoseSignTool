@@ -47,6 +47,9 @@ public sealed class DidX509ValidationResult
     /// <summary>
     /// Creates a successful validation result.
     /// </summary>
+    /// <param name="parsedDid">The parsed DID.</param>
+    /// <param name="chainModel">The certificate chain model.</param>
+    /// <returns>A successful validation result.</returns>
     public static DidX509ValidationResult Success(DidX509ParsedIdentifier parsedDid, CertificateChainModel chainModel)
     {
         return new DidX509ValidationResult(true, Array.Empty<string>(), parsedDid, chainModel);
@@ -55,6 +58,8 @@ public sealed class DidX509ValidationResult
     /// <summary>
     /// Creates a failed validation result.
     /// </summary>
+    /// <param name="errors">The validation errors.</param>
+    /// <returns>A failed validation result.</returns>
     public static DidX509ValidationResult Failure(params string[] errors)
     {
         return new DidX509ValidationResult(false, errors.ToList());
@@ -63,6 +68,8 @@ public sealed class DidX509ValidationResult
     /// <summary>
     /// Creates a failed validation result.
     /// </summary>
+    /// <param name="errors">The validation errors.</param>
+    /// <returns>A failed validation result.</returns>
     public static DidX509ValidationResult Failure(IEnumerable<string> errors)
     {
         return new DidX509ValidationResult(false, errors.ToList());

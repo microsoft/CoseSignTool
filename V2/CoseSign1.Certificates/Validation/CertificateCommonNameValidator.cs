@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
 
@@ -11,8 +10,13 @@ namespace CoseSign1.Certificates.Validation;
 /// <summary>
 /// Validates that the signing certificate's subject common name matches the expected value.
 /// </summary>
-public sealed class CertificateCommonNameValidator : IValidator<CoseSign1Message>
+public sealed class CertificateCommonNameValidator : IValidator
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -45,6 +49,7 @@ public sealed class CertificateCommonNameValidator : IValidator<CoseSign1Message
     /// </summary>
     /// <param name="expectedCommonName">The expected common name (CN) value.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="expectedCommonName"/> is null or whitespace.</exception>
     public CertificateCommonNameValidator(string expectedCommonName, bool allowUnprotectedHeaders = false)
     {
         if (string.IsNullOrWhiteSpace(expectedCommonName))
@@ -56,7 +61,8 @@ public sealed class CertificateCommonNameValidator : IValidator<CoseSign1Message
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    /// <inheritdoc/>
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input == null)
         {
@@ -102,8 +108,9 @@ public sealed class CertificateCommonNameValidator : IValidator<CoseSign1Message
         return ValidationResult.Success(ClassStrings.ValidatorName, metadata);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
     }
 }

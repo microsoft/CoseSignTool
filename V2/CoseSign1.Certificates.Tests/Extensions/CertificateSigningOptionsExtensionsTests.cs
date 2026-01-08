@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
 using CoseSign1.Abstractions;
-using CoseSign1.Certificates;
 using CoseSign1.Certificates.Extensions;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Extensions;
 

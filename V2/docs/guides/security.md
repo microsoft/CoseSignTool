@@ -92,14 +92,14 @@ using System.Security.Cryptography.Cose;
 var message = CoseMessage.DecodeSign1(signature);
 
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
+    .ValidateCertificate(cert => cert
         .ValidateChain())
     .Build();
 
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
-if (!result.IsValid)
+if (!signatureResult.IsValid || !trustResult.IsValid)
 {
     throw new SecurityException("Signature validation failed");
 }

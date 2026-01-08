@@ -1,11 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
-using CoseSign1.Certificates.Interfaces;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates;
 
@@ -15,6 +11,21 @@ namespace CoseSign1.Certificates;
 /// </summary>
 public class CertificateSigningKey : ICertificateSigningKey
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string MldsaOidPrefix = "2.16.840.1.101.3.4.3.";
+        public const string Mldsa44Oid = "2.16.840.1.101.3.4.3.17";
+        public const string Mldsa65Oid = "2.16.840.1.101.3.4.3.18";
+        public const string Mldsa87Oid = "2.16.840.1.101.3.4.3.19";
+
+        public const string MetadataKeyPublicKeyAlgorithmOid = "PublicKeyAlgorithmOid";
+        public const string MetadataKeyWarning = "Warning";
+        public const string MetadataValueUnknown = "unknown";
+
+        public const string WarningUnableToDetermineKeyTypeFromCertificate = "Unable to determine key type from certificate";
+    }
+
     private readonly ICertificateSource CertificateSourceField;
     private readonly ISigningKeyProvider SigningKeyProviderField;
     private readonly ISigningService<SigningOptions> SigningServiceField;
@@ -28,6 +39,9 @@ public class CertificateSigningKey : ICertificateSigningKey
     /// <param name="certificateSource">Source for the signing certificate</param>
     /// <param name="signingKeyProvider">Provider for signing operations</param>
     /// <param name="signingService">The signing service that owns this key</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateSource"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingKeyProvider"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingService"/> is null.</exception>
     public CertificateSigningKey(
         ICertificateSource certificateSource,
         ISigningKeyProvider signingKeyProvider,
@@ -172,7 +186,7 @@ public class CertificateSigningKey : ICertificateSigningKey
         // 2.16.840.1.101.3.4.3.17 - ML-DSA-44
         // 2.16.840.1.101.3.4.3.18 - ML-DSA-65
         // 2.16.840.1.101.3.4.3.19 - ML-DSA-87
-        if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
+        if (publicKeyOid?.StartsWith(ClassStrings.MldsaOidPrefix) == true)
         {
             keyType = CryptographicKeyType.MLDSA;
 
@@ -183,9 +197,9 @@ public class CertificateSigningKey : ICertificateSigningKey
             // -50: ML-DSA-87 (256-bit security)
             (coseAlgorithmId, keySizeInBits, hashAlgorithm) = publicKeyOid switch
             {
-                "2.16.840.1.101.3.4.3.17" => (-48, (int?)44, HashAlgorithmName.SHA256),  // ML-DSA-44
-                "2.16.840.1.101.3.4.3.18" => (-49, (int?)65, HashAlgorithmName.SHA384),  // ML-DSA-65
-                "2.16.840.1.101.3.4.3.19" => (-50, (int?)87, HashAlgorithmName.SHA512),  // ML-DSA-87
+                ClassStrings.Mldsa44Oid => (-48, (int?)44, HashAlgorithmName.SHA256),  // ML-DSA-44
+                ClassStrings.Mldsa65Oid => (-49, (int?)65, HashAlgorithmName.SHA384),  // ML-DSA-65
+                ClassStrings.Mldsa87Oid => (-50, (int?)87, HashAlgorithmName.SHA512),  // ML-DSA-87
                 _ => (-48, (int?)null, HashAlgorithmName.SHA256) // Default to ML-DSA-44 equivalent
             };
 
@@ -197,7 +211,7 @@ public class CertificateSigningKey : ICertificateSigningKey
                 keySizeInBits: keySizeInBits,
                 additionalMetadata: new Dictionary<string, object>
                 {
-                    ["PublicKeyAlgorithmOid"] = publicKeyOid ?? "unknown"
+                    [ClassStrings.MetadataKeyPublicKeyAlgorithmOid] = publicKeyOid ?? ClassStrings.MetadataValueUnknown
                 });
         }
 
@@ -210,7 +224,7 @@ public class CertificateSigningKey : ICertificateSigningKey
             keySizeInBits: null,
             additionalMetadata: new Dictionary<string, object>
             {
-                ["Warning"] = "Unable to determine key type from certificate"
+                [ClassStrings.MetadataKeyWarning] = ClassStrings.WarningUnableToDetermineKeyTypeFromCertificate
             });
     }
 

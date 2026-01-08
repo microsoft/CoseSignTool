@@ -21,6 +21,12 @@ namespace CoseSign1.AzureKeyVault;
 /// </remarks>
 internal sealed class KeyVaultRemoteRsa : RSA
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorPrivateKeyNotAvailableRemoteSigning = "Private key is not available - signing is performed remotely in Key Vault.";
+    }
+
     private readonly RSA PublicKey;
     private readonly KeyVaultCryptoClientWrapper CryptoWrapper;
 
@@ -44,7 +50,7 @@ internal sealed class KeyVaultRemoteRsa : RSA
     {
         if (includePrivateParameters)
         {
-            throw new CryptographicException("Private key is not available - signing is performed remotely in Key Vault.");
+            throw new CryptographicException(ClassStrings.ErrorPrivateKeyNotAvailableRemoteSigning);
         }
         return PublicKey.ExportParameters(false);
     }

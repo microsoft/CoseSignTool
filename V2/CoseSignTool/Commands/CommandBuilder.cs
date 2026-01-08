@@ -26,25 +26,30 @@ public class CommandBuilder
     internal static class ClassStrings
     {
         // Root command
-        public static readonly string RootDescription = "Modern CLI tool for COSE Sign1 signing and verification\n\n" +
-            "PIPELINE SUPPORT:\n" +
-            "  CoseSignTool supports Unix-style pipelines for flexible workflow integration:\n" +
-            "  - Read payload from stdin: omit payload argument or use '-'\n" +
-            "  - Write signature to stdout: use '--output -' or automatic when input is stdin\n" +
-            "  - Chain commands: output can feed directly into verification or encoding\n\n" +
-            "QUICK EXAMPLES:\n" +
-            "  # Sign from stdin to stdout:\n" +
-            "    echo 'data' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose\n\n" +
-            "  # Sign file, verify in pipeline:\n" +
-            "    CoseSignTool sign-pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify -\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    CoseSignTool verify signature.cose --output-format json\n\n" +
-            "Use 'CoseSignTool [command] --help' for detailed command-specific examples.";
+        public static readonly string RootDescription = string.Concat(
+            "Modern CLI tool for COSE Sign1 signing and verification\n\n",
+            "PIPELINE SUPPORT:\n",
+            "  CoseSignTool supports Unix-style pipelines for flexible workflow integration:\n",
+            "  - Read payload from stdin: omit payload argument or use '-'\n",
+            "  - Write signature to stdout: use '--output -' or automatic when input is stdin\n",
+            "  - Chain commands: output can feed directly into verification or encoding\n\n",
+            "QUICK EXAMPLES:\n",
+            "  # Sign from stdin to stdout:\n",
+            "    echo 'data' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose\n\n",
+            "  # Sign file, verify in pipeline:\n",
+            "    CoseSignTool sign-pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify -\n\n",
+            "  # JSON output for scripting:\n",
+            "    CoseSignTool verify signature.cose --output-format json\n\n",
+            "Use 'CoseSignTool [command] --help' for detailed command-specific examples.");
 
         // Global options
         public static readonly string OptionOutputFormat = "--output-format";
         public static readonly string OptionOutputFormatAlias = "-f";
         public static readonly string OptionOutputFormatDescription = "Output format for command results";
+        public static readonly string OutputFormatText = "text";
+        public static readonly string OutputFormatJson = "json";
+        public static readonly string OutputFormatXml = "xml";
+        public static readonly string OutputFormatQuiet = "quiet";
         public static readonly string OptionVerbose = "--verbose";
         public static readonly string OptionVerboseDescription = "Show detailed help including all options and examples";
         public static readonly string OptionVerbosity = "--verbosity";
@@ -56,68 +61,75 @@ public class CommandBuilder
 
         // Verify command
         public static readonly string CommandVerify = "verify";
-        public static readonly string VerifyDescription = "Verify a COSE Sign1 signature\n\n" +
-            "EXAMPLES:\n" +
-            "  # Basic verification (embedded signature):\n" +
-            "    cosesigntool verify signature.cose\n\n" +
-            "  # Verify detached signature (payload required):\n" +
-            "    cosesigntool verify signature.cose --payload document.json\n\n" +
-            "  # Verify indirect signature (payload required for hash match):\n" +
-            "    cosesigntool verify indirect.sig --payload large-file.bin\n\n" +
-            "  # Verify signature only (skip payload hash verification):\n" +
-            "    cosesigntool verify indirect.sig --signature-only\n\n" +
-            "  # Verify with specific trust roots:\n" +
-            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n" +
-            "  # Allow self-signed certificates (dev/test):\n" +
-            "    cosesigntool verify signature.cose --allow-untrusted\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    cosesigntool verify signature.cose -f json";
+        public static readonly string VerifyDescription = string.Concat(
+            "Verify a COSE Sign1 signature\n\n",
+            "EXAMPLES:\n",
+            "  # Basic verification (embedded signature):\n",
+            "    cosesigntool verify signature.cose\n\n",
+            "  # Verify detached signature (payload required):\n",
+            "    cosesigntool verify signature.cose --payload document.json\n\n",
+            "  # Verify indirect signature (payload required for hash match):\n",
+            "    cosesigntool verify indirect.sig --payload large-file.bin\n\n",
+            "  # Verify signature only (skip payload hash verification):\n",
+            "    cosesigntool verify indirect.sig --signature-only\n\n",
+            "  # Verify with specific trust roots:\n",
+            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n",
+            "  # Allow self-signed certificates (dev/test):\n",
+            "    cosesigntool verify signature.cose --allow-untrusted\n\n",
+            "  # JSON output for scripting:\n",
+            "    cosesigntool verify signature.cose -f json");
         public static readonly string ArgumentSignature = "signature";
-        public static readonly string ArgumentSignatureDescription = "Path to the COSE signature file. Use '-' to read from stdin.\n" +
-            "  Examples:\n" +
-            "    signature.cose  - Read from file\n" +
-            "    -               - Read from stdin (for pipeline)";
+        public static readonly string ArgumentSignatureDescription = string.Concat(
+            "Path to the COSE signature file. Use '-' to read from stdin.\n",
+            "  Examples:\n",
+            "    signature.cose  - Read from file\n",
+            "    -               - Read from stdin (for pipeline)");
 
         // Verify options
         public static readonly string OptionPayload = "--payload";
         public static readonly string OptionPayloadAlias = "-p";
-        public static readonly string OptionPayloadDescription = "Path to payload file for detached/indirect signature verification.\n" +
-            "  - Detached signatures: REQUIRED (payload is part of signed data)\n" +
-            "  - Indirect signatures: Optional (verifies hash match if provided)";
+        public static readonly string OptionPayloadDescription = string.Concat(
+            "Path to payload file for detached/indirect signature verification.\n",
+            "  - Detached signatures: REQUIRED (payload is part of signed data)\n",
+            "  - Indirect signatures: Optional (verifies hash match if provided)");
         public static readonly string OptionSignatureOnly = "--signature-only";
-        public static readonly string OptionSignatureOnlyDescription = "Verify only the cryptographic signature, skip payload verification.\n" +
-            "  For indirect signatures, this verifies the signature over the hash\n" +
-            "  envelope without checking if a payload matches the hash.";
+        public static readonly string OptionSignatureOnlyDescription = string.Concat(
+            "Verify only the cryptographic signature, skip payload verification.\n",
+            "  For indirect signatures, this verifies the signature over the hash\n",
+            "  envelope without checking if a payload matches the hash.");
 
         // Inspect command
         public static readonly string CommandInspect = "inspect";
-        public static readonly string InspectDescription = "Inspect and display COSE Sign1 signature details\n\n" +
-            "Displays detailed information about a COSE Sign1 message including:\n" +
-            "  - Protected and unprotected headers\n" +
-            "  - Algorithm and content type\n" +
-            "  - Payload size and preview (if embedded)\n" +
-            "  - Certificate chain information\n" +
-            "  - Signature size\n\n" +
-            "EXAMPLES:\n" +
-            "  # Inspect a signature file:\n" +
-            "    cosesigntool inspect signature.cose\n\n" +
-            "  # Extract embedded payload to a file:\n" +
-            "    cosesigntool inspect signature.cose --extract-payload payload.bin\n\n" +
-            "  # Extract payload to stdout:\n" +
-            "    cosesigntool inspect signature.cose --extract-payload - > payload.bin\n\n" +
-            "  # JSON output for scripting:\n" +
-            "    cosesigntool inspect signature.cose -f json\n\n" +
-            "  # Inspect and filter with jq:\n" +
-            "    cosesigntool inspect signature.cose -f json | jq '.headers'";
+        public static readonly string InspectDescription = string.Concat(
+            "Inspect and display COSE Sign1 signature details\n\n",
+            "Displays detailed information about a COSE Sign1 message including:\n",
+            "  - Protected and unprotected headers\n",
+            "  - Algorithm and content type\n",
+            "  - Payload size and preview (if embedded)\n",
+            "  - Certificate chain information\n",
+            "  - Signature size\n\n",
+            "EXAMPLES:\n",
+            "  # Inspect a signature file:\n",
+            "    cosesigntool inspect signature.cose\n\n",
+            "  # Extract embedded payload to a file:\n",
+            "    cosesigntool inspect signature.cose --extract-payload payload.bin\n\n",
+            "  # Extract payload to stdout:\n",
+            "    cosesigntool inspect signature.cose --extract-payload - > payload.bin\n\n",
+            "  # JSON output for scripting:\n",
+            "    cosesigntool inspect signature.cose -f json\n\n",
+            "  # Inspect and filter with jq:\n",
+            "    cosesigntool inspect signature.cose -f json | jq '.headers'");
         public static readonly string ArgumentFile = "file";
-        public static readonly string ArgumentFileDescription = "Path to the COSE signature file to inspect. Use '-' to read from stdin.\n" +
-            "  Examples:\n" +
-            "    signature.cose  - Read from file\n" +
-            "    -               - Read from stdin (for pipeline)";
+        public static readonly string ArgumentFileDescription = string.Concat(
+            "Path to the COSE signature file to inspect. Use '-' to read from stdin.\n",
+            "  Examples:\n",
+            "    signature.cose  - Read from file\n",
+            "    -               - Read from stdin (for pipeline)");
         public static readonly string OptionExtractPayload = "--extract-payload";
         public static readonly string OptionExtractPayloadAlias = "-x";
-        public static readonly string OptionExtractPayloadDescription = "Extract embedded payload to the specified path. Use '-' for stdout.\n" +
-            "  Only works if the signature contains an embedded payload.";
+        public static readonly string OptionExtractPayloadDescription = string.Concat(
+            "Extract embedded payload to the specified path. Use '-' for stdout.\n",
+            "  Only works if the signature contains an embedded payload.");
 
         // Plugin loading warnings
         public static readonly string WarningPluginExtensions = "Warning: Failed to get extensions from plugin '{0}': {1}";
@@ -139,14 +151,32 @@ public class CommandBuilder
     }
 
     private readonly ILoggerFactory? LoggerFactory;
+    private readonly TextWriter StandardOutput;
+    private readonly TextWriter StandardError;
+    private readonly Func<Stream> StandardInputProvider;
+
+    private readonly Func<Stream> StandardOutputProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandBuilder"/> class.
     /// </summary>
     /// <param name="loggerFactory">Optional logger factory for creating loggers.</param>
-    public CommandBuilder(ILoggerFactory? loggerFactory = null)
+    /// <param name="standardOutput">Optional standard output writer (stdout). When null, uses Console.Out.</param>
+    /// <param name="standardError">Optional standard error writer (stderr). When null, uses Console.Error.</param>
+    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
+    /// <param name="standardOutputProvider">Optional standard output stream provider. When null, uses Console.OpenStandardOutput.</param>
+    public CommandBuilder(
+        ILoggerFactory? loggerFactory = null,
+        TextWriter? standardOutput = null,
+        TextWriter? standardError = null,
+        Func<Stream>? standardInputProvider = null,
+        Func<Stream>? standardOutputProvider = null)
     {
         LoggerFactory = loggerFactory;
+        StandardOutput = standardOutput ?? Console.Out;
+        StandardError = standardError ?? Console.Error;
+        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
+        StandardOutputProvider = standardOutputProvider ?? Console.OpenStandardOutput;
     }
 
     /// <summary>
@@ -164,7 +194,11 @@ public class CommandBuilder
             getDefaultValue: () => OutputFormat.Text,
             description: ClassStrings.OptionOutputFormatDescription);
         outputFormatOption.AddAlias(ClassStrings.OptionOutputFormatAlias);
-        outputFormatOption.FromAmong("text", "json", "xml", "quiet");
+        outputFormatOption.FromAmong(
+            ClassStrings.OutputFormatText,
+            ClassStrings.OutputFormatJson,
+            ClassStrings.OutputFormatXml,
+            ClassStrings.OutputFormatQuiet);
 
         var verboseHelpOption = new Option<bool>(
             name: ClassStrings.OptionVerbose,
@@ -208,7 +242,11 @@ public class CommandBuilder
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
             transparencyProviders: transparencyProviders,
-            loggerFactory: LoggerFactory);
+            loggerFactory: LoggerFactory,
+            standardInputProvider: StandardInputProvider,
+            standardOutputProvider: StandardOutputProvider,
+            standardOutput: StandardOutput,
+            standardError: StandardError);
 
         // NOTE: All signing commands (including sign-ephemeral) are provided by plugins.
         // The Local.Plugin provides: sign-pfx, sign-pem, sign-ephemeral, sign-cert-store
@@ -224,7 +262,7 @@ public class CommandBuilder
     /// <summary>
     /// Loads plugins and registers their commands.
     /// </summary>
-    private static void LoadPlugins(
+    private void LoadPlugins(
         RootCommand rootCommand,
         IEnumerable<string>? additionalPluginDirectories,
         out IReadOnlyList<ITransparencyProvider> transparencyProviders,
@@ -246,6 +284,7 @@ public class CommandBuilder
             }
 
             var loader = new PluginLoader();
+            loader.StandardError = StandardError;
             var loadTask = loader.LoadPluginsAsync(pluginDir, additionalPluginDirectories);
             loadTask.Wait(); // Synchronous wait since we can't make BuildRootCommand async
 
@@ -264,7 +303,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
+                    StandardError.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
                     continue;
                 }
 
@@ -280,7 +319,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(string.Format(ClassStrings.WarningTransparencyProvider, plugin.Name, ex.Message));
+                    StandardError.WriteLine(string.Format(ClassStrings.WarningTransparencyProvider, plugin.Name, ex.Message));
                 }
 
                 // Collect verification providers
@@ -290,7 +329,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
+                    StandardError.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
                 }
             }
 
@@ -299,7 +338,11 @@ public class CommandBuilder
 
             // Create signing command builder with transparency providers
             var signingCommandBuilder = new SigningCommandBuilder(
-                transparencyProviders: transparencyProviders.Count > 0 ? transparencyProviders : null);
+                transparencyProviders: transparencyProviders.Count > 0 ? transparencyProviders : null,
+                standardInputProvider: StandardInputProvider,
+                standardOutputProvider: StandardOutputProvider,
+                standardOutput: StandardOutput,
+                standardError: StandardError);
 
             // Register all loaded plugins
             foreach (var plugin in plugins)
@@ -320,17 +363,17 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginRegister, plugin.Name, ex.Message));
+                    StandardError.WriteLine(string.Format(ClassStrings.WarningPluginRegister, plugin.Name, ex.Message));
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine(string.Format(ClassStrings.WarningPluginLoad, ex.Message));
-            Console.Error.WriteLine(string.Format(ClassStrings.WarningStackTrace, ex.StackTrace));
+            StandardError.WriteLine(string.Format(ClassStrings.WarningPluginLoad, ex.Message));
+            StandardError.WriteLine(string.Format(ClassStrings.WarningStackTrace, ex.StackTrace));
             if (ex.InnerException != null)
             {
-                Console.Error.WriteLine(string.Format(ClassStrings.WarningInnerException, ex.InnerException.Message));
+                StandardError.WriteLine(string.Format(ClassStrings.WarningInnerException, ex.InnerException.Message));
             }
         }
     }
@@ -338,7 +381,7 @@ public class CommandBuilder
     /// <summary>
     /// Builds the 'verify' command for validating COSE signatures.
     /// </summary>
-    private static Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
+    private Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
     {
         var command = new Command(ClassStrings.CommandVerify, ClassStrings.VerifyDescription);
 
@@ -405,8 +448,8 @@ public class CommandBuilder
                 }
             }
 
-            var formatter = OutputFormatterFactory.Create(outputFormat);
-            var handler = new VerifyCommandHandler(formatter, verificationProviders);
+            var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
+            var handler = new VerifyCommandHandler(formatter, verificationProviders, StandardInputProvider);
             var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
             context.ExitCode = exitCode;
         });
@@ -417,7 +460,7 @@ public class CommandBuilder
     /// <summary>
     /// Builds the 'inspect' command for examining COSE signatures.
     /// </summary>
-    private static Command BuildInspectCommand()
+    private Command BuildInspectCommand()
     {
         var command = new Command(ClassStrings.CommandInspect, ClassStrings.InspectDescription);
 
@@ -467,8 +510,8 @@ public class CommandBuilder
                 }
             }
 
-            var formatter = OutputFormatterFactory.Create(outputFormat);
-            var handler = new InspectCommandHandler(formatter);
+            var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
+            var handler = new InspectCommandHandler(formatter, StandardInputProvider);
             var exitCode = await handler.HandleAsync(context, extractPayload);
             context.ExitCode = exitCode;
         });

@@ -1,29 +1,44 @@
 # CoseSign1.Validation Package
 
 **NuGet**: `CoseSign1.Validation`  
-**Purpose**: Composable validation framework for COSE Sign1 messages
+**Purpose**: Composable, stage-aware validation framework for COSE Sign1 messages
 
 ## Overview
 
 This package defines a small set of primitives for validating `CoseSign1Message`:
 
-- `IValidator<T>` returns a `ValidationResult`
-- `CompositeValidator` aggregates multiple validators
-- Conditional validators (`IConditionalValidator<T>`) can opt out when not applicable
-- Signature validation can be orchestrated via `ISignatureValidator` + `AnySignatureValidator`
+- `ValidationStage` for stage-aware orchestration
+- `IValidator` returns a `ValidationResult` for a specific stage
+- `CompositeValidator` aggregates multiple validators for a stage
+- `IConditionalValidator` can opt out when not applicable
+- `AnySignatureValidator` orchestrates multiple signature validators
+
+For end-to-end verification (trust-first staged verification), the preferred entry point is an immutable `CoseSign1VerificationPipeline` built via `Cose.Sign1Verifier()`.
+
+`CoseSign1Verifier` is the underlying orchestration engine used by the pipeline.
 
 ## Core types
 
-### IValidator<T>
+### ValidationStage
 
 ```csharp
-public interface IValidator<in T>
+public enum ValidationStage
 {
-    ValidationResult Validate(T input);
+    KeyMaterialResolution,
+    KeyMaterialTrust,
+    Signature,
+    PostSignature,
+}
+```
 
-    Task<ValidationResult> ValidateAsync(
-        T input,
-        CancellationToken cancellationToken = default);
+### IValidator
+
+```csharp
+public interface IValidator
+{
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
+    Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default);
 }
 ```
 
@@ -58,32 +73,37 @@ public sealed class ValidationFailure
 Use `CompositeValidator` to run multiple validators and aggregate failures.
 
 ```csharp
-var validator = new CompositeValidator(new IValidator<CoseSign1Message>[]
+var validator = new CompositeValidator(new IValidator[]
 {
-    // Signature verification (certificate headers)
-    new CertificateSignatureValidator(allowUnprotectedHeaders: true),
+    // Key material resolution (e.g., parse x5t/x5chain)
+    new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true),
 
-    // Certificate property checks
-    new CertificateExpirationValidator(allowUnprotectedHeaders: true),
+    // Trust evaluation (e.g., chain build)
+    new CertificateChainValidator(allowUnprotectedHeaders: true),
 });
 
-ValidationResult result = validator.Validate(message);
+ValidationResult trustResult = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 ```
 
 ### Conditional validators
 
-Implement `IConditionalValidator<T>` when a validator is only meaningful for some inputs.
+Implement `IConditionalValidator` when a validator is only meaningful for some inputs.
 
 ```csharp
 public sealed class MyOptionalValidator :
-    IValidator<CoseSign1Message>,
-    IConditionalValidator<CoseSign1Message>
+    IValidator,
+    IConditionalValidator
 {
-    public bool IsApplicable(CoseSign1Message message)
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
+
+    public bool IsApplicable(CoseSign1Message message, ValidationStage stage)
         => /* e.g., header present */ true;
 
-    public ValidationResult Validate(CoseSign1Message message)
-        => ValidationResult.Success(nameof(MyOptionalValidator));
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
+        => ValidationResult.Success(nameof(MyOptionalValidator), stage);
+
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationStage stage, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(message, stage));
 }
 ```
 
@@ -94,13 +114,13 @@ public sealed class MyOptionalValidator :
 Some signatures can be verified via multiple strategies (certificate headers, plugin-provided key verification, etc.). V2 supports this by requiring **at least one applicable signature validator** to succeed.
 
 ```csharp
-var signatureValidator = new AnySignatureValidator(new IValidator<CoseSign1Message>[]
+var signatureValidator = new AnySignatureValidator(new IValidator[]
 {
     // Certificate signature validator, plugin validators, etc.
     new CertificateSignatureValidator(allowUnprotectedHeaders: true),
 });
 
-ValidationResult sigResult = signatureValidator.Validate(message);
+ValidationResult sigResult = signatureValidator.Validate(message, ValidationStage.Signature);
 ```
 
 ## See Also

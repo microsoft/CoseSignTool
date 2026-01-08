@@ -1,9 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Abstractions;
-using NUnit.Framework;
-
 namespace CoseSign1.Abstractions.Tests;
 
 [TestFixture]

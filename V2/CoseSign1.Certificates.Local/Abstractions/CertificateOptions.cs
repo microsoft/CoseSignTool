@@ -9,12 +9,18 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class CertificateOptions
 {
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string DefaultSubjectName = "CN=Ephemeral Certificate";
+    }
+
     /// <summary>
     /// Gets or sets the subject name (Distinguished Name) for the certificate.
     /// Example: "CN=My Certificate, O=My Organization, C=US"
     /// Default: "CN=Ephemeral Certificate"
     /// </summary>
-    public string SubjectName { get; set; } = "CN=Ephemeral Certificate";
+    public string SubjectName { get; set; } = ClassStrings.DefaultSubjectName;
 
     /// <summary>
     /// Gets or sets the cryptographic algorithm for key generation.

@@ -20,14 +20,22 @@ namespace CoseSignTool.MST.Plugin;
 /// </remarks>
 public class MstTransparencyPlugin : IPlugin
 {
-    /// <inheritdoc/>
-    public string Name => "Microsoft Signing Transparency";
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string Name = "Microsoft Signing Transparency";
+        public const string Version = "1.0.0";
+        public const string Description = "Verify signatures against Microsoft Signing Transparency service";
+    }
 
     /// <inheritdoc/>
-    public string Version => "1.0.0";
+    public string Name => ClassStrings.Name;
 
     /// <inheritdoc/>
-    public string Description => "Verify signatures against Microsoft Signing Transparency service";
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? options = null) => Task.CompletedTask;

@@ -17,18 +17,14 @@ namespace CoseSign1.Integration.Tests;
 [Category("V1Compatibility")]
 public class V1CompatibilityTests
 {
-    private string TestDataPath = null!;
-
-    [OneTimeSetUp]
-    public void Setup()
+    private static string GetTestDataPath()
     {
-        // Get the path to the test data directory
         string assemblyLocation = Assembly.GetExecutingAssembly().Location;
         string assemblyDir = Path.GetDirectoryName(assemblyLocation) ?? Directory.GetCurrentDirectory();
-        TestDataPath = Path.Combine(assemblyDir, "TestData");
+        string testDataPath = Path.Combine(assemblyDir, "TestData");
 
-        // Verify test data exists
-        Assert.That(Directory.Exists(TestDataPath), Is.True, $"Test data directory should exist at {TestDataPath}");
+        Assert.That(Directory.Exists(testDataPath), Is.True, $"Test data directory should exist at {testDataPath}");
+        return testDataPath;
     }
 
     #region Reading V1 COSE Messages
@@ -41,7 +37,7 @@ public class V1CompatibilityTests
     public void V2_CanDecode_V1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         Assert.That(File.Exists(coseFile), Is.True, $"V1 test signature file should exist at {coseFile}");
 
         // Act
@@ -61,7 +57,7 @@ public class V1CompatibilityTests
     public void V2_CanExtractCertificateChain_FromV1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -90,7 +86,7 @@ public class V1CompatibilityTests
     public void V2_CanExtractSigningCertificate_FromV1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -113,7 +109,7 @@ public class V1CompatibilityTests
     public void V2_CanReadAlgorithmHeader_FromV1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -134,7 +130,7 @@ public class V1CompatibilityTests
     public void V2_CanFindRootCertificate_InV1CoseMessageChain()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -161,7 +157,7 @@ public class V1CompatibilityTests
     public void V2_CanReadAndParse_V1TestPayload()
     {
         // Arrange
-        string payloadFile = Path.Combine(TestDataPath, "UnitTestPayload.json");
+        string payloadFile = Path.Combine(GetTestDataPath(), "UnitTestPayload.json");
         Assert.That(File.Exists(payloadFile), Is.True, $"V1 test payload file should exist at {payloadFile}");
 
         // Act
@@ -184,7 +180,7 @@ public class V1CompatibilityTests
     public void V2_CanIdentify_V1IndirectSignature()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -210,7 +206,7 @@ public class V1CompatibilityTests
     public void V2_CanReadHeaders_FromV1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -240,7 +236,7 @@ public class V1CompatibilityTests
     public void V2_CanReadSignature_FromV1CoseMessage()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 
@@ -257,7 +253,7 @@ public class V1CompatibilityTests
     public void V2_ValidatesRawCoseStructure_FromV1()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
 
         // Assert - COSE Sign1 messages start with tag 18 (0xD2 in CBOR)
@@ -281,7 +277,7 @@ public class V1CompatibilityTests
     public void V2_ValidatesCertificateProperties_FromV1Message()
     {
         // Arrange
-        string coseFile = Path.Combine(TestDataPath, "UnitTestSignatureWithCRL.cose");
+        string coseFile = Path.Combine(GetTestDataPath(), "UnitTestSignatureWithCRL.cose");
         byte[] coseBytes = File.ReadAllBytes(coseFile);
         CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 

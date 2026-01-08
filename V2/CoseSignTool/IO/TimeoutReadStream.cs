@@ -25,6 +25,7 @@ public sealed class TimeoutReadStream : Stream
     /// How long to wait for the first bytes before considering stdin empty.
     /// Default is 2 seconds.
     /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="innerStream"/> is <see langword="null"/>.</exception>
     public TimeoutReadStream(Stream innerStream, TimeSpan? initialTimeout = null)
     {
         InnerStream = innerStream ?? throw new ArgumentNullException(nameof(innerStream));
@@ -60,9 +61,11 @@ public sealed class TimeoutReadStream : Stream
     public override bool CanWrite => false;
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">This stream does not support seeking.</exception>
     public override long Length => throw new NotSupportedException();
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">This stream does not support seeking.</exception>
     public override long Position
     {
         get => throw new NotSupportedException();
@@ -146,18 +149,21 @@ public sealed class TimeoutReadStream : Stream
     }
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">This stream does not support seeking.</exception>
     public override long Seek(long offset, SeekOrigin origin)
     {
         throw new NotSupportedException();
     }
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">This stream does not support writing.</exception>
     public override void SetLength(long value)
     {
         throw new NotSupportedException();
     }
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">This stream does not support writing.</exception>
     public override void Write(byte[] buffer, int offset, int count)
     {
         throw new NotSupportedException();

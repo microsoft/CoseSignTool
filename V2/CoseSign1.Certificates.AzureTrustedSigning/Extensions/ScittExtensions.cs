@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Certificates;
 using CoseSign1.Headers;
 
 namespace CoseSign1.Certificates.AzureTrustedSigning.Extensions;
@@ -28,6 +26,7 @@ public static class ScittExtensions
     /// The issuer format follows DID:X509 EKU policy specification:
     /// did:x509:0:sha256:{base64url-hash}::eku:{microsoft-oid}
     /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="certificateChain"/> is null.</exception>
     public static CertificateSigningOptions ConfigureForAzureScitt(
         this CertificateSigningOptions options,
         IEnumerable<System.Security.Cryptography.X509Certificates.X509Certificate2> certificateChain)
@@ -68,6 +67,7 @@ public static class ScittExtensions
     /// <param name="certificateChain">The certificate chain from Azure Trusted Signing (leaf-first).</param>
     /// <param name="configureClaimsAction">Action to configure additional CWT claims.</param>
     /// <returns>The configured options for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/>, <paramref name="certificateChain"/>, or <paramref name="configureClaimsAction"/> is null.</exception>
     public static CertificateSigningOptions ConfigureForAzureScitt(
         this CertificateSigningOptions options,
         IEnumerable<System.Security.Cryptography.X509Certificates.X509Certificate2> certificateChain,

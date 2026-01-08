@@ -1,9 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-
 namespace CoseSign1.Certificates.Interfaces;
 
 /// <summary>
@@ -12,6 +9,13 @@ namespace CoseSign1.Certificates.Interfaces;
 /// </summary>
 public interface ICertificateValidationBuilder
 {
+    /// <summary>
+    /// Builds the configured certificate validator.
+    /// Signature validation is always included.
+    /// </summary>
+    /// <returns>The composed validator.</returns>
+    IValidator Build();
+
     /// <summary>
     /// Validates that the certificate has the specified common name (CN).
     /// </summary>
@@ -74,4 +78,40 @@ public interface ICertificateValidationBuilder
     /// <param name="allow">Whether to allow unprotected headers.</param>
     /// <returns>The builder for method chaining.</returns>
     ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true);
+
+    /// <summary>
+    /// Validates the certificate chain using system roots.
+    /// </summary>
+    /// <param name="allowUntrusted">Whether to allow an untrusted chain.</param>
+    /// <param name="revocationMode">The revocation mode.</param>
+    /// <returns>The builder for method chaining.</returns>
+    ICertificateValidationBuilder ValidateChain(
+        bool allowUntrusted = false,
+        X509RevocationMode revocationMode = X509RevocationMode.Online);
+
+    /// <summary>
+    /// Validates the certificate chain using custom roots.
+    /// </summary>
+    /// <param name="customRoots">The custom roots to trust.</param>
+    /// <param name="trustUserRoots">Whether to trust user root stores in addition to <paramref name="customRoots"/>.</param>
+    /// <param name="revocationMode">The revocation mode.</param>
+    /// <returns>The builder for method chaining.</returns>
+    ICertificateValidationBuilder ValidateChain(
+        X509Certificate2Collection customRoots,
+        bool trustUserRoots = true,
+        X509RevocationMode revocationMode = X509RevocationMode.Online);
+
+    /// <summary>
+    /// Validates the certificate chain using a custom chain builder.
+    /// </summary>
+    /// <param name="chainBuilder">The chain builder to use.</param>
+    /// <param name="allowUntrusted">Whether to allow an untrusted chain.</param>
+    /// <param name="customRoots">Optional custom roots.</param>
+    /// <param name="trustUserRoots">Whether to trust user root stores in addition to <paramref name="customRoots"/>.</param>
+    /// <returns>The builder for method chaining.</returns>
+    ICertificateValidationBuilder ValidateChain(
+        ICertificateChainBuilder chainBuilder,
+        bool allowUntrusted = false,
+        X509Certificate2Collection? customRoots = null,
+        bool trustUserRoots = true);
 }

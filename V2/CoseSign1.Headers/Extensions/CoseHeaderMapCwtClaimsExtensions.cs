@@ -55,6 +55,7 @@ public static class CoseHeaderMapCwtClaimsExtensions
     /// <param name="headerMap">The header map to write to.</param>
     /// <param name="claims">The CWT claims to set.</param>
     /// <param name="headerLabel">Optional custom header label. Defaults to label 15 (CWT Claims).</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headerMap"/> or <paramref name="claims"/> is null.</exception>
     public static void SetCwtClaims(
         this CoseHeaderMap headerMap,
         CwtClaims claims,

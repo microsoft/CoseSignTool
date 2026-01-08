@@ -2,10 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Tests.Common;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Extensions;
 

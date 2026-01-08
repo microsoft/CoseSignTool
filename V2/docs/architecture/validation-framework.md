@@ -1,181 +1,202 @@
 # Validation Framework
 
-This document describes the composable validation framework in CoseSignTool V2.
+This document describes the composable validation framework in CoseSignTool V2, including the staged (trust-first) verification pipeline.
 
 ## Overview
 
-The validation framework provides a composable, extensible system for validating COSE Sign1 messages. Validators can be chained together to create complex validation pipelines.
+V2 validation is **stage-aware**.
+
+- Validators declare which stages they participate in.
+- Orchestrators run stages in a secure-by-default order.
+- Validators can declare themselves **not applicable** for a given input.
+
+The preferred consumer-facing orchestration is the immutable `CoseSign1VerificationPipeline` (built via `Cose.Sign1Verifier()`), which consistently enforces:
+
+1. Key material resolution
+2. Key material trust
+3. Signature verification
+4. Post-signature policy
 
 ## Core Concepts
 
-### IValidator Interface
+### ValidationStage
+
+Stages indicate *when* a validator should run, not whether it applies.
 
 ```csharp
-public interface IValidator<T>
+public enum ValidationStage
 {
-    ValidationResult Validate(T input);
+    KeyMaterialResolution = 0,
+    KeyMaterialTrust = 1,
+    Signature = 2,
+    PostSignature = 3
+}
+```
+
+### IValidator
+
+All validators implement the non-generic `IValidator` interface.
+
+```csharp
+public interface IValidator
+{
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
 
     Task<ValidationResult> ValidateAsync(
-        T input,
+        CoseSign1Message input,
+        ValidationStage stage,
         CancellationToken cancellationToken = default);
 }
 ```
 
 ### Conditional Validators
 
-Some validators are only meaningful when a message contains certain headers/content.
-
-Validators can optionally implement `IConditionalValidator<T>` to indicate whether they apply to a given input. When used under `CompositeValidator`, non-applicable validators are skipped.
+Validators can optionally implement `IConditionalValidator` to opt out for specific inputs.
 
 ```csharp
-public interface IConditionalValidator<in T>
+public interface IConditionalValidator : IValidator
 {
-    bool IsApplicable(T input);
+    bool IsApplicable(CoseSign1Message input, ValidationStage stage);
 }
 ```
 
-Examples:
-- X.509 / certificate validators only apply when `x5t` + `x5chain` headers exist.
-- MST receipt validation only applies when a receipt is present.
+`CompositeValidator` will skip conditional validators when `IsApplicable(...)` returns `false`.
 
 ### ValidationResult
+
+`ValidationResult` supports three outcomes:
+
+- Success
+- Failure
+- NotApplicable
 
 ```csharp
 public sealed class ValidationResult
 {
+    public ValidationResultKind Kind { get; init; }
+    public ValidationStage? Stage { get; init; }
+
     public bool IsValid { get; }
-    public string ValidatorName { get; }
-    public IReadOnlyList<ValidationFailure> Failures { get; }
+    public bool IsFailure { get; }
+    public bool IsNotApplicable { get; }
+
+    public string ValidatorName { get; init; }
+    public IReadOnlyList<ValidationFailure> Failures { get; init; }
+    public IReadOnlyDictionary<string, object> Metadata { get; init; }
 }
 ```
 
-## Built-in Validators
+## Composition
 
-### Signature Validators
+### CompositeValidator
 
-Signature validation is treated as a distinct stage during verification. Multiple signature validators may exist (certificate-based, key-based, plugin-provided, etc.).
-
-| Validator | Description |
-|-----------|-------------|
-| `CertificateSignatureValidator` | Verifies signature using certificate from `x5t`/`x5chain` headers (embedded or detached) |
-| `AnySignatureValidator` | Aggregates multiple signature validators; requires at least one applicable validator to succeed |
-
-### Certificate Validators
-
-| Validator | Description |
-|-----------|-------------|
-| `CertificateChainValidator` | Validates certificate chain |
-| `CertificateExpirationValidator` | Checks certificate validity period |
-| `CertificateCommonNameValidator` | Validates certificate CN |
-| `CertificateKeyUsageValidator` | Validates EKU/key usage |
-
-### Transparency Validators
-
-| Validator | Description |
-|-----------|-------------|
-| `MstReceiptPresenceValidator` | Requires MST receipt |
-| `MstReceiptValidator` | Validates MST receipt |
-
-## Composing Validators
-
-### Using CompositeValidator
+Use `CompositeValidator` to run multiple validators for a stage and aggregate failures.
 
 ```csharp
-var validator = new CompositeValidator<CoseSign1Message>(
-    new CertificateSignatureValidator(allowUnprotectedHeaders: true),
+var composite = new CompositeValidator(new IValidator[]
+{
+    new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true),
     new CertificateChainValidator(allowUnprotectedHeaders: true),
-    new CertificateExpirationValidator(allowUnprotectedHeaders: true)
-);
+});
 
-var result = validator.Validate(message);
+ValidationResult resolution = composite.Validate(message, ValidationStage.KeyMaterialResolution);
+ValidationResult trust = composite.Validate(message, ValidationStage.KeyMaterialTrust);
 ```
 
-### Using Validation Builder
+### Signature validation orchestration
+
+When multiple signature-verification strategies exist, V2 uses `AnySignatureValidator` and requires:
+
+> At least one applicable signature validator must succeed.
+
+## Staged verification (trust-first)
+
+`CoseSign1VerificationPipeline` orchestrates the stages and short-circuits failures. Internally it delegates to `CoseSign1Verifier`.
 
 ```csharp
-var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .AllowUnprotectedHeaders()
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("Trusted Signer"))
-    .Build();
-```
-
-### Using Fluent Extensions
-
-```csharp
-var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("My CA"))
+var pipeline = Cose.Sign1Verifier()
+    .AddResolutionValidators(resolutionValidators)
+    .AddTrustValidators(trustValidators)
+    .RequireTrust(trustPolicy)
+    .AddSignatureValidators(signatureValidators)
+    .AddPostSignatureValidators(postSignatureValidators)
     .Build();
 
-var result = await validator.ValidateAsync(message);
-```
+var result = pipeline.Verify(message);
 
-## Creating Custom Validators
-
-```csharp
-public class PayloadSizeValidator : IValidator<CoseSign1Message>
+if (!result.Trust.IsValid)
 {
-    private readonly int _maxSize;
-
-    private const string ValidatorName = nameof(PayloadSizeValidator);
-    
-    public PayloadSizeValidator(int maxSize) => _maxSize = maxSize;
-    
-    public ValidationResult Validate(CoseSign1Message message)
-    {
-        // Detached signature: no embedded payload to validate for size.
-        if (message is null || message.Content is null)
-            return ValidationResult.Success(ValidatorName);
-            
-        if (message.Content.Value.Length > _maxSize)
-            return ValidationResult.Failure(
-                ValidatorName,
-                $"Payload size {message.Content.Value.Length} exceeds maximum {_maxSize}");
-
-        return ValidationResult.Success(ValidatorName);
-    }
-    
-    public Task<ValidationResult> ValidateAsync(
-        CoseSign1Message message,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(Validate(message));
-    }
+    // Trust failures happen before signature verification.
 }
 ```
 
-## Signature Validation Orchestration
+### Sequence (high level)
 
-Verification composes signature validators so that **at least one applicable signature validator must succeed**.
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Pipeline as CoseSign1VerificationPipeline
+    participant Res as Resolution validators
+    participant Trust as Trust validators
+    participant Policy as TrustPolicy
+    participant Sig as Signature validators
+    participant Post as Post-signature validators
 
-This enables scenarios like:
-- verifying signatures using embedded X.509 headers when present,
-- verifying “key-only” signatures supplied by a plugin (for example, when a public key is embedded as a `COSE_Key` header),
-- skipping irrelevant validators automatically.
+    Caller->>Pipeline: Verify(message)
+    Pipeline->>Res: Run(KeyMaterialResolution)
+    alt resolution failed
+        Pipeline-->>Caller: Resolution failure (others NotApplicable)
+    else
+        Pipeline->>Trust: Run(KeyMaterialTrust)
+        Pipeline->>Policy: Evaluate(claims from assertions)
+        alt trust failed
+            Pipeline-->>Caller: Trust failure (signature/post NotApplicable)
+        else
+            Pipeline->>Sig: Run(Signature)
+            alt signature failed
+                Pipeline-->>Caller: Signature failure (post NotApplicable)
+            else
+                Pipeline->>Post: Run(PostSignature)
+                Pipeline-->>Caller: Success
+            end
+        end
+    end
+```
 
-## Error Handling
+### Class structure (key types)
 
-```csharp
-var result = validator.Validate(message);
-
-if (!result.IsValid)
-{
-    foreach (var failure in result.Failures)
-    {
-        Console.WriteLine($"Validation failed: {failure.Message}");
-        Console.WriteLine($"  Validator: {failure.ValidatorName}");
-        Console.WriteLine($"  Code: {failure.Code}");
+```mermaid
+classDiagram
+    class IValidator {
+        +IReadOnlyCollection~ValidationStage~ Stages
+        +ValidationResult Validate(CoseSign1Message, ValidationStage)
+        +Task~ValidationResult~ ValidateAsync(CoseSign1Message, ValidationStage, CancellationToken)
     }
-}
+    class IConditionalValidator {
+        +bool IsApplicable(CoseSign1Message, ValidationStage)
+    }
+    IConditionalValidator --|> IValidator
+
+    class CompositeValidator
+    CompositeValidator ..|> IValidator
+
+    class AnySignatureValidator
+    AnySignatureValidator ..|> IValidator
+
+    class TrustPolicy
+    class CoseSign1Verifier
+    class CoseSign1VerificationPipeline
+    class CoseSign1VerificationResult
+    CoseSign1VerificationPipeline --> CoseSign1VerificationResult
+    CoseSign1VerificationPipeline --> TrustPolicy
+    CoseSign1VerificationPipeline --> IValidator
+    CoseSign1VerificationPipeline --> CoseSign1Verifier
 ```
 
 ## See Also
 
 - [Creating Custom Validators](../guides/custom-validators.md)
 - [CoseSign1.Validation](../components/validation.md)
-- [Certificate Chain Validation](../guides/chain-validation.md)
+- [Architecture Overview](overview.md)

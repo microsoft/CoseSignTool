@@ -1,11 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Interfaces;
-using CoseSign1.Certificates.Logging;
-using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates.ChainBuilders;
@@ -16,6 +12,18 @@ namespace CoseSign1.Certificates.ChainBuilders;
 /// </summary>
 public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, IDisposable
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorCertificateChainCannotBeEmpty = "Certificate chain cannot be empty.";
+
+        public static readonly string LogInitialized = "ExplicitCertificateChainBuilder initialized. ProvidedCertificateCount: {Count}";
+        public static readonly string LogBuildStarted = "Building explicit certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}";
+        public static readonly string LogChainElementNotProvided = "Chain element not from provided certificates. Subject: {Subject}, Thumbprint: {Thumbprint}";
+        public static readonly string LogBuildSucceeded = "Explicit certificate chain built successfully. ChainLength: {ChainLength}";
+        public static readonly string LogBuildFailed = "Explicit certificate chain build failed. ChainLength: {ChainLength}";
+    }
+
     private readonly X509ChainBuilder ChainBuilder;
     private readonly IReadOnlyList<X509Certificate2> ProvidedCertificates;
     private readonly ILogger<ExplicitCertificateChainBuilder> LoggerField;
@@ -57,7 +65,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 #endif
         if (certificateChain.Count == 0)
         {
-            throw new ArgumentException("Certificate chain cannot be empty.", nameof(certificateChain));
+            throw new ArgumentException(ClassStrings.ErrorCertificateChainCannotBeEmpty, nameof(certificateChain));
         }
 
         LoggerField = logger ?? NullLogger<ExplicitCertificateChainBuilder>.Instance;
@@ -76,7 +84,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,
-            "ExplicitCertificateChainBuilder initialized. ProvidedCertificateCount: {Count}",
+            ClassStrings.LogInitialized,
             certificateChain.Count);
     }
 
@@ -120,6 +128,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// 3. Validating that only certificates from the provided set are in the resulting chain (if certificates were explicitly provided)
     /// The provided certificates can be in any order; X509ChainBuilder will correctly order them.
     /// </remarks>
+        /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
     public bool Build(X509Certificate2 certificate)
     {
 #if NET5_0_OR_GREATER
@@ -130,7 +139,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,
-            "Building explicit certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            ClassStrings.LogBuildStarted,
             certificate.Subject,
             certificate.Thumbprint);
 
@@ -153,7 +162,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
                 {
                     LoggerField.LogTrace(
                         LogEvents.CertificateChainBuildFailedEvent,
-                        "Chain element not from provided certificates. Subject: {Subject}, Thumbprint: {Thumbprint}",
+                        ClassStrings.LogChainElementNotProvided,
                         chainElement.Subject,
                         chainElement.Thumbprint);
                     // Chain contains a certificate not in our provided list
@@ -166,14 +175,14 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         {
             LoggerField.LogTrace(
                 LogEvents.CertificateChainBuiltEvent,
-                "Explicit certificate chain built successfully. ChainLength: {ChainLength}",
+                ClassStrings.LogBuildSucceeded,
                 ChainBuilder.ChainElements.Count);
         }
         else
         {
             LoggerField.LogTrace(
                 LogEvents.CertificateChainBuildFailedEvent,
-                "Explicit certificate chain build failed. ChainLength: {ChainLength}",
+                ClassStrings.LogBuildFailed,
                 ChainBuilder.ChainElements.Count);
         }
 

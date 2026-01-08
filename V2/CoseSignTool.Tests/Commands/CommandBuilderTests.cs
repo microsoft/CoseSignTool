@@ -214,7 +214,8 @@ public class CommandBuilderTests
     public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsBadPlugin_PrintsWarningAndStillBuilds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var sw = new StringWriter();
+        var builder = new CommandBuilder(standardOutput: TextWriter.Null, standardError: sw);
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"bad_plugins_{Guid.NewGuid():N}");
         var badPluginDir = Path.Combine(tempDir, "bad");
@@ -223,10 +224,6 @@ public class CommandBuilderTests
         // PluginLoader scans subdirectories and loads *.Plugin.dll files.
         var badPluginPath = Path.Combine(badPluginDir, "Bad.Plugin.dll");
         File.WriteAllBytes(badPluginPath, [0x01, 0x02, 0x03, 0x04]);
-
-        var originalError = Console.Error;
-        var sw = new StringWriter();
-        Console.SetError(sw);
 
         try
         {
@@ -241,7 +238,6 @@ public class CommandBuilderTests
         }
         finally
         {
-            Console.SetError(originalError);
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, recursive: true);
@@ -253,7 +249,8 @@ public class CommandBuilderTests
     public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsAssemblyWithFaultyPlugins_PrintsPerPluginWarnings()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var sw = new StringWriter();
+        var builder = new CommandBuilder(standardOutput: TextWriter.Null, standardError: sw);
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"test_plugins_{Guid.NewGuid():N}");
         var pluginSubdir = Path.Combine(tempDir, "test");
@@ -264,10 +261,6 @@ public class CommandBuilderTests
         var sourceAssemblyPath = typeof(CoseSignTool.TestPlugins.Plugin.ThrowingGetExtensionsPlugin).Assembly.Location;
         var pluginAssemblyPath = Path.Combine(pluginSubdir, Path.GetFileName(sourceAssemblyPath));
         File.Copy(sourceAssemblyPath, pluginAssemblyPath, overwrite: true);
-
-        var originalError = Console.Error;
-        var sw = new StringWriter();
-        Console.SetError(sw);
 
         try
         {
@@ -292,7 +285,6 @@ public class CommandBuilderTests
         }
         finally
         {
-            Console.SetError(originalError);
             try
             {
                 if (Directory.Exists(tempDir))

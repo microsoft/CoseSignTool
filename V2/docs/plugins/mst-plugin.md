@@ -29,6 +29,9 @@ This plugin adds options to the `verify` command for MST receipt validation.
 | `--require-receipt` | No | Require an MST transparency receipt in the signature |
 | `--mst-endpoint` | No | MST service endpoint URL for receipt verification |
 | `--verify-receipt` | No | Verify the receipt against the MST service (default: true when endpoint provided) |
+| `--mst-trust-mode` | No | Trust mode: `online` (query endpoint for signing keys) or `offline` (use manually provided signing keys) |
+| `--mst-trust-file` | No | Offline trust file (JSON) containing signing keys for one or more MST issuers |
+| `--mst-trusted-key` | No | Offline trusted key entry. Repeatable. Format: `<mst-endpoint>=<path-to-jwk-or-jwks-json>` |
 
 **Examples**:
 ```bash
@@ -37,6 +40,15 @@ CoseSignTool verify signed.cose --require-receipt
 
 # Verify receipt against specific endpoint
 CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://custom.codetransparency.azure.net
+
+# Explicit online mode (query endpoint for signing keys)
+CoseSignTool verify signed.cose --require-receipt --mst-trust-mode online --mst-endpoint https://custom.codetransparency.azure.net
+
+# Offline mode (pinned keys, no network fallback)
+CoseSignTool verify signed.cose --require-receipt --mst-trust-mode offline --mst-endpoint https://custom.codetransparency.azure.net --mst-trusted-key https://custom.codetransparency.azure.net=signing-key.jwk.json
+
+# Offline mode with a trust file (many keys/issuers)
+CoseSignTool verify signed.cose --require-receipt --mst-trust-mode offline --mst-endpoint https://custom.codetransparency.azure.net --mst-trust-file mst-trust.json
 
 # Verify signature structure only (skip receipt verification)
 CoseSignTool verify signed.cose --require-receipt --verify-receipt false

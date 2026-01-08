@@ -13,13 +13,6 @@ namespace CoseSignTool.Tests;
 public class ProgramTests
 {
     [Test]
-    public void LoggerFactory_WhenAccessed_IsCreated()
-    {
-        var factory = Program.LoggerFactory;
-        Assert.That(factory, Is.Not.Null);
-    }
-
-    [Test]
     public void Main_WithHelpFlag_ReturnsSuccess()
     {
         // Arrange
@@ -55,25 +48,16 @@ public class ProgramTests
     [Test]
     public void Main_WithNullElementInArgs_ReturnsGeneralErrorAndWritesFatalError()
     {
-        var originalError = Console.Error;
         var errorWriter = new StringWriter();
-        Console.SetError(errorWriter);
 
-        try
-        {
-            // A string[] can legally contain null at runtime; System.CommandLine isn't expected to handle this.
-            // We verify Program catches unexpected exceptions and returns a general error.
-            string[] args = [null!];
+        // A string[] can legally contain null at runtime; System.CommandLine isn't expected to handle this.
+        // We verify Program catches unexpected exceptions and returns a general error.
+        string[] args = [null!];
 
-            var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, standardInput: null, standardOutput: TextWriter.Null, standardError: errorWriter);
 
-            Assert.That(exitCode, Is.EqualTo((int)ExitCode.GeneralError));
-            Assert.That(errorWriter.ToString(), Does.Contain("Fatal error:"));
-        }
-        finally
-        {
-            Console.SetError(originalError);
-        }
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.GeneralError));
+        Assert.That(errorWriter.ToString(), Does.Contain("Fatal error:"));
     }
 
     [Test]
@@ -159,19 +143,22 @@ public class ProgramTests
     }
 
     [Test]
-    public void Main_WithSignEphemeralCommandNoArgument_ReturnsSuccessWithStdinSupport()
+    public void Main_WithSignEphemeralHelp_ShowsStdinUsage()
     {
-        // Arrange - sign-ephemeral with no argument will try to read from stdin
-        // In test context with empty stdin, it should return success (empty input)
-        // or FileNotFound depending on implementation
-        string[] args = ["sign-ephemeral"];
+        // Arrange
+        // Do not execute `sign-ephemeral` with stdin in tests, because it may emit binary COSE
+        // bytes to stdout, which can break some test loggers.
+        string[] args = ["sign-ephemeral", "--help"];
+
+        var outputWriter = new StringWriter();
+        var errorWriter = new StringWriter();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, standardInput: null, standardOutput: outputWriter, standardError: errorWriter);
 
-        // Assert - sign-ephemeral without arguments reads from stdin (returns 0 or 3 depending on stdin)
-        // Since there's no stdin in test, it will try to sign empty data and succeed or fail gracefully
-        Assert.That(exitCode == (int)ExitCode.Success || exitCode == (int)ExitCode.FileNotFound, Is.True);
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(outputWriter.ToString(), Does.Contain("stdin"));
     }
 
     [Test]
@@ -181,8 +168,12 @@ public class ProgramTests
         // In test environment with no stdin data, behavior depends on console redirect state
         string[] args = ["verify"];
 
+        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
+        var outputWriter = new StringWriter();
+        var errorWriter = new StringWriter();
+
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, emptyStdin, outputWriter, errorWriter);
 
         // Assert - In test environment, stdin behavior varies
         // - FileNotFound (3): No data on stdin (detected empty)

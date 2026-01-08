@@ -5,38 +5,83 @@ namespace DIDx509.Parsing;
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using DIDx509.Models;
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Parses DID:X509 identifiers according to the specification.
 /// </summary>
 public static class DidX509Parser
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorDidCannotBeNullOrEmpty = "DID cannot be null or empty";
+
+        public const string DidExpectedFormat = "did:x509:version:algorithm:fingerprint";
+        public const string PolicyExpectedFormat = "name:value";
+        public const string SanExpectedFormat = "type:value";
+
+        public const string ErrorInvalidDidMustStartWithTemplate = "{0}: Must start with '{1}:'";
+        public const string ErrorInvalidDidMustContainAtLeastOnePolicyTemplate = "{0}: Must contain at least one policy";
+        public const string ErrorInvalidDidExpectedFormatTemplate = "{0}: Expected format '{1}'";
+        public const string ErrorInvalidDidUnsupportedVersionTemplate = "{0}: Unsupported version '{1}', expected '{2}'";
+        public const string ErrorInvalidDidUnsupportedHashAlgorithmTemplate = "{0}: Unsupported hash algorithm '{1}'";
+        public const string ErrorInvalidDidCaFingerprintCannotBeEmptyTemplate = "{0}: CA fingerprint cannot be empty";
+        public const string ErrorInvalidDidCaFingerprintLengthMismatchTemplate =
+            "{0}: CA fingerprint length mismatch for {1} (expected {2}, got {3})";
+        public const string ErrorInvalidDidCaFingerprintInvalidCharsTemplate = "{0}: CA fingerprint contains invalid base64url characters";
+        public const string ErrorInvalidDidEmptyPolicyAtPositionTemplate = "{0}: Empty policy at position {1}";
+        public const string ErrorInvalidDidPolicyMustHaveFormatTemplate = "{0}: Policy must have format '{1}'";
+        public const string ErrorInvalidDidPolicyNameCannotBeEmptyTemplate = "{0}: Policy name cannot be empty";
+        public const string ErrorInvalidDidPolicyValueCannotBeEmptyTemplate = "{0}: Policy value cannot be empty";
+
+        public const string ErrorInvalidSubjectPolicyMustHaveEvenComponentsTemplate =
+            "{0}: Must have even number of components (key:value pairs)";
+        public const string ErrorInvalidSubjectPolicyKeyCannotBeEmptyTemplate = "{0}: Key cannot be empty";
+        public const string ErrorInvalidSubjectPolicyDuplicateKeyTemplate = "{0}: Duplicate key '{1}'";
+
+        public const string ErrorInvalidSanPolicyMustHaveFormatTemplate = "{0}: Must have format '{1}'";
+        public const string ErrorInvalidSanPolicySanTypeMustBeTemplate =
+            "{0}: SAN type must be '{1}', '{2}', or '{3}' (got '{4}')";
+
+        public const string ErrorInvalidEkuPolicyMustBeValidOidTemplate =
+            "{0}: Must be a valid OID in dotted decimal notation";
+        public const string ErrorInvalidFulcioIssuerCannotBeEmptyTemplate = "{0}: Issuer cannot be empty";
+    }
+
     /// <summary>
     /// Parses a DID:X509 identifier string.
     /// </summary>
     /// <param name="did">The DID string to parse.</param>
     /// <returns>A parsed DID identifier.</returns>
-    /// <exception cref="FormatException">Thrown if the DID format is invalid.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="did"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="FormatException">Thrown when the DID format is invalid.</exception>
     public static DidX509ParsedIdentifier Parse(string did)
     {
         if (string.IsNullOrWhiteSpace(did))
-        {
-            throw new ArgumentException("DID cannot be null or empty", nameof(did));
-        }
+            {
+                throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
+            }
 
         // Expected format: did:x509:0:sha256:fingerprint::policy1:value1::policy2:value2...
         if (!did.StartsWith(DidX509Constants.DidPrefix + DidX509Constants.ValueSeparator, StringComparison.OrdinalIgnoreCase))
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Must start with '{DidX509Constants.DidPrefix}:'");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidMustStartWithTemplate,
+                    DidX509Constants.ErrorInvalidDid,
+                    DidX509Constants.DidPrefix));
         }
 
         // Split on :: to separate CA fingerprint from policies
         string[] majorParts = did.Split(new[] { DidX509Constants.PolicySeparator }, StringSplitOptions.None);
         if (majorParts.Length < 2)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Must contain at least one policy");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidMustContainAtLeastOnePolicyTemplate,
+                    DidX509Constants.ErrorInvalidDid));
         }
 
         // Parse the prefix part: did:x509:version:algorithm:fingerprint
@@ -45,7 +90,11 @@ public static class DidX509Parser
 
         if (prefixComponents.Length != 5)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Expected format 'did:x509:version:algorithm:fingerprint'");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidExpectedFormatTemplate,
+                    DidX509Constants.ErrorInvalidDid,
+                    ClassStrings.DidExpectedFormat));
         }
 
         string version = prefixComponents[2];
@@ -55,7 +104,12 @@ public static class DidX509Parser
         // Validate version
         if (version != DidX509Constants.Version)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Unsupported version '{version}', expected '{DidX509Constants.Version}'");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidUnsupportedVersionTemplate,
+                    DidX509Constants.ErrorInvalidDid,
+                    version,
+                    DidX509Constants.Version));
         }
 
         // Validate hash algorithm
@@ -63,13 +117,20 @@ public static class DidX509Parser
             hashAlgorithm != DidX509Constants.HashAlgorithmSha384 &&
             hashAlgorithm != DidX509Constants.HashAlgorithmSha512)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Unsupported hash algorithm '{hashAlgorithm}'");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidUnsupportedHashAlgorithmTemplate,
+                    DidX509Constants.ErrorInvalidDid,
+                    hashAlgorithm));
         }
 
         // Validate CA fingerprint (base64url format)
         if (string.IsNullOrWhiteSpace(caFingerprint))
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: CA fingerprint cannot be empty");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidCaFingerprintCannotBeEmptyTemplate,
+                    DidX509Constants.ErrorInvalidDid));
         }
 
         // Expected lengths: SHA-256=43, SHA-384=64, SHA-512=86 characters (base64url without padding)
@@ -83,12 +144,21 @@ public static class DidX509Parser
 
         if (caFingerprint.Length != expectedLength)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: CA fingerprint length mismatch for {hashAlgorithm} (expected {expectedLength}, got {caFingerprint.Length})");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidCaFingerprintLengthMismatchTemplate,
+                    DidX509Constants.ErrorInvalidDid,
+                    hashAlgorithm,
+                    expectedLength,
+                    caFingerprint.Length));
         }
 
         if (!IsValidBase64Url(caFingerprint))
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: CA fingerprint contains invalid base64url characters");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidDidCaFingerprintInvalidCharsTemplate,
+                    DidX509Constants.ErrorInvalidDid));
         }
 
         // Parse policies (skip the first element which is the prefix)
@@ -98,14 +168,22 @@ public static class DidX509Parser
             string policyPart = majorParts[i];
             if (string.IsNullOrWhiteSpace(policyPart))
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Empty policy at position {i}");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidDidEmptyPolicyAtPositionTemplate,
+                        DidX509Constants.ErrorInvalidDid,
+                        i));
             }
 
             // Split policy into name:value
             int firstColon = policyPart.IndexOf(DidX509Constants.ColonChar);
             if (firstColon <= 0)
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Policy must have format 'name:value'");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidDidPolicyMustHaveFormatTemplate,
+                        DidX509Constants.ErrorInvalidDid,
+                        ClassStrings.PolicyExpectedFormat));
             }
 
             string policyName = policyPart.Substring(0, firstColon);
@@ -113,12 +191,18 @@ public static class DidX509Parser
 
             if (string.IsNullOrWhiteSpace(policyName))
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Policy name cannot be empty");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidDidPolicyNameCannotBeEmptyTemplate,
+                        DidX509Constants.ErrorInvalidDid));
             }
 
             if (string.IsNullOrWhiteSpace(policyValue))
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidDid}: Policy value cannot be empty");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidDidPolicyValueCannotBeEmptyTemplate,
+                        DidX509Constants.ErrorInvalidDid));
             }
 
             // Parse the policy value based on policy type
@@ -132,6 +216,9 @@ public static class DidX509Parser
     /// <summary>
     /// Attempts to parse a DID:X509 identifier string.
     /// </summary>
+    /// <param name="did">The DID string to parse.</param>
+    /// <param name="parsed">When this method returns, contains the parsed identifier if parsing succeeded; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if parsing succeeded; otherwise, <see langword="false"/>.</returns>
     public static bool TryParse(string did, out DidX509ParsedIdentifier? parsed)
     {
         try
@@ -166,7 +253,10 @@ public static class DidX509Parser
 
         if (parts.Length % 2 != 0)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidSubjectPolicy}: Must have even number of components (key:value pairs)");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidSubjectPolicyMustHaveEvenComponentsTemplate,
+                    DidX509Constants.ErrorInvalidSubjectPolicy));
         }
 
         for (int i = 0; i < parts.Length; i += 2)
@@ -176,12 +266,19 @@ public static class DidX509Parser
 
             if (string.IsNullOrWhiteSpace(key))
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidSubjectPolicy}: Key cannot be empty");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidSubjectPolicyKeyCannotBeEmptyTemplate,
+                        DidX509Constants.ErrorInvalidSubjectPolicy));
             }
 
             if (result.ContainsKey(key))
             {
-                throw new FormatException($"{DidX509Constants.ErrorInvalidSubjectPolicy}: Duplicate key '{key}'");
+                throw new FormatException(
+                    string.Format(
+                        ClassStrings.ErrorInvalidSubjectPolicyDuplicateKeyTemplate,
+                        DidX509Constants.ErrorInvalidSubjectPolicy,
+                        key));
             }
 
             // Decode percent-encoded value
@@ -198,7 +295,11 @@ public static class DidX509Parser
         int colonIndex = value.IndexOf(DidX509Constants.ColonChar);
         if (colonIndex <= 0 || colonIndex >= value.Length - 1)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidSanPolicy}: Must have format 'type:value'");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidSanPolicyMustHaveFormatTemplate,
+                    DidX509Constants.ErrorInvalidSanPolicy,
+                    ClassStrings.SanExpectedFormat));
         }
 
         string sanType = value.Substring(0, colonIndex).ToLowerInvariant();
@@ -209,7 +310,14 @@ public static class DidX509Parser
             sanType != DidX509Constants.SanTypeDns &&
             sanType != DidX509Constants.SanTypeUri)
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidSanPolicy}: SAN type must be 'email', 'dns', or 'uri' (got '{sanType}')");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidSanPolicySanTypeMustBeTemplate,
+                    DidX509Constants.ErrorInvalidSanPolicy,
+                    DidX509Constants.SanTypeEmail,
+                    DidX509Constants.SanTypeDns,
+                    DidX509Constants.SanTypeUri,
+                    sanType));
         }
 
         // Decode percent-encoded value
@@ -223,7 +331,10 @@ public static class DidX509Parser
         // Format: OID (dotted decimal notation)
         if (!IsValidOid(value))
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidEkuPolicy}: Must be a valid OID in dotted decimal notation");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidEkuPolicyMustBeValidOidTemplate,
+                    DidX509Constants.ErrorInvalidEkuPolicy));
         }
 
         return value;
@@ -234,7 +345,10 @@ public static class DidX509Parser
         // Format: issuer domain (without https:// prefix), percent-encoded
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new FormatException($"{DidX509Constants.ErrorInvalidFulcioPolicy}: Issuer cannot be empty");
+            throw new FormatException(
+                string.Format(
+                    ClassStrings.ErrorInvalidFulcioIssuerCannotBeEmptyTemplate,
+                    DidX509Constants.ErrorInvalidFulcioPolicy));
         }
 
         // Decode percent-encoded value

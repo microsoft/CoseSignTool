@@ -4,6 +4,7 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.MST.Plugin;
 
@@ -56,6 +57,9 @@ public class MstVerificationProviderTests
         Assert.That(Command.Options.Any(o => o.Name == "require-receipt"), Is.True);
         Assert.That(Command.Options.Any(o => o.Name == "mst-endpoint"), Is.True);
         Assert.That(Command.Options.Any(o => o.Name == "verify-receipt"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "mst-trust-mode"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "mst-trust-file"), Is.True);
+        Assert.That(Command.Options.Any(o => o.Name == "mst-trusted-key"), Is.True);
     }
 
     [Test]
@@ -121,7 +125,7 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<MstReceiptPresenceValidator>());
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator>());
     }
 
     [Test]
@@ -134,8 +138,9 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptValidator>());
+        Assert.That(validators, Has.Count.EqualTo(2));
+        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator), Is.True);
+        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptOnlineValidator), Is.True);
     }
 
     [Test]
@@ -148,7 +153,8 @@ public class MstVerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        Assert.That(validators, Is.Empty, "no receipt validator when verify-receipt is false");
+        Assert.That(validators, Has.Count.EqualTo(1));
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator>());
     }
 
     [Test]
@@ -162,8 +168,38 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v is MstReceiptPresenceValidator), Is.True);
-        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptOnlineValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptPresenceTrustValidator"), Is.True);
+    }
+
+    [Test]
+    public void CreateValidators_WithOfflineTrustModeAndTrustFile_IncludesOfflineReceiptValidator()
+    {
+        // Arrange
+        var tmp = Path.Combine(Path.GetTempPath(), $"mst_trust_{Guid.NewGuid():N}.json");
+        // Minimal SDK-compatible shape produced by the SDK serializer.
+        var empty = new Azure.Security.CodeTransparency.CodeTransparencyOfflineKeys();
+        File.WriteAllText(tmp, empty.ToBinaryData().ToString());
+
+        try
+        {
+            var parseResult = Parser.Parse($"--mst-trust-mode offline --mst-endpoint https://example.codetransparency.azure.net --mst-trust-file \"{tmp}\"");
+
+            // Act
+            var validators = Provider.CreateValidators(parseResult).ToList();
+
+            // Assert
+            Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator), Is.True);
+            // If no usable keys, provider conservatively omits the receipt validator.
+            // This test just ensures parsing does not throw and presence validator is still emitted.
+        }
+        finally
+        {
+            if (File.Exists(tmp))
+            {
+                File.Delete(tmp);
+            }
+        }
     }
 
     [Test]

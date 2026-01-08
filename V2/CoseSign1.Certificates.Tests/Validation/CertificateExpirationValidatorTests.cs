@@ -1,15 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -69,7 +63,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -85,7 +79,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -105,7 +99,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator(futureTime);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -123,7 +117,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator(pastTime);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -141,7 +135,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator(specificTime);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -156,7 +150,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -171,7 +165,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator(futureTime);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -187,7 +181,7 @@ public class CertificateExpirationValidatorTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -201,7 +195,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Metadata["NotBefore"], Is.InstanceOf<DateTime>());
@@ -215,7 +209,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Metadata["NotAfter"], Is.InstanceOf<DateTime>());
@@ -229,7 +223,7 @@ public class CertificateExpirationValidatorTests
         var validator = new CertificateExpirationValidator();
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Metadata["CertificateThumbprint"], Is.InstanceOf<string>());

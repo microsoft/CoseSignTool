@@ -5,6 +5,7 @@ namespace DIDx509.Builder;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -17,6 +18,30 @@ using DIDx509.Parsing;
 /// </summary>
 public sealed class DidX509Builder
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorCertificateChainCannotBeEmpty = "Certificate chain cannot be empty";
+        public const string ErrorHashAlgorithmCannotBeNullOrEmpty = "Hash algorithm cannot be null or empty";
+        public const string ErrorFormatUnsupportedHashAlgorithm = "Unsupported hash algorithm: {0}";
+
+        public const string ErrorSubjectAttributesCannotBeNullOrEmpty = "Subject attributes cannot be null or empty";
+        public const string ErrorSubjectAttributeKeyCannotBeNullOrEmpty = "Subject attribute key cannot be null or empty";
+        public const string ErrorLeafCertificateMustBeSetBeforeSubjectFromCertificate = "Leaf certificate must be set before calling WithSubjectFromCertificate";
+
+        public const string ErrorSanTypeCannotBeNullOrEmpty = "SAN type cannot be null or empty";
+        public const string ErrorSanValueCannotBeNullOrEmpty = "SAN value cannot be null or empty";
+        public const string ErrorFormatInvalidSanType = "Invalid SAN type: {0}. Must be 'email', 'dns', or 'uri'";
+
+        public const string ErrorEkuOidCannotBeNullOrEmpty = "EKU OID cannot be null or empty";
+        public const string ErrorFormatInvalidOidFormat = "Invalid OID format: {0}";
+
+        public const string ErrorFulcioIssuerCannotBeNullOrEmpty = "Fulcio issuer cannot be null or empty";
+        public const string ErrorLeafCertificateMustBeSet = "Leaf certificate must be set";
+        public const string ErrorCaCertificateMustBeSet = "CA certificate must be set";
+        public const string ErrorAtLeastOnePolicyMustBeAdded = "At least one policy must be added";
+    }
+
     private X509Certificate2? LeafCertificate;
     private X509Certificate2? CaCertificate;
     private string HashAlgorithm = DidX509Constants.HashAlgorithmSha256;
@@ -25,6 +50,9 @@ public sealed class DidX509Builder
     /// <summary>
     /// Sets the leaf certificate (end-entity certificate).
     /// </summary>
+    /// <param name="certificate">The leaf certificate.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is <see langword="null"/>.</exception>
     public DidX509Builder WithLeafCertificate(X509Certificate2 certificate)
     {
         LeafCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
@@ -34,6 +62,9 @@ public sealed class DidX509Builder
     /// <summary>
     /// Sets the CA certificate to pin to (intermediate or root).
     /// </summary>
+    /// <param name="certificate">The CA certificate.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is <see langword="null"/>.</exception>
     public DidX509Builder WithCaCertificate(X509Certificate2 certificate)
     {
         CaCertificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
@@ -43,6 +74,10 @@ public sealed class DidX509Builder
     /// <summary>
     /// Sets the CA certificate from a certificate chain (finds the root or uses the last cert).
     /// </summary>
+    /// <param name="certificates">The certificate chain (leaf first).</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificates"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="certificates"/> is empty.</exception>
     public DidX509Builder WithCertificateChain(IEnumerable<X509Certificate2> certificates)
     {
         if (certificates == null)
@@ -53,7 +88,7 @@ public sealed class DidX509Builder
         var certArray = certificates.ToArray();
         if (certArray.Length == 0)
         {
-            throw new ArgumentException("Certificate chain cannot be empty", nameof(certificates));
+            throw new ArgumentException(ClassStrings.ErrorCertificateChainCannotBeEmpty, nameof(certificates));
         }
 
         LeafCertificate = certArray[0];
@@ -65,11 +100,14 @@ public sealed class DidX509Builder
     /// <summary>
     /// Sets the hash algorithm for the CA fingerprint (default: SHA-256).
     /// </summary>
+    /// <param name="algorithm">The hash algorithm to use.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="algorithm"/> is <see langword="null"/>, empty, or unsupported.</exception>
     public DidX509Builder WithHashAlgorithm(string algorithm)
     {
         if (string.IsNullOrWhiteSpace(algorithm))
         {
-            throw new ArgumentException("Hash algorithm cannot be null or empty", nameof(algorithm));
+            throw new ArgumentException(ClassStrings.ErrorHashAlgorithmCannotBeNullOrEmpty, nameof(algorithm));
         }
 
         algorithm = algorithm.ToLowerInvariant();
@@ -77,7 +115,7 @@ public sealed class DidX509Builder
             algorithm != DidX509Constants.HashAlgorithmSha384 &&
             algorithm != DidX509Constants.HashAlgorithmSha512)
         {
-            throw new ArgumentException($"Unsupported hash algorithm: {algorithm}", nameof(algorithm));
+            throw new ArgumentException(string.Format(ClassStrings.ErrorFormatUnsupportedHashAlgorithm, algorithm), nameof(algorithm));
         }
 
         HashAlgorithm = algorithm;
@@ -88,11 +126,13 @@ public sealed class DidX509Builder
     /// Adds a subject policy with specified attributes.
     /// </summary>
     /// <param name="attributes">Subject attributes as key-value pairs (e.g., "CN" => "User", "O" => "Org").</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="attributes"/> is <see langword="null"/>, empty, or contains an invalid key.</exception>
     public DidX509Builder WithSubjectPolicy(IDictionary<string, string> attributes)
     {
         if (attributes == null || attributes.Count == 0)
         {
-            throw new ArgumentException("Subject attributes cannot be null or empty", nameof(attributes));
+            throw new ArgumentException(ClassStrings.ErrorSubjectAttributesCannotBeNullOrEmpty, nameof(attributes));
         }
 
         // Build subject policy value: key:value:key:value:...
@@ -101,7 +141,7 @@ public sealed class DidX509Builder
         {
             if (string.IsNullOrWhiteSpace(kvp.Key))
             {
-                throw new ArgumentException("Subject attribute key cannot be null or empty");
+                throw new ArgumentException(ClassStrings.ErrorSubjectAttributeKeyCannotBeNullOrEmpty);
             }
 
             parts.Add(kvp.Key);
@@ -117,11 +157,13 @@ public sealed class DidX509Builder
     /// <summary>
     /// Adds a subject policy using the leaf certificate's subject.
     /// </summary>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the leaf certificate has not been set.</exception>
     public DidX509Builder WithSubjectFromCertificate()
     {
         if (LeafCertificate == null)
         {
-            throw new InvalidOperationException("Leaf certificate must be set before calling WithSubjectFromCertificate");
+            throw new InvalidOperationException(ClassStrings.ErrorLeafCertificateMustBeSetBeforeSubjectFromCertificate);
         }
 
         var attributes = ExtractSubjectAttributes(LeafCertificate.Subject);
@@ -133,16 +175,18 @@ public sealed class DidX509Builder
     /// </summary>
     /// <param name="type">SAN type: "email", "dns", or "uri".</param>
     /// <param name="value">SAN value.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="type"/> or <paramref name="value"/> is invalid.</exception>
     public DidX509Builder WithSanPolicy(string type, string value)
     {
         if (string.IsNullOrWhiteSpace(type))
         {
-            throw new ArgumentException("SAN type cannot be null or empty", nameof(type));
+            throw new ArgumentException(ClassStrings.ErrorSanTypeCannotBeNullOrEmpty, nameof(type));
         }
 
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("SAN value cannot be null or empty", nameof(value));
+            throw new ArgumentException(ClassStrings.ErrorSanValueCannotBeNullOrEmpty, nameof(value));
         }
 
         type = type.ToLowerInvariant();
@@ -150,11 +194,11 @@ public sealed class DidX509Builder
             type != DidX509Constants.SanTypeDns &&
             type != DidX509Constants.SanTypeUri)
         {
-            throw new ArgumentException($"Invalid SAN type: {type}. Must be 'email', 'dns', or 'uri'", nameof(type));
+            throw new ArgumentException(string.Format(ClassStrings.ErrorFormatInvalidSanType, type), nameof(type));
         }
 
         string encodedValue = PercentEncoding.Encode(value);
-        string policyValue = $"{type}{DidX509Constants.ValueSeparator}{encodedValue}";
+        string policyValue = string.Concat(type, DidX509Constants.ValueSeparator, encodedValue);
         Policies.Add((DidX509Constants.PolicySan, policyValue));
 
         return this;
@@ -164,16 +208,18 @@ public sealed class DidX509Builder
     /// Adds an EKU (Extended Key Usage) policy.
     /// </summary>
     /// <param name="oid">EKU OID in dotted decimal notation (e.g., "1.3.6.1.4.1.311.10.3.13").</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="oid"/> is <see langword="null"/>, empty, or not a valid OID.</exception>
     public DidX509Builder WithEkuPolicy(string oid)
     {
         if (string.IsNullOrWhiteSpace(oid))
         {
-            throw new ArgumentException("EKU OID cannot be null or empty", nameof(oid));
+            throw new ArgumentException(ClassStrings.ErrorEkuOidCannotBeNullOrEmpty, nameof(oid));
         }
 
         if (!IsValidOid(oid))
         {
-            throw new ArgumentException($"Invalid OID format: {oid}", nameof(oid));
+            throw new ArgumentException(string.Format(ClassStrings.ErrorFormatInvalidOidFormat, oid), nameof(oid));
         }
 
         Policies.Add((DidX509Constants.PolicyEku, oid));
@@ -184,11 +230,13 @@ public sealed class DidX509Builder
     /// Adds a Fulcio issuer policy (Sigstore-specific).
     /// </summary>
     /// <param name="issuer">Issuer domain without "https://" prefix (e.g., "accounts.google.com").</param>
+    /// <returns>The current builder instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="issuer"/> is <see langword="null"/> or empty.</exception>
     public DidX509Builder WithFulcioIssuerPolicy(string issuer)
     {
         if (string.IsNullOrWhiteSpace(issuer))
         {
-            throw new ArgumentException("Fulcio issuer cannot be null or empty", nameof(issuer));
+            throw new ArgumentException(ClassStrings.ErrorFulcioIssuerCannotBeNullOrEmpty, nameof(issuer));
         }
 
         // Remove https:// prefix if provided
@@ -206,21 +254,23 @@ public sealed class DidX509Builder
     /// <summary>
     /// Builds the DID:X509 identifier.
     /// </summary>
+    /// <returns>The DID:X509 identifier.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the leaf certificate, CA certificate, or required policies are missing.</exception>
     public string Build()
     {
         if (LeafCertificate == null)
         {
-            throw new InvalidOperationException("Leaf certificate must be set");
+            throw new InvalidOperationException(ClassStrings.ErrorLeafCertificateMustBeSet);
         }
 
         if (CaCertificate == null)
         {
-            throw new InvalidOperationException("CA certificate must be set");
+            throw new InvalidOperationException(ClassStrings.ErrorCaCertificateMustBeSet);
         }
 
         if (Policies.Count == 0)
         {
-            throw new InvalidOperationException("At least one policy must be added");
+            throw new InvalidOperationException(ClassStrings.ErrorAtLeastOnePolicyMustBeAdded);
         }
 
         // Compute CA fingerprint
@@ -240,10 +290,10 @@ public sealed class DidX509Builder
         string prefix = string.Join(DidX509Constants.ValueSeparator, parts);
 
         // Add policies
-        var policyParts = Policies.Select(p => $"{p.Name}{DidX509Constants.ValueSeparator}{p.Value}");
+        var policyParts = Policies.Select(p => string.Concat(p.Name, DidX509Constants.ValueSeparator, p.Value));
         string policiesString = string.Join(DidX509Constants.PolicySeparator, policyParts);
 
-        return $"{prefix}{DidX509Constants.PolicySeparator}{policiesString}";
+        return string.Concat(prefix, DidX509Constants.PolicySeparator, policiesString);
     }
 
     private static byte[] ComputeHash(byte[] data, string algorithm)
@@ -259,7 +309,7 @@ public sealed class DidX509Builder
             DidX509Constants.HashAlgorithmSha384 => ComputeHashLegacy<SHA384>(data),
             DidX509Constants.HashAlgorithmSha512 => ComputeHashLegacy<SHA512>(data),
 #endif
-            _ => throw new NotSupportedException($"Unsupported hash algorithm: {algorithm}")
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnsupportedHashAlgorithm, algorithm))
         };
     }
 

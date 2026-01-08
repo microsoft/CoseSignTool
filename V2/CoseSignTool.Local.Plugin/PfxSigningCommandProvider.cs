@@ -48,9 +48,9 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
 
         // Option descriptions
         public static readonly string DescriptionPfx = "Path to PFX/PKCS#12 file containing the signing certificate";
-        public static readonly string DescriptionPfxPasswordFile =
-            "Path to a file containing the PFX password (more secure than command-line). " +
-            "Alternatively, set COSESIGNTOOL_PFX_PASSWORD environment variable.";
+        public static readonly string DescriptionPfxPasswordFile = string.Concat(
+            "Path to a file containing the PFX password (more secure than command-line). ",
+            "Alternatively, set COSESIGNTOOL_PFX_PASSWORD environment variable.");
         public static readonly string DescriptionPfxPasswordEnv =
             "Name of environment variable containing the PFX password (default: COSESIGNTOOL_PFX_PASSWORD)";
         public static readonly string DescriptionPfxPasswordPrompt =
@@ -84,12 +84,16 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
+    /// <inheritdoc/>
     public string CommandName => ClassStrings.CommandNameValue;
 
+    /// <inheritdoc/>
     public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
+    /// <inheritdoc/>
     public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var pfxOption = new Option<FileInfo>(
@@ -117,6 +121,9 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         command.AddOption(pfxPasswordPromptOption);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Required options are missing.</exception>
+    /// <exception cref="FileNotFoundException">The PFX file does not exist.</exception>
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
         var pfxFile = options[ClassStrings.KeyPfx] as FileInfo
@@ -160,6 +167,9 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     /// </summary>
     private static SecureString? GetSecurePassword(IDictionary<string, object?> options)
     {
+        var loggerFactory = options.TryGetValue(ClassStrings.KeyLoggerFactory, out var lf) ? lf as ILoggerFactory : null;
+        var logger = loggerFactory?.CreateLogger<PfxSigningCommandProvider>();
+
         // Check for custom environment variable name
         var envVarName = options.TryGetValue(ClassStrings.KeyPfxPasswordEnv, out var envName) && envName is string customEnvVar
             ? customEnvVar
@@ -169,7 +179,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         var envPassword = SecurePasswordProvider.GetPasswordFromEnvironment(envVarName);
         if (envPassword != null)
         {
-            Console.Error.WriteLine(string.Format(ClassStrings.InfoUsingEnvPassword, envVarName));
+            logger?.LogInformation(ClassStrings.InfoUsingEnvPassword, envVarName);
             return envPassword;
         }
 
@@ -177,7 +187,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         var passwordFile = options.TryGetValue(ClassStrings.KeyPfxPasswordFile, out var pwdFile) ? pwdFile as FileInfo : null;
         if (passwordFile?.Exists == true)
         {
-            Console.Error.WriteLine(string.Format(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName));
+            logger?.LogInformation(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName);
             return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
         }
 
@@ -201,6 +211,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
         return null;
     }
 
+    /// <inheritdoc/>
     public IDictionary<string, string> GetSigningMetadata()
     {
         return new Dictionary<string, string>

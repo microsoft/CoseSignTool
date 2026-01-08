@@ -52,6 +52,13 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
         public static readonly CoseHeaderLabel PayloadLocation = new(260);
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CoseHashEnvelopeHeaderContributor"/> class.
+    /// </summary>
+    /// <param name="hashAlgorithm">The hash algorithm to use for the payload hash.</param>
+    /// <param name="contentType">The preimage content type to store in the hash envelope headers.</param>
+    /// <param name="payloadLocation">Optional payload location header value.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public CoseHashEnvelopeHeaderContributor(
         HashAlgorithmName hashAlgorithm,
         string contentType,
@@ -72,6 +79,9 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
     /// Removes content type (3) and adds PayloadHashAlg (258), PreimageContentType (259), and optionally PayloadLocation (260).
     /// Per RFC: Label 3 (content_type) MUST NOT be present when using hash envelope format.
     /// </summary>
+    /// <param name="headers">The header map to contribute headers to.</param>
+    /// <param name="context">The header contribution context.</param>
+    /// <exception cref="NotSupportedException">Thrown when the configured hash algorithm is not supported.</exception>
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Remove content type header (label 3) if present
@@ -140,6 +150,8 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
     /// <summary>
     /// Ensures no content-type header in unprotected headers.
     /// </summary>
+    /// <param name="headers">The header map to contribute headers to.</param>
+    /// <param name="context">The header contribution context.</param>
     public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         // Remove content-type header (label 3) if present

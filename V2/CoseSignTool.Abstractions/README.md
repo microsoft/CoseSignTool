@@ -85,13 +85,20 @@ public interface IVerificationProvider
     
     void AddVerificationOptions(Command command);
     bool IsActivated(ParseResult parseResult);
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
     IDictionary<string, object?> GetVerificationMetadata(
         ParseResult parseResult,
         CoseSign1Message message,
         ValidationResult validationResult);
 }
 ```
+
+Verification providers return stage-aware validators (`IValidator`). The CLI partitions validators by `ValidationStage` and runs them in a secure-by-default order:
+
+1. Key material resolution
+2. Key material trust (including trust policy evaluation)
+3. Signature verification
+4. Post-signature validation
 
 ### ITransparencyProviderContributor
 
@@ -198,7 +205,7 @@ public class MyVerificationProvider : IVerificationProvider
         return parseResult.GetValueForOption(_myOption) != null;
     }
 
-    public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
     {
         var optionValue = parseResult.GetValueForOption(_myOption);
         yield return new MyCustomValidator(optionValue);
@@ -216,6 +223,10 @@ public class MyVerificationProvider : IVerificationProvider
     }
 }
 ```
+
+### Optional: trust policies
+
+Providers can optionally contribute a trust policy by implementing `IVerificationProviderWithTrustPolicy`. When multiple active providers contribute policies, the CLI requires all of them to be satisfied (logical AND).
 
 ## Available Plugins
 

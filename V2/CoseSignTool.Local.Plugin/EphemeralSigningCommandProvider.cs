@@ -48,9 +48,9 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
     {
         // Command metadata
         public static readonly string CommandNameValue = "sign-ephemeral";
-        public static readonly string CommandDescriptionValue =
-            "Sign with an ephemeral (in-memory) certificate for testing. " +
-            "Default: RSA-4096 with full certificate chain and CodeSigning EKU.";
+        public static readonly string CommandDescriptionValue = string.Concat(
+            "Sign with an ephemeral (in-memory) certificate for testing. ",
+            "Default: RSA-4096 with full certificate chain and CodeSigning EKU.");
         public static readonly string ExampleUsageValue = "[--config cert-config.json] | [--subject \"CN=Test\"]";
 
         // Option names
@@ -65,17 +65,20 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
 
         // Option descriptions
         public static readonly string DescriptionConfig =
-            "Path to JSON configuration file for certificate settings. " +
-            "If not provided, uses optimal defaults (RSA-4096, full chain, CodeSigning EKU).";
+            string.Concat(
+                "Path to JSON configuration file for certificate settings. ",
+                "If not provided, uses optimal defaults (RSA-4096, full chain, CodeSigning EKU).");
         public static readonly string DescriptionSubject = "Certificate subject name. Overrides config file if both specified.";
         public static readonly string DescriptionAlgorithm = "Key algorithm: RSA (default), ECDSA, or MLDSA (post-quantum). Overrides config file.";
         public static readonly string DescriptionKeySize =
-            "Key size in bits. Overrides config file. " +
-            "Defaults: RSA=4096, ECDSA=384, MLDSA=65";
+            string.Concat(
+                "Key size in bits. Overrides config file. ",
+                "Defaults: RSA=4096, ECDSA=384, MLDSA=65");
         public static readonly string DescriptionValidityDays = "Certificate validity period in days. Overrides config file. Default: 365";
         public static readonly string DescriptionNoChain =
-            "Generate a self-signed certificate instead of a full chain. " +
-            "By default, generates Root → Intermediate → Leaf chain.";
+            string.Concat(
+                "Generate a self-signed certificate instead of a full chain. ",
+                "By default, generates Root → Intermediate → Leaf chain.");
         public static readonly string DescriptionMinimal = "Use minimal configuration (RSA-2048, self-signed, 1 day validity) for quick tests.";
         public static readonly string DescriptionPqc = "Use post-quantum cryptography (ML-DSA-65 with full chain).";
 
@@ -113,6 +116,9 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
         public static readonly string ConfigSourceMinimal = "Minimal preset";
         public static readonly string ConfigSourcePqc = "Post-Quantum preset";
         public static readonly string ConfigSourceDefault = "Default (RSA-4096, full chain, CodeSigning)";
+        public static readonly string FormatConfigSourceFile = "Config file: {0}";
+
+        public static readonly string DelimiterCommaSpace = ", ";
 
         // Metadata keys and values
         public static readonly string MetaKeyCertSource = "Certificate Source";
@@ -133,8 +139,9 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
 
         // Log message templates
         public static readonly string LogCreatingCert =
-            "Creating ephemeral certificate. Subject: {Subject}, Algorithm: {Algorithm}, KeySize: {KeySize}, " +
-            "ValidityDays: {ValidityDays}, GenerateChain: {GenerateChain}, EKUs: {EKUs}";
+            string.Concat(
+                "Creating ephemeral certificate. Subject: {Subject}, Algorithm: {Algorithm}, KeySize: {KeySize}, ",
+                "ValidityDays: {ValidityDays}, GenerateChain: {GenerateChain}, EKUs: {EKUs}");
         public static readonly string LogUsingMinimal = "Using minimal configuration preset";
         public static readonly string LogUsingPqc = "Using post-quantum configuration preset";
         public static readonly string LogLoadingFromFile = "Loading configuration from file: {ConfigFile}";
@@ -264,7 +271,7 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
             config.EffectiveKeySize,
             config.ValidityDays,
             config.GenerateChain,
-            string.Join(", ", config.EffectiveEnhancedKeyUsages));
+            string.Join(ClassStrings.DelimiterCommaSpace, config.EffectiveEnhancedKeyUsages));
 
         // Map algorithm string to enum
         var algorithmUpper = config.Algorithm?.ToUpperInvariant();
@@ -368,7 +375,7 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
                 throw new FileNotFoundException(string.Format(ClassStrings.ErrorConfigNotFound, configFile.FullName));
             }
 
-            ConfigSource = $"Config file: {configFile.Name}";
+            ConfigSource = string.Format(ClassStrings.FormatConfigSourceFile, configFile.Name);
             logger?.LogDebug(ClassStrings.LogLoadingFromFile, configFile.FullName);
             return EphemeralCertificateConfig.LoadFromFile(configFile.FullName);
         }

@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -81,7 +77,7 @@ public class CertificateCommonNameValidatorTests
     public void Validate_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateCommonNameValidator(TestCertCN);
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -95,7 +91,7 @@ public class CertificateCommonNameValidatorTests
     public void Validate_WithMatchingCommonName_ReturnsSuccess()
     {
         var validator = new CertificateCommonNameValidator(TestCertCN);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -112,7 +108,7 @@ public class CertificateCommonNameValidatorTests
     {
         // Test case-insensitive matching
         var validator = new CertificateCommonNameValidator(TestCertCN.ToUpperInvariant());
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -121,7 +117,7 @@ public class CertificateCommonNameValidatorTests
     public void Validate_WithNonMatchingCommonName_ReturnsFailure()
     {
         var validator = new CertificateCommonNameValidator("WrongCN");
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -135,7 +131,7 @@ public class CertificateCommonNameValidatorTests
     public async Task ValidateAsync_WithMatchingCommonName_ReturnsSuccess()
     {
         var validator = new CertificateCommonNameValidator(TestCertCN);
-        var result = await validator.ValidateAsync(ValidMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -145,7 +141,7 @@ public class CertificateCommonNameValidatorTests
     {
         var validator = new CertificateCommonNameValidator(TestCertCN);
         using var cts = new CancellationTokenSource();
-        var result = await validator.ValidateAsync(ValidMessage!, cts.Token);
+        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -154,7 +150,7 @@ public class CertificateCommonNameValidatorTests
     public void Validate_WithAllowUnprotectedHeadersTrue_ValidatesSuccessfully()
     {
         var validator = new CertificateCommonNameValidator(TestCertCN, allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -170,7 +166,7 @@ public class CertificateCommonNameValidatorTests
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
         var validator = new CertificateCommonNameValidator("TestCN");
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -184,7 +180,7 @@ public class CertificateCommonNameValidatorTests
     {
         // Partial matches should not succeed
         var validator = new CertificateCommonNameValidator("CommonName");
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -202,7 +198,7 @@ public class CertificateCommonNameValidatorTests
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
         var validator = new CertificateCommonNameValidator("Test.User@example.com");
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -211,7 +207,7 @@ public class CertificateCommonNameValidatorTests
     public void Validate_WithDifferentCase_MatchesCaseInsensitively()
     {
         var validator = new CertificateCommonNameValidator("commonnametest");
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }

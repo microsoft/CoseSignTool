@@ -30,6 +30,7 @@ public interface IPlugin
     /// Gets all extension points this plugin provides.
     /// Return <see cref="PluginExtensions.None"/> if plugin provides no extensions.
     /// </summary>
+    /// <returns>The set of extensions provided by the plugin.</returns>
     PluginExtensions GetExtensions();
 
     /// <summary>

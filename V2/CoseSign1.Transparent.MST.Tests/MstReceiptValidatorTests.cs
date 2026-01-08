@@ -6,9 +6,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Tests.Common;
 using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Validation;
 using Moq;
 
 namespace CoseSign1.Transparent.MST.Tests;
@@ -121,16 +121,33 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(MockClient.Object);
 
         // Act
-        var result = await validator.ValidateAsync(null!);
+        var result = await validator.ValidateAsync(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
         Assert.That(result.Failures, Has.Count.EqualTo(1));
         Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_NULL_INPUT"));
     }
 
     [Test]
-    public async Task ValidateAsync_WithoutMstReceipt_ReturnsFailure()
+    public async Task ValidateAsync_WhenStageIsNotKeyMaterialTrust_ReturnsNotApplicable()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+
+        // Act
+        var result = await validator.ValidateAsync(null!, ValidationStage.Signature);
+
+        // Assert
+        Assert.That(result.IsNotApplicable, Is.True);
+        Assert.That(result.IsFailure, Is.False);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.Signature));
+        Assert.That(result.Failures, Is.Empty);
+    }
+
+    [Test]
+    public async Task ValidateAsync_WithoutMstReceipt_ReturnsSuccessWithNegativeTrustAssertions()
     {
         // Arrange
         var message = CreateTestMessage("test payload");
@@ -141,12 +158,16 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures, Has.Count.EqualTo(1));
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_NO_RECEIPT"));
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied == false));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied == false && a.Details == "NoReceipt"));
     }
 
     [Test]
@@ -168,15 +189,21 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
         Assert.That(result.Metadata, Contains.Key("ProviderName"));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied));
     }
 
     [Test]
-    public async Task ValidateAsync_WhenVerificationFails_ReturnsFailure()
+    public async Task ValidateAsync_WhenVerificationFails_ReturnsSuccessWithNegativeTrustedAssertion()
     {
         // Arrange
         var message = CreateMessageWithMstReceipt();
@@ -195,15 +222,22 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures, Has.Count.GreaterThan(0));
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+        Assert.That(result.Metadata, Contains.Key("ProviderName"));
+        Assert.That(result.Metadata, Contains.Key("Errors"));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied == false && a.Details == "VerificationFailed"));
     }
 
     [Test]
-    public async Task ValidateAsync_WhenExceptionThrown_ReturnsFailureWithException()
+    public async Task ValidateAsync_WhenExceptionThrown_ReturnsSuccessWithExceptionMetadata()
     {
         // Arrange
         var message = CreateMessageWithMstReceipt();
@@ -223,15 +257,22 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_VERIFICATION_EXCEPTION"));
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+        Assert.That(result.Metadata, Contains.Key("ExceptionType"));
+        Assert.That(result.Metadata, Contains.Key("ExceptionMessage"));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied == false && a.Details == "Exception"));
     }
 
     [Test]
-    public async Task ValidateAsync_WithCancellation_ReturnsFailure()
+    public async Task ValidateAsync_WithCancellation_ReturnsSuccessWithNegativeTrustedAssertion()
     {
         // Arrange
         var message = CreateMessageWithMstReceipt();
@@ -253,11 +294,16 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust, cts.Token);
 
-        // Assert - Cancellation is caught and returned as failure
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_VERIFICATION_EXCEPTION"));
+        // Assert - Cancellation is treated as an exception and modeled as a negative trust claim.
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied == false && a.Details == "Exception"));
     }
 
     #endregion
@@ -271,16 +317,33 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(MockClient.Object);
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
         Assert.That(result.Failures, Has.Count.EqualTo(1));
         Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_NULL_INPUT"));
     }
 
     [Test]
-    public void Validate_WithoutMstReceipt_ReturnsFailure()
+    public void Validate_WhenStageIsNotKeyMaterialTrust_ReturnsNotApplicable()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+
+        // Act
+        var result = validator.Validate(null!, ValidationStage.Signature);
+
+        // Assert
+        Assert.That(result.IsNotApplicable, Is.True);
+        Assert.That(result.IsFailure, Is.False);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.Signature));
+        Assert.That(result.Failures, Is.Empty);
+    }
+
+    [Test]
+    public void Validate_WithoutMstReceipt_ReturnsSuccessWithNegativeTrustAssertions()
     {
         // Arrange
         var message = CreateTestMessage("test payload");
@@ -291,11 +354,16 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures[0].ErrorCode, Is.EqualTo("MST_NO_RECEIPT"));
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied == false));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied == false && a.Details == "NoReceipt"));
     }
 
     [Test]
@@ -317,10 +385,75 @@ public class MstReceiptValidatorTests
         var validator = new MstReceiptValidator(provider);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.KeyMaterialTrust));
+
+        var assertions = TrustAssertionMetadata.GetAssertionsOrEmpty(result);
+        Assert.That(assertions, Has.Count.EqualTo(2));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptPresent && a.Satisfied));
+        Assert.That(assertions, Has.One.Matches<TrustAssertion>(a => a.ClaimId == MstTrustClaims.ReceiptTrusted && a.Satisfied));
+    }
+
+    #endregion
+
+    #region IsApplicable Tests
+
+    [Test]
+    public void IsApplicable_WithNullInput_ReturnsFalse()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+
+        // Act
+        var isApplicable = validator.IsApplicable(null!, ValidationStage.KeyMaterialTrust);
+
+        // Assert
+        Assert.That(isApplicable, Is.False);
+    }
+
+    [Test]
+    public void IsApplicable_WhenStageIsNotKeyMaterialTrust_ReturnsFalse()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+        var message = CreateMessageWithMstReceipt();
+
+        // Act
+        var isApplicable = validator.IsApplicable(message, ValidationStage.Signature);
+
+        // Assert
+        Assert.That(isApplicable, Is.False);
+    }
+
+    [Test]
+    public void IsApplicable_WithoutMstReceipt_ReturnsFalse()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+        var message = CreateTestMessage("test payload");
+
+        // Act
+        var isApplicable = validator.IsApplicable(message, ValidationStage.KeyMaterialTrust);
+
+        // Assert
+        Assert.That(isApplicable, Is.False);
+    }
+
+    [Test]
+    public void IsApplicable_WithMstReceipt_ReturnsTrue()
+    {
+        // Arrange
+        var validator = new MstReceiptValidator(MockClient.Object);
+        var message = CreateMessageWithMstReceipt();
+
+        // Act
+        var isApplicable = validator.IsApplicable(message, ValidationStage.KeyMaterialTrust);
+
+        // Assert
+        Assert.That(isApplicable, Is.True);
     }
 
     #endregion

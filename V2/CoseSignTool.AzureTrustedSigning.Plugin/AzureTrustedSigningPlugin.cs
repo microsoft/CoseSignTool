@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.AzureTrustedSigning.Plugin;
@@ -13,14 +14,22 @@ namespace CoseSignTool.AzureTrustedSigning.Plugin;
 /// </summary>
 public class AzureTrustedSigningPlugin : IPlugin
 {
-    /// <inheritdoc/>
-    public string Name => "Azure Trusted Signing";
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string Name = "Azure Trusted Signing";
+        public const string Version = "1.0.0";
+        public const string Description = "Sign with Microsoft Azure Trusted Signing cloud service";
+    }
 
     /// <inheritdoc/>
-    public string Version => "1.0.0";
+    public string Name => ClassStrings.Name;
 
     /// <inheritdoc/>
-    public string Description => "Sign with Microsoft Azure Trusted Signing cloud service";
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;

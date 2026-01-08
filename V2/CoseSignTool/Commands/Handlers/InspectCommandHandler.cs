@@ -26,25 +26,23 @@ public class InspectCommandHandler
 
     private readonly IOutputFormatter Formatter;
     private readonly CoseInspectionService InspectionService;
+    private readonly Func<Stream> StandardInputProvider;
 
     /// <summary>
     /// The timeout for waiting for stdin data. Default is 2 seconds.
     /// </summary>
-    public static TimeSpan StdinTimeout { get; set; } = TimeSpan.FromSeconds(2);
+    public TimeSpan StdinTimeout { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InspectCommandHandler"/> class.
     /// </summary>
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
-    public InspectCommandHandler(IOutputFormatter? formatter = null)
+    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
+    public InspectCommandHandler(IOutputFormatter? formatter = null, Func<Stream>? standardInputProvider = null)
     {
         Formatter = formatter ?? new TextOutputFormatter();
         InspectionService = new CoseInspectionService(Formatter);
-    }
-
-    protected virtual Stream OpenStandardInput()
-    {
-        return Console.OpenStandardInput();
+        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
     }
 
     /// <summary>
@@ -80,7 +78,7 @@ public class InspectCommandHandler
             if (useStdin)
             {
                 // Read from stdin with timeout wrapper to avoid blocking forever
-                using var rawStdin = OpenStandardInput();
+                using var rawStdin = StandardInputProvider();
                 using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
                 using var ms = new MemoryStream();
                 await timeoutStdin.CopyToAsync(ms);

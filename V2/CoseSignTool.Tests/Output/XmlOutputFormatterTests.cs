@@ -95,6 +95,23 @@ public class XmlOutputFormatterTests
     }
 
     [Test]
+    public void WriteKeyValue_WhenKeyHasLeadingWhitespace_DoesNotPreserveIndentationInXml()
+    {
+        // Arrange
+        using var output = new StringWriter();
+        var formatter = new XmlOutputFormatter(output);
+
+        // Act
+        formatter.WriteKeyValue("  TestKey", "TestValue");
+        formatter.Flush();
+
+        // Assert
+        var xml = output.ToString();
+        Assert.That(xml, Does.Contain("<Key>TestKey</Key>"));
+        Assert.That(xml, Does.Not.Contain("<Key>  TestKey</Key>"));
+    }
+
+    [Test]
     public void BeginSection_AddsSectionStart()
     {
         // Arrange

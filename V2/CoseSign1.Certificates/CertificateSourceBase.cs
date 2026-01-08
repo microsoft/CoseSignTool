@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Interfaces;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates;

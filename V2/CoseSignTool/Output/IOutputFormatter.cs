@@ -12,31 +12,38 @@ public interface IOutputFormatter
     /// <summary>
     /// Writes an informational message.
     /// </summary>
+    /// <param name="message">The message to write.</param>
     void WriteInfo(string message);
 
     /// <summary>
     /// Writes a success message.
     /// </summary>
+    /// <param name="message">The message to write.</param>
     void WriteSuccess(string message);
 
     /// <summary>
     /// Writes a warning message.
     /// </summary>
+    /// <param name="message">The message to write.</param>
     void WriteWarning(string message);
 
     /// <summary>
     /// Writes an error message.
     /// </summary>
+    /// <param name="message">The message to write.</param>
     void WriteError(string message);
 
     /// <summary>
     /// Writes a key-value pair.
     /// </summary>
+    /// <param name="key">The key.</param>
+    /// <param name="value">The value.</param>
     void WriteKeyValue(string key, string value);
 
     /// <summary>
     /// Begins a named section in the output.
     /// </summary>
+    /// <param name="title">The section title.</param>
     void BeginSection(string title);
 
     /// <summary>

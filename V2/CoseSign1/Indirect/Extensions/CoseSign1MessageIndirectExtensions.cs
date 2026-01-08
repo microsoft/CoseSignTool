@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Extensions;
 
 namespace CoseSign1.Indirect.Extensions;
@@ -11,12 +12,22 @@ namespace CoseSign1.Indirect.Extensions;
 /// </summary>
 public static class CoseSign1MessageIndirectExtensions
 {
-    private static readonly Regex HashLegacyPattern = new(@"\+hash-([\w_]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex CoseHashVPattern = new(@"\+cose-hash-v", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string HashLegacyPattern = @"\+hash-([\w_]+)";
+        public const string CoseHashVPattern = @"\+cose-hash-v";
+        public const string CoapContentTypeFormat = "coap/{0}";
+    }
+
+    private static readonly Regex HashLegacyPattern = new(ClassStrings.HashLegacyPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CoseHashVPattern = new(ClassStrings.CoseHashVPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
     /// Determines the signature format type.
     /// </summary>
+    /// <param name="message">The COSE Sign1 message to inspect.</param>
+    /// <returns>The signature format for the provided message.</returns>
     public static SignatureFormat GetSignatureFormat(this CoseSign1Message message)
     {
         if (message == null)
@@ -54,6 +65,9 @@ public static class CoseSign1MessageIndirectExtensions
     /// For CoseHashV: returns header 3 without "+cose-hash-v"
     /// For legacy indirect: returns header 3 without "+hash-*" extension
     /// </summary>
+    /// <param name="message">The COSE Sign1 message to inspect.</param>
+    /// <param name="contentType">When this method returns, contains the content type if available; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if a content type could be resolved; otherwise, <see langword="false"/>.</returns>
     public static bool TryGetIndirectContentType(
         this CoseSign1Message message,
         out string? contentType)
@@ -117,7 +131,7 @@ public static class CoseSign1MessageIndirectExtensions
         // Try as CoAP int
         if (message.TryGetHeader(label, out int coapContentType, allowUnprotected: true))
         {
-            contentType = $"coap/{coapContentType}";
+            contentType = string.Format(ClassStrings.CoapContentTypeFormat, coapContentType);
             return true;
         }
 

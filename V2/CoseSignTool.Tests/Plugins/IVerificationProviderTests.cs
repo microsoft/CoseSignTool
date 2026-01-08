@@ -5,6 +5,8 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.Tests.Plugins;
@@ -28,7 +30,7 @@ public class IVerificationProviderTests
         private Option<string?> TestNameOption = null!;
         public bool AddVerificationOptionsCalled { get; private set; }
         public bool IsActivatedResult { get; set; } = true;
-        public List<IValidator<CoseSign1Message>> ValidatorsToReturn { get; } = new();
+        public List<IValidator> ValidatorsToReturn { get; } = new();
         public Dictionary<string, object?> MetadataToReturn { get; } = new();
 
         public void AddVerificationOptions(Command command)
@@ -46,7 +48,7 @@ public class IVerificationProviderTests
             return parseResult.GetValueForOption(TestOption) || IsActivatedResult;
         }
 
-        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
         {
             return ValidatorsToReturn;
         }
@@ -63,22 +65,26 @@ public class IVerificationProviderTests
     /// <summary>
     /// Simple test validator.
     /// </summary>
-    private sealed class TestValidator : IValidator<CoseSign1Message>
+    private sealed class TestValidator : IValidator
     {
         private readonly bool ShouldPass;
 
+        private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.Signature };
+
         public TestValidator(bool shouldPass) => ShouldPass = shouldPass;
 
-        public ValidationResult Validate(CoseSign1Message input)
+        public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
         {
             return ShouldPass
                 ? ValidationResult.Success("TestValidator")
                 : ValidationResult.Failure("TestValidator", "Test failure", "TEST_FAIL");
         }
 
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(Validate(input));
+            return Task.FromResult(Validate(input, stage));
         }
     }
 

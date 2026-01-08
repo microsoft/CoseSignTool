@@ -3,6 +3,7 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Diagnostics.CodeAnalysis;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
@@ -43,11 +44,45 @@ public enum KeyVaultCertificateKeyMode
 /// </remarks>
 public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
 {
-    private sealed record State(
-        X509Certificate2 Certificate,
-        string Version,
-        KeyVaultCertificateKeyMode KeyMode,
-        KeyVaultCryptoClientWrapper? CryptoWrapper);
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorCertificateDoesNotHaveRsaPrivateKey = "Certificate does not have an RSA private key.";
+        public const string ErrorCertificateDoesNotHaveEcdsaPrivateKey = "Certificate does not have an ECDSA private key.";
+        public const string ErrorRemoteSigningRequiresCryptographyClientWrapper = "Remote signing requires a CryptographyClient wrapper.";
+        public const string ErrorAzureKeyVaultDoesNotSupportMldsaSigning = "Azure Key Vault does not currently support ML-DSA (post-quantum) signing.";
+        public const string ErrorCannotRefreshPinnedCertificateVersion = "Cannot refresh a pinned certificate version.";
+        public const string ErrorNotInitializedCallInitializeAsyncBeforeUse = "AzureKeyVaultCertificateSource has not been initialized. Call InitializeAsync() before use.";
+        public const string ErrorKeyVaultReturnedCertificateWithoutVersion = "Key Vault returned a certificate without a version.";
+        public const string ErrorCertificateDataFromKeyVaultInvalid = "Certificate data retrieved from Key Vault is invalid.";
+        public const string ErrorKeyVaultSecretDidNotContainCertificateWithPrivateKey = "Key Vault secret did not contain a certificate with a private key.";
+
+        public const string ContentTypePkcs12 = "application/x-pkcs12";
+        public const string ContentTypePemFile = "application/x-pem-file";
+    }
+
+    private sealed class State
+    {
+        public State(
+            X509Certificate2 certificate,
+            string version,
+            KeyVaultCertificateKeyMode keyMode,
+            KeyVaultCryptoClientWrapper? cryptoWrapper)
+        {
+            Certificate = certificate;
+            Version = version;
+            KeyMode = keyMode;
+            CryptoWrapper = cryptoWrapper;
+        }
+
+        public X509Certificate2 Certificate { get; }
+
+        public string Version { get; }
+
+        public KeyVaultCertificateKeyMode KeyMode { get; }
+
+        public KeyVaultCryptoClientWrapper? CryptoWrapper { get; }
+    }
 
     private readonly IKeyVaultClientFactory ClientFactory;
     private readonly CertificateClient CertificateClient;
@@ -116,6 +151,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     /// <param name="certificateVersion">Optional pinned certificate version. When set, auto-refresh is disabled.</param>
     /// <param name="refreshInterval">Optional auto-refresh interval. Default is 15 minutes when not pinned.</param>
     /// <param name="forceRemoteMode">If true, always use remote signing even if the key is exportable.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="clientFactory"/> or <paramref name="certificateName"/> is null.</exception>
     public AzureKeyVaultCertificateSource(
         IKeyVaultClientFactory clientFactory,
         string certificateName,
@@ -144,6 +180,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     /// Initializes the instance by loading the certificate and (optionally) starting auto-refresh.
     /// Safe to call multiple times.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that represents the asynchronous initialization operation.</returns>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -195,6 +233,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     #region RSA Signing
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override byte[] SignDataWithRsa(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         ThrowIfDisposed();
@@ -205,12 +245,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var rsa = state.Certificate.GetRSAPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an RSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveRsaPrivateKey);
                 return rsa.SignData(data, hashAlgorithm, padding);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return wrapper.SignDataWithRsa(data, hashAlgorithm, padding);
         }
         finally
@@ -220,6 +260,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override async Task<byte[]> SignDataWithRsaAsync(
         byte[] data,
         HashAlgorithmName hashAlgorithm,
@@ -234,12 +276,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var rsa = state.Certificate.GetRSAPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an RSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveRsaPrivateKey);
                 return rsa.SignData(data, hashAlgorithm, padding);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return await wrapper.SignDataWithRsaAsync(data, hashAlgorithm, padding, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -249,6 +291,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override byte[] SignHashWithRsa(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         ThrowIfDisposed();
@@ -259,12 +303,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var rsa = state.Certificate.GetRSAPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an RSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveRsaPrivateKey);
                 return rsa.SignHash(hash, hashAlgorithm, padding);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return wrapper.SignHashWithRsa(hash, hashAlgorithm, padding);
         }
         finally
@@ -274,6 +318,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override async Task<byte[]> SignHashWithRsaAsync(
         byte[] hash,
         HashAlgorithmName hashAlgorithm,
@@ -288,12 +334,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var rsa = state.Certificate.GetRSAPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an RSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveRsaPrivateKey);
                 return rsa.SignHash(hash, hashAlgorithm, padding);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return await wrapper.SignHashWithRsaAsync(hash, hashAlgorithm, padding, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -307,6 +353,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     #region ECDSA Signing
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override byte[] SignDataWithEcdsa(byte[] data, HashAlgorithmName hashAlgorithm)
     {
         ThrowIfDisposed();
@@ -317,12 +365,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var ecdsa = state.Certificate.GetECDsaPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an ECDSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveEcdsaPrivateKey);
                 return ecdsa.SignData(data, hashAlgorithm);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return wrapper.SignDataWithEcdsa(data, hashAlgorithm);
         }
         finally
@@ -332,6 +380,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override async Task<byte[]> SignDataWithEcdsaAsync(
         byte[] data,
         HashAlgorithmName hashAlgorithm,
@@ -345,12 +395,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var ecdsa = state.Certificate.GetECDsaPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an ECDSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveEcdsaPrivateKey);
                 return ecdsa.SignData(data, hashAlgorithm);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return await wrapper.SignDataWithEcdsaAsync(data, hashAlgorithm, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -360,6 +410,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override byte[] SignHashWithEcdsa(byte[] hash)
     {
         ThrowIfDisposed();
@@ -370,12 +422,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var ecdsa = state.Certificate.GetECDsaPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an ECDSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveEcdsaPrivateKey);
                 return ecdsa.SignHash(hash);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return wrapper.SignHashWithEcdsa(hash);
         }
         finally
@@ -385,6 +437,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when the certificate does not have the required private key for signing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when remote signing is required but the cryptography client wrapper is unavailable.</exception>
     public override async Task<byte[]> SignHashWithEcdsaAsync(byte[] hash, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -395,12 +449,12 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             if (state.KeyMode == KeyVaultCertificateKeyMode.Local)
             {
                 using var ecdsa = state.Certificate.GetECDsaPrivateKey()
-                    ?? throw new InvalidOperationException("Certificate does not have an ECDSA private key.");
+                    ?? throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotHaveEcdsaPrivateKey);
                 return ecdsa.SignHash(hash);
             }
 
             var wrapper = state.CryptoWrapper
-                ?? throw new InvalidOperationException("Remote signing requires a CryptographyClient wrapper.");
+                ?? throw new InvalidOperationException(ClassStrings.ErrorRemoteSigningRequiresCryptographyClientWrapper);
             return await wrapper.SignHashWithEcdsaAsync(hash, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -414,18 +468,20 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     #region ML-DSA Signing (Post-Quantum)
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">Always thrown because ML-DSA signing is not supported.</exception>
     public override byte[] SignDataWithMLDsa(byte[] data, HashAlgorithmName? hashAlgorithm = null)
     {
-        throw new NotSupportedException("Azure Key Vault does not currently support ML-DSA (post-quantum) signing.");
+        throw new NotSupportedException(ClassStrings.ErrorAzureKeyVaultDoesNotSupportMldsaSigning);
     }
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">Always thrown because ML-DSA signing is not supported.</exception>
     public override Task<byte[]> SignDataWithMLDsaAsync(
         byte[] data,
         HashAlgorithmName? hashAlgorithm = null,
         CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException("Azure Key Vault does not currently support ML-DSA (post-quantum) signing.");
+        throw new NotSupportedException(ClassStrings.ErrorAzureKeyVaultDoesNotSupportMldsaSigning);
     }
 
     #endregion
@@ -435,18 +491,21 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
     /// <summary>
     /// Manually triggers a refresh check.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the certificate changed and was reloaded.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when a pinned certificate version is in use.</exception>
     public async Task<bool> RefreshCertificateAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         if (PinnedVersion != null)
         {
-            throw new InvalidOperationException("Cannot refresh a pinned certificate version.");
+            throw new InvalidOperationException(ClassStrings.ErrorCannotRefreshPinnedCertificateVersion);
         }
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         return await TryRefreshCertificateAsync(cancellationToken).ConfigureAwait(false);
     }
+
 
     private void OnRefreshTimerTick(object? state)
     {
@@ -530,6 +589,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
 
     #endregion
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (!disposing)
@@ -573,8 +633,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         var state = Current;
         if (state == null)
         {
-            throw new InvalidOperationException(
-                "AzureKeyVaultCertificateSource has not been initialized. Call InitializeAsync() before use.");
+            throw new InvalidOperationException(ClassStrings.ErrorNotInitializedCallInitializeAsyncBeforeUse);
         }
 
         return state;
@@ -586,7 +645,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         var version = requestedVersion ?? certWithPolicy.Value.Properties.Version;
         if (string.IsNullOrEmpty(version))
         {
-            throw new InvalidOperationException("Key Vault returned a certificate without a version.");
+            throw new InvalidOperationException(ClassStrings.ErrorKeyVaultReturnedCertificateWithoutVersion);
         }
 
         var exportable = certWithPolicy.Value.Policy?.Exportable ?? false;
@@ -597,7 +656,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         if (keyMode == KeyVaultCertificateKeyMode.Local)
         {
             var cert = await DownloadCertificateWithPrivateKeyAsync(version, cancellationToken).ConfigureAwait(false);
-            return new State(cert, version, keyMode, CryptoWrapper: null);
+            return new State(cert, version, keyMode, cryptoWrapper: null);
         }
 
         var certBytes = await DownloadPublicCertificateBytesAsync(requestedVersion, version, certWithPolicy.Value, cancellationToken).ConfigureAwait(false);
@@ -631,7 +690,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
 
         if (bytes == null || bytes.Length == 0)
         {
-            throw new InvalidOperationException("Certificate data retrieved from Key Vault is invalid.");
+            throw new InvalidOperationException(ClassStrings.ErrorCertificateDataFromKeyVaultInvalid);
         }
 
         return bytes;
@@ -648,14 +707,14 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         var value = secret.Value;
 
         X509Certificate2 cert;
-        if (string.Equals(contentType, "application/x-pkcs12", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(contentType, ClassStrings.ContentTypePkcs12, StringComparison.OrdinalIgnoreCase))
         {
             cert = X509CertificateLoader.LoadPkcs12(
                 Convert.FromBase64String(value),
                 password: null,
                 X509KeyStorageFlags.Exportable);
         }
-        else if (string.Equals(contentType, "application/x-pem-file", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(contentType, ClassStrings.ContentTypePemFile, StringComparison.OrdinalIgnoreCase))
         {
             cert = X509Certificate2.CreateFromPem(value);
         }
@@ -677,7 +736,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         if (!cert.HasPrivateKey)
         {
             cert.Dispose();
-            throw new InvalidOperationException("Key Vault secret did not contain a certificate with a private key.");
+            throw new InvalidOperationException(ClassStrings.ErrorKeyVaultSecretDidNotContainCertificateWithPrivateKey);
         }
 
         return cert;

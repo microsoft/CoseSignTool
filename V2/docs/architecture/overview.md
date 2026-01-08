@@ -54,7 +54,7 @@ CoseSignTool V2 is built on a modern, modular architecture designed for extensib
                             │
 ┌─────────────────────────────────────────────────────────────┐
 │                  Validation Layer                           │
-│  IValidator<T> | ValidationResult                           │
+│  IValidator | ValidationResult                              │
 │  - Composable validators                                    │
 │  - Certificate validation                                   │
 │  - Signature validation                                     │
@@ -200,34 +200,34 @@ public interface IHeaderContributor
 - `SigningContext`: Payload, content type, additional headers
 - `SigningKey`: Access to key metadata for header derivation
 
-### 7. Validation Framework
+### 7. Verification Framework
 
-Composable validation architecture in `CoseSign1.Validation`:
+Composable staged verification architecture in `CoseSign1.Validation`:
 
 ```csharp
-public interface IValidator<in T>
+public interface IValidator
 {
-    ValidationResult Validate(T input);
-
-    Task<ValidationResult> ValidateAsync(T input, CancellationToken cancellationToken = default);
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
+    Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default);
 }
 ```
 
-**Entry Point** - Fluent builder API:
+**Entry Point** - Fluent staged builder API:
 ```csharp
-var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("TrustedSigner"))
+var verifier = Cose.Sign1Message()
+    .AllowAllTrust("TrustedSigner")
+    .ValidateCertificateSignature()
     .Build();
+
+var result = verifier.Verify(message);
 ```
 
 **Core Types**:
-- `ICoseMessageValidationBuilder`: Builder for message validators
+- `ICoseSign1VerificationBuilder`: Builder for staged verification pipelines
+- `ICoseSign1Verifier`: Built verifier instance (`Verify` / `VerifyAsync`)
+- `CoseSign1VerificationResult`: Per-stage results (`Resolution`, `Trust`, `Signature`, `PostSignature`, `Overall`)
 - `CompositeValidator`: Combines multiple validators
-- `FunctionValidator`: Wraps lambda functions as validators
-- `ValidationResult`: Success/failure with `Failures` collection
 
 **Certificate Validators** (in `CoseSign1.Certificates.Validation`):
 - `CertificateSignatureValidator`: Verifies cryptographic signature
@@ -296,18 +296,21 @@ Native support for decentralized identifiers in `DIDx509`:
 
 ```
 1. Application provides: signed COSE message bytes
-                ↓
-2. CoseMessage.DecodeSign1(bytes)
-                ↓
-3. Validator.Validate(message)
-   - Runs configured validators in order
-   - CompositeValidator aggregates results
-                ↓
-4. Returns ValidationResult
-   - IsValid: true/false
-    - Failures: list of ValidationFailure (if any)
-                ↓
-5. Application acts on validation result
+                     ↓
+2. CoseSign1Message.DecodeSign1(bytes)
+                     ↓
+3. CoseSign1Verifier.Verify(message, ...)
+    - Runs stages in order:
+      resolution → trust → signature → post-signature
+    - Short-circuits on failure (later stages become NotApplicable)
+
+     Preferred: build a `CoseSign1VerificationPipeline` via `Cose.Sign1Verifier()` and call `pipeline.Verify(message)`.
+                     ↓
+4. Returns CoseSign1VerificationResult
+    - Resolution/Trust/Signature/PostSignaturePolicy stage results
+    - Overall result
+                     ↓
+5. Application acts on verification result
 ```
 
 ## Extension Points
@@ -321,7 +324,7 @@ V2 is designed for extensibility at multiple levels:
 | Chain Builders | `ICertificateChainBuilder` | Custom chain building logic |
 | Key Providers | `IPrivateKeyProvider` | Custom key generation (HSM, TPM) |
 | Header Contributors | `IHeaderContributor` | Custom header injection |
-| Validators | `IValidator<T>` | Custom validation logic |
+| Validators | `IValidator` | Custom validation logic |
 | Transparency | `ITransparencyProvider` | Custom transparency services |
 | CLI Plugins | `IPlugin` | Custom CoseSignTool commands |
 | CLI Signing Commands | `ISigningCommandProvider` | Custom signing commands (e.g., `sign-pfx`) |

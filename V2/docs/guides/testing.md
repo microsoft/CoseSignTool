@@ -41,9 +41,9 @@ public class SigningTests
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
         Assert.IsTrue(result.IsValid);
     }
 }
@@ -84,7 +84,7 @@ public class CustomValidatorTests
         var message = CreateValidTestMessage();
         
         // Act
-        var result = await _validator.ValidateAsync(message);
+        var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -97,7 +97,7 @@ public class CustomValidatorTests
         var message = CreateInvalidTestMessage();
         
         // Act
-        var result = await _validator.ValidateAsync(message);
+        var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
         Assert.IsFalse(result.IsValid);
@@ -149,10 +149,10 @@ public class SigningServiceTests
 
         var message = CoseMessage.DecodeSign1(signatureBytes);
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
 
-        Assert.IsTrue(validator.Validate(message).IsValid);
+        Assert.IsTrue(validator.Validate(message, ValidationStage.Signature).IsValid);
     }
 }
 ```
@@ -189,10 +189,10 @@ public class SignVerifyIntegrationTests
         // Act - Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -219,10 +219,10 @@ public class SignVerifyIntegrationTests
         // Act - Verify signature over the hash envelope (payload is not required for signature verification)
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b.ValidateSignature())
+            .ValidateCertificateSignature()
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -252,13 +252,14 @@ public async Task Verify_WithFullChain_Succeeds()
     var trustedRoots = new X509Certificate2Collection { root };
 
     var validator = Cose.Sign1Message()
-        .AddCertificateValidator(b => b
-            .ValidateSignature()
+        .ValidateCertificate(cert => cert
             .ValidateChain(trustedRoots))
         .Build();
 
-    var result = await validator.ValidateAsync(message);
-    Assert.IsTrue(result.IsValid);
+    var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+    var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+    Assert.IsTrue(signatureResult.IsValid);
+    Assert.IsTrue(trustResult.IsValid);
 }
 ```
 

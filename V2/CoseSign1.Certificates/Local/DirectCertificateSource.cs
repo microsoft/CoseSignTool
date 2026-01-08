@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Interfaces;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -22,6 +20,7 @@ public class DirectCertificateSource : CertificateSourceBase
     /// <param name="certificate">The signing certificate</param>
     /// <param name="certificateChain">The complete certificate chain including the signing certificate</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, creates ExplicitCertificateChainBuilder.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="certificateChain"/> is null.</exception>
     public DirectCertificateSource(
         X509Certificate2 certificate,
         IReadOnlyList<X509Certificate2> certificateChain,
@@ -36,6 +35,7 @@ public class DirectCertificateSource : CertificateSourceBase
     /// </summary>
     /// <param name="certificate">The signing certificate</param>
     /// <param name="chainBuilder">Chain builder to construct the certificate chain</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
     public DirectCertificateSource(X509Certificate2 certificate, ICertificateChainBuilder chainBuilder)
         : base(chainBuilder)
     {

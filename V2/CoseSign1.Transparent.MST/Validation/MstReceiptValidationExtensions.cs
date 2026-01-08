@@ -2,7 +2,8 @@
 // Licensed under the MIT License.
 
 using Azure.Security.CodeTransparency;
-using CoseSign1.Validation;
+using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Validation.Interfaces;
 
 namespace CoseSign1.Transparent.MST.Validation;
 
@@ -15,16 +16,23 @@ public interface IMstReceiptValidatorBuilder
     /// <summary>
     /// Uses a CodeTransparency client to validate receipts.
     /// </summary>
+    /// <param name="client">The Azure Code Transparency client.</param>
+    /// <returns>The same builder instance.</returns>
     IMstReceiptValidatorBuilder UseClient(CodeTransparencyClient client);
 
     /// <summary>
     /// Uses a pre-configured transparency provider.
     /// </summary>
+    /// <param name="provider">The MST transparency provider.</param>
+    /// <returns>The same builder instance.</returns>
     IMstReceiptValidatorBuilder UseProvider(MstTransparencyProvider provider);
 
     /// <summary>
     /// Configures verification options (requires a client via <see cref="UseClient"/>).
     /// </summary>
+    /// <param name="options">The verification options.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <returns>The same builder instance.</returns>
     IMstReceiptValidatorBuilder WithVerificationOptions(
         CodeTransparencyVerificationOptions options,
         CodeTransparencyClientOptions? clientOptions = null);
@@ -38,8 +46,13 @@ public static class MstReceiptValidationExtensions
     /// <summary>
     /// Adds an MST receipt validator configured via a domain-specific builder.
     /// </summary>
-    public static ICoseMessageValidationBuilder AddMstReceiptValidator(
-        this ICoseMessageValidationBuilder builder,
+    /// <param name="builder">The validation builder.</param>
+    /// <param name="configure">The configuration callback.</param>
+    /// <returns>The same validation builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
+    public static ICoseSign1ValidationBuilder AddMstReceiptValidator(
+        this ICoseSign1ValidationBuilder builder,
         Action<IMstReceiptValidatorBuilder> configure)
     {
         if (builder == null)
@@ -97,7 +110,7 @@ public static class MstReceiptValidationExtensions
 
             if (Client == null)
             {
-                throw new InvalidOperationException("MST receipt validation requires either a provider or a client.");
+                throw new InvalidOperationException(ClassStrings.ErrorMstReceiptValidationRequiresProviderOrClient);
             }
 
             if (VerificationOptions == null)
@@ -106,6 +119,12 @@ public static class MstReceiptValidationExtensions
             }
 
             return new MstReceiptValidator(Client, VerificationOptions, ClientOptions);
+        }
+
+        [ExcludeFromCodeCoverage]
+        internal static class ClassStrings
+        {
+            public const string ErrorMstReceiptValidationRequiresProviderOrClient = "MST receipt validation requires either a provider or a client.";
         }
     }
 }

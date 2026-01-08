@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.AzureKeyVault.Plugin;
@@ -16,14 +17,22 @@ namespace CoseSignTool.AzureKeyVault.Plugin;
 /// </summary>
 public class AzureKeyVaultPlugin : IPlugin
 {
-    /// <inheritdoc/>
-    public string Name => "Azure Key Vault";
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string Name = "Azure Key Vault";
+        public const string Version = "1.0.0";
+        public const string Description = "Sign with Azure Key Vault certificates or keys";
+    }
 
     /// <inheritdoc/>
-    public string Version => "1.0.0";
+    public string Name => ClassStrings.Name;
 
     /// <inheritdoc/>
-    public string Description => "Sign with Azure Key Vault certificates or keys";
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
 
     /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;

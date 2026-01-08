@@ -5,7 +5,6 @@ namespace CoseSign1.Certificates.Validation;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
 using CoseSign1.Certificates;
 using CoseSign1.Validation;
 
@@ -17,8 +16,13 @@ using CoseSign1.Validation;
 /// For embedded signatures, the payload is taken from the message content.
 /// For detached signatures, the payload must be provided via the constructor.
 /// </remarks>
-public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>, ISignatureValidator
+public sealed class CertificateSignatureValidator : IConditionalValidator
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.Signature };
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -32,16 +36,21 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
         // Error messages
         public static readonly string ErrorMessageNullInput = "Input message is null";
         public static readonly string ErrorMessageMissingDetachedPayload =
-            "Message has detached content but no payload was provided. " +
-            "Use a constructor overload that accepts a payload for detached signatures.";
+            "Message has detached content but no payload was provided. Use a constructor overload that accepts a payload for detached signatures.";
     }
 
     private readonly byte[]? DetachedPayload;
     private readonly bool AllowUnprotectedHeaders;
 
-    public bool IsApplicable(CoseSign1Message input)
+    /// <inheritdoc/>
+    public bool IsApplicable(CoseSign1Message input, ValidationStage stage)
     {
         if (input is null)
+        {
+            return false;
+        }
+
+        if (stage != ValidationStage.Signature)
         {
             return false;
         }
@@ -72,6 +81,7 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
     /// </summary>
     /// <param name="detachedPayload">The detached payload bytes to use for signature verification.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detachedPayload"/> is null.</exception>
     public CertificateSignatureValidator(byte[] detachedPayload, bool allowUnprotectedHeaders = false)
     {
         DetachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
@@ -91,7 +101,7 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
     }
 
     /// <inheritdoc/>
-    public ValidationResult Validate(CoseSign1Message? input)
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input is null)
         {
@@ -108,7 +118,7 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
         {
             // Embedded signature - use embedded validator
             var embeddedValidator = new CertificateEmbeddedSignatureValidator(AllowUnprotectedHeaders);
-            return embeddedValidator.Validate(input);
+            return embeddedValidator.Validate(input, stage);
         }
         else
         {
@@ -122,14 +132,14 @@ public sealed class CertificateSignatureValidator : IValidator<CoseSign1Message>
             }
 
             var detachedValidator = new CertificateDetachedSignatureValidator(DetachedPayload, AllowUnprotectedHeaders);
-            return detachedValidator.Validate(input);
+            return detachedValidator.Validate(input, stage);
         }
     }
 
     /// <inheritdoc/>
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message? input, CancellationToken cancellationToken)
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
     }
 }

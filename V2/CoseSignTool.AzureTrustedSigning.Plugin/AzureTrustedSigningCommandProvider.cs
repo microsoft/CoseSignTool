@@ -16,36 +16,74 @@ namespace CoseSignTool.AzureTrustedSigning.Plugin;
 /// </summary>
 public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string CommandNameValue = "sign-azure";
+        public static readonly string CommandDescriptionValue = "Sign a payload using Azure Trusted Signing service";
+        public static readonly string ExampleUsageValue = "--ats-endpoint https://... --ats-account-name <account> --ats-cert-profile-name <profile>";
+
+        public static readonly string OptionNameAtsEndpoint = "--ats-endpoint";
+        public static readonly string OptionNameAtsAccountName = "--ats-account-name";
+        public static readonly string OptionNameAtsCertProfileName = "--ats-cert-profile-name";
+
+        public static readonly string OptionKeyAtsEndpoint = "ats-endpoint";
+        public static readonly string OptionKeyAtsAccountName = "ats-account-name";
+        public static readonly string OptionKeyAtsCertProfileName = "ats-cert-profile-name";
+
+        public static readonly string OptionDescriptionAtsEndpoint = "Azure Trusted Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)";
+        public static readonly string OptionDescriptionAtsAccountName = "Azure Trusted Signing account name";
+        public static readonly string OptionDescriptionAtsCertProfileName = "Certificate profile name in Azure Trusted Signing";
+
+        public static readonly string ErrorAtsEndpointRequired = "Azure Trusted Signing endpoint is required";
+        public static readonly string ErrorAtsAccountNameRequired = "Azure Trusted Signing account name is required";
+        public static readonly string ErrorAtsCertProfileRequired = "Certificate profile name is required";
+        public static readonly string ErrorFormatInvalidEndpointUrl = "Invalid Azure Trusted Signing endpoint URL: {0}";
+
+        public static readonly string MetadataKeyCertificateSource = "Certificate Source";
+        public static readonly string MetadataKeyAccountName = "Account Name";
+        public static readonly string MetadataKeyCertificateProfile = "Certificate Profile";
+        public static readonly string MetadataKeyCertificateSubject = "Certificate Subject";
+        public static readonly string MetadataValueCertificateSource = "Azure Trusted Signing";
+        public static readonly string MetadataValueUnknown = "Unknown";
+
+        public static readonly string DefaultCertificateSubject = "Azure Trusted Signing Certificate";
+    }
+
     private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
     private string? CertificateSubject;
     private string? AccountName;
     private string? CertificateProfileName;
 
-    public string CommandName => "sign-azure";
+    /// <inheritdoc/>
+    public string CommandName => ClassStrings.CommandNameValue;
 
-    public string CommandDescription => "Sign a payload using Azure Trusted Signing service";
+    /// <inheritdoc/>
+    public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
-    public string ExampleUsage => "--ats-endpoint https://... --ats-account-name <account> --ats-cert-profile-name <profile>";
+    /// <inheritdoc/>
+    public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var endpointOption = new Option<string>(
-            name: "--ats-endpoint",
-            description: "Azure Trusted Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)")
+            name: ClassStrings.OptionNameAtsEndpoint,
+            description: ClassStrings.OptionDescriptionAtsEndpoint)
         {
             IsRequired = true
         };
 
         var accountNameOption = new Option<string>(
-            name: "--ats-account-name",
-            description: "Azure Trusted Signing account name")
+            name: ClassStrings.OptionNameAtsAccountName,
+            description: ClassStrings.OptionDescriptionAtsAccountName)
         {
             IsRequired = true
         };
 
         var certProfileOption = new Option<string>(
-            name: "--ats-cert-profile-name",
-            description: "Certificate profile name in Azure Trusted Signing")
+            name: ClassStrings.OptionNameAtsCertProfileName,
+            description: ClassStrings.OptionDescriptionAtsCertProfileName)
         {
             IsRequired = true
         };
@@ -55,14 +93,17 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
         command.AddOption(certProfileOption);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Required options are missing.</exception>
+    /// <exception cref="ArgumentException">The provided endpoint URL is not valid.</exception>
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var endpoint = options["ats-endpoint"] as string
-            ?? throw new InvalidOperationException("Azure Trusted Signing endpoint is required");
-        AccountName = options["ats-account-name"] as string
-            ?? throw new InvalidOperationException("Azure Trusted Signing account name is required");
-        CertificateProfileName = options["ats-cert-profile-name"] as string
-            ?? throw new InvalidOperationException("Certificate profile name is required");
+        var endpoint = options[ClassStrings.OptionKeyAtsEndpoint] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsEndpointRequired);
+        AccountName = options[ClassStrings.OptionKeyAtsAccountName] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsAccountNameRequired);
+        CertificateProfileName = options[ClassStrings.OptionKeyAtsCertProfileName] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsCertProfileRequired);
 
         // Create Azure credential with non-interactive authentication
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
@@ -73,7 +114,7 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
         // Parse endpoint URI
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
         {
-            throw new ArgumentException($"Invalid Azure Trusted Signing endpoint URL: {endpoint}");
+            throw new ArgumentException(string.Format(ClassStrings.ErrorFormatInvalidEndpointUrl, endpoint));
         }
 
         // Create certificate profile client
@@ -101,19 +142,20 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
             // Certificate metadata retrieval is best-effort
         }
         */
-        CertificateSubject = "Azure Trusted Signing Certificate";
+        CertificateSubject = ClassStrings.DefaultCertificateSubject;
 
         return SigningService;
     }
 
+    /// <inheritdoc/>
     public IDictionary<string, string> GetSigningMetadata()
     {
         return new Dictionary<string, string>
         {
-            ["Certificate Source"] = "Azure Trusted Signing",
-            ["Account Name"] = AccountName ?? "Unknown",
-            ["Certificate Profile"] = CertificateProfileName ?? "Unknown",
-            ["Certificate Subject"] = CertificateSubject ?? "Unknown"
+            [ClassStrings.MetadataKeyCertificateSource] = ClassStrings.MetadataValueCertificateSource,
+            [ClassStrings.MetadataKeyAccountName] = AccountName ?? ClassStrings.MetadataValueUnknown,
+            [ClassStrings.MetadataKeyCertificateProfile] = CertificateProfileName ?? ClassStrings.MetadataValueUnknown,
+            [ClassStrings.MetadataKeyCertificateSubject] = CertificateSubject ?? ClassStrings.MetadataValueUnknown
         };
     }
 }

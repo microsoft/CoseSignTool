@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates.Local;
@@ -17,6 +18,20 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class CertificateChainFactory
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string LogCreatingCertificateChain =
+            "Creating certificate chain. Algorithm: {Algorithm}, HasIntermediate: {HasIntermediate}";
+
+        public const string LogCreatedRootCa = "Created root CA: {SerialNumber}";
+        public const string LogCreatedIntermediateCa = "Created intermediate CA: {SerialNumber}";
+        public const string LogCreatedLeafCertificate = "Created leaf certificate: {Subject}";
+
+        public const string LogCertificateChainCreatedSuccessfully =
+            "Certificate chain created successfully. CertificateCount: {Count}, ElapsedMs: {ElapsedMs}";
+    }
+
     private readonly EphemeralCertificateFactory CertificateFactory;
     private readonly ILogger<CertificateChainFactory> Logger;
 
@@ -35,6 +50,7 @@ public class CertificateChainFactory
     /// </summary>
     /// <param name="certificateFactory">The certificate factory to use.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateFactory"/> is <see langword="null"/>.</exception>
     public CertificateChainFactory(
         EphemeralCertificateFactory certificateFactory,
         ILogger<CertificateChainFactory>? logger = null)
@@ -57,6 +73,7 @@ public class CertificateChainFactory
     /// </summary>
     /// <param name="configure">Action to configure chain options.</param>
     /// <returns>Collection of certificates in configured order.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is <see langword="null"/>.</exception>
     public X509Certificate2Collection CreateChain(Action<CertificateChainOptions> configure)
     {
         if (configure == null)
@@ -75,7 +92,7 @@ public class CertificateChainFactory
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug(
-            "Creating certificate chain. Algorithm: {Algorithm}, HasIntermediate: {HasIntermediate}",
+            ClassStrings.LogCreatingCertificateChain,
             options.KeyAlgorithm,
             options.IntermediateName != null);
 
@@ -89,7 +106,7 @@ public class CertificateChainFactory
             .WithValidity(options.RootValidity)
             .AsCertificateAuthority(pathLengthConstraint: options.IntermediateName != null ? 1 : 0));
 
-        Logger.LogTrace("Created root CA: {SerialNumber}", root.SerialNumber);
+        Logger.LogTrace(ClassStrings.LogCreatedRootCa, root.SerialNumber);
 
         // Determine the issuer for the leaf
         X509Certificate2 leafIssuer;
@@ -106,7 +123,7 @@ public class CertificateChainFactory
                 .AsCertificateAuthority(pathLengthConstraint: 0)
                 .SignedBy(root));
 
-            Logger.LogTrace("Created intermediate CA: {SerialNumber}", intermediate.SerialNumber);
+            Logger.LogTrace(ClassStrings.LogCreatedIntermediateCa, intermediate.SerialNumber);
 
             leafIssuer = intermediate;
         }
@@ -143,7 +160,7 @@ public class CertificateChainFactory
             o.EnhancedKeyUsages = leafOptions.EnhancedKeyUsages;
         });
 
-        Logger.LogTrace("Created leaf certificate: {Subject}", leaf.Subject);
+        Logger.LogTrace(ClassStrings.LogCreatedLeafCertificate, leaf.Subject);
 
         // Optionally strip private keys from root and intermediate
         if (options.LeafOnlyPrivateKey)
@@ -182,7 +199,7 @@ public class CertificateChainFactory
 
         stopwatch.Stop();
         Logger.LogDebug(
-            "Certificate chain created successfully. CertificateCount: {Count}, ElapsedMs: {ElapsedMs}",
+            ClassStrings.LogCertificateChainCreatedSuccessfully,
             result.Count,
             stopwatch.ElapsedMilliseconds);
 

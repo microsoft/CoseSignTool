@@ -16,6 +16,10 @@ public static class CoseSign1MessageCertificateExtensions
     /// The signing certificate is identified by matching the x5t (certificate thumbprint)
     /// against the certificates in the x5chain.
     /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="certificate">The extracted signing certificate.</param>
+    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <returns>True when the signing certificate was found; otherwise false.</returns>
     public static bool TryGetSigningCertificate(
         this CoseSign1Message message,
         out X509Certificate2? certificate,
@@ -56,6 +60,10 @@ public static class CoseSign1MessageCertificateExtensions
     /// <summary>
     /// Extracts certificate chain from x5chain header (33).
     /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="chain">The extracted certificate chain.</param>
+    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <returns>True when a certificate chain was found; otherwise false.</returns>
     public static bool TryGetCertificateChain(
         this CoseSign1Message message,
         out X509Certificate2Collection? chain,
@@ -133,6 +141,10 @@ public static class CoseSign1MessageCertificateExtensions
     /// <summary>
     /// Extracts extra certificates from x5bag header (32).
     /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="certificates">The extracted certificates.</param>
+    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <returns>True when certificates were found; otherwise false.</returns>
     public static bool TryGetExtraCertificates(
         this CoseSign1Message message,
         out X509Certificate2Collection? certificates,
@@ -210,6 +222,10 @@ public static class CoseSign1MessageCertificateExtensions
     /// <summary>
     /// Extracts thumbprint from x5t header (34).
     /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="thumbprint">The extracted thumbprint.</param>
+    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <returns>True when a thumbprint was found; otherwise false.</returns>
     public static bool TryGetCertificateThumbprint(
         this CoseSign1Message message,
         out CoseX509Thumbprint? thumbprint,

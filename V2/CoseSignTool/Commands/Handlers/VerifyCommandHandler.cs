@@ -9,6 +9,7 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Indirect;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
 using CoseSignTool.Abstractions;
 using CoseSignTool.IO;
 using CoseSignTool.Output;
@@ -33,21 +34,30 @@ public class VerifyCommandHandler
         public static readonly string KeyPayloadFile = "Payload File";
         public static readonly string KeySignatureOnly = "Signature Only";
         public static readonly string KeyActiveProviders = "Active Providers";
+        public static readonly string ListSeparatorCommaSpace = ", ";
         public static readonly string ErrorSignatureNotFound = "Signature file not found: {0}";
         public static readonly string ErrorPayloadNotFound = "Payload file not found: {0}";
         public static readonly string ErrorFailedToDecode = "Failed to decode COSE Sign1 message.";
         public static readonly string ErrorFailedToDecodeDetails = "Details: {0}";
-        public static readonly string ErrorFailedToDecodeHintBase64 =
-            "The signature input appears to be Base64 text, not binary COSE bytes. " +
-            "Decode it to bytes first (e.g., PowerShell: [IO.File]::WriteAllBytes('signature.cose', [Convert]::FromBase64String((Get-Content -Raw 'signature.b64'))) ).";
+        public static readonly string ErrorFailedToDecodeHintBase64 = string.Concat(
+            "The signature input appears to be Base64 text, not binary COSE bytes. ",
+            "Decode it to bytes first (e.g., PowerShell: [IO.File]::WriteAllBytes('signature.cose', [Convert]::FromBase64String((Get-Content -Raw 'signature.b64'))) ).");
+        public static readonly string ErrorKeyMaterialResolutionFailed = "Key material resolution failed";
         public static readonly string ErrorVerificationFailed = "Signature verification failed";
         public static readonly string ErrorFailureDetail = "  {0}: {1}";
         public static readonly string ErrorVerifying = "Error verifying signature: {0}";
         public static readonly string ErrorDetachedRequiresPayload = "Detached signature requires --payload option to specify the original payload file";
         public static readonly string ErrorPayloadHashMismatch = "Payload hash does not match the signed hash in the indirect signature";
+        public static readonly string ErrorSigningKeyMaterialNotTrusted = "Signing key material is not trusted";
         public static readonly string SuccessVerified = "Signature verified successfully";
         public static readonly string SuccessSignatureVerified = "Signature verified successfully (payload verification skipped)";
         public static readonly string SuccessPayloadVerified = "Payload hash verification successful";
+        public static readonly string WarningMultipleTrustPolicies = string.Concat(
+            "Multiple trust policies were provided by active verification providers. ",
+            "CoseSignTool will require all of them to be satisfied (AND).");
+        public static readonly string TrustPolicyReasonSignatureOnlyMode = "Signature-only mode";
+        public static readonly string TrustPolicyReasonNoTrustPolicyProvided =
+            "No trust policy was provided by any active verification provider";
         public static readonly string NullValue = "null";
         public static readonly string ValueYes = "Yes";
         public static readonly string ValueNo = "No";
@@ -58,21 +68,27 @@ public class VerifyCommandHandler
 
     private readonly IOutputFormatter Formatter;
     private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
+    private readonly Func<Stream> StandardInputProvider;
 
     /// <summary>
     /// The timeout for waiting for stdin data. Default is 2 seconds.
     /// </summary>
-    public static TimeSpan StdinTimeout { get; set; } = TimeSpan.FromSeconds(2);
+    public TimeSpan StdinTimeout { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandHandler"/> class.
     /// </summary>
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
     /// <param name="verificationProviders">The verification providers to use for validation.</param>
-    public VerifyCommandHandler(IOutputFormatter? formatter = null, IReadOnlyList<IVerificationProvider>? verificationProviders = null)
+    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
+    public VerifyCommandHandler(
+        IOutputFormatter? formatter = null,
+        IReadOnlyList<IVerificationProvider>? verificationProviders = null,
+        Func<Stream>? standardInputProvider = null)
     {
         Formatter = formatter ?? new TextOutputFormatter();
         VerificationProviders = verificationProviders ?? Array.Empty<IVerificationProvider>();
+        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
     }
 
     /// <summary>
@@ -131,7 +147,7 @@ public class VerifyCommandHandler
                 Formatter.WriteKeyValue(ClassStrings.KeySignature, AssemblyStrings.IO.StdinDisplayName);
 
                 // Read from stdin with timeout wrapper to avoid blocking forever
-                using var rawStdin = Console.OpenStandardInput();
+                using var rawStdin = StandardInputProvider();
                 using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
                 using var ms = new MemoryStream();
                 timeoutStdin.CopyTo(ms);
@@ -239,8 +255,10 @@ public class VerifyCommandHandler
             // Build validators from activated providers (some may need runtime context such as detached payload)
             var verificationContext = new VerificationContext(detachedPayload: payloadBytes);
 
-            var providerValidators = new List<IValidator<CoseSign1Message>>();
+            var providerValidators = new List<IValidator>();
             var activatedProviders = new List<string>();
+
+            var providerTrustPolicies = new List<TrustPolicy>();
 
             foreach (var provider in VerificationProviders)
             {
@@ -251,16 +269,25 @@ public class VerifyCommandHandler
 
                 activatedProviders.Add(provider.ProviderName);
 
-                IEnumerable<IValidator<CoseSign1Message>> validators = provider is IVerificationProviderWithContext withContext
+                IEnumerable<IValidator> validators = provider is IVerificationProviderWithContext withContext
                     ? withContext.CreateValidators(parseResult, verificationContext)
                     : provider.CreateValidators(parseResult);
 
                 providerValidators.AddRange(validators);
+
+                if (provider is IVerificationProviderWithTrustPolicy withTrustPolicy)
+                {
+                    var policy = withTrustPolicy.CreateTrustPolicy(parseResult, verificationContext);
+                    if (policy != null)
+                    {
+                        providerTrustPolicies.Add(policy);
+                    }
+                }
             }
 
-            // Signature verification stage: require at least one applicable signature validator to succeed.
-            // Always include the built-in X.509 signature verifier; other providers may contribute additional signature validators.
-            var signatureValidators = new List<IValidator<CoseSign1Message>>();
+            // Always include the built-in X.509 signature validator;
+            // CoseSign1Validator partitions validators by stage via IValidator.Stages.
+            var signatureValidators = new List<IValidator>();
 
             if (!hasEmbeddedPayload && !isIndirectSignature)
             {
@@ -272,39 +299,45 @@ public class VerifyCommandHandler
                 signatureValidators.Add(new CertificateSignatureValidator(allowUnprotectedHeaders: true));
             }
 
-            foreach (var v in providerValidators)
+            var allValidators = new List<IValidator>(providerValidators.Count + signatureValidators.Count);
+            allValidators.AddRange(providerValidators);
+            allValidators.AddRange(signatureValidators);
+
+            TrustPolicy trustPolicy;
+            if (signatureOnly)
             {
-                if (v is ISignatureValidator)
-                {
-                    signatureValidators.Add(v);
-                }
+                // Signature-only mode is intended to validate cryptographic correctness only.
+                // It should not fail due to trust policy requirements.
+                trustPolicy = TrustPolicy.AllowAll(ClassStrings.TrustPolicyReasonSignatureOnlyMode);
             }
-
-            var nonSignatureValidators = providerValidators.Where(v => v is not ISignatureValidator);
-
-            ICoseMessageValidationBuilder validatorBuilder = Cose.Sign1Message()
-                .AddValidator(new AnySignatureValidator(signatureValidators));
-
-            // Add non-signature validators from providers
-            foreach (var validator in nonSignatureValidators)
+            else if (providerTrustPolicies.Count == 0)
             {
-                validatorBuilder = validatorBuilder.AddValidator(validator);
+                trustPolicy = TrustPolicy.DenyAll(ClassStrings.TrustPolicyReasonNoTrustPolicyProvided);
+            }
+            else if (providerTrustPolicies.Count == 1)
+            {
+                trustPolicy = providerTrustPolicies[0];
+            }
+            else
+            {
+                Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
+
+                trustPolicy = TrustPolicy.And(providerTrustPolicies.ToArray());
             }
 
             if (activatedProviders.Count > 0)
             {
-                Formatter.WriteKeyValue(ClassStrings.KeyActiveProviders, string.Join(", ", activatedProviders));
+                Formatter.WriteKeyValue(
+                    ClassStrings.KeyActiveProviders,
+                    string.Join(ClassStrings.ListSeparatorCommaSpace, activatedProviders));
             }
 
-            var compositeValidator = validatorBuilder.Build();
-            
-            // Perform signature verification
-            var validationResult = compositeValidator.Validate(message);
+            var validationResult = CoseSign1Validator.Validate(message, allValidators, trustPolicy);
 
-            if (!validationResult.IsValid)
+            if (!validationResult.Resolution.IsValid)
             {
-                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
-                foreach (var failure in validationResult.Failures)
+                Formatter.WriteError(ClassStrings.ErrorKeyMaterialResolutionFailed);
+                foreach (var failure in validationResult.Resolution.Failures)
                 {
                     Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                 }
@@ -312,6 +345,44 @@ public class VerifyCommandHandler
                 Formatter.Flush();
                 return Task.FromResult((int)ExitCode.VerificationFailed);
             }
+
+            if (!validationResult.Trust.IsValid)
+            {
+                Formatter.WriteError(ClassStrings.ErrorSigningKeyMaterialNotTrusted);
+                foreach (var failure in validationResult.Trust.Failures)
+                {
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                }
+                Formatter.EndSection();
+                Formatter.Flush();
+                return Task.FromResult((int)ExitCode.UntrustedCertificate);
+            }
+
+            if (!validationResult.Signature.IsValid)
+            {
+                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
+                foreach (var failure in validationResult.Signature.Failures)
+                {
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                }
+                Formatter.EndSection();
+                Formatter.Flush();
+                return Task.FromResult((int)ExitCode.InvalidSignature);
+            }
+
+            if (!validationResult.PostSignaturePolicy.IsValid)
+            {
+                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
+                foreach (var failure in validationResult.PostSignaturePolicy.Failures)
+                {
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                }
+                Formatter.EndSection();
+                Formatter.Flush();
+                return Task.FromResult((int)ExitCode.VerificationFailed);
+            }
+
+            var overall = validationResult.Overall;
 
             // For indirect signatures, optionally verify payload matches the signed hash
             if (isIndirectSignature && payloadBytes != null && !signatureOnly)
@@ -341,7 +412,7 @@ public class VerifyCommandHandler
             {
                 if (provider.IsActivated(parseResult))
                 {
-                    var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult);
+                    var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult.Overall);
                     foreach (var kvp in metadata)
                     {
                         Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
@@ -472,4 +543,5 @@ public class VerifyCommandHandler
             return computedHash.SequenceEqual(embeddedHash);
         }
     }
+
 }

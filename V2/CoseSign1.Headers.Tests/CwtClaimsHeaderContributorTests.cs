@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
-using CoseSign1.Headers;
 using Moq;
 
 namespace CoseSign1.Headers.Tests;

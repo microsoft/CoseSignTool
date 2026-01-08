@@ -169,7 +169,8 @@ var validator = Cose.Sign1Message()
         .HasEku(Oids.CodeSigning))
     .Build();
 
-var result = validator.Validate(message);
+var signatureResult = validator.Validate(message, ValidationStage.Signature);
+var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
 ### Transparency Receipts

@@ -28,6 +28,10 @@ public sealed class CertificateFingerprints
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateFingerprints"/> class.
     /// </summary>
+    /// <param name="sha256">The SHA-256 fingerprint.</param>
+    /// <param name="sha384">The SHA-384 fingerprint.</param>
+    /// <param name="sha512">The SHA-512 fingerprint.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="sha256"/> is <see langword="null"/>.</exception>
     public CertificateFingerprints(string sha256, string? sha384 = null, string? sha512 = null)
     {
         Sha256 = sha256 ?? throw new ArgumentNullException(nameof(sha256));
@@ -38,6 +42,8 @@ public sealed class CertificateFingerprints
     /// <summary>
     /// Gets a fingerprint by algorithm name.
     /// </summary>
+    /// <param name="algorithm">The hash algorithm.</param>
+    /// <returns>The fingerprint for the specified algorithm, or <see langword="null"/> if it is not available.</returns>
     public string? GetFingerprint(string algorithm)
     {
         return algorithm?.ToLowerInvariant() switch
@@ -52,6 +58,9 @@ public sealed class CertificateFingerprints
     /// <summary>
     /// Checks if a fingerprint matches for the specified algorithm.
     /// </summary>
+    /// <param name="algorithm">The hash algorithm.</param>
+    /// <param name="fingerprint">The fingerprint to compare against.</param>
+    /// <returns><see langword="true"/> if the fingerprint matches; otherwise, <see langword="false"/>.</returns>
     public bool Matches(string algorithm, string fingerprint)
     {
         var actual = GetFingerprint(algorithm);

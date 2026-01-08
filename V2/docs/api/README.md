@@ -11,7 +11,8 @@ Core interfaces and types for COSE signing operations.
 | Type | Description |
 |------|-------------|
 | `ISigningService<TSigningOptions>` | Interface for signing operations |
-| `IValidator<T>` | Interface for validation |
+| `IValidator` | Stage-aware validator interface |
+| `ValidationStage` | Verification/validation stage enumeration |
 | `IHeaderContributor` | Interface for adding headers to signatures |
 | `CoseAlgorithm` | COSE algorithm identifiers |
 | `ValidationResult` | Result of validation operations |
@@ -168,16 +169,16 @@ var message = CoseMessage.DecodeSign1(signature);
 
 // 2. Build validator
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
+    .ValidateCertificate(cert => cert
         .ValidateChain())
     .Build();
 
 // 3. Validate
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
 // 3. Check result
-if (result.IsValid)
+if (signatureResult.IsValid && trustResult.IsValid)
 {
     // Signature is valid
 }

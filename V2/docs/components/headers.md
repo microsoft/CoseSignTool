@@ -371,11 +371,13 @@ public class MultiIssuerAttestationService
 ### Claim Validation
 
 ```csharp
-public class CwtClaimsValidator : IValidator<CoseSign1Message>
+public class CwtClaimsValidator : IValidator
 {
     private readonly string[]? _allowedIssuers;
     private readonly bool _requireSubject;
     private readonly bool _checkExpiration;
+
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
 
     public CwtClaimsValidator(
         string[]? allowedIssuers = null,
@@ -387,12 +389,18 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
         _checkExpiration = checkExpiration;
     }
 
-    public ValidationResult Validate(CoseSign1Message message)
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
     {
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(nameof(CwtClaimsValidator), stage);
+        }
+
         if (!message.ProtectedHeaders.TryGetCwtClaims(out var claims) || claims == null)
         {
             return ValidationResult.Failure(
                 nameof(CwtClaimsValidator),
+                stage,
                 message: "CWT claims are required",
                 errorCode: "CWT_CLAIMS_MISSING");
         }
@@ -448,21 +456,24 @@ public class CwtClaimsValidator : IValidator<CoseSign1Message>
         }
         
         return failures.Count == 0
-            ? ValidationResult.Success(nameof(CwtClaimsValidator))
-            : ValidationResult.Failure(nameof(CwtClaimsValidator), failures.ToArray());
+            ? ValidationResult.Success(nameof(CwtClaimsValidator), stage)
+            : ValidationResult.Failure(nameof(CwtClaimsValidator), stage, failures.ToArray());
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(input));
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(input, stage));
 }
 
 // Usage
-var validator = Cose.Sign1Message()
-    .AddValidator(new CwtClaimsValidator(
+var validator = new CompositeValidator(new IValidator[]
+{
+    new CwtClaimsValidator(
         allowedIssuers: ["https://contoso.com", "https://build.contoso.com"],
         requireSubject: true,
-        checkExpiration: true))
-    .Build();
+        checkExpiration: true)
+});
+
+ValidationResult result = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
 ### Claim Templates

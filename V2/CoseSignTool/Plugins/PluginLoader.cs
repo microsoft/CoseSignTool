@@ -23,12 +23,12 @@ public class PluginLoader
         public static readonly string PluginFileSuffix = "*.Plugin.dll";
 
         // Error messages
-        public static readonly string ErrorEmptyPluginDirectory =
-            "Plugin loading is only allowed from the 'plugins' subdirectory. " +
-            "Attempted to load from an empty or null directory path.";
-        public static readonly string ErrorUnauthorizedPluginDirectory =
-            "Plugin loading is only allowed from the 'plugins' subdirectory. " +
-            "Attempted to load from: '{0}', but only '{1}' is authorized.";
+        public static readonly string ErrorEmptyPluginDirectory = string.Concat(
+            "Plugin loading is only allowed from the 'plugins' subdirectory. ",
+            "Attempted to load from an empty or null directory path.");
+        public static readonly string ErrorUnauthorizedPluginDirectory = string.Concat(
+            "Plugin loading is only allowed from the 'plugins' subdirectory. ",
+            "Attempted to load from: '{0}', but only '{1}' is authorized.");
 
         // Log message templates
         public static readonly string LogDiscoveryStarted = "Starting plugin discovery in directory: {PluginDirectory}";
@@ -45,6 +45,12 @@ public class PluginLoader
 
     private readonly List<IPlugin> PluginsList = [];
     private readonly ILogger<PluginLoader> Logger;
+
+    /// <summary>
+    /// Gets or sets the writer used for warning output during plugin loading.
+    /// Defaults to <see cref="Console.Error"/>.
+    /// </summary>
+    public TextWriter StandardError { get; set; } = Console.Error;
 
     /// <summary>
     /// Gets the loaded plugins.
@@ -216,7 +222,7 @@ public class PluginLoader
             assemblyPath);
 
         // Create isolated AssemblyLoadContext for this plugin
-        var loadContext = new PluginLoadContext(assemblyPath, pluginDirectory);
+        var loadContext = new PluginLoadContext(assemblyPath, pluginDirectory, StandardError);
         var assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
         Type[] types;
         try
@@ -263,6 +269,11 @@ public class PluginLoader
         }
     }
 
+    /// <summary>
+    /// Gets all types from the specified assembly.
+    /// </summary>
+    /// <param name="assembly">The assembly to inspect.</param>
+    /// <returns>All types in the assembly.</returns>
     protected virtual Type[] GetAssemblyTypes(Assembly assembly)
     {
         return assembly.GetTypes();

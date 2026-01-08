@@ -10,6 +10,8 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Security;
 
@@ -19,7 +21,7 @@ namespace CoseSignTool.Local.Plugin;
 /// Verification provider for X.509 certificate-based signature validation.
 /// Supports system trust, custom trust roots, and certificate identity validation.
 /// </summary>
-public class X509VerificationProvider : IVerificationProvider
+public partial class X509VerificationProvider : IVerificationProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -45,9 +47,9 @@ public class X509VerificationProvider : IVerificationProvider
         // Option descriptions
         public static readonly string DescriptionTrustRoots = "Path to trusted root certificate(s) in PEM or DER format. Repeat for multiple.";
         public static readonly string DescriptionTrustPfx = "Path to PFX/PKCS#12 file containing trusted root certificate(s).";
-        public static readonly string DescriptionTrustPfxPasswordFile = 
-            "Path to a file containing the PFX password (more secure than command-line). " +
-            "Alternatively, set COSESIGNTOOL_TRUST_PFX_PASSWORD environment variable.";
+        public static readonly string DescriptionTrustPfxPasswordFile = string.Concat(
+            "Path to a file containing the PFX password (more secure than command-line). ",
+            "Alternatively, set COSESIGNTOOL_TRUST_PFX_PASSWORD environment variable.");
         public static readonly string DescriptionTrustPfxPasswordEnv = 
             "Name of environment variable containing the PFX password (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)";
         public static readonly string DescriptionTrustSystemRoots = "Trust system certificate store roots (default: true)";
@@ -80,6 +82,8 @@ public class X509VerificationProvider : IVerificationProvider
         public static readonly string MetaValueCustomRoots = "Custom Roots";
         public static readonly string MetaValueUntrustedAllowed = "Untrusted Allowed";
         public static readonly string MetaValueSystemTrust = "System Trust";
+
+        public static readonly string ErrorFailedLoadPfxTrustStore = "Failed to load PFX trust store: {0}";
     }
 
     /// <inheritdoc/>
@@ -173,13 +177,14 @@ public class X509VerificationProvider : IVerificationProvider
             || HasTrustPfx(parseResult)
             || HasSubjectNameRequirement(parseResult)
             || HasIssuerNameRequirement(parseResult)
+            || IsAllowUntrusted(parseResult)
             || !IsAllowUntrusted(parseResult); // Chain validation is on unless explicitly disabled
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
     {
-        var validators = new List<IValidator<CoseSign1Message>>();
+        var validators = new List<IValidator>();
 
         bool HasX509Headers(CoseSign1Message message)
         {
@@ -196,10 +201,15 @@ public class X509VerificationProvider : IVerificationProvider
             return hasX5t && hasX5chain;
         }
 
-        IValidator<CoseSign1Message> WhenX509Headers(IValidator<CoseSign1Message> inner)
+        IValidator WhenX509Headers(IValidator inner)
         {
             return new ConditionalX509Validator(inner, HasX509Headers);
         }
+
+        // Stage 1 (Key Material Resolution): validate we can extract and parse x5t/x5chain.
+        // This provides clear failures when key material is missing or malformed and allows
+        // orchestration layers to run resolution before trust and signature verification.
+        validators.Add(new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true));
 
         // Parse revocation mode
         var revocationMode = ParseRevocationMode(parseResult);
@@ -251,23 +261,25 @@ public class X509VerificationProvider : IVerificationProvider
         return validators;
     }
 
-    private sealed class ConditionalX509Validator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>
+    private sealed class ConditionalX509Validator : IConditionalValidator
     {
-        private readonly IValidator<CoseSign1Message> Inner;
+        private readonly IValidator Inner;
         private readonly Func<CoseSign1Message, bool> Predicate;
 
-        public ConditionalX509Validator(IValidator<CoseSign1Message> inner, Func<CoseSign1Message, bool> predicate)
+        public ConditionalX509Validator(IValidator inner, Func<CoseSign1Message, bool> predicate)
         {
             Inner = inner ?? throw new ArgumentNullException(nameof(inner));
             Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
         }
 
-        public bool IsApplicable(CoseSign1Message input) => Predicate(input);
+        public IReadOnlyCollection<ValidationStage> Stages => Inner.Stages;
 
-        public ValidationResult Validate(CoseSign1Message input) => Inner.Validate(input);
+        public bool IsApplicable(CoseSign1Message input, ValidationStage stage) => Predicate(input);
 
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
-            => Inner.ValidateAsync(input, cancellationToken);
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage) => Inner.Validate(input, stage);
+
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
+            => Inner.ValidateAsync(input, stage, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -442,9 +454,8 @@ public class X509VerificationProvider : IVerificationProvider
 
                 collection.AddRange(pfxCollection);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.Error.WriteLine($"Failed to load PFX trust store: {ex.Message}");
             }
         }
 

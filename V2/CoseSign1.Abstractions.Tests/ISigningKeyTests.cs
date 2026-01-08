@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Security.Cryptography.Cose;
-using NUnit.Framework;
 
 namespace CoseSign1.Abstractions.Tests;
 

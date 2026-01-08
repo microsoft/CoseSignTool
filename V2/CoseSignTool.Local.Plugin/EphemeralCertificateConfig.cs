@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -33,19 +34,49 @@ namespace CoseSignTool.Local.Plugin;
 /// </remarks>
 public class EphemeralCertificateConfig
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        // JSON property names
+        public const string JsonPropertySubject = "subject";
+        public const string JsonPropertyAlgorithm = "algorithm";
+        public const string JsonPropertyKeySize = "keySize";
+        public const string JsonPropertyValidityDays = "validityDays";
+        public const string JsonPropertyGenerateChain = "generateChain";
+        public const string JsonPropertyChain = "chain";
+        public const string JsonPropertyEnhancedKeyUsages = "enhancedKeyUsages";
+        public const string JsonPropertyHashAlgorithm = "hashAlgorithm";
+
+        // Well-known values
+        public const string AlgorithmRsa = "RSA";
+        public const string AlgorithmEcdsa = "ECDSA";
+        public const string AlgorithmMldsa = "MLDSA";
+
+        public const string HashAlgorithmSha256 = "SHA256";
+
+        public const string EkuCodeSigning = "CodeSigning";
+
+        // Default values
+        public const string DefaultSubject = "CN=CoseSignTool Test Signer, O=Test Organization";
+        public const string DefaultPqcSubject = "CN=CoseSignTool PQC Test Signer, O=Test Organization";
+
+        // Error formats
+        public const string ErrorFormatConfigNotFound = "Configuration file not found: {0}";
+    }
+
     /// <summary>
     /// The subject distinguished name for the signing certificate.
     /// Default: "CN=CoseSignTool Test Signer, O=Test Organization"
     /// </summary>
-    [JsonPropertyName("subject")]
-    public string Subject { get; set; } = "CN=CoseSignTool Test Signer, O=Test Organization";
+    [JsonPropertyName(ClassStrings.JsonPropertySubject)]
+    public string Subject { get; set; } = ClassStrings.DefaultSubject;
 
     /// <summary>
     /// The cryptographic algorithm to use. Options: RSA, ECDSA, MLDSA.
     /// Default: RSA (most widely supported)
     /// </summary>
-    [JsonPropertyName("algorithm")]
-    public string Algorithm { get; set; } = "RSA";
+    [JsonPropertyName(ClassStrings.JsonPropertyAlgorithm)]
+    public string Algorithm { get; set; } = ClassStrings.AlgorithmRsa;
 
     /// <summary>
     /// Key size in bits.
@@ -53,27 +84,27 @@ public class EphemeralCertificateConfig
     /// ECDSA: 256, 384, 521 (default: 384)
     /// MLDSA: 44, 65, 87 (default: 65)
     /// </summary>
-    [JsonPropertyName("keySize")]
+    [JsonPropertyName(ClassStrings.JsonPropertyKeySize)]
     public int? KeySize { get; set; }
 
     /// <summary>
     /// Certificate validity period in days.
     /// Default: 365 days
     /// </summary>
-    [JsonPropertyName("validityDays")]
+    [JsonPropertyName(ClassStrings.JsonPropertyValidityDays)]
     public int ValidityDays { get; set; } = 365;
 
     /// <summary>
     /// Whether to generate a full certificate chain (Root → Intermediate → Leaf).
     /// Default: true (recommended for realistic testing)
     /// </summary>
-    [JsonPropertyName("generateChain")]
+    [JsonPropertyName(ClassStrings.JsonPropertyGenerateChain)]
     public bool GenerateChain { get; set; } = true;
 
     /// <summary>
     /// Certificate chain configuration (used when GenerateChain is true).
     /// </summary>
-    [JsonPropertyName("chain")]
+    [JsonPropertyName(ClassStrings.JsonPropertyChain)]
     public ChainConfig? Chain { get; set; }
 
     /// <summary>
@@ -81,7 +112,7 @@ public class EphemeralCertificateConfig
     /// Supported values: CodeSigning, LifetimeSigning, ServerAuth, ClientAuth, TimeStamping
     /// Default: ["CodeSigning"] for COSE signing
     /// </summary>
-    [JsonPropertyName("enhancedKeyUsages")]
+    [JsonPropertyName(ClassStrings.JsonPropertyEnhancedKeyUsages)]
     public List<string>? EnhancedKeyUsages { get; set; }
 
     /// <summary>
@@ -89,8 +120,8 @@ public class EphemeralCertificateConfig
     /// Options: SHA256, SHA384, SHA512
     /// Default: SHA256
     /// </summary>
-    [JsonPropertyName("hashAlgorithm")]
-    public string HashAlgorithm { get; set; } = "SHA256";
+    [JsonPropertyName(ClassStrings.JsonPropertyHashAlgorithm)]
+    public string HashAlgorithm { get; set; } = ClassStrings.HashAlgorithmSha256;
 
     /// <summary>
     /// Gets the effective key size based on algorithm defaults.
@@ -98,9 +129,9 @@ public class EphemeralCertificateConfig
     [JsonIgnore]
     public int EffectiveKeySize => KeySize ?? Algorithm?.ToUpperInvariant() switch
     {
-        "RSA" => 4096,      // Strong default for RSA
-        "ECDSA" => 384,     // P-384 curve
-        "MLDSA" => 65,      // ML-DSA-65
+        ClassStrings.AlgorithmRsa => 4096,      // Strong default for RSA
+        ClassStrings.AlgorithmEcdsa => 384,     // P-384 curve
+        ClassStrings.AlgorithmMldsa => 65,      // ML-DSA-65
         _ => 4096
     };
 
@@ -111,7 +142,7 @@ public class EphemeralCertificateConfig
     public IReadOnlyList<string> EffectiveEnhancedKeyUsages =>
         EnhancedKeyUsages?.Count > 0
             ? EnhancedKeyUsages
-            : new List<string> { "CodeSigning" };
+            : new List<string> { ClassStrings.EkuCodeSigning };
 
     /// <summary>
     /// Gets the effective chain configuration with defaults.
@@ -130,7 +161,7 @@ public class EphemeralCertificateConfig
     {
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Configuration file not found: {filePath}", filePath);
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorFormatConfigNotFound, filePath), filePath);
         }
 
         var json = File.ReadAllText(filePath);
@@ -160,15 +191,17 @@ public class EphemeralCertificateConfig
     /// Creates a default configuration optimized for COSE signing tests.
     /// Uses RSA-4096 with a full certificate chain and CodeSigning EKU.
     /// </summary>
+    /// <returns>A new default configuration.</returns>
     public static EphemeralCertificateConfig CreateDefault() => new();
 
     /// <summary>
     /// Creates a minimal configuration for quick testing.
     /// Uses a self-signed RSA-2048 certificate.
     /// </summary>
+    /// <returns>A new minimal configuration.</returns>
     public static EphemeralCertificateConfig CreateMinimal() => new()
     {
-        Algorithm = "RSA",
+        Algorithm = ClassStrings.AlgorithmRsa,
         KeySize = 2048,
         ValidityDays = 1,
         GenerateChain = false
@@ -177,10 +210,11 @@ public class EphemeralCertificateConfig
     /// <summary>
     /// Creates a configuration for post-quantum testing with ML-DSA.
     /// </summary>
+    /// <returns>A new post-quantum configuration.</returns>
     public static EphemeralCertificateConfig CreatePostQuantum() => new()
     {
-        Subject = "CN=CoseSignTool PQC Test Signer, O=Test Organization",
-        Algorithm = "MLDSA",
+        Subject = ClassStrings.DefaultPqcSubject,
+        Algorithm = ClassStrings.AlgorithmMldsa,
         KeySize = 65,
         ValidityDays = 365,
         GenerateChain = true
@@ -189,6 +223,7 @@ public class EphemeralCertificateConfig
     /// <summary>
     /// Serializes this configuration to JSON.
     /// </summary>
+    /// <returns>A JSON representation of this configuration.</returns>
     public string ToJson()
     {
         var options = new JsonSerializerOptions
@@ -205,31 +240,43 @@ public class EphemeralCertificateConfig
 /// </summary>
 public class ChainConfig
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyRootSubject = "rootSubject";
+        public const string JsonPropertyIntermediateSubject = "intermediateSubject";
+        public const string JsonPropertyRootValidityDays = "rootValidityDays";
+        public const string JsonPropertyIntermediateValidityDays = "intermediateValidityDays";
+
+        public const string DefaultRootSubject = "CN=CoseSignTool Test Root CA, O=Test Organization";
+        public const string DefaultIntermediateSubject = "CN=CoseSignTool Test Intermediate CA, O=Test Organization";
+    }
+
     /// <summary>
     /// Subject name for the root CA certificate.
     /// Default: "CN=CoseSignTool Test Root CA, O=Test Organization"
     /// </summary>
-    [JsonPropertyName("rootSubject")]
-    public string RootSubject { get; set; } = "CN=CoseSignTool Test Root CA, O=Test Organization";
+    [JsonPropertyName(ClassStrings.JsonPropertyRootSubject)]
+    public string RootSubject { get; set; } = ClassStrings.DefaultRootSubject;
 
     /// <summary>
     /// Subject name for the intermediate CA certificate.
     /// Default: "CN=CoseSignTool Test Intermediate CA, O=Test Organization"
     /// </summary>
-    [JsonPropertyName("intermediateSubject")]
-    public string IntermediateSubject { get; set; } = "CN=CoseSignTool Test Intermediate CA, O=Test Organization";
+    [JsonPropertyName(ClassStrings.JsonPropertyIntermediateSubject)]
+    public string IntermediateSubject { get; set; } = ClassStrings.DefaultIntermediateSubject;
 
     /// <summary>
     /// Validity period for the root CA in days.
     /// Default: 3650 (10 years)
     /// </summary>
-    [JsonPropertyName("rootValidityDays")]
+    [JsonPropertyName(ClassStrings.JsonPropertyRootValidityDays)]
     public int RootValidityDays { get; set; } = 3650;
 
     /// <summary>
     /// Validity period for the intermediate CA in days.
     /// Default: 1825 (5 years)
     /// </summary>
-    [JsonPropertyName("intermediateValidityDays")]
+    [JsonPropertyName(ClassStrings.JsonPropertyIntermediateValidityDays)]
     public int IntermediateValidityDays { get; set; } = 1825;
 }

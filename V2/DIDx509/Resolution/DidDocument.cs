@@ -5,9 +5,7 @@ namespace DIDx509.Resolution;
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using DIDx509.Models;
 
 /// <summary>
 /// Represents a DID Document according to W3C DID Core specification.
@@ -42,6 +40,11 @@ public sealed class DidDocument
     /// <summary>
     /// Initializes a new instance of the <see cref="DidDocument"/> class.
     /// </summary>
+    /// <param name="id">The DID identifier.</param>
+    /// <param name="verificationMethods">The verification methods.</param>
+    /// <param name="assertionMethod">The assertion method references.</param>
+    /// <param name="keyAgreement">The key agreement references.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="id"/> or <paramref name="verificationMethods"/> is <see langword="null"/>.</exception>
     public DidDocument(
         string id,
         IReadOnlyList<VerificationMethod> verificationMethods,
@@ -58,6 +61,8 @@ public sealed class DidDocument
     /// <summary>
     /// Converts the DID document to JSON.
     /// </summary>
+    /// <param name="indented">Whether to write indented JSON.</param>
+    /// <returns>The JSON representation of the document.</returns>
     public string ToJson(bool indented = true)
     {
         var options = new JsonSerializerOptions
@@ -115,6 +120,11 @@ public sealed class VerificationMethod
     /// <summary>
     /// Initializes a new instance of the <see cref="VerificationMethod"/> class.
     /// </summary>
+    /// <param name="id">The verification method ID.</param>
+    /// <param name="type">The verification method type.</param>
+    /// <param name="controller">The controller DID.</param>
+    /// <param name="publicKeyJwk">The public key in JWK format.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any required argument is <see langword="null"/>.</exception>
     public VerificationMethod(string id, string type, string controller, Dictionary<string, object> publicKeyJwk)
     {
         Id = id ?? throw new ArgumentNullException(nameof(id));

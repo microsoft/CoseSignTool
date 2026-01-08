@@ -129,13 +129,24 @@ public interface IVerificationProvider
     bool IsActivated(ParseResult parseResult);
 
     /// <summary>Creates validators based on options.</summary>
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
 
     /// <summary>Gets metadata about the verification result.</summary>
     IDictionary<string, object?> GetVerificationMetadata(
         ParseResult parseResult,
         CoseSign1Message message,
         ValidationResult validationResult);
+}
+```
+
+### IVerificationProviderWithTrustPolicy
+
+Verification providers can optionally contribute a trust policy (used by the staged verifier to decide whether the signing key material is trusted):
+
+```csharp
+public interface IVerificationProviderWithTrustPolicy : IVerificationProvider
+{
+    TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context);
 }
 ```
 

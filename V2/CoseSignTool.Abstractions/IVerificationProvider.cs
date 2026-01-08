@@ -4,7 +4,8 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 
 namespace CoseSignTool.Abstractions;
 
@@ -52,7 +53,7 @@ public interface IVerificationProvider
     /// </summary>
     /// <param name="parseResult">The parsed command-line result.</param>
     /// <returns>One or more validators to add to the pipeline.</returns>
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
 
     /// <summary>
     /// Gets metadata about the verification result (for display purposes).

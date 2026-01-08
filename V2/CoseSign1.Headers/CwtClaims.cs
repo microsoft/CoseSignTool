@@ -6,7 +6,6 @@ namespace CoseSign1.Headers;
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
-using System.Linq;
 
 /// <summary>
 /// Represents CWT (CBOR Web Token) Claims extracted from or to be added to a COSE signature.
@@ -16,7 +15,7 @@ public sealed class CwtClaims
     /// <summary>
     /// Default value for the subject claim (sub, label 2) when not explicitly set.
     /// </summary>
-    public const string DefaultSubject = "unknown.intent";
+    public const string DefaultSubject = ClassStrings.DefaultSubject;
 
     /// <summary>
     /// Gets or sets the issuer claim (iss, label 1).
@@ -71,6 +70,8 @@ public sealed class CwtClaims
     /// <summary>
     /// Copy constructor for CwtClaims.
     /// </summary>
+    /// <param name="other">The instance to copy.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
     public CwtClaims(CwtClaims other)
     {
         if (other == null)
@@ -211,6 +212,7 @@ public sealed class CwtClaims
     /// Converts the CWT claims to CBOR-encoded bytes.
     /// </summary>
     /// <returns>CBOR-encoded bytes representing the claims map.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when a custom claim value has an unsupported type.</exception>
     public byte[] ToCborBytes()
     {
         var writer = new CborWriter();
@@ -323,7 +325,11 @@ public sealed class CwtClaims
                     writer.WriteDouble(doubleValue);
                     break;
                 default:
-                    throw new InvalidOperationException($"Unsupported CWT claim value type: {claim.Value.GetType().Name}");
+                    throw new InvalidOperationException(
+                        string.Format(
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            ClassStrings.UnsupportedCwtClaimValueType,
+                            claim.Value.GetType().Name));
             }
         }
 
@@ -410,56 +416,57 @@ public sealed class CwtClaims
     /// <summary>
     /// Returns a string representation of the CWT claims.
     /// </summary>
+    /// <returns>A string representation of the CWT claims.</returns>
     public override string ToString()
     {
         var parts = new List<string>();
 
         if (Issuer != null)
         {
-            parts.Add($"Issuer: {Issuer}");
+            parts.Add(string.Format(ClassStrings.ToStringIssuerFormat, Issuer));
         }
 
         if (Subject != null)
         {
-            parts.Add($"Subject: {Subject}");
+            parts.Add(string.Format(ClassStrings.ToStringSubjectFormat, Subject));
         }
 
         if (Audience != null)
         {
-            parts.Add($"Audience: {Audience}");
+            parts.Add(string.Format(ClassStrings.ToStringAudienceFormat, Audience));
         }
 
         if (ExpirationTime.HasValue)
         {
-            parts.Add($"Expires: {ExpirationTime.Value:o}");
+            parts.Add(string.Format(ClassStrings.ToStringExpiresFormat, ExpirationTime.Value));
         }
 
         if (NotBefore.HasValue)
         {
-            parts.Add($"Not Before: {NotBefore.Value:o}");
+            parts.Add(string.Format(ClassStrings.ToStringNotBeforeFormat, NotBefore.Value));
         }
 
         if (IssuedAt.HasValue)
         {
-            parts.Add($"Issued At: {IssuedAt.Value:o}");
+            parts.Add(string.Format(ClassStrings.ToStringIssuedAtFormat, IssuedAt.Value));
         }
 
         if (CwtId != null)
         {
-            parts.Add($"CWT ID: {BitConverter.ToString(CwtId)}");
+            parts.Add(string.Format(ClassStrings.ToStringCwtIdFormat, BitConverter.ToString(CwtId)));
         }
 
         if (CustomClaims.Count > 0)
         {
-            parts.Add($"Custom Claims: {CustomClaims.Count}");
+            parts.Add(string.Format(ClassStrings.ToStringCustomClaimsCountFormat, CustomClaims.Count));
             foreach (var kvp in CustomClaims)
             {
                 string valueStr = kvp.Value switch
                 {
-                    byte[] bytes => $"[{bytes.Length} bytes]",
-                    _ => kvp.Value.ToString() ?? "[null]"
+                    byte[] bytes => string.Format(ClassStrings.ToStringByteArraySummaryFormat, bytes.Length),
+                    _ => kvp.Value.ToString() ?? ClassStrings.ToStringNullPlaceholder
                 };
-                parts.Add($"  [{kvp.Key}]: {valueStr}");
+                parts.Add(string.Format(ClassStrings.ToStringCustomClaimEntryFormat, kvp.Key, valueStr));
             }
         }
 

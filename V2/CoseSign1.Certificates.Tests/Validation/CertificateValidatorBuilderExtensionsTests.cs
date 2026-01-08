@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -40,28 +36,32 @@ public class CertificateValidatorBuilderExtensionsTests
     }
 
     [Test]
-    public void AddCertificateValidator_AddsValidatorsAndValidatesMessage()
+    public void ValidateCertificate_AddsValidatorsAndValidatesMessage()
     {
-        var validator = Cose.Sign1Message()
-            .AddCertificateValidator(b => b
-                .AllowUnprotectedHeaders(true)
-                .ValidateSignature()
-                .ValidateExpiration()
-                .ValidateCommonName("ExtensionTest"))
+        var verifier = Cose.Sign1Message()
+            .AddValidator(
+                new CertificateValidationBuilder()
+                    .AllowUnprotectedHeaders(true)
+                    .NotExpired()
+                    .HasCommonName("ExtensionTest")
+                    .Build())
             .Build();
 
-        var result = validator.Validate(ValidMessage!);
+        var result = verifier.Validate(ValidMessage!);
 
-        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Trust.IsValid, Is.True);
+        Assert.That(result.Signature.IsValid, Is.True);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 
     [Test]
     public void ValidateCertificateIssuer_AddsValidator()
     {
-        var builder = Cose.Sign1Message();
+        var validator = new CertificateValidationBuilder()
+            .AllowUnprotectedHeaders(true)
+            .IsIssuedBy("TestIssuer")
+            .Build();
 
-        var result = builder.ValidateCertificateIssuer("TestIssuer", allowUnprotectedHeaders: true);
-
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(validator, Is.Not.Null);
     }
 }

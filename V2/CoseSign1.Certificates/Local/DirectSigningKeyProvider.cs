@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Interfaces;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -14,6 +11,13 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class DirectSigningKeyProvider : ISigningKeyProvider
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorCertificateMustHavePrivateKeyForLocalSigning = "Certificate must have a private key for local signing.";
+        public static readonly string ErrorUnsupportedKeyAlgorithmForLocalSigning = "Certificate uses unsupported key algorithm. Only RSA, ECDsa, and ML-DSA are supported for local signing.";
+    }
+
     private readonly X509Certificate2 Certificate;
     private CoseKey? CoseKeyField;
     private readonly object CoseKeyLock = new();
@@ -23,13 +27,15 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     /// Initializes a new instance of DirectSigningKeyProvider.
     /// </summary>
     /// <param name="certificate">Certificate with private key</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="certificate"/> does not have a private key.</exception>
     public DirectSigningKeyProvider(X509Certificate2 certificate)
     {
         Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
 
         if (!certificate.HasPrivateKey)
         {
-            throw new ArgumentException("Certificate must have a private key for local signing.", nameof(certificate));
+            throw new ArgumentException(ClassStrings.ErrorCertificateMustHavePrivateKeyForLocalSigning, nameof(certificate));
         }
     }
 
@@ -108,7 +114,6 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
         }
 #pragma warning restore SYSLIB5006
 
-        throw new NotSupportedException(
-            $"Certificate uses unsupported key algorithm. Only RSA, ECDsa, and ML-DSA are supported for local signing.");
+        throw new NotSupportedException(ClassStrings.ErrorUnsupportedKeyAlgorithmForLocalSigning);
     }
 }

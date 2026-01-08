@@ -2,12 +2,9 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -83,24 +80,28 @@ public class SignatureValidationExtensionsTests
     [Test]
     public void ValidateCertificateSignature_ValidatesMessage()
     {
-        var builder = Cose.Sign1Message()
-            .ValidateCertificateSignature();
+        var verifier = Cose.Sign1Message()
+            .AllowAllTrust("test")
+            .ValidateCertificateSignature()
+            .Build();
 
-        var validator = builder.Build();
-        var validationResult = validator.Validate(ValidMessage!);
+        var result = verifier.Validate(ValidMessage!);
 
-        Assert.That(validationResult.IsValid, Is.True);
+        Assert.That(result.Signature.IsValid, Is.True);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 
     [Test]
     public void ValidateCertificateSignature_WithUnprotectedHeaders_ValidatesMessage()
     {
-        var builder = Cose.Sign1Message()
-            .ValidateCertificateSignature(allowUnprotectedHeaders: true);
+        var verifier = Cose.Sign1Message()
+            .AllowAllTrust("test")
+            .ValidateCertificateSignature(allowUnprotectedHeaders: true)
+            .Build();
 
-        var validator = builder.Build();
-        var validationResult = validator.Validate(ValidMessage!);
+        var result = verifier.Validate(ValidMessage!);
 
-        Assert.That(validationResult.IsValid, Is.True);
+        Assert.That(result.Signature.IsValid, Is.True);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 }

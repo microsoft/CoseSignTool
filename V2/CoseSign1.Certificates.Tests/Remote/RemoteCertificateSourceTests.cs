@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
-using CoseSign1.Tests.Common;
 
 namespace CoseSign1.Certificates.Tests.Remote;
 

@@ -3,7 +3,7 @@
 
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
 
 namespace CoseSignTool.Abstractions;
 
@@ -16,5 +16,8 @@ public interface IVerificationProviderWithContext : IVerificationProvider
     /// <summary>
     /// Creates validators using the parsed command-line result and additional verification context.
     /// </summary>
-    IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult, VerificationContext context);
+    /// <param name="parseResult">The parsed command-line result.</param>
+    /// <param name="context">The verification context.</param>
+    /// <returns>The validators to apply.</returns>
+    IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext context);
 }

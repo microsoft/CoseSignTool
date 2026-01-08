@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using DIDx509.Models;
-using NUnit.Framework;
 
 namespace DIDx509.Tests.Models;
 

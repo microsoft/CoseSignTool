@@ -14,6 +14,8 @@ using CoseSign1.Direct;
 using CoseSign1.Tests.Common;
 using CoseSign1.Indirect;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Output;
@@ -406,6 +408,88 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    public void VerifyIndirectPayloadHash_WhenSha384HashMatches_ReturnsTrue()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA384.HashData(payload);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-43));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void VerifyIndirectPayloadHash_WhenSha512HashMatches_ReturnsTrue()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("payload");
+        var embeddedHash = SHA512.HashData(payload);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-44));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(embeddedHash, signer);
+        var message = CoseSign1Message.DecodeSign1(signed);
+
+        var method = typeof(VerifyCommandHandler).GetMethod(
+            "VerifyIndirectPayloadHash",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        var result = (bool)method!.Invoke(null, new object[] { message, payload })!;
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public async Task HandleAsync_WhenDecodeFailsAndInputLooksBase64_PrintsHint()
+    {
+        var tempSignature = Path.GetTempFileName();
+
+        var stringWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
+        var handler = new VerifyCommandHandler(formatter);
+
+        try
+        {
+            // Base64-ish ASCII (decoding will fail, but should trigger the hint).
+            await File.WriteAllTextAsync(tempSignature, new string('A', 256));
+
+            var context = CreateInvocationContext(signature: new FileInfo(tempSignature));
+
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
+            formatter.Flush();
+
+            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
+
+            var output = stringWriter.ToString();
+            Assert.That(output, Does.Contain("appears to be Base64 text"));
+            Assert.That(output, Does.Contain("Decode it to bytes first"));
+        }
+        finally
+        {
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
     public async Task HandleAsync_WithIndirectSignature_WritesIndirectAndPayloadFile()
     {
         // Arrange
@@ -437,8 +521,8 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context, new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
-            // Assert - It will fail certificate validation, but should still report the signature type.
-            Assert.That(result, Is.EqualTo((int)ExitCode.VerificationFailed));
+            // Assert - It will fail trust validation, but should still report the signature type.
+            Assert.That(result, Is.EqualTo((int)ExitCode.UntrustedCertificate));
 
             var output = stringWriter.ToString();
             Assert.That(output, Does.Contain("Indirect"));
@@ -479,7 +563,10 @@ public class VerifyCommandHandlerTests
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
-            var context = CreateInvocationContext(signature: signature);
+
+            // Use the real command model so built-in options exist. We set --allow-untrusted so
+            // trust-stage validation does not stop the pipeline before the provider validator runs.
+            var context = CreateInvocationContext(rootCommand, $"verify \"{signature.FullName}\" --allow-untrusted");
 
             // Act
             var result = await handler.HandleAsync(context);
@@ -557,6 +644,12 @@ public class VerifyCommandHandlerTests
         return new InvocationContext(parseResult);
     }
 
+    private static InvocationContext CreateInvocationContext(System.CommandLine.Command rootCommand, string fullArgs)
+    {
+        var parseResult = rootCommand.Parse(fullArgs);
+        return new InvocationContext(parseResult);
+    }
+
     [Test]
     public async Task HandleAsync_WithMissingSignatureFile_ReturnsFileNotFound()
     {
@@ -587,6 +680,38 @@ public class VerifyCommandHandlerTests
 
         Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
         Assert.That(error.ToString(), Does.Contain("Payload file not found"));
+    }
+
+    [Test]
+    public async Task HandleAsync_WithStdinAndNoData_ReturnsFileNotFoundAndWritesNoStdinData()
+    {
+        var output = new StringWriter();
+        var formatter = new TextOutputFormatter(output: output, error: output);
+        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
+        var handler = new VerifyCommandHandler(formatter, standardInputProvider: () => emptyStdin)
+        {
+            StdinTimeout = TimeSpan.FromMilliseconds(25)
+        };
+
+        // Build a root command with the correct argument name and pass '-' so the handler reads stdin.
+        var verify = new Command("verify");
+        verify.AddArgument(new Argument<string?>("signature"));
+        var root = new RootCommand();
+        root.AddCommand(verify);
+
+        var context = CreateInvocationContext(root, "verify -");
+
+        var exitCode = await handler.HandleAsync(context);
+        formatter.Flush();
+
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
+
+        var text = output.ToString();
+        Assert.That(
+            text,
+            Does.Contain("No signature data received from stdin")
+                .Or.Contain("Timed out")
+        );
     }
 
     [Test]
@@ -681,7 +806,8 @@ public class VerifyCommandHandlerTests
         var output = new StringWriter();
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
-        var handler = new VerifyCommandHandler(formatter);
+        // Provide a permissive trust policy so this test can focus on payload hash mismatch behavior.
+        var handler = new VerifyCommandHandler(formatter, new[] { new AlwaysOnVerificationProvider() });
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerIndirectMismatchTest");
 
@@ -722,7 +848,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class AlwaysOnVerificationProvider : IVerificationProvider
+    private sealed class AlwaysOnVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
     {
         public string ProviderName => "TestProvider";
         public string Description => "Test provider";
@@ -734,9 +860,15 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
         {
-            return Array.Empty<IValidator<CoseSign1Message>>();
+            return Array.Empty<IValidator>();
+        }
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            // Allow all trust so tests can exercise non-trust behavior paths.
+            return TrustPolicy.Or();
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
@@ -1287,6 +1419,201 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
+    public async Task HandleAsync_WithSignatureOnlyTrue_WhenNoProviders_ReturnsSuccess()
+    {
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var formatter = new TextOutputFormatter(output, error);
+        var handler = new VerifyCommandHandler(formatter);
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload for signature-only test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var context = CreateInvocationContext(signature: new FileInfo(tempSignature));
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: true);
+            formatter.Flush();
+
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
+            Assert.That(output.ToString(), Does.Contain("payload verification skipped"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithMultipleTrustPolicies_WritesWarningAndReturnsSuccess()
+    {
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var formatter = new TextOutputFormatter(output, error);
+
+        var handler = new VerifyCommandHandler(
+            formatter,
+            new IVerificationProvider[]
+            {
+                new AllowAllTrustProvider("P1"),
+                new AllowAllTrustProvider("P2")
+            });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var context = CreateInvocationContext(signature: new FileInfo(tempSignature));
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
+            formatter.Flush();
+
+            Assert.That(result, Is.EqualTo((int)ExitCode.Success));
+            var combined = output.ToString() + error.ToString();
+            Assert.That(combined, Does.Contain("Multiple trust policies were provided"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WithFailingPostSignatureValidator_ReturnsVerificationFailed()
+    {
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var formatter = new TextOutputFormatter(output, error);
+
+        var handler = new VerifyCommandHandler(
+            formatter,
+            new IVerificationProvider[] { new PostSignatureFailingProvider() });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "Test payload");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var context = CreateInvocationContext(signature: new FileInfo(tempSignature));
+            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
+            formatter.Flush();
+
+            Assert.That(result, Is.EqualTo((int)ExitCode.VerificationFailed));
+            Assert.That(error.ToString(), Does.Contain("Signature verification failed"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    private sealed class AllowAllTrustProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    {
+        private readonly string _name;
+
+        public AllowAllTrustProvider(string name)
+        {
+            _name = name;
+        }
+
+        public string ProviderName => _name;
+
+        public string Description => "Always active, allow-all trust policy";
+
+        public int Priority => 0;
+
+        public void AddVerificationOptions(Command command)
+        {
+        }
+
+        public bool IsActivated(ParseResult parseResult) => true;
+
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult) => Array.Empty<IValidator>();
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            return TrustPolicy.AllowAll("Test provider");
+        }
+
+        public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
+        {
+            return new Dictionary<string, object?>();
+        }
+    }
+
+    private sealed class PostSignatureFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    {
+        public string ProviderName => "PostSigFail";
+
+        public string Description => "Adds a failing post-signature validator";
+
+        public int Priority => 0;
+
+        public void AddVerificationOptions(Command command)
+        {
+        }
+
+        public bool IsActivated(ParseResult parseResult) => true;
+
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+        {
+            yield return new MockValidator(shouldPass: false);
+        }
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            return TrustPolicy.AllowAll("Test");
+        }
+
+        public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
+        {
+            return new Dictionary<string, object?>();
+        }
+    }
+
+    [Test]
     public async Task HandleAsync_DetachedSignatureWithoutPayload_ReturnsInvalidArguments()
     {
         // Arrange
@@ -1410,12 +1737,98 @@ public class VerifyCommandHandlerTests
         }
     }
 
+    [Test]
+    public async Task HandleAsync_WhenResolutionValidatorFails_ReturnsVerificationFailedAndWritesFailureDetails()
+    {
+        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var rootCommand = builder.BuildRootCommand();
+        var tempPayload = Path.GetTempFileName();
+        var tempSignature = $"{tempPayload}.cose";
+
+        var output = new StringWriter();
+        var formatter = new TextOutputFormatter(output: output, error: output);
+        var handler = new VerifyCommandHandler(formatter, new[] { new ResolutionFailingProvider() });
+
+        try
+        {
+            File.WriteAllText(tempPayload, "resolution-failure-test");
+            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            Assert.That(File.Exists(tempSignature), "Signature should exist");
+
+            var context = CreateInvocationContext(signature: new FileInfo(tempSignature));
+            var exitCode = await handler.HandleAsync(context);
+            formatter.Flush();
+
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.VerificationFailed));
+            Assert.That(output.ToString(), Does.Contain("Key material resolution failed"));
+            Assert.That(output.ToString(), Does.Contain("RES_FAIL"));
+        }
+        finally
+        {
+            if (File.Exists(tempPayload))
+            {
+                File.Delete(tempPayload);
+            }
+            if (File.Exists(tempSignature))
+            {
+                File.Delete(tempSignature);
+            }
+        }
+    }
+
+    private sealed class ResolutionFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    {
+        public string ProviderName => "ResolutionFail";
+
+        public string Description => "Adds a failing key material resolution validator";
+
+        public int Priority => 0;
+
+        public void AddVerificationOptions(Command command)
+        {
+        }
+
+        public bool IsActivated(ParseResult parseResult) => true;
+
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+        {
+            yield return new ResolutionFailingValidator();
+        }
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            return TrustPolicy.AllowAll("Test");
+        }
+
+        public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
+        {
+            return new Dictionary<string, object?>();
+        }
+    }
+
+    private sealed class ResolutionFailingValidator : IValidator
+    {
+        private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialResolution };
+
+        public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
+        {
+            return ValidationResult.Failure("ResolutionFailingValidator", stage, "Resolution failed", "RES_FAIL");
+        }
+
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Validate(input, stage));
+        }
+    }
+
     #endregion
 
     /// <summary>
     /// Mock verification provider for testing provider integration.
     /// </summary>
-    private class MockVerificationProvider : IVerificationProvider
+    private class MockVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
     {
         private readonly bool IsActivatedValue;
         private readonly bool ValidationPasses;
@@ -1447,10 +1860,16 @@ public class VerifyCommandHandlerTests
             return IsActivatedValue;
         }
 
-        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
         {
             CreateValidatorsCalled = true;
             yield return new MockValidator(ValidationPasses);
+        }
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            // Permit trust so the test can focus on provider integration behavior.
+            return TrustPolicy.Or();
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -1466,7 +1885,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class NullMetadataVerificationProvider : IVerificationProvider
+    private sealed class NullMetadataVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
     {
         public string ProviderName => "NullMetadataProvider";
 
@@ -1481,10 +1900,15 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
         {
             // Always pass so we can reach metadata writing.
             yield return new MockValidator(shouldPass: true);
+        }
+
+        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        {
+            return TrustPolicy.Or();
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -1517,9 +1941,9 @@ public class VerifyCommandHandlerTests
             throw new InvalidOperationException("boom");
         }
 
-        public IEnumerable<IValidator<CoseSign1Message>> CreateValidators(ParseResult parseResult)
+        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
         {
-            return Array.Empty<IValidator<CoseSign1Message>>();
+            return Array.Empty<IValidator>();
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -1534,25 +1958,29 @@ public class VerifyCommandHandlerTests
     /// <summary>
     /// Mock validator for testing.
     /// </summary>
-    private class MockValidator : IValidator<CoseSign1Message>
+    private class MockValidator : IValidator
     {
         private readonly bool ShouldPass;
+
+        private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.PostSignature };
 
         public MockValidator(bool shouldPass)
         {
             ShouldPass = shouldPass;
         }
 
-        public ValidationResult Validate(CoseSign1Message input)
+        public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
         {
             return ShouldPass
                 ? ValidationResult.Success("MockValidator")
                 : ValidationResult.Failure("MockValidator", "Mock validation failure", "MOCK_ERROR");
         }
 
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(Validate(input));
+            return Task.FromResult(Validate(input, stage));
         }
     }
 

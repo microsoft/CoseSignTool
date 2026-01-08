@@ -65,10 +65,13 @@ public class SoftwareKeyProvider : IPrivateKeyProvider
         {
             return new MldsaGeneratedKey(GenerateMldsaKey(keySize ?? 65));
         }
-        else
-        {
-            throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatAlgorithmNotSupported, algorithm, ProviderName));
-        }
+
+        return ThrowAlgorithmNotSupported(algorithm);
+    }
+
+    private IGeneratedKey ThrowAlgorithmNotSupported(KeyAlgorithm algorithm)
+    {
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatAlgorithmNotSupported, algorithm, ProviderName));
     }
 
     /// <inheritdoc />

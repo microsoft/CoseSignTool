@@ -6,6 +6,8 @@ using System.CommandLine.Parsing;
 using System.Reflection;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Local.Plugin;
 
@@ -92,7 +94,7 @@ public class X509VerificationProviderTests
     }
 
     [Test]
-    public void IsActivated_WithAllowUntrusted_ReturnsFalse()
+    public void IsActivated_WithAllowUntrusted_ReturnsTrue()
     {
         // Arrange - allowing untrusted disables chain validation
         var parseResult = Parser.Parse("--allow-untrusted");
@@ -101,7 +103,7 @@ public class X509VerificationProviderTests
         var isActivated = Provider.IsActivated(parseResult);
 
         // Assert
-        Assert.That(isActivated, Is.False, "chain validation is disabled with --allow-untrusted");
+        Assert.That(isActivated, Is.True, "provider should be activated with --allow-untrusted");
     }
 
     [Test]
@@ -131,6 +133,28 @@ public class X509VerificationProviderTests
     }
 
     [Test]
+    public void CreateTrustPolicy_WithAllowUntrusted_ReturnsPermissivePolicy()
+    {
+        var parseResult = Parser.Parse("--allow-untrusted");
+
+        var policy = Provider.CreateTrustPolicy(parseResult, new VerificationContext(detachedPayload: null));
+
+        Assert.That(policy, Is.Not.Null);
+        Assert.That(policy!.IsSatisfied(new Dictionary<string, bool>()), Is.True);
+    }
+
+    [Test]
+    public void CreateTrustPolicy_WithDefaultOptions_RequiresTrustedChain()
+    {
+        var parseResult = Parser.Parse("");
+
+        var policy = Provider.CreateTrustPolicy(parseResult, new VerificationContext(detachedPayload: null));
+
+        Assert.That(policy, Is.Not.Null);
+        Assert.That(policy!.IsSatisfied(new Dictionary<string, bool>()), Is.False);
+    }
+
+    [Test]
     public void CreateValidators_WithDefaultOptions_ReturnsChainValidator()
     {
         // Arrange
@@ -140,9 +164,9 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        var inner = UnwrapConditional(validators[0]);
-        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        Assert.That(validators, Has.Count.EqualTo(2));
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
     }
 
     [Test]
@@ -183,9 +207,9 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        var inner = UnwrapConditional(validators[0]);
-        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        Assert.That(validators, Has.Count.EqualTo(2));
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
     }
 
     [Test]
@@ -434,12 +458,12 @@ public class X509VerificationProviderTests
         var validators = Provider.CreateValidators(parseResult).ToList();
 
         // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        var inner = UnwrapConditional(validators[0]);
-        Assert.That(inner, Is.TypeOf<CoseSign1.Certificates.Validation.CertificateChainValidator>());
+        Assert.That(validators, Has.Count.EqualTo(2));
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
     }
 
-    private static object UnwrapConditional(IValidator<CoseSign1Message> validator)
+    private static object UnwrapConditional(IValidator validator)
     {
         var t = validator.GetType();
         if (!string.Equals(t.Name, "ConditionalX509Validator", StringComparison.Ordinal))
@@ -473,7 +497,7 @@ public class X509VerificationProviderTests
 
                 // Assert - should have a chain validator
                 Assert.That(validators, Has.Count.GreaterThan(0));
-                Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainValidator"), Is.True);
+                Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
             }
             finally
             {

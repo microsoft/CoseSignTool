@@ -9,7 +9,6 @@ using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 using CoseSign1.Indirect;
 using Moq;
-using NUnit.Framework;
 
 namespace CoseSign1.Tests;
 

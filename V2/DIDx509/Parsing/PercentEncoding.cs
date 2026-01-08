@@ -13,10 +13,17 @@ using System.Text;
 /// </summary>
 public static class PercentEncoding
 {
+    internal static class ClassStrings
+    {
+        internal const string ByteToUpperHex2Format = "X2";
+    }
+
     /// <summary>
     /// Encodes a string using percent-encoding per DID:X509 spec.
     /// Only ALPHA, DIGIT, '-', '.', '_' are allowed unencoded.
     /// </summary>
+    /// <param name="value">The value to encode.</param>
+    /// <returns>The encoded value.</returns>
     public static string Encode(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -39,7 +46,7 @@ public static class PercentEncoding
                 foreach (byte b in bytes)
                 {
                     encoded.Append(DidX509Constants.PercentChar);
-                    encoded.Append(b.ToString("X2"));
+                    encoded.Append(b.ToString(ClassStrings.ByteToUpperHex2Format));
                 }
             }
         }
@@ -50,6 +57,8 @@ public static class PercentEncoding
     /// <summary>
     /// Decodes a percent-encoded string.
     /// </summary>
+    /// <param name="value">The value to decode.</param>
+    /// <returns>The decoded value.</returns>
     public static string Decode(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -106,6 +115,8 @@ public static class PercentEncoding
     /// Checks if a character is allowed unencoded in DID:X509.
     /// Per spec: ALPHA / DIGIT / "-" / "." / "_"
     /// </summary>
+    /// <param name="c">The character to check.</param>
+    /// <returns><see langword="true"/> if the character is allowed; otherwise, <see langword="false"/>.</returns>
     public static bool IsDidX509AllowedCharacter(char c)
     {
         return (c >= 'A' && c <= 'Z') ||

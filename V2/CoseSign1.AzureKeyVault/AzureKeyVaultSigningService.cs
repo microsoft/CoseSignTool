@@ -52,6 +52,23 @@ namespace CoseSign1.AzureKeyVault;
 /// </example>
 public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions>, IDisposable
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorNotInitialized = "AzureKeyVaultSigningService has not been initialized. Call InitializeAsync() before use.";
+        public static readonly string ErrorCannotRefreshPinnedKeyVersion = "Cannot refresh a pinned key version.";
+        public static readonly string ErrorKeyVaultReturnedKeyWithoutVersion = "Key Vault returned a key without a version.";
+
+        public const string ServiceName = "AzureKeyVault";
+        public const string ServiceDescriptionFormat = "Azure Key Vault signing service using key: {0}";
+
+        public const string DefaultCurveName = "P-256";
+        public const string CurveNameP384 = "P-384";
+        public const string CurveNameP521 = "P-521";
+
+        public const string ErrorKeyTypeNotSupportedForPublicKeyEmbeddingFormat = "Key type {0} is not supported for public key embedding.";
+    }
+
     private readonly string KeyName;
     private readonly string? PinnedVersion;
     private readonly TimeSpan? RefreshInterval;
@@ -149,8 +166,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
     public bool IsRemote => true;
 
     /// <inheritdoc/>
-    public SigningServiceMetadata ServiceMetadata => ServiceMetadataField ?? throw new InvalidOperationException(
-        "AzureKeyVaultSigningService has not been initialized. Call InitializeAsync() before use.");
+    public SigningServiceMetadata ServiceMetadata => GetServiceMetadataOrThrow();
 
     /// <summary>
     /// Creates a new Azure Key Vault signing service.
@@ -216,6 +232,13 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
     /// This factory method enables dependency injection for testing scenarios.
     /// For production use, prefer the <see cref="CreateAsync"/> method.
     /// </remarks>
+    /// <param name="vaultUri">The URI of the Key Vault.</param>
+    /// <param name="keyClient">The Key Vault key client.</param>
+    /// <param name="credential">The Azure credential used for authentication.</param>
+    /// <param name="cryptoWrapper">The crypto wrapper configured to use the target Key Vault key.</param>
+    /// <param name="pinnedVersion">Optional pinned key version. When set, auto-refresh is disabled.</param>
+    /// <param name="refreshInterval">Optional auto-refresh interval. Use null to disable.</param>
+    /// <returns>A configured AzureKeyVaultSigningService ready for signing.</returns>
     public static AzureKeyVaultSigningService Create(
         Uri vaultUri,
         KeyClient keyClient,
@@ -240,6 +263,8 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
     /// Initializes the instance by loading the key and (optionally) starting auto-refresh.
     /// Safe to call multiple times.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that completes once initialization has finished.</returns>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -275,6 +300,11 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         {
             InitGate.Release();
         }
+    }
+
+    private SigningServiceMetadata GetServiceMetadataOrThrow()
+    {
+        return ServiceMetadataField ?? throw new InvalidOperationException(ClassStrings.ErrorNotInitialized);
     }
 
     /// <inheritdoc/>
@@ -341,7 +371,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         ThrowIfDisposed();
         if (PinnedVersion != null)
         {
-            throw new InvalidOperationException("Cannot refresh a pinned key version.");
+            throw new InvalidOperationException(ClassStrings.ErrorCannotRefreshPinnedKeyVersion);
         }
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
@@ -463,8 +493,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
 
         if (wrapper == null || signingKey == null || keyIdContributor == null || string.IsNullOrEmpty(version))
         {
-            throw new InvalidOperationException(
-                "AzureKeyVaultSigningService has not been initialized. Call InitializeAsync() before use.");
+            throw new InvalidOperationException(ClassStrings.ErrorNotInitialized);
         }
 
         return new State
@@ -496,7 +525,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         var version = key.Properties.Version;
         if (string.IsNullOrEmpty(version))
         {
-            throw new InvalidOperationException("Key Vault returned a key without a version.");
+            throw new InvalidOperationException(ClassStrings.ErrorKeyVaultReturnedKeyWithoutVersion);
         }
 
         var cryptoClient = ClientFactory.CreateCryptographyClient(key.Id);
@@ -511,8 +540,8 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         SigningKey = new AzureKeyVaultSigningKey(this, wrapper);
         KeyIdContributor = new KeyIdHeaderContributor(wrapper.KeyId, wrapper.IsHsmProtected);
         ServiceMetadataField = new SigningServiceMetadata(
-            "AzureKeyVault",
-            $"Azure Key Vault signing service using key: {wrapper.KeyId}");
+            ClassStrings.ServiceName,
+            string.Format(ClassStrings.ServiceDescriptionFormat, wrapper.KeyId));
     }
 
     private void StartAutoRefreshIfEnabled()
@@ -592,11 +621,11 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         else if (kvKeyType == Azure.Security.KeyVault.Keys.KeyType.Ec ||
                  kvKeyType == Azure.Security.KeyVault.Keys.KeyType.EcHsm)
         {
-            var curveName = key.Key.CurveName?.ToString() ?? "P-256";
+            var curveName = key.Key.CurveName?.ToString() ?? ClassStrings.DefaultCurveName;
             ECCurve curve = curveName switch
             {
-                "P-521" => ECCurve.NamedCurves.nistP521,
-                "P-384" => ECCurve.NamedCurves.nistP384,
+                ClassStrings.CurveNameP521 => ECCurve.NamedCurves.nistP521,
+                ClassStrings.CurveNameP384 => ECCurve.NamedCurves.nistP384,
                 _ => ECCurve.NamedCurves.nistP256
             };
 
@@ -612,6 +641,6 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
             return new CoseKeyHeaderContributor(ecParams, coseAlgorithm, KeyId);
         }
 
-        throw new NotSupportedException($"Key type {kvKeyType} is not supported for public key embedding.");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorKeyTypeNotSupportedForPublicKeyEmbeddingFormat, kvKeyType));
     }
 }

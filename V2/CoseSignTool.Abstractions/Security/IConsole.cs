@@ -11,6 +11,7 @@ public interface IConsole
     /// <summary>
     /// Writes a string to the standard output stream.
     /// </summary>
+    /// <param name="value">The value to write.</param>
     void Write(string? value);
 
     /// <summary>
@@ -21,6 +22,7 @@ public interface IConsole
     /// <summary>
     /// Writes a string followed by a line terminator to the standard output stream.
     /// </summary>
+    /// <param name="value">The value to write.</param>
     void WriteLine(string? value);
 
     /// <summary>

@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
-using Azure;
 
 namespace CoseSign1.Transparent.MST.Extensions;
 
@@ -13,6 +11,12 @@ namespace CoseSign1.Transparent.MST.Extensions;
 /// </summary>
 public static class BinaryDataExtensions
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string EntryIdKey = "EntryId";
+    }
+
     /// <summary>
     /// Attempts to extract the "EntryId" value from CBOR-encoded MST response data.
     /// </summary>
@@ -35,7 +39,7 @@ public static class BinaryDataExtensions
             while (cborReader.PeekState() != CborReaderState.EndMap)
             {
                 string key = cborReader.ReadTextString();
-                if (key == "EntryId")
+                if (key == ClassStrings.EntryIdKey)
                 {
                     entryId = cborReader.ReadTextString();
                     return true;

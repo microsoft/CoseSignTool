@@ -78,6 +78,7 @@ public class SigningCommandBuilder
 
         // Plugin options key
         public static readonly string PluginOptionLoggerFactory = "__loggerFactory";
+        public static readonly string PluginOptionStandardError = "__standardError";
 
         // Format strings
         public static readonly string FormatSignatureSize = "{0:N0} bytes";
@@ -149,18 +150,41 @@ public class SigningCommandBuilder
 
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
     private readonly ILoggerFactory? LoggerFactory;
+    private readonly Func<Stream> StandardInputProvider;
+    private readonly Func<Stream> StandardOutputProvider;
+    private readonly TextWriter StandardOutput;
+    private readonly TextWriter StandardError;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SigningCommandBuilder"/> class.
+    /// </summary>
+    /// <param name="transparencyProviders">Optional transparency providers to attach to signing commands.</param>
+    /// <param name="loggerFactory">Optional logger factory used to create loggers for signing components.</param>
+    /// <param name="standardInputProvider">Optional provider for standard input stream (used when reading payload from stdin). Defaults to <see cref="Console.OpenStandardInput()"/>.</param>
+    /// <param name="standardOutputProvider">Optional provider for standard output stream (used when writing signatures to stdout). Defaults to <see cref="Console.OpenStandardOutput()"/>.</param>
+    /// <param name="standardOutput">Optional standard output writer (used for formatted output/help). Defaults to <see cref="Console.Out"/>.</param>
+    /// <param name="standardError">Optional standard error writer (used for formatted errors). Defaults to <see cref="Console.Error"/>.</param>
     public SigningCommandBuilder(
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        Func<Stream>? standardInputProvider = null,
+        Func<Stream>? standardOutputProvider = null,
+        TextWriter? standardOutput = null,
+        TextWriter? standardError = null)
     {
         TransparencyProviders = transparencyProviders;
         LoggerFactory = loggerFactory;
+        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
+        StandardOutputProvider = standardOutputProvider ?? Console.OpenStandardOutput;
+        StandardOutput = standardOutput ?? Console.Out;
+        StandardError = standardError ?? Console.Error;
     }
 
     /// <summary>
     /// Creates a signing command from a plugin's command provider.
     /// </summary>
+    /// <param name="provider">The plugin command provider.</param>
+    /// <returns>The constructed command.</returns>
     public Command BuildSigningCommand(ISigningCommandProvider provider)
     {
         // Build command description with pipeline examples
@@ -263,7 +287,7 @@ public class SigningCommandBuilder
         }
 
         // Create formatter based on output format (declare outside try for use in catch blocks)
-        var formatter = OutputFormatterFactory.Create(outputFormat);
+        var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
 
         try
         {
@@ -311,7 +335,11 @@ public class SigningCommandBuilder
                 formatter.BeginSection(ClassStrings.SectionSigningOperation);
                 formatter.WriteKeyValue(ClassStrings.KeyCommand, provider.CommandName);
                 formatter.WriteKeyValue(ClassStrings.KeyPayload, useStdin ? AssemblyStrings.IO.StdinDisplayName : payloadPath!);
-                formatter.WriteKeyValue(ClassStrings.KeyOutput, useStdout ? AssemblyStrings.IO.StdoutDisplayName : (outputPath ?? $"{payloadPath}{AssemblyStrings.IO.CoseFileExtension}"));
+                formatter.WriteKeyValue(
+                    ClassStrings.KeyOutput,
+                    useStdout
+                        ? AssemblyStrings.IO.StdoutDisplayName
+                        : (outputPath ?? string.Concat(payloadPath, AssemblyStrings.IO.CoseFileExtension)));
                 formatter.WriteKeyValue(ClassStrings.KeySignatureType, signatureType);
                 formatter.WriteKeyValue(ClassStrings.KeyEmbedPayload, willEmbedPayload ? ClassStrings.EmbedYes : ClassStrings.EmbedNo);
                 formatter.WriteKeyValue(ClassStrings.KeyContentType, contentType);
@@ -333,7 +361,7 @@ public class SigningCommandBuilder
             if (useStdin)
             {
                 // Use stdin with timeout protection - prevents hanging when no input is piped
-                payloadStream = new IO.TimeoutReadStream(Console.OpenStandardInput());
+                payloadStream = new IO.TimeoutReadStream(StandardInputProvider());
                 shouldDisposeStream = true; // TimeoutReadStream should be disposed
             }
             else
@@ -404,12 +432,12 @@ public class SigningCommandBuilder
                     context.GetCancellationToken(),
                     stdoutTimeoutCts.Token);
 
-                await using var stdout = Console.OpenStandardOutput();
+                await using var stdout = StandardOutputProvider();
                 await WriteToStreamChunkedAsync(stdout, signatureBytes, stdoutLinkedCts.Token);
             }
             else
             {
-                var finalOutputPath = outputPath ?? $"{payloadPath}{AssemblyStrings.IO.CoseFileExtension}";
+                var finalOutputPath = outputPath ?? string.Concat(payloadPath, AssemblyStrings.IO.CoseFileExtension);
                 // Use FileStream with larger buffer for PQC-sized signatures
                 await using var fileStream = new FileStream(
                     finalOutputPath,
@@ -509,6 +537,9 @@ public class SigningCommandBuilder
             options[ClassStrings.PluginOptionLoggerFactory] = LoggerFactory;
         }
 
+        // Add standard error writer so plugins can emit informational/errors without using global Console.Error.
+        options[ClassStrings.PluginOptionStandardError] = StandardError;
+
         return options;
     }
 
@@ -570,7 +601,7 @@ public class SigningCommandBuilder
 
             // Flush periodically for stdout to ensure data flows through pipes
             // This is important for pipeline scenarios where downstream commands are waiting
-            if (offset < data.Length || stream == Console.OpenStandardOutput())
+            if (offset < data.Length)
             {
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }

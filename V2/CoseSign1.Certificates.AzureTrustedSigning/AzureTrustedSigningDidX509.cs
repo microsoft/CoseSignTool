@@ -3,7 +3,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Extensions;
 using DIDx509.Builder;
 
 namespace CoseSign1.Certificates.AzureTrustedSigning;
@@ -36,7 +35,7 @@ public static class AzureTrustedSigningDidX509
     /// <summary>
     /// Microsoft reserved EKU prefix used by Azure Trusted Signing certificates.
     /// </summary>
-    private const string MicrosoftEkuPrefix = "1.3.6.1.4.1.311";
+    private const string MicrosoftEkuPrefix = ClassStrings.MicrosoftEkuPrefix;
 
     /// <summary>
     /// Generates a DID:X509:0 identifier from an Azure Trusted Signing certificate chain.
@@ -47,6 +46,8 @@ public static class AzureTrustedSigningDidX509
     /// A DID:X509:0 formatted identifier. Example:
     /// did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::eku:1.3.6.1.4.1.311.10.3.13
     /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateChain"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="certificateChain"/> is empty.</exception>
     public static string Generate(IEnumerable<X509Certificate2> certificateChain)
     {
         if (certificateChain == null)
@@ -57,7 +58,7 @@ public static class AzureTrustedSigningDidX509
         var certArray = certificateChain.ToArray();
         if (certArray.Length == 0)
         {
-            throw new ArgumentException("Certificate chain cannot be empty", nameof(certificateChain));
+            throw new ArgumentException(ClassStrings.ErrorCertificateChainCannotBeEmpty, nameof(certificateChain));
         }
 
         var leafCert = certArray[0];
@@ -88,6 +89,8 @@ public static class AzureTrustedSigningDidX509
     /// <param name="leafCertificate">The leaf certificate.</param>
     /// <param name="caCertificate">The CA certificate to pin to.</param>
     /// <returns>A DID:X509:0 formatted identifier with EKU policy.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="leafCertificate"/> or <paramref name="caCertificate"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the leaf certificate does not contain a Microsoft EKU.</exception>
     public static string GenerateWithEku(X509Certificate2 leafCertificate, X509Certificate2 caCertificate)
     {
         if (leafCertificate == null)
@@ -103,9 +106,7 @@ public static class AzureTrustedSigningDidX509
         var microsoftEku = GetDeepestGreatestMicrosoftEku(leafCertificate);
         if (microsoftEku == null)
         {
-            throw new InvalidOperationException(
-                "No Microsoft EKU found in certificate. " +
-                "Azure Trusted Signing certificates should contain Microsoft-specific EKU extensions.");
+            throw new InvalidOperationException(ClassStrings.ErrorNoMicrosoftEkuFoundInCertificate);
         }
 
         return new DidX509Builder()
@@ -113,6 +114,14 @@ public static class AzureTrustedSigningDidX509
             .WithCaCertificate(caCertificate)
             .WithEkuPolicy(microsoftEku)
             .Build();
+    }
+
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string MicrosoftEkuPrefix = "1.3.6.1.4.1.311";
+        public const string ErrorCertificateChainCannotBeEmpty = "Certificate chain cannot be empty";
+        public const string ErrorNoMicrosoftEkuFoundInCertificate = "No Microsoft EKU found in certificate. Azure Trusted Signing certificates should contain Microsoft-specific EKU extensions.";
     }
 
     /// <summary>

@@ -135,7 +135,7 @@ var validator = Cose.Sign1Message()
     .Build();
 
 CoseSign1Message message = /* ... */;
-var result = await validator.ValidateAsync(message);
+var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 ```
 
 ## Security Considerations

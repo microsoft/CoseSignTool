@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
 
@@ -11,8 +10,11 @@ namespace CoseSign1.Certificates.Validation;
 /// <summary>
 /// Validates a certificate using a custom predicate function.
 /// </summary>
-internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Message>
+internal sealed class CertificatePredicateValidator : IValidator
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
+
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -53,7 +55,7 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input == null)
         {
@@ -87,8 +89,8 @@ internal sealed class CertificatePredicateValidator : IValidator<CoseSign1Messag
             ClassStrings.ErrorCodePredicateFailed);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
     }
 }

@@ -1,14 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
-using DIDx509;
 using DIDx509.Validation;
-using NUnit.Framework;
 
 namespace DIDx509.Tests.Validation;
 

@@ -17,22 +17,6 @@ namespace CoseSignTool.Tests.Commands.Handlers;
 [TestFixture]
 public class InspectCommandHandlerTests
 {
-    private sealed class TestInspectCommandHandler : InspectCommandHandler
-    {
-        private readonly Stream _stdin;
-
-        public TestInspectCommandHandler(Stream stdin, IOutputFormatter? formatter = null)
-            : base(formatter)
-        {
-            _stdin = stdin;
-        }
-
-        protected override Stream OpenStandardInput()
-        {
-            return _stdin;
-        }
-    }
-
     private sealed class BlockingStream : Stream
     {
         private readonly SemaphoreSlim _blockingSemaphore = new(0);
@@ -250,91 +234,73 @@ public class InspectCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithStdinAndNoData_ReturnsFileNotFoundAndWritesNoStdinDataError()
     {
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
-        InspectCommandHandler.StdinTimeout = TimeSpan.FromMilliseconds(200);
-
-        try
+        // Arrange
+        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
+        var outputWriter = new StringWriter();
+        var errorWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(outputWriter, errorWriter);
+        var handler = new InspectCommandHandler(formatter, () => emptyStdin)
         {
-            // Arrange
-            using var emptyStdin = new MemoryStream(Array.Empty<byte>());
-            var outputWriter = new StringWriter();
-            var errorWriter = new StringWriter();
-            var formatter = new TextOutputFormatter(outputWriter, errorWriter);
-            var handler = new TestInspectCommandHandler(emptyStdin, formatter);
-            var context = CreateInvocationContext(fileArgumentValue: "-");
+            StdinTimeout = TimeSpan.FromMilliseconds(200)
+        };
 
-            // Act
-            var result = await handler.HandleAsync(context);
-            formatter.Flush();
+        var context = CreateInvocationContext(fileArgumentValue: "-");
 
-            // Assert
-            Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-            var output = errorWriter.ToString();
-            Assert.That(output, Does.Contain("No signature data received from stdin"));
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Act
+        var result = await handler.HandleAsync(context);
+        formatter.Flush();
+
+        // Assert
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
+        var output = errorWriter.ToString();
+        Assert.That(output, Does.Contain("No signature data received from stdin"));
     }
 
     [Test]
     public async Task HandleAsync_WithStdinTimeout_ReturnsFileNotFoundAndWritesTimeoutError()
     {
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
-        InspectCommandHandler.StdinTimeout = TimeSpan.FromMilliseconds(50);
-
-        try
+        // Arrange
+        using var blockingStdin = new BlockingStream();
+        var outputWriter = new StringWriter();
+        var errorWriter = new StringWriter();
+        var formatter = new TextOutputFormatter(outputWriter, errorWriter);
+        var handler = new InspectCommandHandler(formatter, () => blockingStdin)
         {
-            // Arrange
-            using var blockingStdin = new BlockingStream();
-            var outputWriter = new StringWriter();
-            var errorWriter = new StringWriter();
-            var formatter = new TextOutputFormatter(outputWriter, errorWriter);
-            var handler = new TestInspectCommandHandler(blockingStdin, formatter);
-            var context = CreateInvocationContext(fileArgumentValue: "-");
+            StdinTimeout = TimeSpan.FromMilliseconds(50)
+        };
 
-            // Act
-            var result = await handler.HandleAsync(context);
-            formatter.Flush();
+        var context = CreateInvocationContext(fileArgumentValue: "-");
 
-            // Assert
-            Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-            var output = errorWriter.ToString();
-            Assert.That(output, Does.Contain("timed out").IgnoreCase.Or.Contain("timeout").IgnoreCase);
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Act
+        var result = await handler.HandleAsync(context);
+        formatter.Flush();
+
+        // Assert
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
+        var output = errorWriter.ToString();
+        Assert.That(output, Does.Contain("timed out").IgnoreCase.Or.Contain("timeout").IgnoreCase);
     }
 
     [Test]
     public async Task HandleAsync_WithStdinData_UsesInspectionServiceAndReturnsInvalidSignatureForInvalidCose()
     {
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
-        InspectCommandHandler.StdinTimeout = TimeSpan.FromSeconds(1);
-
-        try
+        // Arrange
+        var invalidCose = new byte[] { 0xD2, 0x84, 0x43, 0xA1 };
+        using var stdin = new MemoryStream(invalidCose);
+        var writer = new StringWriter();
+        var formatter = new TextOutputFormatter(writer);
+        var handler = new InspectCommandHandler(formatter, () => stdin)
         {
-            // Arrange
-            var invalidCose = new byte[] { 0xD2, 0x84, 0x43, 0xA1 };
-            using var stdin = new MemoryStream(invalidCose);
-            var writer = new StringWriter();
-            var formatter = new TextOutputFormatter(writer);
-            var handler = new TestInspectCommandHandler(stdin, formatter);
-            var context = CreateInvocationContext(fileArgumentValue: "-");
+            StdinTimeout = TimeSpan.FromSeconds(1)
+        };
 
-            // Act
-            var result = await handler.HandleAsync(context);
+        var context = CreateInvocationContext(fileArgumentValue: "-");
 
-            // Assert
-            Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Act
+        var result = await handler.HandleAsync(context);
+
+        // Assert
+        Assert.That(result, Is.EqualTo((int)ExitCode.InvalidSignature));
     }
 
     private static InvocationContext CreateInvocationContext(FileInfo? file = null)
@@ -640,30 +606,26 @@ public class InspectCommandHandlerTests
         var stdoutWriter = new StringWriter();
         var stderrWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stdoutWriter, stderrWriter);
-        var handler = new InspectCommandHandler(formatter);
 
-        // Set short timeout to avoid long test duration
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
-        InspectCommandHandler.StdinTimeout = TimeSpan.FromMilliseconds(100);
-
-        try
+        var handler = new InspectCommandHandler(
+            formatter,
+            standardInputProvider: () => new BlockingReadStream())
         {
-            // Create context with "-" for stdin
-            var context = CreateStdinContext();
+            // Set short timeout to avoid long test duration
+            StdinTimeout = TimeSpan.FromMilliseconds(100)
+        };
 
-            // Act - Since we're not actually redirecting stdin, this should time out
-            var result = await handler.HandleAsync(context);
-            formatter.Flush();
+        // Create context with "-" for stdin
+        var context = CreateStdinContext();
 
-            // Assert - Should return FileNotFound due to no stdin data
-            Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-            var errorOutput = stderrWriter.ToString();
-            Assert.That(errorOutput, Does.Contain("timeout").Or.Contain("stdin").IgnoreCase);
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Act
+        var result = await handler.HandleAsync(context);
+        formatter.Flush();
+
+        // Assert - Should return FileNotFound due to no stdin data
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
+        var errorOutput = stderrWriter.ToString();
+        Assert.That(errorOutput, Does.Contain("timeout").Or.Contain("stdin").IgnoreCase);
     }
 
     [Test]
@@ -673,47 +635,36 @@ public class InspectCommandHandlerTests
         var stdoutWriter = new StringWriter();
         var stderrWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stdoutWriter, stderrWriter);
-        var handler = new TestableInspectCommandHandler(formatter, new BlockingReadStream());
 
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
-        InspectCommandHandler.StdinTimeout = TimeSpan.FromMilliseconds(50);
-
-        try
+        var handler = new InspectCommandHandler(
+            formatter,
+            standardInputProvider: () => new BlockingReadStream())
         {
-            var context = CreateStdinContext();
+            StdinTimeout = TimeSpan.FromMilliseconds(50)
+        };
 
-            // Act
-            var result = await handler.HandleAsync(context);
-            formatter.Flush();
+        var context = CreateStdinContext();
 
-            // Assert
-            Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-            Assert.That(stderrWriter.ToString(), Does.Contain("timed out").Or.Contain("timeout").IgnoreCase);
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Act
+        var result = await handler.HandleAsync(context);
+        formatter.Flush();
+
+        // Assert
+        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
+        Assert.That(stderrWriter.ToString(), Does.Contain("timed out").Or.Contain("timeout").IgnoreCase);
     }
 
     [Test]
     public void StdinTimeout_CanBeConfigured()
     {
         // Arrange
-        var originalTimeout = InspectCommandHandler.StdinTimeout;
+        var handler = new InspectCommandHandler();
 
-        try
-        {
-            // Act
-            InspectCommandHandler.StdinTimeout = TimeSpan.FromSeconds(5);
+        // Act
+        handler.StdinTimeout = TimeSpan.FromSeconds(5);
 
-            // Assert
-            Assert.That(InspectCommandHandler.StdinTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
-        }
-        finally
-        {
-            InspectCommandHandler.StdinTimeout = originalTimeout;
-        }
+        // Assert
+        Assert.That(handler.StdinTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
     }
 
     private static InvocationContext CreateStdinContext()
@@ -726,19 +677,6 @@ public class InspectCommandHandlerTests
         // Parse with "-" as the file argument (stdin indicator)
         var parseResult = command.Parse("inspect -");
         return new InvocationContext(parseResult);
-    }
-
-    private sealed class TestableInspectCommandHandler : InspectCommandHandler
-    {
-        private readonly Stream Stdin;
-
-        public TestableInspectCommandHandler(IOutputFormatter formatter, Stream stdin)
-            : base(formatter)
-        {
-            Stdin = stdin;
-        }
-
-        protected override Stream OpenStandardInput() => Stdin;
     }
 
     private sealed class BlockingReadStream : Stream

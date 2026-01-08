@@ -11,7 +11,7 @@
           <ExcludeByFile>**/obj/**,**/bin/**,**/*.Designer.cs,**/*.g.cs,**/*.g.i.cs</ExcludeByFile>
           <IncludeDirectory>../</IncludeDirectory>
           <SingleHit>false</SingleHit>
-          <UseSourceLink>true</UseSourceLink>
+          <UseSourceLink>false</UseSourceLink>
           <IncludeTestAssembly>true</IncludeTestAssembly>
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicReport>true</DeterministicReport>

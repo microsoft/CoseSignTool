@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Indirect;
-using CoseSign1.Tests.Common;
-using NUnit.Framework;
+using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -42,7 +38,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var validator = new CertificateSignatureValidator();
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -59,7 +55,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var detachedMessage = CreateDetachedSignature();
 
         // Act
-        var result = validator.Validate(detachedMessage);
+        var result = validator.Validate(detachedMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -77,7 +73,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var tamperedMessage = CreateTamperedSignature();
 
         // Act
-        var result = validator.Validate(tamperedMessage);
+        var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -98,7 +94,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var detachedMessage = CreateDetachedSignature();
 
         // Act
-        var result = validator.Validate(detachedMessage);
+        var result = validator.Validate(detachedMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -113,7 +109,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var detachedMessage = CreateDetachedSignature();
 
         // Act
-        var result = await validator.ValidateAsync(detachedMessage, CancellationToken.None);
+        var result = await validator.ValidateAsync(detachedMessage, ValidationStage.Signature, CancellationToken.None);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -132,7 +128,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var tamperedMessage = CreateTamperedSignature();
 
         // Act
-        var result = validator.Validate(tamperedMessage);
+        var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -148,7 +144,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var tamperedMessage = CreateTamperedSignature();
 
         // Act
-        var result = validator.Validate(tamperedMessage);
+        var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -163,7 +159,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var tamperedMessage = CreateTamperedSignature();
 
         // Act
-        var result = await validator.ValidateAsync(tamperedMessage, CancellationToken.None);
+        var result = await validator.ValidateAsync(tamperedMessage, ValidationStage.Signature, CancellationToken.None);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -182,7 +178,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var validMessage = CreateValidEmbeddedSignature();
 
         // Act
-        var result = validator.Validate(validMessage);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -199,7 +195,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var validMessage = CreateValidEmbeddedSignature();
 
         // Act
-        var result = validator.Validate(validMessage);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -214,7 +210,7 @@ public class CertificateSignatureValidatorAdditionalTests
         var validMessage = CreateValidEmbeddedSignature();
 
         // Act
-        var result = await validator.ValidateAsync(validMessage, CancellationToken.None);
+        var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature, CancellationToken.None);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -231,7 +227,7 @@ public class CertificateSignatureValidatorAdditionalTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(validMessage, cts.Token);
+        var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);

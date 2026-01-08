@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.AzureKeyVault.Plugin;
+using CoseSign1.AzureKeyVault.Validation;
 
 namespace CoseSignTool.AzureKeyVault.Plugin.Tests;
 

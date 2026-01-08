@@ -9,7 +9,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DIDx509.Models;
 using DIDx509.Validation;
 
 /// <summary>
@@ -17,6 +16,30 @@ using DIDx509.Validation;
 /// </summary>
 public static class DidX509Resolver
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ValidationErrorSeparator = "; ";
+
+        public const string ErrorFormatDidResolutionFailed = "DID resolution failed: {0}";
+        public const string ErrorFormatInvalidKeyUsage =
+            "{0}: Certificate has key usage extension but neither digitalSignature nor keyAgreement is set";
+
+        public const string RsaPublicKeyOid = "1.2.840.113549.1.1.1";
+        public const string EcPublicKeyOid = "1.2.840.10045.2.1";
+
+        public const string EcCurveP256Oid = "1.2.840.10045.3.1.7";
+        public const string EcCurveP384Oid = "1.3.132.0.34";
+        public const string EcCurveP521Oid = "1.3.132.0.35";
+
+        public const string ErrorFailedToExtractRsaPublicKey = "Failed to extract RSA public key";
+        public const string ErrorFailedToExtractEcPublicKey = "Failed to extract EC public key";
+        public const string ErrorEcCurveOidIsNull = "EC curve OID is null";
+
+        public const string ErrorFormatUnsupportedPublicKeyAlgorithm = "Unsupported public key algorithm: {0}";
+        public const string ErrorFormatUnsupportedEcCurve = "Unsupported EC curve: {0}";
+    }
+
     /// <summary>
     /// Resolves a DID:X509 identifier to a DID Document.
     /// </summary>
@@ -38,7 +61,9 @@ public static class DidX509Resolver
         if (!validationResult.IsValid)
         {
             throw new InvalidOperationException(
-                $"DID resolution failed: {string.Join("; ", validationResult.Errors)}");
+                string.Format(
+                    ClassStrings.ErrorFormatDidResolutionFailed,
+                    string.Join(ClassStrings.ValidationErrorSeparator, validationResult.Errors)));
         }
 
         var chainModel = validationResult.ChainModel!;
@@ -90,8 +115,9 @@ public static class DidX509Resolver
             if (assertionMethod == null && keyAgreement == null)
             {
                 throw new InvalidOperationException(
-                    DidX509Constants.ErrorInvalidKeyUsage +
-                    ": Certificate has key usage extension but neither digitalSignature nor keyAgreement is set");
+                    string.Format(
+                        ClassStrings.ErrorFormatInvalidKeyUsage,
+                        DidX509Constants.ErrorInvalidKeyUsage));
             }
         }
 
@@ -106,6 +132,12 @@ public static class DidX509Resolver
     /// <summary>
     /// Attempts to resolve a DID:X509 identifier.
     /// </summary>
+    /// <param name="did">The DID:X509 identifier.</param>
+    /// <param name="certificates">The certificate chain.</param>
+    /// <param name="document">When this method returns, contains the resolved DID document if resolution succeeded; otherwise, <see langword="null"/>.</param>
+    /// <param name="validateChain">Whether to perform RFC 5280 chain validation.</param>
+    /// <param name="checkRevocation">Whether to check certificate revocation.</param>
+    /// <returns><see langword="true"/> if resolution succeeded; otherwise, <see langword="false"/>.</returns>
     public static bool TryResolve(
         string did,
         IEnumerable<X509Certificate2> certificates,
@@ -133,12 +165,12 @@ public static class DidX509Resolver
         var publicKey = certificate.PublicKey;
         var jwk = new Dictionary<string, object>();
 
-        if (publicKey.Oid.Value == "1.2.840.113549.1.1.1") // RSA
+        if (publicKey.Oid.Value == ClassStrings.RsaPublicKeyOid) // RSA
         {
             var rsa = certificate.GetRSAPublicKey();
             if (rsa == null)
             {
-                throw new InvalidOperationException("Failed to extract RSA public key");
+                throw new InvalidOperationException(ClassStrings.ErrorFailedToExtractRsaPublicKey);
             }
 
             var parameters = rsa.ExportParameters(false);
@@ -147,12 +179,12 @@ public static class DidX509Resolver
             jwk[DidX509Constants.JwkKeyN] = Base64UrlEncode(parameters.Modulus!);
             jwk[DidX509Constants.JwkKeyE] = Base64UrlEncode(parameters.Exponent!);
         }
-        else if (publicKey.Oid.Value == "1.2.840.10045.2.1") // EC
+        else if (publicKey.Oid.Value == ClassStrings.EcPublicKeyOid) // EC
         {
             var ecdsa = certificate.GetECDsaPublicKey();
             if (ecdsa == null)
             {
-                throw new InvalidOperationException("Failed to extract EC public key");
+                throw new InvalidOperationException(ClassStrings.ErrorFailedToExtractEcPublicKey);
             }
 
             var parameters = ecdsa.ExportParameters(false);
@@ -164,7 +196,7 @@ public static class DidX509Resolver
         }
         else
         {
-            throw new NotSupportedException($"Unsupported public key algorithm: {publicKey.Oid.FriendlyName}");
+            throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnsupportedPublicKeyAlgorithm, publicKey.Oid.FriendlyName));
         }
 
         return jwk;
@@ -174,15 +206,15 @@ public static class DidX509Resolver
     {
         if (curve.Oid == null)
         {
-            throw new InvalidOperationException("EC curve OID is null");
+            throw new InvalidOperationException(ClassStrings.ErrorEcCurveOidIsNull);
         }
 
         return curve.Oid.Value switch
         {
-            "1.2.840.10045.3.1.7" => DidX509Constants.CurveP256, // secp256r1 / prime256v1
-            "1.3.132.0.34" => DidX509Constants.CurveP384,         // secp384r1
-            "1.3.132.0.35" => DidX509Constants.CurveP521,         // secp521r1
-            _ => throw new NotSupportedException($"Unsupported EC curve: {curve.Oid.FriendlyName}")
+            ClassStrings.EcCurveP256Oid => DidX509Constants.CurveP256, // secp256r1 / prime256v1
+            ClassStrings.EcCurveP384Oid => DidX509Constants.CurveP384,         // secp384r1
+            ClassStrings.EcCurveP521Oid => DidX509Constants.CurveP521,         // secp521r1
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnsupportedEcCurve, curve.Oid.FriendlyName))
         };
     }
 
@@ -191,4 +223,5 @@ public static class DidX509Resolver
         string base64 = Convert.ToBase64String(data);
         return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
+
 }

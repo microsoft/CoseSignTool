@@ -1,6 +1,6 @@
 # CoseSign1.Validation
 
-Comprehensive validation framework for COSE Sign1 messages with composable validators.
+Composable, stage-aware validation primitives for COSE Sign1 messages.
 
 ## Installation
 
@@ -10,16 +10,22 @@ dotnet add package CoseSign1.Validation --version 2.0.0-preview
 
 ## Overview
 
-A flexible, extensible validation framework for COSE Sign1 messages. Build custom validation pipelines using built-in validators or create your own with the fluent builder API.
+This package provides:
+
+- Stage-aware validators (`IValidator`) for `CoseSign1Message`
+- `CompositeValidator` for aggregating validators within a stage
+- `AnySignatureValidator` for signature strategy selection
+- Result types (`ValidationResult`, `ValidationFailure`) that support Success/Failure/NotApplicable
+
+For end-to-end verification (trust-first staged orchestration), use `CoseSign1Verifier` or `Cose.Sign1Verifier()`.
 
 ## Key Features
 
-- ✅ **Fluent Builder API** - Easy validation pipeline construction
-- ✅ **Composable Validators** - Combine multiple validators
-- ✅ **Built-in Validators** - Signature, certificate, chain validators
-- ✅ **Function Validators** - Inline lambda validation
-- ✅ **Rich Results** - Detailed error information
-- ✅ **Extensible** - Easy to add custom validation logic
+- ✅ **Stage-aware validators** - Validators declare `ValidationStage` participation
+- ✅ **Composable** - Combine multiple validators with `CompositeValidator`
+- ✅ **Signature orchestration** - Require at least one applicable verifier via `AnySignatureValidator`
+- ✅ **Rich results** - Success/Failure/NotApplicable, failures + metadata
+- ✅ **Extensible** - Add custom validation logic via interfaces or functions
 
 ## Quick Start
 
@@ -27,29 +33,36 @@ A flexible, extensible validation framework for COSE Sign1 messages. Build custo
 
 ```csharp
 using CoseSign1.Validation;
+using CoseSign1.Verification;
 using System.Security.Cryptography.Cose;
 
 // Decode message
 byte[] signedBytes = File.ReadAllBytes("document.cose");
-CoseSign1Message message = CoseMessage.DecodeSign1(signedBytes);
+CoseSign1Message message = CoseSign1Message.DecodeSign1(signedBytes);
 
-// Build validator
-var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
+// Build a staged verifier pipeline.
+// NOTE: Signature validators must be provided; trust policy is evaluated before signature.
+var pipeline = Cose.Sign1Verifier()
+    .WithTrustPolicy(TrustPolicy.AllowAll("Demo"))
+    .WithSignatureValidators(new IValidator[]
+    {
+        // Example: you can plug in signature validators from other packages.
+        // new CertificateSignatureValidator(allowUnprotectedHeaders: true)
+    })
     .Build();
 
-// Validate
-var result = validator.Validate(message);
+// Verify
+var result = pipeline.Verify(message);
 
-if (result.IsValid)
+if (result.Overall.IsValid)
 {
-    Console.WriteLine("Signature is valid!");
+    Console.WriteLine("Verified!");
 }
 else
 {
-    foreach (var error in result.Errors)
+    foreach (var failure in result.Overall.Failures)
     {
-        Console.WriteLine($"Error: {error.Message}");
+        Console.WriteLine($"Failure: {failure.ErrorCode}: {failure.Message}");
     }
 }
 ```
@@ -65,7 +78,8 @@ var validator = Cose.Sign1Message()
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
     .Build();
 
-var result = validator.Validate(message);
+var signatureResult = validator.Validate(message, ValidationStage.Signature);
+var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
 ### Complete Validation Pipeline
@@ -86,81 +100,83 @@ var validator = Cose.Sign1Message()
         .AllowUntrusted(false))
     
     // Custom validation
-    .AddValidator(msg =>
+    .AddValidator((msg, stage) =>
     {
+        const string validatorName = "CustomHeaderValidator";
+
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(validatorName, stage);
+        }
+
         // Check custom header
-        var customHeader = msg.ProtectedHeaders.TryGetValue(
-            new CoseHeaderLabel("custom"), out var value);
+        bool hasCustomHeader = msg.ProtectedHeaders.TryGetValue(
+            new CoseHeaderLabel("custom"), out _);
         
-        return customHeader
-            ? ValidationResult.Success()
-            : ValidationResult.Failed("Missing custom header");
+        return hasCustomHeader
+            ? ValidationResult.Success(validatorName, stage)
+            : ValidationResult.Failure(validatorName, stage, "Missing custom header");
     })
     .Build();
+
+var signatureResult = validator.Validate(message, ValidationStage.Signature);
+var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
-## Entry Point
+## Entry Points
 
-The `Cose` static class provides the entry point for building validators:
+The `Cose` static class provides two entry points:
 
-```csharp
-// Start building a CoseSign1Message validator
-var builder = Cose.Sign1Message();
-
-// Add validators using fluent API
-builder.ValidateCertificateSignature();
-builder.ValidateCertificate(cert => cert.NotExpired());
-
-// Build the composite validator
-IValidator<CoseSign1Message> validator = builder.Build();
-```
+- `Cose.Sign1Message()` builds a stage-aware `IValidator`.
+- `Cose.Sign1Verifier()` builds a staged verification pipeline.
 
 ## Core Types
 
-### IValidator<T>
-
-The core validation interface:
+### ValidationStage
 
 ```csharp
-public interface IValidator<in T>
+public enum ValidationStage
 {
-    ValidationResult Validate(T input);
+    KeyMaterialResolution,
+    KeyMaterialTrust,
+    Signature,
+    PostSignature,
 }
 ```
 
-### ValidationResult
-
-Result of validation operation:
+### IValidator
 
 ```csharp
-public class ValidationResult
+public interface IValidator
 {
-    // Whether validation passed
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
+    Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default);
+}
+```
+
+### ValidationResult / ValidationFailure
+
+```csharp
+public sealed class ValidationResult
+{
+    public ValidationResultKind Kind { get; init; }
+    public ValidationStage? Stage { get; init; }
+
     public bool IsValid { get; }
-    
-    // Collection of validation errors
-    public IReadOnlyList<ValidationError> Errors { get; }
-    
-    // Create success result
-    public static ValidationResult Success();
-    
-    // Create failure result
-    public static ValidationResult Failed(string message);
-    public static ValidationResult Failed(ValidationError error);
+    public bool IsFailure { get; }
+    public bool IsNotApplicable { get; }
+
+    public string ValidatorName { get; init; }
+    public IReadOnlyList<ValidationFailure> Failures { get; init; }
+    public IReadOnlyDictionary<string, object> Metadata { get; init; }
 }
-```
 
-### ValidationError
-
-Details about a validation failure:
-
-```csharp
-public class ValidationError
+public sealed class ValidationFailure
 {
-    public string Source { get; set; }
-    public string Message { get; set; }
-    public ValidationErrorCode Code { get; set; }
-    public IDictionary<string, object>? Metadata { get; set; }
+    public string Message { get; init; }
+    public string? ErrorCode { get; init; }
+    public Exception? Exception { get; init; }
 }
 ```
 
@@ -170,215 +186,94 @@ Combines multiple validators:
 
 ```csharp
 var composite = new CompositeValidator(
-    new IValidator<CoseSign1Message>[] 
-    { 
-        validator1, 
-        validator2, 
-        validator3 
-    },
+    new IValidator[] { validator1, validator2, validator3 },
     stopOnFirstFailure: false,
     runInParallel: false);
 
-var result = composite.Validate(message);
+var result = composite.Validate(message, ValidationStage.PostSignature);
 ```
 
-### FunctionValidator
+### Custom validators
 
-Wrap a lambda as a validator:
+The staged verifier builder composes `IValidator` instances into a verification pipeline.
+Implement `IValidator` to run at one or more `ValidationStage` values.
 
-```csharp
-var validator = new FunctionValidator<CoseSign1Message>(
-    message =>
-    {
-        // Custom validation logic
-        if (SomeCondition(message))
-            return ValidationResult.Success();
-        else
-            return ValidationResult.Failed("Validation failed");
-    },
-    name: "CustomValidator");
-```
+## Built-in validators
 
-## Built-in Validators
+This package contains core orchestration validators (e.g., `CompositeValidator`, `AnySignatureValidator`).
+Domain-specific validators (X.509, MST, etc.) live in their respective packages.
 
-### CoseMessageValidationBuilder Extensions
+### Verification builder extensions
 
 ```csharp
-builder
+var verifier = Cose.Sign1Message()
+    .AllowAllTrust("example")
     // Signature validation
     .ValidateCertificateSignature()
-    
-    // Certificate validation
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .NotExpired(asOf: specificDate)
-        .HasCommonName("Expected CN")
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")
-        .HasKeyUsage(X509KeyUsageFlags.DigitalSignature)
-        .Matches(c => c.Subject.Contains("Contoso"), "Must be Contoso cert"))
-    
-    // Chain validation
-    .ValidateCertificateChain(chain => chain
-        .WithTrustedRoots(caCertificates)
-        .AllowUntrusted(false)
-        .TrustUserRoots(true))
-    
-    // Custom validators
-    .AddValidator(customValidator)
-    .AddValidator(validationFunc);
+    .Build();
+
+var result = verifier.Verify(message);
 ```
 
 ## Custom Validators
 
-### Function-Based
+### Implementing a stage-specific validator
 
 ```csharp
-var validator = Cose.Sign1Message()
-    .AddValidator(message =>
-    {
-        // Access protected headers
-        if (!message.ProtectedHeaders.TryGetValue(
-            CoseHeaderLabel.ContentType, out var contentType))
-        {
-            return ValidationResult.Failed(new ValidationError
-            {
-                Source = "ContentTypeValidator",
-                Message = "Content type header is required",
-                Code = ValidationErrorCode.MissingHeader
-            });
-        }
-        
-        return ValidationResult.Success();
-    })
-    .Build();
-```
-
-### Class-Based
-
-```csharp
-public class IssuerValidator : IValidator<CoseSign1Message>
+private sealed class ContentTypeValidator : IValidator
 {
-    private readonly string[] AllowedIssuers;
-    
-    public IssuerValidator(params string[] allowedIssuers)
+    public IReadOnlyCollection<ValidationStage> Stages { get; } = new[] { ValidationStage.PostSignature };
+
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
-        AllowedIssuers = allowedIssuers;
-    }
-    
-    public ValidationResult Validate(CoseSign1Message message)
-    {
-        // Extract issuer from CWT claims
-        var claims = message.GetCwtClaims();
-        
-        if (claims?.Issuer == null)
+        const string validatorName = "ContentTypeValidator";
+
+        if (!input.ProtectedHeaders.TryGetValue(CoseHeaderLabel.ContentType, out _))
         {
-            return ValidationResult.Failed(new ValidationError
-            {
-                Source = nameof(IssuerValidator),
-                Message = "No issuer claim found",
-                Code = ValidationErrorCode.MissingClaim
-            });
+            return ValidationResult.Failure(
+                validatorName,
+                stage,
+                "Content type header is required",
+                errorCode: "MissingHeader");
         }
-        
-        if (!AllowedIssuers.Contains(claims.Issuer))
-        {
-            return ValidationResult.Failed(new ValidationError
-            {
-                Source = nameof(IssuerValidator),
-                Message = $"Issuer '{claims.Issuer}' is not trusted",
-                Code = ValidationErrorCode.UntrustedIssuer,
-                Metadata = new Dictionary<string, object>
-                {
-                    ["ActualIssuer"] = claims.Issuer,
-                    ["AllowedIssuers"] = AllowedIssuers
-                }
-            });
-        }
-        
-        return ValidationResult.Success();
+
+        return ValidationResult.Success(validatorName, stage);
     }
+
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(input, stage));
 }
 
-// Usage
-var validator = Cose.Sign1Message()
-    .AddValidator(new IssuerValidator(
-        "https://trusted.example.com",
-        "https://another-trusted.example.com"))
+var verifier = Cose.Sign1Message()
+    .AllowAllTrust("example")
+    .AddPostSignatureValidator(new ContentTypeValidator())
     .Build();
-```
 
-## Configuration Options
-
-### Stop On First Failure
-
-```csharp
-var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
-    .ValidateCertificate(cert => cert.NotExpired())
-    .StopOnFirstFailure(true)  // Stop at first error
-    .Build();
-```
-
-### Parallel Validation
-
-```csharp
-var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
-    .ValidateCertificate(cert => cert.NotExpired())
-    .RunInParallel(true)  // Run validators concurrently
-    .Build();
-```
-
-## Error Codes
-
-```csharp
-public enum ValidationErrorCode
-{
-    Unknown,
-    SignatureInvalid,
-    CertificateExpired,
-    CertificateNotYetValid,
-    ChainBuildFailed,
-    ChainValidationFailed,
-    CommonNameMismatch,
-    EkuMismatch,
-    KeyUsageMismatch,
-    MissingCertificate,
-    MissingHeader,
-    MissingClaim,
-    UntrustedIssuer,
-    CustomValidationFailed
-}
+var result = verifier.Verify(message);
 ```
 
 ## Testing
 
-Validators are easily testable:
-
 ```csharp
 [Fact]
-public void Validator_WithExpiredCertificate_ReturnsFailure()
+public void Validator_ReturnsFailures_OnInvalidInput()
 {
-    // Arrange
-    var expiredCert = CreateExpiredCertificate();
-    var message = CreateSignedMessage(expiredCert);
-    
     var validator = Cose.Sign1Message()
-        .ValidateCertificate(cert => cert.NotExpired())
+        .AddValidator((message, stage) =>
+            stage == ValidationStage.PostSignature
+                ? ValidationResult.Failure("TestValidator", stage, "Some failure", errorCode: "SomeCode")
+                : ValidationResult.NotApplicable("TestValidator", stage))
         .Build();
-    
-    // Act
-    var result = validator.Validate(message);
-    
-    // Assert
+
+    var result = validator.Validate(message, ValidationStage.PostSignature);
+
     Assert.False(result.IsValid);
-    Assert.Contains(result.Errors, 
-        e => e.Code == ValidationErrorCode.CertificateExpired);
+    Assert.Contains(result.Failures, f => f.ErrorCode == "SomeCode");
 }
 ```
 
 ## See Also
 
-- [CoseSign1.Certificates](../CoseSign1.Certificates/README.md) - Certificate validators
-- [CoseSign1](../CoseSign1/README.md) - Signature factories
-- [Architecture Overview](../docs/architecture/overview.md) - System architecture
+- [docs/architecture/validation-framework.md](../docs/architecture/validation-framework.md)
+- [docs/cli/verify.md](../docs/cli/verify.md)
+- [CoseSign1.Certificates/README.md](../CoseSign1.Certificates/README.md)

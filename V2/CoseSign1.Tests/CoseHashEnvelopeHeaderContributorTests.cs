@@ -3,10 +3,8 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
 using CoseSign1.Indirect;
 using Moq;
-using NUnit.Framework;
 
 namespace CoseSign1.Tests;
 

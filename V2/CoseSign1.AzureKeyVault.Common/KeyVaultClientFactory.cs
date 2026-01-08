@@ -38,6 +38,9 @@ public interface IKeyVaultClientFactory
     /// <summary>
     /// Creates a cryptography client for a specific key id.
     /// </summary>
+    /// <param name="keyId">The Key Vault key identifier.</param>
+    /// <returns>A cryptography client scoped to <paramref name="keyId"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="keyId"/> is null.</exception>
     CryptographyClient CreateCryptographyClient(Uri keyId);
 }
 
@@ -48,14 +51,23 @@ public sealed class KeyVaultClientFactory : IKeyVaultClientFactory
 {
     private readonly TokenCredential Credential;
 
+    /// <inheritdoc/>
     public Uri VaultUri { get; }
 
+    /// <inheritdoc/>
     public CertificateClient CertificateClient { get; }
 
+    /// <inheritdoc/>
     public SecretClient SecretClient { get; }
 
+    /// <inheritdoc/>
     public KeyClient KeyClient { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KeyVaultClientFactory"/> class.
+    /// </summary>
+    /// <param name="vaultUri">The Key Vault base URI.</param>
+    /// <param name="credential">The credential used to authenticate with Key Vault.</param>
     public KeyVaultClientFactory(Uri vaultUri, TokenCredential credential)
     {
         ArgumentNullException.ThrowIfNull(vaultUri);
@@ -69,6 +81,8 @@ public sealed class KeyVaultClientFactory : IKeyVaultClientFactory
         KeyClient = new KeyClient(vaultUri, credential);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="keyId"/> is null.</exception>
     public CryptographyClient CreateCryptographyClient(Uri keyId)
     {
         ArgumentNullException.ThrowIfNull(keyId);

@@ -90,7 +90,8 @@ This package includes certificate-focused validators for `CoseSign1Message`.
 
 `CertificateSignatureValidator` verifies the COSE signature using the certificate found via `x5t` + `x5chain` headers.
 
-- Implements `IConditionalValidator<CoseSign1Message>` and `ISignatureValidator` (so it can participate in signature-orchestration)
+- Implements `IValidator` and participates in the `ValidationStage.Signature` stage
+- Typically implemented as an `IConditionalValidator` so it can be skipped when X.509 headers are not present
 - Handles embedded vs detached signatures:
   - Embedded: uses `message.Content`
   - Detached: requires a payload passed to the constructor

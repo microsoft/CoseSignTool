@@ -13,6 +13,15 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
 {
+    internal static class ClassStrings
+    {
+        public const string ErrorInvalidOidFormat = "Invalid OID format";
+
+        public const string OidMldsa44 = "2.16.840.1.101.3.4.3.17";
+        public const string OidMldsa65 = "2.16.840.1.101.3.4.3.18";
+        public const string OidMldsa87 = "2.16.840.1.101.3.4.3.19";
+    }
+
     private readonly MLDsa MldsaKey;
 
     /// <summary>
@@ -87,9 +96,9 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         // ML-DSA-87: ~2592 bytes
         return keySize switch
         {
-            < 1600 => "2.16.840.1.101.3.4.3.17", // ML-DSA-44
-            < 2300 => "2.16.840.1.101.3.4.3.18", // ML-DSA-65
-            _ => "2.16.840.1.101.3.4.3.19"       // ML-DSA-87
+            < 1600 => ClassStrings.OidMldsa44, // ML-DSA-44
+            < 2300 => ClassStrings.OidMldsa65, // ML-DSA-65
+            _ => ClassStrings.OidMldsa87       // ML-DSA-87
         };
     }
 
@@ -101,7 +110,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         string[] parts = oid.Split('.');
         if (parts.Length < 2)
         {
-            throw new ArgumentException("Invalid OID format", nameof(oid));
+            throw new ArgumentException(ClassStrings.ErrorInvalidOidFormat, nameof(oid));
         }
 
         var encoded = new List<byte>();

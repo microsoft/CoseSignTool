@@ -163,13 +163,21 @@ var validator = Cose.Sign1Message()
         .HasCommonName("My Trusted Signer")
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing
     .Build();
-
-var result = validator.Validate(message);
-if (!result.IsValid)
+var signatureResult = validator.Validate(message, ValidationStage.Signature);
+if (!signatureResult.IsValid)
 {
-    foreach (var error in result.Errors)
+    foreach (var failure in signatureResult.Failures)
     {
-        Console.WriteLine($"{error.Code}: {error.Message}");
+        Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
+    }
+}
+
+var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
+if (!postSignatureResult.IsValid)
+{
+    foreach (var failure in postSignatureResult.Failures)
+    {
+        Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
     }
 }
 ```
@@ -196,7 +204,7 @@ Verifies the cryptographic signature using the certificate:
 
 ```csharp
 var validator = new CertificateSignatureValidator();
-var result = validator.Validate(message);
+var result = validator.Validate(message, ValidationStage.Signature);
 ```
 
 ### CertificateExpirationValidator
@@ -301,13 +309,13 @@ var validator = new CertificateSignatureValidator(
     detachedPayload: originalPayload,
     allowUnprotectedHeaders: false);
 
-var result = validator.Validate(message);
+var result = validator.Validate(message, ValidationStage.Signature);
 
 // Or, when using the fluent builder:
 // var result = Cose.Sign1Message()
 //     .ValidateCertificateSignature(originalPayload, allowUnprotectedHeaders: false)
 //     .Build()
-//     .Validate(message);
+//     .Validate(message, ValidationStage.Signature);
 ```
 
 ## Supported Algorithms

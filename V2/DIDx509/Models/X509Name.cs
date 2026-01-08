@@ -23,6 +23,8 @@ public sealed class X509Name
     /// <summary>
     /// Initializes a new instance of the <see cref="X509Name"/> class.
     /// </summary>
+    /// <param name="attributes">The name attributes.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="attributes"/> is <see langword="null"/>.</exception>
     public X509Name(IDictionary<string, string> attributes)
     {
         InternalAttributes = new Dictionary<string, string>(attributes ?? throw new ArgumentNullException(nameof(attributes)), StringComparer.OrdinalIgnoreCase);
@@ -32,6 +34,8 @@ public sealed class X509Name
     /// <summary>
     /// Gets an attribute value by key (label or OID).
     /// </summary>
+    /// <param name="key">The attribute key (label or OID).</param>
+    /// <returns>The attribute value, or <see langword="null"/> if the attribute is not present.</returns>
     public string? GetAttribute(string key)
     {
         return InternalAttributes.TryGetValue(key, out var value) ? value : null;
@@ -40,6 +44,9 @@ public sealed class X509Name
     /// <summary>
     /// Checks if the name contains all attributes from another name with matching values.
     /// </summary>
+    /// <param name="other">The other name to compare against.</param>
+    /// <returns><see langword="true"/> if all attributes and values in <paramref name="other"/> are present; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is <see langword="null"/>.</exception>
     public bool ContainsAll(X509Name other)
     {
         if (other == null)

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
@@ -40,6 +41,23 @@ namespace CoseSign1.AzureKeyVault;
 /// </remarks>
 public sealed class CoseKeyHeaderContributor : IHeaderContributor
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorRsaParametersMustNotIncludePrivateKeyComponents = "RSA parameters must not include private key components.";
+        public static readonly string ErrorEcParametersMustNotIncludePrivateKey = "EC parameters must not include private key (D parameter).";
+
+        public const string CurveFriendlyNameEcdsaP256 = "ECDSA_P256";
+        public const string CurveFriendlyNameNistP256 = "nistP256";
+        public const string CurveFriendlyNameEcdsaP384 = "ECDSA_P384";
+        public const string CurveFriendlyNameNistP384 = "nistP384";
+        public const string CurveFriendlyNameEcdsaP521 = "ECDSA_P521";
+        public const string CurveFriendlyNameNistP521 = "nistP521";
+
+        public const string Unknown = "unknown";
+        public const string ErrorUnsupportedEcCurveFormat = "Unsupported EC curve: {0}";
+    }
+
     /// <summary>
     /// Private-use header label for embedding COSE_Key.
     /// Using -65537 which is in the private-use range (less than -65536 per RFC 9052).
@@ -166,7 +184,7 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
     {
         if (rsaParameters.D != null || rsaParameters.P != null || rsaParameters.Q != null)
         {
-            throw new ArgumentException("RSA parameters must not include private key components.", nameof(rsaParameters));
+            throw new ArgumentException(ClassStrings.ErrorRsaParametersMustNotIncludePrivateKeyComponents, nameof(rsaParameters));
         }
 
         ArgumentNullException.ThrowIfNull(rsaParameters.Modulus);
@@ -188,7 +206,7 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
     {
         if (ecParameters.D != null)
         {
-            throw new ArgumentException("EC parameters must not include private key (D parameter).", nameof(ecParameters));
+            throw new ArgumentException(ClassStrings.ErrorEcParametersMustNotIncludePrivateKey, nameof(ecParameters));
         }
 
         ArgumentNullException.ThrowIfNull(ecParameters.Q.X);
@@ -321,24 +339,25 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
     {
         // Compare by OID since ECCurve comparison by name can be unreliable
         if (curve.Oid?.Value == ECCurve.NamedCurves.nistP256.Oid?.Value ||
-            curve.Oid?.FriendlyName == "ECDSA_P256" ||
-            curve.Oid?.FriendlyName == "nistP256")
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameEcdsaP256 ||
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameNistP256)
         {
             return CoseEllipticCurves.P256;
         }
         if (curve.Oid?.Value == ECCurve.NamedCurves.nistP384.Oid?.Value ||
-            curve.Oid?.FriendlyName == "ECDSA_P384" ||
-            curve.Oid?.FriendlyName == "nistP384")
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameEcdsaP384 ||
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameNistP384)
         {
             return CoseEllipticCurves.P384;
         }
         if (curve.Oid?.Value == ECCurve.NamedCurves.nistP521.Oid?.Value ||
-            curve.Oid?.FriendlyName == "ECDSA_P521" ||
-            curve.Oid?.FriendlyName == "nistP521")
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameEcdsaP521 ||
+            curve.Oid?.FriendlyName == ClassStrings.CurveFriendlyNameNistP521)
         {
             return CoseEllipticCurves.P521;
         }
 
-        throw new NotSupportedException($"Unsupported EC curve: {curve.Oid?.FriendlyName ?? curve.Oid?.Value ?? "unknown"}");
+        var curveName = curve.Oid?.FriendlyName ?? curve.Oid?.Value ?? ClassStrings.Unknown;
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorUnsupportedEcCurveFormat, curveName));
     }
 }

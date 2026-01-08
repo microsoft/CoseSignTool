@@ -42,10 +42,9 @@ CoseHandler.SetValidation("RequireEku:1.3.6.1.4.1.311.10.3.13");
 
 // ✅ V2: Composable validators
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
+    .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders()
-        .ValidateSignature()
-        .ValidateEnhancedKeyUsage("1.3.6.1.4.1.311.10.3.13"))
+        .HasEnhancedKeyUsage("1.3.6.1.4.1.311.10.3.13"))
     .Build();
 ```
 
@@ -61,8 +60,8 @@ builder.Services
         using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         return CertificateSigningService.Create(certificate, cb);
     })
-    .AddSingleton<IValidator<CoseSign1Message>>(sp =>
-        Cose.Sign1Message().AddCertificateValidator(b => b.AllowUnprotectedHeaders().ValidateSignature()).Build());
+    .AddSingleton<IValidator>(sp =>
+        Cose.Sign1Message().ValidateCertificateSignature(allowUnprotectedHeaders: true).Build());
 
 // Inject and use
 public class DocumentSigner(ISigningService<SigningOptions> signingService)
@@ -102,10 +101,13 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     SigningServiceMetadata ServiceMetadata { get; }
 }
 
-public interface IValidator<T>
+public interface IValidator
 {
-    ValidationResult Validate(T input);
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
 }
+
+// V2 stage-aware validators implement IValidator (non-generic) with a ValidationStage parameter.
 ```
 
 ### Service Lifetime
@@ -114,8 +116,8 @@ Different services have different lifetimes:
 
 ```csharp
 // Singleton: stateless validators/builders
-services.AddSingleton<IValidator<CoseSign1Message>>(sp =>
-    Cose.Sign1Message().AddCertificateValidator(b => b.AllowUnprotectedHeaders().ValidateSignature()).Build());
+services.AddSingleton<IValidator>(sp =>
+    Cose.Sign1Message().ValidateCertificateSignature(allowUnprotectedHeaders: true).Build());
 
 // Scoped/Transient: your app decides based on lifecycle of credentials/certs
 services.AddScoped<ISigningService<CertificateSigningOptions>>(sp =>
@@ -246,14 +248,17 @@ V2 favors composition over class hierarchies.
 ```csharp
 // Compose validators instead of inheriting
 var validator = new CompositeValidator(
-    new CertificateSignatureValidator(),
-    new CertificateExpirationValidator(),
-    new EkuPolicyValidator(requiredEkus),
-    new CustomBusinessValidator()
-);
+    new IValidator[]
+    {
+        new CertificateSignatureValidator(),
+        new CertificateExpirationValidator(),
+        new EkuPolicyValidator(requiredEkus),
+        new CustomBusinessValidator()
+    });
 
 // Each validator is independent and testable
-var result = validator.Validate(message);
+var signatureResult = validator.Validate(message, ValidationStage.Signature);
+var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
 ### Header Contribution Composition
@@ -305,13 +310,16 @@ var options = new SigningOptions
 ```csharp
 public sealed class ValidationResult
 {
-    public bool IsValid { get; init; }
+    public ValidationResultKind Kind { get; init; }
+    public ValidationStage? Stage { get; init; }
+
+    public bool IsValid { get; }
     public string ValidatorName { get; init; } = string.Empty;
     public IReadOnlyList<ValidationFailure> Failures { get; init; } = Array.Empty<ValidationFailure>();
 }
 
 // Result cannot be modified after creation
-var result = validator.Validate(message);
+var result = validator.Validate(message, ValidationStage.PostSignature);
 ```
 
 ### Benefits
@@ -411,7 +419,7 @@ public ValidationResult Validate(CoseSign1Message message)
             errorCode: "SignatureVerificationFailed");
     }
 
-    return ValidationResult.Success(nameof(MyValidator));
+    return ValidationResult.Success(nameof(MyValidator), stage);
 }
 ```
 
@@ -430,13 +438,13 @@ public class CoseSign1FormatException : CoseSign1Exception
 ### Validation Result Pattern
 
 ```csharp
-var result = validator.Validate(message);
+var result = validator.Validate(message, ValidationStage.PostSignature);
 
-if (!result.Success)
+if (!result.IsValid)
 {
     foreach (var failure in result.Failures)
     {
-        Console.WriteLine($"{failure.Code}: {failure.Message}");
+        Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
     }
 }
 ```

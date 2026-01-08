@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates.Remote;
 
@@ -24,9 +24,9 @@ internal sealed class RemoteECDsa : ECDsa
         // Determine key size from curve
         KeySizeValue = PublicParameters.Curve.Oid?.FriendlyName switch
         {
-            "nistP256" => 256,
-            "nistP384" => 384,
-            "nistP521" => 521,
+            ClassStrings.CurveFriendlyNameNistP256 => 256,
+            ClassStrings.CurveFriendlyNameNistP384 => 384,
+            ClassStrings.CurveFriendlyNameNistP521 => 521,
             _ => 256 // Default
         };
 
@@ -43,7 +43,7 @@ internal sealed class RemoteECDsa : ECDsa
     {
         if (includePrivateParameters)
         {
-            throw new CryptographicException("Private key export is not supported for remote signing.");
+            throw new CryptographicException(ClassStrings.ErrorPrivateKeyExportNotSupported);
         }
 
         return PublicParameters;
@@ -51,7 +51,7 @@ internal sealed class RemoteECDsa : ECDsa
 
     public override void ImportParameters(ECParameters parameters)
     {
-        throw new NotSupportedException("Parameter import is not supported for remote signing.");
+        throw new NotSupportedException(ClassStrings.ErrorParameterImportNotSupported);
     }
 
     public override byte[] SignHash(byte[] hash)
@@ -70,7 +70,7 @@ internal sealed class RemoteECDsa : ECDsa
 
     public override bool VerifyHash(byte[] hash, byte[] signature)
     {
-        throw new NotSupportedException("Verification should be performed using public key directly, not through remote service.");
+        throw new NotSupportedException(ClassStrings.ErrorVerificationShouldUsePublicKeyDirectly);
     }
 
     protected override void Dispose(bool disposing)
@@ -86,8 +86,21 @@ internal sealed class RemoteECDsa : ECDsa
 
     public override void GenerateKey(ECCurve curve)
     {
-        throw new NotSupportedException("Key generation is not supported for remote signing.");
+        throw new NotSupportedException(ClassStrings.ErrorKeyGenerationNotSupportedForRemoteSigning);
     }
 
     #endregion
+
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string CurveFriendlyNameNistP256 = "nistP256";
+        public const string CurveFriendlyNameNistP384 = "nistP384";
+        public const string CurveFriendlyNameNistP521 = "nistP521";
+
+        public const string ErrorPrivateKeyExportNotSupported = "Private key export is not supported for remote signing.";
+        public const string ErrorParameterImportNotSupported = "Parameter import is not supported for remote signing.";
+        public const string ErrorVerificationShouldUsePublicKeyDirectly = "Verification should be performed using public key directly, not through remote service.";
+        public const string ErrorKeyGenerationNotSupportedForRemoteSigning = "Key generation is not supported for remote signing.";
+    }
 }

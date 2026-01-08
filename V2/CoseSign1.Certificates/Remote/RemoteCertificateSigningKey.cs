@@ -1,11 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
-using CoseSign1.Certificates.Interfaces;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates.Remote;
 
@@ -20,6 +16,24 @@ namespace CoseSign1.Certificates.Remote;
 /// </remarks>
 public class RemoteCertificateSigningKey : ICertificateSigningKey
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string MldsaOidPrefix = "2.16.840.1.101.3.4.3.";
+        public const string Mldsa44Oid = "2.16.840.1.101.3.4.3.17";
+        public const string Mldsa65Oid = "2.16.840.1.101.3.4.3.18";
+        public const string Mldsa87Oid = "2.16.840.1.101.3.4.3.19";
+
+        public const string RsaPublicKeyOid = "1.2.840.113549.1.1.1";
+        public const string EcdsaPublicKeyOid = "1.2.840.10045.2.1";
+
+        public const string MetadataKeyPublicKeyAlgorithmOid = "PublicKeyAlgorithmOid";
+        public const string MetadataValueUnknown = "unknown";
+
+        public const string ErrorFormatUnsupportedKeyAlgorithmOid = "Unsupported key algorithm OID: {0}";
+        public const string ErrorFormatUnableToCreateCoseKeyForAlgorithmOid = "Unable to create CoseKey for algorithm OID {0}";
+    }
+
     private readonly RemoteCertificateSource CertificateSource;
     private readonly ISigningService<SigningOptions> SigningServiceField;
     private readonly Lazy<SigningKeyMetadata> LazyMetadata;
@@ -32,6 +46,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
     /// </summary>
     /// <param name="certificateSource">The remote certificate source.</param>
     /// <param name="signingService">The signing service that owns this key.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateSource"/> or <paramref name="signingService"/> is null.</exception>
     public RemoteCertificateSigningKey(
         RemoteCertificateSource certificateSource,
         ISigningService<SigningOptions> signingService)
@@ -114,7 +129,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         var publicKeyOid = cert.PublicKey.Oid.Value;
 
         // RSA: 1.2.840.113549.1.1.1
-        if (publicKeyOid == "1.2.840.113549.1.1.1")
+        if (publicKeyOid == ClassStrings.RsaPublicKeyOid)
         {
             using var rsa = cert.GetRSAPublicKey();
             if (rsa != null)
@@ -144,7 +159,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         }
 
         // ECDSA: 1.2.840.10045.2.1
-        if (publicKeyOid == "1.2.840.10045.2.1")
+        if (publicKeyOid == ClassStrings.EcdsaPublicKeyOid)
         {
             using var ecdsa = cert.GetECDsaPublicKey();
             if (ecdsa != null)
@@ -176,13 +191,13 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         // ML-DSA-44: 2.16.840.1.101.3.4.3.17
         // ML-DSA-65: 2.16.840.1.101.3.4.3.18
         // ML-DSA-87: 2.16.840.1.101.3.4.3.19
-        if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
+        if (publicKeyOid?.StartsWith(ClassStrings.MldsaOidPrefix) == true)
         {
             (int coseAlgorithmId, int? keySizeInBits, HashAlgorithmName hashAlgorithm) = publicKeyOid switch
             {
-                "2.16.840.1.101.3.4.3.17" => (-48, (int?)44, HashAlgorithmName.SHA256),  // ML-DSA-44
-                "2.16.840.1.101.3.4.3.18" => (-49, (int?)65, HashAlgorithmName.SHA384),  // ML-DSA-65
-                "2.16.840.1.101.3.4.3.19" => (-50, (int?)87, HashAlgorithmName.SHA512),  // ML-DSA-87
+                ClassStrings.Mldsa44Oid => (-48, (int?)44, HashAlgorithmName.SHA256),  // ML-DSA-44
+                ClassStrings.Mldsa65Oid => (-49, (int?)65, HashAlgorithmName.SHA384),  // ML-DSA-65
+                ClassStrings.Mldsa87Oid => (-50, (int?)87, HashAlgorithmName.SHA512),  // ML-DSA-87
                 _ => (-48, (int?)null, HashAlgorithmName.SHA256) // Default
             };
 
@@ -194,11 +209,11 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
                 keySizeInBits: keySizeInBits,
                 additionalMetadata: new Dictionary<string, object>
                 {
-                    ["PublicKeyAlgorithmOid"] = publicKeyOid ?? "unknown"
+                    [ClassStrings.MetadataKeyPublicKeyAlgorithmOid] = publicKeyOid ?? ClassStrings.MetadataValueUnknown
                 });
         }
 
-        throw new NotSupportedException($"Unsupported key algorithm OID: {publicKeyOid}");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnsupportedKeyAlgorithmOid, publicKeyOid));
     }
 
     private CoseKey CreateCoseKeyForRemote()
@@ -207,7 +222,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         var publicKeyOid = cert.PublicKey.Oid.Value;
 
         // RSA: 1.2.840.113549.1.1.1
-        if (publicKeyOid == "1.2.840.113549.1.1.1")
+        if (publicKeyOid == ClassStrings.RsaPublicKeyOid)
         {
             var rsa = CertificateSource.GetRemoteRsa();
             var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
@@ -215,7 +230,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         }
 
         // ECDSA: 1.2.840.10045.2.1
-        if (publicKeyOid == "1.2.840.10045.2.1")
+        if (publicKeyOid == ClassStrings.EcdsaPublicKeyOid)
         {
             var ecdsa = CertificateSource.GetRemoteECDsa();
             var hashAlgorithm = Metadata.HashAlgorithm ?? HashAlgorithmName.SHA256;
@@ -224,7 +239,7 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
 
 #if NET10_0_OR_GREATER
         // ML-DSA
-        if (publicKeyOid?.StartsWith("2.16.840.1.101.3.4.3.") == true)
+        if (publicKeyOid?.StartsWith(ClassStrings.MldsaOidPrefix) == true)
         {
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
             var mldsa = CertificateSource.GetRemoteMLDsa();
@@ -233,6 +248,6 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         }
 #endif
 
-        throw new NotSupportedException($"Unable to create CoseKey for algorithm OID {publicKeyOid}");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnableToCreateCoseKeyForAlgorithmOid, publicKeyOid));
     }
 }

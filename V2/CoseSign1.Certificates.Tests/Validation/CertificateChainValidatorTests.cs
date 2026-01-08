@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -99,7 +95,7 @@ public class CertificateChainValidatorTests
     public void Validate_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateChainValidator)));
@@ -110,7 +106,7 @@ public class CertificateChainValidatorTests
     public void Validate_WithValidSelfSignedCertificate_AllowUntrusted_ReturnsSuccess()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateChainValidator)));
@@ -124,7 +120,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
@@ -138,7 +134,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -147,7 +143,7 @@ public class CertificateChainValidatorTests
     public async Task ValidateAsync_ReturnsResultSynchronously()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = await validator.ValidateAsync(ValidMessage!);
+        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -157,7 +153,7 @@ public class CertificateChainValidatorTests
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
         using var cts = new CancellationTokenSource();
-        var result = await validator.ValidateAsync(ValidMessage!, cts.Token);
+        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -172,7 +168,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -187,7 +183,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Result may vary based on system trust, but validator should not throw
         Assert.That(result, Is.Not.Null);
@@ -207,7 +203,7 @@ public class CertificateChainValidatorTests
             customRoots: customRoots,
             trustUserRoots: true);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -227,7 +223,7 @@ public class CertificateChainValidatorTests
         });
 
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(emptyCoseMsg);
+        var result = validator.Validate(emptyCoseMsg, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "CERTIFICATE_NOT_FOUND"), Is.True);
@@ -237,7 +233,7 @@ public class CertificateChainValidatorTests
     public void Validate_ResultContainsCertificateThumbprint()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
@@ -249,7 +245,7 @@ public class CertificateChainValidatorTests
     public void Validate_WithAllowUntrusted_SetsAllowedUntrustedMetadata()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         if (result.Metadata.ContainsKey("AllowedUntrusted"))
@@ -268,7 +264,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         if (result.Metadata.ContainsKey("TrustedCustomRoot"))
@@ -287,7 +283,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should not throw, result may vary
         Assert.That(result, Is.Not.Null);
@@ -302,7 +298,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: true,
             revocationMode: X509RevocationMode.Online);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should complete without exception
         Assert.That(result, Is.Not.Null);
@@ -316,7 +312,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: true,
             revocationMode: X509RevocationMode.Offline);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should complete without exception
         Assert.That(result, Is.Not.Null);
@@ -331,7 +327,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Self-signed cert without allowUntrusted should fail
         Assert.That(result.IsValid, Is.False);
@@ -355,7 +351,7 @@ public class CertificateChainValidatorTests
             customRoots: null,
             trustUserRoots: true);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "CHAIN_BUILD_FAILED"), Is.True);
@@ -382,7 +378,7 @@ public class CertificateChainValidatorTests
             customRoots: null,
             trustUserRoots: true);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.TryGetValue("AllowedUntrusted", out var allowed), Is.True);
@@ -418,7 +414,7 @@ public class CertificateChainValidatorTests
         using var sentinel = TestCertificateUtils.CreateCertificate("ExtraStoreSentinel");
         chainBuilder.ChainPolicy.ExtraStore.Add(sentinel);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(chainBuilder.ChainPolicy.ExtraStore.Cast<X509Certificate2>().Any(c => c.Thumbprint == sentinel.Thumbprint), Is.False);
@@ -447,7 +443,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         if (!result.IsValid)
         {
@@ -473,7 +469,7 @@ public class CertificateChainValidatorTests
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result, Is.Not.Null);
 
@@ -486,9 +482,9 @@ public class CertificateChainValidatorTests
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
 
-        var result1 = validator.Validate(ValidMessage!);
-        var result2 = validator.Validate(ValidMessage!);
-        var result3 = validator.Validate(ValidMessage!);
+        var result1 = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result2 = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result3 = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result1.IsValid, Is.EqualTo(result2.IsValid));
         Assert.That(result2.IsValid, Is.EqualTo(result3.IsValid));
@@ -502,9 +498,9 @@ public class CertificateChainValidatorTests
 
         var tasks = new[]
         {
-            validator.ValidateAsync(ValidMessage!),
-            validator.ValidateAsync(ValidMessage!),
-            validator.ValidateAsync(ValidMessage!)
+            validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust),
+            validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust),
+            validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust)
         };
 
         var results = await Task.WhenAll(tasks);
@@ -547,7 +543,7 @@ public class CertificateChainValidatorTests
             allowUnprotectedHeaders: false,
             allowUntrusted: true);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -562,7 +558,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should complete without exception, trust mode is system
         Assert.That(result, Is.Not.Null);
@@ -582,7 +578,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should fail because the signing cert is not in the custom roots chain
         Assert.That(result, Is.Not.Null);
@@ -598,7 +594,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Self-signed certificate without allowUntrusted should fail
         Assert.That(result.IsValid, Is.False);
@@ -613,7 +609,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: false,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Self-signed cert without untrusted allowed should produce chain status failure
         Assert.That(result.IsValid, Is.False);
@@ -640,7 +636,7 @@ public class CertificateChainValidatorTests
             customRoots: customRoots,
             trustUserRoots: true);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         // Should succeed with the proper configuration
         Assert.That(result.IsValid, Is.True);
@@ -663,7 +659,7 @@ public class CertificateChainValidatorTests
     public void Validate_ResultContainsValidatorName()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateChainValidator)));
     }
@@ -689,7 +685,7 @@ public class CertificateChainValidatorTests
             trustUserRoots: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // The self-signed root is in the custom roots, so it should pass
         Assert.That(result.IsValid, Is.True);
@@ -705,7 +701,7 @@ public class CertificateChainValidatorTests
     public async Task ValidateAsync_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateChainValidator(allowUntrusted: true, revocationMode: X509RevocationMode.NoCheck);
-        var result = await validator.ValidateAsync(null!);
+        var result = await validator.ValidateAsync(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "NULL_INPUT"), Is.True);
@@ -720,7 +716,7 @@ public class CertificateChainValidatorTests
             allowUntrusted: true,
             revocationMode: X509RevocationMode.NoCheck);
 
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         if (result.Metadata.ContainsKey("AllowedUntrusted"))

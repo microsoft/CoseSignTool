@@ -8,24 +8,32 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public class CertificateChainOptions
 {
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string DefaultRootName = "CN=Ephemeral Root CA";
+        public const string DefaultIntermediateName = "CN=Ephemeral Intermediate CA";
+        public const string DefaultLeafName = "CN=Ephemeral Leaf Certificate";
+    }
+
     /// <summary>
     /// Gets or sets the subject name for the root CA certificate.
     /// Default: "CN=Ephemeral Root CA"
     /// </summary>
-    public string RootName { get; set; } = "CN=Ephemeral Root CA";
+    public string RootName { get; set; } = ClassStrings.DefaultRootName;
 
     /// <summary>
     /// Gets or sets the subject name for the intermediate CA certificate.
     /// If null, no intermediate CA is created (2-tier chain).
     /// Default: "CN=Ephemeral Intermediate CA"
     /// </summary>
-    public string? IntermediateName { get; set; } = "CN=Ephemeral Intermediate CA";
+    public string? IntermediateName { get; set; } = ClassStrings.DefaultIntermediateName;
 
     /// <summary>
     /// Gets or sets the subject name for the leaf (end-entity) certificate.
     /// Default: "CN=Ephemeral Leaf Certificate"
     /// </summary>
-    public string LeafName { get; set; } = "CN=Ephemeral Leaf Certificate";
+    public string LeafName { get; set; } = ClassStrings.DefaultLeafName;
 
     /// <summary>
     /// Gets or sets the cryptographic algorithm for all certificates in the chain.

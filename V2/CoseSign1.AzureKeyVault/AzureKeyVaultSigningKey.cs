@@ -28,6 +28,16 @@ namespace CoseSign1.AzureKeyVault;
 /// </remarks>
 public sealed class AzureKeyVaultSigningKey : ISigningKey
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string DefaultCurveName = "P-256";
+        public const string CurveNameP384 = "P-384";
+        public const string CurveNameP521 = "P-521";
+
+        public const string ErrorKeyTypeNotSupportedForCoseSigningFormat = "Key type {0} is not supported for COSE signing.";
+    }
+
     private readonly KeyVaultCryptoClientWrapper CryptoWrapper;
     private readonly Lazy<SigningKeyMetadata> LazyMetadata;
     private CoseKey? CoseKeyField;
@@ -46,8 +56,11 @@ public sealed class AzureKeyVaultSigningKey : ISigningKey
         ISigningService<SigningOptions> signingService,
         KeyVaultCryptoClientWrapper cryptoWrapper)
     {
-        SigningService = signingService ?? throw new ArgumentNullException(nameof(signingService));
-        CryptoWrapper = cryptoWrapper ?? throw new ArgumentNullException(nameof(cryptoWrapper));
+        ArgumentNullException.ThrowIfNull(signingService);
+        ArgumentNullException.ThrowIfNull(cryptoWrapper);
+
+        SigningService = signingService;
+        CryptoWrapper = cryptoWrapper;
         LazyMetadata = new Lazy<SigningKeyMetadata>(() => CreateMetadata());
     }
 
@@ -127,13 +140,13 @@ public sealed class AzureKeyVaultSigningKey : ISigningKey
         else if (keyType == KeyType.Ec || keyType == KeyType.EcHsm)
         {
             cryptoKeyType = CryptographicKeyType.ECDsa;
-            var curveName = key.Key.CurveName?.ToString() ?? "P-256";
-            if (curveName == "P-521")
+            var curveName = key.Key.CurveName?.ToString() ?? ClassStrings.DefaultCurveName;
+            if (curveName == ClassStrings.CurveNameP521)
             {
                 coseAlgorithmId = -36; // ES512
                 hashAlgorithm = HashAlgorithmName.SHA512;
             }
-            else if (curveName == "P-384")
+            else if (curveName == ClassStrings.CurveNameP384)
             {
                 coseAlgorithmId = -35; // ES384
                 hashAlgorithm = HashAlgorithmName.SHA384;
@@ -146,7 +159,7 @@ public sealed class AzureKeyVaultSigningKey : ISigningKey
         }
         else
         {
-            throw new NotSupportedException($"Key type {keyType} is not supported for COSE signing.");
+            throw new NotSupportedException(string.Format(ClassStrings.ErrorKeyTypeNotSupportedForCoseSigningFormat, keyType));
         }
 
         return new SigningKeyMetadata(coseAlgorithmId, cryptoKeyType, isRemote: true, hashAlgorithm);
@@ -172,13 +185,13 @@ public sealed class AzureKeyVaultSigningKey : ISigningKey
         }
         else if (keyType == KeyType.Ec || keyType == KeyType.EcHsm)
         {
-            var curveName = key.Key.CurveName?.ToString() ?? "P-256";
+            var curveName = key.Key.CurveName?.ToString() ?? ClassStrings.DefaultCurveName;
             ECCurve curve;
-            if (curveName == "P-521")
+            if (curveName == ClassStrings.CurveNameP521)
             {
                 curve = ECCurve.NamedCurves.nistP521;
             }
-            else if (curveName == "P-384")
+            else if (curveName == ClassStrings.CurveNameP384)
             {
                 curve = ECCurve.NamedCurves.nistP384;
             }
@@ -202,6 +215,6 @@ public sealed class AzureKeyVaultSigningKey : ISigningKey
             return new CoseKey(remoteEcdsa, hashAlgorithm);
         }
 
-        throw new NotSupportedException($"Key type {keyType} is not supported for COSE signing.");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorKeyTypeNotSupportedForCoseSigningFormat, keyType));
     }
 }

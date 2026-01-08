@@ -3,7 +3,6 @@
 
 namespace DIDx509.Tests;
 
-using System.Security.Cryptography.X509Certificates;
 using DIDx509.Builder;
 using NUnit.Framework;
 

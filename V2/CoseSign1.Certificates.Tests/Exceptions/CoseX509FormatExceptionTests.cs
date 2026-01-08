@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Exceptions;
-
 namespace CoseSign1.Certificates.Tests.Exceptions;
 
 [TestFixture]

@@ -17,6 +17,18 @@ using CoseSign1.Certificates.Local;
 /// </remarks>
 public static class TestCertificateUtils
 {
+    internal static class ClassStrings
+    {
+        public const string DefaultCallerMemberName = "none";
+        public const string DefaultEcdsaSubjectName = "ECDSATest";
+
+        public const string SubjectCnPrefix = "CN=";
+
+        public const string ChainRootPrefix = "CN=Test Root: ";
+        public const string ChainIntermediatePrefix = "CN=Test Issuer: ";
+        public const string ChainLeafPrefix = "CN=Test Leaf: ";
+    }
+
     private static readonly EphemeralCertificateFactory CertFactory = new();
     private static readonly CertificateChainFactory ChainFactory = new(CertFactory);
 
@@ -50,7 +62,7 @@ public static class TestCertificateUtils
     /// <returns>An <see cref="X509Certificate2"/> object for use in testing.</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     public static X509Certificate2 CreateCertificate(
-        [CallerMemberName] string subjectName = "none",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultCallerMemberName,
         X509Certificate2? issuingCa = null,
         bool useEcc = false,
         int? keySize = null,
@@ -64,7 +76,7 @@ public static class TestCertificateUtils
 
         return CertFactory.CreateCertificate(o =>
         {
-            o.WithSubjectName($"CN={subjectName}")
+            o.WithSubjectName(string.Concat(ClassStrings.SubjectCnPrefix, subjectName))
              .WithKeyAlgorithm(useEcc ? KeyAlgorithm.ECDSA : KeyAlgorithm.RSA)
              .WithKeySize(keySize ?? (useEcc ? 256 : 2048))
              .WithNotBeforeOffset(TimeSpan.FromDays(-1))
@@ -119,7 +131,7 @@ public static class TestCertificateUtils
     /// <param name="rootDuration">Optional duration for the root certificate validity.</param>
     /// <returns>An <see cref="X509Certificate2Collection"/> containing a root, intermediate, and leaf node certificate.</returns>
     public static X509Certificate2Collection CreateTestChain(
-        [CallerMemberName] string? testName = "none",
+        [CallerMemberName] string? testName = ClassStrings.DefaultCallerMemberName,
         bool useEcc = false,
         int? keySize = null,
         bool leafFirst = false,
@@ -127,9 +139,9 @@ public static class TestCertificateUtils
     {
         return ChainFactory.CreateChain(o =>
         {
-            o.WithRootName($"CN=Test Root: {testName}")
-             .WithIntermediateName($"CN=Test Issuer: {testName}")
-             .WithLeafName($"CN=Test Leaf: {testName}")
+            o.WithRootName(string.Concat(ClassStrings.ChainRootPrefix, testName))
+             .WithIntermediateName(string.Concat(ClassStrings.ChainIntermediatePrefix, testName))
+             .WithLeafName(string.Concat(ClassStrings.ChainLeafPrefix, testName))
              .WithKeyAlgorithm(useEcc ? KeyAlgorithm.ECDSA : KeyAlgorithm.RSA)
              .WithKeySize(keySize ?? (useEcc ? 256 : 2048));
 
@@ -155,16 +167,16 @@ public static class TestCertificateUtils
     /// <param name="rootDuration">Optional duration for the root certificate validity.</param>
     /// <returns>An <see cref="X509Certificate2Collection"/> containing root (public only), intermediate (public only), and leaf (with private key) certificates.</returns>
     public static X509Certificate2Collection CreateTestChainForPfx(
-        [CallerMemberName] string? testName = "none",
+        [CallerMemberName] string? testName = ClassStrings.DefaultCallerMemberName,
         bool useEcc = false,
         int? keySize = null,
         TimeSpan? rootDuration = null)
     {
         return ChainFactory.CreateChain(o =>
         {
-            o.WithRootName($"CN=Test Root: {testName}")
-             .WithIntermediateName($"CN=Test Issuer: {testName}")
-             .WithLeafName($"CN=Test Leaf: {testName}")
+            o.WithRootName(string.Concat(ClassStrings.ChainRootPrefix, testName))
+             .WithIntermediateName(string.Concat(ClassStrings.ChainIntermediatePrefix, testName))
+             .WithLeafName(string.Concat(ClassStrings.ChainLeafPrefix, testName))
              .WithKeyAlgorithm(useEcc ? KeyAlgorithm.ECDSA : KeyAlgorithm.RSA)
              .WithKeySize(keySize ?? (useEcc ? 256 : 2048))
              .ForPfxExport();
@@ -183,7 +195,7 @@ public static class TestCertificateUtils
     /// <param name="keySize">The key size (default 256).</param>
     /// <returns>An ECDSA certificate with private key.</returns>
     public static X509Certificate2 CreateECDsaCertificate(
-        [CallerMemberName] string subjectName = "ECDSATest",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultEcdsaSubjectName,
         int keySize = 256)
     {
         return CreateCertificate(subjectName, useEcc: true, keySize: keySize);
@@ -225,14 +237,14 @@ public static class TestCertificateUtils
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when mlDsaParameterSet is not 44, 65, or 87.</exception>
     public static X509Certificate2 CreateMLDsaCertificate(
-        [CallerMemberName] string subjectName = "none",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultCallerMemberName,
         X509Certificate2? issuingCa = null,
         int mlDsaParameterSet = 65,
         TimeSpan? duration = null)
     {
         return CertFactory.CreateCertificate(o =>
         {
-            o.WithSubjectName($"CN={subjectName}")
+            o.WithSubjectName(string.Concat(ClassStrings.SubjectCnPrefix, subjectName))
              .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
              .WithKeySize(mlDsaParameterSet)
              .WithValidity(duration ?? TimeSpan.FromDays(365))

@@ -21,6 +21,13 @@ namespace CoseSign1.AzureKeyVault;
 /// </remarks>
 internal sealed class KeyVaultRemoteECDsa : ECDsa
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorPrivateKeyNotAvailableRemoteSigning = "Private key is not available - signing is performed remotely in Key Vault.";
+        public static readonly string ErrorKeyGenerationNotSupported = "Key generation is not supported - keys must be created in Azure Key Vault.";
+    }
+
     private readonly ECDsa PublicKey;
     private readonly KeyVaultCryptoClientWrapper CryptoWrapper;
 
@@ -44,7 +51,7 @@ internal sealed class KeyVaultRemoteECDsa : ECDsa
     {
         if (includePrivateParameters)
         {
-            throw new CryptographicException("Private key is not available - signing is performed remotely in Key Vault.");
+            throw new CryptographicException(ClassStrings.ErrorPrivateKeyNotAvailableRemoteSigning);
         }
         return PublicKey.ExportParameters(false);
     }
@@ -84,5 +91,5 @@ internal sealed class KeyVaultRemoteECDsa : ECDsa
     /// <inheritdoc/>
     /// <exception cref="NotSupportedException">Always thrown - key generation must be done in Key Vault.</exception>
     public override void GenerateKey(ECCurve curve) =>
-        throw new NotSupportedException("Key generation is not supported - keys must be created in Azure Key Vault.");
+        throw new NotSupportedException(ClassStrings.ErrorKeyGenerationNotSupported);
 }

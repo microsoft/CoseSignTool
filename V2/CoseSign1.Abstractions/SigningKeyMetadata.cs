@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
 
 namespace CoseSign1.Abstractions;
 
@@ -31,9 +29,21 @@ public enum CryptographicKeyType
 /// </summary>
 public class SigningKeyMetadata
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ToStringFormat = "SigningKeyMetadata[KeyType={0}, Algorithm={1}, IsRemote={2}]";
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SigningKeyMetadata"/> class.
     /// </summary>
+    /// <param name="coseAlgorithmId">The COSE algorithm identifier (e.g., -7 for ES256, -260 for ML-DSA-65).</param>
+    /// <param name="keyType">The cryptographic key type (RSA, ECDsa, ML-DSA, etc.).</param>
+    /// <param name="isRemote">A value indicating whether this is a remote signing key.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used (if applicable).</param>
+    /// <param name="keySizeInBits">The key size in bits (if applicable).</param>
+    /// <param name="additionalMetadata">Optional additional key-specific metadata.</param>
     public SigningKeyMetadata(
         int coseAlgorithmId,
         CryptographicKeyType keyType,
@@ -55,26 +65,31 @@ public class SigningKeyMetadata
     /// <summary>
     /// Gets the COSE algorithm identifier (e.g., -7 for ES256, -260 for ML-DSA-65).
     /// </summary>
+    /// <value>The COSE algorithm identifier.</value>
     public int CoseAlgorithmId { get; }
 
     /// <summary>
     /// Gets the cryptographic key type (RSA, ECDsa, ML-DSA, etc.).
     /// </summary>
+    /// <value>The cryptographic key type.</value>
     public CryptographicKeyType KeyType { get; }
 
     /// <summary>
     /// Gets the hash algorithm used (if applicable).
     /// </summary>
+    /// <value>The hash algorithm used, or <see langword="null"/> if not applicable.</value>
     public HashAlgorithmName? HashAlgorithm { get; }
 
     /// <summary>
     /// Gets the key size in bits.
     /// </summary>
+    /// <value>The key size in bits, or <see langword="null"/> if not known or not applicable.</value>
     public int? KeySizeInBits { get; }
 
     /// <summary>
     /// Gets a value indicating whether this is a remote signing key.
     /// </summary>
+    /// <value><see langword="true"/> if this is a remote signing key; otherwise, <see langword="false"/>.</value>
     public bool IsRemote { get; }
 
     /// <summary>
@@ -82,13 +97,15 @@ public class SigningKeyMetadata
     /// For certificate-based keys, this might include the certificate.
     /// For other key types, this might include key identifiers, URIs, etc.
     /// </summary>
+    /// <value>Additional key-specific metadata.</value>
     public IReadOnlyDictionary<string, object> AdditionalMetadata { get; }
 
     /// <summary>
     /// Returns a string representation of the signing key metadata.
     /// </summary>
+    /// <returns>A string representation of the signing key metadata.</returns>
     public override string ToString()
     {
-        return $"SigningKeyMetadata[KeyType={KeyType}, Algorithm={CoseAlgorithmId}, IsRemote={IsRemote}]";
+        return string.Format(ClassStrings.ToStringFormat, KeyType, CoseAlgorithmId, IsRemote);
     }
 }

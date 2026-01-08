@@ -118,24 +118,29 @@ using CoseSign1.Certificates.Validation;
 
 // Build a validation pipeline
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
+    .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders()
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("MyTrustedSigner")
-        .ValidateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing EKU
+        .NotExpired()
+        .HasCommonName("MyTrustedSigner")
+        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing EKU
     .Build();
 
 // Validate the message
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
-if (result.IsValid)
+if (signatureResult.IsValid && trustResult.IsValid)
 {
     Console.WriteLine("All validations passed!");
 }
 else
 {
-    foreach (var failure in result.Failures)
+    foreach (var failure in signatureResult.Failures)
+    {
+        Console.WriteLine($"Validation failed: {failure.Message}");
+    }
+
+    foreach (var failure in trustResult.Failures)
     {
         Console.WriteLine($"Validation failed: {failure.Message}");
     }

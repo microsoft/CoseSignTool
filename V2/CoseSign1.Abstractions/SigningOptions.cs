@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using CoseSign1.Abstractions.Transparency;
-
 namespace CoseSign1.Abstractions;
 
 /// <summary>

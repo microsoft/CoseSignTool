@@ -17,11 +17,19 @@ using DIDx509.Models;
 /// </summary>
 public static class CertificateChainConverter
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorCertificateChainMustContainAtLeastTwoCertificates = "Certificate chain must contain at least 2 certificates";
+    }
+
     /// <summary>
     /// Converts a certificate chain to the DID:X509 JSON data model.
     /// </summary>
     /// <param name="certificates">The certificate chain (leaf first).</param>
     /// <returns>A certificate chain model.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificates"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="certificates"/> contains fewer than two certificates.</exception>
     public static CertificateChainModel Convert(IEnumerable<X509Certificate2> certificates)
     {
         if (certificates == null)
@@ -32,7 +40,7 @@ public static class CertificateChainConverter
         var certArray = certificates.ToArray();
         if (certArray.Length < 2)
         {
-            throw new ArgumentException("Certificate chain must contain at least 2 certificates", nameof(certificates));
+            throw new ArgumentException(ClassStrings.ErrorCertificateChainMustContainAtLeastTwoCertificates, nameof(certificates));
         }
 
         var certInfos = new List<CertificateInfo>();
@@ -337,4 +345,5 @@ public static class CertificateChainConverter
             return null;
         }
     }
+
 }

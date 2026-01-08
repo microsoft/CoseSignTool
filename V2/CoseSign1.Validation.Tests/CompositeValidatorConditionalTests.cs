@@ -3,29 +3,32 @@
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation;
-using NUnit.Framework;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Validators;
 
 namespace CoseSign1.Validation.Tests;
 
 public class CompositeValidatorConditionalTests
 {
-    private sealed class ConditionalNoOpValidator : IValidator<CoseSign1Message>, IConditionalValidator<CoseSign1Message>
+    private sealed class ConditionalNoOpValidator : IConditionalValidator
     {
         public int Calls;
 
-        public bool IsApplicable(CoseSign1Message input) => false;
+        public IReadOnlyCollection<ValidationStage> Stages { get; } = new[] { ValidationStage.Signature };
 
-        public ValidationResult Validate(CoseSign1Message input)
+        public bool IsApplicable(CoseSign1Message input, ValidationStage stage) => false;
+
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
         {
             Calls++;
-            return ValidationResult.Failure("ShouldNotRun", "ran", "RAN");
+            return ValidationResult.Failure("ShouldNotRun", stage, "ran", "RAN");
         }
 
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(ValidationResult.Failure("ShouldNotRun", "ran", "RAN"));
+            return Task.FromResult(ValidationResult.Failure("ShouldNotRun", stage, "ran", "RAN"));
         }
     }
 
@@ -38,13 +41,14 @@ public class CompositeValidatorConditionalTests
         var msg = CoseSign1Message.DecodeSign1(msgBytes);
 
         var conditional = new ConditionalNoOpValidator();
-        var composite = new CompositeValidator(new IValidator<CoseSign1Message>[]
+        var composite = new CompositeValidator(new IValidator[]
         {
             conditional
         });
 
-        var result = composite.Validate(msg);
+        var result = composite.Validate(msg, ValidationStage.Signature);
         Assert.That(conditional.Calls, Is.EqualTo(0));
         Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Stage, Is.EqualTo(ValidationStage.Signature));
     }
 }

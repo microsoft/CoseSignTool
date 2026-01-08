@@ -143,18 +143,18 @@ Implement this as a custom validator that extracts the signing certificate and a
 var message = CoseMessage.DecodeSign1(signature);
 
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
+    .ValidateCertificate(cert => cert
         .ValidateChain(revocationMode: X509RevocationMode.Online))
     .Build();
 
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 ```
 
 ### Validation Results
 
 ```csharp
-var result = await validator.ValidateAsync(message);
+var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
 if (!result.IsValid)
 {

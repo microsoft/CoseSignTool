@@ -20,7 +20,7 @@ public class PluginLoadContextTests
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
 
         // Act
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Assert
         Assert.That(context, Is.Not.Null);
@@ -34,7 +34,7 @@ public class PluginLoadContextTests
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
 
         // Act
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Assert
         Assert.That(context.IsCollectible, Is.True);
@@ -46,7 +46,7 @@ public class PluginLoadContextTests
         // Arrange
         var assemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Act - Try to load a System assembly
         var systemAssemblyName = new AssemblyName("System.Runtime");
@@ -65,7 +65,7 @@ public class PluginLoadContextTests
         var pluginDir = Path.GetTempPath();
 
         // Act & Assert - AssemblyDependencyResolver constructor will throw InvalidOperationException for nonexistent files
-        Assert.Throws<InvalidOperationException>(() => new PluginLoadContext(invalidPath, pluginDir));
+        Assert.Throws<InvalidOperationException>(() => new PluginLoadContext(invalidPath, pluginDir, TextWriter.Null));
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class PluginLoadContextTests
         // Arrange
         var assemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Act
         var loadedAssembly = context.LoadFromAssemblyPath(assemblyPath);
@@ -90,7 +90,7 @@ public class PluginLoadContextTests
         // Arrange
         var assemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Act - Try to load a non-existent assembly, this should not throw but return null
         var nonExistentAssemblyName = new AssemblyName("NonExistent.Assembly.That.Does.Not.Exist");
@@ -105,7 +105,7 @@ public class PluginLoadContextTests
         // Arrange
         var assemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Act - Load an assembly that exists in the plugin directory
         // Use NUnit as it should be in the output directory
@@ -123,7 +123,7 @@ public class PluginLoadContextTests
         // Arrange
         var testAssemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(testAssemblyPath)!;
-        var context = new PluginLoadContext(testAssemblyPath, pluginDir);
+        var context = new PluginLoadContext(testAssemblyPath, pluginDir, TextWriter.Null);
 
         // Act - Try to load Moq which should be in the test output directory
         var moqAssemblyName = new AssemblyName("Moq");
@@ -140,7 +140,7 @@ public class PluginLoadContextTests
         // Arrange
         var assemblyPath = Assembly.GetExecutingAssembly().Location;
         var pluginDir = Path.GetDirectoryName(assemblyPath)!;
-        var context = new PluginLoadContext(assemblyPath, pluginDir);
+        var context = new PluginLoadContext(assemblyPath, pluginDir, TextWriter.Null);
 
         // Use reflection to test the protected LoadUnmanagedDll method
         var loadUnmanagedDllMethod = typeof(PluginLoadContext).GetMethod(
@@ -163,7 +163,7 @@ public class PluginLoadContextTests
         Directory.CreateDirectory(pluginDir);
 
         var pluginPath = Assembly.GetExecutingAssembly().Location;
-        var context = new PluginLoadContext(pluginPath, pluginDir);
+        var context = new PluginLoadContext(pluginPath, pluginDir, TextWriter.Null);
 
         var invalidAssemblyName = new AssemblyName("Bad.Assembly");
         var invalidDllPath = Path.Combine(pluginDir, "Bad.Assembly.dll");
@@ -196,14 +196,14 @@ public class PluginLoadContextTests
     }
 
     [Test]
-    [NonParallelizable]
     public void PluginLoadContext_OnResolving_WhenDllIsInvalid_WritesWarningAndReturnsNull()
     {
         var pluginDir = Path.Combine(Path.GetTempPath(), $"plugin_load_ctx_{Guid.NewGuid():N}");
         Directory.CreateDirectory(pluginDir);
 
         var pluginPath = Assembly.GetExecutingAssembly().Location;
-        var context = new PluginLoadContext(pluginPath, pluginDir);
+        var errorWriter = new StringWriter();
+        var context = new PluginLoadContext(pluginPath, pluginDir, errorWriter);
 
         var invalidDllPath = Path.Combine(pluginDir, "Bad.Assembly.dll");
         File.WriteAllText(invalidDllPath, "this is not a real assembly");
@@ -214,10 +214,6 @@ public class PluginLoadContextTests
 
         Assert.That(onResolving, Is.Not.Null);
 
-        var originalError = Console.Error;
-        var errorWriter = new StringWriter();
-        Console.SetError(errorWriter);
-
         try
         {
             var result = (Assembly?)onResolving!.Invoke(
@@ -227,12 +223,10 @@ public class PluginLoadContextTests
             Assert.That(result, Is.Null);
 
             var stderr = errorWriter.ToString();
-            Assert.That(stderr, Does.Contain("Warning: Failed to load assembly").Or.Contain("Inner exception:"));
+            Assert.That(stderr, Does.Contain("Warning: Failed to load assembly"));
         }
         finally
         {
-            Console.SetError(originalError);
-
             try
             {
                 context.Unload();
@@ -256,7 +250,7 @@ public class PluginLoadContextTests
         Directory.CreateDirectory(pluginDir);
 
         var pluginPath = Assembly.GetExecutingAssembly().Location;
-        var context = new PluginLoadContext(pluginPath, pluginDir);
+        var context = new PluginLoadContext(pluginPath, pluginDir, TextWriter.Null);
 
         // Copy an existing managed dependency into the plugin directory under its expected name.
         var commandLineAssembly = typeof(System.CommandLine.RootCommand).Assembly;
@@ -315,7 +309,7 @@ public class PluginLoadContextTests
         Directory.CreateDirectory(pluginDir);
 
         var pluginPath = Assembly.GetExecutingAssembly().Location;
-        var context = new PluginLoadContext(pluginPath, pluginDir);
+        var context = new PluginLoadContext(pluginPath, pluginDir, TextWriter.Null);
 
         var onResolving = typeof(PluginLoadContext).GetMethod(
             "OnResolving",

@@ -3,14 +3,9 @@
 
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
-using CoseSign1.Certificates;
-using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Direct;
 using CoseSign1.Indirect.Extensions;
 using CoseSign1.Tests.Common;
-using NUnit.Framework;
 
 namespace CoseSign1.Tests.Indirect.Extensions;
 

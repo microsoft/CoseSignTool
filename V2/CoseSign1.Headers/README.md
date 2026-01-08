@@ -269,23 +269,30 @@ using CoseSign1.Validation;
 
 var validator = Cose.Sign1Message()
     .ValidateCertificateSignature()
-    .AddValidator(message =>
+    .AddValidator((message, stage) =>
     {
+        const string validatorName = "CwtClaimsValidator";
+
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(validatorName, stage);
+        }
+
         var claims = message.GetCwtClaims();
         
         if (claims == null)
-            return ValidationResult.Failed("Missing CWT claims");
+            return ValidationResult.Failure(validatorName, stage, "Missing CWT claims");
         
         if (claims.ExpirationTime < DateTimeOffset.UtcNow)
-            return ValidationResult.Failed("Claims have expired");
+            return ValidationResult.Failure(validatorName, stage, "Claims have expired");
         
         if (claims.NotBefore > DateTimeOffset.UtcNow)
-            return ValidationResult.Failed("Claims not yet valid");
+            return ValidationResult.Failure(validatorName, stage, "Claims not yet valid");
         
         if (!claims.Issuer?.StartsWith("https://trusted.") ?? true)
-            return ValidationResult.Failed("Untrusted issuer");
+            return ValidationResult.Failure(validatorName, stage, "Untrusted issuer");
         
-        return ValidationResult.Success();
+        return ValidationResult.Success(validatorName, stage);
     })
     .Build();
 ```

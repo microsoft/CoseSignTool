@@ -10,20 +10,29 @@ namespace CoseSign1.Certificates.Local;
 /// </summary>
 public static class MLDsaCertificateUtils
 {
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string MLDsa44Oid = "2.16.840.1.101.3.4.3.17";
+        public const string MLDsa65Oid = "2.16.840.1.101.3.4.3.18";
+        public const string MLDsa87Oid = "2.16.840.1.101.3.4.3.19";
+        public const string ErrorMldsaParameterSetRange = "ML-DSA parameter set must be 44, 65, or 87";
+    }
+
     /// <summary>
     /// ML-DSA-44 algorithm OID.
     /// </summary>
-    public const string MLDsa44Oid = "2.16.840.1.101.3.4.3.17";
+    public const string MLDsa44Oid = ClassStrings.MLDsa44Oid;
 
     /// <summary>
     /// ML-DSA-65 algorithm OID.
     /// </summary>
-    public const string MLDsa65Oid = "2.16.840.1.101.3.4.3.18";
+    public const string MLDsa65Oid = ClassStrings.MLDsa65Oid;
 
     /// <summary>
     /// ML-DSA-87 algorithm OID.
     /// </summary>
-    public const string MLDsa87Oid = "2.16.840.1.101.3.4.3.19";
+    public const string MLDsa87Oid = ClassStrings.MLDsa87Oid;
 
     /// <summary>
     /// Determines if a certificate uses the ML-DSA algorithm.
@@ -77,7 +86,7 @@ public static class MLDsaCertificateUtils
             65 => MLDsa65Oid,
             87 => MLDsa87Oid,
             _ => throw new ArgumentOutOfRangeException(nameof(parameterSet),
-                "ML-DSA parameter set must be 44, 65, or 87")
+                ClassStrings.ErrorMldsaParameterSetRange)
         };
     }
 }

@@ -39,6 +39,12 @@ public sealed class DidX509ParsedIdentifier
     /// <summary>
     /// Initializes a new instance of the <see cref="DidX509ParsedIdentifier"/> class.
     /// </summary>
+    /// <param name="did">The original DID.</param>
+    /// <param name="version">The DID version.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used for the CA fingerprint.</param>
+    /// <param name="caFingerprint">The CA fingerprint.</param>
+    /// <param name="policies">The parsed policies.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any required argument is <see langword="null"/>.</exception>
     public DidX509ParsedIdentifier(
         string did,
         string version,
@@ -56,6 +62,8 @@ public sealed class DidX509ParsedIdentifier
     /// <summary>
     /// Gets a policy by name.
     /// </summary>
+    /// <param name="policyName">The policy name.</param>
+    /// <returns>The policy, or <see langword="null"/> if no policy exists with that name.</returns>
     public DidX509Policy? GetPolicy(string policyName)
     {
         foreach (var policy in Policies)
@@ -71,6 +79,8 @@ public sealed class DidX509ParsedIdentifier
     /// <summary>
     /// Checks if a specific policy exists.
     /// </summary>
+    /// <param name="policyName">The policy name.</param>
+    /// <returns><see langword="true"/> if a matching policy exists; otherwise, <see langword="false"/>.</returns>
     public bool HasPolicy(string policyName)
     {
         return GetPolicy(policyName) != null;

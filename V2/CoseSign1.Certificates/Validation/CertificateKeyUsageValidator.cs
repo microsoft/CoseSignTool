@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
 
@@ -12,8 +10,13 @@ namespace CoseSign1.Certificates.Validation;
 /// <summary>
 /// Validates that the signing certificate has the required key usage extensions.
 /// </summary>
-public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
+public sealed class CertificateKeyUsageValidator : IValidator
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -46,6 +49,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
 
         // Default value
         public static readonly string MetaValueUnknown = "Unknown";
+
+        // Separators
+        public static readonly string SeparatorCommaSpace = ", ";
     }
 
     private readonly X509KeyUsageFlags? RequiredKeyUsage;
@@ -71,6 +77,7 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
     /// </summary>
     /// <param name="requiredEku">The required enhanced key usage OID.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="requiredEku"/> is null.</exception>
     public CertificateKeyUsageValidator(Oid requiredEku, bool allowUnprotectedHeaders = false)
     {
         RequiredKeyUsage = null;
@@ -84,6 +91,7 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
     /// </summary>
     /// <param name="requiredEkuOid">The required enhanced key usage OID value.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="requiredEkuOid"/> is null or whitespace.</exception>
     public CertificateKeyUsageValidator(string requiredEkuOid, bool allowUnprotectedHeaders = false)
     {
         if (string.IsNullOrWhiteSpace(requiredEkuOid))
@@ -96,7 +104,8 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    /// <inheritdoc/>
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input == null)
         {
@@ -175,7 +184,7 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
 
         if (!found)
         {
-            var ekuList = string.Join(", ", ekuExt.EnhancedKeyUsages.Cast<Oid>().Select(o => o.Value ?? o.FriendlyName));
+            var ekuList = string.Join(ClassStrings.SeparatorCommaSpace, ekuExt.EnhancedKeyUsages.Cast<Oid>().Select(o => o.Value ?? o.FriendlyName));
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatEkuMismatch, requiredEku.Value, ekuList),
@@ -189,8 +198,9 @@ public sealed class CertificateKeyUsageValidator : IValidator<CoseSign1Message>
         });
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
     }
 }

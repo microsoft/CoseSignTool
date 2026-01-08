@@ -6,7 +6,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 
 namespace CoseSign1.Integration.Tests.Remote;
 

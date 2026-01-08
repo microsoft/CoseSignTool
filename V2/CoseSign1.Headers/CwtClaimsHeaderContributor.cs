@@ -111,7 +111,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         HeaderPlacement = headerPlacement;
         CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
         AutoPopulateTimestamps = autoPopulateTimestamps;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with no claims (placement={headerPlacement}, label={CustomHeaderLabel}).");
+        Trace.TraceInformation(ClassStrings.TraceInitializedWithNoClaimsFormat, headerPlacement, CustomHeaderLabel);
     }
 
     /// <summary>
@@ -137,7 +137,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         HeaderPlacement = headerPlacement;
         CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
         AutoPopulateTimestamps = autoPopulateTimestamps;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Initialized with claims from CwtClaims object (placement={headerPlacement}, label={CustomHeaderLabel}).");
+        Trace.TraceInformation(ClassStrings.TraceInitializedWithClaimsFormat, headerPlacement, CustomHeaderLabel);
     }
 
     /// <summary>
@@ -150,11 +150,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (string.IsNullOrWhiteSpace(issuer))
         {
-            throw new ArgumentException("Issuer cannot be null or whitespace.", nameof(issuer));
+            throw new ArgumentException(ClassStrings.ErrorIssuerCannotBeNullOrWhitespace, nameof(issuer));
         }
 
         Claims.Issuer = issuer;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issuer to '{issuer}'.");
+        Trace.TraceInformation(ClassStrings.TraceSetIssuerFormat, issuer);
         return this;
     }
 
@@ -168,11 +168,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (string.IsNullOrWhiteSpace(subject))
         {
-            throw new ArgumentException("Subject cannot be null or whitespace.", nameof(subject));
+            throw new ArgumentException(ClassStrings.ErrorSubjectCannotBeNullOrWhitespace, nameof(subject));
         }
 
         Claims.Subject = subject;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set subject to '{subject}'.");
+        Trace.TraceInformation(ClassStrings.TraceSetSubjectFormat, subject);
         return this;
     }
 
@@ -186,11 +186,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (string.IsNullOrWhiteSpace(audience))
         {
-            throw new ArgumentException("Audience cannot be null or whitespace.", nameof(audience));
+            throw new ArgumentException(ClassStrings.ErrorAudienceCannotBeNullOrWhitespace, nameof(audience));
         }
 
         Claims.Audience = audience;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set audience to '{audience}'.");
+        Trace.TraceInformation(ClassStrings.TraceSetAudienceFormat, audience);
         return this;
     }
 
@@ -202,7 +202,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     public CwtClaimsHeaderContributor SetExpirationTime(DateTimeOffset expirationTime)
     {
         Claims.ExpirationTime = expirationTime;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set expiration time to {expirationTime.ToUnixTimeSeconds()}.");
+        Trace.TraceInformation(ClassStrings.TraceSetExpirationTimeFormat, expirationTime.ToUnixTimeSeconds());
         return this;
     }
 
@@ -214,7 +214,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     public CwtClaimsHeaderContributor SetNotBefore(DateTimeOffset notBefore)
     {
         Claims.NotBefore = notBefore;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set not before time to {notBefore.ToUnixTimeSeconds()}.");
+        Trace.TraceInformation(ClassStrings.TraceSetNotBeforeTimeFormat, notBefore.ToUnixTimeSeconds());
         return this;
     }
 
@@ -226,7 +226,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     public CwtClaimsHeaderContributor SetIssuedAt(DateTimeOffset issuedAt)
     {
         Claims.IssuedAt = issuedAt;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issued at time to {issuedAt.ToUnixTimeSeconds()}.");
+        Trace.TraceInformation(ClassStrings.TraceSetIssuedAtTimeFormat, issuedAt.ToUnixTimeSeconds());
         return this;
     }
 
@@ -240,11 +240,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     {
         if (cwtId == null || cwtId.Length == 0)
         {
-            throw new ArgumentException("CWT ID cannot be null or empty.", nameof(cwtId));
+            throw new ArgumentException(ClassStrings.ErrorCwtIdCannotBeNullOrEmpty, nameof(cwtId));
         }
 
         Claims.CwtId = cwtId;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set CWT ID (length: {cwtId.Length} bytes).");
+        Trace.TraceInformation(ClassStrings.TraceSetCwtIdFormat, cwtId.Length);
         return this;
     }
 
@@ -263,7 +263,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         }
 
         Claims.CustomClaims[label] = value;
-        Trace.TraceInformation($"CwtClaimsHeaderContributor: Set custom claim {label} with value type {value.GetType().Name}.");
+        Trace.TraceInformation(ClassStrings.TraceSetCustomClaimFormat, label, value.GetType().Name);
         return this;
     }
 
@@ -282,19 +282,19 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         if (issuedAt.HasValue)
         {
             Claims.IssuedAt = issuedAt.Value;
-            Trace.TraceInformation($"CwtClaimsHeaderContributor: Set issued at time to {issuedAt.Value.ToUnixTimeSeconds()}.");
+            Trace.TraceInformation(ClassStrings.TraceSetIssuedAtTimeFormat, issuedAt.Value.ToUnixTimeSeconds());
         }
 
         if (notBefore.HasValue)
         {
             Claims.NotBefore = notBefore.Value;
-            Trace.TraceInformation($"CwtClaimsHeaderContributor: Set not before time to {notBefore.Value.ToUnixTimeSeconds()}.");
+            Trace.TraceInformation(ClassStrings.TraceSetNotBeforeTimeFormat, notBefore.Value.ToUnixTimeSeconds());
         }
 
         if (expirationTime.HasValue)
         {
             Claims.ExpirationTime = expirationTime.Value;
-            Trace.TraceInformation($"CwtClaimsHeaderContributor: Set expiration time to {expirationTime.Value.ToUnixTimeSeconds()}.");
+            Trace.TraceInformation(ClassStrings.TraceSetExpirationTimeFormat, expirationTime.Value.ToUnixTimeSeconds());
         }
 
         return this;
@@ -310,7 +310,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         if (!string.IsNullOrWhiteSpace(audience))
         {
             Claims.Audience = audience;
-            Trace.TraceInformation($"CwtClaimsHeaderContributor: Set audience to '{audience}'.");
+            Trace.TraceInformation(ClassStrings.TraceSetAudienceFormat, audience);
         }
 
         return this;
@@ -326,7 +326,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         if (cwtId != null && cwtId.Length > 0)
         {
             Claims.CwtId = cwtId;
-            Trace.TraceInformation($"CwtClaimsHeaderContributor: Set CWT ID (length: {cwtId.Length} bytes).");
+            Trace.TraceInformation(ClassStrings.TraceSetCwtIdFormat, cwtId.Length);
         }
 
         return this;
@@ -390,6 +390,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         if (headers == null)
@@ -400,7 +401,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         // Skip if this placement doesn't include protected headers
         if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
         {
-            Trace.TraceInformation("CwtClaimsHeaderContributor: Skipping protected headers (placement=UnprotectedOnly).");
+            Trace.TraceInformation(ClassStrings.TraceSkippingProtectedHeadersUnprotectedOnly);
             return;
         }
 
@@ -408,6 +409,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
     public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         if (headers == null)
@@ -418,7 +420,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         // Skip if this placement doesn't include unprotected headers
         if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
         {
-            Trace.TraceInformation("CwtClaimsHeaderContributor: Skipping unprotected headers (placement=ProtectedOnly).");
+            Trace.TraceInformation(ClassStrings.TraceSkippingUnprotectedHeadersProtectedOnly);
             return;
         }
 
@@ -436,7 +438,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         // Merge with existing if present (user claims win)
         if (existingClaims != null)
         {
-            Trace.TraceInformation("CwtClaimsHeaderContributor: Merging with existing CWT claims.");
+            Trace.TraceInformation(ClassStrings.TraceMergingWithExistingClaims);
             finalClaims = existingClaims.Merge(finalClaims);
         }
 
@@ -444,11 +446,11 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         if (!finalClaims.IsDefault())
         {
             headers.SetCwtClaims(finalClaims, CustomHeaderLabel);
-            Trace.TraceInformation("CwtClaimsHeaderContributor: Added CWT claims to headers.");
+            Trace.TraceInformation(ClassStrings.TraceAddedClaimsToHeaders);
         }
         else
         {
-            Trace.TraceWarning("CwtClaimsHeaderContributor: No claims to add to headers.");
+            Trace.TraceWarning(ClassStrings.TraceNoClaimsToAdd);
         }
     }
 
@@ -464,13 +466,13 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
             if (!claims.IssuedAt.HasValue)
             {
                 claims.IssuedAt = currentTime;
-                Trace.TraceInformation($"CwtClaimsHeaderContributor: Auto-populated IssuedAt to {currentTime.ToUnixTimeSeconds()}.");
+                Trace.TraceInformation(ClassStrings.TraceAutoPopulatedIssuedAtFormat, currentTime.ToUnixTimeSeconds());
             }
 
             if (!claims.NotBefore.HasValue)
             {
                 claims.NotBefore = currentTime;
-                Trace.TraceInformation($"CwtClaimsHeaderContributor: Auto-populated NotBefore to {currentTime.ToUnixTimeSeconds()}.");
+                Trace.TraceInformation(ClassStrings.TraceAutoPopulatedNotBeforeFormat, currentTime.ToUnixTimeSeconds());
             }
         }
 

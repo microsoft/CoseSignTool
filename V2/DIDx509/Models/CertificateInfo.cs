@@ -39,6 +39,12 @@ public sealed class CertificateInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateInfo"/> class.
     /// </summary>
+    /// <param name="fingerprints">The certificate fingerprints.</param>
+    /// <param name="issuer">The issuer name.</param>
+    /// <param name="subject">The subject name.</param>
+    /// <param name="extensions">The certificate extensions.</param>
+    /// <param name="certificate">The original X.509 certificate.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any required argument is <see langword="null"/>.</exception>
     public CertificateInfo(
         CertificateFingerprints fingerprints,
         X509Name issuer,

@@ -8,10 +8,15 @@ namespace CoseSign1.Certificates.Exceptions;
 /// </summary>
 public class CoseX509FormatException : Exception
 {
+    internal static class ClassStrings
+    {
+        public const string DefaultMessage = "Failed to meet COSE X509 format requirements.";
+    }
+
     /// <summary>
     /// Creates a default CoseX509FormatException.
     /// </summary>
-    public CoseX509FormatException() : base("Failed to meet COSE X509 format requirements.")
+    public CoseX509FormatException() : base(ClassStrings.DefaultMessage)
     {
     }
 

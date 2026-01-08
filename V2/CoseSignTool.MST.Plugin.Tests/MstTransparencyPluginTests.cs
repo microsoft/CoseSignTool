@@ -4,6 +4,7 @@
 using System.CommandLine;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Validation;
 using CoseSignTool.MST.Plugin;
 using Moq;
 
@@ -137,14 +138,6 @@ public class MstTransparencyPluginTests
 
         // Assert - MST plugin does not add commands (I/O is handled by main exe)
         Assert.That(rootCommand.Subcommands.Count, Is.EqualTo(initialCount));
-    }
-
-    [Test]
-    public void AddMstValidator_WithPresenceOnly_AddsValidator()
-    {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
-        var result = builder.AddMstValidator(b => b.RequireReceiptPresence());
-        Assert.That(result, Is.SameAs(builder));
     }
 
     [Test]

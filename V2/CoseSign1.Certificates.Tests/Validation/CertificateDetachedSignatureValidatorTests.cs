@@ -2,11 +2,9 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
-using NUnit.Framework;
+using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -110,7 +108,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -135,7 +133,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -160,7 +158,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -185,7 +183,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(differentPayload);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -210,7 +208,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payloadMemory);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -234,7 +232,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(largePayload);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -255,7 +253,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload, allowUnprotectedHeaders: false);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -276,7 +274,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload, allowUnprotectedHeaders: true);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -297,7 +295,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -311,7 +309,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(Payload!);
 
         // Act
-        var result = await validator.ValidateAsync(null!);
+        var result = await validator.ValidateAsync(null!, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -335,7 +333,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(differentPayload);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -358,7 +356,7 @@ public class CertificateDetachedSignatureValidatorTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, ValidationStage.Signature, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -381,7 +379,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(modifiedPayload);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -405,7 +403,7 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(shorterPayload);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -427,9 +425,9 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload);
 
         // Act - Validate multiple times
-        var result1 = validator.Validate(message);
-        var result2 = validator.Validate(message);
-        var result3 = validator.Validate(message);
+        var result1 = validator.Validate(message, ValidationStage.Signature);
+        var result2 = validator.Validate(message, ValidationStage.Signature);
+        var result3 = validator.Validate(message, ValidationStage.Signature);
 
         // Assert
         Assert.That(result1.IsValid, Is.True);
@@ -456,8 +454,8 @@ public class CertificateDetachedSignatureValidatorTests
         var validator = new CertificateDetachedSignatureValidator(payload);
 
         // Act
-        var result1 = validator.Validate(message1);
-        var result2 = validator.Validate(message2);
+        var result1 = validator.Validate(message1, ValidationStage.Signature);
+        var result2 = validator.Validate(message2, ValidationStage.Signature);
 
         // Assert - Both should validate correctly with same payload
         Assert.That(result1.IsValid, Is.True);

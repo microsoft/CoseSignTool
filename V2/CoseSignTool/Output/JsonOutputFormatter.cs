@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSignTool.Output;
 
@@ -10,6 +11,18 @@ namespace CoseSignTool.Output;
 /// </summary>
 public class JsonOutputFormatter : IOutputFormatter
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string TypeSuccess = "success";
+        public static readonly string TypeError = "error";
+        public static readonly string TypeInfo = "info";
+        public static readonly string TypeWarning = "warning";
+        public static readonly string TypeKeyValue = "keyvalue";
+        public static readonly string TypeSectionStart = "section_start";
+        public static readonly string TypeSectionEnd = "section_end";
+    }
+
     private readonly TextWriter Output;
     private readonly List<object> Messages = [];
 
@@ -25,43 +38,43 @@ public class JsonOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        Messages.Add(new { type = "success", message });
+        Messages.Add(new { type = ClassStrings.TypeSuccess, message });
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        Messages.Add(new { type = "error", message });
+        Messages.Add(new { type = ClassStrings.TypeError, message });
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        Messages.Add(new { type = "info", message });
+        Messages.Add(new { type = ClassStrings.TypeInfo, message });
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        Messages.Add(new { type = "warning", message });
+        Messages.Add(new { type = ClassStrings.TypeWarning, message });
     }
 
     /// <inheritdoc/>
     public void WriteKeyValue(string key, string value)
     {
-        Messages.Add(new { type = "keyvalue", key, value });
+        Messages.Add(new { type = ClassStrings.TypeKeyValue, key, value });
     }
 
     /// <inheritdoc/>
     public void BeginSection(string title)
     {
-        Messages.Add(new { type = "section_start", title });
+        Messages.Add(new { type = ClassStrings.TypeSectionStart, title });
     }
 
     /// <inheritdoc/>
     public void EndSection()
     {
-        Messages.Add(new { type = "section_end" });
+        Messages.Add(new { type = ClassStrings.TypeSectionEnd });
     }
 
     /// <inheritdoc/>

@@ -2,11 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Certificates.Interfaces;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Validation;
@@ -14,8 +11,13 @@ namespace CoseSign1.Certificates.Validation;
 /// <summary>
 /// Validates the certificate chain trust using the provided chain builder.
 /// </summary>
-public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
+public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrustPolicy
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
+
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -37,6 +39,8 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         public static readonly string MetaKeyRetryAttempts = "RetryAttempts";
         public static readonly string MetaKeyAllowedUntrusted = "AllowedUntrusted";
         public static readonly string MetaKeyTrustedCustomRoot = "TrustedCustomRoot";
+
+        public static readonly string TrustDetailsAllowedUntrusted = "AllowedUntrusted";
     }
 
     private readonly ICertificateChainBuilder ChainBuilder;
@@ -78,6 +82,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
     /// <param name="revocationMode">The revocation check mode.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="customRoots"/> is null.</exception>
     public CertificateChainValidator(
         X509Certificate2Collection customRoots,
         bool allowUnprotectedHeaders = false,
@@ -106,6 +111,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
     /// <param name="allowUntrusted">Whether to allow untrusted roots to pass validation.</param>
     /// <param name="customRoots">Optional custom root certificates.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="chainBuilder"/> is null.</exception>
     public CertificateChainValidator(
         ICertificateChainBuilder chainBuilder,
         bool allowUnprotectedHeaders = false,
@@ -120,7 +126,8 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         TrustUserRoots = trustUserRoots;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    /// <inheritdoc/>
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input == null)
         {
@@ -179,7 +186,11 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         {
             return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
-                [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint
+                [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
+                [TrustAssertionMetadata.AssertionsKey] = new[]
+                {
+                    new TrustAssertion(X509TrustClaims.ChainTrusted, satisfied: true)
+                }
             });
         }
 
@@ -196,7 +207,11 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
                         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                         {
                             [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
-                            [ClassStrings.MetaKeyRetryAttempts] = attempt + 1
+                            [ClassStrings.MetaKeyRetryAttempts] = attempt + 1,
+                            [TrustAssertionMetadata.AssertionsKey] = new[]
+                            {
+                                new TrustAssertion(X509TrustClaims.ChainTrusted, satisfied: true)
+                            }
                         });
                     }
                 }
@@ -213,7 +228,12 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
             return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
                 [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
-                [ClassStrings.MetaKeyAllowedUntrusted] = true
+                [ClassStrings.MetaKeyAllowedUntrusted] = true,
+                // Explicitly NOT trusted; allowed by policy.
+                [TrustAssertionMetadata.AssertionsKey] = new[]
+                {
+                    new TrustAssertion(X509TrustClaims.ChainTrusted, satisfied: false, details: ClassStrings.TrustDetailsAllowedUntrusted)
+                }
             });
         }
 
@@ -229,7 +249,11 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
                     return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                     {
                         [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
-                        [ClassStrings.MetaKeyTrustedCustomRoot] = chainRoot.Thumbprint
+                        [ClassStrings.MetaKeyTrustedCustomRoot] = chainRoot.Thumbprint,
+                        [TrustAssertionMetadata.AssertionsKey] = new[]
+                        {
+                            new TrustAssertion(X509TrustClaims.ChainTrusted, satisfied: true)
+                        }
                     });
                 }
             }
@@ -240,7 +264,7 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
             .Where(s => s.Status != X509ChainStatusFlags.NoError)
             .Select(s => new ValidationFailure
             {
-                Message = s.StatusInformation,
+                Message = s.StatusInformation.Trim(),
                 ErrorCode = s.Status.ToString()
             })
             .ToArray();
@@ -260,8 +284,15 @@ public sealed class CertificateChainValidator : IValidator<CoseSign1Message>
         return ValidationResult.Failure(ClassStrings.ValidatorName, failures);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
+    }
+
+    /// <inheritdoc/>
+    public TrustPolicy GetDefaultTrustPolicy(ValidationBuilderContext context)
+    {
+        return TrustPolicy.Claim(X509TrustClaims.ChainTrusted);
     }
 }

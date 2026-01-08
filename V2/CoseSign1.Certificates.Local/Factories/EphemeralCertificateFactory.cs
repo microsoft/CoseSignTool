@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -28,6 +29,43 @@ namespace CoseSign1.Certificates.Local;
 /// </remarks>
 public class EphemeralCertificateFactory : ICertificateFactory
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string LogStartingAsyncCertificateCreation =
+            "Starting async certificate creation. Subject: {Subject}, Algorithm: {Algorithm}";
+
+        public const string LogAsyncCertificateCreatedSuccessfully =
+            "Async certificate created successfully. Thumbprint: {Thumbprint}, ElapsedMs: {ElapsedMs}";
+
+        public const string LogStartingCertificateCreation =
+            "Starting certificate creation. Subject: {Subject}, Algorithm: {Algorithm}, KeySize: {KeySize}";
+
+        public const string LogCertificateCreatedSuccessfully =
+            "Certificate created successfully. Thumbprint: {Thumbprint}, ElapsedMs: {ElapsedMs}";
+
+        public const string ErrorKeyProviderDoesNotSupportAlgorithmFormat =
+            "Key provider '{0}' does not support algorithm '{1}'";
+
+        public const string ErrorIssuerCertificateMustHaveSubjectKeyIdentifierExtension =
+            "Issuer certificate must have a Subject Key Identifier extension";
+
+        public const string AuthorityKeyIdentifierOid = "2.5.29.35";
+
+        public const string SubjectAltNameTypeDns = "dns";
+        public const string SubjectAltNameTypeEmail = "email";
+        public const string SubjectAltNameTypeUri = "uri";
+
+        public const string ErrorUnsupportedSanTypeFormat = "Unsupported SAN type: {0}";
+
+        public const string ReplaceColon = ":";
+        public const string ReplaceSpace = " ";
+
+        public const string DefaultEkuCodeSigningOid = "1.3.6.1.5.5.7.3.3";
+
+        public const string CommonNamePrefix = "CN=";
+    }
+
     private readonly ILogger<EphemeralCertificateFactory> Logger;
 
     /// <summary>
@@ -56,6 +94,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
     /// </summary>
     /// <param name="keyProvider">The key provider to use for key generation.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="keyProvider"/> is <see langword="null"/>.</exception>
     public EphemeralCertificateFactory(IPrivateKeyProvider keyProvider, ILogger<EphemeralCertificateFactory>? logger = null)
     {
         KeyProvider = keyProvider ?? throw new ArgumentNullException(nameof(keyProvider));
@@ -71,10 +110,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
     /// <inheritdoc />
     public X509Certificate2 CreateCertificate(Action<CertificateOptions> configure)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ThrowIfNull(configure, nameof(configure));
 
         var options = new CertificateOptions();
         configure(options);
@@ -87,10 +123,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
         Action<CertificateOptions> configure,
         CancellationToken cancellationToken = default)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ThrowIfNull(configure, nameof(configure));
 
         var options = new CertificateOptions();
         configure(options);
@@ -98,7 +131,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug(
-            "Starting async certificate creation. Subject: {Subject}, Algorithm: {Algorithm}",
+            ClassStrings.LogStartingAsyncCertificateCreation,
             options.SubjectName,
             options.KeyAlgorithm);
 
@@ -113,7 +146,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
             stopwatch.Stop();
 
             Logger.LogDebug(
-                "Async certificate created successfully. Thumbprint: {Thumbprint}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogAsyncCertificateCreatedSuccessfully,
                 cert.Thumbprint,
                 stopwatch.ElapsedMilliseconds);
 
@@ -126,12 +159,20 @@ public class EphemeralCertificateFactory : ICertificateFactory
         }
     }
 
+    private static void ThrowIfNull(object? value, string paramName)
+    {
+        if (value is null)
+        {
+            throw new ArgumentNullException(paramName);
+        }
+    }
+
     private X509Certificate2 CreateCertificateInternal(CertificateOptions options)
     {
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug(
-            "Starting certificate creation. Subject: {Subject}, Algorithm: {Algorithm}, KeySize: {KeySize}",
+            ClassStrings.LogStartingCertificateCreation,
             options.SubjectName,
             options.KeyAlgorithm,
             options.KeySize ?? GetDefaultKeySize(options.KeyAlgorithm));
@@ -139,7 +180,10 @@ public class EphemeralCertificateFactory : ICertificateFactory
         if (!KeyProvider.SupportsAlgorithm(options.KeyAlgorithm))
         {
             throw new NotSupportedException(
-                $"Key provider '{KeyProvider.ProviderName}' does not support algorithm '{options.KeyAlgorithm}'");
+                string.Format(
+                    ClassStrings.ErrorKeyProviderDoesNotSupportAlgorithmFormat,
+                    KeyProvider.ProviderName,
+                    options.KeyAlgorithm));
         }
 
         var key = KeyProvider.GenerateKey(options.KeyAlgorithm, options.KeySize);
@@ -151,7 +195,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
             stopwatch.Stop();
 
             Logger.LogDebug(
-                "Certificate created successfully. Thumbprint: {Thumbprint}, ElapsedMs: {ElapsedMs}",
+                ClassStrings.LogCertificateCreatedSuccessfully,
                 cert.Thumbprint,
                 stopwatch.ElapsedMilliseconds);
 
@@ -322,7 +366,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
         if (skiExtension?.RawData == null)
         {
             throw new ArgumentException(
-                "Issuer certificate must have a Subject Key Identifier extension",
+                ClassStrings.ErrorIssuerCertificateMustHaveSubjectKeyIdentifierExtension,
                 nameof(issuer));
         }
 
@@ -341,7 +385,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
         segment.CopyTo(akiData, 4);
 
         request.CertificateExtensions.Add(
-            new X509Extension("2.5.29.35", akiData, critical: false));
+            new X509Extension(ClassStrings.AuthorityKeyIdentifierOid, akiData, critical: false));
     }
 
     private static void AddSubjectAlternativeNames(CertificateRequest request, CertificateOptions options)
@@ -354,17 +398,18 @@ public class EphemeralCertificateFactory : ICertificateFactory
             {
                 switch (type.ToLowerInvariant())
                 {
-                    case "dns":
+                    case ClassStrings.SubjectAltNameTypeDns:
                         sanBuilder.AddDnsName(value);
                         break;
-                    case "email":
+                    case ClassStrings.SubjectAltNameTypeEmail:
                         sanBuilder.AddEmailAddress(value);
                         break;
-                    case "uri":
+                    case ClassStrings.SubjectAltNameTypeUri:
                         sanBuilder.AddUri(new Uri(value));
                         break;
                     default:
-                        throw new ArgumentException($"Unsupported SAN type: {type}");
+                        throw new ArgumentException(
+                            string.Format(ClassStrings.ErrorUnsupportedSanTypeFormat, type));
                 }
             }
         }
@@ -375,7 +420,8 @@ public class EphemeralCertificateFactory : ICertificateFactory
             if (!string.IsNullOrEmpty(cn))
             {
                 // Sanitize for DNS name
-                var dnsName = cn.Replace(":", "").Replace(" ", "");
+                var dnsName = cn.Replace(ClassStrings.ReplaceColon, string.Empty)
+                    .Replace(ClassStrings.ReplaceSpace, string.Empty);
                 if (dnsName.Length > 40)
                 {
                     dnsName = dnsName.Substring(0, 39);
@@ -401,7 +447,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
         else
         {
             // Default EKUs for code signing
-            oids.Add(new Oid("1.3.6.1.5.5.7.3.3")); // Code Signing
+            oids.Add(new Oid(ClassStrings.DefaultEkuCodeSigningOid)); // Code Signing
         }
 
         request.CertificateExtensions.Add(
@@ -411,7 +457,7 @@ public class EphemeralCertificateFactory : ICertificateFactory
     private static string ExtractCommonName(string subjectName)
     {
         // Simple CN extraction - handles "CN=Name" or "CN=Name, O=Org, ..."
-        if (subjectName.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
+        if (subjectName.StartsWith(ClassStrings.CommonNamePrefix, StringComparison.OrdinalIgnoreCase))
         {
             var endIndex = subjectName.IndexOf(',');
             return endIndex > 0

@@ -10,6 +10,20 @@ namespace CoseSign1.Tests.Common;
 /// </summary>
 public static class PlatformHelper
 {
+    internal static class ClassStrings
+    {
+        public const string PlatformWindows = "Windows";
+        public const string PlatformLinux = "Linux";
+        public const string PlatformMacOS = "macOS";
+        public const string PlatformOther = "this platform";
+
+        public const string DefaultFeature = "This feature";
+
+        public const string ErrorMldsaNotSupportedFormat = "ML-DSA (post-quantum cryptography) is not supported on {0}. This test requires Windows.";
+        public const string ErrorWindowsOnlyFormat = "{0} is only supported on Windows. Current platform: {1}";
+        public const string ErrorLinuxOnlyFormat = "{0} is only supported on Linux. Current platform: {1}";
+    }
+
     /// <summary>
     /// Gets a value indicating whether the current platform is Windows.
     /// </summary>
@@ -40,8 +54,8 @@ public static class PlatformHelper
     {
         if (!IsMLDsaSupported)
         {
-            var platform = IsLinux ? "Linux" : IsMacOS ? "macOS" : "this platform";
-            var message = reason ?? $"ML-DSA (post-quantum cryptography) is not supported on {platform}. This test requires Windows.";
+            var platform = IsLinux ? ClassStrings.PlatformLinux : IsMacOS ? ClassStrings.PlatformMacOS : ClassStrings.PlatformOther;
+            var message = reason ?? string.Format(ClassStrings.ErrorMldsaNotSupportedFormat, platform);
             Assert.Inconclusive(message);
         }
     }
@@ -50,12 +64,12 @@ public static class PlatformHelper
     /// Skips the current test if not running on Windows.
     /// </summary>
     /// <param name="feature">The feature that requires Windows.</param>
-    public static void SkipIfNotWindows(string feature = "This feature")
+    public static void SkipIfNotWindows(string feature = ClassStrings.DefaultFeature)
     {
         if (!IsWindows)
         {
-            var platform = IsLinux ? "Linux" : IsMacOS ? "macOS" : "this platform";
-            Assert.Inconclusive($"{feature} is only supported on Windows. Current platform: {platform}");
+            var platform = IsLinux ? ClassStrings.PlatformLinux : IsMacOS ? ClassStrings.PlatformMacOS : ClassStrings.PlatformOther;
+            Assert.Inconclusive(string.Format(ClassStrings.ErrorWindowsOnlyFormat, feature, platform));
         }
     }
 
@@ -63,12 +77,12 @@ public static class PlatformHelper
     /// Skips the current test if not running on Linux.
     /// </summary>
     /// <param name="feature">The feature that requires Linux.</param>
-    public static void SkipIfNotLinux(string feature = "This feature")
+    public static void SkipIfNotLinux(string feature = ClassStrings.DefaultFeature)
     {
         if (!IsLinux)
         {
-            var platform = IsWindows ? "Windows" : IsMacOS ? "macOS" : "this platform";
-            Assert.Inconclusive($"{feature} is only supported on Linux. Current platform: {platform}");
+            var platform = IsWindows ? ClassStrings.PlatformWindows : IsMacOS ? ClassStrings.PlatformMacOS : ClassStrings.PlatformOther;
+            Assert.Inconclusive(string.Format(ClassStrings.ErrorLinuxOnlyFormat, feature, platform));
         }
     }
 }

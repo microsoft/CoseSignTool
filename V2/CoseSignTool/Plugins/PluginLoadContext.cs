@@ -14,18 +14,32 @@ namespace CoseSignTool.Plugins;
 /// </summary>
 public class PluginLoadContext : AssemblyLoadContext
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string DllExtension = ".dll";
+        public static readonly string WarningFailedToLoadAssemblyFromExpectedPath =
+            "Warning: Failed to load assembly '{0}' from '{1}': {2}";
+        public static readonly string WarningFailedToLoadAssemblyFromResolverPath =
+            "Warning: Failed to load assembly '{0}' from resolver path '{1}': {2}";
+    }
+
     private readonly AssemblyDependencyResolver Resolver;
     private readonly string PluginDirectory;
+    private readonly TextWriter StandardError;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PluginLoadContext"/> class.
     /// </summary>
     /// <param name="pluginPath">The path to the main plugin assembly.</param>
     /// <param name="pluginDirectory">The directory containing the plugin and its dependencies.</param>
-    public PluginLoadContext(string pluginPath, string pluginDirectory) : base(isCollectible: true)
+    /// <param name="standardError">Optional standard error writer used for warning messages. Defaults to <see cref="Console.Error"/>.</param>
+    public PluginLoadContext(string pluginPath, string pluginDirectory, TextWriter? standardError = null)
+        : base(isCollectible: true)
     {
         Resolver = new AssemblyDependencyResolver(pluginPath);
         PluginDirectory = pluginDirectory;
+        StandardError = TextWriter.Synchronized(standardError ?? Console.Error);
 
         // Hook the Resolving event to provide fallback when default context can't find assembly
         this.Resolving += OnResolving;
@@ -56,7 +70,9 @@ public class PluginLoadContext : AssemblyLoadContext
         // Try loading from plugin directory
         if (assemblyName.Name != null)
         {
-            string expectedPath = Path.Combine(PluginDirectory, $"{assemblyName.Name}.dll");
+            string expectedPath = Path.Combine(
+                PluginDirectory,
+                string.Concat(assemblyName.Name, ClassStrings.DllExtension));
             if (File.Exists(expectedPath))
             {
                 try
@@ -65,7 +81,11 @@ public class PluginLoadContext : AssemblyLoadContext
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to load assembly '{assemblyName.Name}' from '{expectedPath}': {ex.Message}");
+                    StandardError.WriteLine(string.Format(
+                        ClassStrings.WarningFailedToLoadAssemblyFromExpectedPath,
+                        assemblyName.Name,
+                        expectedPath,
+                        ex.Message));
                 }
             }
         }
@@ -80,7 +100,11 @@ public class PluginLoadContext : AssemblyLoadContext
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Warning: Failed to load assembly '{assemblyName.Name}' from resolver path '{assemblyPath}': {ex.Message}");
+                StandardError.WriteLine(string.Format(
+                    ClassStrings.WarningFailedToLoadAssemblyFromResolverPath,
+                    assemblyName.Name,
+                    assemblyPath,
+                    ex.Message));
             }
         }
 

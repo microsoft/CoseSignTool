@@ -155,20 +155,13 @@ cosesigntool batch verify --files *.cose --summary report.json
 
 ### Plugin Types
 
-#### 1. Certificate Provider Plugins
-```csharp
-public interface ICertificateProviderPlugin
-{
-    string Name { get; }
-    string Description { get; }
-    
-    Task<ISigningService> CreateSigningServiceAsync(
-        PluginContext context,
-        CancellationToken cancellationToken = default);
-    
-    IEnumerable<PluginOption> GetOptions();
-}
-```
+The V2 CLI uses the plugin extension model from `CoseSignTool.Abstractions`.
+
+Plugins implement `IPlugin` and return a `PluginExtensions` object that can contribute:
+
+- `ISigningCommandProvider`
+- `IVerificationProvider` (stage-aware validators)
+- `ITransparencyProviderContributor`
 
 **Built-in Providers:**
 - `local-pfx` - PFX file certificates
@@ -177,33 +170,12 @@ public interface ICertificateProviderPlugin
 - `azure-key-vault` - Azure Key Vault (future)
 - `pkcs11` - Hardware security modules (future)
 
-#### 2. Validator Plugins
-```csharp
-public interface IValidatorPlugin
-{
-    string Name { get; }
-    
-    IValidator<CoseSign1Message> CreateValidator(
-        PluginContext context);
-    
-    IEnumerable<PluginOption> GetOptions();
-}
-```
+Verification providers return `IValidator` instances that declare their supported stages via `IValidator.Stages`. The CLI enforces the trust-first stage ordering:
 
-#### 3. Output Formatter Plugins
-```csharp
-public interface IOutputFormatterPlugin
-{
-    string Name { get; }
-    string[] SupportedFormats { get; }
-    
-    Task FormatAsync(
-        CoseSign1Message message,
-        Stream output,
-        PluginContext context,
-        CancellationToken cancellationToken = default);
-}
-```
+1. key material resolution
+2. key material trust (trust policy evaluation)
+3. signature
+4. post-signature
 
 ### Plugin Discovery
 

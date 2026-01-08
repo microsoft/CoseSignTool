@@ -1,22 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
-using CoseSign1.Logging;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Indirect;
@@ -51,6 +42,13 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         public static readonly string LogSigningCompletedAsync = "Async indirect signature created successfully. SignatureSize: {SignatureSize}, ElapsedMs: {ElapsedMs}";
         public static readonly string LogSigningFailed = "Indirect signature creation failed. ContentType: {ContentType}, PayloadSize: {PayloadSize}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}";
         public static readonly string LogSigningFailedAsync = "Async indirect signature creation failed. ContentType: {ContentType}, HashAlgorithm: {HashAlgorithm}, ElapsedMs: {ElapsedMs}";
+
+        // Misc
+        public const string GuidFormatN = "N";
+        public const string ErrorHashAlgorithmNotSupportedFormat = "Hash algorithm {0} is not supported";
+        public const string HashAlgorithmNameSha256 = "sha256";
+        public const string HashAlgorithmNameSha384 = "sha384";
+        public const string HashAlgorithmNameSha512 = "sha512";
     }
 
     private readonly DirectSignatureFactory DirectFactory;
@@ -84,6 +82,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// </summary>
     /// <param name="directFactory">The direct signature factory to use for signing hashes.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="directFactory"/> is <see langword="null"/>.</exception>
     public IndirectSignatureFactory(DirectSignatureFactory directFactory, ILogger<IndirectSignatureFactory>? logger = null)
     {
         DirectFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
@@ -124,6 +123,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
     /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         byte[] payload,
         string contentType,
@@ -170,6 +170,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
     /// <param name="serviceOptions">Optional service-specific options to pass to the signing service. If null, service defaults are used.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         ReadOnlySpan<byte> payload,
         string contentType,
@@ -189,6 +190,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <summary>
     /// Core implementation: hashes payload and signs the hash.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
     private byte[] HashAndSign(
         ReadOnlySpan<byte> payload,
         string contentType,
@@ -202,7 +204,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         ThrowIfDisposed();
 
-        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
             [ClassStrings.KeyOperationId] = operationId,
@@ -298,6 +300,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> is <see langword="null"/>.</exception>
     public virtual Task<byte[]> CreateCoseSign1MessageBytesAsync(
         byte[] payload,
         string contentType,
@@ -344,6 +347,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payloadStream"/> is <see langword="null"/>.</exception>
     public virtual Task<byte[]> CreateCoseSign1MessageBytesAsync(
         Stream payloadStream,
         string contentType,
@@ -364,6 +368,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <summary>
     /// Core async implementation: hashes stream and signs the hash.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payloadStream"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
     private async Task<byte[]> HashAndSignAsync(
         Stream payloadStream,
         string contentType,
@@ -382,7 +387,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         ThrowIfDisposed();
 
-        var operationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
         using var scope = Logger.BeginScope(new Dictionary<string, object>
         {
             [ClassStrings.KeyOperationId] = operationId,
@@ -601,7 +606,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             nameof(SHA256) => (HashAlgorithm)SHA256.Create(),
             nameof(SHA384) => (HashAlgorithm)SHA384.Create(),
             nameof(SHA512) => (HashAlgorithm)SHA512.Create(),
-            _ => throw new NotSupportedException($"Hash algorithm {hashAlgorithm.Name} is not supported")
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm.Name))
         };
 
         var hash = hasher.ComputeHash(data.ToArray());
@@ -614,7 +619,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             nameof(SHA256) => SHA256.TryHashData(data, destination, out bytesWritten),
             nameof(SHA384) => SHA384.TryHashData(data, destination, out bytesWritten),
             nameof(SHA512) => SHA512.TryHashData(data, destination, out bytesWritten),
-            _ => throw new NotSupportedException($"Hash algorithm {hashAlgorithm.Name} is not supported")
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm.Name))
         };
 #endif
     }
@@ -650,7 +655,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             nameof(SHA256) => 32,
             nameof(SHA384) => 48,
             nameof(SHA512) => 64,
-            _ => throw new NotSupportedException($"Hash algorithm {hashAlgorithm.Name} is not supported")
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm.Name))
         };
     }
 
@@ -658,10 +663,10 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     {
         return hashAlgorithm.Name switch
         {
-            nameof(SHA256) => "sha256",
-            nameof(SHA384) => "sha384",
-            nameof(SHA512) => "sha512",
-            _ => throw new NotSupportedException($"Hash algorithm {hashAlgorithm.Name} is not supported")
+            nameof(SHA256) => ClassStrings.HashAlgorithmNameSha256,
+            nameof(SHA384) => ClassStrings.HashAlgorithmNameSha384,
+            nameof(SHA512) => ClassStrings.HashAlgorithmNameSha512,
+            _ => throw new NotSupportedException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm.Name))
         };
     }
 

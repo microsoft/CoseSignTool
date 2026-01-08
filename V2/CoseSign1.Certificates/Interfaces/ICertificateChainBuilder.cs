@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
-
 namespace CoseSign1.Certificates.Interfaces;
 
 /// <summary>

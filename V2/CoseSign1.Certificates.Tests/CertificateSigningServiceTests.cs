@@ -1,20 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
-using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
-using CoseSign1.Tests.Common;
 using Moq;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests;
 

@@ -12,6 +12,12 @@ namespace CoseSign1.AzureKeyVault.Common;
 /// </summary>
 public static class KeyVaultAlgorithmMapper
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorRsaAlgorithmNotSupportedFormat = "RSA algorithm with {0} and {1} is not supported.";
+    }
+
     /// <summary>
     /// Maps RSA hash algorithm and padding to Azure Key Vault SignatureAlgorithm.
     /// </summary>
@@ -56,7 +62,7 @@ public static class KeyVaultAlgorithmMapper
             }
         }
 
-        throw new NotSupportedException($"RSA algorithm with {hashAlgorithm} and {padding} is not supported.");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorRsaAlgorithmNotSupportedFormat, hashAlgorithm, padding));
     }
 
     /// <summary>

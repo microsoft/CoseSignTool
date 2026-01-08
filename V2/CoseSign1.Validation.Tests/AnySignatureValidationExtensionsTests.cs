@@ -1,12 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
-using CoseSign1.Validation;
-using NUnit.Framework;
+using CoseSign1.Validation.Extensions;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 
 namespace CoseSign1.Validation.Tests;
 
@@ -16,7 +13,7 @@ public class AnySignatureValidationExtensionsTests
     [Test]
     public void AddAnySignatureValidator_WithNullBuilder_ThrowsArgumentNullException()
     {
-        CoseMessageValidationBuilder? builder = null;
+        ICoseSign1ValidationBuilder? builder = null;
 
         var ex = Assert.Throws<ArgumentNullException>(() =>
             builder!.AddAnySignatureValidator(_ => { }));
@@ -65,11 +62,14 @@ public class AnySignatureValidationExtensionsTests
         Assert.That(ex!.ParamName, Is.EqualTo("validator"));
     }
 
-    private sealed class AlwaysPassValidator : IValidator<CoseSign1Message>
+    private sealed class AlwaysPassValidator : IValidator
     {
-        public ValidationResult Validate(CoseSign1Message input) => ValidationResult.Success(nameof(AlwaysPassValidator));
+        public IReadOnlyCollection<ValidationStage> Stages { get; } = new[] { ValidationStage.Signature };
 
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
-            => Task.FromResult(Validate(input));
+        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
+            => ValidationResult.Success(nameof(AlwaysPassValidator));
+
+        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
+            => Task.FromResult(Validate(input, stage));
     }
 }

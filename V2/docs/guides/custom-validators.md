@@ -8,15 +8,18 @@ The V2 validation framework is designed to be extensible. You can create custom 
 
 ## IValidator Interface
 
-All validators implement `IValidator<CoseSign1Message>`:
+All validators implement the stage-aware `IValidator` interface:
 
 ```csharp
-public interface IValidator<T>
+public interface IValidator
 {
-    ValidationResult Validate(T input);
+    IReadOnlyCollection<ValidationStage> Stages { get; }
+
+    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
 
     Task<ValidationResult> ValidateAsync(
-        T input,
+        CoseSign1Message input,
+        ValidationStage stage,
         CancellationToken cancellationToken = default);
 }
 ```
@@ -28,27 +31,35 @@ public interface IValidator<T>
 ```csharp
 using CoseSign1.Validation;
 
-public class MyCustomValidator : IValidator<CoseSign1Message>
+public class MyCustomValidator : IValidator
 {
     private const string Name = nameof(MyCustomValidator);
 
-    public ValidationResult Validate(CoseSign1Message message)
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
+
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
     {
         // Your validation logic here
 
-        if (/* validation passes */)
+        if (stage != ValidationStage.PostSignature)
         {
-            return ValidationResult.Success(Name);
+            return ValidationResult.NotApplicable(Name, stage, "Validator only runs post-signature");
         }
 
-        return ValidationResult.Failure(Name, "Validation failed: reason", errorCode: "CUSTOM_VALIDATION_FAILED");
+        if (/* validation passes */)
+        {
+            return ValidationResult.Success(Name, stage);
+        }
+
+        return ValidationResult.Failure(Name, stage, "Validation failed: reason", errorCode: "CUSTOM_VALIDATION_FAILED");
     }
 
     public Task<ValidationResult> ValidateAsync(
         CoseSign1Message message,
+        ValidationStage stage,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(message));
+        return Task.FromResult(Validate(message, stage));
     }
 }
 ```
@@ -59,33 +70,40 @@ public class MyCustomValidator : IValidator<CoseSign1Message>
 using CoseSign1.Extensions;
 using CoseSign1.Validation;
 
-public class ContentTypeValidator : IValidator<CoseSign1Message>
+public class ContentTypeValidator : IValidator
 {
     private readonly HashSet<string> _allowedContentTypes;
     private const string Name = nameof(ContentTypeValidator);
+
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
     
     public ContentTypeValidator(IEnumerable<string> allowedContentTypes)
     {
         _allowedContentTypes = new HashSet<string>(allowedContentTypes, StringComparer.OrdinalIgnoreCase);
     }
     
-    public ValidationResult Validate(CoseSign1Message message)
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
     {
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(Name, stage);
+        }
+
         if (!message.TryGetContentType(out string? contentType) || string.IsNullOrWhiteSpace(contentType))
         {
-            return ValidationResult.Failure(Name, "Missing content type header", errorCode: "MISSING_CONTENT_TYPE");
+            return ValidationResult.Failure(Name, stage, "Missing content type header", errorCode: "MISSING_CONTENT_TYPE");
         }
 
         if (!_allowedContentTypes.Contains(contentType))
         {
-            return ValidationResult.Failure(Name, $"Content type '{contentType}' is not allowed", errorCode: "CONTENT_TYPE_NOT_ALLOWED");
+            return ValidationResult.Failure(Name, stage, $"Content type '{contentType}' is not allowed", errorCode: "CONTENT_TYPE_NOT_ALLOWED");
         }
 
-        return ValidationResult.Success(Name);
+        return ValidationResult.Success(Name, stage);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(message));
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationStage stage, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(message, stage));
 }
 ```
 
@@ -94,11 +112,13 @@ public class ContentTypeValidator : IValidator<CoseSign1Message>
 ```csharp
 using CoseSign1.Validation;
 
-public class TimestampRangeValidator : IValidator<CoseSign1Message>
+public class TimestampRangeValidator : IValidator
 {
     private readonly TimeSpan _maxAge;
     private readonly TimeSpan _maxFutureSkew;
     private const string Name = nameof(TimestampRangeValidator);
+
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
     
     public TimestampRangeValidator(TimeSpan maxAge, TimeSpan maxFutureSkew)
     {
@@ -106,29 +126,34 @@ public class TimestampRangeValidator : IValidator<CoseSign1Message>
         _maxFutureSkew = maxFutureSkew;
     }
     
-    public ValidationResult Validate(CoseSign1Message message)
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
     {
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(Name, stage);
+        }
+
         // Extract timestamp from CWT claims or custom header
         var timestamp = ExtractTimestamp(message);
         
         if (!timestamp.HasValue)
         {
-            return ValidationResult.Success(Name); // No timestamp to validate
+            return ValidationResult.Success(Name, stage); // No timestamp to validate
         }
         
         var now = DateTimeOffset.UtcNow;
         
         if (timestamp.Value > now + _maxFutureSkew)
         {
-            return ValidationResult.Failure(Name, "Signature timestamp is too far in the future", errorCode: "TIMESTAMP_TOO_FAR_IN_FUTURE");
+            return ValidationResult.Failure(Name, stage, "Signature timestamp is too far in the future", errorCode: "TIMESTAMP_TOO_FAR_IN_FUTURE");
         }
         
         if (timestamp.Value < now - _maxAge)
         {
-            return ValidationResult.Failure(Name, $"Signature is too old (max age: {_maxAge})", errorCode: "TIMESTAMP_TOO_OLD");
+            return ValidationResult.Failure(Name, stage, $"Signature is too old (max age: {_maxAge})", errorCode: "TIMESTAMP_TOO_OLD");
         }
 
-        return ValidationResult.Success(Name);
+        return ValidationResult.Success(Name, stage);
     }
     
     private DateTimeOffset? ExtractTimestamp(CoseSign1Message message)
@@ -136,8 +161,8 @@ public class TimestampRangeValidator : IValidator<CoseSign1Message>
         // Implementation to extract timestamp
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(message));
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationStage stage, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(message, stage));
 }
 ```
 
@@ -155,13 +180,13 @@ var validator = Cose.Sign1Message()
 ### With Dependency Injection
 
 ```csharp
-services.AddSingleton<IValidator<CoseSign1Message>, MyCustomValidator>();
-services.AddSingleton<IValidator<CoseSign1Message>>(sp =>
+services.AddSingleton<IValidator, MyCustomValidator>();
+services.AddSingleton<IValidator>(sp =>
     new ContentTypeValidator(new[] { "application/json" }));
 
 // Build composite validator from all registered validators
-services.AddSingleton<IValidator<CoseSign1Message>>(sp =>
-    new CompositeValidator(sp.GetServices<IValidator<CoseSign1Message>>()));
+services.AddSingleton<IValidator>(sp =>
+    new CompositeValidator(sp.GetServices<IValidator>()));
 ```
 
 ## Validator Ordering
@@ -175,19 +200,27 @@ If you need strict ordering with dependency injection, register validators as di
 For validators that call external services:
 
 ```csharp
-public class ExternalServiceValidator : IValidator<CoseSign1Message>
+public class ExternalServiceValidator : IValidator
 {
     private readonly HttpClient _httpClient;
 
     private const string Name = nameof(ExternalServiceValidator);
 
-    public ValidationResult Validate(CoseSign1Message message)
+    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
+
+    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
         => throw new NotSupportedException("Use ValidateAsync for this validator.");
 
     public async Task<ValidationResult> ValidateAsync(
         CoseSign1Message message,
+        ValidationStage stage,
         CancellationToken cancellationToken = default)
     {
+        if (stage != ValidationStage.PostSignature)
+        {
+            return ValidationResult.NotApplicable(Name, stage);
+        }
+
         try
         {
             var response = await _httpClient.PostAsync(
@@ -197,15 +230,15 @@ public class ExternalServiceValidator : IValidator<CoseSign1Message>
             
             if (response.IsSuccessStatusCode)
             {
-                return ValidationResult.Success(Name);
+                return ValidationResult.Success(Name, stage);
             }
             
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            return ValidationResult.Failure(Name, $"External validation failed: {error}");
+            return ValidationResult.Failure(Name, stage, $"External validation failed: {error}");
         }
         catch (Exception ex)
         {
-            return ValidationResult.Failure(Name, $"External validation error: {ex.Message}");
+            return ValidationResult.Failure(Name, stage, $"External validation error: {ex.Message}");
         }
     }
 }
@@ -225,7 +258,7 @@ public class MyCustomValidatorTests
         var message = CreateTestMessage(/* valid data */);
         
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
         Assert.IsTrue(result.IsValid);
@@ -239,7 +272,7 @@ public class MyCustomValidatorTests
         var message = CreateTestMessage(/* invalid data */);
         
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
         Assert.IsFalse(result.IsValid);

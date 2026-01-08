@@ -53,12 +53,16 @@ public class PemSigningCommandProvider : ISigningCommandProvider
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
+    /// <inheritdoc/>
     public string CommandName => ClassStrings.CommandNameValue;
 
+    /// <inheritdoc/>
     public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
+    /// <inheritdoc/>
     public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var certFileOption = new Option<FileInfo>(
@@ -79,6 +83,9 @@ public class PemSigningCommandProvider : ISigningCommandProvider
         command.AddOption(keyFileOption);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Required options are missing.</exception>
+    /// <exception cref="FileNotFoundException">The certificate or key file does not exist.</exception>
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
         var certFile = options[ClassStrings.KeyCertFile] as FileInfo
@@ -114,6 +121,7 @@ public class PemSigningCommandProvider : ISigningCommandProvider
         return await Task.FromResult(SigningService);
     }
 
+    /// <inheritdoc/>
     public IDictionary<string, string> GetSigningMetadata()
     {
         return new Dictionary<string, string>

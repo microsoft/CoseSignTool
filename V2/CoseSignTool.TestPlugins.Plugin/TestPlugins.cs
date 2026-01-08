@@ -8,61 +8,124 @@ using CoseSignTool.Abstractions;
 
 namespace CoseSignTool.TestPlugins.Plugin;
 
+/// <summary>
+/// Test plugin that throws from <see cref="IPlugin.GetExtensions"/>.
+/// </summary>
 public sealed class ThrowingGetExtensionsPlugin : IPlugin
 {
-    public string Name => "ThrowExt";
-    public string Version => "1.0.0";
-    public string Description => "Test plugin that throws from GetExtensions";
+    internal static class ClassStrings
+    {
+        public const string Name = "ThrowExt";
+        public const string Version = "1.0.0";
+        public const string Description = "Test plugin that throws from GetExtensions";
+        public const string ErrorMessageBoom = "boom";
+    }
 
-    public PluginExtensions GetExtensions() => throw new InvalidOperationException("boom");
+    /// <inheritdoc/>
+    public string Name => ClassStrings.Name;
 
+    /// <inheritdoc/>
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
+
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Always thrown for test coverage.</exception>
+    public PluginExtensions GetExtensions() => throw new InvalidOperationException(ClassStrings.ErrorMessageBoom);
+
+    /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
     }
 
+    /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;
 }
 
+/// <summary>
+/// Test plugin that throws while enumerating verification/transparency providers.
+/// </summary>
 public sealed class ThrowingProvidersPlugin : IPlugin
 {
-    public string Name => "ThrowProviders";
-    public string Version => "1.0.0";
-    public string Description => "Test plugin that throws while collecting providers";
+    internal static class ClassStrings
+    {
+        public const string Name = "ThrowProviders";
+        public const string Version = "1.0.0";
+        public const string Description = "Test plugin that throws while collecting providers";
+        public const string ErrorMessageVerificationFail = "verification fail";
+    }
 
+    /// <inheritdoc/>
+    public string Name => ClassStrings.Name;
+
+    /// <inheritdoc/>
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
+
+    /// <inheritdoc/>
     public PluginExtensions GetExtensions()
     {
         return new PluginExtensions(
             signingCommandProviders: Array.Empty<ISigningCommandProvider>(),
-            verificationProviders: new ThrowingEnumerable<IVerificationProvider>(new InvalidOperationException("verification fail")),
+            verificationProviders: new ThrowingEnumerable<IVerificationProvider>(new InvalidOperationException(ClassStrings.ErrorMessageVerificationFail)),
             transparencyProviders: new ITransparencyProviderContributor[] { new FaultingTransparencyContributor() });
     }
 
+    /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
     }
 
+    /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;
 
     private sealed class FaultingTransparencyContributor : ITransparencyProviderContributor
     {
-        public string ProviderName => "Faulting";
-        public string ProviderDescription => "Faulting contributor";
+        internal static class ClassStrings
+        {
+            public const string ProviderName = "Faulting";
+            public const string ProviderDescription = "Faulting contributor";
+            public const string ErrorMessageTransparencyFail = "transparency fail";
+        }
+
+        public string ProviderName => ClassStrings.ProviderName;
+        public string ProviderDescription => ClassStrings.ProviderDescription;
 
         public Task<ITransparencyProvider> CreateTransparencyProviderAsync(
             IDictionary<string, object?> options,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromException<ITransparencyProvider>(new InvalidOperationException("transparency fail"));
+            return Task.FromException<ITransparencyProvider>(new InvalidOperationException(ClassStrings.ErrorMessageTransparencyFail));
         }
     }
 }
 
+/// <summary>
+/// Test plugin that throws during <see cref="IPlugin.RegisterCommands"/>.
+/// </summary>
 public sealed class ThrowingRegisterCommandsPlugin : IPlugin
 {
-    public string Name => "ThrowRegister";
-    public string Version => "1.0.0";
-    public string Description => "Test plugin that throws during RegisterCommands";
+    internal static class ClassStrings
+    {
+        public const string Name = "ThrowRegister";
+        public const string Version = "1.0.0";
+        public const string Description = "Test plugin that throws during RegisterCommands";
+        public const string ErrorMessageRegisterFail = "register fail";
+    }
 
+    /// <inheritdoc/>
+    public string Name => ClassStrings.Name;
+
+    /// <inheritdoc/>
+    public string Version => ClassStrings.Version;
+
+    /// <inheritdoc/>
+    public string Description => ClassStrings.Description;
+
+    /// <inheritdoc/>
     public PluginExtensions GetExtensions()
     {
         return new PluginExtensions(
@@ -71,15 +134,26 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
             transparencyProviders: Array.Empty<ITransparencyProviderContributor>());
     }
 
-    public void RegisterCommands(Command rootCommand) => throw new InvalidOperationException("register fail");
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Always thrown for test coverage.</exception>
+    public void RegisterCommands(Command rootCommand) => throw new InvalidOperationException(ClassStrings.ErrorMessageRegisterFail);
 
+    /// <inheritdoc/>
     public Task InitializeAsync(IDictionary<string, string>? configuration = null) => Task.CompletedTask;
 
     private sealed class MinimalSigningCommandProvider : ISigningCommandProvider
     {
-        public string CommandName => "sign-test";
-        public string CommandDescription => "Test signing command";
-        public string ExampleUsage => "--example value";
+        internal static class ClassStrings
+        {
+            public const string CommandName = "sign-test";
+            public const string CommandDescription = "Test signing command";
+            public const string ExampleUsage = "--example value";
+            public const string ErrorMessageNotNeededForCommandBuilding = "Not needed for command building";
+        }
+
+        public string CommandName => ClassStrings.CommandName;
+        public string CommandDescription => ClassStrings.CommandDescription;
+        public string ExampleUsage => ClassStrings.ExampleUsage;
 
         public void AddCommandOptions(Command command)
         {
@@ -87,7 +161,7 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
 
         public Task<ISigningService<SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
         {
-            return Task.FromException<ISigningService<SigningOptions>>(new NotImplementedException("Not needed for command building"));
+            return Task.FromException<ISigningService<SigningOptions>>(new NotImplementedException(ClassStrings.ErrorMessageNotNeededForCommandBuilding));
         }
 
         public IDictionary<string, string> GetSigningMetadata() => new Dictionary<string, string>();

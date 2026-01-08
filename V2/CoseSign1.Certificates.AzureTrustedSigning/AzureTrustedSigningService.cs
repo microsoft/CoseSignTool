@@ -2,10 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using Azure.Core;
 using Azure.Developer.TrustedSigning.CryptoProvider;
 using CoseSign1.Abstractions;
-using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
 
 namespace CoseSign1.Certificates.AzureTrustedSigning;
@@ -26,6 +24,23 @@ namespace CoseSign1.Certificates.AzureTrustedSigning;
 /// </remarks>
 public class AzureTrustedSigningService : CertificateSigningService
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ServiceName = "AzureTrustedSigning";
+        public const string Description = "Microsoft Azure Trusted Signing service with FIPS 140-2 Level 3 HSM-backed keys";
+
+        public const string AdditionalDataKeyServiceType = "ServiceType";
+        public const string AdditionalDataValueRemote = "Remote";
+
+        public const string AdditionalDataKeyProvider = "Provider";
+        public const string AdditionalDataValueMicrosoft = "Microsoft";
+
+        public const string AdditionalDataKeyCompliance = "Compliance";
+        public const string ComplianceFips1402Level3 = "FIPS 140-2 Level 3";
+        public const string ComplianceScitt = "SCITT";
+    }
+
     private readonly AzSignContext SignContext;
     private readonly AzureTrustedSigningCertificateSource CertificateSource;
 
@@ -35,6 +50,7 @@ public class AzureTrustedSigningService : CertificateSigningService
     /// <param name="signContext">The Azure Trusted Signing context from the SDK. This will be reused across operations.</param>
     /// <param name="chainBuilder">Optional custom chain builder. If null, uses the certificate chain from Azure.</param>
     /// <param name="serviceMetadata">Optional service metadata. If null, creates default metadata.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signContext"/> is null.</exception>
     public AzureTrustedSigningService(
         AzSignContext signContext,
         ICertificateChainBuilder? chainBuilder = null,
@@ -51,13 +67,13 @@ public class AzureTrustedSigningService : CertificateSigningService
     private static SigningServiceMetadata CreateDefaultMetadata()
     {
         return new SigningServiceMetadata(
-            serviceName: "AzureTrustedSigning",
-            description: "Microsoft Azure Trusted Signing service with FIPS 140-2 Level 3 HSM-backed keys",
+            serviceName: ClassStrings.ServiceName,
+            description: ClassStrings.Description,
             additionalData: new Dictionary<string, object>
             {
-                ["ServiceType"] = "Remote",
-                ["Provider"] = "Microsoft",
-                ["Compliance"] = new[] { "FIPS 140-2 Level 3", "SCITT" }
+                [ClassStrings.AdditionalDataKeyServiceType] = ClassStrings.AdditionalDataValueRemote,
+                [ClassStrings.AdditionalDataKeyProvider] = ClassStrings.AdditionalDataValueMicrosoft,
+                [ClassStrings.AdditionalDataKeyCompliance] = new[] { ClassStrings.ComplianceFips1402Level3, ClassStrings.ComplianceScitt }
             });
     }
 

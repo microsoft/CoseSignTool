@@ -1,16 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
 using CoseSign1.Abstractions.Transparency;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Tests.Common;
 using Moq;
-using NUnit.Framework;
 
 namespace CoseSign1.Abstractions.Tests.Transparency;
 

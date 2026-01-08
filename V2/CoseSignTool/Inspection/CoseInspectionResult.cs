@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace CoseSignTool.Inspection;
@@ -10,46 +11,58 @@ namespace CoseSignTool.Inspection;
 /// </summary>
 public class CoseInspectionResult
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyFile = "file";
+        public const string JsonPropertyProtectedHeaders = "protectedHeaders";
+        public const string JsonPropertyUnprotectedHeaders = "unprotectedHeaders";
+        public const string JsonPropertyCwtClaims = "cwtClaims";
+        public const string JsonPropertyPayload = "payload";
+        public const string JsonPropertySignature = "signature";
+        public const string JsonPropertyCertificates = "certificates";
+    }
+
     /// <summary>
     /// File information.
     /// </summary>
-    [JsonPropertyName("file")]
+    [JsonPropertyName(ClassStrings.JsonPropertyFile)]
     public FileInformation? File { get; set; }
 
     /// <summary>
     /// Protected headers from the COSE message.
     /// </summary>
-    [JsonPropertyName("protectedHeaders")]
+    [JsonPropertyName(ClassStrings.JsonPropertyProtectedHeaders)]
     public ProtectedHeadersInfo? ProtectedHeaders { get; set; }
 
     /// <summary>
     /// Unprotected headers from the COSE message.
     /// </summary>
-    [JsonPropertyName("unprotectedHeaders")]
+    [JsonPropertyName(ClassStrings.JsonPropertyUnprotectedHeaders)]
     public List<HeaderInfo>? UnprotectedHeaders { get; set; }
 
     /// <summary>
     /// CWT Claims if present in the signature.
     /// </summary>
-    [JsonPropertyName("cwtClaims")]
+    [JsonPropertyName(ClassStrings.JsonPropertyCwtClaims)]
     public CwtClaimsInfo? CwtClaims { get; set; }
 
     /// <summary>
     /// Payload information.
     /// </summary>
-    [JsonPropertyName("payload")]
+    [JsonPropertyName(ClassStrings.JsonPropertyPayload)]
     public PayloadInfo? Payload { get; set; }
 
     /// <summary>
     /// Signature information.
     /// </summary>
-    [JsonPropertyName("signature")]
+    [JsonPropertyName(ClassStrings.JsonPropertySignature)]
     public SignatureInfo? Signature { get; set; }
 
     /// <summary>
     /// Certificate information extracted from the signature.
     /// </summary>
-    [JsonPropertyName("certificates")]
+    [JsonPropertyName(ClassStrings.JsonPropertyCertificates)]
     public List<CertificateInfo>? Certificates { get; set; }
 }
 
@@ -58,10 +71,23 @@ public class CoseInspectionResult
 /// </summary>
 public class FileInformation
 {
-    [JsonPropertyName("path")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyPath = "path";
+        public const string JsonPropertySizeBytes = "sizeBytes";
+    }
+
+    /// <summary>
+    /// The path that was inspected.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyPath)]
     public string? Path { get; set; }
 
-    [JsonPropertyName("sizeBytes")]
+    /// <summary>
+    /// The size of the inspected input in bytes.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySizeBytes)]
     public long SizeBytes { get; set; }
 }
 
@@ -70,31 +96,72 @@ public class FileInformation
 /// </summary>
 public class ProtectedHeadersInfo
 {
-    [JsonPropertyName("algorithm")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyAlgorithm = "algorithm";
+        public const string JsonPropertyContentType = "contentType";
+        public const string JsonPropertyCriticalHeaders = "criticalHeaders";
+        public const string JsonPropertyCertificateThumbprint = "certificateThumbprint";
+        public const string JsonPropertyCertificateChainLength = "certificateChainLength";
+        public const string JsonPropertyPayloadHashAlgorithm = "payloadHashAlgorithm";
+        public const string JsonPropertyPreimageContentType = "preimageContentType";
+        public const string JsonPropertyPayloadLocation = "payloadLocation";
+        public const string JsonPropertyOtherHeaders = "otherHeaders";
+    }
+
+    /// <summary>
+    /// The signature algorithm from protected headers.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyAlgorithm)]
     public AlgorithmInfo? Algorithm { get; set; }
 
-    [JsonPropertyName("contentType")]
+    /// <summary>
+    /// The protected content type, if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyContentType)]
     public string? ContentType { get; set; }
 
-    [JsonPropertyName("criticalHeaders")]
+    /// <summary>
+    /// Critical header labels, if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCriticalHeaders)]
     public List<string>? CriticalHeaders { get; set; }
 
-    [JsonPropertyName("certificateThumbprint")]
+    /// <summary>
+    /// Certificate thumbprint information (x5t), if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCertificateThumbprint)]
     public CertificateThumbprintInfo? CertificateThumbprint { get; set; }
 
-    [JsonPropertyName("certificateChainLength")]
+    /// <summary>
+    /// The number of certificates in the embedded chain (x5chain), if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCertificateChainLength)]
     public int? CertificateChainLength { get; set; }
 
-    [JsonPropertyName("payloadHashAlgorithm")]
+    /// <summary>
+    /// Payload hash algorithm used by indirect signatures, if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyPayloadHashAlgorithm)]
     public AlgorithmInfo? PayloadHashAlgorithm { get; set; }
 
-    [JsonPropertyName("preimageContentType")]
+    /// <summary>
+    /// The content type of the preimage used for payload hashing, if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyPreimageContentType)]
     public string? PreimageContentType { get; set; }
 
-    [JsonPropertyName("payloadLocation")]
+    /// <summary>
+    /// The payload location (embedded/detached) if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyPayloadLocation)]
     public string? PayloadLocation { get; set; }
 
-    [JsonPropertyName("otherHeaders")]
+    /// <summary>
+    /// Any additional protected headers not mapped to explicit fields.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyOtherHeaders)]
     public List<HeaderInfo>? OtherHeaders { get; set; }
 }
 
@@ -103,10 +170,23 @@ public class ProtectedHeadersInfo
 /// </summary>
 public class AlgorithmInfo
 {
-    [JsonPropertyName("id")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyId = "id";
+        public const string JsonPropertyName = "name";
+    }
+
+    /// <summary>
+    /// The numeric algorithm identifier.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyId)]
     public int Id { get; set; }
 
-    [JsonPropertyName("name")]
+    /// <summary>
+    /// The algorithm name, if known.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyName)]
     public string? Name { get; set; }
 }
 
@@ -115,10 +195,23 @@ public class AlgorithmInfo
 /// </summary>
 public class CertificateThumbprintInfo
 {
-    [JsonPropertyName("algorithm")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyAlgorithm = "algorithm";
+        public const string JsonPropertyValue = "value";
+    }
+
+    /// <summary>
+    /// The thumbprint algorithm name (e.g. SHA-256).
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyAlgorithm)]
     public string? Algorithm { get; set; }
 
-    [JsonPropertyName("value")]
+    /// <summary>
+    /// The thumbprint value.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyValue)]
     public string? Value { get; set; }
 }
 
@@ -127,19 +220,44 @@ public class CertificateThumbprintInfo
 /// </summary>
 public class HeaderInfo
 {
-    [JsonPropertyName("label")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyLabel = "label";
+        public const string JsonPropertyLabelId = "labelId";
+        public const string JsonPropertyValue = "value";
+        public const string JsonPropertyValueType = "valueType";
+        public const string JsonPropertyLengthBytes = "lengthBytes";
+    }
+
+    /// <summary>
+    /// The header label as a string, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyLabel)]
     public string? Label { get; set; }
 
-    [JsonPropertyName("labelId")]
+    /// <summary>
+    /// The header label as an integer, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyLabelId)]
     public int? LabelId { get; set; }
 
-    [JsonPropertyName("value")]
+    /// <summary>
+    /// The decoded header value.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyValue)]
     public object? Value { get; set; }
 
-    [JsonPropertyName("valueType")]
+    /// <summary>
+    /// The decoded value type name.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyValueType)]
     public string? ValueType { get; set; }
 
-    [JsonPropertyName("lengthBytes")]
+    /// <summary>
+    /// Approximate length of the encoded value, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyLengthBytes)]
     public int? LengthBytes { get; set; }
 }
 
@@ -148,40 +266,93 @@ public class HeaderInfo
 /// </summary>
 public class CwtClaimsInfo
 {
-    [JsonPropertyName("issuer")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyIssuer = "issuer";
+        public const string JsonPropertySubject = "subject";
+        public const string JsonPropertyAudience = "audience";
+        public const string JsonPropertyIssuedAt = "issuedAt";
+        public const string JsonPropertyIssuedAtUnix = "issuedAtUnix";
+        public const string JsonPropertyNotBefore = "notBefore";
+        public const string JsonPropertyNotBeforeUnix = "notBeforeUnix";
+        public const string JsonPropertyExpirationTime = "expirationTime";
+        public const string JsonPropertyExpirationTimeUnix = "expirationTimeUnix";
+        public const string JsonPropertyIsExpired = "isExpired";
+        public const string JsonPropertyCwtId = "cwtId";
+        public const string JsonPropertyCustomClaimsCount = "customClaimsCount";
+    }
+
+    /// <summary>
+    /// Issuer claim (iss).
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIssuer)]
     public string? Issuer { get; set; }
 
-    [JsonPropertyName("subject")]
+    /// <summary>
+    /// Subject claim (sub).
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySubject)]
     public string? Subject { get; set; }
 
-    [JsonPropertyName("audience")]
+    /// <summary>
+    /// Audience claim (aud).
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyAudience)]
     public string? Audience { get; set; }
 
-    [JsonPropertyName("issuedAt")]
+    /// <summary>
+    /// Issued-at claim (iat) formatted as a string.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIssuedAt)]
     public string? IssuedAt { get; set; }
 
-    [JsonPropertyName("issuedAtUnix")]
+    /// <summary>
+    /// Issued-at claim (iat) as Unix time, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIssuedAtUnix)]
     public long? IssuedAtUnix { get; set; }
 
-    [JsonPropertyName("notBefore")]
+    /// <summary>
+    /// Not-before claim (nbf) formatted as a string.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyNotBefore)]
     public string? NotBefore { get; set; }
 
-    [JsonPropertyName("notBeforeUnix")]
+    /// <summary>
+    /// Not-before claim (nbf) as Unix time, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyNotBeforeUnix)]
     public long? NotBeforeUnix { get; set; }
 
-    [JsonPropertyName("expirationTime")]
+    /// <summary>
+    /// Expiration time claim (exp) formatted as a string.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyExpirationTime)]
     public string? ExpirationTime { get; set; }
 
-    [JsonPropertyName("expirationTimeUnix")]
+    /// <summary>
+    /// Expiration time claim (exp) as Unix time, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyExpirationTimeUnix)]
     public long? ExpirationTimeUnix { get; set; }
 
-    [JsonPropertyName("isExpired")]
+    /// <summary>
+    /// Indicates whether the token is expired at inspection time, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIsExpired)]
     public bool? IsExpired { get; set; }
 
-    [JsonPropertyName("cwtId")]
+    /// <summary>
+    /// CWT identifier (cti), if present.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCwtId)]
     public string? CwtId { get; set; }
 
-    [JsonPropertyName("customClaimsCount")]
+    /// <summary>
+    /// The number of custom claims in the token.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCustomClaimsCount)]
     public int? CustomClaimsCount { get; set; }
 }
 
@@ -190,22 +361,51 @@ public class CwtClaimsInfo
 /// </summary>
 public class PayloadInfo
 {
-    [JsonPropertyName("isEmbedded")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyIsEmbedded = "isEmbedded";
+        public const string JsonPropertySizeBytes = "sizeBytes";
+        public const string JsonPropertyContentType = "contentType";
+        public const string JsonPropertyIsText = "isText";
+        public const string JsonPropertyPreview = "preview";
+        public const string JsonPropertySha256 = "sha256";
+    }
+
+    /// <summary>
+    /// Indicates whether the payload is embedded in the COSE message.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIsEmbedded)]
     public bool IsEmbedded { get; set; }
 
-    [JsonPropertyName("sizeBytes")]
+    /// <summary>
+    /// The payload size in bytes, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySizeBytes)]
     public int? SizeBytes { get; set; }
 
-    [JsonPropertyName("contentType")]
+    /// <summary>
+    /// The payload content type, if available.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyContentType)]
     public string? ContentType { get; set; }
 
-    [JsonPropertyName("isText")]
+    /// <summary>
+    /// Indicates whether the payload appears to be text.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIsText)]
     public bool? IsText { get; set; }
 
-    [JsonPropertyName("preview")]
+    /// <summary>
+    /// A short preview of the payload, if produced.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyPreview)]
     public string? Preview { get; set; }
 
-    [JsonPropertyName("sha256")]
+    /// <summary>
+    /// The SHA-256 hash of the payload, if produced.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySha256)]
     public string? Sha256 { get; set; }
 }
 
@@ -214,10 +414,23 @@ public class PayloadInfo
 /// </summary>
 public class SignatureInfo
 {
-    [JsonPropertyName("totalSizeBytes")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertyTotalSizeBytes = "totalSizeBytes";
+        public const string JsonPropertyCertificateChainLocation = "certificateChainLocation";
+    }
+
+    /// <summary>
+    /// The total signature size in bytes.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyTotalSizeBytes)]
     public int TotalSizeBytes { get; set; }
 
-    [JsonPropertyName("certificateChainLocation")]
+    /// <summary>
+    /// Indicates where the certificate chain was located (protected/unprotected), if known.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyCertificateChainLocation)]
     public string? CertificateChainLocation { get; set; }
 }
 
@@ -226,30 +439,71 @@ public class SignatureInfo
 /// </summary>
 public class CertificateInfo
 {
-    [JsonPropertyName("subject")]
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string JsonPropertySubject = "subject";
+        public const string JsonPropertyIssuer = "issuer";
+        public const string JsonPropertySerialNumber = "serialNumber";
+        public const string JsonPropertyThumbprint = "thumbprint";
+        public const string JsonPropertyNotBefore = "notBefore";
+        public const string JsonPropertyNotAfter = "notAfter";
+        public const string JsonPropertyIsExpired = "isExpired";
+        public const string JsonPropertyKeyAlgorithm = "keyAlgorithm";
+        public const string JsonPropertySignatureAlgorithm = "signatureAlgorithm";
+    }
+
+    /// <summary>
+    /// Certificate subject distinguished name.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySubject)]
     public string? Subject { get; set; }
 
-    [JsonPropertyName("issuer")]
+    /// <summary>
+    /// Certificate issuer distinguished name.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIssuer)]
     public string? Issuer { get; set; }
 
-    [JsonPropertyName("serialNumber")]
+    /// <summary>
+    /// Certificate serial number.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySerialNumber)]
     public string? SerialNumber { get; set; }
 
-    [JsonPropertyName("thumbprint")]
+    /// <summary>
+    /// Certificate thumbprint.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyThumbprint)]
     public string? Thumbprint { get; set; }
 
-    [JsonPropertyName("notBefore")]
+    /// <summary>
+    /// Certificate validity start time.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyNotBefore)]
     public string? NotBefore { get; set; }
 
-    [JsonPropertyName("notAfter")]
+    /// <summary>
+    /// Certificate validity end time.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyNotAfter)]
     public string? NotAfter { get; set; }
 
-    [JsonPropertyName("isExpired")]
+    /// <summary>
+    /// Indicates whether the certificate is expired at inspection time, if computed.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyIsExpired)]
     public bool? IsExpired { get; set; }
 
-    [JsonPropertyName("keyAlgorithm")]
+    /// <summary>
+    /// Public key algorithm name.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertyKeyAlgorithm)]
     public string? KeyAlgorithm { get; set; }
 
-    [JsonPropertyName("signatureAlgorithm")]
+    /// <summary>
+    /// Certificate signature algorithm name.
+    /// </summary>
+    [JsonPropertyName(ClassStrings.JsonPropertySignatureAlgorithm)]
     public string? SignatureAlgorithm { get; set; }
 }

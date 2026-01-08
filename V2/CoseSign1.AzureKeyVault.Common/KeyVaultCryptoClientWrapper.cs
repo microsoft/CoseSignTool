@@ -26,6 +26,15 @@ namespace CoseSign1.AzureKeyVault.Common;
 /// </remarks>
 public sealed class KeyVaultCryptoClientWrapper : IDisposable
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorKeyTypeNotSupportedForSigningFormat = "Key type {0} is not supported for signing.";
+        public const string ErrorRsaKeyRequiredFormat = "This operation requires an RSA or RSA-HSM key, but the key is {0}.";
+        public const string ErrorEcKeyRequiredFormat = "This operation requires an EC or EC-HSM key, but the key is {0}.";
+        public const string ErrorHashAlgorithmNotSupportedFormat = "Hash algorithm {0} is not supported.";
+    }
+
     private readonly CryptographyClient CryptoClient;
     private readonly KeyVaultKey Key;
     private bool Disposed;
@@ -93,6 +102,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// </summary>
     /// <param name="key">The Key Vault key containing public key material and metadata.</param>
     /// <param name="cryptoClient">The cryptography client for signing operations.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> or <paramref name="cryptoClient"/> is null.</exception>
     /// <remarks>
     /// This constructor enables dependency injection for testing scenarios.
     /// For production use, prefer the <see cref="CreateAsync"/> factory method.
@@ -108,6 +118,10 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs a hash using RSA.
     /// </summary>
+    /// <param name="hash">The precomputed hash to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used to compute <paramref name="hash"/>.</param>
+    /// <param name="padding">The RSA signature padding.</param>
+    /// <returns>The signature bytes.</returns>
     public byte[] SignHashWithRsa(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         return SignHashWithRsaAsync(hash, hashAlgorithm, padding).GetAwaiter().GetResult();
@@ -116,6 +130,11 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs a hash using RSA asynchronously.
     /// </summary>
+    /// <param name="hash">The precomputed hash to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used to compute <paramref name="hash"/>.</param>
+    /// <param name="padding">The RSA signature padding.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation.</param>
+    /// <returns>The signature bytes.</returns>
     public async Task<byte[]> SignHashWithRsaAsync(
         byte[] hash,
         HashAlgorithmName hashAlgorithm,
@@ -133,6 +152,10 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs data using RSA (computes hash first).
     /// </summary>
+    /// <param name="data">The data to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm to use.</param>
+    /// <param name="padding">The RSA signature padding.</param>
+    /// <returns>The signature bytes.</returns>
     public byte[] SignDataWithRsa(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         return SignDataWithRsaAsync(data, hashAlgorithm, padding).GetAwaiter().GetResult();
@@ -141,6 +164,11 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs data using RSA asynchronously (computes hash first).
     /// </summary>
+    /// <param name="data">The data to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm to use.</param>
+    /// <param name="padding">The RSA signature padding.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation.</param>
+    /// <returns>The signature bytes.</returns>
     public async Task<byte[]> SignDataWithRsaAsync(
         byte[] data,
         HashAlgorithmName hashAlgorithm,
@@ -163,6 +191,8 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs a hash using ECDSA.
     /// </summary>
+    /// <param name="hash">The precomputed hash to sign.</param>
+    /// <returns>The signature bytes.</returns>
     public byte[] SignHashWithEcdsa(byte[] hash)
     {
         return SignHashWithEcdsaAsync(hash).GetAwaiter().GetResult();
@@ -171,6 +201,9 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs a hash using ECDSA asynchronously.
     /// </summary>
+    /// <param name="hash">The precomputed hash to sign.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation.</param>
+    /// <returns>The signature bytes.</returns>
     public async Task<byte[]> SignHashWithEcdsaAsync(byte[] hash, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -184,6 +217,9 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs data using ECDSA (computes hash first).
     /// </summary>
+    /// <param name="data">The data to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm to use.</param>
+    /// <returns>The signature bytes.</returns>
     public byte[] SignDataWithEcdsa(byte[] data, HashAlgorithmName hashAlgorithm)
     {
         return SignDataWithEcdsaAsync(data, hashAlgorithm).GetAwaiter().GetResult();
@@ -192,6 +228,10 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs data using ECDSA asynchronously (computes hash first).
     /// </summary>
+    /// <param name="data">The data to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm to use.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation.</param>
+    /// <returns>The signature bytes.</returns>
     public async Task<byte[]> SignDataWithEcdsaAsync(
         byte[] data,
         HashAlgorithmName hashAlgorithm,
@@ -213,6 +253,12 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// <summary>
     /// Signs a hash using the appropriate algorithm based on key type.
     /// </summary>
+    /// <param name="hash">The precomputed hash to sign.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used to compute <paramref name="hash"/>.</param>
+    /// <param name="rsaPadding">Optional RSA padding for RSA keys. Defaults to PSS when not provided.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation.</param>
+    /// <returns>The signature bytes.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the key type is not supported for signing.</exception>
     public async Task<byte[]> SignHashAsync(
         byte[] hash,
         HashAlgorithmName hashAlgorithm,
@@ -231,7 +277,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
             return await SignHashWithEcdsaAsync(hash, cancellationToken).ConfigureAwait(false);
         }
 
-        throw new NotSupportedException($"Key type {Key.KeyType} is not supported for signing.");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorKeyTypeNotSupportedForSigningFormat, Key.KeyType));
     }
 
     #endregion
@@ -243,7 +289,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
         if (Key.KeyType != KeyType.Rsa && Key.KeyType != KeyType.RsaHsm)
         {
             throw new NotSupportedException(
-                $"This operation requires an RSA or RSA-HSM key, but the key is {Key.KeyType}.");
+                string.Format(ClassStrings.ErrorRsaKeyRequiredFormat, Key.KeyType));
         }
     }
 
@@ -252,7 +298,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
         if (Key.KeyType != KeyType.Ec && Key.KeyType != KeyType.EcHsm)
         {
             throw new NotSupportedException(
-                $"This operation requires an EC or EC-HSM key, but the key is {Key.KeyType}.");
+                string.Format(ClassStrings.ErrorEcKeyRequiredFormat, Key.KeyType));
         }
     }
 
@@ -273,7 +319,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
             return SHA512.Create();
         }
 
-        throw new NotSupportedException($"Hash algorithm {name} is not supported.");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, name));
     }
 
     private void ThrowIfDisposed()

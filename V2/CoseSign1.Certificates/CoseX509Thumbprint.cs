@@ -2,8 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates;
 
@@ -12,6 +11,19 @@ namespace CoseSign1.Certificates;
 /// </summary>
 public class CoseX509Thumbprint
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorHashAlgorithmNotSupportedFormat = "Hash algorithm {0} is not supported for COSE X509 thumbprints.";
+
+        public const string ErrorFormatUnsupportedThumbprintHashAlgorithmWithCoseId = "Unsupported thumbprint hash algorithm with COSE ID {0}";
+
+        public const string ErrorX5tFirstLevelMustBeArray = "x5t first level must be an array";
+        public const string ErrorX5tFirstLevelMustBeTwoElementArray = "x5t first level must be a 2-element array";
+        public const string ErrorX5tFirstElementMustBeInteger = "x5t first element must be NegativeInteger or UnsignedInteger";
+        public const string ErrorX5tSecondElementMustBeByteString = "x5t second element must be ByteString";
+    }
+
     private static readonly Dictionary<HashAlgorithmName, int> HashAlgorithmToCoseId = new()
     {
         { HashAlgorithmName.SHA256, -16 },
@@ -40,6 +52,7 @@ public class CoseX509Thumbprint
     /// Construct a thumbprint based on a certificate using SHA256 (default).
     /// </summary>
     /// <param name="cert">The certificate to create a thumbprint for.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="cert"/> is null.</exception>
     public CoseX509Thumbprint(X509Certificate2 cert)
         : this(cert, HashAlgorithmName.SHA256)
     {
@@ -50,6 +63,8 @@ public class CoseX509Thumbprint
     /// </summary>
     /// <param name="cert">The certificate to create a thumbprint for.</param>
     /// <param name="hashAlgorithm">The hash algorithm to use.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="cert"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="hashAlgorithm"/> is not supported.</exception>
     public CoseX509Thumbprint(X509Certificate2 cert, HashAlgorithmName hashAlgorithm)
     {
         if (cert == null)
@@ -59,7 +74,7 @@ public class CoseX509Thumbprint
 
         if (!HashAlgorithmToCoseId.TryGetValue(hashAlgorithm, out int coseId))
         {
-            throw new ArgumentException($"Hash algorithm {hashAlgorithm} is not supported for COSE X509 thumbprints.", nameof(hashAlgorithm));
+            throw new ArgumentException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm), nameof(hashAlgorithm));
         }
 
         HashId = coseId;
@@ -75,7 +90,7 @@ public class CoseX509Thumbprint
             nameof(SHA384) => ComputeHash(cert.RawData, SHA384.Create()),
             nameof(SHA512) => ComputeHash(cert.RawData, SHA512.Create()),
 #endif
-            _ => throw new ArgumentException($"Hash algorithm {hashAlgorithm} is not supported for COSE X509 thumbprints.", nameof(hashAlgorithm))
+            _ => throw new ArgumentException(string.Format(ClassStrings.ErrorHashAlgorithmNotSupportedFormat, hashAlgorithm), nameof(hashAlgorithm))
         };
 
         Thumbprint = hash;
@@ -107,6 +122,8 @@ public class CoseX509Thumbprint
     /// </summary>
     /// <param name="certificate">Certificate to check.</param>
     /// <returns>True if the certificate matches this thumbprint, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
+    /// <exception cref="CryptographicException">Thrown when <see cref="HashId"/> is not supported.</exception>
     public bool Match(X509Certificate2 certificate)
     {
         if (certificate == null)
@@ -125,7 +142,7 @@ public class CoseX509Thumbprint
             -43 => ComputeHash(certificate.RawData, SHA384.Create()),
             -44 => ComputeHash(certificate.RawData, SHA512.Create()),
 #endif
-            _ => throw new CryptographicException($"Unsupported thumbprint hash algorithm with COSE ID {HashId}")
+            _ => throw new CryptographicException(string.Format(ClassStrings.ErrorFormatUnsupportedThumbprintHashAlgorithmWithCoseId, HashId))
         };
 
         return Thumbprint.Span.SequenceEqual(certHash);
@@ -136,6 +153,7 @@ public class CoseX509Thumbprint
     /// </summary>
     /// <param name="reader">CborReader that contains the data stream to deserialize.</param>
     /// <returns>CoseX509Thumbprint object.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="reader"/> is null.</exception>
     /// <exception cref="CoseX509FormatException">Thrown when the data stream does not meet x5t format requirements.</exception>
     public static CoseX509Thumbprint Deserialize(CborReader reader)
     {
@@ -146,27 +164,27 @@ public class CoseX509Thumbprint
 
         if (reader.PeekState() != CborReaderState.StartArray)
         {
-            throw new CoseX509FormatException("x5t first level must be an array");
+            throw new CoseX509FormatException(ClassStrings.ErrorX5tFirstLevelMustBeArray);
         }
 
         int? arrayLength = reader.ReadStartArray();
         if (arrayLength != 2)
         {
-            throw new CoseX509FormatException("x5t first level must be a 2-element array");
+            throw new CoseX509FormatException(ClassStrings.ErrorX5tFirstLevelMustBeTwoElementArray);
         }
 
         // CBOR makes the types clear but .NET is fuzzy here so we have to allow both
         if (reader.PeekState() != CborReaderState.NegativeInteger &&
             reader.PeekState() != CborReaderState.UnsignedInteger)
         {
-            throw new CoseX509FormatException("x5t first element must be NegativeInteger or UnsignedInteger");
+            throw new CoseX509FormatException(ClassStrings.ErrorX5tFirstElementMustBeInteger);
         }
 
         int hashId = reader.ReadInt32();
 
         if (reader.PeekState() != CborReaderState.ByteString)
         {
-            throw new CoseX509FormatException("x5t second element must be ByteString");
+            throw new CoseX509FormatException(ClassStrings.ErrorX5tSecondElementMustBeByteString);
         }
 
         byte[] thumbprint = reader.ReadByteString();
@@ -175,7 +193,7 @@ public class CoseX509Thumbprint
         // Validate hash ID is supported
         if (!CoseIdToHashAlgorithm.ContainsKey(hashId))
         {
-            throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm with COSE ID {hashId}");
+            throw new CoseX509FormatException(string.Format(ClassStrings.ErrorFormatUnsupportedThumbprintHashAlgorithmWithCoseId, hashId));
         }
 
         return new CoseX509Thumbprint(hashId, thumbprint);
@@ -186,6 +204,7 @@ public class CoseX509Thumbprint
     /// </summary>
     /// <param name="writer">The CBOR writer to write to.</param>
     /// <returns>The encoded bytes.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="writer"/> is null.</exception>
     public byte[] Serialize(CborWriter writer)
     {
         if (writer == null)

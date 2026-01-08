@@ -18,6 +18,17 @@ using DIDx509.Parsing;
 /// </summary>
 public static class DidX509Validator
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorDidParsingFailed = "DID parsing failed: {0}";
+        public const string ErrorCertificateChainConversionFailed = "Certificate chain conversion failed: {0}";
+        public const string ErrorNoCaMatchTemplate = "{0}: No CA certificate in chain matches fingerprint {1} ({2})";
+        public const string ErrorUnknownPolicyType = "Unknown policy type: {0}";
+        public const string ErrorChainValidationError = "Chain validation error: {0} - {1}";
+        public const string ErrorChainValidationException = "Chain validation exception: {0}";
+    }
+
     /// <summary>
     /// Validates a DID:X509 identifier against a certificate chain.
     /// </summary>
@@ -42,7 +53,7 @@ public static class DidX509Validator
         }
         catch (Exception ex)
         {
-            return DidX509ValidationResult.Failure($"DID parsing failed: {ex.Message}");
+            return DidX509ValidationResult.Failure(string.Format(ClassStrings.ErrorDidParsingFailed, ex.Message));
         }
 
         // Step 2: Validate certificate chain structure
@@ -70,7 +81,7 @@ public static class DidX509Validator
         }
         catch (Exception ex)
         {
-            return DidX509ValidationResult.Failure($"Certificate chain conversion failed: {ex.Message}");
+            return DidX509ValidationResult.Failure(string.Format(ClassStrings.ErrorCertificateChainConversionFailed, ex.Message));
         }
 
         // Step 5: Validate CA fingerprint match
@@ -78,7 +89,11 @@ public static class DidX509Validator
         if (matchingCa == null)
         {
             return DidX509ValidationResult.Failure(
-                $"{DidX509Constants.ErrorNoCaMatch}: No CA certificate in chain matches fingerprint {parsedDid.CaFingerprint} ({parsedDid.HashAlgorithm})");
+                string.Format(
+                    ClassStrings.ErrorNoCaMatchTemplate,
+                    DidX509Constants.ErrorNoCaMatch,
+                    parsedDid.CaFingerprint,
+                    parsedDid.HashAlgorithm));
         }
 
         // Step 6: Validate all policies
@@ -122,7 +137,7 @@ public static class DidX509Validator
 
             default:
                 // Unknown policy type - fail validation
-                errors.Add($"Unknown policy type: {policy.Name}");
+                errors.Add(string.Format(ClassStrings.ErrorUnknownPolicyType, policy.Name));
                 return false;
         }
     }
@@ -173,7 +188,7 @@ public static class DidX509Validator
                     // Ignore UntrustedRoot if we're using custom trust
                     if (status.Status != X509ChainStatusFlags.UntrustedRoot)
                     {
-                        errors.Add($"Chain validation error: {status.Status} - {status.StatusInformation}");
+                        errors.Add(string.Format(ClassStrings.ErrorChainValidationError, status.Status, status.StatusInformation.Trim()));
                     }
                 }
 
@@ -187,7 +202,7 @@ public static class DidX509Validator
         }
         catch (Exception ex)
         {
-            errors.Add($"Chain validation exception: {ex.Message}");
+            errors.Add(string.Format(ClassStrings.ErrorChainValidationException, ex.Message));
             return false;
         }
     }
@@ -196,6 +211,9 @@ public static class DidX509Validator
     /// Validates a DID against a certificate chain without performing full chain validation.
     /// Useful for testing or when chain validation is performed externally.
     /// </summary>
+    /// <param name="did">The DID:X509 identifier string.</param>
+    /// <param name="certificates">The certificate chain (leaf first).</param>
+    /// <returns>A validation result indicating success or failure with detailed errors.</returns>
     public static DidX509ValidationResult ValidatePoliciesOnly(
         string did,
         IEnumerable<X509Certificate2> certificates)

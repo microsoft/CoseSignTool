@@ -29,6 +29,9 @@ public sealed class CertificateExtensions
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateExtensions"/> class.
     /// </summary>
+    /// <param name="eku">The Extended Key Usage (EKU) OIDs.</param>
+    /// <param name="san">The Subject Alternative Names (SAN).</param>
+    /// <param name="fulcioIssuer">The Fulcio issuer URL.</param>
     public CertificateExtensions(
         IReadOnlyList<string>? eku = null,
         IReadOnlyList<SubjectAlternativeName>? san = null,
@@ -42,6 +45,8 @@ public sealed class CertificateExtensions
     /// <summary>
     /// Checks if the certificate has a specific EKU OID.
     /// </summary>
+    /// <param name="oid">The EKU OID to check for.</param>
+    /// <returns><see langword="true"/> if the EKU is present; otherwise, <see langword="false"/>.</returns>
     public bool HasEku(string oid)
     {
         if (Eku == null || string.IsNullOrEmpty(oid))
@@ -63,6 +68,9 @@ public sealed class CertificateExtensions
     /// <summary>
     /// Checks if the certificate has a specific SAN.
     /// </summary>
+    /// <param name="type">The SAN type.</param>
+    /// <param name="value">The SAN value.</param>
+    /// <returns><see langword="true"/> if the SAN is present; otherwise, <see langword="false"/>.</returns>
     public bool HasSan(string type, string value)
     {
         if (San == null || string.IsNullOrEmpty(type) || string.IsNullOrEmpty(value))

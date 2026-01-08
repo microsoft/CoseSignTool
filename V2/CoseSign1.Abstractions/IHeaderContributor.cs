@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.Cose;
-
 namespace CoseSign1.Abstractions;
 
 /// <summary>
@@ -42,6 +40,10 @@ public class HeaderContributorContext
     /// <summary>
     /// Initializes a new instance of the <see cref="HeaderContributorContext"/> class.
     /// </summary>
+    /// <param name="signingContext">The signing context containing payload and related metadata.</param>
+    /// <param name="signingKey">The signing key being used for the operation.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingContext"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingKey"/> is <see langword="null"/>.</exception>
     public HeaderContributorContext(SigningContext signingContext, ISigningKey signingKey)
     {
         SigningContext = signingContext ?? throw new ArgumentNullException(nameof(signingContext));
@@ -51,12 +53,14 @@ public class HeaderContributorContext
     /// <summary>
     /// Gets the signing context (payload, content type, etc.).
     /// </summary>
+    /// <value>The signing context.</value>
     public SigningContext SigningContext { get; }
 
     /// <summary>
     /// Gets the signing key being used for the operation.
     /// Contributors can access key metadata via SigningKey.Metadata.
     /// </summary>
+    /// <value>The signing key.</value>
     public ISigningKey SigningKey { get; }
 }
 
@@ -73,6 +77,7 @@ public interface IHeaderContributor
     /// Gets the merge strategy for handling conflicts when headers already exist.
     /// Default behavior should be Fail for safety.
     /// </summary>
+    /// <value>The merge strategy to use when a contributed header already exists.</value>
     HeaderMergeStrategy MergeStrategy { get; }
 
     /// <summary>

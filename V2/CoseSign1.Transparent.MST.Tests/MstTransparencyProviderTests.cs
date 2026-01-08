@@ -7,9 +7,7 @@ using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using Azure;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Tests.Common;
-using CoseSign1.Transparent.MST.Extensions;
 using Moq;
 
 namespace CoseSign1.Transparent.MST.Tests;

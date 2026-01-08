@@ -1,11 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Security.Cryptography.Cose;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace CoseSign1.Abstractions.Transparency;
 
 /// <summary>
@@ -32,6 +27,8 @@ public static class TransparencyExtensions
     /// <param name="provider">The transparency provider to use for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The validation result.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <see langword="null"/>.</exception>
     /// <example>
     /// <code>
     /// var ctsProvider = new AzureCtsTransparencyProvider(client);
@@ -68,6 +65,8 @@ public static class TransparencyExtensions
     /// <param name="providers">The transparency providers to use for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of validation results, one per provider.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <example>
     /// <code>
     /// var providers = new ITransparencyProvider[]

@@ -2,10 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Interfaces;
-using CoseSign1.Certificates.Logging;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CoseSign1.Certificates.ChainBuilders;
@@ -15,6 +11,24 @@ namespace CoseSign1.Certificates.ChainBuilders;
 /// </summary>
 public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string LogInitializedFormat =
+            "X509ChainBuilder initialized. RevocationMode: {RevocationMode}, RevocationFlag: {RevocationFlag}, VerificationFlags: {VerificationFlags}";
+
+        public const string LogBuildingChainFormat =
+            "Building certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}";
+
+        public const string LogChainBuiltFormat =
+            "Certificate chain built successfully. ChainLength: {ChainLength}";
+
+        public const string LogChainBuildFailedFormat =
+            "Certificate chain build failed. ChainLength: {ChainLength}, ChainStatus: {ChainStatus}";
+
+        public const string ChainStatusJoinSeparator = ", ";
+    }
+
     private readonly X509Chain Chain;
     private readonly ILogger<X509ChainBuilder> LoggerField;
     private bool Disposed;
@@ -99,13 +113,14 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,
-            "X509ChainBuilder initialized. RevocationMode: {RevocationMode}, RevocationFlag: {RevocationFlag}, VerificationFlags: {VerificationFlags}",
+            ClassStrings.LogInitializedFormat,
             chainPolicy.RevocationMode,
             chainPolicy.RevocationFlag,
             chainPolicy.VerificationFlags);
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ObjectDisposedException">Thrown when the builder has been disposed.</exception>
     public IReadOnlyCollection<X509Certificate2> ChainElements
     {
         get
@@ -125,6 +140,8 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ObjectDisposedException">Thrown when the builder has been disposed.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public X509ChainPolicy ChainPolicy
     {
         get
@@ -150,6 +167,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ObjectDisposedException">Thrown when the builder has been disposed.</exception>
     public X509ChainStatus[] ChainStatus
     {
         get
@@ -164,6 +182,8 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ObjectDisposedException">Thrown when the builder has been disposed.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
     public bool Build(X509Certificate2 certificate)
     {
 #if NET5_0_OR_GREATER
@@ -176,7 +196,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,
-            "Building certificate chain. Subject: {Subject}, Thumbprint: {Thumbprint}",
+            ClassStrings.LogBuildingChainFormat,
             certificate.Subject,
             certificate.Thumbprint);
 
@@ -186,15 +206,15 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         {
             LoggerField.LogTrace(
                 LogEvents.CertificateChainBuiltEvent,
-                "Certificate chain built successfully. ChainLength: {ChainLength}",
+                ClassStrings.LogChainBuiltFormat,
                 Chain.ChainElements.Count);
         }
         else
         {
-            var statusSummary = string.Join(", ", Chain.ChainStatus.Select(s => s.Status.ToString()));
+            var statusSummary = string.Join(ClassStrings.ChainStatusJoinSeparator, Chain.ChainStatus.Select(s => s.Status.ToString()));
             LoggerField.LogTrace(
                 LogEvents.CertificateChainBuildFailedEvent,
-                "Certificate chain build failed. ChainLength: {ChainLength}, ChainStatus: {ChainStatus}",
+                ClassStrings.LogChainBuildFailedFormat,
                 Chain.ChainElements.Count,
                 statusSummary);
         }

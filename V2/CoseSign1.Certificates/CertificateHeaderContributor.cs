@@ -2,11 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
+using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Certificates.Interfaces;
 
 namespace CoseSign1.Certificates;
 
@@ -17,6 +14,15 @@ namespace CoseSign1.Certificates;
 /// </summary>
 public class CertificateHeaderContributor : IHeaderContributor
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public static readonly string ErrorSigningCertificateNotProvided = "Signing certificate is not provided";
+        public static readonly string ErrorSigningCertificateThumbprintMustMatchFirstChainElementFormat =
+            "The signing certificate thumbprint \"{0}\" must match the first item in the certificate chain, which is \"{1}\".";
+        public static readonly string NullValue = "null";
+    }
+
     /// <summary>
     /// COSE header labels specific to certificate-based signatures.
     /// </summary>
@@ -51,6 +57,8 @@ public class CertificateHeaderContributor : IHeaderContributor
     /// </summary>
     /// <param name="headers">The header map to contribute to.</param>
     /// <param name="context">The header contributor context.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> or <paramref name="context"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the signing certificate is missing or does not match the provided chain.</exception>
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
         if (headers == null)
@@ -74,7 +82,7 @@ public class CertificateHeaderContributor : IHeaderContributor
 
         if (signingCertificate == null)
         {
-            throw new InvalidOperationException("Signing certificate is not provided");
+            throw new InvalidOperationException(ClassStrings.ErrorSigningCertificateNotProvided);
         }
 
         // Add X5T (certificate thumbprint)
@@ -89,9 +97,10 @@ public class CertificateHeaderContributor : IHeaderContributor
         // Ensure the first chain element matches the signing certificate
         if (firstCert == null || !signingCertificate.Thumbprint.Equals(firstCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"The signing certificate thumbprint \"{signingCertificate.Thumbprint}\" " +
-                $"must match the first item in the certificate chain, which is \"{firstCert?.Thumbprint ?? "null"}\".");
+            throw new InvalidOperationException(string.Format(
+                ClassStrings.ErrorSigningCertificateThumbprintMustMatchFirstChainElementFormat,
+                signingCertificate.Thumbprint,
+                firstCert?.Thumbprint ?? ClassStrings.NullValue));
         }
 
         cborWriter.EncodeCertList(chain);

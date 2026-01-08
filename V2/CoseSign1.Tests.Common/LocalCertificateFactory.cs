@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Local;
 
 namespace CoseSign1.Tests.Common;
@@ -24,6 +22,17 @@ namespace CoseSign1.Tests.Common;
 /// </remarks>
 public static class LocalCertificateFactory
 {
+    internal static class ClassStrings
+    {
+        public const string DefaultCallerMemberName = "Test";
+
+        public const string SubjectCnPrefix = "CN=";
+
+        public const string ChainRootPrefix = "CN=Root: ";
+        public const string ChainIntermediatePrefix = "CN=Intermediate: ";
+        public const string ChainLeafPrefix = "CN=Leaf: ";
+    }
+
     private static readonly EphemeralCertificateFactory CertFactory = new();
     private static readonly CertificateChainFactory ChainFactory = new(CertFactory);
 
@@ -35,12 +44,12 @@ public static class LocalCertificateFactory
     /// <param name="duration">Certificate validity duration (default 1 year).</param>
     /// <returns>A self-signed RSA certificate with private key.</returns>
     public static X509Certificate2 CreateRsaCertificate(
-        [CallerMemberName] string subjectName = "Test",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultCallerMemberName,
         int keySize = 2048,
         TimeSpan? duration = null)
     {
         return CertFactory.CreateCertificate(o => o
-            .WithSubjectName($"CN={subjectName}")
+            .WithSubjectName(string.Concat(ClassStrings.SubjectCnPrefix, subjectName))
             .WithKeyAlgorithm(KeyAlgorithm.RSA)
             .WithKeySize(keySize)
             .WithValidity(duration ?? TimeSpan.FromDays(365)));
@@ -54,12 +63,12 @@ public static class LocalCertificateFactory
     /// <param name="duration">Certificate validity duration (default 1 year).</param>
     /// <returns>A self-signed ECDSA certificate with private key.</returns>
     public static X509Certificate2 CreateEcdsaCertificate(
-        [CallerMemberName] string subjectName = "Test",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultCallerMemberName,
         int keySize = 256,
         TimeSpan? duration = null)
     {
         return CertFactory.CreateCertificate(o => o
-            .WithSubjectName($"CN={subjectName}")
+            .WithSubjectName(string.Concat(ClassStrings.SubjectCnPrefix, subjectName))
             .WithKeyAlgorithm(KeyAlgorithm.ECDSA)
             .WithKeySize(keySize)
             .WithValidity(duration ?? TimeSpan.FromDays(365)));
@@ -73,12 +82,12 @@ public static class LocalCertificateFactory
     /// <param name="duration">Certificate validity duration (default 1 year).</param>
     /// <returns>A self-signed ML-DSA certificate with private key.</returns>
     public static X509Certificate2 CreateMlDsaCertificate(
-        [CallerMemberName] string subjectName = "Test",
+        [CallerMemberName] string subjectName = ClassStrings.DefaultCallerMemberName,
         int parameterSet = 65,
         TimeSpan? duration = null)
     {
         return CertFactory.CreateCertificate(o => o
-            .WithSubjectName($"CN={subjectName}")
+            .WithSubjectName(string.Concat(ClassStrings.SubjectCnPrefix, subjectName))
             .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
             .WithKeySize(parameterSet)
             .WithValidity(duration ?? TimeSpan.FromDays(365)));
@@ -93,16 +102,16 @@ public static class LocalCertificateFactory
     /// <param name="includeIntermediate">If true, includes an intermediate CA.</param>
     /// <returns>Certificate collection with root, optionally intermediate, and leaf certificates.</returns>
     public static X509Certificate2Collection CreateRsaChain(
-        [CallerMemberName] string? testName = "Test",
+        [CallerMemberName] string? testName = ClassStrings.DefaultCallerMemberName,
         int keySize = 2048,
         bool leafFirst = false,
         bool includeIntermediate = true)
     {
         return ChainFactory.CreateChain(o =>
         {
-            o.WithRootName($"CN=Root: {testName}")
-             .WithIntermediateName(includeIntermediate ? $"CN=Intermediate: {testName}" : null)
-             .WithLeafName($"CN=Leaf: {testName}")
+            o.WithRootName(string.Concat(ClassStrings.ChainRootPrefix, testName))
+             .WithIntermediateName(includeIntermediate ? string.Concat(ClassStrings.ChainIntermediatePrefix, testName) : null)
+             .WithLeafName(string.Concat(ClassStrings.ChainLeafPrefix, testName))
              .WithKeyAlgorithm(KeyAlgorithm.RSA)
              .WithKeySize(keySize);
             if (leafFirst)
@@ -121,16 +130,16 @@ public static class LocalCertificateFactory
     /// <param name="includeIntermediate">If true, includes an intermediate CA.</param>
     /// <returns>Certificate collection with root, optionally intermediate, and leaf certificates.</returns>
     public static X509Certificate2Collection CreateEcdsaChain(
-        [CallerMemberName] string? testName = "Test",
+        [CallerMemberName] string? testName = ClassStrings.DefaultCallerMemberName,
         int keySize = 256,
         bool leafFirst = false,
         bool includeIntermediate = true)
     {
         return ChainFactory.CreateChain(o =>
         {
-            o.WithRootName($"CN=Root: {testName}")
-             .WithIntermediateName(includeIntermediate ? $"CN=Intermediate: {testName}" : null)
-             .WithLeafName($"CN=Leaf: {testName}")
+            o.WithRootName(string.Concat(ClassStrings.ChainRootPrefix, testName))
+             .WithIntermediateName(includeIntermediate ? string.Concat(ClassStrings.ChainIntermediatePrefix, testName) : null)
+             .WithLeafName(string.Concat(ClassStrings.ChainLeafPrefix, testName))
              .WithKeyAlgorithm(KeyAlgorithm.ECDSA)
              .WithKeySize(keySize);
             if (leafFirst)
@@ -149,16 +158,16 @@ public static class LocalCertificateFactory
     /// <param name="includeIntermediate">If true, includes an intermediate CA.</param>
     /// <returns>Certificate collection with root, optionally intermediate, and leaf certificates.</returns>
     public static X509Certificate2Collection CreateMlDsaChain(
-        [CallerMemberName] string? testName = "Test",
+        [CallerMemberName] string? testName = ClassStrings.DefaultCallerMemberName,
         int parameterSet = 65,
         bool leafFirst = false,
         bool includeIntermediate = true)
     {
         return ChainFactory.CreateChain(o =>
         {
-            o.WithRootName($"CN=Root: {testName}")
-             .WithIntermediateName(includeIntermediate ? $"CN=Intermediate: {testName}" : null)
-             .WithLeafName($"CN=Leaf: {testName}")
+            o.WithRootName(string.Concat(ClassStrings.ChainRootPrefix, testName))
+             .WithIntermediateName(includeIntermediate ? string.Concat(ClassStrings.ChainIntermediatePrefix, testName) : null)
+             .WithLeafName(string.Concat(ClassStrings.ChainLeafPrefix, testName))
              .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
              .WithKeySize(parameterSet);
             if (leafFirst)

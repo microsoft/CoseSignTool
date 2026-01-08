@@ -60,12 +60,16 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
     private string? CertificateSubject;
     private string? CertificateThumbprint;
 
+    /// <inheritdoc/>
     public string CommandName => ClassStrings.CommandNameValue;
 
+    /// <inheritdoc/>
     public string CommandDescription => ClassStrings.CommandDescriptionValue;
 
+    /// <inheritdoc/>
     public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var thumbprintOption = new Option<string>(
@@ -90,6 +94,8 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         command.AddOption(storeNameOption);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Required options are missing.</exception>
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
         var thumbprint = options[ClassStrings.KeyThumbprint] as string
@@ -128,6 +134,7 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
         return await Task.FromResult(SigningService);
     }
 
+    /// <inheritdoc/>
     public IDictionary<string, string> GetSigningMetadata()
     {
         return new Dictionary<string, string>

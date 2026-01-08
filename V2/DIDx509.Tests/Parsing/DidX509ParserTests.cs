@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using DIDx509;
-using DIDx509.Models;
 using DIDx509.Parsing;
 using System.Reflection;
 

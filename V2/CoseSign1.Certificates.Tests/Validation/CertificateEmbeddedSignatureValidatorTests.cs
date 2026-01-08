@@ -2,14 +2,10 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
-using System.Security.Cryptography.Cose;
-using System.Reflection;
+using CoseSign1.Validation.Interfaces;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -57,7 +53,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     {
         // Use CertificateSignatureValidator to trigger embedded validator
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -72,7 +68,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public void EmbeddedValidator_Validate_WithNullInput_ReturnsNullInputFailure()
     {
         var validator = CreateEmbeddedValidator();
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -87,7 +83,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public void EmbeddedValidator_Validate_WithDetachedMessage_ReturnsDetachedNotSupported()
     {
         var validator = CreateEmbeddedValidator();
-        var result = validator.Validate(DetachedMessage!);
+        var result = validator.Validate(DetachedMessage!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -115,7 +111,7 @@ public class CertificateEmbeddedSignatureValidatorTests
 
         var tamperedMessage = CoseSign1Message.DecodeSign1(messageBytes);
         var validator = CreateEmbeddedValidator();
-        var result = validator.Validate(tamperedMessage);
+        var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -130,7 +126,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public async Task EmbeddedValidator_ValidateAsync_ForwardsToValidate()
     {
         var validator = CreateEmbeddedValidator();
-        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None);
+        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, ValidationStage.Signature, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -143,7 +139,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public void Validate_WithValidEmbeddedSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(ValidEmbeddedMessage!);
+        var result = validator.Validate(ValidEmbeddedMessage!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -157,7 +153,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public void Validate_WithAllowUnprotectedHeaders_ValidatesSuccessfully()
     {
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidEmbeddedMessage!);
+        var result = validator.Validate(ValidEmbeddedMessage!, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -166,7 +162,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     public async Task ValidateAsync_WithValidEmbeddedSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None);
+        var result = await validator.ValidateAsync(ValidEmbeddedMessage!, ValidationStage.Signature, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -184,7 +180,7 @@ public class CertificateEmbeddedSignatureValidatorTests
 
         try
         {
-            var result = await validator.ValidateAsync(ValidEmbeddedMessage!, cts.Token);
+            var result = await validator.ValidateAsync(ValidEmbeddedMessage!, ValidationStage.Signature, cts.Token);
             // If we get here, the validation completed before cancellation was observed
             Assert.That(result, Is.Not.Null);
         }
@@ -200,7 +196,7 @@ public class CertificateEmbeddedSignatureValidatorTests
     {
         // Create a validator without detached payload - trying to validate detached as embedded
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(DetachedMessage!);
+        var result = validator.Validate(DetachedMessage!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -231,7 +227,7 @@ public class CertificateEmbeddedSignatureValidatorTests
 
         var tamperedMessage = CoseSign1Message.DecodeSign1(messageBytes);
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(tamperedMessage);
+        var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -246,9 +242,9 @@ public class CertificateEmbeddedSignatureValidatorTests
     {
         var validator = new CertificateSignatureValidator();
 
-        var result1 = validator.Validate(ValidEmbeddedMessage!);
-        var result2 = validator.Validate(ValidEmbeddedMessage!);
-        var result3 = validator.Validate(ValidEmbeddedMessage!);
+        var result1 = validator.Validate(ValidEmbeddedMessage!, ValidationStage.Signature);
+        var result2 = validator.Validate(ValidEmbeddedMessage!, ValidationStage.Signature);
+        var result3 = validator.Validate(ValidEmbeddedMessage!, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -264,7 +260,7 @@ public class CertificateEmbeddedSignatureValidatorTests
         var validator = new CertificateSignatureValidator();
 
         var tasks = Enumerable.Range(0, 5)
-            .Select(_ => validator.ValidateAsync(ValidEmbeddedMessage!, CancellationToken.None))
+            .Select(_ => validator.ValidateAsync(ValidEmbeddedMessage!, ValidationStage.Signature, CancellationToken.None))
             .ToList();
 
         var results = await Task.WhenAll(tasks);
@@ -272,7 +268,7 @@ public class CertificateEmbeddedSignatureValidatorTests
         Assert.That(results.All(r => r.IsValid), Is.True);
     }
 
-    private static IValidator<CoseSign1Message> CreateEmbeddedValidator(bool allowUnprotectedHeaders = false)
+    private static IValidator CreateEmbeddedValidator(bool allowUnprotectedHeaders = false)
     {
         var validatorType = typeof(CertificateSignatureValidator)
             .Assembly
@@ -280,6 +276,6 @@ public class CertificateEmbeddedSignatureValidatorTests
 
         var instance = Activator.CreateInstance(validatorType, [allowUnprotectedHeaders]);
         Assert.That(instance, Is.Not.Null);
-        return (IValidator<CoseSign1Message>)instance!;
+        return (IValidator)instance!;
     }
 }

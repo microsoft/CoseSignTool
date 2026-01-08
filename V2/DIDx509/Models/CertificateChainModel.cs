@@ -5,6 +5,7 @@ namespace DIDx509.Models;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 /// <summary>
@@ -31,6 +32,9 @@ public sealed class CertificateChainModel
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateChainModel"/> class.
     /// </summary>
+    /// <param name="chain">The certificate chain (leaf first).</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="chain"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="chain"/> contains fewer than two certificates.</exception>
     public CertificateChainModel(IReadOnlyList<CertificateInfo> chain)
     {
         if (chain == null)
@@ -40,15 +44,24 @@ public sealed class CertificateChainModel
 
         if (chain.Count < 2)
         {
-            throw new ArgumentException("Certificate chain must contain at least 2 certificates (leaf + CA)", nameof(chain));
+            throw new ArgumentException(ClassStrings.ErrorCertificateChainMustContainAtLeastTwoCertificatesLeafAndCa, nameof(chain));
         }
 
         Chain = chain;
     }
 
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorCertificateChainMustContainAtLeastTwoCertificatesLeafAndCa = "Certificate chain must contain at least 2 certificates (leaf + CA)";
+    }
+
     /// <summary>
     /// Finds a CA certificate with a matching fingerprint.
     /// </summary>
+    /// <param name="algorithm">The hash algorithm used for the fingerprint.</param>
+    /// <param name="fingerprint">The fingerprint to match.</param>
+    /// <returns>The matching CA certificate, or <see langword="null"/> if no match is found.</returns>
     public CertificateInfo? FindCaByFingerprint(string algorithm, string fingerprint)
     {
         foreach (var ca in CaCertificates)

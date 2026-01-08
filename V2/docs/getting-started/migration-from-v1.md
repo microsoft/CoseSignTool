@@ -169,23 +169,28 @@ using CoseSign1.Validation;
 using CoseSign1.Certificates.Validation;
 
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
+    .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders(true)
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
+        .NotExpired()
+        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
     .Build();
 
 var message = CoseMessage.DecodeSign1(signedMessage);
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
-if (result.IsValid)
+if (signatureResult.IsValid && trustResult.IsValid)
 {
     // All validations passed
 }
 else
 {
-    foreach (var failure in result.Failures)
+    foreach (var failure in signatureResult.Failures)
+    {
+        Console.WriteLine($"Validation failed: {failure.Message}");
+    }
+
+    foreach (var failure in trustResult.Failures)
     {
         Console.WriteLine($"Validation failed: {failure.Message}");
     }
@@ -407,11 +412,10 @@ byte[] message2 = factory.CreateCoseSign1MessageBytes(payload2, "application/xml
 ```csharp
 // Build once, validate multiple messages
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
+    .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders()
-        .ValidateSignature()
-        .ValidateExpiration()
-        .ValidateCommonName("TrustedSigner"))
+        .NotExpired()
+        .HasCommonName("TrustedSigner"))
     .Build();
 
 // Validate multiple messages

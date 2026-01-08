@@ -2,10 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Interfaces;
 
 namespace CoseSign1.Certificates.Remote;
 
@@ -19,6 +16,18 @@ namespace CoseSign1.Certificates.Remote;
 /// </remarks>
 public abstract class RemoteCertificateSource : CertificateSourceBase
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string Mldsa44Oid = "2.16.840.1.101.3.4.3.17";
+        public const string Mldsa65Oid = "2.16.840.1.101.3.4.3.18";
+        public const string Mldsa87Oid = "2.16.840.1.101.3.4.3.19";
+
+        public const string ErrorFormatUnableToDetermineKeySizeForAlgorithm = "Unable to determine key size for certificate with algorithm {0}";
+        public const string ErrorCertificateDoesNotContainRsaPublicKey = "Certificate does not contain an RSA public key.";
+        public const string ErrorCertificateDoesNotContainEcdsaPublicKey = "Certificate does not contain an ECDsa public key.";
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="RemoteCertificateSource"/> class.
     /// </summary>
@@ -176,9 +185,9 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
                 var publicKeyOid = cert.PublicKey.Oid.Value;
                 return publicKeyOid switch
                 {
-                    "2.16.840.1.101.3.4.3.17" => 44,  // ML-DSA-44
-                    "2.16.840.1.101.3.4.3.18" => 65,  // ML-DSA-65
-                    "2.16.840.1.101.3.4.3.19" => 87,  // ML-DSA-87
+                    ClassStrings.Mldsa44Oid => 44,  // ML-DSA-44
+                    ClassStrings.Mldsa65Oid => 65,  // ML-DSA-65
+                    ClassStrings.Mldsa87Oid => 87,  // ML-DSA-87
                     _ => 65 // Default to ML-DSA-65
                 };
             }
@@ -189,7 +198,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
         }
 #pragma warning restore SYSLIB5006
 
-        throw new NotSupportedException($"Unable to determine key size for certificate with algorithm {cert.GetKeyAlgorithm()}");
+        throw new NotSupportedException(string.Format(ClassStrings.ErrorFormatUnableToDetermineKeySizeForAlgorithm, cert.GetKeyAlgorithm()));
     }
 
     /// <summary>
@@ -204,7 +213,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
 
         if (publicRsa == null)
         {
-            throw new InvalidOperationException("Certificate does not contain an RSA public key.");
+            throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotContainRsaPublicKey);
         }
 
         var parameters = publicRsa.ExportParameters(includePrivateParameters: false);
@@ -223,7 +232,7 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
 
         if (publicEcdsa == null)
         {
-            throw new InvalidOperationException("Certificate does not contain an ECDsa public key.");
+            throw new InvalidOperationException(ClassStrings.ErrorCertificateDoesNotContainEcdsaPublicKey);
         }
 
         var parameters = publicEcdsa.ExportParameters(includePrivateParameters: false);
@@ -245,9 +254,9 @@ public abstract class RemoteCertificateSource : CertificateSourceBase
         var oid = cert.PublicKey.Oid.Value;
         var securityLevel = oid switch
         {
-            "2.16.840.1.101.3.4.3.17" => 44,
-            "2.16.840.1.101.3.4.3.18" => 65,
-            "2.16.840.1.101.3.4.3.19" => 87,
+            ClassStrings.Mldsa44Oid => 44,
+            ClassStrings.Mldsa65Oid => 65,
+            ClassStrings.Mldsa87Oid => 87,
             _ => 44 // Default
         };
 

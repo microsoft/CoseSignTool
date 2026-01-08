@@ -5,6 +5,7 @@ namespace DIDx509;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using DIDx509.Builder;
@@ -40,12 +41,23 @@ public enum EkuPreference
 /// </summary>
 public static class X509Certificate2Extensions
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorIntermediateIndexMustBeAtLeastOne = "Intermediate index must be >= 1 (1 = PCA)";
+        public const string ErrorChainMustContainAtLeastTwoCertificates = "Chain must contain at least 2 certificates";
+        public const string ErrorFormatLocationOutOfRangeForChainLength = "Location {0} is out of range for chain of {1} certificates";
+
+        public const string ErrorDidCannotBeNullOrEmpty = "DID cannot be null or empty";
+    }
+
     /// <summary>
     /// Gets a fully customizable DID:X509 builder for this certificate.
     /// Use this for complete control over the DID generation.
     /// </summary>
     /// <param name="certificate">The leaf certificate.</param>
     /// <returns>A DID:X509 builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is <see langword="null"/>.</exception>
     /// <example>
     /// <code>
     /// string did = cert.GetDidBuilder()
@@ -107,6 +119,7 @@ public static class X509Certificate2Extensions
     /// <param name="intermediateIndex">Index of the intermediate (1-based, where 1 is PCA, 2 is next intermediate, etc.).</param>
     /// <param name="hashAlgorithm">Hash algorithm (sha256, sha384, or sha512). Default: sha256.</param>
     /// <returns>A DID:X509 identifier string.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="intermediateIndex"/> is less than 1.</exception>
     public static string GetDidWithIntermediate(
         this X509Certificate2 certificate,
         IEnumerable<X509Certificate2> chain,
@@ -115,7 +128,7 @@ public static class X509Certificate2Extensions
     {
         if (intermediateIndex < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(intermediateIndex), "Intermediate index must be >= 1 (1 = PCA)");
+            throw new ArgumentOutOfRangeException(nameof(intermediateIndex), ClassStrings.ErrorIntermediateIndexMustBeAtLeastOne);
         }
 
         return certificate.GetDidWithCertAtLocationInChain(chain, intermediateIndex, hashAlgorithm);
@@ -130,6 +143,9 @@ public static class X509Certificate2Extensions
     /// <param name="location">Location in chain. Positive: 0=leaf, 1=PCA, etc. Negative: -1=root (last), -2=second from end.</param>
     /// <param name="hashAlgorithm">Hash algorithm (sha256, sha384, or sha512). Default: sha256.</param>
     /// <returns>A DID:X509 identifier string.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="chain"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="chain"/> contains fewer than two certificates.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="location"/> is out of range for the provided chain.</exception>
     public static string GetDidWithCertAtLocationInChain(
         this X509Certificate2 certificate,
         IEnumerable<X509Certificate2> chain,
@@ -149,14 +165,14 @@ public static class X509Certificate2Extensions
         var certArray = chain.ToArray();
         if (certArray.Length < 2)
         {
-            throw new ArgumentException("Chain must contain at least 2 certificates", nameof(chain));
+            throw new ArgumentException(ClassStrings.ErrorChainMustContainAtLeastTwoCertificates, nameof(chain));
         }
 
         // Convert negative indices to positive (Python-style)
         int offset = location < 0 ? certArray.Length + location : location;
         if (offset < 0 || offset >= certArray.Length)
         {
-            throw new ArgumentOutOfRangeException(nameof(location), $"Location {location} is out of range for chain of {certArray.Length} certificates");
+            throw new ArgumentOutOfRangeException(nameof(location), string.Format(ClassStrings.ErrorFormatLocationOutOfRangeForChainLength, location, certArray.Length));
         }
 
         var caCert = certArray[offset];
@@ -203,6 +219,7 @@ public static class X509Certificate2Extensions
     /// <param name="ekuPrefixFilter">Optional OID prefix to filter EKUs (e.g., "1.3.6.1.4.1" for enterprise-specific).</param>
     /// <param name="hashAlgorithm">Hash algorithm (sha256, sha384, or sha512). Default: sha256.</param>
     /// <returns>A DID:X509 identifier string with subject and EKU policies.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is <see langword="null"/>.</exception>
     public static string GetDidWithCertAtLocationInChainAndEku(
         this X509Certificate2 certificate,
         IEnumerable<X509Certificate2> chain,
@@ -249,6 +266,7 @@ public static class X509Certificate2Extensions
     /// <param name="sanType">SAN type (email, dns, or uri). If null, uses the first available SAN.</param>
     /// <param name="hashAlgorithm">Hash algorithm (sha256, sha384, or sha512). Default: sha256.</param>
     /// <returns>A DID:X509 identifier string with SAN policy, or null if no matching SAN found.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is <see langword="null"/>.</exception>
     public static string? GetDidWithRootAndSan(
         this X509Certificate2 certificate,
         IEnumerable<X509Certificate2> chain,
@@ -371,6 +389,8 @@ public static class X509Certificate2Extensions
     /// <param name="validateChain">Whether to perform RFC 5280 chain validation (default: true).</param>
     /// <param name="checkRevocation">Whether to check certificate revocation (default: false).</param>
     /// <returns>True if the certificate matches the DID; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="chain"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="did"/> is <see langword="null"/> or empty.</exception>
     /// <example>
     /// <code>
     /// // Simple verification
@@ -400,7 +420,7 @@ public static class X509Certificate2Extensions
 
         if (string.IsNullOrWhiteSpace(did))
         {
-            throw new ArgumentException("DID cannot be null or empty", nameof(did));
+            throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
         }
 
         if (chain == null)
@@ -422,6 +442,8 @@ public static class X509Certificate2Extensions
     /// <param name="validateChain">Whether to perform RFC 5280 chain validation (default: true).</param>
     /// <param name="checkRevocation">Whether to check certificate revocation (default: false).</param>
     /// <returns>A detailed validation result with success status and errors.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="chain"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="did"/> is <see langword="null"/> or empty.</exception>
     /// <example>
     /// <code>
     /// var result = leafCert.VerifyByDidDetailed(did, certificateChain);
@@ -452,7 +474,7 @@ public static class X509Certificate2Extensions
 
         if (string.IsNullOrWhiteSpace(did))
         {
-            throw new ArgumentException("DID cannot be null or empty", nameof(did));
+            throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
         }
 
         if (chain == null)
@@ -472,6 +494,8 @@ public static class X509Certificate2Extensions
     /// <param name="did">The DID:X509 identifier to verify against.</param>
     /// <param name="chain">The certificate chain (leaf first).</param>
     /// <returns>True if the certificate policies match the DID; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="chain"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="did"/> is <see langword="null"/> or empty.</exception>
     /// <example>
     /// <code>
     /// // Fast policy-only verification (no chain validation)
@@ -493,7 +517,7 @@ public static class X509Certificate2Extensions
 
         if (string.IsNullOrWhiteSpace(did))
         {
-            throw new ArgumentException("DID cannot be null or empty", nameof(did));
+            throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
         }
 
         if (chain == null)

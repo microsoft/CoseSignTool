@@ -3,9 +3,8 @@
 
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
+using CoseSign1.Validation.Interfaces;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -49,7 +48,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuer");
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -64,7 +63,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuer");
 
         // Act
-        var result = await validator.ValidateAsync(null!);
+        var result = await validator.ValidateAsync(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -84,7 +83,7 @@ public class CertificateIssuerValidatorTests
         var message = CoseSign1Message.DecodeSign1(signedBytes);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -104,7 +103,7 @@ public class CertificateIssuerValidatorTests
         var message = CoseSign1Message.DecodeSign1(signedBytes);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -118,7 +117,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuer");
 
         // Assert
-        Assert.That(validator, Is.InstanceOf<IValidator<CoseSign1Message>>());
+        Assert.That(validator, Is.InstanceOf<IValidator>());
     }
 
     [Test]
@@ -128,8 +127,8 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuer");
 
         // Act
-        var syncResult = validator.Validate(null!);
-        var asyncResult = await validator.ValidateAsync(null!);
+        var syncResult = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
+        var asyncResult = await validator.ValidateAsync(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert - both should return same failure for null input
         Assert.That(asyncResult.IsValid, Is.EqualTo(syncResult.IsValid));
@@ -168,7 +167,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuerCN");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -191,7 +190,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("ExpectedIssuerCN");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -214,7 +213,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TESTISSUERCN");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert - should match case-insensitively
         Assert.That(result.IsValid, Is.True);
@@ -234,7 +233,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuerCN");
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -254,7 +253,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("TestIssuerCN");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -278,7 +277,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("UnprotectedHeaderTest", allowUnprotectedHeaders: true);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -299,7 +298,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("MultiRdnTest");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -320,7 +319,7 @@ public class CertificateIssuerValidatorTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -341,7 +340,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("ExpectedCN");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -364,7 +363,7 @@ public class CertificateIssuerValidatorTests
         var validator = new CertificateIssuerValidator("uppercase");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);

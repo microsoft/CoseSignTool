@@ -2,11 +2,9 @@
 // Licensed under the MIT License.
 
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
-using NUnit.Framework;
+using CoseSign1.Validation;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -54,7 +52,7 @@ public class CertificateSignatureValidatorTests
     public void Validate_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateSignatureValidator)));
@@ -64,7 +62,7 @@ public class CertificateSignatureValidatorTests
     public void Validate_WithValidSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
@@ -75,7 +73,7 @@ public class CertificateSignatureValidatorTests
     public void Validate_WithAllowUnprotectedHeaders_ValidatesSuccessfully()
     {
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidMessage!);
+        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -84,7 +82,7 @@ public class CertificateSignatureValidatorTests
     public async Task ValidateAsync_WithValidSignature_ReturnsSuccess()
     {
         var validator = new CertificateSignatureValidator();
-        var result = await validator.ValidateAsync(ValidMessage!, CancellationToken.None);
+        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.True);
         // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
@@ -101,7 +99,7 @@ public class CertificateSignatureValidatorTests
         // Task may complete before cancellation is observed
         try
         {
-            await validator.ValidateAsync(ValidMessage!, cts.Token);
+            await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature, cts.Token);
             // If no exception, test passes - cancellation may not be observed for fast operations
         }
         catch (OperationCanceledException)
@@ -115,7 +113,7 @@ public class CertificateSignatureValidatorTests
     public async Task ValidateAsync_WithNullInput_ReturnsFailure()
     {
         var validator = new CertificateSignatureValidator();
-        var result = await validator.ValidateAsync(null!, CancellationToken.None);
+        var result = await validator.ValidateAsync(null!, ValidationStage.Signature, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -176,7 +174,7 @@ public class CertificateSignatureValidatorTests
 
         // Validate with the payload
         var validator = new CertificateSignatureValidator(payload);
-        var result = validator.Validate(detachedMessage);
+        var result = validator.Validate(detachedMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateDetachedSignatureValidator)));
@@ -198,7 +196,7 @@ public class CertificateSignatureValidatorTests
 
         // Try to validate without payload - should fail
         var validator = new CertificateSignatureValidator(); // No payload provided
-        var result = validator.Validate(detachedMessage);
+        var result = validator.Validate(detachedMessage, ValidationStage.Signature);
 
         Assert.Multiple(() =>
         {
@@ -224,7 +222,7 @@ public class CertificateSignatureValidatorTests
 
         // Validate with the payload
         var validator = new CertificateSignatureValidator(payload);
-        var result = await validator.ValidateAsync(detachedMessage, CancellationToken.None);
+        var result = await validator.ValidateAsync(detachedMessage, ValidationStage.Signature, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.True);
     }

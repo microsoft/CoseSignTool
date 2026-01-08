@@ -42,21 +42,32 @@ var message = CoseMessage.DecodeSign1(signature);
 
 // Build validator
 var validator = Cose.Sign1Message()
-    .AddCertificateValidator(b => b
-        .ValidateSignature()
+    .ValidateCertificate(cert => cert
         .ValidateChain())
     .Build();
 
 // Verify
-var result = await validator.ValidateAsync(message);
+var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
+var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
-if (result.IsValid)
+if (signatureResult.IsValid && trustResult.IsValid)
 {
     Console.WriteLine("Signature is valid!");
 }
 else
 {
-    Console.WriteLine($"Validation failed: {result.Failures.First().Message}");
+    if (signatureResult.Failures.Count > 0)
+    {
+        Console.WriteLine($"Validation failed: {signatureResult.Failures[0].Message}");
+    }
+    else if (trustResult.Failures.Count > 0)
+    {
+        Console.WriteLine($"Validation failed: {trustResult.Failures[0].Message}");
+    }
+    else
+    {
+        Console.WriteLine("Validation failed");
+    }
 }
 ```
 

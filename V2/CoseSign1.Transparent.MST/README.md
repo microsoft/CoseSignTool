@@ -185,39 +185,26 @@ public async Task<CoseSign1Message> CreateScittStatementAsync(
 ## Verification Pipeline
 
 ```csharp
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Transparent.MST.Verification;
 using CoseSign1.Validation;
+using CoseSign1.Verification;
 
-public class TransparencyValidator : IValidator<CoseSign1Message>
-{
-    private readonly ITransparencyService _transparencyService;
-    
-    public async Task<ValidationResult> ValidateAsync(
-        CoseSign1Message message)
-    {
-        var receipt = message.GetTransparencyReceipt();
-        
-        if (receipt == null)
-        {
-            return ValidationResult.Failed(
-                new ValidationFailure
-                {
-                    Code = ValidationFailureCode.MissingRequiredHeader,
-                    Message = "Transparency receipt required"
-                });
-        }
-        
-        var isValid = await _transparencyService.VerifyReceiptAsync(receipt);
-        
-        return isValid
-            ? ValidationResult.Success(message)
-            : ValidationResult.Failed(
-                new ValidationFailure
-                {
-                    Code = ValidationFailureCode.CustomValidationFailed,
-                    Message = "Transparency receipt verification failed"
-                });
-    }
-}
+// MST validators participate in the KeyMaterialTrust stage.
+// They emit trust assertions into ValidationResult.Metadata so a TrustPolicy can be evaluated.
+
+var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+
+IValidator receiptValidator = new MstReceiptValidator(client);
+ValidationResult trustValidation = receiptValidator.Validate(message, ValidationStage.KeyMaterialTrust);
+
+// Example trust policy: require receipt presence AND receipt to be trusted.
+TrustPolicy policy = MstTrustPolicies.RequireReceiptPresentAndTrusted();
+
+// For end-to-end verification (trust policy evaluated before signature), use CoseSign1Verifier.
+// The signature validators are application-specific; you can plug in X.509 or other strategies.
+// var verification = CoseSign1Verifier.Verify(message, null, new[] { receiptValidator }, policy, signatureValidators, null);
 ```
 
 ## Inclusion Proof Verification

@@ -49,6 +49,10 @@ public class CoseInspectionService
         public static readonly string KeyCwtId = "  CWT ID (cti)";
         public static readonly string KeyCustomClaims = "  Custom Claims";
 
+        // Formatting helpers
+        public static readonly string Indent = "  ";
+        public static readonly string FormatKeyValue = "{0}: {1}{2}";
+
         // Value formats
         public static readonly string FormatBytes = "{0:N0} bytes";
         public static readonly string FormatAlgorithm = "{0} ({1})";
@@ -134,14 +138,17 @@ public class CoseInspectionService
     }
 
     private readonly IOutputFormatter Formatter;
+    private readonly Func<Stream> StandardOutputProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseInspectionService"/> class.
     /// </summary>
     /// <param name="formatter">The output formatter to use.</param>
-    public CoseInspectionService(IOutputFormatter? formatter = null)
+    /// <param name="standardOutputProvider">Optional provider for standard output stream (used for stdout extraction). Defaults to <see cref="Console.OpenStandardOutput()"/>.</param>
+    public CoseInspectionService(IOutputFormatter? formatter = null, Func<Stream>? standardOutputProvider = null)
     {
         Formatter = formatter ?? new TextOutputFormatter();
+        StandardOutputProvider = standardOutputProvider ?? Console.OpenStandardOutput;
     }
 
     /// <summary>
@@ -535,20 +542,20 @@ public class CoseInspectionService
 
         if (claims.IssuedAt.HasValue)
         {
-            info.IssuedAt = claims.IssuedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.IssuedAt = claims.IssuedAt.Value.ToString(AssemblyStrings.Formats.DateTimeUtc);
             info.IssuedAtUnix = claims.IssuedAt.Value.ToUnixTimeSeconds();
         }
 
         if (claims.NotBefore.HasValue)
         {
-            info.NotBefore = claims.NotBefore.Value.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.NotBefore = claims.NotBefore.Value.ToString(AssemblyStrings.Formats.DateTimeUtc);
             info.NotBeforeUnix = claims.NotBefore.Value.ToUnixTimeSeconds();
         }
 
         if (claims.ExpirationTime.HasValue)
         {
             var expiry = claims.ExpirationTime.Value;
-            info.ExpirationTime = expiry.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            info.ExpirationTime = expiry.ToString(AssemblyStrings.Formats.DateTimeUtc);
             info.ExpirationTimeUnix = expiry.ToUnixTimeSeconds();
             info.IsExpired = expiry < DateTimeOffset.UtcNow;
         }
@@ -585,7 +592,7 @@ public class CoseInspectionService
                 var preview = System.Text.Encoding.UTF8.GetString(payload.Value.Span.Slice(0, previewLength));
                 if (payload.Value.Length > 100)
                 {
-                    preview += "...";
+                    preview += ClassStrings.ValuePreviewSuffix;
                 }
                 info.Preview = preview;
             }
@@ -670,8 +677,8 @@ public class CoseInspectionService
                         Issuer = cert.Issuer,
                         SerialNumber = cert.SerialNumber,
                         Thumbprint = cert.Thumbprint,
-                        NotBefore = cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss UTC"),
-                        NotAfter = cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+                        NotBefore = cert.NotBefore.ToString(AssemblyStrings.Formats.DateTimeUtc),
+                        NotAfter = cert.NotAfter.ToString(AssemblyStrings.Formats.DateTimeUtc),
                         IsExpired = cert.NotAfter < DateTime.UtcNow,
                         KeyAlgorithm = cert.GetKeyAlgorithm(),
                         SignatureAlgorithm = cert.SignatureAlgorithm.FriendlyName
@@ -753,7 +760,7 @@ public class CoseInspectionService
 
             string headerName = GetHeaderName(header.Key);
             string headerValue = FormatHeaderValueWithDecode(header.Key, header.Value);
-            Formatter.WriteKeyValue($"  {headerName}", headerValue);
+            Formatter.WriteKeyValue(string.Concat(ClassStrings.Indent, headerName), headerValue);
         }
     }
 
@@ -769,7 +776,7 @@ public class CoseInspectionService
             {
                 string headerName = GetHeaderName(kvp.Key);
                 string headerValue = FormatHeaderValue(kvp.Value);
-                Formatter.WriteKeyValue($"  {headerName}", headerValue);
+                Formatter.WriteKeyValue(string.Concat(ClassStrings.Indent, headerName), headerValue);
             }
         }
     }
@@ -813,7 +820,7 @@ public class CoseInspectionService
                 var expiryStr = expiry.ToString(AssemblyStrings.Formats.DateTimeUtc);
                 if (isExpired)
                 {
-                    Formatter.WriteWarning($"{ClassStrings.KeyExpiration}: {expiryStr}{ClassStrings.ValueExpiredSuffix}");
+                    Formatter.WriteWarning(string.Format(ClassStrings.FormatKeyValue, ClassStrings.KeyExpiration, expiryStr, ClassStrings.ValueExpiredSuffix));
                 }
                 else
                 {
@@ -880,7 +887,7 @@ public class CoseInspectionService
             if (extractPath == AssemblyStrings.IO.StdinIndicator)
             {
                 // Write to stdout
-                using var stdout = Console.OpenStandardOutput();
+                using var stdout = StandardOutputProvider();
                 await stdout.WriteAsync(payload.Value.ToArray());
                 await stdout.FlushAsync();
             }

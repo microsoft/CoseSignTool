@@ -11,8 +11,11 @@ namespace CoseSign1.Certificates.Validation;
 /// Validates an embedded COSE signature using the certificate from x5t/x5chain headers.
 /// For public use, prefer <see cref="CertificateSignatureValidator"/> which auto-detects embedded vs detached.
 /// </summary>
-internal sealed class CertificateEmbeddedSignatureValidator : IValidator<CoseSign1Message>
+internal sealed class CertificateEmbeddedSignatureValidator : IValidator
 {
+    private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.Signature };
+
+    public IReadOnlyCollection<ValidationStage> Stages => StagesField;
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
@@ -41,7 +44,7 @@ internal sealed class CertificateEmbeddedSignatureValidator : IValidator<CoseSig
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
     }
 
-    public ValidationResult Validate(CoseSign1Message input)
+    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
         if (input == null)
         {
@@ -74,8 +77,8 @@ internal sealed class CertificateEmbeddedSignatureValidator : IValidator<CoseSig
         return ValidationResult.Success(ClassStrings.ValidatorName);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Validate(input));
+        return Task.FromResult(Validate(input, stage));
     }
 }

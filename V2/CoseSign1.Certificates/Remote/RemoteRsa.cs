@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSign1.Certificates.Remote;
 
@@ -26,7 +26,7 @@ internal sealed class RemoteRsa : RSA
     {
         if (includePrivateParameters)
         {
-            throw new CryptographicException("Private key export is not supported for remote signing.");
+            throw new CryptographicException(ClassStrings.ErrorPrivateKeyExportNotSupported);
         }
 
         return PublicParameters;
@@ -34,14 +34,14 @@ internal sealed class RemoteRsa : RSA
 
     public override void ImportParameters(RSAParameters parameters)
     {
-        throw new NotSupportedException("Parameter import is not supported for remote signing.");
+        throw new NotSupportedException(ClassStrings.ErrorParameterImportNotSupported);
     }
 
     public override byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
     {
         if (padding != RSASignaturePadding.Pss)
         {
-            throw new CryptographicException("Only PSS padding is supported for remote RSA signing.");
+            throw new CryptographicException(ClassStrings.ErrorOnlyPssPaddingSupportedForRemoteRsaSigning);
         }
 
         return CertificateSource.SignHashWithRsa(hash, hashAlgorithm, padding);
@@ -60,13 +60,23 @@ internal sealed class RemoteRsa : RSA
 
     public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
     {
-        throw new NotSupportedException("Decryption is not supported for remote signing.");
+        throw new NotSupportedException(ClassStrings.ErrorDecryptionNotSupportedForRemoteSigning);
     }
 
     public override byte[] Encrypt(byte[] data, RSAEncryptionPadding padding)
     {
-        throw new NotSupportedException("Encryption is not supported for remote signing.");
+        throw new NotSupportedException(ClassStrings.ErrorEncryptionNotSupportedForRemoteSigning);
     }
 
     #endregion
+
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ErrorPrivateKeyExportNotSupported = "Private key export is not supported for remote signing.";
+        public const string ErrorParameterImportNotSupported = "Parameter import is not supported for remote signing.";
+        public const string ErrorOnlyPssPaddingSupportedForRemoteRsaSigning = "Only PSS padding is supported for remote RSA signing.";
+        public const string ErrorDecryptionNotSupportedForRemoteSigning = "Decryption is not supported for remote signing.";
+        public const string ErrorEncryptionNotSupportedForRemoteSigning = "Encryption is not supported for remote signing.";
+    }
 }

@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Formats.Cbor;
-using CoseSign1.Headers;
 
 namespace CoseSign1.Headers.Tests;
 

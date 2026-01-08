@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
-using System.Security.Cryptography.X509Certificates;
 
 namespace CoseSign1.Certificates.Extensions;
 
@@ -16,6 +15,7 @@ public static class CborWriterExtensions
     /// </summary>
     /// <param name="writer">The <see cref="CborWriter"/> to encode the certificates into.</param>
     /// <param name="certs">The list of certificates to be encoded.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="writer"/> or <paramref name="certs"/> is null.</exception>
     public static void EncodeCertList(this CborWriter writer, IEnumerable<X509Certificate2> certs)
     {
         if (writer == null)

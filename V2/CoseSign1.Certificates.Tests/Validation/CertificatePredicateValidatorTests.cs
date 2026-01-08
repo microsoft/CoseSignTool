@@ -1,14 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using NUnit.Framework;
 
 namespace CoseSign1.Certificates.Tests.Validation;
 
@@ -65,7 +60,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => true);
 
         // Act
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -80,7 +75,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => true);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -95,7 +90,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -110,7 +105,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Failures[0].Message, Does.Contain("does not match the specified predicate"));
@@ -125,7 +120,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false, customMessage);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Failures[0].Message, Is.EqualTo(customMessage));
@@ -140,7 +135,7 @@ public class CertificatePredicateValidatorTests
             cert => cert.Subject.Contains("PredicateTest"));
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -155,7 +150,7 @@ public class CertificatePredicateValidatorTests
             cert => !string.IsNullOrEmpty(cert.Issuer));
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -170,7 +165,7 @@ public class CertificatePredicateValidatorTests
             cert => cert.Thumbprint.Length > 0);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -184,7 +179,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => true);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Metadata.ContainsKey("CertificateThumbprint"), Is.True);
@@ -199,7 +194,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => true);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -213,7 +208,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -228,7 +223,7 @@ public class CertificatePredicateValidatorTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -250,7 +245,7 @@ public class CertificatePredicateValidatorTests
         "Certificate must be valid and have a subject");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -264,7 +259,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false, null);
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Failures[0].Message, Does.Contain("does not match"));
@@ -278,7 +273,7 @@ public class CertificatePredicateValidatorTests
         var validator = new CertificatePredicateValidator(cert => false, "");
 
         // Act
-        var result = validator.Validate(message);
+        var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
 
         // Assert
         Assert.That(result.Failures[0].Message, Is.EqualTo(""));

@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Validation;
-
 namespace CoseSign1.Certificates.Validation;
 
 /// <summary>
@@ -18,10 +16,16 @@ public static class SignatureValidationExtensions
     /// <param name="builder">The validation builder.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <returns>The builder for method chaining.</returns>
-    public static ICoseMessageValidationBuilder ValidateCertificateSignature(
-        this ICoseMessageValidationBuilder builder,
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    public static ICoseSign1ValidationBuilder ValidateCertificateSignature(
+        this ICoseSign1ValidationBuilder builder,
         bool allowUnprotectedHeaders = false)
     {
+        if (builder is null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
         return builder.AddValidator(new CertificateSignatureValidator(allowUnprotectedHeaders));
     }
 
@@ -32,11 +36,23 @@ public static class SignatureValidationExtensions
     /// <param name="detachedPayload">The detached payload to verify against.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <returns>The builder for method chaining.</returns>
-    public static ICoseMessageValidationBuilder ValidateCertificateSignature(
-        this ICoseMessageValidationBuilder builder,
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detachedPayload"/> is null.</exception>
+    public static ICoseSign1ValidationBuilder ValidateCertificateSignature(
+        this ICoseSign1ValidationBuilder builder,
         byte[] detachedPayload,
         bool allowUnprotectedHeaders = false)
     {
+        if (builder is null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
+        if (detachedPayload is null)
+        {
+            throw new ArgumentNullException(nameof(detachedPayload));
+        }
+
         return builder.AddValidator(new CertificateDetachedSignatureValidator(detachedPayload, allowUnprotectedHeaders));
     }
 
@@ -47,11 +63,17 @@ public static class SignatureValidationExtensions
     /// <param name="detachedPayload">The detached payload to verify against.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <returns>The builder for method chaining.</returns>
-    public static ICoseMessageValidationBuilder ValidateCertificateSignature(
-        this ICoseMessageValidationBuilder builder,
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    public static ICoseSign1ValidationBuilder ValidateCertificateSignature(
+        this ICoseSign1ValidationBuilder builder,
         ReadOnlyMemory<byte> detachedPayload,
         bool allowUnprotectedHeaders = false)
     {
+        if (builder is null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
         return builder.AddValidator(new CertificateDetachedSignatureValidator(detachedPayload, allowUnprotectedHeaders));
     }
 }

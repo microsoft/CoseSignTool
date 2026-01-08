@@ -1,9 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-
 namespace CoseSign1.Tests.Common;
 
 /// <summary>
@@ -16,6 +13,15 @@ namespace CoseSign1.Tests.Common;
 /// </remarks>
 internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
 {
+    private static class ClassStrings
+    {
+        public const string MLDsa44Oid = "2.16.840.1.101.3.4.3.17";
+        public const string MLDsa65Oid = "2.16.840.1.101.3.4.3.18";
+        public const string MLDsa87Oid = "2.16.840.1.101.3.4.3.19";
+
+        public const string ErrorInvalidOidFormat = "Invalid OID format";
+    }
+
     private readonly MLDsa MldsaKey;
 
     /// <summary>
@@ -90,9 +96,9 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         // ML-DSA-87: ~2592 bytes
         return keySize switch
         {
-            < 1600 => "2.16.840.1.101.3.4.3.17", // ML-DSA-44
-            < 2300 => "2.16.840.1.101.3.4.3.18", // ML-DSA-65
-            _ => "2.16.840.1.101.3.4.3.19"       // ML-DSA-87
+            < 1600 => ClassStrings.MLDsa44Oid, // ML-DSA-44
+            < 2300 => ClassStrings.MLDsa65Oid, // ML-DSA-65
+            _ => ClassStrings.MLDsa87Oid       // ML-DSA-87
         };
     }
 
@@ -104,7 +110,7 @@ internal sealed class MLDsaX509SignatureGenerator : X509SignatureGenerator
         string[] parts = oid.Split('.');
         if (parts.Length < 2)
         {
-            throw new ArgumentException("Invalid OID format", nameof(oid));
+            throw new ArgumentException(ClassStrings.ErrorInvalidOidFormat, nameof(oid));
         }
 
         List<byte> encoded = new();

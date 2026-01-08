@@ -2671,7 +2671,7 @@ public class CoseInspectionServiceTests
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var service = new CoseInspectionService(formatter);
+        var service = new CoseInspectionService(formatter, standardOutputProvider: () => Stream.Null);
 
         try
         {
@@ -3254,7 +3254,7 @@ public class CoseInspectionServiceTests
 
         var sw = new StringWriter();
         var formatter = new TextOutputFormatter(sw);
-        var service = new CoseInspectionService(formatter);
+        var service = new CoseInspectionService(formatter, standardOutputProvider: () => Stream.Null);
 
         // Act
         var result = await service.InspectAsync(cosePath, extractPayloadPath: "-");

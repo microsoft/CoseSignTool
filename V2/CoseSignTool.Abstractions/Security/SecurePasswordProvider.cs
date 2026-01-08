@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CoseSignTool.Abstractions.Security;
 
@@ -21,10 +22,21 @@ namespace CoseSignTool.Abstractions.Security;
 /// </remarks>
 public class SecurePasswordProvider
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string DefaultPfxPasswordEnvVar = "COSESIGNTOOL_PFX_PASSWORD";
+        public const string ErrorPasswordFileNotFound = "Password file not found: {0}";
+        public const string PromptEnterPassword = "Enter password: ";
+        public const string PromptEnterPfxPassword = "Enter PFX password: ";
+        public const string PasswordEraseSequence = "\b \b";
+        public const string PasswordMaskString = "*";
+    }
+
     /// <summary>
     /// Default environment variable name for PFX passwords.
     /// </summary>
-    public const string DefaultPfxPasswordEnvVar = "COSESIGNTOOL_PFX_PASSWORD";
+    public const string DefaultPfxPasswordEnvVar = ClassStrings.DefaultPfxPasswordEnvVar;
 
     /// <summary>
     /// Gets the default instance using the system console.
@@ -37,6 +49,7 @@ public class SecurePasswordProvider
     /// Initializes a new instance of the <see cref="SecurePasswordProvider"/> class.
     /// </summary>
     /// <param name="console">The console implementation to use for interactive input.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is <see langword="null"/>.</exception>
     public SecurePasswordProvider(IConsole console)
     {
         Console = console ?? throw new ArgumentNullException(nameof(console));
@@ -68,7 +81,7 @@ public class SecurePasswordProvider
     {
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Password file not found: {filePath}", filePath);
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorPasswordFileNotFound, filePath), filePath);
         }
 
         var password = File.ReadAllText(filePath).TrimEnd('\r', '\n');
@@ -81,7 +94,7 @@ public class SecurePasswordProvider
     /// </summary>
     /// <param name="prompt">The prompt to display to the user.</param>
     /// <returns>SecureString containing the password.</returns>
-    public SecureString ReadPasswordFromConsole(string prompt = "Enter password: ")
+    public SecureString ReadPasswordFromConsole(string prompt = ClassStrings.PromptEnterPassword)
     {
         Console.Write(prompt);
         var password = new SecureString();
@@ -103,7 +116,7 @@ public class SecurePasswordProvider
                     if (password.Length > 0)
                     {
                         password.RemoveAt(password.Length - 1);
-                        Console.Write("\b \b"); // Erase the asterisk
+                        Console.Write(ClassStrings.PasswordEraseSequence); // Erase the asterisk
                     }
                 }
                 else if (keyInfo.Key == ConsoleKey.Escape)
@@ -116,7 +129,7 @@ public class SecurePasswordProvider
                 else if (!char.IsControl(keyInfo.KeyChar))
                 {
                     password.AppendChar(keyInfo.KeyChar);
-                    Console.Write("*");
+                    Console.Write(ClassStrings.PasswordMaskString);
                 }
             }
 
@@ -146,7 +159,7 @@ public class SecurePasswordProvider
     public SecureString GetPassword(
         string? passwordFilePath = null,
         string environmentVariableName = DefaultPfxPasswordEnvVar,
-        string prompt = "Enter PFX password: ")
+        string prompt = ClassStrings.PromptEnterPfxPassword)
     {
         // 1. Try environment variable
         var envPassword = GetPasswordFromEnvironment(environmentVariableName);
@@ -169,6 +182,7 @@ public class SecurePasswordProvider
     /// Determines if password input should be interactive based on the current execution context.
     /// Returns false if stdin is redirected (pipeline scenarios) or console is unavailable.
     /// </summary>
+    /// <returns><see langword="true"/> if interactive input is available; otherwise, <see langword="false"/>.</returns>
     public bool IsInteractiveInputAvailable()
     {
         try

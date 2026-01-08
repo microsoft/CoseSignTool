@@ -10,12 +10,14 @@ CoseSignTool verify <signature-file> [options]
 
 ## Description
 
-The `verify` command validates a COSE Sign1 signature file, checking:
+The `verify` command validates a COSE Sign1 signature file.
 
-1. **Signature validity** - Cryptographic signature verification
-2. **Certificate chain** - Certificate chain building and validation
-3. **Certificate status** - Expiration and revocation checks
-4. **Payload integrity** - For detached signatures
+Verification is staged and runs in a secure-by-default order:
+
+1. **Key material resolution** - Parse/extract candidate signing key material from headers.
+2. **Key material trust** - Evaluate trust/identity/policy (trust policies are evaluated *before* signature verification).
+3. **Signature** - Cryptographic signature verification.
+4. **Post-signature** - Additional policy that depends on a verified signature.
 
 Verification is composed from multiple validators:
 - Signature validation is orchestrated so that **at least one applicable signature validator must succeed**.
@@ -198,9 +200,12 @@ Certificate:
 
 | Code | Meaning |
 |------|---------|
-| 0 | Signature is valid |
-| 1 | Signature is invalid |
-| 2 | Error (file not found, etc.) |
+| 0 | Verified successfully |
+| 2 | Invalid arguments |
+| 3 | File not found (signature or payload) |
+| 21 | Signature cryptographic verification failed |
+| 22 | Verification failed (resolution, post-signature, payload hash mismatch, unexpected error) |
+| 24 | Signing key material not trusted (trust stage failed) |
 
 ## See Also
 

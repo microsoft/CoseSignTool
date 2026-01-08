@@ -12,7 +12,9 @@ using System.Text;
 using Azure.Core;
 using Azure.Security.KeyVault.Keys;
 using CoseSign1.AzureKeyVault;
+using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using Moq;
 
@@ -22,10 +24,17 @@ namespace CoseSignTool.AzureKeyVault.Plugin.Tests;
 public class AzureKeyVaultSignatureValidatorTests
 {
     [Test]
+    public void Stages_ReturnsSignatureStageOnly()
+    {
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        Assert.That(validator.Stages, Is.EquivalentTo(new[] { ValidationStage.Signature }));
+    }
+
+    [Test]
     public void Validate_WhenInputIsNull_FailsWithExpectedCode()
     {
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(null!);
+        var result = validator.Validate(null!, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "NULL_INPUT"), Is.True);
     }
@@ -34,7 +43,7 @@ public class AzureKeyVaultSignatureValidatorTests
     public void IsApplicable_WhenInputIsNull_ReturnsFalse()
     {
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        Assert.That(validator.IsApplicable(null!), Is.False);
+        Assert.That(validator.IsApplicable(null!, ValidationStage.Signature), Is.False);
     }
 
     [Test]
@@ -46,7 +55,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        Assert.That(validator.IsApplicable(msg), Is.False);
+        Assert.That(validator.IsApplicable(msg, ValidationStage.Signature), Is.False);
     }
 
     [Test]
@@ -58,7 +67,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "MISSING_COSE_KEY"), Is.True);
@@ -84,7 +93,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "INVALID_COSE_KEY"), Is.True);
@@ -129,9 +138,9 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        Assert.That(validator.IsApplicable(msg), Is.True);
+        Assert.That(validator.IsApplicable(msg, ValidationStage.Signature), Is.True);
 
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("kid"), Is.True);
         Assert.That(result.Metadata.ContainsKey("kidLooksLikeAkv"), Is.True);
@@ -156,7 +165,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.True);
     }
 
@@ -187,7 +196,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "SIGNATURE_INVALID"), Is.True);
@@ -213,7 +222,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["kid"], Is.EqualTo(kid));
@@ -240,10 +249,256 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["kidLooksLikeAkv"], Is.EqualTo(false));
+    }
+
+    [Test]
+    public void IsApplicable_WhenStageIsNotSignature_ReturnsFalse()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        Assert.That(validator.IsApplicable(msg, ValidationStage.KeyMaterialTrust), Is.False);
+    }
+
+    [Test]
+    public void Validate_WhenStageIsNotSignature_ReturnsNotApplicable()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        var result = validator.Validate(msg, ValidationStage.KeyMaterialTrust);
+
+        Assert.That(result.IsNotApplicable, Is.True);
+        Assert.That(result.Metadata.ContainsKey("Reason"), Is.True);
+    }
+
+    [Test]
+    public async Task ValidateAsync_WhenStageIsNotSignature_ReturnsNotApplicable()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        var result = await validator.ValidateAsync(msg, ValidationStage.KeyMaterialTrust);
+
+        Assert.That(result.IsNotApplicable, Is.True);
+        Assert.That(result.Metadata.ContainsKey("Reason"), Is.True);
+    }
+
+    [Test]
+    public void Validate_WhenEmbeddedCoseKeyValueIsNotAMap_FailsWithInvalidCoseKey()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var pub = key.ExportParameters(includePrivateParameters: false);
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        // Start with a valid COSE_Key header so we can sign, then mutate it after signing.
+        var coseKey = EncodeEc2CoseKey(pub, CoseKeyHeaderContributor.CoseEllipticCurves.P256);
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKey));
+
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+
+        // Mutate the embedded COSE_Key value into a CBOR integer. This keeps the overall COSE_Sign1
+        // well-formed, while forcing TryGetCoseKeyKid and TryCreatePublicKey to hit error paths.
+        var mutated = MutateUnprotectedHeaderValue(signed, headerLabel: -65537, w => w.WriteInt32(1));
+        var msg = CoseSign1Message.DecodeSign1(mutated);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        var result = validator.Validate(msg, ValidationStage.Signature);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.Any(f => f.ErrorCode == "INVALID_COSE_KEY"), Is.True);
+    }
+
+    [Test]
+    public void TryCreatePublicKeyFromKeyVaultKey_WhenJwkIsNull_ReturnsFalse()
+    {
+        var expectedVaultUri = new Uri("https://example.vault.azure.net");
+        var expectedKeyName = "key";
+        var expectedKeyVersion = "v1";
+
+        var keyProperties = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyProperties(
+            id: new Uri($"{expectedVaultUri}keys/{expectedKeyName}/{expectedKeyVersion}"),
+            vaultUri: expectedVaultUri,
+            name: expectedKeyName,
+            version: expectedKeyVersion);
+
+        var kvKey = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyVaultKey(properties: keyProperties, key: null);
+
+        var ok = InvokeTryCreatePublicKeyFromKeyVaultKey(kvKey, out var rsa, out var ecdsa);
+        Assert.That(ok, Is.False);
+        Assert.That(rsa, Is.Null);
+        Assert.That(ecdsa, Is.Null);
+    }
+
+    [Test]
+    public void TryCreatePublicKeyFromKeyVaultKey_WhenRsaKeyHasModulusAndExponent_ReturnsTrue()
+    {
+        var expectedVaultUri = new Uri("https://example.vault.azure.net");
+        var expectedKeyName = "key";
+        var expectedKeyVersion = "v1";
+
+        using var rsaSource = RSA.Create(2048);
+        var jsonWebKey = new Azure.Security.KeyVault.Keys.JsonWebKey(rsaSource, includePrivateParameters: false);
+
+        var keyProperties = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyProperties(
+            id: new Uri($"{expectedVaultUri}keys/{expectedKeyName}/{expectedKeyVersion}"),
+            vaultUri: expectedVaultUri,
+            name: expectedKeyName,
+            version: expectedKeyVersion);
+
+        var kvKey = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyVaultKey(properties: keyProperties, key: jsonWebKey);
+
+        var ok = InvokeTryCreatePublicKeyFromKeyVaultKey(kvKey, out var rsa, out var ecdsa);
+        Assert.That(ok, Is.True);
+        Assert.That(rsa, Is.Not.Null);
+        Assert.That(ecdsa, Is.Null);
+    }
+
+    [Test]
+    public void TryCreatePublicKeyFromKeyVaultKey_WhenEcKeyIsMissingX_ReturnsFalse()
+    {
+        var expectedVaultUri = new Uri("https://example.vault.azure.net");
+        var expectedKeyName = "key";
+        var expectedKeyVersion = "v1";
+
+        using var ecSource = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jsonWebKey = new Azure.Security.KeyVault.Keys.JsonWebKey(ecSource, includePrivateParameters: false);
+        jsonWebKey.X = null;
+
+        var keyProperties = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyProperties(
+            id: new Uri($"{expectedVaultUri}keys/{expectedKeyName}/{expectedKeyVersion}"),
+            vaultUri: expectedVaultUri,
+            name: expectedKeyName,
+            version: expectedKeyVersion);
+
+        var kvKey = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyVaultKey(properties: keyProperties, key: jsonWebKey);
+
+        var ok = InvokeTryCreatePublicKeyFromKeyVaultKey(kvKey, out var rsa, out var ecdsa);
+        Assert.That(ok, Is.False);
+        Assert.That(rsa, Is.Null);
+        Assert.That(ecdsa, Is.Null);
+    }
+
+    [Test]
+    public void TryCreatePublicKeyFromKeyVaultKey_WhenEcKeyCurveIsP384_ReturnsTrue()
+    {
+        var expectedVaultUri = new Uri("https://example.vault.azure.net");
+        var expectedKeyName = "key";
+        var expectedKeyVersion = "v1";
+
+        using var ecSource = ECDsa.Create(ECCurve.NamedCurves.nistP384);
+        var jsonWebKey = new Azure.Security.KeyVault.Keys.JsonWebKey(ecSource, includePrivateParameters: false);
+
+        var keyProperties = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyProperties(
+            id: new Uri($"{expectedVaultUri}keys/{expectedKeyName}/{expectedKeyVersion}"),
+            vaultUri: expectedVaultUri,
+            name: expectedKeyName,
+            version: expectedKeyVersion);
+
+        var kvKey = Azure.Security.KeyVault.Keys.KeyModelFactory.KeyVaultKey(properties: keyProperties, key: jsonWebKey);
+
+        var ok = InvokeTryCreatePublicKeyFromKeyVaultKey(kvKey, out var rsa, out var ecdsa);
+        Assert.That(ok, Is.True);
+        Assert.That(rsa, Is.Null);
+        Assert.That(ecdsa, Is.Not.Null);
+    }
+
+    [Test]
+    public void IsApplicable_WhenRequireAzureKeyTrue_ReturnsTrueEvenWithoutCoseKeyHeader()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: true, allowOnlineVerify: false);
+        Assert.That(validator.IsApplicable(msg, ValidationStage.Signature), Is.True);
+    }
+
+    [Test]
+    public void InternalConstructor_WhenCredentialIsNull_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            _ = new AzureKeyVaultSignatureValidator(
+                detachedPayload: null,
+                requireAzureKey: false,
+                allowOnlineVerify: true,
+                credential: null!,
+                keyClientFactory: (_, __) => new Mock<KeyClient>().Object));
+    }
+
+    [Test]
+    public void InternalConstructor_WhenKeyClientFactoryIsNull_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            _ = new AzureKeyVaultSignatureValidator(
+                detachedPayload: null,
+                requireAzureKey: false,
+                allowOnlineVerify: true,
+                credential: new Mock<TokenCredential>().Object,
+                keyClientFactory: null!));
+    }
+
+    [Test]
+    public void Validate_WithEmbeddedMessageAndP384CoseKey_Succeeds()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP384);
+        var pub = key.ExportParameters(includePrivateParameters: false);
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        var coseKey = EncodeEc2CoseKey(pub, CoseKeyHeaderContributor.CoseEllipticCurves.P384);
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKey));
+
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA384, protectedHeaders, unprotectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        var result = validator.Validate(msg, ValidationStage.Signature);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata["KeyType"], Is.EqualTo("EC"));
+    }
+
+    [Test]
+    public void Validate_WithEmbeddedMessageAndP521CoseKey_Succeeds()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP521);
+        var pub = key.ExportParameters(includePrivateParameters: false);
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+
+        var coseKey = EncodeEc2CoseKey(pub, CoseKeyHeaderContributor.CoseEllipticCurves.P521);
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKey));
+
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA512, protectedHeaders, unprotectedHeaders);
+        var signed = CoseSign1Message.SignEmbedded(new byte[] { 4, 5, 6 }, signer);
+        var msg = CoseSign1Message.DecodeSign1(signed);
+
+        var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
+        var result = validator.Validate(msg, ValidationStage.Signature);
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Metadata["KeyType"], Is.EqualTo("EC"));
     }
 
     [Test]
@@ -266,7 +521,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["kid"], Is.EqualTo(kid));
@@ -293,7 +548,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["kid"], Is.EqualTo(kid));
@@ -317,7 +572,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -339,7 +594,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "INVALID_COSE_KEY"), Is.True);
@@ -364,7 +619,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(mutated);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "SIGNATURE_INVALID"), Is.True);
@@ -388,7 +643,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["KeyType"], Is.EqualTo("RSA"));
@@ -412,7 +667,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "MISSING_DETACHED_PAYLOAD"), Is.True);
@@ -436,7 +691,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: payload, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("KeyType"), Is.True);
@@ -494,7 +749,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: true, allowOnlineVerify: false);
-        Assert.That(validator.IsApplicable(msg), Is.True);
+        Assert.That(validator.IsApplicable(msg, ValidationStage.Signature), Is.True);
     }
 
     [Test]
@@ -506,7 +761,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: true, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "AKV_KEY_EXPECTED"), Is.True);
@@ -534,7 +789,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: false);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_NOT_ALLOWED"), Is.True);
@@ -593,7 +848,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["verificationMode"], Is.EqualTo("online"));
     }
@@ -645,7 +900,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["verificationMode"], Is.EqualTo("online"));
     }
@@ -659,7 +914,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: true);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "MISSING_KID"), Is.True);
@@ -677,7 +932,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: true);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
@@ -733,7 +988,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
     }
@@ -753,7 +1008,7 @@ public class AzureKeyVaultSignatureValidatorTests
         var msg = CoseSign1Message.DecodeSign1(signed);
 
         var validator = new AzureKeyVaultSignatureValidator(detachedPayload: null, requireAzureKey: false, allowOnlineVerify: true);
-        var result = validator.Validate(msg);
+        var result = validator.Validate(msg, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
@@ -806,7 +1061,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "SIGNATURE_INVALID"), Is.True);
     }
@@ -859,7 +1114,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
     }
@@ -912,7 +1167,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
     }
@@ -967,7 +1222,7 @@ public class AzureKeyVaultSignatureValidatorTests
             credential: credential,
             keyClientFactory: factory);
 
-        var result = await validator.ValidateAsync(msg);
+        var result = await validator.ValidateAsync(msg, ValidationStage.Signature);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(f => f.ErrorCode == "ONLINE_VERIFY_FAILED"), Is.True);
     }
@@ -1234,6 +1489,99 @@ public class AzureKeyVaultSignatureValidatorTests
         return ok;
     }
 
+    private static byte[] MutateUnprotectedHeaderValue(byte[] coseSign1, int headerLabel, Action<CborWriter> writeNewValue)
+    {
+        var reader = new CborReader(coseSign1);
+
+        CborTag? tag = null;
+        if (reader.PeekState() == CborReaderState.Tag)
+        {
+            tag = reader.ReadTag();
+        }
+
+        _ = reader.ReadStartArray();
+
+        var protectedBytes = reader.ReadByteString();
+
+        int? mapLen = reader.ReadStartMap();
+        var headers = new List<(int Label, byte[] EncodedValue)>();
+        while (reader.PeekState() != CborReaderState.EndMap)
+        {
+            int label = reader.ReadInt32();
+            byte[] encodedValue = reader.ReadEncodedValue().ToArray();
+            headers.Add((label, encodedValue));
+        }
+        reader.ReadEndMap();
+
+        var payload = reader.ReadEncodedValue().ToArray();
+        var signature = reader.ReadByteString();
+        reader.ReadEndArray();
+
+        var writer = new CborWriter();
+
+        if (tag != null)
+        {
+            writer.WriteTag(tag.Value);
+        }
+
+        writer.WriteStartArray(4);
+
+        writer.WriteByteString(protectedBytes);
+
+        writer.WriteStartMap(mapLen);
+        foreach (var (label, encodedValue) in headers)
+        {
+            writer.WriteInt32(label);
+            if (label == headerLabel)
+            {
+                writeNewValue(writer);
+            }
+            else
+            {
+                writer.WriteEncodedValue(encodedValue);
+            }
+        }
+        writer.WriteEndMap();
+
+        writer.WriteEncodedValue(payload);
+        writer.WriteByteString(signature);
+
+        writer.WriteEndArray();
+        return writer.Encode();
+    }
+
+    private static bool InvokeTryCreatePublicKeyFromKeyVaultKey(KeyVaultKey key, out RSA? rsa, out ECDsa? ecdsa)
+    {
+        var method = typeof(AzureKeyVaultSignatureValidator).GetMethod(
+            "TryCreatePublicKeyFromKeyVaultKey",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        object?[] args =
+        [
+            key,
+            null,
+            null
+        ];
+
+        var ok = (bool)method!.Invoke(null, args)!;
+
+        rsa = (RSA?)args[1];
+        ecdsa = (ECDsa?)args[2];
+
+        rsa?.Dispose();
+        ecdsa?.Dispose();
+
+        if (!ok)
+        {
+            rsa = null;
+            ecdsa = null;
+        }
+
+        return ok;
+    }
+
     private static byte[] EncodeRsaCoseKey(RSAParameters publicKey)
     {
         var writer = new CborWriter();
@@ -1250,5 +1598,80 @@ public class AzureKeyVaultSignatureValidatorTests
 
         writer.WriteEndMap();
         return writer.Encode();
+    }
+
+    [Test]
+    public void TryParseKeyVaultKeyId_WithInvalidUri_ReturnsFalse()
+    {
+        var ok = InvokeTryParseKeyVaultKeyId("not-a-uri", out var vaultUri, out var keyName, out var keyVersion);
+
+        Assert.That(ok, Is.False);
+        Assert.That(vaultUri, Is.Null);
+        Assert.That(keyName, Is.EqualTo(string.Empty));
+        Assert.That(keyVersion, Is.Null);
+    }
+
+    [Test]
+    public void TryParseKeyVaultKeyId_WithNonKeysPath_ReturnsFalse()
+    {
+        var ok = InvokeTryParseKeyVaultKeyId(
+            "https://example.vault.azure.net/secrets/name/version",
+            out var vaultUri,
+            out var keyName,
+            out var keyVersion);
+
+        Assert.That(ok, Is.False);
+        Assert.That(vaultUri, Is.Null);
+        Assert.That(keyName, Is.EqualTo(string.Empty));
+        Assert.That(keyVersion, Is.Null);
+    }
+
+    [Test]
+    public void TryParseKeyVaultKeyId_WithValidKeyUri_ReturnsTrueAndParsesParts()
+    {
+        var ok = InvokeTryParseKeyVaultKeyId(
+            "https://example.vault.azure.net/keys/myKey/0123456789abcdef",
+            out var vaultUri,
+            out var keyName,
+            out var keyVersion);
+
+        Assert.That(ok, Is.True);
+        Assert.That(vaultUri, Is.Not.Null);
+        Assert.That(vaultUri!.ToString().TrimEnd('/'), Is.EqualTo("https://example.vault.azure.net"));
+        Assert.That(keyName, Is.EqualTo("myKey"));
+        Assert.That(keyVersion, Is.EqualTo("0123456789abcdef"));
+    }
+
+    private static bool InvokeTryParseKeyVaultKeyId(string kid, out Uri? vaultUri, out string keyName, out string? keyVersion)
+    {
+        var method = typeof(AzureKeyVaultSignatureValidator).GetMethod(
+            "TryParseKeyVaultKeyId",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.That(method, Is.Not.Null);
+
+        object?[] args =
+        [
+            kid,
+            null,
+            string.Empty,
+            null
+        ];
+
+        var ok = (bool)method!.Invoke(null, args)!;
+
+        vaultUri = (Uri?)args[1];
+        keyName = (string)args[2]!;
+        keyVersion = (string?)args[3];
+
+        // Mirror the target method's behavior: failures should reset outputs.
+        if (!ok)
+        {
+            vaultUri = null;
+            keyName = string.Empty;
+            keyVersion = null;
+        }
+
+        return ok;
     }
 }

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Formats.Cbor;
-using Azure;
 using CoseSign1.Transparent.MST.Extensions;
 
 namespace CoseSign1.Transparent.MST.Tests;

@@ -3,7 +3,6 @@
 
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
-using CoseSign1.Certificates;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
 

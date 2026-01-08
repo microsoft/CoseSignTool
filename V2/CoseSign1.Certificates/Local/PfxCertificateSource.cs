@@ -4,11 +4,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Interfaces;
-using CoseSign1.Certificates.Logging;
-using Microsoft.Extensions.Logging;
 
 namespace CoseSign1.Certificates.Local;
 
@@ -40,6 +35,14 @@ public class PfxCertificateSource : CertificateSourceBase
         public static readonly string LogLoadingFromBytes = "Loading PFX from bytes. DataLength: {DataLength}, KeyStorageFlags: {KeyStorageFlags}";
         public static readonly string LogExtractingChain = "Extracting certificate and chain from {Source}. CertificateCount: {Count}";
         public static readonly string LogExtractedCertificate = "Extracted signing certificate. Subject: {Subject}, ChainCertificateCount: {ChainCount}";
+
+        public static readonly string ErrorPfxFileNotFoundFormat = "PFX file not found: {0}";
+        public static readonly string ErrorNoCertificateWithPrivateKeyFoundFormat = "No certificate with private key found in {0}";
+
+        public static readonly string ErrorValueCannotBeNullOrWhiteSpace = "Value cannot be null or whitespace.";
+
+        public static readonly string SourcePfxData = "PFX data";
+        public static readonly string SourcePfxFileFormat = "PFX file: {0}";
     }
 
     private readonly X509Certificate2 Certificate;
@@ -209,7 +212,7 @@ public class PfxCertificateSource : CertificateSourceBase
 #if NET5_0_OR_GREATER
         ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
 #else
-        if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(pfxFilePath)); }
+    if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(pfxFilePath)); }
 #endif
 
         logger?.LogTrace(
@@ -224,7 +227,7 @@ public class PfxCertificateSource : CertificateSourceBase
                 LogEvents.CertificateLoadFailedEvent,
                 ClassStrings.LogFileNotFound,
                 pfxFilePath);
-            throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorPfxFileNotFoundFormat, pfxFilePath), pfxFilePath);
         }
 
         // Convert SecureString to plain string only at the moment of use
@@ -237,7 +240,7 @@ public class PfxCertificateSource : CertificateSourceBase
             var collection = new X509Certificate2Collection();
             collection.Import(pfxFilePath, plainPassword, keyStorageFlags);
 #endif
-            return ExtractCertificateAndChain(collection, $"PFX file: {pfxFilePath}", logger);
+            return ExtractCertificateAndChain(collection, string.Format(ClassStrings.SourcePfxFileFormat, pfxFilePath), logger);
         }
         finally
         {
@@ -255,7 +258,7 @@ public class PfxCertificateSource : CertificateSourceBase
 #if NET5_0_OR_GREATER
         ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
 #else
-        if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(pfxFilePath)); }
+    if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(pfxFilePath)); }
 #endif
 
         logger?.LogTrace(
@@ -270,7 +273,7 @@ public class PfxCertificateSource : CertificateSourceBase
                 LogEvents.CertificateLoadFailedEvent,
                 ClassStrings.LogFileNotFound,
                 pfxFilePath);
-            throw new FileNotFoundException($"PFX file not found: {pfxFilePath}", pfxFilePath);
+            throw new FileNotFoundException(string.Format(ClassStrings.ErrorPfxFileNotFoundFormat, pfxFilePath), pfxFilePath);
         }
 
 #if NET5_0_OR_GREATER
@@ -279,7 +282,7 @@ public class PfxCertificateSource : CertificateSourceBase
         var collection = new X509Certificate2Collection();
         collection.Import(pfxFilePath, password, keyStorageFlags);
 #endif
-        return ExtractCertificateAndChain(collection, $"PFX file: {pfxFilePath}", logger);
+        return ExtractCertificateAndChain(collection, string.Format(ClassStrings.SourcePfxFileFormat, pfxFilePath), logger);
     }
 
     private static (X509Certificate2 certificate, IReadOnlyList<X509Certificate2> chain) LoadFromBytes(
@@ -310,7 +313,7 @@ public class PfxCertificateSource : CertificateSourceBase
             var collection = new X509Certificate2Collection();
             collection.Import(pfxData, plainPassword, keyStorageFlags);
 #endif
-            return ExtractCertificateAndChain(collection, "PFX data", logger);
+            return ExtractCertificateAndChain(collection, ClassStrings.SourcePfxData, logger);
         }
         finally
         {
@@ -343,7 +346,7 @@ public class PfxCertificateSource : CertificateSourceBase
         var collection = new X509Certificate2Collection();
         collection.Import(pfxData, password, keyStorageFlags);
 #endif
-        return ExtractCertificateAndChain(collection, "PFX data", logger);
+        return ExtractCertificateAndChain(collection, ClassStrings.SourcePfxData, logger);
     }
 
     /// <summary>
@@ -385,7 +388,7 @@ public class PfxCertificateSource : CertificateSourceBase
         var certificate = collection
             .Cast<X509Certificate2>()
             .FirstOrDefault(c => c.HasPrivateKey)
-            ?? throw new InvalidOperationException($"No certificate with private key found in {source}");
+            ?? throw new InvalidOperationException(string.Format(ClassStrings.ErrorNoCertificateWithPrivateKeyFoundFormat, source));
 
         var chain = collection.Cast<X509Certificate2>().ToList();
 

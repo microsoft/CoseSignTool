@@ -1,12 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
-using CoseSign1.Tests.Common;
-using NUnit.Framework;
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
 
 namespace CoseSign1.Certificates.Tests.Remote;

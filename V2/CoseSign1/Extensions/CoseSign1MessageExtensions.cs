@@ -16,6 +16,9 @@ public static class CoseSign1MessageExtensions
     /// For direct signatures: returns header 3
     /// For indirect signatures: delegates to indirect-specific logic
     /// </summary>
+    /// <param name="message">The COSE Sign1 message to inspect.</param>
+    /// <param name="contentType">When this method returns, contains the content type if available; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if a content type could be resolved; otherwise, <see langword="false"/>.</returns>
     public static bool TryGetContentType(
         this CoseSign1Message message,
         out string? contentType)
@@ -180,6 +183,10 @@ public static class CoseSign1MessageExtensions
     /// <summary>
     /// Checks if a header exists in protected headers (and optionally unprotected).
     /// </summary>
+    /// <param name="message">The COSE Sign1 message to inspect.</param>
+    /// <param name="label">The header label to look up.</param>
+    /// <param name="allowUnprotected">If true, also checks unprotected headers when not found in protected headers.</param>
+    /// <returns>True if the header exists; otherwise, false.</returns>
     public static bool HasHeader(
         this CoseSign1Message message,
         CoseHeaderLabel label,

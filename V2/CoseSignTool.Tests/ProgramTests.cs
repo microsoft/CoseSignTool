@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests;
+
 using System.CommandLine;
 using CoseSignTool.Commands;
-
-namespace CoseSignTool.Tests;
 
 /// <summary>
 /// Tests for the Program class entry point.
@@ -17,9 +17,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -30,9 +31,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["invalid-command"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidArguments));
@@ -48,23 +50,24 @@ public class ProgramTests
     [Test]
     public void Main_WithNullElementInArgs_ReturnsGeneralErrorAndWritesFatalError()
     {
-        var errorWriter = new StringWriter();
-
         // A string[] can legally contain null at runtime; System.CommandLine isn't expected to handle this.
         // We verify Program catches unexpected exceptions and returns a general error.
         string[] args = [null!];
 
-        var exitCode = Program.Run(args, standardInput: null, standardOutput: TextWriter.Null, standardError: errorWriter);
+        var console = new TestConsole();
+        var exitCode = Program.Run(args, console);
 
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.GeneralError));
-        Assert.That(errorWriter.ToString(), Does.Contain("Fatal error:"));
+        Assert.That(console.GetStderr(), Does.Contain("Fatal error:"));
     }
 
     [Test]
     public void CreateRootCommand_ReturnsConfiguredCommand()
     {
         // Act
-        var rootCommand = Program.CreateRootCommand();
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console, null);
+        var rootCommand = builder.BuildRootCommand();
 
         // Assert
         Assert.That(rootCommand, Is.Not.Null);
@@ -76,7 +79,9 @@ public class ProgramTests
     public void CreateRootCommand_HasSignEphemeralCommand()
     {
         // Act
-        var rootCommand = Program.CreateRootCommand();
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console, null);
+        var rootCommand = builder.BuildRootCommand();
 
         // Assert
         Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "sign-ephemeral"));
@@ -86,7 +91,9 @@ public class ProgramTests
     public void CreateRootCommand_HasVerifyCommand()
     {
         // Act
-        var rootCommand = Program.CreateRootCommand();
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console, null);
+        var rootCommand = builder.BuildRootCommand();
 
         // Assert
         Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "verify"));
@@ -96,7 +103,9 @@ public class ProgramTests
     public void CreateRootCommand_HasInspectCommand()
     {
         // Act
-        var rootCommand = Program.CreateRootCommand();
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console, null);
+        var rootCommand = builder.BuildRootCommand();
 
         // Assert
         Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "inspect"));
@@ -150,15 +159,14 @@ public class ProgramTests
         // bytes to stdout, which can break some test loggers.
         string[] args = ["sign-ephemeral", "--help"];
 
-        var outputWriter = new StringWriter();
-        var errorWriter = new StringWriter();
+        var console = new TestConsole();
 
         // Act
-        var exitCode = Program.Run(args, standardInput: null, standardOutput: outputWriter, standardError: errorWriter);
+        var exitCode = Program.Run(args, console);
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
-        Assert.That(outputWriter.ToString(), Does.Contain("stdin"));
+        Assert.That(console.GetStdout(), Does.Contain("stdin"));
     }
 
     [Test]
@@ -168,12 +176,8 @@ public class ProgramTests
         // In test environment with no stdin data, behavior depends on console redirect state
         string[] args = ["verify"];
 
-        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
-        var outputWriter = new StringWriter();
-        var errorWriter = new StringWriter();
-
         // Act
-        var exitCode = Program.Run(args, emptyStdin, outputWriter, errorWriter);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert - In test environment, stdin behavior varies
         // - FileNotFound (3): No data on stdin (detected empty)
@@ -191,9 +195,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["--version"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -204,9 +209,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["sign-ephemeral", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -217,9 +223,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["verify", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -230,9 +237,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["inspect", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -243,9 +251,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["--output-format", "json", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -256,9 +265,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["--output-format", "xml", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -269,9 +279,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["--output-format", "quiet", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -282,9 +293,10 @@ public class ProgramTests
     {
         // Arrange
         string[] args = ["-f", "text", "--help"];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -295,9 +307,10 @@ public class ProgramTests
     {
         // Arrange - no args shows help
         string[] args = [];
+        using var emptyStdin = new MemoryStream();
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert - no arguments shows help and returns success
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -313,7 +326,9 @@ public class ProgramTests
         try
         {
             // Act
-            var rootCommand = Program.CreateRootCommand([tempDir]);
+            var console = new TestConsole();
+            var builder = new CommandBuilder(console, null);
+            var rootCommand = builder.BuildRootCommand([tempDir]);
 
             // Assert
             Assert.That(rootCommand, Is.Not.Null);
@@ -332,7 +347,9 @@ public class ProgramTests
     public void CreateRootCommand_WithNull_DoesNotThrow()
     {
         // Act
-        var rootCommand = Program.CreateRootCommand(null);
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console, null);
+        var rootCommand = builder.BuildRootCommand(null);
 
         // Assert
         Assert.That(rootCommand, Is.Not.Null);
@@ -348,9 +365,10 @@ public class ProgramTests
         try
         {
             string[] args = ["--additional-plugin-dir", tempDir, "--help"];
+            using var emptyStdin = new MemoryStream();
 
             // Act
-            var exitCode = Program.Main(args);
+            var exitCode = Program.Run(args, new TestConsole());
 
             // Assert
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -372,7 +390,7 @@ public class ProgramTests
         string[] args = ["inspect"];
 
         // Act
-        var exitCode = Program.Main(args);
+        var exitCode = Program.Run(args, new TestConsole());
 
         // Assert - In test environment, stdin behavior varies
         // - FileNotFound (3): No data on stdin (detected empty)

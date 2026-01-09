@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Validation;
-
 namespace CoseSign1.Certificates.Validation;
+
+using CoseSign1.Validation;
 
 /// <summary>
 /// Convenience helpers for building X.509 trust policies.

@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Remote;
+
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
-
-namespace CoseSign1.Certificates.Tests.Remote;
 
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]

@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Direct;
+
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions.Transparency;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Direct;
 
 /// <summary>
 /// Factory for creating direct COSE signatures.

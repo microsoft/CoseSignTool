@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Output;
+
 using System.Xml.Linq;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Tests.Output;
 
 /// <summary>
 /// Tests for the XmlOutputFormatter class.

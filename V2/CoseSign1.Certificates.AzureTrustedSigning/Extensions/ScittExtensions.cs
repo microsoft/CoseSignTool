@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Headers;
-
 namespace CoseSign1.Certificates.AzureTrustedSigning.Extensions;
+
+using CoseSign1.Headers;
 
 /// <summary>
 /// Extension methods for configuring Azure Trusted Signing with SCITT compliance.

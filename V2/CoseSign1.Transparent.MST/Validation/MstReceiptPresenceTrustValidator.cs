@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Transparent.MST.Extensions;
@@ -8,8 +10,6 @@ using CoseSign1.Validation;
 using CoseSign1.Validation.Builders;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Transparent.MST.Validation;
 
 /// <summary>
 /// Emits trust assertions about whether an MST receipt is present.

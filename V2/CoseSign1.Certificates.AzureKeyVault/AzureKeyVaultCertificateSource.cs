@@ -1,17 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.AzureKeyVault;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Diagnostics.CodeAnalysis;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
-using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Security.KeyVault.Secrets;
 using CoseSign1.AzureKeyVault.Common;
 using CoseSign1.Certificates.Remote;
-
-namespace CoseSign1.Certificates.AzureKeyVault;
 
 /// <summary>
 /// Indicates how the private key for an Azure Key Vault certificate is accessed.

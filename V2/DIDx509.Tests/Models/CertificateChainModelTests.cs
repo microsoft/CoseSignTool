@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.Models;
+
 using CoseSign1.Tests.Common;
 using DIDx509.CertificateChain;
 using DIDx509.Models;
-
-namespace DIDx509.Tests.Models;
 
 [TestFixture]
 public class CertificateChainModelTests

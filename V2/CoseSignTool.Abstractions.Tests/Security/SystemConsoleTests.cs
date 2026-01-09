@@ -1,9 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Abstractions.Security;
-
 namespace CoseSignTool.Abstractions.Tests.Security;
+
+using CoseSignTool.Abstractions.IO;
+using CoseSignTool.Abstractions.Security;
 
 /// <summary>
 /// Tests for the SystemConsole class.

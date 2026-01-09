@@ -1,16 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates that the signing certificate's subject common name matches the expected value.
 /// </summary>
-public sealed class CertificateCommonNameValidator : IValidator
+public sealed partial class CertificateCommonNameValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -43,14 +45,29 @@ public sealed class CertificateCommonNameValidator : IValidator
 
     private readonly string ExpectedCommonName;
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificateCommonNameValidator> Logger;
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating certificate common name. Expected: {ExpectedCN}")]
+    private partial void LogValidatingCN(string expectedCN);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Certificate common name validated: {ActualCN}")]
+    private partial void LogCNMatched(string actualCN);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Certificate common name mismatch. Expected: {ExpectedCN}, Actual: {ActualCN}")]
+    private partial void LogCNMismatch(string expectedCN, string actualCN);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateCommonNameValidator"/> class.
     /// </summary>
     /// <param name="expectedCommonName">The expected common name (CN) value.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="expectedCommonName"/> is null or whitespace.</exception>
-    public CertificateCommonNameValidator(string expectedCommonName, bool allowUnprotectedHeaders = false)
+    public CertificateCommonNameValidator(
+        string expectedCommonName,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateCommonNameValidator>? logger = null)
     {
         if (string.IsNullOrWhiteSpace(expectedCommonName))
         {
@@ -59,11 +76,14 @@ public sealed class CertificateCommonNameValidator : IValidator
 
         ExpectedCommonName = expectedCommonName;
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateCommonNameValidator>.Instance;
     }
 
     /// <inheritdoc/>
     public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
+        LogValidatingCN(ExpectedCommonName);
+
         if (input == null)
         {
             return ValidationResult.Failure(
@@ -93,11 +113,14 @@ public sealed class CertificateCommonNameValidator : IValidator
 
         if (!string.Equals(actualCN, ExpectedCommonName, StringComparison.OrdinalIgnoreCase))
         {
+            LogCNMismatch(ExpectedCommonName, actualCN);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatCnMismatch, actualCN, ExpectedCommonName),
                 ClassStrings.ErrorCodeCnMismatch);
         }
+
+        LogCNMatched(actualCN);
 
         var metadata = new Dictionary<string, object>
         {

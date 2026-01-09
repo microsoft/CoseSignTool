@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using DIDx509.Parsing;
-
 namespace DIDx509.Tests.Parsing;
+
+using DIDx509.Parsing;
 
 [TestFixture]
 public class PercentEncodingTests

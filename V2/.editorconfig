@@ -1,0 +1,31 @@
+# V2-specific EditorConfig overrides
+# These stricter rules are enforced only for V2 projects
+
+[*.cs]
+# IDE0065: Using directive placement - must be inside namespace (build error)
+csharp_using_directive_placement = inside_namespace:error
+
+# IDE0005: Remove unnecessary usings - enforced as build error
+dotnet_diagnostic.IDE0005.severity = error
+
+# internal and private fields should be PascalCase (comment fix from main)
+dotnet_naming_rule.camel_case_for_private_internal_fields.severity = error
+dotnet_naming_rule.camel_case_for_private_internal_fields.symbols  = private_internal_fields
+dotnet_naming_rule.camel_case_for_private_internal_fields.style = pascal_case_style
+
+# StyleCop analyzers default to `warning`, and V2 treats warnings as errors.
+# We only want documentation completeness enforcement here, not formatting/naming/etc.
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.DocumentationRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.ReadabilityRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.OrderingRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.LayoutRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.SpacingRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.NamingRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.MaintainabilityRules.severity = none
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.SpecialRules.severity = none
+
+# Enforce docs completeness.
+dotnet_diagnostic.SA1611.severity = error
+dotnet_diagnostic.SA1615.severity = error
+dotnet_diagnostic.SA1617.severity = error
+dotnet_diagnostic.CSTDOC001.severity = error

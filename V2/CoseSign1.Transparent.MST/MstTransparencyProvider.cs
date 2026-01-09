@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
@@ -9,8 +11,6 @@ using Azure;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST.Extensions;
-
-namespace CoseSign1.Transparent.MST;
 
 /// <summary>
 /// Transparency provider for Microsoft's Signing Transparency (MST) service.

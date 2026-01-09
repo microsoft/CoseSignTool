@@ -1,26 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Headers.Tests;
+
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Headers.Extensions;
 using Moq;
 
-namespace CoseSign1.Headers.Tests;
-
 [TestFixture]
 public class CwtClaimsHeaderContributorAdditionalTests
 {
-    private Mock<ISigningKey> MockSigningKey = null!;
-    private SigningContext SigningContext = null!;
-    private HeaderContributorContext Context = null!;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Creates a new HeaderContributorContext for testing.
+    /// </summary>
+    private static HeaderContributorContext CreateContext()
     {
-        MockSigningKey = new Mock<ISigningKey>();
-        SigningContext = new SigningContext(new byte[] { 1, 2, 3 }, "application/test");
-        Context = new HeaderContributorContext(SigningContext, MockSigningKey.Object);
+        var mockSigningKey = new Mock<ISigningKey>();
+        var signingContext = new SigningContext(new byte[] { 1, 2, 3 }, "application/test");
+        return new HeaderContributorContext(signingContext, mockSigningKey.Object);
     }
 
     [Test]
@@ -255,9 +253,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
     {
         // Arrange
         var contributor = new CwtClaimsHeaderContributor();
+        var context = CreateContext();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => contributor.ContributeProtectedHeaders(null!, Context));
+        Assert.Throws<ArgumentNullException>(() => contributor.ContributeProtectedHeaders(null!, context));
     }
 
     [Test]
@@ -265,9 +264,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
     {
         // Arrange
         var contributor = new CwtClaimsHeaderContributor();
+        var context = CreateContext();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => contributor.ContributeUnprotectedHeaders(null!, Context));
+        Assert.Throws<ArgumentNullException>(() => contributor.ContributeUnprotectedHeaders(null!, context));
     }
 
     [Test]
@@ -277,9 +277,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
         var claims = new CwtClaims { Issuer = "test-issuer", Subject = "test-subject" };
         var contributor = new CwtClaimsHeaderContributor(claims, CwtClaimsHeaderPlacement.Both);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         Assert.That(headers.Count, Is.GreaterThan(0));
@@ -292,9 +293,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
         var claims = new CwtClaims { Issuer = "test-issuer", Subject = "test-subject" };
         var contributor = new CwtClaimsHeaderContributor(claims, CwtClaimsHeaderPlacement.Both);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeUnprotectedHeaders(headers, Context);
+        contributor.ContributeUnprotectedHeaders(headers, context);
 
         // Assert
         Assert.That(headers.Count, Is.GreaterThan(0));
@@ -311,9 +313,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             customHeaderLabel: null,
             autoPopulateTimestamps: true);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         headers.TryGetCwtClaims(out var resultClaims);
@@ -333,9 +336,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             customHeaderLabel: null,
             autoPopulateTimestamps: false);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         headers.TryGetCwtClaims(out var resultClaims);
@@ -358,9 +362,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             CwtClaimsHeaderPlacement.ProtectedOnly,
             customHeaderLabel: null,
             autoPopulateTimestamps: false);
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         headers.TryGetCwtClaims(out var resultClaims);
@@ -378,9 +383,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             customHeaderLabel: null,
             autoPopulateTimestamps: false);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         Assert.That(headers.Count, Is.EqualTo(0));
@@ -398,9 +404,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             customHeaderLabel: customLabel,
             autoPopulateTimestamps: false);
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         headers.TryGetCwtClaims(out var resultClaims, customLabel);
@@ -463,9 +470,10 @@ public class CwtClaimsHeaderContributorAdditionalTests
             customHeaderLabel: null,
             autoPopulateTimestamps: true); // Auto-populate is enabled but claims already have timestamps
         var headers = new CoseHeaderMap();
+        var context = CreateContext();
 
         // Act
-        contributor.ContributeProtectedHeaders(headers, Context);
+        contributor.ContributeProtectedHeaders(headers, context);
 
         // Assert
         headers.TryGetCwtClaims(out var resultClaims);

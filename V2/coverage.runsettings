@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Code coverage configuration for V2 projects with parallel execution -->
-<!-- Usage: dotnet test with the coverage.runsettings file and the XPlat Code Coverage collector -->
+<!--
+  Code coverage configuration for V2 projects with parallel execution
+  Usage: dotnet test with the coverage.runsettings file and the XPlat Code Coverage collector
+-->
 <RunSettings>
   <DataCollectionRunSettings>
     <DataCollectors>
@@ -25,7 +27,7 @@
   </DataCollectionRunSettings>
   
   <RunConfiguration>
-    <!-- Use all available CPU cores (0 = auto-detect) -->
+    <!-- Use all available CPU cores (0 = auto detect) -->
     <MaxCpuCount>0</MaxCpuCount>
     <ResultsDirectory>.\TestResults</ResultsDirectory>
     <TreatNoTestsAsError>true</TreatNoTestsAsError>

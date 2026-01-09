@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using Microsoft.Extensions.Configuration;
-
 namespace CoseSignTool.Configuration;
+
+using Microsoft.Extensions.Configuration;
 
 /// <summary>
 /// Provides a fluent API for building application configuration from multiple sources.

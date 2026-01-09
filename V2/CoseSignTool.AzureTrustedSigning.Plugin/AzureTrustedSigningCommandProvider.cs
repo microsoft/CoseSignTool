@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.AzureTrustedSigning.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using Azure.Developer.TrustedSigning.CryptoProvider;
@@ -8,8 +10,6 @@ using Azure.Identity;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.AzureTrustedSigning;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.AzureTrustedSigning.Plugin;
 
 /// <summary>
 /// Command provider for signing with Azure Trusted Signing service.

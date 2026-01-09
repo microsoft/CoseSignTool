@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Integration.Tests;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -8,8 +10,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CoseSign1.Direct;
 using CoseSign1.Indirect;
-
-namespace CoseSign1.Integration.Tests;
 
 /// <summary>
 /// Integration tests verifying that RSA, ECDSA, and ML-DSA certificates can create valid

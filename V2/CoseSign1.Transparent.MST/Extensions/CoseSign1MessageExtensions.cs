@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Extensions;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
-
-namespace CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Extension methods for <see cref="CoseSign1Message"/> to work with MST receipts.

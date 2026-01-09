@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-
 namespace CoseSign1.Indirect;
+
+using System.Security.Cryptography;
 
 /// <summary>
 /// Options specific to indirect signature operations.

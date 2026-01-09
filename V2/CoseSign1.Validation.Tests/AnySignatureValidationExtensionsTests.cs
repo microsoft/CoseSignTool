@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Validation.Tests;
 
 [TestFixture]
 public class AnySignatureValidationExtensionsTests

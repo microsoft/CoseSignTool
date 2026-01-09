@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Formats.Cbor;
-
 namespace CoseSign1.Certificates.Extensions;
+
+using System.Formats.Cbor;
 
 /// <summary>
 /// Extension methods for extracting certificates from CoseSign1Message.

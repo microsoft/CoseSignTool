@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Commands.Handlers;
+
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
-using System.Formats.Cbor;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -20,8 +21,6 @@ using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Output;
 
-namespace CoseSignTool.Tests.Commands.Handlers;
-
 /// <summary>
 /// Tests for the VerifyCommandHandler class.
 /// </summary>
@@ -32,7 +31,7 @@ public class VerifyCommandHandlerTests
     public void Constructor_WithNullFormatter_UsesDefaultFormatter()
     {
         // Arrange & Act
-        var handler = new VerifyCommandHandler(null);
+        var handler = new VerifyCommandHandler(new TestConsole(), null);
 
         // Assert
         Assert.That(handler, Is.Not.Null);
@@ -45,7 +44,7 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter();
 
         // Act
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         // Assert
         Assert.That(handler, Is.Not.Null);
@@ -55,7 +54,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithNullSignature_ReturnsFileNotFound()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
         var context = CreateInvocationContext(signature: null);
 
         // Act
@@ -69,7 +68,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithNonExistentSignature_ReturnsFileNotFound()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
         var nonExistentFile = new FileInfo(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.cose"));
         var context = CreateInvocationContext(signature: nonExistentFile);
 
@@ -84,7 +83,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithValidSignature_ReturnsInvalidSignatureForInvalidCose()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84, 0x43, 0xA1]); // Invalid COSE bytes (incomplete)
         var signature = new FileInfo(tempFile);
@@ -111,7 +110,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithNullContext_ThrowsArgumentNullException()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
@@ -121,7 +120,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithRandomBytes_ReturnsInvalidSignature()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0x01, 0x02, 0x03, 0x04, 0x05]);
         var signature = new FileInfo(tempFile);
@@ -150,7 +149,7 @@ public class VerifyCommandHandlerTests
         // Arrange
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
         var signature = new FileInfo(tempFile);
@@ -179,7 +178,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithEmptyFile_ReturnsInvalidSignature()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, []);
         var signature = new FileInfo(tempFile);
@@ -216,7 +215,7 @@ public class VerifyCommandHandlerTests
 
         var output = new StringWriter();
         var formatter = new TextOutputFormatter(output: output, error: output);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -462,7 +461,7 @@ public class VerifyCommandHandlerTests
 
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -508,7 +507,7 @@ public class VerifyCommandHandlerTests
 
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -545,7 +544,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WhenProviderValidatorFails_WritesFailureDetailsAndReturnsVerificationFailed()
     {
         // Arrange - Create a real signature using sign-ephemeral (so base certificate validation can succeed)
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -554,7 +553,7 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
 
         var failingProvider = new MockVerificationProvider(isActivated: true, validationPasses: false);
-        var handler = new VerifyCommandHandler(formatter, new[] { failingProvider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { failingProvider });
 
         try
         {
@@ -595,7 +594,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithDetachedSignatureAndNoPayload_ReturnsInvalidArguments()
     {
         // Arrange
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         var payload = "test payload"u8.ToArray();
         byte[] detachedBytes;
@@ -655,7 +654,7 @@ public class VerifyCommandHandlerTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var handler = new VerifyCommandHandler(new TextOutputFormatter(output, error));
+        var handler = TestConsole.CreateVerifyCommandHandler(new TextOutputFormatter(output, error));
 
         var missingSignature = new FileInfo(Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.cose"));
         var context = CreateInvocationContext(signature: missingSignature);
@@ -671,7 +670,7 @@ public class VerifyCommandHandlerTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var handler = new VerifyCommandHandler(new TextOutputFormatter(output, error));
+        var handler = TestConsole.CreateVerifyCommandHandler(new TextOutputFormatter(output, error));
 
         var context = CreateInvocationContext(signature: null);
         var missingPayload = new FileInfo(Path.Combine(Path.GetTempPath(), $"missing_payload_{Guid.NewGuid():N}.bin"));
@@ -687,8 +686,8 @@ public class VerifyCommandHandlerTests
     {
         var output = new StringWriter();
         var formatter = new TextOutputFormatter(output: output, error: output);
-        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
-        var handler = new VerifyCommandHandler(formatter, standardInputProvider: () => emptyStdin)
+        var console = new TestConsole(Array.Empty<byte>());
+        var handler = new VerifyCommandHandler(console, formatter)
         {
             StdinTimeout = TimeSpan.FromMilliseconds(25)
         };
@@ -723,7 +722,7 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(output, error);
 
         var provider = new AlwaysOnVerificationProvider();
-        var handler = new VerifyCommandHandler(formatter, new List<IVerificationProvider> { provider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new List<IVerificationProvider> { provider });
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerTest");
 
@@ -767,7 +766,7 @@ public class VerifyCommandHandlerTests
         var output = new StringWriter();
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerSignatureOnlyTest");
 
@@ -807,7 +806,7 @@ public class VerifyCommandHandlerTests
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
         // Provide a permissive trust policy so this test can focus on payload hash mismatch behavior.
-        var handler = new VerifyCommandHandler(formatter, new[] { new AlwaysOnVerificationProvider() });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { new AlwaysOnVerificationProvider() });
 
         var cert = TestCertificateUtils.CreateCertificate("VerifyHandlerIndirectMismatchTest");
 
@@ -885,11 +884,11 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccessOrValidationStatus()
     {
         // Arrange - Create a real signature using sign-ephemeral
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         try
         {
@@ -929,7 +928,7 @@ public class VerifyCommandHandlerTests
         // Arrange
         var stringWriter = new StringWriter();
         var formatter = new JsonOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
         var signature = new FileInfo(tempFile);
@@ -960,7 +959,7 @@ public class VerifyCommandHandlerTests
         // Arrange
         var stringWriter = new StringWriter();
         var formatter = new XmlOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
         var signature = new FileInfo(tempFile);
@@ -990,7 +989,7 @@ public class VerifyCommandHandlerTests
     {
         // Arrange
         var formatter = new QuietOutputFormatter();
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
         var signature = new FileInfo(tempFile);
@@ -1020,13 +1019,13 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithEmbeddedPayloadSignature_IndicatesEmbedded()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -1063,13 +1062,13 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithDetachedSignature_IndicatesDetached()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -1106,7 +1105,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithVerificationProvider_CallsProviderMethods()
     {
         // Arrange - Create a real signature using sign-ephemeral
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1115,7 +1114,7 @@ public class VerifyCommandHandlerTests
 
         // Create a mock provider that is activated and returns validators
         var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: true);
-        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { mockProvider });
 
         try
         {
@@ -1156,7 +1155,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithProviderNullMetadataValue_WritesNull()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1164,7 +1163,7 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
 
         var provider = new NullMetadataVerificationProvider();
-        var handler = new VerifyCommandHandler(formatter, new[] { provider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { provider });
 
         try
         {
@@ -1200,7 +1199,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithFailingVerificationProvider_ReturnsVerificationFailed()
     {
         // Arrange - Create a real signature using sign-ephemeral
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1209,7 +1208,7 @@ public class VerifyCommandHandlerTests
 
         // Create a provider that adds a failing validator
         var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: false);
-        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { mockProvider });
 
         try
         {
@@ -1250,7 +1249,7 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithInactiveProvider_DoesNotCallProviderValidators()
     {
         // Arrange - Create a real signature using sign-ephemeral
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1259,7 +1258,7 @@ public class VerifyCommandHandlerTests
 
         // Create a provider that is NOT activated
         var mockProvider = new MockVerificationProvider(isActivated: false, validationPasses: true);
-        var handler = new VerifyCommandHandler(formatter, new[] { mockProvider });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { mockProvider });
 
         try
         {
@@ -1297,13 +1296,13 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithPayloadFile_PassesPayloadToHandler()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -1341,11 +1340,11 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithNonExistentPayloadFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         try
         {
@@ -1380,13 +1379,13 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WithSignatureOnlyTrue_SkipsPayloadVerification()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -1421,7 +1420,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithSignatureOnlyTrue_WhenNoProviders_ReturnsSuccess()
     {
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         var tempPayload = Path.GetTempFileName();
@@ -1430,7 +1429,7 @@ public class VerifyCommandHandlerTests
         var output = new StringWriter();
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
-        var handler = new VerifyCommandHandler(formatter);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter);
 
         try
         {
@@ -1461,7 +1460,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithMultipleTrustPolicies_WritesWarningAndReturnsSuccess()
     {
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         var tempPayload = Path.GetTempFileName();
@@ -1471,7 +1470,7 @@ public class VerifyCommandHandlerTests
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
 
-        var handler = new VerifyCommandHandler(
+        var handler = TestConsole.CreateVerifyCommandHandler(
             formatter,
             new IVerificationProvider[]
             {
@@ -1509,7 +1508,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithFailingPostSignatureValidator_ReturnsVerificationFailed()
     {
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         var tempPayload = Path.GetTempFileName();
@@ -1519,7 +1518,7 @@ public class VerifyCommandHandlerTests
         var error = new StringWriter();
         var formatter = new TextOutputFormatter(output, error);
 
-        var handler = new VerifyCommandHandler(
+        var handler = TestConsole.CreateVerifyCommandHandler(
             formatter,
             new IVerificationProvider[] { new PostSignatureFailingProvider() });
 
@@ -1617,11 +1616,11 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_DetachedSignatureWithoutPayload_ReturnsInvalidArguments()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         try
         {
@@ -1656,11 +1655,11 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_OverloadWithNoArgs_CallsMainMethod()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = new VerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler();
 
         try
         {
@@ -1698,14 +1697,14 @@ public class VerifyCommandHandlerTests
     public async Task HandleAsync_WhenProviderThrows_ReturnsVerificationFailedAndWritesError()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
 
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
-        var handler = new VerifyCommandHandler(formatter, new[] { new ThrowingVerificationProvider() });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { new ThrowingVerificationProvider() });
 
         try
         {
@@ -1740,14 +1739,14 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WhenResolutionValidatorFails_ReturnsVerificationFailedAndWritesFailureDetails()
     {
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
 
         var output = new StringWriter();
         var formatter = new TextOutputFormatter(output: output, error: output);
-        var handler = new VerifyCommandHandler(formatter, new[] { new ResolutionFailingProvider() });
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { new ResolutionFailingProvider() });
 
         try
         {

@@ -1,37 +1,42 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateSignatureValidatorTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
-    private CoseSign1Message? ValidMessage;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Holds the test state for each test method.
+    /// </summary>
+    private sealed record TestContext(
+        System.Security.Cryptography.X509Certificates.X509Certificate2 TestCert,
+        CoseSign1Message ValidMessage) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
+        public void Dispose() => TestCert?.Dispose();
+    }
+
+    /// <summary>
+    /// Creates a fresh test context with isolated state.
+    /// </summary>
+    private static TestContext CreateTestContext()
+    {
+        var testCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
-    }
+        var validMessage = CoseSign1Message.DecodeSign1(messageBytes);
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
+        return new TestContext(testCert, validMessage);
     }
 
     [Test]
@@ -61,8 +66,9 @@ public class CertificateSignatureValidatorTests
     [Test]
     public void Validate_WithValidSignature_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
@@ -72,8 +78,9 @@ public class CertificateSignatureValidatorTests
     [Test]
     public void Validate_WithAllowUnprotectedHeaders_ValidatesSuccessfully()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -81,8 +88,9 @@ public class CertificateSignatureValidatorTests
     [Test]
     public async Task ValidateAsync_WithValidSignature_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature, CancellationToken.None);
+        var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.Signature, CancellationToken.None);
 
         Assert.That(result.IsValid, Is.True);
         // CertificateSignatureValidator delegates to CertificateEmbeddedSignatureValidator for embedded messages
@@ -92,6 +100,7 @@ public class CertificateSignatureValidatorTests
     [Test]
     public async Task ValidateAsync_WithCancellationToken_ThrowsWhenCancelled()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -99,7 +108,7 @@ public class CertificateSignatureValidatorTests
         // Task may complete before cancellation is observed
         try
         {
-            await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature, cts.Token);
+            await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.Signature, cts.Token);
             // If no exception, test passes - cancellation may not be observed for fast operations
         }
         catch (OperationCanceledException)
@@ -161,10 +170,11 @@ public class CertificateSignatureValidatorTests
     [Test]
     public void Validate_DetachedSignature_WithPayload_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         // Create a detached signature
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature (embedPayload: false)
@@ -183,10 +193,11 @@ public class CertificateSignatureValidatorTests
     [Test]
     public void Validate_DetachedSignature_WithoutPayload_ReturnsFailure()
     {
+        using var ctx = CreateTestContext();
         // Create a detached signature
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature (embedPayload: false)
@@ -209,10 +220,11 @@ public class CertificateSignatureValidatorTests
     [Test]
     public async Task ValidateAsync_DetachedSignature_WithPayload_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         // Create a detached signature
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature (embedPayload: false)

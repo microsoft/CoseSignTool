@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.Resolution;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using DIDx509.Resolution;
-
-namespace DIDx509.Tests.Resolution;
 
 [TestFixture]
 public class DidX509ResolverTests

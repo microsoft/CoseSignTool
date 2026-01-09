@@ -12,8 +12,6 @@ global using Azure.Core;
 global using Azure.Security.KeyVault.Keys;
 global using Azure.Security.KeyVault.Keys.Cryptography;
 global using CoseSign1.Abstractions;
-global using CoseSign1.AzureKeyVault;
 global using CoseSign1.AzureKeyVault.Common;
-global using CoseSign1.Tests.Common;
 global using Moq;
 global using NUnit.Framework;

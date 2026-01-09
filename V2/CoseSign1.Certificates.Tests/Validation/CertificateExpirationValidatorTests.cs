@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Tests.Validation;
 
 [TestFixture]
 public class CertificateExpirationValidatorTests

@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Commands.Handlers;
+
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
+using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Inspection;
-using CoseSignTool.IO;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Commands.Handlers;
 
 /// <summary>
 /// Handles the 'inspect' command for examining COSE Sign1 signatures.
@@ -26,7 +26,7 @@ public class InspectCommandHandler
 
     private readonly IOutputFormatter Formatter;
     private readonly CoseInspectionService InspectionService;
-    private readonly Func<Stream> StandardInputProvider;
+    private readonly IConsole Console;
 
     /// <summary>
     /// The timeout for waiting for stdin data. Default is 2 seconds.
@@ -36,13 +36,14 @@ public class InspectCommandHandler
     /// <summary>
     /// Initializes a new instance of the <see cref="InspectCommandHandler"/> class.
     /// </summary>
+    /// <param name="console">Console I/O abstraction. Required for stream access.</param>
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
-    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
-    public InspectCommandHandler(IOutputFormatter? formatter = null, Func<Stream>? standardInputProvider = null)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
+    public InspectCommandHandler(IConsole console, IOutputFormatter? formatter = null)
     {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
         Formatter = formatter ?? new TextOutputFormatter();
         InspectionService = new CoseInspectionService(Formatter);
-        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
     }
 
     /// <summary>
@@ -77,23 +78,14 @@ public class InspectCommandHandler
 
             if (useStdin)
             {
-                // Read from stdin with timeout wrapper to avoid blocking forever
-                using var rawStdin = StandardInputProvider();
-                using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
+                // IConsole.StandardInput already has timeout protection via SystemConsole
                 using var ms = new MemoryStream();
-                await timeoutStdin.CopyToAsync(ms);
+                await Console.StandardInput.CopyToAsync(ms);
                 var signatureBytes = ms.ToArray();
 
                 if (signatureBytes.Length == 0)
                 {
-                    if (timeoutStdin.TimedOut)
-                    {
-                        Formatter.WriteError(string.Format(AssemblyStrings.Errors.StdinTimeout, StdinTimeout.TotalSeconds));
-                    }
-                    else
-                    {
-                        Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
-                    }
+                    Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
                     Formatter.Flush();
                     return (int)ExitCode.FileNotFound;
                 }

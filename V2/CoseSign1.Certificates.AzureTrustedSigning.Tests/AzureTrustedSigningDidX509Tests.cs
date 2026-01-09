@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-
 namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 
 /// <summary>
@@ -12,23 +10,11 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningDidX509Tests
 {
-    private X509Certificate2 TestCert = null!;
-    private X509Certificate2 TestCert2 = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        // Create test certificates
-        TestCert = TestCertificateUtils.CreateCertificate("AzureTrustedSigningDidX509Test");
-        TestCert2 = TestCertificateUtils.CreateCertificate("CaCert");
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-        TestCert2?.Dispose();
-    }
+    /// <summary>
+    /// Creates a test certificate for use in tests.
+    /// </summary>
+    private static X509Certificate2 CreateTestCert(string name = "AzureTrustedSigningDidX509Test")
+        => TestCertificateUtils.CreateCertificate(name);
 
     #region Generate Tests
 
@@ -59,7 +45,8 @@ public class AzureTrustedSigningDidX509Tests
     public void Generate_WithCertWithoutMicrosoftEku_ThrowsInvalidOperationException()
     {
         // Arrange - test certs don't have Microsoft EKUs
-        var chain = new[] { TestCert };
+        using var testCert = CreateTestCert();
+        var chain = new[] { testCert };
 
         // Act & Assert - the builder requires at least one policy when no EKU is present
         Assert.Throws<InvalidOperationException>(() =>
@@ -70,7 +57,9 @@ public class AzureTrustedSigningDidX509Tests
     public void Generate_WithMultipleCertsWithoutEku_ThrowsInvalidOperationException()
     {
         // Arrange
-        var chain = new[] { TestCert, TestCert2 };
+        using var testCert = CreateTestCert();
+        using var testCert2 = CreateTestCert("CaCert");
+        var chain = new[] { testCert, testCert2 };
 
         // Act & Assert - builder requires a policy
         Assert.Throws<InvalidOperationException>(() =>
@@ -84,9 +73,12 @@ public class AzureTrustedSigningDidX509Tests
     [Test]
     public void GenerateWithEku_WithNullLeafCertificate_ThrowsArgumentNullException()
     {
+        // Arrange
+        using var testCert2 = CreateTestCert("CaCert");
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            AzureTrustedSigningDidX509.GenerateWithEku(null!, TestCert2));
+            AzureTrustedSigningDidX509.GenerateWithEku(null!, testCert2));
 
         Assert.That(ex.ParamName, Is.EqualTo("leafCertificate"));
     }
@@ -94,9 +86,12 @@ public class AzureTrustedSigningDidX509Tests
     [Test]
     public void GenerateWithEku_WithNullCaCertificate_ThrowsArgumentNullException()
     {
+        // Arrange
+        using var testCert = CreateTestCert();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            AzureTrustedSigningDidX509.GenerateWithEku(TestCert, null!));
+            AzureTrustedSigningDidX509.GenerateWithEku(testCert, null!));
 
         Assert.That(ex.ParamName, Is.EqualTo("caCertificate"));
     }
@@ -105,10 +100,12 @@ public class AzureTrustedSigningDidX509Tests
     public void GenerateWithEku_WithCertWithoutMicrosoftEku_ThrowsInvalidOperationException()
     {
         // Arrange - Test certs won't have Microsoft EKUs
+        using var testCert = CreateTestCert();
+        using var testCert2 = CreateTestCert("CaCert");
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            AzureTrustedSigningDidX509.GenerateWithEku(TestCert, TestCert2));
+            AzureTrustedSigningDidX509.GenerateWithEku(testCert, testCert2));
 
         Assert.That(ex.Message, Does.Contain("No Microsoft EKU found"));
     }

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Output;
-
 namespace CoseSignTool.Tests.Output;
+
+using CoseSignTool.Output;
 
 /// <summary>
 /// Tests for the QuietOutputFormatter class.

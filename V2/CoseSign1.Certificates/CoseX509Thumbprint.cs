@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates;
+
 using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
-
-namespace CoseSign1.Certificates;
 
 /// <summary>
 /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.

@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Integration.Tests.Remote;
+
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
-
-namespace CoseSign1.Integration.Tests.Remote;
 
 /// <summary>
 /// Test implementation of a remote certificate signing service that uses TestRemoteCertificateSource.

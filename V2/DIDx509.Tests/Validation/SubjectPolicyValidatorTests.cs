@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.Validation;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using DIDx509.CertificateChain;
 using DIDx509.Models;
 using DIDx509.Validation;
-
-namespace DIDx509.Tests.Validation;
 
 /// <summary>
 /// Tests for SubjectPolicyValidator internal static class.

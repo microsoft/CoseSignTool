@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Reflection;
@@ -10,8 +12,6 @@ using CoseSign1.Direct;
 using CoseSign1.Indirect;
 using Moq;
 
-namespace CoseSign1.Tests;
-
 /// <summary>
 /// Tests for IndirectSignatureFactory - testing from the caller's perspective.
 /// Indirect signatures sign a hash of the payload rather than the payload itself.
@@ -19,8 +19,6 @@ namespace CoseSign1.Tests;
 [TestFixture]
 public class IndirectSignatureFactoryTests
 {
-    private Mock<ISigningService<SigningOptions>> MockSigningService = null!;
-
     private sealed class DerivedIndirectSignatureFactory : IndirectSignatureFactory
     {
         public DerivedIndirectSignatureFactory()
@@ -28,11 +26,8 @@ public class IndirectSignatureFactoryTests
         }
     }
 
-    [SetUp]
-    public void SetUp()
-    {
-        MockSigningService = new Mock<ISigningService<SigningOptions>>();
-    }
+    private static Mock<ISigningService<SigningOptions>> CreateMockSigningService()
+        => new Mock<ISigningService<SigningOptions>>();
 
     [Test]
     public void Constructor_WithNullSigningService_ShouldThrowArgumentNullException()
@@ -58,7 +53,8 @@ public class IndirectSignatureFactoryTests
     [Test]
     public void CreateCoseSign1MessageBytesAsync_WithNullPayload_ThrowsArgumentNullException()
     {
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
         Assert.ThrowsAsync<ArgumentNullException>(() => factory.CreateCoseSign1MessageBytesAsync((byte[])null!, "text/plain"));
     }
 
@@ -69,12 +65,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = factory.CreateCoseSign1MessageBytes(payload, contentType);
@@ -84,7 +81,7 @@ public class IndirectSignatureFactoryTests
         Assert.That(result, Is.InstanceOf<byte[]>());
 
         // Verify content type remains original (CoseHashEnvelope format)
-        MockSigningService.Verify(s => s.GetCoseSigner(It.Is<SigningContext>(ctx =>
+        mockSigningService.Verify(s => s.GetCoseSigner(It.Is<SigningContext>(ctx =>
             ctx.ContentType == "application/json")), Times.Once);
     }
 
@@ -93,7 +90,8 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -107,14 +105,15 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
         SigningContext? capturedContext = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => capturedContext = ctx)
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
         var options = new IndirectSignatureOptions
         {
             AdditionalHeaderContributors = new List<IHeaderContributor> { new NoOpHeaderContributor() }
@@ -142,14 +141,15 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
         SigningContext? capturedContext = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => capturedContext = ctx)
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         factory.CreateCoseSign1MessageBytes(payload, contentType, new IndirectSignatureOptions
@@ -175,16 +175,17 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Test SHA256 - CoseHashEnvelope format keeps original content type
         SigningContext? context256 = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => context256 = ctx)
             .Returns(mockCoseSigner);
@@ -197,7 +198,7 @@ public class IndirectSignatureFactoryTests
 
         // Test SHA384 - CoseHashEnvelope format keeps original content type
         SigningContext? context384 = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => context384 = ctx)
             .Returns(mockCoseSigner);
@@ -210,7 +211,7 @@ public class IndirectSignatureFactoryTests
 
         // Test SHA512 - CoseHashEnvelope format keeps original content type
         SigningContext? context512 = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => context512 = ctx)
             .Returns(mockCoseSigner);
@@ -230,19 +231,20 @@ public class IndirectSignatureFactoryTests
         using var stream = new MemoryStream(payload);
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageBytesAsync(stream, contentType);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]
@@ -252,12 +254,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload for byte[] async");
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
@@ -265,7 +268,7 @@ public class IndirectSignatureFactoryTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<byte[]>());
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]
@@ -275,12 +278,13 @@ public class IndirectSignatureFactoryTests
         var payload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("Test payload for ReadOnlyMemory async"));
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
@@ -288,7 +292,7 @@ public class IndirectSignatureFactoryTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<byte[]>());
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]
@@ -301,26 +305,28 @@ public class IndirectSignatureFactoryTests
         using var stream = new MemoryStream(payload);
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageBytesAsync(stream, contentType);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]
     public void CreateCoseSign1MessageBytes_WithNullPayload_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -331,7 +337,8 @@ public class IndirectSignatureFactoryTests
     public async Task CreateCoseSign1MessageBytesAsync_WithNullStream_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -343,7 +350,8 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -356,7 +364,8 @@ public class IndirectSignatureFactoryTests
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
         using var stream = new MemoryStream(payload);
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -370,16 +379,17 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
         byte[]? signedData = null;
 
         // Mock GetCoseSigner to capture what is being signed
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => signedData = ctx.HasStream ? null : new byte[32]) // Can't access payload easily
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         factory.CreateCoseSign1MessageBytes(payload, contentType);
@@ -401,14 +411,15 @@ public class IndirectSignatureFactoryTests
         var additionalContributor = new Mock<IHeaderContributor>().Object;
         var contributors = new List<IHeaderContributor> { additionalContributor };
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
         SigningContext? capturedContext = null;
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Callback<SigningContext>(ctx => capturedContext = ctx)
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         factory.CreateCoseSign1MessageBytes(payload, contentType, new IndirectSignatureOptions
@@ -433,12 +444,13 @@ public class IndirectSignatureFactoryTests
         using var stream = new MemoryStream(payload);
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
@@ -454,12 +466,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = factory.CreateCoseSign1Message(payload, contentType);
@@ -476,12 +489,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = factory.CreateCoseSign1Message(new ReadOnlySpan<byte>(payload), contentType);
@@ -498,12 +512,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageAsync(payload, contentType);
@@ -520,12 +535,13 @@ public class IndirectSignatureFactoryTests
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageAsync(new ReadOnlyMemory<byte>(payload), contentType);
@@ -543,12 +559,13 @@ public class IndirectSignatureFactoryTests
         using var stream = new MemoryStream(payload);
         var contentType = "application/octet-stream";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = await factory.CreateCoseSign1MessageAsync(stream, contentType);
@@ -566,12 +583,13 @@ public class IndirectSignatureFactoryTests
         var contentType = "application/json";
         var payloadLocation = "https://example.com/payload";
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var options = new IndirectSignatureOptions { PayloadLocation = payloadLocation };
@@ -586,27 +604,29 @@ public class IndirectSignatureFactoryTests
     public void Dispose_ShouldDisposeSigningService()
     {
         // Arrange
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         factory.Dispose();
 
         // Assert
-        MockSigningService.Verify(s => s.Dispose(), Times.Once);
+        mockSigningService.Verify(s => s.Dispose(), Times.Once);
     }
 
     [Test]
     public void Dispose_CalledTwice_ShouldOnlyDisposeSigningServiceOnce()
     {
         // Arrange
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         factory.Dispose();
         factory.Dispose();
 
         // Assert
-        MockSigningService.Verify(s => s.Dispose(), Times.Once);
+        mockSigningService.Verify(s => s.Dispose(), Times.Once);
     }
 
     [Test]
@@ -616,12 +636,13 @@ public class IndirectSignatureFactoryTests
         var provider = new Mock<ITransparencyProvider>().Object;
         IReadOnlyList<ITransparencyProvider> providers = new List<ITransparencyProvider> { provider };
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object, providers);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object, providers);
 
         // Act
         var returned = factory.TransparencyProviders;
@@ -636,7 +657,8 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
         factory.Dispose();
 
         // Act & Assert
@@ -649,7 +671,8 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
         factory.Dispose();
 
         // Act & Assert
@@ -665,12 +688,13 @@ public class IndirectSignatureFactoryTests
         var contentType = "application/json";
         var additionalData = Encoding.UTF8.GetBytes("Additional authenticated data");
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = factory.CreateCoseSign1MessageBytes(
@@ -680,7 +704,7 @@ public class IndirectSignatureFactoryTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]
@@ -688,7 +712,8 @@ public class IndirectSignatureFactoryTests
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var mockSigningService = CreateMockSigningService();
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act & Assert
         Assert.Throws<NotSupportedException>(() =>
@@ -704,12 +729,13 @@ public class IndirectSignatureFactoryTests
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
 
+        var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
-        MockSigningService
+        mockSigningService
             .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
             .Returns(mockCoseSigner);
 
-        var factory = new IndirectSignatureFactory(MockSigningService.Object);
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
 
         // Act
         var result = factory.CreateCoseSign1MessageBytes(
@@ -720,7 +746,7 @@ public class IndirectSignatureFactoryTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        MockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
+        mockSigningService.Verify(s => s.GetCoseSigner(It.IsAny<SigningContext>()), Times.Once);
     }
 
     [Test]

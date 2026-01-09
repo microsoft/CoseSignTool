@@ -74,20 +74,33 @@ File.WriteAllBytes("signed.cose", signedMessage);
 ### 2. Verify a Signature
 
 ```csharp
-using CoseSign1.Certificates.Extensions;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
 // Load the signed message
 byte[] signedMessage = File.ReadAllBytes("signed.cose");
-var message = CoseMessage.DecodeSign1(signedMessage);
+var message = CoseSign1Message.DecodeSign1(signedMessage);
 
-// Verify the signature
-bool isValid = message.VerifySignature();
+// Build a validator with fluent certificate validation
+var validator = Cose.Sign1Message()
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .ValidateChain(allowUntrusted: true)) // Allow self-signed for dev
+    .AllowAllTrust("Development testing")
+    .Build();
 
-if (isValid)
+// Verify - returns staged results
+var result = validator.Validate(message);
+
+if (result.Overall.IsValid)
 {
     Console.WriteLine("Signature is valid!");
     Console.WriteLine($"Payload: {System.Text.Encoding.UTF8.GetString(message.Content.Value.Span)}");
+}
+else
+{
+    Console.WriteLine($"Validation failed: {result.Overall.Failures[0].Message}");
 }
 ```
 
@@ -113,36 +126,46 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 ### 4. Validate with Custom Rules
 
 ```csharp
-using CoseSign1.Validation;
 using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
 
-// Build a validation pipeline
+// Build a validation pipeline with certificate requirements
+// Validators provide default trust policies - use OverrideDefaultTrustPolicy for custom requirements
 var validator = Cose.Sign1Message()
     .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders()
         .NotExpired()
         .HasCommonName("MyTrustedSigner")
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing EKU
+        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3") // Code signing EKU
+        .ValidateChain())
+    .OverrideDefaultTrustPolicy(TrustPolicy.And(  // Combine multiple policies before calling
+        TrustPolicy.Claim("x509.chain.trusted"),
+        TrustPolicy.Claim("cert.notexpired")))
     .Build();
 
-// Validate the message
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+// Validate returns comprehensive staged results
+var result = validator.Validate(message);
 
-if (signatureResult.IsValid && trustResult.IsValid)
+if (result.Overall.IsValid)
 {
     Console.WriteLine("All validations passed!");
 }
 else
 {
-    foreach (var failure in signatureResult.Failures)
+    // Check which stage failed
+    if (!result.Trust.IsValid)
     {
-        Console.WriteLine($"Validation failed: {failure.Message}");
+        foreach (var failure in result.Trust.Failures)
+        {
+            Console.WriteLine($"Trust validation failed: {failure.Message}");
+        }
     }
-
-    foreach (var failure in trustResult.Failures)
+    if (!result.Signature.IsValid)
     {
-        Console.WriteLine($"Validation failed: {failure.Message}");
+        foreach (var failure in result.Signature.Failures)
+        {
+            Console.WriteLine($"Signature validation failed: {failure.Message}");
+        }
     }
 }
 ```
@@ -150,9 +173,8 @@ else
 ## Next Steps
 
 - [Architecture Overview](../architecture/overview.md) - Understand the V2 architecture
-- [Certificate Management](../architecture/certificate-management.md) - Learn about certificate sources
 - [Validation Framework](../architecture/validation-framework.md) - Deep dive into validation
-- [SCITT Compliance](../guides/scitt-compliance.md) - Learn about SCITT standards
+- [Trust Policy Guide](../guides/trust-policy.md) - Learn about trust policies
 - [Code Examples](../examples/README.md) - See more examples
 
 ## Common Scenarios

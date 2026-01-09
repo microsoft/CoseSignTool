@@ -1,21 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using Azure;
-using Azure.Core;
-using Azure.Security.KeyVault.Certificates;
-using Azure.Security.KeyVault.Keys;
-using Azure.Security.KeyVault.Keys.Cryptography;
-using Azure.Security.KeyVault.Secrets;
-using CoseSign1.AzureKeyVault.Common;
-using CoseSign1.Tests.Common;
-using Moq;
-using NUnit.Framework;
-
 namespace CoseSign1.Certificates.AzureKeyVault.Tests;
+
+using System.Reflection;
+using CoseSign1.Certificates.AzureKeyVault;
 
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
@@ -26,25 +15,25 @@ public class AzureKeyVaultCertificateSourceDiTests
     private static readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
     private static readonly Uri TestKeyId = new("https://test-vault.vault.azure.net/keys/test-signing-cert/v1");
 
-    private Mock<TokenCredential> MockCredential = null!;
-    private Mock<IKeyVaultClientFactory> MockFactory = null!;
-    private Mock<CertificateClient> MockCertificateClient = null!;
-    private Mock<SecretClient> MockSecretClient = null!;
-    private Mock<KeyClient> MockKeyClient = null!;
-
-    [SetUp]
-    public void SetUp()
+    private static (
+        Mock<TokenCredential> Credential,
+        Mock<IKeyVaultClientFactory> Factory,
+        Mock<CertificateClient> CertificateClient,
+        Mock<SecretClient> SecretClient,
+        Mock<KeyClient> KeyClient) CreateMocks()
     {
-        MockCredential = new Mock<TokenCredential>();
-        MockFactory = new Mock<IKeyVaultClientFactory>(MockBehavior.Strict);
-        MockCertificateClient = new Mock<CertificateClient>(MockBehavior.Strict);
-        MockSecretClient = new Mock<SecretClient>(MockBehavior.Strict);
-        MockKeyClient = new Mock<KeyClient>(MockBehavior.Strict);
+        var mockCredential = new Mock<TokenCredential>();
+        var mockFactory = new Mock<IKeyVaultClientFactory>(MockBehavior.Strict);
+        var mockCertificateClient = new Mock<CertificateClient>(MockBehavior.Strict);
+        var mockSecretClient = new Mock<SecretClient>(MockBehavior.Strict);
+        var mockKeyClient = new Mock<KeyClient>(MockBehavior.Strict);
 
-        MockFactory.SetupGet(f => f.VaultUri).Returns(TestVaultUri);
-        MockFactory.SetupGet(f => f.CertificateClient).Returns(MockCertificateClient.Object);
-        MockFactory.SetupGet(f => f.SecretClient).Returns(MockSecretClient.Object);
-        MockFactory.SetupGet(f => f.KeyClient).Returns(MockKeyClient.Object);
+        mockFactory.SetupGet(f => f.VaultUri).Returns(TestVaultUri);
+        mockFactory.SetupGet(f => f.CertificateClient).Returns(mockCertificateClient.Object);
+        mockFactory.SetupGet(f => f.SecretClient).Returns(mockSecretClient.Object);
+        mockFactory.SetupGet(f => f.KeyClient).Returns(mockKeyClient.Object);
+
+        return (mockCredential, mockFactory, mockCertificateClient, mockSecretClient, mockKeyClient);
     }
 
     [Test]
@@ -57,20 +46,23 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public void Constructor_WithNullCertificateName_ThrowsArgumentNullException()
     {
-        var ex = Assert.Throws<ArgumentNullException>(() => new AzureKeyVaultCertificateSource(MockFactory.Object, null!));
+        var mocks = CreateMocks();
+        var ex = Assert.Throws<ArgumentNullException>(() => new AzureKeyVaultCertificateSource(mocks.Factory.Object, null!));
         Assert.That(ex!.ParamName, Is.EqualTo("certificateName"));
     }
 
     [Test]
     public void GetSigningCertificate_BeforeInitialize_ThrowsInvalidOperationException()
     {
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        var mocks = CreateMocks();
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         Assert.Throws<InvalidOperationException>(() => source.GetSigningCertificate());
     }
 
     [Test]
     public async Task InitializeAsync_WhenExportable_LoadsLocalCertificateAndSignsLocally()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvLocal", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -80,30 +72,30 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)), new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultCertificateVersion(TestCertificateVersion, kvCert.Cer), new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Local));
@@ -116,12 +108,13 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(rsa, Is.Not.Null);
         Assert.That(rsa!.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
 
-        MockKeyClient.VerifyNoOtherCalls();
+        mocks.KeyClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task InitializeAsync_WhenNotExportable_UsesRemoteModeAndCreatesWrapper()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRemote", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -129,34 +122,34 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)), new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultCertificateVersion(TestCertificateVersion, kvCert.Cer), new Mock<Response>().Object));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-            .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+            .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
         var key = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Remote));
@@ -164,12 +157,13 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(source.GetSigningCertificate(), Is.Not.Null);
 
         // Remote mode should not attempt to download secrets.
-        MockSecretClient.VerifyNoOtherCalls();
+        mocks.SecretClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task InitializeAsync_WhenExportable_AndForceRemoteModeTrue_UsesRemoteMode()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvForceRemote", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -177,27 +171,27 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, kvCert.Cer),
                 new Mock<Response>().Object));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-            .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+            .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
         var key = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null,
@@ -209,12 +203,13 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(source.RequiresRemoteSigning, Is.True);
 
         // Force-remote must not attempt secret download.
-        MockSecretClient.VerifyNoOtherCalls();
+        mocks.SecretClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task InitializeAsync_WhenExportable_AndSecretIsPem_LoadsLocalCertificate()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvPem", 2048);
         var pem = PemEncoding.Write("CERTIFICATE", inputCert.Export(X509ContentType.Cert));
         var pemText = new string(pem);
@@ -224,17 +219,17 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(pemText, contentType: "application/x-pem-file");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -246,6 +241,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task InitializeAsync_WhenExportable_AndSecretContentTypeUnknownButIsPem_UsesPemFallback()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvPemFallback", 2048);
 
         var certPem = new string(PemEncoding.Write("CERTIFICATE", inputCert.Export(X509ContentType.Cert)));
@@ -260,17 +256,17 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(pemText, contentType: "application/unknown");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -282,6 +278,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task SignEcdsa_WhenLocalCertificateIsRsa_ThrowsInvalidOperationException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRsaForEcdsa", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -291,17 +288,17 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -323,8 +320,9 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task BackgroundRefresh_WhenPinned_DoesNotCallKeyVaultClients()
     {
+        var mocks = CreateMocks();
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -335,13 +333,13 @@ public class AzureKeyVaultCertificateSourceDiTests
 
         Assert.DoesNotThrowAsync(async () => await (Task)method!.Invoke(source, null)!);
 
-        MockCertificateClient.Verify(
+        mocks.CertificateClient.Verify(
             c => c.GetCertificateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        MockSecretClient.Verify(
+        mocks.SecretClient.Verify(
             s => s.GetSecretAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        MockKeyClient.Verify(
+        mocks.KeyClient.Verify(
             k => k.GetKeyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -349,12 +347,13 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task BackgroundRefresh_WhenInitializationThrows_SwallowsException()
     {
-        MockCertificateClient
+        var mocks = CreateMocks();
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new RequestFailedException(500, "boom"));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: null,
             refreshInterval: null);
@@ -369,6 +368,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task TryRefreshCertificateAsync_WhenLatestVersionIsMissing_ReturnsFalse()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRefresh", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -391,18 +391,18 @@ public class AzureKeyVaultCertificateSourceDiTests
             initKvCert.Cer,
             CreateCertificatePolicy(exportable: true));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .SetupSequence(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(initKvCert, new Mock<Response>().Object))
             .ReturnsAsync(Response.FromValue(missingVersionKvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -421,6 +421,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public void InitializeAsync_WhenRemoteModeAndCertificateBytesEmpty_ThrowsInvalidOperationException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRemoteEmpty", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -428,18 +429,18 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, Array.Empty<byte>()),
                 new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null,
@@ -452,33 +453,34 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task RefreshCertificateAsync_WhenPinned_ThrowsInvalidOperationException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvPinned", 2048);
         var kvCert = CreateKeyVaultCertificateWithPolicy(
             exportable: false,
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-            .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+            .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
         var key = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion);
 
@@ -489,6 +491,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task SignHashWithRsaAsync_WhenRemote_DelegatesToCryptoWrapper()
     {
+        var mocks = CreateMocks();
         var expectedSignature = new byte[] { 9, 8, 7, 6 };
 
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRemoteSign", 2048);
@@ -497,22 +500,22 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
         var key = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
-        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, MockCredential.Object);
+        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, mocks.Credential.Object);
         mockCryptoClient
             .Setup(c => c.SignAsync(It.IsAny<SignatureAlgorithm>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((SignatureAlgorithm alg, byte[] hash, CancellationToken ct) =>
@@ -521,12 +524,12 @@ public class AzureKeyVaultCertificateSourceDiTests
                     signature: expectedSignature,
                     algorithm: alg));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
             .Returns(mockCryptoClient.Object);
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null,
@@ -543,6 +546,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task InitializeAsync_WhenExportable_AndSecretContentTypeUnknownButIsPkcs12_LoadsLocalCertificateAndSignsLocally()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvLocalUnknownContentType", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -552,17 +556,17 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         // Exercise the fallback path: content-type is not one of the known values, but the value is still a base64 PKCS#12.
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/octet-stream");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Local));
@@ -575,12 +579,13 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(rsaPub, Is.Not.Null);
         Assert.That(rsaPub!.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
 
-        MockKeyClient.VerifyNoOtherCalls();
+        mocks.KeyClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public void InitializeAsync_WhenExportable_AndSecretMissingPrivateKey_ThrowsInvalidOperationException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvMissingKey", 2048);
         var pemCertOnly = inputCert.ExportCertificatePem();
 
@@ -589,16 +594,16 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(pemCertOnly, contentType: "application/x-pem-file");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
 
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await source.InitializeAsync());
         Assert.That(ex!.Message, Does.Contain("private key"));
@@ -607,6 +612,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public void InitializeAsync_WhenRemote_AndCertificateCerEmpty_ThrowsInvalidOperationException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRemoteEmptyCer", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -614,11 +620,11 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: Array.Empty<byte>());
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
 
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await source.InitializeAsync());
         Assert.That(ex!.Message, Does.Contain("Certificate data"));
@@ -627,27 +633,28 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task RefreshCertificateAsync_WhenVersionUnchanged_ReturnsFalse()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRefreshSame", 2048);
         var kvCertV1 = CreateKeyVaultCertificateWithPolicy(
             exportable: false,
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .SetupSequence(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCertV1, new Mock<Response>().Object)) // init
             .ReturnsAsync(Response.FromValue(kvCertV1, new Mock<Response>().Object)); // refresh latest
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-            .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+            .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
         var keyV1 = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(keyV1, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         var changed = await source.RefreshCertificateAsync();
@@ -659,6 +666,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task RefreshCertificateAsync_WhenVersionChanges_ReturnsTrueAndUpdatesVersion()
     {
+        var mocks = CreateMocks();
         const string v1 = "v1";
         const string v2 = "v2";
 
@@ -675,15 +683,15 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: v2,
             cerBytes: certV2.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .SetupSequence(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert1, new Mock<Response>().Object)) // init state
             .ReturnsAsync(Response.FromValue(kvCert2, new Mock<Response>().Object)) // refresh latest check
             .ReturnsAsync(Response.FromValue(kvCert2, new Mock<Response>().Object)); // refresh load state
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-            .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+            .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
         var keyIdV1 = new Uri("https://test-vault.vault.azure.net/keys/test-signing-cert/v1");
         var keyIdV2 = new Uri("https://test-vault.vault.azure.net/keys/test-signing-cert/v2");
@@ -691,15 +699,15 @@ public class AzureKeyVaultCertificateSourceDiTests
         var keyV1 = CreateKeyVaultRsaKey(keyIdV1);
         var keyV2 = CreateKeyVaultRsaKey(keyIdV2);
 
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, v1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(keyV1, new Mock<Response>().Object));
 
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, v2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(keyV2, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         Assert.That(source.Version, Is.EqualTo(v1));
@@ -713,6 +721,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task InitializeAsync_WhenExportable_AndEcdsaCertificate_LoadsLocalCertificateAndSignsLocally()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateEcdsaCertificate("AkvLocalEcdsa", 256);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -722,16 +731,16 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Local));
@@ -748,14 +757,15 @@ public class AzureKeyVaultCertificateSourceDiTests
         var signature2 = await source.SignHashWithEcdsaAsync(hash);
         Assert.That(ecdsaPub.VerifyHash(hash, signature2), Is.True);
 
-        MockKeyClient.VerifyNoOtherCalls();
+        mocks.KeyClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public void Constructor_ExposesVaultUriNameAndPinnedRefreshProperties()
     {
+        var mocks = CreateMocks();
         using var pinned = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: TimeSpan.FromSeconds(1));
@@ -765,7 +775,7 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(pinned.IsPinnedVersion, Is.True);
         Assert.That(pinned.AutoRefreshInterval, Is.Null);
 
-        using var unpinned = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var unpinned = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         Assert.That(unpinned.IsPinnedVersion, Is.False);
         Assert.That(unpinned.AutoRefreshInterval, Is.EqualTo(TimeSpan.FromMinutes(15)));
     }
@@ -773,6 +783,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task InitializeAsync_WhenCalledTwice_DoesNotReloadState()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvInitTwice", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -782,27 +793,28 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
         await source.InitializeAsync();
 
-        MockCertificateClient.Verify(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()), Times.Once);
-        MockSecretClient.Verify(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()), Times.Once);
-        MockKeyClient.VerifyNoOtherCalls();
+        mocks.CertificateClient.Verify(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()), Times.Once);
+        mocks.SecretClient.Verify(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()), Times.Once);
+        mocks.KeyClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task SignMethods_WhenLocalEcdsa_CoversSyncAndAsyncVariants()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateEcdsaCertificate("AkvLocalEcdsaVariants", 256);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -812,16 +824,16 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         using var ecdsaPub = source.GetSigningCertificate().GetECDsaPublicKey();
@@ -838,17 +850,18 @@ public class AzureKeyVaultCertificateSourceDiTests
         var sig3 = source.SignHashWithEcdsaAsync(hash);
         Assert.That(ecdsaPub.VerifyHash(hash, await sig3), Is.True);
 
-        MockKeyClient.VerifyNoOtherCalls();
+        mocks.KeyClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task TryRefreshFromTimerAsync_WhenInitializationThrows_DoesNotThrow()
     {
-        MockCertificateClient
+        var mocks = CreateMocks();
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new RequestFailedException("Simulated failure"));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
 
         var method = typeof(AzureKeyVaultCertificateSource).GetMethod(
             "TryRefreshFromTimerAsync",
@@ -862,6 +875,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task InitializeAsync_WhenForceRemoteMode_AndEcdsa_SignHashDelegatesToCryptoWrapper()
     {
+        var mocks = CreateMocks();
         var expectedSignature = new byte[] { 5, 4, 3, 2, 1 };
 
         using var inputCert = LocalCertificateFactory.CreateEcdsaCertificate("AkvRemoteEcdsa", 256);
@@ -871,23 +885,23 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         // Pinned version triggers a GetCertificateVersionAsync call for the public cert bytes.
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
         var key = CreateKeyVaultEcKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
-        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, MockCredential.Object);
+        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, mocks.Credential.Object);
         mockCryptoClient
             .Setup(c => c.SignAsync(It.IsAny<SignatureAlgorithm>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((SignatureAlgorithm alg, byte[] hash, CancellationToken ct) =>
@@ -896,12 +910,12 @@ public class AzureKeyVaultCertificateSourceDiTests
                     signature: expectedSignature,
                     algorithm: alg));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
             .Returns(mockCryptoClient.Object);
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null,
@@ -917,26 +931,29 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(actual, Is.EqualTo(expectedSignature));
 
         // Remote mode should not attempt to download secrets.
-        MockSecretClient.VerifyNoOtherCalls();
+        mocks.SecretClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public void SignDataWithMLDsa_Always_ThrowsNotSupportedException()
     {
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        var mocks = CreateMocks();
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         Assert.Throws<NotSupportedException>(() => source.SignDataWithMLDsa(new byte[] { 1, 2, 3 }));
     }
 
     [Test]
     public void SignDataWithMLDsaAsync_Always_ThrowsNotSupportedException()
     {
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        var mocks = CreateMocks();
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         Assert.ThrowsAsync<NotSupportedException>(async () => await source.SignDataWithMLDsaAsync(new byte[] { 1, 2, 3 }));
     }
 
     [Test]
     public async Task Dispose_AfterInitialize_MethodsThrowObjectDisposedException()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvDispose", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -946,16 +963,16 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
         source.Dispose();
 
@@ -966,6 +983,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task SignMethods_WhenLocalRsa_CoversSyncAndAsyncVariants()
     {
+        var mocks = CreateMocks();
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvLocalRsaVariants", 2048);
         var pfxBytes = inputCert.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -975,16 +993,16 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
         var secret = CreateKeyVaultSecret(secretValue, contentType: "application/x-pkcs12");
-        MockSecretClient
+        mocks.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(secret, new Mock<Response>().Object));
 
-        using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName);
+        using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName);
         await source.InitializeAsync();
 
         using var rsaPub = source.GetSigningCertificate().GetRSAPublicKey();
@@ -1008,6 +1026,7 @@ public class AzureKeyVaultCertificateSourceDiTests
     [Test]
     public async Task SignMethods_WhenRemoteRsa_DelegatesToCryptoWrapper_ForSyncAndAsyncVariants()
     {
+        var mocks = CreateMocks();
         var expectedSignature = new byte[] { 9, 9, 9, 9 };
 
         using var inputCert = LocalCertificateFactory.CreateRsaCertificate("AkvRemoteRsaVariants", 2048);
@@ -1016,22 +1035,22 @@ public class AzureKeyVaultCertificateSourceDiTests
             version: TestCertificateVersion,
             cerBytes: inputCert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockCertificateClient
+        mocks.CertificateClient
             .Setup(c => c.GetCertificateVersionAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultCertificateVersion(TestCertificateVersion, inputCert.Export(X509ContentType.Cert)),
                 new Mock<Response>().Object));
 
         var key = CreateKeyVaultRsaKey(TestKeyId);
-        MockKeyClient
+        mocks.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(key, new Mock<Response>().Object));
 
-        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, MockCredential.Object);
+        var mockCryptoClient = new Mock<CryptographyClient>(MockBehavior.Strict, TestKeyId, mocks.Credential.Object);
         mockCryptoClient
             .Setup(c => c.SignAsync(It.IsAny<SignatureAlgorithm>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((SignatureAlgorithm alg, byte[] hash, CancellationToken ct) =>
@@ -1040,12 +1059,12 @@ public class AzureKeyVaultCertificateSourceDiTests
                     signature: expectedSignature,
                     algorithm: alg));
 
-        MockFactory
+        mocks.Factory
             .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
             .Returns(mockCryptoClient.Object);
 
         using var source = new AzureKeyVaultCertificateSource(
-            MockFactory.Object,
+            mocks.Factory.Object,
             TestCertificateName,
             certificateVersion: TestCertificateVersion,
             refreshInterval: null);
@@ -1067,12 +1086,13 @@ public class AzureKeyVaultCertificateSourceDiTests
         Assert.That(sig4, Is.EqualTo(expectedSignature));
 
         // Remote mode should not attempt to download secrets.
-        MockSecretClient.VerifyNoOtherCalls();
+        mocks.SecretClient.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task RefreshCertificateAsync_WhenCalledConcurrently_SecondCallReturnsFalse()
     {
+        var mocks = CreateMocks();
         var v1Cert = LocalCertificateFactory.CreateRsaCertificate("AkvRefreshConcurrency", 2048);
         using (v1Cert)
         {
@@ -1084,7 +1104,7 @@ public class AzureKeyVaultCertificateSourceDiTests
             var enteredRefreshGet = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var refreshGetTcs = new TaskCompletionSource<Response<KeyVaultCertificateWithPolicy>>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            MockCertificateClient
+            mocks.CertificateClient
                 .SetupSequence(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Response.FromValue(kvCertV1, new Mock<Response>().Object))
                 .Returns(() =>
@@ -1093,16 +1113,16 @@ public class AzureKeyVaultCertificateSourceDiTests
                     return refreshGetTcs.Task;
                 });
 
-            MockFactory
+            mocks.Factory
                 .Setup(f => f.CreateCryptographyClient(It.IsAny<Uri>()))
-                .Returns((Uri keyId) => new CryptographyClient(keyId, MockCredential.Object));
+                .Returns((Uri keyId) => new CryptographyClient(keyId, mocks.Credential.Object));
 
             var keyV1 = CreateKeyVaultRsaKey(TestKeyId);
-            MockKeyClient
+            mocks.KeyClient
                 .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Response.FromValue(keyV1, new Mock<Response>().Object));
 
-            using var source = new AzureKeyVaultCertificateSource(MockFactory.Object, TestCertificateName, refreshInterval: null);
+            using var source = new AzureKeyVaultCertificateSource(mocks.Factory.Object, TestCertificateName, refreshInterval: null);
             await source.InitializeAsync();
 
             var refresh1 = source.RefreshCertificateAsync();

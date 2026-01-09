@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.ObjectModel;
-
 namespace CoseSign1.Abstractions;
+
+using System.Collections.ObjectModel;
 
 /// <summary>
 /// Metadata about a signing service, including its name, description, and capabilities.

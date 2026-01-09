@@ -12,8 +12,9 @@
     <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
 
-    <!-- Do not require XML docs for the analyzer itself. -->
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Enable doc file to allow IDE0005 (unused usings) analysis, but suppress CS1591 (missing XML comments) -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

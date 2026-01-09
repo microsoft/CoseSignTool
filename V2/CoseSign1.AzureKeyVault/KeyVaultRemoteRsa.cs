@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using CoseSign1.AzureKeyVault.Common;
-
-namespace CoseSign1.AzureKeyVault;
 
 /// <summary>
 /// RSA implementation that delegates signing to Azure Key Vault via the common wrapper.

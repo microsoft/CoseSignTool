@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Headers.Tests;
+
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using Moq;
-
-namespace CoseSign1.Headers.Tests;
 
 [TestFixture]
 public class CwtClaimsHeaderContributorTests

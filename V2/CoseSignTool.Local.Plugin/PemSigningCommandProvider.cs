@@ -1,14 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.Local.Plugin;
 
 /// <summary>
 /// Command provider for signing with PEM certificate and key files on Linux/macOS.

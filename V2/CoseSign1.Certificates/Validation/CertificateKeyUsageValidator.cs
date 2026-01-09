@@ -1,16 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates that the signing certificate has the required key usage extensions.
 /// </summary>
-public sealed class CertificateKeyUsageValidator : IValidator
+public sealed partial class CertificateKeyUsageValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -57,6 +59,26 @@ public sealed class CertificateKeyUsageValidator : IValidator
     private readonly X509KeyUsageFlags? RequiredKeyUsage;
     private readonly Oid? RequiredEku;
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificateKeyUsageValidator> Logger;
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating key usage flags. Required: {RequiredFlags}")]
+    private partial void LogValidatingKeyUsage(X509KeyUsageFlags requiredFlags);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating enhanced key usage. Required OID: {RequiredOid}")]
+    private partial void LogValidatingEku(string requiredOid);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Key usage validated successfully. Actual: {ActualFlags}, Thumbprint: {Thumbprint}")]
+    private partial void LogKeyUsageValid(string actualFlags, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Enhanced key usage validated successfully. OID: {Oid}, Thumbprint: {Thumbprint}")]
+    private partial void LogEkuValid(string oid, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Key usage mismatch. Required: {Required}, Actual: {Actual}, Thumbprint: {Thumbprint}")]
+    private partial void LogKeyUsageMismatch(string required, string actual, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Enhanced key usage not found. Required: {Required}, Found: [{Found}], Thumbprint: {Thumbprint}")]
+    private partial void LogEkuMismatch(string required, string found, string thumbprint);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateKeyUsageValidator"/> class
@@ -64,11 +86,16 @@ public sealed class CertificateKeyUsageValidator : IValidator
     /// </summary>
     /// <param name="requiredKeyUsage">The required key usage flags.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public CertificateKeyUsageValidator(X509KeyUsageFlags requiredKeyUsage, bool allowUnprotectedHeaders = false)
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateKeyUsageValidator(
+        X509KeyUsageFlags requiredKeyUsage,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateKeyUsageValidator>? logger = null)
     {
         RequiredKeyUsage = requiredKeyUsage;
         RequiredEku = null;
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateKeyUsageValidator>.Instance;
     }
 
     /// <summary>
@@ -77,12 +104,17 @@ public sealed class CertificateKeyUsageValidator : IValidator
     /// </summary>
     /// <param name="requiredEku">The required enhanced key usage OID.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="requiredEku"/> is null.</exception>
-    public CertificateKeyUsageValidator(Oid requiredEku, bool allowUnprotectedHeaders = false)
+    public CertificateKeyUsageValidator(
+        Oid requiredEku,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateKeyUsageValidator>? logger = null)
     {
         RequiredKeyUsage = null;
         RequiredEku = requiredEku ?? throw new ArgumentNullException(nameof(requiredEku));
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateKeyUsageValidator>.Instance;
     }
 
     /// <summary>
@@ -91,8 +123,12 @@ public sealed class CertificateKeyUsageValidator : IValidator
     /// </summary>
     /// <param name="requiredEkuOid">The required enhanced key usage OID value.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="requiredEkuOid"/> is null or whitespace.</exception>
-    public CertificateKeyUsageValidator(string requiredEkuOid, bool allowUnprotectedHeaders = false)
+    public CertificateKeyUsageValidator(
+        string requiredEkuOid,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateKeyUsageValidator>? logger = null)
     {
         if (string.IsNullOrWhiteSpace(requiredEkuOid))
         {
@@ -102,6 +138,7 @@ public sealed class CertificateKeyUsageValidator : IValidator
         RequiredKeyUsage = null;
         RequiredEku = new Oid(requiredEkuOid);
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateKeyUsageValidator>.Instance;
     }
 
     /// <inheritdoc/>
@@ -125,11 +162,13 @@ public sealed class CertificateKeyUsageValidator : IValidator
 
         if (RequiredKeyUsage.HasValue)
         {
+            LogValidatingKeyUsage(RequiredKeyUsage.Value);
             return ValidateKeyUsageFlags(certificate, RequiredKeyUsage.Value);
         }
 
         if (RequiredEku != null)
         {
+            LogValidatingEku(RequiredEku.Value ?? RequiredEku.FriendlyName ?? ClassStrings.MetaValueUnknown);
             return ValidateEnhancedKeyUsage(certificate, RequiredEku);
         }
 
@@ -153,12 +192,14 @@ public sealed class CertificateKeyUsageValidator : IValidator
 
         if ((keyUsageExt.KeyUsages & required) != required)
         {
+            LogKeyUsageMismatch(required.ToString(), keyUsageExt.KeyUsages.ToString(), certificate.Thumbprint);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatKeyUsageMismatch, keyUsageExt.KeyUsages, required),
                 ClassStrings.ErrorCodeKeyUsageMismatch);
         }
 
+        LogKeyUsageValid(keyUsageExt.KeyUsages.ToString(), certificate.Thumbprint);
         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
             [ClassStrings.MetaKeyKeyUsage] = keyUsageExt.KeyUsages.ToString(),
@@ -185,12 +226,14 @@ public sealed class CertificateKeyUsageValidator : IValidator
         if (!found)
         {
             var ekuList = string.Join(ClassStrings.SeparatorCommaSpace, ekuExt.EnhancedKeyUsages.Cast<Oid>().Select(o => o.Value ?? o.FriendlyName));
+            LogEkuMismatch(requiredEku.Value ?? ClassStrings.MetaValueUnknown, ekuList, certificate.Thumbprint);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatEkuMismatch, requiredEku.Value, ekuList),
                 ClassStrings.ErrorCodeEkuMismatch);
         }
 
+        LogEkuValid(requiredEku.Value ?? requiredEku.FriendlyName ?? ClassStrings.MetaValueUnknown, certificate.Thumbprint);
         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
             [ClassStrings.MetaKeyEnhancedKeyUsage] = requiredEku.Value ?? requiredEku.FriendlyName ?? ClassStrings.MetaValueUnknown,

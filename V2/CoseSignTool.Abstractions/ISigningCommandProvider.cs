@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Abstractions;
+
 using System.CommandLine;
 using CoseSign1.Abstractions;
-
-namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Interface for plugins that provide signing commands.

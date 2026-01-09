@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Abstractions;
+
 using System.CommandLine.Parsing;
 using CoseSign1.Validation;
-
-namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Optional extension interface for verification providers that can contribute a <see cref="TrustPolicy"/>

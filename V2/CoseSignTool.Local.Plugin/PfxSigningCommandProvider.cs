@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
@@ -10,8 +12,6 @@ using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Security;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool.Local.Plugin;
 
 /// <summary>
 /// Command provider for signing with PFX/PKCS#12 certificate files.

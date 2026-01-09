@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault;
+
 using System.Security.Cryptography.Cose;
 using System.Text;
 using CoseSign1.Abstractions;
-
-namespace CoseSign1.AzureKeyVault;
 
 /// <summary>
 /// Header contributor that adds the key identification (kid) header (label 4) to protected headers.

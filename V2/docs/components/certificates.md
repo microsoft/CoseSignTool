@@ -57,8 +57,16 @@ byte[] coseBytes = factory.CreateCoseSign1MessageBytes(Encoding.UTF8.GetBytes("h
 
 `CertificateSigningService` supports certificate-specific options via `CertificateSigningOptions`, including:
 
-- `EnableScittCompliance`
-- `CustomCwtClaims`
+- `EnableScittCompliance` - Controls whether SCITT-compliant CWT claims are automatically added to signatures. **Default: `true`**
+- `CustomCwtClaims` - Custom CWT claims to use instead of auto-generated defaults
+
+When `EnableScittCompliance` is `true` (the default), the following CWT claims are automatically added:
+- **Issuer (iss)**: DID:x509 identifier derived from the certificate chain
+- **Subject (sub)**: Defaults to "unknown.intent"  
+- **IssuedAt (iat)**: Current timestamp
+- **NotBefore (nbf)**: Current timestamp
+
+Set `EnableScittCompliance = false` if you don't need SCITT compliance.
 
 These options are intended to be passed as *service options* to the concrete signature factory overloads that accept `serviceOptions`.
 

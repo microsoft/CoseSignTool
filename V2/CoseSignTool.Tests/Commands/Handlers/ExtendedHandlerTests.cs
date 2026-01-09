@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using CoseSignTool.Commands;
-using CoseSignTool.Commands.Handlers;
-using CoseSignTool.Output;
-
 namespace CoseSignTool.Tests.Commands.Handlers;
+
+using System.CommandLine;
+using CoseSignTool.Output;
 
 /// <summary>
 /// Extended tests for command handlers with various code paths.
@@ -24,10 +22,10 @@ public class ExtendedHandlerTests
         var quietFormatter = new QuietOutputFormatter();
 
         // Act & Assert - All formatters should work
-        var handler1 = new InspectCommandHandler(textFormatter);
-        var handler2 = new InspectCommandHandler(jsonFormatter);
-        var handler3 = new InspectCommandHandler(xmlFormatter);
-        var handler4 = new InspectCommandHandler(quietFormatter);
+        var handler1 = TestConsole.CreateInspectCommandHandler(textFormatter);
+        var handler2 = TestConsole.CreateInspectCommandHandler(jsonFormatter);
+        var handler3 = TestConsole.CreateInspectCommandHandler(xmlFormatter);
+        var handler4 = TestConsole.CreateInspectCommandHandler(quietFormatter);
 
         Assert.That(handler1, Is.Not.Null);
         Assert.That(handler2, Is.Not.Null);
@@ -45,10 +43,10 @@ public class ExtendedHandlerTests
         var quietFormatter = new QuietOutputFormatter();
 
         // Act & Assert - All formatters should work
-        var handler1 = new VerifyCommandHandler(textFormatter);
-        var handler2 = new VerifyCommandHandler(jsonFormatter);
-        var handler3 = new VerifyCommandHandler(xmlFormatter);
-        var handler4 = new VerifyCommandHandler(quietFormatter);
+        var handler1 = TestConsole.CreateVerifyCommandHandler(textFormatter);
+        var handler2 = TestConsole.CreateVerifyCommandHandler(jsonFormatter);
+        var handler3 = TestConsole.CreateVerifyCommandHandler(xmlFormatter);
+        var handler4 = TestConsole.CreateVerifyCommandHandler(quietFormatter);
 
         Assert.That(handler1, Is.Not.Null);
         Assert.That(handler2, Is.Not.Null);
@@ -60,7 +58,7 @@ public class ExtendedHandlerTests
     public void InspectCommand_ViaRootCommand_WithValidSignature_Succeeds()
     {
         // Arrange - Create a real signature first
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -97,7 +95,7 @@ public class ExtendedHandlerTests
     public void InspectCommand_ViaRootCommand_WithQuietFormat_Succeeds()
     {
         // Arrange - Create a real signature first
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -133,7 +131,7 @@ public class ExtendedHandlerTests
     public void VerifyCommand_ViaRootCommand_WithJsonFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -171,7 +169,7 @@ public class ExtendedHandlerTests
     public void VerifyCommand_ViaRootCommand_WithQuietFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -209,7 +207,7 @@ public class ExtendedHandlerTests
     public void VerifyCommand_ViaRootCommand_WithXmlFormat_ReturnsResult()
     {
         // Arrange - Create a real signature first
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -247,7 +245,7 @@ public class ExtendedHandlerTests
     public void SignEphemeral_WithVerboseOption_ShowsHelp()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         // Act - Using verbose with help should work
@@ -261,7 +259,7 @@ public class ExtendedHandlerTests
     public void VerifyCommand_WithVerboseHelp_ShowsHelp()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         // Act - Help flag should trigger help display
@@ -275,7 +273,7 @@ public class ExtendedHandlerTests
     public void InspectCommand_WithVerboseHelp_ShowsHelp()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
 
         // Act - Help flag should trigger help display
@@ -289,7 +287,7 @@ public class ExtendedHandlerTests
     public void SignEphemeral_WithAllOptions_CreatesSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var customOutput = Path.Combine(Path.GetTempPath(), $"all_options_{Guid.NewGuid()}.cose");
@@ -327,7 +325,7 @@ public class ExtendedHandlerTests
     public void VerifyCommand_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"nonexistent_verify_{Guid.NewGuid()}.cose");
 
@@ -342,7 +340,7 @@ public class ExtendedHandlerTests
     public void InspectCommand_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"nonexistent_inspect_{Guid.NewGuid()}.cose");
 

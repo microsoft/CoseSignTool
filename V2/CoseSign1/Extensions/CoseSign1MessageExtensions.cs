@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Indirect.Extensions;
-
 namespace CoseSign1.Extensions;
+
+using CoseSign1.Indirect.Extensions;
 
 /// <summary>
 /// Core extension methods for extracting header data from CoseSign1Message.

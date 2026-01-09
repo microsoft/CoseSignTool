@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Inspection;
+
 using System.CommandLine;
 using System.Formats.Cbor;
 using System.Reflection;
@@ -14,8 +16,6 @@ using CoseSign1.Indirect;
 using CoseSign1.Tests.Common;
 using CoseSignTool.Inspection;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Tests.Inspection;
 
 /// <summary>
 /// Tests for CoseInspectionService.
@@ -982,7 +982,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithValidSignature_ReturnsSuccess()
     {
         // Arrange - Create a real signature using sign-ephemeral command
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1024,7 +1024,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithTextPayload_ShowsPreview()
     {
         // Arrange - Create a signature with text payload using direct type (embeds payload)
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1067,7 +1067,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithBinaryPayload_ShowsHashAndType()
     {
         // Arrange - Create a signature with binary payload
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1112,7 +1112,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithDetachedSignature_ShowsDetachedInfo()
     {
         // Arrange - Create a detached signature
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1154,7 +1154,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_ShowsSignatureSize()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1194,7 +1194,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_ShowsCertificateChainInfo()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1234,7 +1234,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithDifferentContentType_ShowsContentType()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1274,7 +1274,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithLongTextPayload_ShowsTruncatedPreview()
     {
         // Arrange - Create a signature with long text payload
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1321,7 +1321,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WritesFileInfoCorrectly()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1362,7 +1362,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithAllFormatters_Succeeds()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1414,7 +1414,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_ReturnsStructuredResult()
     {
         // Arrange - Create a real signature
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1484,7 +1484,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_DecodesAlgorithmName()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1527,7 +1527,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_IncludesCertificateChainInfo()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1584,7 +1584,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_DetachedSignature_ShowsNoEmbeddedPayload()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1632,7 +1632,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_TextPayload_ShowsPreview()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1677,7 +1677,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_BinaryPayload_ShowsSha256()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1722,7 +1722,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_IndirectSignature_ShowsHashAlgorithm()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -1973,7 +1973,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithExtractPayloadPath_ExtractsPayloadToFile()
     {
         // Arrange - Create a signature with embedded payload
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2023,7 +2023,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithExtractPayloadPath_CreatesDirectoryIfNeeded()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2076,7 +2076,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithDetachedSignature_ExtractPayloadShowsWarning()
     {
         // Arrange - Create detached signature (no embedded payload)
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2124,7 +2124,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithDisplayPath_UsesDisplayPathInOutput()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2166,7 +2166,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithIndirectSignature_DisplaysHashEnvelopeHeaders()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2208,7 +2208,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithContentType_DisplaysContentType()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2250,7 +2250,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithProtectedCertChain_DisplaysCertChainInProtectedHeaders()
     {
         // Arrange - Default ephemeral signing puts cert chain in protected headers
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2292,7 +2292,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_DisplaysAllAlgorithmNames()
     {
         // Arrange - Test that different algorithm IDs are properly named
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2337,48 +2337,59 @@ public class CoseInspectionServiceTests
     [Test]
     public async Task InspectAsync_WithScittCompliantSignature_DisplaysCwtClaims()
     {
-        // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
-        var rootCommand = builder.BuildRootCommand();
-        var tempPayload = Path.GetTempFileName();
-        var tempSignature = $"{tempPayload}.cose";
-        var stringWriter = new StringWriter();
-        var formatter = new TextOutputFormatter(stringWriter);
-        var service = new CoseInspectionService(formatter);
+        // Arrange - Create a signature programmatically with CWT claims
+        using var cert = TestCertificateUtils.CreateCertificate();
+
+        var protectedHeaders = new CoseHeaderMap();
+
+        // Add CWT claims to the protected headers
+        var claims = new CwtClaims
+        {
+            Issuer = "did:x509:test-issuer",
+            Subject = "test-subject",
+            Audience = "test-audience",
+            IssuedAt = DateTimeOffset.UtcNow,
+            NotBefore = DateTimeOffset.UtcNow,
+            ExpirationTime = DateTimeOffset.UtcNow.AddHours(1),
+            CwtId = [0x01, 0x02, 0x03, 0x04]
+        };
+        protectedHeaders.SetCwtClaims(claims);
+
+        var payloadBytes = Encoding.UTF8.GetBytes("Test payload with CWT claims");
+        var messageBytes = CreateSign1Embedded(payloadBytes, protectedHeaders);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"cose_inspect_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var cosePath = Path.Combine(tempDir, "scitt.cose");
 
         try
         {
-            File.WriteAllText(tempPayload, "Test payload");
-            // Use SCITT compliant signing with explicit issuer/subject args
-            // Note: --scitt-compliant is currently an option, not requiring separate --issuer/--subject
-            var invokeResult = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --scitt-compliant");
+            await File.WriteAllBytesAsync(cosePath, messageBytes);
 
-            // Skip if signature wasn't created (command-line args may differ)
-            if (!File.Exists(tempSignature))
-            {
-                Assert.Ignore("SCITT compliant signature creation not supported with current command options");
-            }
+            var stringWriter = new StringWriter();
+            var formatter = new TextOutputFormatter(stringWriter);
+            var service = new CoseInspectionService(formatter);
 
             // Act
-            var result = await service.InspectAsync(tempSignature);
+            var result = await service.InspectAsync(cosePath);
             formatter.Flush();
 
             // Assert
             Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var output = stringWriter.ToString();
-            // Should contain CWT claims section or at minimum succeeded
-            Assert.That(output, Does.Contain("CWT Claims").Or.Contain("Issuer").Or.Contain("inspection complete"));
+
+            // Should contain CWT claims section with our values
+            Assert.That(output, Does.Contain("CWT Claims"));
+            Assert.That(output, Does.Contain("Issuer"));
+            Assert.That(output, Does.Contain("did:x509:test-issuer"));
+            Assert.That(output, Does.Contain("Subject"));
+            Assert.That(output, Does.Contain("test-subject"));
         }
         finally
         {
-            if (File.Exists(tempPayload))
+            if (Directory.Exists(tempDir))
             {
-                File.Delete(tempPayload);
-            }
-
-            if (File.Exists(tempSignature))
-            {
-                File.Delete(tempSignature);
+                Directory.Delete(tempDir, true);
             }
         }
     }
@@ -2387,7 +2398,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithJsonFormatter_HandlesEmptyPayload()
     {
         // Arrange - Create signature with detached payload
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2496,7 +2507,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithZeroBytePayload_HandlesGracefully()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2575,7 +2586,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithIndirectSignature_ShowsHashAlgorithm()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2616,7 +2627,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_ExtractPayload_ToFile_Succeeds()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2665,7 +2676,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_ExtractPayload_ToStdout_Succeeds()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2703,7 +2714,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_ExtractPayload_FromDetached_ShowsWarning()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -2753,7 +2764,7 @@ public class CoseInspectionServiceTests
     public async Task InspectAsync_WithDisplayPath_UsesCustomDisplayName()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";

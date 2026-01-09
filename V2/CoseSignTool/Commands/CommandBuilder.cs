@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Commands;
+
 using System.CommandLine;
-using System.CommandLine.Help;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
@@ -11,8 +12,7 @@ using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Output;
 using CoseSignTool.Plugins;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool.Commands;
+using IConsole = CoseSignTool.Abstractions.IO.IConsole;
 
 /// <summary>
 /// Builds the command-line interface structure using System.CommandLine.
@@ -151,32 +151,20 @@ public class CommandBuilder
     }
 
     private readonly ILoggerFactory? LoggerFactory;
-    private readonly TextWriter StandardOutput;
-    private readonly TextWriter StandardError;
-    private readonly Func<Stream> StandardInputProvider;
-
-    private readonly Func<Stream> StandardOutputProvider;
+    private readonly IConsole Console;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandBuilder"/> class.
     /// </summary>
+    /// <param name="console">Console I/O abstraction. Required for stream access.</param>
     /// <param name="loggerFactory">Optional logger factory for creating loggers.</param>
-    /// <param name="standardOutput">Optional standard output writer (stdout). When null, uses Console.Out.</param>
-    /// <param name="standardError">Optional standard error writer (stderr). When null, uses Console.Error.</param>
-    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
-    /// <param name="standardOutputProvider">Optional standard output stream provider. When null, uses Console.OpenStandardOutput.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
     public CommandBuilder(
-        ILoggerFactory? loggerFactory = null,
-        TextWriter? standardOutput = null,
-        TextWriter? standardError = null,
-        Func<Stream>? standardInputProvider = null,
-        Func<Stream>? standardOutputProvider = null)
+        IConsole console,
+        ILoggerFactory? loggerFactory = null)
     {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
         LoggerFactory = loggerFactory;
-        StandardOutput = standardOutput ?? Console.Out;
-        StandardError = standardError ?? Console.Error;
-        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
-        StandardOutputProvider = standardOutputProvider ?? Console.OpenStandardOutput;
     }
 
     /// <summary>
@@ -241,12 +229,9 @@ public class CommandBuilder
 
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
+            Console,
             transparencyProviders: transparencyProviders,
-            loggerFactory: LoggerFactory,
-            standardInputProvider: StandardInputProvider,
-            standardOutputProvider: StandardOutputProvider,
-            standardOutput: StandardOutput,
-            standardError: StandardError);
+            loggerFactory: LoggerFactory);
 
         // NOTE: All signing commands (including sign-ephemeral) are provided by plugins.
         // The Local.Plugin provides: sign-pfx, sign-pem, sign-ephemeral, sign-cert-store
@@ -284,7 +269,7 @@ public class CommandBuilder
             }
 
             var loader = new PluginLoader();
-            loader.StandardError = StandardError;
+            loader.StandardError = Console.StandardError;
             var loadTask = loader.LoadPluginsAsync(pluginDir, additionalPluginDirectories);
             loadTask.Wait(); // Synchronous wait since we can't make BuildRootCommand async
 
@@ -303,7 +288,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    StandardError.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
+                    Console.StandardError.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
                     continue;
                 }
 
@@ -319,7 +304,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    StandardError.WriteLine(string.Format(ClassStrings.WarningTransparencyProvider, plugin.Name, ex.Message));
+                    Console.StandardError.WriteLine(string.Format(ClassStrings.WarningTransparencyProvider, plugin.Name, ex.Message));
                 }
 
                 // Collect verification providers
@@ -329,7 +314,7 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    StandardError.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
+                    Console.StandardError.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
                 }
             }
 
@@ -338,11 +323,8 @@ public class CommandBuilder
 
             // Create signing command builder with transparency providers
             var signingCommandBuilder = new SigningCommandBuilder(
-                transparencyProviders: transparencyProviders.Count > 0 ? transparencyProviders : null,
-                standardInputProvider: StandardInputProvider,
-                standardOutputProvider: StandardOutputProvider,
-                standardOutput: StandardOutput,
-                standardError: StandardError);
+                Console,
+                transparencyProviders: transparencyProviders.Count > 0 ? transparencyProviders : null);
 
             // Register all loaded plugins
             foreach (var plugin in plugins)
@@ -363,17 +345,17 @@ public class CommandBuilder
                 }
                 catch (Exception ex)
                 {
-                    StandardError.WriteLine(string.Format(ClassStrings.WarningPluginRegister, plugin.Name, ex.Message));
+                    Console.StandardError.WriteLine(string.Format(ClassStrings.WarningPluginRegister, plugin.Name, ex.Message));
                 }
             }
         }
         catch (Exception ex)
         {
-            StandardError.WriteLine(string.Format(ClassStrings.WarningPluginLoad, ex.Message));
-            StandardError.WriteLine(string.Format(ClassStrings.WarningStackTrace, ex.StackTrace));
+            Console.StandardError.WriteLine(string.Format(ClassStrings.WarningPluginLoad, ex.Message));
+            Console.StandardError.WriteLine(string.Format(ClassStrings.WarningStackTrace, ex.StackTrace));
             if (ex.InnerException != null)
             {
-                StandardError.WriteLine(string.Format(ClassStrings.WarningInnerException, ex.InnerException.Message));
+                Console.StandardError.WriteLine(string.Format(ClassStrings.WarningInnerException, ex.InnerException.Message));
             }
         }
     }
@@ -448,8 +430,8 @@ public class CommandBuilder
                 }
             }
 
-            var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
-            var handler = new VerifyCommandHandler(formatter, verificationProviders, StandardInputProvider);
+            var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
+            var handler = new VerifyCommandHandler(Console, formatter, verificationProviders, LoggerFactory);
             var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
             context.ExitCode = exitCode;
         });
@@ -510,8 +492,8 @@ public class CommandBuilder
                 }
             }
 
-            var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
-            var handler = new InspectCommandHandler(formatter, StandardInputProvider);
+            var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
+            var handler = new InspectCommandHandler(Console, formatter);
             var exitCode = await handler.HandleAsync(context, extractPayload);
             context.ExitCode = exitCode;
         });

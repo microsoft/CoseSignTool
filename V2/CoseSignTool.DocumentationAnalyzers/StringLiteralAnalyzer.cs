@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.DocumentationAnalyzers;
+
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
@@ -9,8 +11,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-
-namespace CoseSignTool.DocumentationAnalyzers;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 [ExcludeFromCodeCoverage]

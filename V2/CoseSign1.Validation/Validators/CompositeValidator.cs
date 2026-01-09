@@ -1,34 +1,22 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Validators;
+
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Validation.Logging;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Validation.Validators;
 
 /// <summary>
 /// Combines multiple validators into a single composite validator.
 /// Can run validators sequentially or in parallel and aggregate results.
 /// </summary>
-public sealed class CompositeValidator : IValidator
+public sealed partial class CompositeValidator : IValidator
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        // Log message templates
-        public static readonly string LogInputNull = "Validation failed: input message is null";
-        public static readonly string LogNoValidators = "Validation completed with no validators configured";
-        public static readonly string LogValidationStarted = "Starting validation with {ValidatorCount} validators. StopOnFirstFailure: {StopOnFirstFailure}, RunInParallel: {RunInParallel}";
-        public static readonly string LogExecutingValidator = "Executing validator: {ValidatorType}";
-        public static readonly string LogSkippingValidator = "Skipping validator (not applicable): {ValidatorType}";
-        public static readonly string LogValidatorFailed = "Validator {ValidatorType} failed with {FailureCount} failures";
-        public static readonly string LogStoppingOnFirstFailure = "Stopping validation on first failure";
-        public static readonly string LogValidatorPassed = "Validator {ValidatorType} passed";
-        public static readonly string LogValidationFailed = "Validation failed with {FailureCount} total failures";
-        public static readonly string LogAllValidatorsPassed = "All {ValidatorCount} validators passed successfully";
         public const string MetadataKeySeparator = ".";
 
         // Error codes and messages
@@ -36,6 +24,70 @@ public sealed class CompositeValidator : IValidator
         public static readonly string ErrorInputNull = "Input message is null";
         public static readonly string ErrorCodeNullInput = "NULL_INPUT";
     }
+
+    #region LoggerMessage methods
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Warning,
+        Message = "Validation failed: input message is null")]
+    private partial void LogInputNull();
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Debug,
+        Message = "Validation completed with no validators configured")]
+    private partial void LogNoValidators();
+
+    [LoggerMessage(
+        EventId = 1003,
+        Level = LogLevel.Debug,
+        Message = "Starting validation with {ValidatorCount} validators. StopOnFirstFailure: {StopOnFirstFailure}, RunInParallel: {RunInParallel}")]
+    private partial void LogValidationStarted(int validatorCount, bool stopOnFirstFailure, bool runInParallel);
+
+    [LoggerMessage(
+        EventId = 1004,
+        Level = LogLevel.Trace,
+        Message = "Executing validator: {ValidatorType}")]
+    private partial void LogExecutingValidator(string validatorType);
+
+    [LoggerMessage(
+        EventId = 1005,
+        Level = LogLevel.Trace,
+        Message = "Skipping validator (not applicable): {ValidatorType}")]
+    private partial void LogSkippingValidator(string validatorType);
+
+    [LoggerMessage(
+        EventId = 1006,
+        Level = LogLevel.Debug,
+        Message = "Validator {ValidatorType} failed with {FailureCount} failures")]
+    private partial void LogValidatorFailed(string validatorType, int failureCount);
+
+    [LoggerMessage(
+        EventId = 1007,
+        Level = LogLevel.Debug,
+        Message = "Stopping validation on first failure")]
+    private partial void LogStoppingOnFirstFailure();
+
+    [LoggerMessage(
+        EventId = 1008,
+        Level = LogLevel.Trace,
+        Message = "Validator {ValidatorType} passed")]
+    private partial void LogValidatorPassed(string validatorType);
+
+    [LoggerMessage(
+        EventId = 1009,
+        Level = LogLevel.Information,
+        Message = "Validation failed with {FailureCount} total failures")]
+    private partial void LogValidationFailed(int failureCount);
+
+    [LoggerMessage(
+        EventId = 1010,
+        Level = LogLevel.Debug,
+        Message = "All {ValidatorCount} validators passed successfully")]
+    private partial void LogAllValidatorsPassed(int validatorCount);
+
+    #endregion
 
     private readonly IReadOnlyList<IValidator> Validators;
     private readonly IReadOnlyCollection<ValidationStage> StagesField;
@@ -92,26 +144,17 @@ public sealed class CompositeValidator : IValidator
     {
         if (input == null)
         {
-            Logger.LogWarning(
-                LogEvents.ValidationFailedEvent,
-                ClassStrings.LogInputNull);
+            LogInputNull();
             return ValidationResult.Failure(ClassStrings.ValidatorName, ClassStrings.ErrorInputNull, ClassStrings.ErrorCodeNullInput);
         }
 
         if (Validators.Count == 0)
         {
-            Logger.LogDebug(
-                LogEvents.ValidationCompletedEvent,
-                ClassStrings.LogNoValidators);
+            LogNoValidators();
             return ValidationResult.Success(ClassStrings.ValidatorName);
         }
 
-        Logger.LogDebug(
-            LogEvents.ValidationStartedEvent,
-            ClassStrings.LogValidationStarted,
-            Validators.Count,
-            StopOnFirstFailureField,
-            RunInParallelField);
+        LogValidationStarted(Validators.Count, StopOnFirstFailureField, RunInParallelField);
 
         var results = new List<ValidationResult>();
         var allFailures = new List<ValidationFailure>();
@@ -125,69 +168,45 @@ public sealed class CompositeValidator : IValidator
 
             if (validator is IConditionalValidator conditional && !conditional.IsApplicable(input, stage))
             {
-                Logger.LogTrace(
-                    LogEvents.ValidatorExecutingEvent,
-                    ClassStrings.LogSkippingValidator,
-                    validator.GetType().Name);
+                LogSkippingValidator(validator.GetType().Name);
                 continue;
             }
 
-            Logger.LogTrace(
-                LogEvents.ValidatorExecutingEvent,
-                ClassStrings.LogExecutingValidator,
-                validator.GetType().Name);
+            LogExecutingValidator(validator.GetType().Name);
 
             var result = validator.Validate(input, stage);
             results.Add(result);
 
             if (result.IsNotApplicable)
             {
-                Logger.LogTrace(
-                    LogEvents.ValidatorExecutingEvent,
-                    ClassStrings.LogSkippingValidator,
-                    validator.GetType().Name);
+                LogSkippingValidator(validator.GetType().Name);
                 continue;
             }
 
             if (result.IsFailure)
             {
-                Logger.LogDebug(
-                    LogEvents.ValidatorFailureEvent,
-                    ClassStrings.LogValidatorFailed,
-                    validator.GetType().Name,
-                    result.Failures.Count);
+                LogValidatorFailed(validator.GetType().Name, result.Failures.Count);
                 allFailures.AddRange(result.Failures);
 
                 if (StopOnFirstFailureField)
                 {
-                    Logger.LogDebug(
-                        LogEvents.ValidationCompletedEvent,
-                        ClassStrings.LogStoppingOnFirstFailure);
+                    LogStoppingOnFirstFailure();
                     break;
                 }
             }
             else
             {
-                Logger.LogTrace(
-                    LogEvents.ValidatorPassedEvent,
-                    ClassStrings.LogValidatorPassed,
-                    validator.GetType().Name);
+                LogValidatorPassed(validator.GetType().Name);
             }
         }
 
         if (allFailures.Count > 0)
         {
-            Logger.LogInformation(
-                LogEvents.ValidationFailedEvent,
-                ClassStrings.LogValidationFailed,
-                allFailures.Count);
+            LogValidationFailed(allFailures.Count);
             return ValidationResult.Failure(ClassStrings.ValidatorName, allFailures.ToArray());
         }
 
-        Logger.LogDebug(
-            LogEvents.ValidationCompletedEvent,
-            ClassStrings.LogAllValidatorsPassed,
-            Validators.Count);
+        LogAllValidatorsPassed(Validators.Count);
 
         // Merge metadata from all successful validators
         var mergedMetadata = new Dictionary<string, object>();

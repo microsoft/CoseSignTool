@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSign1.Certificates;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Shared certificate signing key implementation that works for both local and remote scenarios.

@@ -1,10 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Configuration;
+
 using CoseSignTool.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace CoseSignTool.Tests.Configuration;
+// Factory helper for tests that need LoggingConfiguration
+file static class LoggingTestHelper
+{
+    /// <summary>
+    /// Creates a logger factory with a TestConsole for testing.
+    /// </summary>
+    public static ILoggerFactory CreateLoggerFactory(int verbosity = 1)
+        => LoggingConfiguration.CreateLoggerFactory(verbosity, new TestConsole());
+}
 
 /// <summary>
 /// Tests for the LoggingConfiguration class.
@@ -21,7 +31,7 @@ public class LoggingConfigurationTests
     public void CreateLoggerFactory_WithVerbosityLevel_ReturnsCorrectMinimumLevel(int verbosity, LogLevel expectedLevel)
     {
         // Act
-        using var factory = LoggingConfiguration.CreateLoggerFactory(verbosity);
+        using var factory = LoggingTestHelper.CreateLoggerFactory(verbosity);
 
         // Assert
         Assert.That(factory, Is.Not.Null);
@@ -34,7 +44,7 @@ public class LoggingConfigurationTests
     public void CreateLoggerFactory_WithDefaultVerbosity_ReturnsWarningLevel()
     {
         // Act
-        using var factory = LoggingConfiguration.CreateLoggerFactory();
+        using var factory = LoggingTestHelper.CreateLoggerFactory();
 
         // Assert
         Assert.That(factory, Is.Not.Null);
@@ -46,7 +56,7 @@ public class LoggingConfigurationTests
     public void CreateLoggerFactory_WithNegativeVerbosity_DefaultsToWarning()
     {
         // Act
-        using var factory = LoggingConfiguration.CreateLoggerFactory(-1);
+        using var factory = LoggingTestHelper.CreateLoggerFactory(-1);
 
         // Assert
         Assert.That(factory, Is.Not.Null);
@@ -58,7 +68,7 @@ public class LoggingConfigurationTests
     public void CreateLogger_WithFactory_ReturnsTypedLogger()
     {
         // Arrange
-        using var factory = LoggingConfiguration.CreateLoggerFactory(2);
+        using var factory = LoggingTestHelper.CreateLoggerFactory(2);
 
         // Act
         var logger = LoggingConfiguration.CreateLogger<LoggingConfigurationTests>(factory);

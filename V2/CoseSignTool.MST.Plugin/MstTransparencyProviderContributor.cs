@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.MST.Plugin;
+
 using System.Diagnostics.CodeAnalysis;
-using Azure;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Transparency provider contributor for Microsoft Signing Transparency (MST).

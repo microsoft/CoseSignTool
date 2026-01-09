@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.X509Certificates;
-
 namespace CoseSign1.Certificates.Local;
+
+using System.Security.Cryptography.X509Certificates;
 
 /// <summary>
 /// Utility methods for working with ML-DSA (Post-Quantum) certificates.

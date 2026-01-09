@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Indirect;
 using Moq;
-
-namespace CoseSign1.Tests;
 
 /// <summary>
 /// Tests for CoseHashEnvelopeHeaderContributor.

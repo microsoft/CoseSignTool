@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Configuration;
+
 using CoseSignTool.Configuration;
 using Microsoft.Extensions.Configuration;
-
-namespace CoseSignTool.Tests.Configuration;
 
 /// <summary>
 /// Tests for the ConfigurationLoader class.

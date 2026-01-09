@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.MST.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Plugin for Microsoft Signing Transparency (MST) verification.

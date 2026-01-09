@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.IO;
-
 namespace CoseSignTool.Tests.IO;
+
+using CoseSignTool.Abstractions.IO;
 
 [TestFixture]
 public class TimeoutReadStreamTests

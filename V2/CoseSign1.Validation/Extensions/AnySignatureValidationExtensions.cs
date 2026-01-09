@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Extensions;
 
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Validators;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Extension methods for composing signature validation.
@@ -34,10 +35,11 @@ public static class AnySignatureValidationExtensions
             throw new ArgumentNullException(nameof(configure));
         }
 
-        var b = new Builder();
+        var b = new Builder(builder.LoggerFactory);
         configure(b);
 
-        return builder.AddValidator(new AnySignatureValidator(b.Build()));
+        var logger = builder.LoggerFactory?.CreateLogger<AnySignatureValidator>();
+        return builder.AddValidator(new AnySignatureValidator(b.Build(), logger));
     }
 
     private sealed class Builder : IAnySignatureValidatorBuilder
@@ -49,6 +51,14 @@ public static class AnySignatureValidationExtensions
         }
 
         private readonly List<IValidator> Validators = new();
+
+        public Builder(ILoggerFactory? loggerFactory)
+        {
+            LoggerFactory = loggerFactory;
+        }
+
+        /// <inheritdoc/>
+        public ILoggerFactory? LoggerFactory { get; }
 
         /// <summary>
         /// Adds a candidate signature validator.

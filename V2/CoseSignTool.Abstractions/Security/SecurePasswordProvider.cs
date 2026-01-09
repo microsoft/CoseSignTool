@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Abstractions.Security;
+
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Diagnostics.CodeAnalysis;
-
-namespace CoseSignTool.Abstractions.Security;
+using CoseSignTool.Abstractions.IO;
 
 /// <summary>
 /// Provides secure password handling utilities for command-line applications.

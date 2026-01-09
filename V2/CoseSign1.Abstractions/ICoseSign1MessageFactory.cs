@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Abstractions.Transparency;
-
 namespace CoseSign1.Abstractions;
+
+using CoseSign1.Abstractions.Transparency;
 
 /// <summary>
 /// Factory interface for creating COSE Sign1 messages with configurable signing options.

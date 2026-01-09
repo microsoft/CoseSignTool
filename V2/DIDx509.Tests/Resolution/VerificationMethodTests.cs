@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using DIDx509.Resolution;
-
 namespace DIDx509.Tests.Resolution;
+
+using DIDx509.Resolution;
 
 [TestFixture]
 public class VerificationMethodTests

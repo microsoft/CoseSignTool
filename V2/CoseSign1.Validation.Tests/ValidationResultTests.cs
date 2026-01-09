@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Validation.Results;
-
 namespace CoseSign1.Validation.Tests;
+
+using CoseSign1.Validation.Results;
 
 [TestFixture]
 public class ValidationResultTests

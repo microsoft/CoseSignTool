@@ -61,7 +61,10 @@ builder.Services
         return CertificateSigningService.Create(certificate, cb);
     })
     .AddSingleton<IValidator>(sp =>
-        Cose.Sign1Message().ValidateCertificateSignature(allowUnprotectedHeaders: true).Build());
+        Cose.Sign1Message()
+            .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
+            .AllowAllTrust("DI registration")
+            .Build());
 
 // Inject and use
 public class DocumentSigner(ISigningService<SigningOptions> signingService)
@@ -117,7 +120,10 @@ Different services have different lifetimes:
 ```csharp
 // Singleton: stateless validators/builders
 services.AddSingleton<IValidator>(sp =>
-    Cose.Sign1Message().ValidateCertificateSignature(allowUnprotectedHeaders: true).Build());
+    Cose.Sign1Message()
+        .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
+        .AllowAllTrust("service registration")
+        .Build());
 
 // Scoped/Transient: your app decides based on lifecycle of credentials/certs
 services.AddScoped<ISigningService<CertificateSigningOptions>>(sp =>

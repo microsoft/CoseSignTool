@@ -1,37 +1,36 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateKeyUsageValidatorTests
 {
-    private X509Certificate2? TestCert;
-    private CoseSign1Message? ValidMessage;
-
-    [SetUp]
-    public void SetUp()
+    private sealed record TestContext(
+        X509Certificate2 TestCert,
+        CoseSign1Message ValidMessage) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
+        public void Dispose() => TestCert.Dispose();
+    }
+
+    private static TestContext CreateTestContext()
+    {
+        var testCert = TestCertificateUtils.CreateCertificate("KeyUsageTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
-    }
+        var validMessage = CoseSign1Message.DecodeSign1(messageBytes);
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
+        return new TestContext(testCert, validMessage);
     }
 
     [Test]
@@ -98,8 +97,9 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithValidKeyUsage_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ValidatorName, Is.EqualTo(nameof(CertificateKeyUsageValidator)));
@@ -110,8 +110,9 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public async Task ValidateAsync_ReturnsResultSynchronously()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -119,9 +120,10 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public async Task ValidateAsync_WithCancellationToken_CompletesSuccessfully()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign);
         using var cts = new CancellationTokenSource();
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust, cts.Token);
+        var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -129,9 +131,10 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithWrongKeyUsage_ReturnsFailure()
     {
+        using var ctx = CreateTestContext();
         // The test certificate has KeyCertSign, try to validate for a different key usage that it doesn't have
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.CrlSign);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "KEY_USAGE_MISMATCH"), Is.True);
@@ -180,9 +183,10 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithWrongEKU_ReturnsFailure()
     {
+        using var ctx = CreateTestContext();
         // Try to validate for a different EKU than what's in the cert
         var validator = new CertificateKeyUsageValidator("1.2.3.4.5.6"); // Non-existent EKU
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Any(e => e.ErrorCode == "EKU_MISMATCH"), Is.True);
@@ -212,8 +216,9 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithAllowUnprotectedHeaders_UsesUnprotectedHeaders()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign, allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -263,8 +268,9 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithMultipleKeyUsageFlags_ChecksAllFlags()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         // Certificate may or may not have both flags
         Assert.That(result, Is.Not.Null);
@@ -292,9 +298,10 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithNoneKeyUsageFlags_ReturnsAppropriateResult()
     {
+        using var ctx = CreateTestContext();
         // X509KeyUsageFlags.None means no specific key usage is required
         var validator = new CertificateKeyUsageValidator(X509KeyUsageFlags.None);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         // The certificate has KeyCertSign, and we're checking for None
         // This should pass because None is subset of any flags
@@ -304,8 +311,9 @@ public class CertificateKeyUsageValidatorTests
     [Test]
     public void Validate_WithKeyUsageValidator_EkuMismatchIncludesFoundEkus()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateKeyUsageValidator("1.2.3.4.5.6.7.8.9");
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {

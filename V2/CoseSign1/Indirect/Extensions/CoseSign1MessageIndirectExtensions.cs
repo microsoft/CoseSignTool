@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Indirect.Extensions;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Extensions;
-
-namespace CoseSign1.Indirect.Extensions;
 
 /// <summary>
 /// Extension methods for indirect signature functionality on CoseSign1Message.

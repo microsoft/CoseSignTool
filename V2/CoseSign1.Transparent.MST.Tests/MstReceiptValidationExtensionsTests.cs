@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 using Moq;
-
-namespace CoseSign1.Transparent.MST.Tests;
 
 [TestFixture]
 public class MstReceiptValidationExtensionsTests

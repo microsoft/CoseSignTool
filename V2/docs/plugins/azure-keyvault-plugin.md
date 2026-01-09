@@ -47,6 +47,66 @@ The plugin contributes a signature validator for **key-only** signatures.
 
 By default, verification is **offline** when the message contains an embedded `COSE_Key` public key header.
 
+### Programmatic Verification
+
+Use the fluent API to configure Azure Key Vault signature validation:
+
+```csharp
+using CoseSign1.AzureKeyVault.Validation;
+using CoseSign1.Validation;
+using Azure.Identity;
+
+var validator = Cose.Sign1Message()
+    .ValidateAzureKeyVault(akv => akv
+        .RequireAzureKey()              // Require AKV key-only signature shape
+        .AllowOnlineVerify()            // Allow network calls to fetch public key
+        .WithCredential(new DefaultAzureCredential()))
+    .Build();
+
+var result = validator.Validate(message);
+```
+
+### Trust Policy Validation
+
+When using key-only signatures, you can configure trust validation to ensure the signing key comes from an approved set of Key Vaults. This is particularly useful when you need to enforce that signatures originate only from specific, authorized Key Vault instances.
+
+```csharp
+using CoseSign1.AzureKeyVault.Validation;
+using CoseSign1.Validation;
+
+// Validate that the kid matches allowed vault patterns
+var validator = Cose.Sign1Message()
+    .ValidateAzureKeyVault(akv => akv
+        .RequireAzureKeyVaultOrigin()   // Enable trust validation
+        .FromAllowedVaults(
+            "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
+            "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
+    .Build();
+
+var result = validator.Validate(message);
+```
+
+#### Pattern Syntax
+
+The `FromAllowedVaults` method accepts patterns in three formats:
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| Exact | `https://myvault.vault.azure.net/keys/mykey` | Matches exact kid URI |
+| Wildcard | `https://*.vault.azure.net/keys/*` | `*` matches any characters |
+| Regex | `regex:https://.*\.vault\.azure\.net/keys/signing-.*` | Full regex (prefix with `regex:`) |
+
+#### Trust Claims
+
+The AKV trust validator emits two trust assertions:
+
+| Claim | Description |
+|-------|-------------|
+| `akv.key.detected` | True if the kid looks like an Azure Key Vault key URI |
+| `akv.kid.allowed` | True if the kid matches one of the allowed patterns |
+
+When patterns are configured, the default trust policy requires both claims to be satisfied.
+
 ### Online Verification (Optional)
 
 The `verify` command gains two plugin options:

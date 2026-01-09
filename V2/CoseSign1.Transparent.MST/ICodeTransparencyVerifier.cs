@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using Azure.Security.CodeTransparency;
-
 namespace CoseSign1.Transparent.MST;
+
+using Azure.Security.CodeTransparency;
 
 /// <summary>
 /// Interface for verifying transparent statements from the Code Transparency service.

@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Local;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.ChainBuilders;
-
-namespace CoseSign1.Certificates.Local;
 
 /// <summary>
 /// Certificate source that retrieves certificates from Linux/OpenSSL certificate stores.

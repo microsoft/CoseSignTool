@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Interfaces;
 
 using CoseSign1.Validation.Builders;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Builder for constructing a staged COSE Sign1 validation pipeline.
@@ -14,6 +15,12 @@ using CoseSign1.Validation.Builders;
 /// </remarks>
 public interface ICoseSign1ValidationBuilder
 {
+    /// <summary>
+    /// Gets the logger factory for creating loggers in validators.
+    /// May be null if logging is not configured.
+    /// </summary>
+    ILoggerFactory? LoggerFactory { get; }
+
     /// <summary>
     /// Gets the current builder context (for advanced scenarios).
     /// </summary>
@@ -30,13 +37,19 @@ public interface ICoseSign1ValidationBuilder
     ICoseSign1ValidationBuilder AddValidator(IValidator validator);
 
     /// <summary>
-    /// Adds a trust requirement that must be satisfied.
-    /// Multiple calls are combined with AND.
+    /// Overrides the default trust policy with a custom policy.
+    /// When set, this policy replaces any default policies that would be provided
+    /// by trust validators via <see cref="IProvidesDefaultTrustPolicy"/>.
     /// </summary>
-    /// <param name="policy">The required trust policy.</param>
+    /// <remarks>
+    /// Use this when you want explicit control over trust evaluation.
+    /// If you need to combine multiple policies, use <see cref="TrustPolicy.And"/>
+    /// or <see cref="TrustPolicy.Or"/> to compose them before calling this method.
+    /// </remarks>
+    /// <param name="policy">The trust policy to use.</param>
     /// <returns>The same builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="policy"/> is null.</exception>
-    ICoseSign1ValidationBuilder RequireTrust(TrustPolicy policy);
+    ICoseSign1ValidationBuilder OverrideDefaultTrustPolicy(TrustPolicy policy);
 
     /// <summary>
     /// Sets trust policy to allow all.

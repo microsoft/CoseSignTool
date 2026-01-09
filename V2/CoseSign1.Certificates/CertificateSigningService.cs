@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Local;
@@ -8,8 +10,6 @@ using CoseSign1.Certificates.Remote;
 using CoseSign1.Headers;
 using DIDx509;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Certificates;
 
 /// <summary>
 /// Certificate-based signing service that works with any <see cref="ICertificateSigningKey"/>.

@@ -1,93 +1,98 @@
-# CoseSignTool CLI Plugins
+# Plugin Development Guide
 
-The CoseSignTool V2 CLI supports a plugin architecture that allows extending the tool with additional signing providers and transparency services.
+CoseSignTool V2 features a robust plugin architecture that allows extending the CLI with custom signing providers, verification providers, and transparency services.
 
 ## Overview
 
-Plugins provide:
-- **Signing Command Providers**: Add new signing commands (e.g., `sign-pfx`, `sign-azure`)
-- **Verification Providers**: Add validators and verification metadata to the `verify` command
-- **Transparency Provider Contributors**: Add transparency receipt support to signing operations
+Plugins can contribute:
 
-## Available Plugins
-
-### [CoseSignTool.Local.Plugin](local-plugin.md)
-
-Local certificate signing using certificates stored on the local machine.
-
-**Commands Added**:
-- `sign-pfx` - Sign with a PFX/PKCS#12 certificate file
-- `sign-certstore` - Sign with a certificate from Windows or Linux certificate store
-- `sign-pem` - Sign with PEM-encoded certificate and key files
-- `sign-ephemeral` - Sign with an ephemeral test certificate (development only)
-
-**Use When**: You have certificates available locally (development, on-premises signing).
-
----
-
-### [CoseSignTool.AzureTrustedSigning.Plugin](azure-plugin.md)
-
-Cloud-based signing using Azure Trusted Signing service.
-
-**Commands Added**:
-- `sign-azure` - Sign using Azure Trusted Signing
-
-**Use When**: Using Azure for centralized, managed code signing.
-
----
-
-### [CoseSignTool.AzureKeyVault.Plugin](azure-keyvault-plugin.md)
-
-Azure Key Vault signing and verification.
-
-**Commands Added**:
-- `sign-akv-cert` - Sign using an Azure Key Vault certificate
-- `sign-akv-key` - Sign using an Azure Key Vault key (key-only)
-
-**Verification**:
-- Contributes a signature validator for key-only signatures when the message identifies an Azure Key Vault key (via `kid`), enabling verification without requiring Key Vault access.
-
-**Use When**: Using Key Vault for HSM-backed signing keys/certificates.
-
----
-
-### [CoseSignTool.MST.Plugin](mst-plugin.md)
-
-Microsoft's Signing Transparency (MST) verification.
-
-**Options Added to `verify` Command**:
-- `--require-receipt` - Require MST receipt for verification
-- `--mst-endpoint` - MST service endpoint URL
-- `--verify-receipt` - Verify the MST receipt
-
-**Transparency Support**: Automatically adds MST receipts to signed messages.
-
-**Use When**: Implementing supply chain transparency with MST.
+| Extension Type | Interface | Purpose |
+|---------------|-----------|---------|
+| **Signing Commands** | `ISigningCommandProvider` | Add new `sign-*` commands |
+| **Verification Providers** | `IVerificationProvider` | Add custom validators to verify |
+| **Transparency Providers** | `ITransparencyProviderContributor` | Add transparency proof services |
+| **Custom Commands** | Direct registration | Add arbitrary CLI commands |
 
 ---
 
 ## Plugin Architecture
 
-### Plugin Interface
+### Plugin Discovery
 
-All plugins implement `IPlugin`:
+Plugins are discovered at startup from the `plugins/` subdirectory:
+
+```
+CoseSignTool.exe
+plugins/
++-- CoseSignTool.Local.Plugin/
+|   +-- CoseSignTool.Local.Plugin.dll    <-- Plugin assembly
+|   +-- <dependencies>.dll
++-- CoseSignTool.AzureKeyVault.Plugin/
+|   +-- CoseSignTool.AzureKeyVault.Plugin.dll
+|   +-- <dependencies>.dll
++-- MyCustom.Plugin/
+    +-- MyCustom.Plugin.dll
+    +-- <dependencies>.dll
+```
+
+**Rules:**
+- Each plugin must be in its own subdirectory
+- Plugin DLLs must match pattern `*.Plugin.dll`
+- Dependencies are isolated per plugin via `AssemblyLoadContext`
+
+### Additional Plugin Directories
+
+Load plugins from additional locations:
+
+```bash
+cosesigntool --additional-plugin-dir /custom/plugins verify document.cose
+```
+
+### Plugin Lifecycle
+
+```
+1. Discovery    -> Scan plugins/ directory for *.Plugin.dll assemblies
+2. Loading      -> Load assembly in isolated AssemblyLoadContext
+3. Instantiation -> Create instances of IPlugin implementations
+4. Initialization -> Call plugin.InitializeAsync()
+5. Registration -> Call plugin.GetExtensions() and plugin.RegisterCommands()
+6. Execution    -> Commands use plugin-provided services
+```
+
+---
+
+## Core Interfaces
+
+### IPlugin
+
+The main plugin entry point:
 
 ```csharp
 public interface IPlugin
 {
+    /// <summary>Plugin display name.</summary>
     string Name { get; }
+    
+    /// <summary>Plugin version string.</summary>
     string Version { get; }
+    
+    /// <summary>Plugin description.</summary>
     string Description { get; }
     
+    /// <summary>Returns extension contributions.</summary>
     PluginExtensions GetExtensions();
+    
+    /// <summary>Register custom commands directly on the root command.</summary>
     void RegisterCommands(Command rootCommand);
+    
+    /// <summary>Initialize the plugin (async configuration loading, etc).</summary>
     Task InitializeAsync(IDictionary<string, string>? configuration = null);
 }
 ```
 
-### Plugin Extensions Model
+### PluginExtensions
 
-Plugins return all their capabilities through `PluginExtensions`:
+Container for all extension contributions:
 
 ```csharp
 public sealed class PluginExtensions
@@ -101,42 +106,163 @@ public sealed class PluginExtensions
     public IEnumerable<IVerificationProvider> VerificationProviders { get; }
     public IEnumerable<ITransparencyProviderContributor> TransparencyProviders { get; }
     
-    public static PluginExtensions None => new();
+    /// <summary>Empty extensions (no contributions).</summary>
+    public static PluginExtensions None { get; }
 }
 ```
 
-### Signing Command Provider
+---
 
-Providers implement `ISigningCommandProvider`:
+## Creating a Signing Command Provider
+
+Signing command providers add new `sign-*` commands to the CLI.
+
+### ISigningCommandProvider Interface
 
 ```csharp
 public interface ISigningCommandProvider
 {
+    /// <summary>Command name (e.g., "sign-pfx", "sign-hsm").</summary>
     string CommandName { get; }
+    
+    /// <summary>Command description for help text.</summary>
     string CommandDescription { get; }
+    
+    /// <summary>Example usage for help text.</summary>
     string ExampleUsage { get; }
     
+    /// <summary>Add command-specific options.</summary>
     void AddCommandOptions(Command command);
+    
+    /// <summary>Create signing service from parsed options.</summary>
     Task<ISigningService<SigningOptions>> CreateSigningServiceAsync(
         IDictionary<string, object?> options);
+    
+    /// <summary>Get metadata for display after signing.</summary>
     IDictionary<string, string> GetSigningMetadata();
 }
 ```
 
-### Verification Provider
+### Implementation Example
 
-Verification providers implement `IVerificationProvider`:
+```csharp
+public class HsmSigningCommandProvider : ISigningCommandProvider
+{
+    public string CommandName => "sign-hsm";
+    public string CommandDescription => "Sign using Hardware Security Module";
+    public string ExampleUsage => "--hsm-slot 0 --key-label signing-key";
+
+    // Store parsed values for metadata
+    private string? SlotId;
+    private string? KeyLabel;
+
+    public void AddCommandOptions(Command command)
+    {
+        // Add HSM-specific options only
+        // Standard options (--output, --payload, etc.) are added automatically
+        
+        command.AddOption(new Option<int>(
+            "--hsm-slot",
+            "HSM slot number")
+        { IsRequired = true });
+        
+        command.AddOption(new Option<string>(
+            "--key-label",
+            "Key label in HSM")
+        { IsRequired = true });
+        
+        command.AddOption(new Option<string?>(
+            "--pin",
+            "HSM PIN (or use --pin-file)"));
+        
+        command.AddOption(new Option<FileInfo?>(
+            "--pin-file",
+            "File containing HSM PIN"));
+    }
+
+    public async Task<ISigningService<SigningOptions>> CreateSigningServiceAsync(
+        IDictionary<string, object?> options)
+    {
+        // Extract parsed option values
+        // Keys are option names without leading dashes
+        SlotId = options["hsm-slot"]?.ToString();
+        KeyLabel = options["key-label"] as string;
+        var pin = options["pin"] as string;
+        var pinFile = options["pin-file"] as FileInfo;
+        
+        // Read PIN from file if provided
+        if (pinFile != null)
+        {
+            pin = await File.ReadAllTextAsync(pinFile.FullName);
+        }
+        
+        // Initialize HSM connection
+        var hsmClient = new HsmClient(SlotId, pin);
+        
+        // Get certificate and create signing service
+        var certificate = await hsmClient.GetCertificateAsync(KeyLabel);
+        var chain = await hsmClient.BuildChainAsync(certificate);
+        
+        return new HsmSigningService(hsmClient, KeyLabel, certificate, chain);
+    }
+
+    public IDictionary<string, string> GetSigningMetadata()
+    {
+        return new Dictionary<string, string>
+        {
+            ["HSM Slot"] = SlotId ?? "Unknown",
+            ["Key Label"] = KeyLabel ?? "Unknown",
+            ["Certificate Subject"] = _certificate?.Subject ?? "Unknown"
+        };
+    }
+}
+```
+
+### Standard Options (Provided by Main Executable)
+
+The following options are automatically added to all signing commands:
+
+| Option | Description |
+|--------|-------------|
+| `payload` | Payload to sign (argument) |
+| `--output`, `-o` | Output file path |
+| `--signature-type`, `-t` | `indirect`, `embedded`, or `detached` |
+| `--content-type`, `-c` | Content type header |
+| `--quiet`, `-q` | Suppress output |
+| `--output-format`, `-f` | Output format |
+
+Your provider should **not** add these options.
+
+---
+
+## Creating a Verification Provider
+
+Verification providers contribute validators to the verify command.
+
+### IVerificationProvider Interface
 
 ```csharp
 public interface IVerificationProvider
 {
+    /// <summary>Provider name for display.</summary>
     string ProviderName { get; }
+    
+    /// <summary>Provider description.</summary>
     string Description { get; }
+    
+    /// <summary>Execution priority (lower runs first).</summary>
     int Priority { get; }
     
+    /// <summary>Add provider-specific verify options.</summary>
     void AddVerificationOptions(Command command);
+    
+    /// <summary>Check if provider should activate based on parsed options.</summary>
     bool IsActivated(ParseResult parseResult);
+    
+    /// <summary>Create validators when activated.</summary>
     IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
+    
+    /// <summary>Get metadata for display after verification.</summary>
     IDictionary<string, object?> GetVerificationMetadata(
         ParseResult parseResult,
         CoseSign1Message message,
@@ -144,56 +270,176 @@ public interface IVerificationProvider
 }
 ```
 
-#### Context-Aware Verification Providers
+### Priority Guidelines
 
-Some verification providers need additional runtime context (for example, detached payload bytes) to build correct validators. These providers can implement `IVerificationProviderWithContext`:
+| Priority Range | Stage | Example Providers |
+|---------------|-------|-------------------|
+| 0-9 | Key Material Resolution | Certificate extraction |
+| 10-19 | Key Material Trust | Chain validation, custom trust |
+| 20-29 | Signature | Signature verification |
+| 30+ | Post-Signature | Business rules, policy |
+
+### Implementation Example
 
 ```csharp
-public interface IVerificationProviderWithContext : IVerificationProvider
+public class CustomTrustVerificationProvider : IVerificationProvider
 {
-    IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext context);
+    public string ProviderName => "CustomTrust";
+    public string Description => "Custom organizational trust validation";
+    public int Priority => 15; // Trust stage
+
+    // Store options for later access
+    private Option<string[]?> ApprovedOrgsOption = null!;
+    private Option<bool> RequireEvOption = null!;
+
+    public void AddVerificationOptions(Command command)
+    {
+        ApprovedOrgsOption = new Option<string[]?>(
+            "--approved-orgs",
+            "List of approved organization names");
+        command.AddOption(ApprovedOrgsOption);
+        
+        RequireEvOption = new Option<bool>(
+            "--require-ev",
+            () => false,
+            "Require Extended Validation certificate");
+        command.AddOption(RequireEvOption);
+    }
+
+    public bool IsActivated(ParseResult parseResult)
+    {
+        // Activate if any custom options are specified
+        return parseResult.GetValueForOption(ApprovedOrgsOption) != null
+            || parseResult.GetValueForOption(RequireEvOption);
+    }
+
+    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+    {
+        var approvedOrgs = parseResult.GetValueForOption(ApprovedOrgsOption);
+        var requireEv = parseResult.GetValueForOption(RequireEvOption);
+        
+        if (approvedOrgs != null && approvedOrgs.Length > 0)
+        {
+            yield return new OrganizationValidator(approvedOrgs);
+        }
+        
+        if (requireEv)
+        {
+            yield return new ExtendedValidationValidator();
+        }
+    }
+
+    public IDictionary<string, object?> GetVerificationMetadata(
+        ParseResult parseResult,
+        CoseSign1Message message,
+        ValidationResult validationResult)
+    {
+        return new Dictionary<string, object?>
+        {
+            ["Custom Trust Checked"] = IsActivated(parseResult),
+            ["Approved Organizations"] = parseResult.GetValueForOption(ApprovedOrgsOption)
+        };
+    }
 }
 ```
 
-#### Trust policies
+---
 
-Verification providers can optionally contribute a `TrustPolicy` by implementing `IVerificationProviderWithTrustPolicy`.
-When multiple active providers return a policy, the CLI requires **all** policies to be satisfied (logical AND).
+## Creating a Transparency Provider
 
-The `verify` command passes a `VerificationContext` that can include the detached payload bytes when a `--payload` file is supplied.
+Transparency providers add transparency proofs (e.g., MST receipts) to signatures.
 
-### Transparency Provider Contributor
-
-Contributors implement `ITransparencyProviderContributor`:
+### ITransparencyProviderContributor Interface
 
 ```csharp
 public interface ITransparencyProviderContributor
 {
+    /// <summary>Provider name.</summary>
     string ProviderName { get; }
+    
+    /// <summary>Provider description.</summary>
     string ProviderDescription { get; }
     
+    /// <summary>Create the transparency provider instance.</summary>
     Task<ITransparencyProvider> CreateTransparencyProviderAsync(
         IDictionary<string, object?> options,
         CancellationToken cancellationToken = default);
 }
 ```
 
-## Creating Custom Plugins
+---
 
-See the [Creating CLI Plugins Guide](../guides/cli-plugins.md) for detailed instructions on building custom plugins.
+## Complete Plugin Example
 
-## Plugin Loading
-
-Plugins are loaded at runtime from the `plugins` directory relative to the CoseSignTool executable. Each plugin is loaded in an isolated assembly load context for proper isolation.
+### Project Structure
 
 ```
-CoseSignTool/
-├── CoseSignTool.exe
-└── plugins/
-    ├── CoseSignTool.Local.Plugin/
-    │   └── CoseSignTool.Local.Plugin.dll
-    ├── CoseSignTool.AzureTrustedSigning.Plugin/
-    │   └── CoseSignTool.AzureTrustedSigning.Plugin.dll
-    └── CoseSignTool.MST.Plugin/
-        └── CoseSignTool.MST.Plugin.dll
+MyCompany.CoseSignTool.Plugin/
++-- MyCompany.CoseSignTool.Plugin.csproj
++-- MyCompanyPlugin.cs
++-- Signing/
+|   +-- HsmSigningCommandProvider.cs
++-- Verification/
+|   +-- CustomTrustVerificationProvider.cs
++-- Transparency/
+    +-- LedgerTransparencyContributor.cs
 ```
+
+### Main Plugin Class
+
+```csharp
+using System.CommandLine;
+using CoseSignTool.Abstractions;
+
+namespace MyCompany.CoseSignTool.Plugin;
+
+public sealed class MyCompanyPlugin : IPlugin
+{
+    public string Name => "MyCompany Plugin";
+    public string Version => "1.0.0";
+    public string Description => "HSM signing and custom organizational trust validation";
+
+    public Task InitializeAsync(IDictionary<string, string>? configuration = null)
+    {
+        return Task.CompletedTask;
+    }
+
+    public PluginExtensions GetExtensions()
+    {
+        return new PluginExtensions(
+            signingCommandProviders: new ISigningCommandProvider[]
+            {
+                new HsmSigningCommandProvider()
+            },
+            verificationProviders: new IVerificationProvider[]
+            {
+                new CustomTrustVerificationProvider()
+            },
+            transparencyProviders: new ITransparencyProviderContributor[]
+            {
+                new LedgerTransparencyContributor()
+            }
+        );
+    }
+
+    public void RegisterCommands(Command rootCommand)
+    {
+        // Add custom utility commands
+        var configCommand = new Command("my-config", "Configure MyCompany plugin");
+        rootCommand.AddCommand(configCommand);
+    }
+}
+```
+
+---
+
+## Bundled Plugins
+
+CoseSignTool V2 includes the following bundled plugins:
+
+| Plugin | Commands | Description |
+|--------|----------|-------------|
+| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-pem`, `sign-cert-store`, `sign-ephemeral` | Local certificate signing |
+| `CoseSignTool.AzureKeyVault.Plugin` | `sign-akv-cert` | Azure Key Vault signing |
+| `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-ats` | Azure Trusted Signing |
+| `CoseSignTool.MST.Plugin` | (verification only) | MST transparency verification |

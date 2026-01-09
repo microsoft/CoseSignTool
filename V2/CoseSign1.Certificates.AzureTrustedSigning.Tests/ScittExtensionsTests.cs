@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
+namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
+
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.AzureTrustedSigning.Extensions;
 using CoseSign1.Headers;
-
-namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 
 /// <summary>
 /// Tests for <see cref="ScittExtensions"/>.
@@ -15,24 +14,16 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class ScittExtensionsTests
 {
-    private X509Certificate2 TestCert = null!;
-
     /// <summary>
     /// Microsoft Code Signing EKU: 1.3.6.1.4.1.311.10.3.13
     /// </summary>
     private const string MicrosoftCodeSigningEku = "1.3.6.1.4.1.311.10.3.13";
 
-    [SetUp]
-    public void Setup()
-    {
-        TestCert = TestCertificateUtils.CreateCertificate("ScittTest");
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    /// <summary>
+    /// Creates a test certificate for use in tests.
+    /// </summary>
+    private static X509Certificate2 CreateTestCert(string name = "ScittTest")
+        => TestCertificateUtils.CreateCertificate(name);
 
     #region ConfigureForAzureScitt Basic Overload Tests
 
@@ -40,7 +31,8 @@ public class ScittExtensionsTests
     public void ConfigureForAzureScitt_WithNullOptions_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new[] { TestCert };
+        using var testCert = CreateTestCert();
+        var chain = new[] { testCert };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
@@ -79,7 +71,8 @@ public class ScittExtensionsTests
     {
         // Arrange - test certs don't have Microsoft EKUs
         var options = new CertificateSigningOptions();
-        var chain = new[] { TestCert };
+        using var testCert = CreateTestCert();
+        var chain = new[] { testCert };
 
         // Act & Assert - Will throw because DID builder requires a policy
         Assert.Throws<InvalidOperationException>(() =>
@@ -95,7 +88,8 @@ public class ScittExtensionsTests
     {
         // Arrange
         var options = new CertificateSigningOptions();
-        var chain = new[] { TestCert };
+        using var testCert = CreateTestCert();
+        var chain = new[] { testCert };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
@@ -108,7 +102,8 @@ public class ScittExtensionsTests
     public void ConfigureForAzureScitt_WithActionOverload_WithNullOptions_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new[] { TestCert };
+        using var testCert = CreateTestCert();
+        var chain = new[] { testCert };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.AzureKeyVault.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using Azure.Core;
@@ -8,8 +10,6 @@ using Azure.Identity;
 using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.AzureKeyVault.Plugin;
 
 /// <summary>
 /// Command provider for signing with Azure Key Vault keys (non-certificate).

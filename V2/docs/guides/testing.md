@@ -41,9 +41,10 @@ public class SigningTests
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificateSignature()
+            .ValidateCertificate(cert => { })
+            .AllowAllTrust("test")
             .Build();
-        var result = validator.Validate(message, ValidationStage.Signature);
+        var result = validator.Validate(message);
         Assert.IsTrue(result.IsValid);
     }
 }
@@ -149,10 +150,11 @@ public class SigningServiceTests
 
         var message = CoseMessage.DecodeSign1(signatureBytes);
         var validator = Cose.Sign1Message()
-            .ValidateCertificateSignature()
+            .ValidateCertificate(cert => { })
+            .AllowAllTrust("test")
             .Build();
 
-        Assert.IsTrue(validator.Validate(message, ValidationStage.Signature).IsValid);
+        Assert.IsTrue(validator.Validate(message).Signature.IsValid);
     }
 }
 ```
@@ -189,13 +191,14 @@ public class SignVerifyIntegrationTests
         // Act - Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificateSignature()
+            .ValidateCertificate(cert => { })
+            .AllowAllTrust(\"test\")
             .Build();
 
-        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
+        var result = await validator.ValidateAsync(message);
         
         // Assert
-        Assert.IsTrue(result.IsValid);
+        Assert.IsTrue(result.Overall.IsValid);
     }
     
     [TestMethod]
@@ -219,13 +222,14 @@ public class SignVerifyIntegrationTests
         // Act - Verify signature over the hash envelope (payload is not required for signature verification)
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificateSignature()
+            .ValidateCertificate(cert => { })
+            .AllowAllTrust("test")
             .Build();
 
-        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
+        var result = await validator.ValidateAsync(message);
         
         // Assert
-        Assert.IsTrue(result.IsValid);
+        Assert.IsTrue(result.Overall.IsValid);
     }
 }
 ```

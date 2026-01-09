@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -9,30 +11,18 @@ using CoseSign1.Tests.Common;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Transparent.MST.Tests;
-
 [TestFixture]
 public class MstReceiptPresenceTrustValidatorTests
 {
-    private X509Certificate2 TestCert = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        TestCert = TestCertificateUtils.CreateCertificate("MstPresenceTrustValidatorTest", useEcc: true);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static X509Certificate2 CreateTestCert() =>
+        TestCertificateUtils.CreateCertificate("MstPresenceTrustValidatorTest", useEcc: true);
 
     [Test]
     public void Validate_WithWrongStage_ReturnsNotApplicable()
     {
         var validator = new MstReceiptPresenceTrustValidator();
-        var message = CreateSignedMessageWithoutReceipt(TestCert);
+        using var cert = CreateTestCert();
+        var message = CreateSignedMessageWithoutReceipt(cert);
 
         var result = validator.Validate(message, ValidationStage.Signature);
         Assert.That(result.IsNotApplicable, Is.True);
@@ -52,7 +42,8 @@ public class MstReceiptPresenceTrustValidatorTests
     public void Validate_WithoutReceipt_EmitsReceiptPresentFalseAndReceiptTrustedFalse()
     {
         var validator = new MstReceiptPresenceTrustValidator();
-        var message = CreateSignedMessageWithoutReceipt(TestCert);
+        using var cert = CreateTestCert();
+        var message = CreateSignedMessageWithoutReceipt(cert);
 
         var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
         Assert.That(result.IsSuccess, Is.True);
@@ -68,7 +59,8 @@ public class MstReceiptPresenceTrustValidatorTests
     public void Validate_WithReceipt_EmitsReceiptPresentTrueAndReceiptTrustedFalseNotVerified()
     {
         var validator = new MstReceiptPresenceTrustValidator();
-        var message = CreateSignedMessageWithReceipt(TestCert);
+        using var cert = CreateTestCert();
+        var message = CreateSignedMessageWithReceipt(cert);
 
         var result = validator.Validate(message, ValidationStage.KeyMaterialTrust);
         Assert.That(result.IsSuccess, Is.True);

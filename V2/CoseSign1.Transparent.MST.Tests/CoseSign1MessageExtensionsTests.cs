@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -8,24 +10,11 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using CoseSign1.Transparent.MST.Extensions;
 
-namespace CoseSign1.Transparent.MST.Tests;
-
 [TestFixture]
 public class CoseSign1MessageExtensionsTests
 {
-    private X509Certificate2 TestCert = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        TestCert = TestCertificateUtils.CreateCertificate("ExtensionTestCert", useEcc: true);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static X509Certificate2 CreateTestCert() =>
+        TestCertificateUtils.CreateCertificate("ExtensionTestCert", useEcc: true);
 
     #region HasMstReceipt Tests
 
@@ -195,16 +184,17 @@ public class CoseSign1MessageExtensionsTests
 
     #region Helper Methods
 
-    private CoseSign1Message CreateTestMessage(string payload)
+    private static CoseSign1Message CreateTestMessage(string payload)
     {
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var cert = CreateTestCert();
+        using var key = cert.GetECDsaPrivateKey()!;
         var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
         var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);
         var signedBytes = CoseSign1Message.SignEmbedded(payloadBytes, signer);
         return CoseMessage.DecodeSign1(signedBytes);
     }
 
-    private CoseSign1Message CreateMessageWithMstReceipt()
+    private static CoseSign1Message CreateMessageWithMstReceipt()
     {
         // Create a minimal valid COSE_Sign1 structure for the receipt
         var receiptWriter = new CborWriter();
@@ -224,21 +214,23 @@ public class CoseSign1MessageExtensionsTests
         arrayWriter.WriteEndArray();
         var receiptsArrayBytes = arrayWriter.Encode();
 
-        return CreateMessageWithHeaderValue(394, receiptsArrayBytes);
+        using var cert = CreateTestCert();
+        return CreateMessageWithHeaderValue(cert, 394, receiptsArrayBytes);
     }
 
 
-    private CoseSign1Message CreateMessageWithNonArrayReceipt()
+    private static CoseSign1Message CreateMessageWithNonArrayReceipt()
     {
         // Create CBOR that's not an array (an integer instead)
         var writer = new CborWriter();
         writer.WriteInt32(12345);
         var nonArrayBytes = writer.Encode();
 
-        return CreateMessageWithHeaderValue(394, nonArrayBytes);
+        using var cert = CreateTestCert();
+        return CreateMessageWithHeaderValue(cert, 394, nonArrayBytes);
     }
 
-    private CoseSign1Message CreateMessageWithInvalidReceiptBytes()
+    private static CoseSign1Message CreateMessageWithInvalidReceiptBytes()
     {
         // Create array with invalid COSE_Sign1 bytes
         var arrayWriter = new CborWriter();
@@ -247,10 +239,11 @@ public class CoseSign1MessageExtensionsTests
         arrayWriter.WriteEndArray();
         var receiptsArrayBytes = arrayWriter.Encode();
 
-        return CreateMessageWithHeaderValue(394, receiptsArrayBytes);
+        using var cert = CreateTestCert();
+        return CreateMessageWithHeaderValue(cert, 394, receiptsArrayBytes);
     }
 
-    private CoseSign1Message CreateMessageWithHeaderValue(int headerLabel, byte[] headerValue)
+    private static CoseSign1Message CreateMessageWithHeaderValue(X509Certificate2 cert, int headerLabel, byte[] headerValue)
     {
         // Build protected headers with algorithm
         var protectedWriter = new CborWriter();
@@ -264,7 +257,7 @@ public class CoseSign1MessageExtensionsTests
         var payload = System.Text.Encoding.UTF8.GetBytes("test payload");
 
         // Create signature
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var key = cert.GetECDsaPrivateKey()!;
         var toBeSigned = CreateToBeSigned(protectedBytes, payload);
         var signature = key.SignData(toBeSigned, HashAlgorithmName.SHA256);
 

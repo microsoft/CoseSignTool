@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.AzureKeyVault.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.AzureKeyVault.Plugin;
 
 /// <summary>
 /// Azure Key Vault plugin for COSE Sign1 operations.

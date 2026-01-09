@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using System.Reflection;
-using CoseSignTool.Commands;
-
 namespace CoseSignTool.Tests.Commands;
+
+using System.CommandLine;
+using CoseSignTool.Commands;
 
 /// <summary>
 /// Tests for the CommandBuilder class.
@@ -17,7 +16,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_ReturnsRootCommand()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -31,7 +30,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasCorrectDescription()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -44,7 +43,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasSignEphemeralCommand()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -58,7 +57,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasVerifyCommand()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -72,7 +71,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasInspectCommand()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -86,7 +85,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasOptionalPayloadArgument()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -104,7 +103,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasOutputOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -119,7 +118,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasDetachedAliasForSignatureType()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -136,7 +135,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyCommandHasSignatureArgumentSupportingStdin()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -153,7 +152,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_InspectCommandHasFileArgumentSupportingStdin()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -170,7 +169,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_AllCommandsHaveDescriptions()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -186,7 +185,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_CalledMultipleTimes_ReturnsNewInstances()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand1 = builder.BuildRootCommand();
@@ -200,7 +199,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasOutputFormatOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -214,8 +213,8 @@ public class CommandBuilderTests
     public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsBadPlugin_PrintsWarningAndStillBuilds()
     {
         // Arrange
-        var sw = new StringWriter();
-        var builder = new CommandBuilder(standardOutput: TextWriter.Null, standardError: sw);
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console);
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"bad_plugins_{Guid.NewGuid():N}");
         var badPluginDir = Path.Combine(tempDir, "bad");
@@ -234,7 +233,7 @@ public class CommandBuilderTests
             Assert.That(rootCommand, Is.Not.Null);
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "verify"), Is.True);
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "inspect"), Is.True);
-            Assert.That(sw.ToString(), Does.Contain("Warning: Failed to load plugins"));
+            Assert.That(console.GetStderr(), Does.Contain("Warning: Failed to load plugins"));
         }
         finally
         {
@@ -249,8 +248,8 @@ public class CommandBuilderTests
     public void BuildRootCommand_WhenAdditionalPluginDirectoryContainsAssemblyWithFaultyPlugins_PrintsPerPluginWarnings()
     {
         // Arrange
-        var sw = new StringWriter();
-        var builder = new CommandBuilder(standardOutput: TextWriter.Null, standardError: sw);
+        var console = new TestConsole();
+        var builder = new CommandBuilder(console);
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"test_plugins_{Guid.NewGuid():N}");
         var pluginSubdir = Path.Combine(tempDir, "test");
@@ -273,7 +272,7 @@ public class CommandBuilderTests
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "inspect"), Is.True);
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "sign-test"), Is.True);
 
-            var output = sw.ToString();
+            var output = console.GetStderr();
             Assert.That(output, Does.Contain("Warning: Failed to get extensions from plugin 'ThrowExt':"));
             Assert.That(output, Does.Contain("boom"));
             Assert.That(output, Does.Contain("Warning: Failed to load transparency provider from plugin 'ThrowProviders':"));
@@ -304,7 +303,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_OutputFormatOptionHasAlias()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -319,7 +318,7 @@ public class CommandBuilderTests
     public async Task InvokeAsync_VerifyCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var missingSignature = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.cose");
 
@@ -339,7 +338,7 @@ public class CommandBuilderTests
     public async Task InvokeAsync_InspectCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var missingSignature = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.cose");
 
@@ -359,7 +358,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_HasVerboseOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -373,7 +372,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasSignatureTypeOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -388,7 +387,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasContentTypeOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -403,7 +402,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_SignEphemeralCommandHasQuietOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -418,7 +417,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_WithAdditionalPluginDirectories_DoesNotThrow()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var tempDir = Path.Combine(Path.GetTempPath(), $"plugins_test_{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
 
@@ -447,7 +446,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_WithNullPluginDirectories_DoesNotThrow()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand(null);
@@ -460,7 +459,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_WithEmptyPluginDirectories_DoesNotThrow()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand([]);
@@ -473,7 +472,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyCommandHasCorrectDescription()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -487,7 +486,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_InspectCommandHasCorrectDescription()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -501,7 +500,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyCommandHasPayloadOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -517,7 +516,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyCommandHasSignatureOnlyOption()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -532,7 +531,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyDescription_ContainsPayloadExamples()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();
@@ -546,7 +545,7 @@ public class CommandBuilderTests
     public void BuildRootCommand_VerifyDescription_ContainsSignatureOnlyExamples()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
 
         // Act
         var rootCommand = builder.BuildRootCommand();

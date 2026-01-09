@@ -1,20 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Commands.Handlers;
+
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Indirect;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSignTool.Abstractions;
-using CoseSignTool.IO;
+using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Commands.Handlers;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Handles the 'verify' command for validating COSE Sign1 signatures.
@@ -68,7 +68,8 @@ public class VerifyCommandHandler
 
     private readonly IOutputFormatter Formatter;
     private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
-    private readonly Func<Stream> StandardInputProvider;
+    private readonly IConsole Console;
+    private readonly ILoggerFactory? LoggerFactory;
 
     /// <summary>
     /// The timeout for waiting for stdin data. Default is 2 seconds.
@@ -78,17 +79,21 @@ public class VerifyCommandHandler
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandHandler"/> class.
     /// </summary>
+    /// <param name="console">Console I/O abstraction. Required for stream access.</param>
     /// <param name="formatter">The output formatter to use (defaults to TextOutputFormatter).</param>
     /// <param name="verificationProviders">The verification providers to use for validation.</param>
-    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
+    /// <param name="loggerFactory">Optional logger factory for diagnostic logging.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
     public VerifyCommandHandler(
+        IConsole console,
         IOutputFormatter? formatter = null,
         IReadOnlyList<IVerificationProvider>? verificationProviders = null,
-        Func<Stream>? standardInputProvider = null)
+        ILoggerFactory? loggerFactory = null)
     {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
         Formatter = formatter ?? new TextOutputFormatter();
         VerificationProviders = verificationProviders ?? Array.Empty<IVerificationProvider>();
-        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
+        LoggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -146,23 +151,14 @@ public class VerifyCommandHandler
                 Formatter.BeginSection(ClassStrings.SectionTitle);
                 Formatter.WriteKeyValue(ClassStrings.KeySignature, AssemblyStrings.IO.StdinDisplayName);
 
-                // Read from stdin with timeout wrapper to avoid blocking forever
-                using var rawStdin = StandardInputProvider();
-                using var timeoutStdin = new TimeoutReadStream(rawStdin, StdinTimeout);
+                // IConsole.StandardInput already has timeout protection via SystemConsole
                 using var ms = new MemoryStream();
-                timeoutStdin.CopyTo(ms);
+                Console.StandardInput.CopyTo(ms);
                 signatureBytes = ms.ToArray();
 
                 if (signatureBytes.Length == 0)
                 {
-                    if (timeoutStdin.TimedOut)
-                    {
-                        Formatter.WriteError(string.Format(AssemblyStrings.Errors.StdinTimeout, StdinTimeout.TotalSeconds));
-                    }
-                    else
-                    {
-                        Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
-                    }
+                    Formatter.WriteError(AssemblyStrings.Errors.NoStdinData);
                     Formatter.EndSection();
                     return Task.FromResult((int)ExitCode.FileNotFound);
                 }
@@ -171,7 +167,7 @@ public class VerifyCommandHandler
             {
                 if (!File.Exists(signaturePath))
                 {
-                    Formatter.WriteError(string.Format(ClassStrings.ErrorSignatureNotFound, signaturePath));
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorSignatureNotFound, signaturePath));;
                     return Task.FromResult((int)ExitCode.FileNotFound);
                 }
 
@@ -252,8 +248,13 @@ public class VerifyCommandHandler
                 payloadBytes = File.ReadAllBytes(payloadFile.FullName);
             }
 
-            // Build validators from activated providers (some may need runtime context such as detached payload)
-            var verificationContext = new VerificationContext(detachedPayload: payloadBytes);
+            // Build verification context with options for providers that need them
+            var contextOptions = new Dictionary<string, object?>
+            {
+                [VerificationContext.KeyLoggerFactory] = LoggerFactory,
+                [VerificationContext.KeyConsole] = Console
+            };
+            var verificationContext = new VerificationContext(detachedPayload: payloadBytes, options: contextOptions);
 
             var providerValidators = new List<IValidator>();
             var activatedProviders = new List<string>();
@@ -269,9 +270,16 @@ public class VerifyCommandHandler
 
                 activatedProviders.Add(provider.ProviderName);
 
-                IEnumerable<IValidator> validators = provider is IVerificationProviderWithContext withContext
-                    ? withContext.CreateValidators(parseResult, verificationContext)
-                    : provider.CreateValidators(parseResult);
+                // Priority order: IVerificationProviderWithContext > IVerificationProvider
+                IEnumerable<IValidator> validators;
+                if (provider is IVerificationProviderWithContext withContext)
+                {
+                    validators = withContext.CreateValidators(parseResult, verificationContext);
+                }
+                else
+                {
+                    validators = provider.CreateValidators(parseResult);
+                }
 
                 providerValidators.AddRange(validators);
 
@@ -285,44 +293,58 @@ public class VerifyCommandHandler
                 }
             }
 
-            // Always include the built-in X.509 signature validator;
-            // CoseSign1Validator partitions validators by stage via IValidator.Stages.
-            var signatureValidators = new List<IValidator>();
+            // Build a validator using the fluent Cose.Sign1Message() builder pattern.
+            // This demonstrates the V2 API that programmatic callers should use.
+            // Providers are responsible for supplying all necessary validators including
+            // signature validators (e.g., CertificateSignatureValidator for X.509).
+            var builder = Cose.Sign1Message(LoggerFactory);
 
-            if (!hasEmbeddedPayload && !isIndirectSignature)
+            // Add validators from activated providers, tracking if any provide signature validation
+            bool hasSignatureValidator = false;
+            foreach (var validator in providerValidators)
             {
-                // Detached signatures require payload to verify cryptographically.
-                signatureValidators.Add(new CertificateSignatureValidator(payloadBytes!, allowUnprotectedHeaders: true));
+                builder.AddValidator(validator);
+                if (validator.Stages.Contains(ValidationStage.Signature))
+                {
+                    hasSignatureValidator = true;
+                }
             }
-            else
+
+            // Fallback: if no provider supplied a signature-stage validator, add a no-op
+            // validator that logs a warning. This ensures the builder can build successfully
+            // while making it clear that no actual signature verification occurred.
+            // Real signature validators should be provided by verification providers that
+            // understand the signature type (e.g., X509VerificationProvider for X.509).
+            if (!hasSignatureValidator)
             {
-                signatureValidators.Add(new CertificateSignatureValidator(allowUnprotectedHeaders: true));
+                var noOpLogger = LoggerFactory?.CreateLogger<Validation.NoOpSignatureValidator>();
+                builder.AddValidator(new Validation.NoOpSignatureValidator(noOpLogger));
             }
 
-            var allValidators = new List<IValidator>(providerValidators.Count + signatureValidators.Count);
-            allValidators.AddRange(providerValidators);
-            allValidators.AddRange(signatureValidators);
-
-            TrustPolicy trustPolicy;
+            // Configure trust policy
             if (signatureOnly)
             {
                 // Signature-only mode is intended to validate cryptographic correctness only.
                 // It should not fail due to trust policy requirements.
-                trustPolicy = TrustPolicy.AllowAll(ClassStrings.TrustPolicyReasonSignatureOnlyMode);
+                builder.AllowAllTrust(ClassStrings.TrustPolicyReasonSignatureOnlyMode);
             }
             else if (providerTrustPolicies.Count == 0)
             {
-                trustPolicy = TrustPolicy.DenyAll(ClassStrings.TrustPolicyReasonNoTrustPolicyProvided);
-            }
-            else if (providerTrustPolicies.Count == 1)
-            {
-                trustPolicy = providerTrustPolicies[0];
+                builder.DenyAllTrust(ClassStrings.TrustPolicyReasonNoTrustPolicyProvided);
             }
             else
             {
-                Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
+                if (providerTrustPolicies.Count > 1)
+                {
+                    Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
+                }
 
-                trustPolicy = TrustPolicy.And(providerTrustPolicies.ToArray());
+                // Combine all provider trust policies into a single AND policy
+                var combinedPolicy = providerTrustPolicies.Count == 1
+                    ? providerTrustPolicies[0]
+                    : TrustPolicy.And(providerTrustPolicies.ToArray());
+
+                builder.OverrideDefaultTrustPolicy(combinedPolicy);
             }
 
             if (activatedProviders.Count > 0)
@@ -332,7 +354,9 @@ public class VerifyCommandHandler
                     string.Join(ClassStrings.ListSeparatorCommaSpace, activatedProviders));
             }
 
-            var validationResult = CoseSign1Validator.Validate(message, allValidators, trustPolicy);
+            // Build and execute the validator
+            var coseValidator = builder.Build();
+            var validationResult = coseValidator.Validate(message);
 
             if (!validationResult.Resolution.IsValid)
             {

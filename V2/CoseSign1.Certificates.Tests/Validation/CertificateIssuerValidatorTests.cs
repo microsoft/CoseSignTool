@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
-
-namespace CoseSign1.Certificates.Tests.Validation;
 
 /// <summary>
 /// Tests for the CertificateIssuerValidator class.

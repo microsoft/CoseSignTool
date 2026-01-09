@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Local;
+
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
-
-namespace CoseSign1.Certificates.Tests.Local;
 
 public class DirectCertificateSourceTests
 {

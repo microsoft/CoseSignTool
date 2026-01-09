@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSign1.Certificates.Remote;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// RSA implementation that delegates signing operations to a remote service.

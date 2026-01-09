@@ -80,6 +80,13 @@ public interface ICertificateValidationBuilder
     ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true);
 
     /// <summary>
+    /// Configures the logger factory for diagnostic logging in validators.
+    /// </summary>
+    /// <param name="loggerFactory">The logger factory to use for creating loggers.</param>
+    /// <returns>The builder for method chaining.</returns>
+    ICertificateValidationBuilder WithLoggerFactory(ILoggerFactory? loggerFactory);
+
+    /// <summary>
     /// Validates the certificate chain using system roots.
     /// </summary>
     /// <param name="allowUntrusted">Whether to allow an untrusted chain.</param>

@@ -13,34 +13,27 @@ public class AzureKeyVaultCertificateSourceTests
 {
     private const string TestCertificateName = "test-signing-cert";
     private const string TestCertificateVersion = "v1";
-    private readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
-    private readonly Uri TestKeyId = new("https://test-vault.vault.azure.net/keys/test-signing-cert/v1");
+    private static readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
+    private static readonly Uri TestKeyId = new("https://test-vault.vault.azure.net/keys/test-signing-cert/v1");
 
-    private Mock<TokenCredential> MockCredential = null!;
-    private Mock<CertificateClient> MockCertificateClient = null!;
-    private Mock<SecretClient> MockSecretClient = null!;
-    private Mock<KeyClient> MockKeyClient = null!;
-    private X509Certificate2 TestCertificate = null!;
-    private X509Certificate2 TestEcdsaCertificate = null!;
-
-    [SetUp]
-    public void SetUp()
+    private static (
+        Mock<TokenCredential> Credential,
+        Mock<CertificateClient> CertificateClient,
+        Mock<SecretClient> SecretClient,
+        Mock<KeyClient> KeyClient,
+        X509Certificate2 TestCertificate,
+        X509Certificate2 TestEcdsaCertificate) CreateTestState()
     {
-        MockCredential = new Mock<TokenCredential>();
-        MockCertificateClient = new Mock<CertificateClient>();
-        MockSecretClient = new Mock<SecretClient>();
-        MockKeyClient = new Mock<KeyClient>();
+        var mockCredential = new Mock<TokenCredential>();
+        var mockCertificateClient = new Mock<CertificateClient>();
+        var mockSecretClient = new Mock<SecretClient>();
+        var mockKeyClient = new Mock<KeyClient>();
 
         // Create test certificates using helper from CoseSign1.Tests.Common
-        TestCertificate = LocalCertificateFactory.CreateRsaCertificate("TestCert", 2048);
-        TestEcdsaCertificate = LocalCertificateFactory.CreateEcdsaCertificate("TestEcdsaCert", 256);
-    }
+        var testCertificate = LocalCertificateFactory.CreateRsaCertificate("TestCert", 2048);
+        var testEcdsaCertificate = LocalCertificateFactory.CreateEcdsaCertificate("TestEcdsaCert", 256);
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCertificate?.Dispose();
-        TestEcdsaCertificate?.Dispose();
+        return (mockCredential, mockCertificateClient, mockSecretClient, mockKeyClient, testCertificate, testEcdsaCertificate);
     }
 
     #region CreateAsync Parameter Validation Tests
@@ -48,12 +41,16 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void CreateAsync_WithNullVaultUri_ThrowsArgumentNullException()
     {
+        var state = CreateTestState();
+        using var _ = state.TestCertificate;
+        using var __ = state.TestEcdsaCertificate;
+
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await AzureKeyVaultCertificateSource.CreateAsync(
                 null!,
                 TestCertificateName,
-                MockCredential.Object));
+                state.Credential.Object));
 
         Assert.That(ex.ParamName, Is.EqualTo("vaultUri"));
     }
@@ -61,12 +58,16 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void CreateAsync_WithNullCertificateName_ThrowsArgumentNullException()
     {
+        var state = CreateTestState();
+        using var _ = state.TestCertificate;
+        using var __ = state.TestEcdsaCertificate;
+
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await AzureKeyVaultCertificateSource.CreateAsync(
                 TestVaultUri,
                 null!,
-                MockCredential.Object));
+                state.Credential.Object));
 
         Assert.That(ex.ParamName, Is.EqualTo("certificateName"));
     }
@@ -87,15 +88,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void CreateAsync_WithClients_NullCertificateClient_ThrowsArgumentNullException()
     {
+        var state = CreateTestState();
+        using var _ = state.TestCertificate;
+        using var __ = state.TestEcdsaCertificate;
+
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await AzureKeyVaultCertificateSource.CreateAsync(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
+                state.Credential.Object,
                 null!,
-                MockSecretClient.Object,
-                MockKeyClient.Object));
+                state.SecretClient.Object,
+                state.KeyClient.Object));
 
         Assert.That(ex.ParamName, Is.EqualTo("certificateClient"));
     }
@@ -103,15 +108,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void CreateAsync_WithClients_NullSecretClient_ThrowsArgumentNullException()
     {
+        var state = CreateTestState();
+        using var _ = state.TestCertificate;
+        using var __ = state.TestEcdsaCertificate;
+
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await AzureKeyVaultCertificateSource.CreateAsync(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
                 null!,
-                MockKeyClient.Object));
+                state.KeyClient.Object));
 
         Assert.That(ex.ParamName, Is.EqualTo("secretClient"));
     }
@@ -119,14 +128,18 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void CreateAsync_WithClients_NullKeyClient_ThrowsArgumentNullException()
     {
+        var state = CreateTestState();
+        using var _ = state.TestCertificate;
+        using var __ = state.TestEcdsaCertificate;
+
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await AzureKeyVaultCertificateSource.CreateAsync(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
                 null!));
 
         Assert.That(ex.ParamName, Is.EqualTo("keyClient"));
@@ -139,16 +152,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullVaultUri_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 null!,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -159,16 +175,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullCertificateName_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 null!,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -179,16 +198,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullCredential_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
                 null!,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -199,16 +221,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullCertificateClient_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
+                state.Credential.Object,
                 null!,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -219,16 +244,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullSecretClient_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
                 null!,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -239,16 +267,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullKeyClient_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
                 null!,
-                TestCertificate,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 TestCertificateVersion));
@@ -259,15 +290,18 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullCertificate_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
                 null!,
                 KeyVaultCertificateKeyMode.Local,
                 null,
@@ -279,16 +313,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_WithNullCurrentVersion_ThrowsArgumentNullException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Local,
                 null,
                 null!));
@@ -299,16 +336,19 @@ public class AzureKeyVaultCertificateSourceTests
     [Test]
     public void Create_RemoteModeWithNullCryptoWrapper_ThrowsArgumentException()
     {
+        // Arrange
+        var state = CreateTestState();
+
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(() =>
             AzureKeyVaultCertificateSource.Create(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
-                TestCertificate,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
+                state.TestCertificate,
                 KeyVaultCertificateKeyMode.Remote,
                 null,
                 TestCertificateVersion));
@@ -341,7 +381,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void VaultUri_ReturnsConfiguredUri()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.VaultUri, Is.EqualTo(TestVaultUri));
@@ -351,7 +392,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void Name_ReturnsCertificateName()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.Name, Is.EqualTo(TestCertificateName));
@@ -361,7 +403,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void Version_ReturnsCurrentCertificateVersion()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.Version, Is.EqualTo(TestCertificateVersion));
@@ -371,14 +414,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void IsPinnedVersion_WhenVersionSpecified_ReturnsTrue()
     {
         // Arrange
+        var state = CreateTestState();
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion,
@@ -392,7 +436,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void IsPinnedVersion_WhenVersionNotSpecified_ReturnsFalse()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.IsPinnedVersion, Is.False);
@@ -402,14 +447,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void AutoRefreshInterval_WhenPinned_ReturnsNull()
     {
         // Arrange
+        var state = CreateTestState();
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion,
@@ -423,15 +469,16 @@ public class AzureKeyVaultCertificateSourceTests
     public void AutoRefreshInterval_WhenConfigured_ReturnsConfiguredValue()
     {
         // Arrange
+        var state = CreateTestState();
         var refreshInterval = TimeSpan.FromMinutes(30);
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion,
@@ -445,7 +492,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void KeyMode_WhenLocal_ReturnsLocal()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Local));
@@ -455,7 +503,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void KeyMode_WhenRemote_ReturnsRemote()
     {
         // Arrange
-        using var source = CreateRemoteModeSource();
+        var state = CreateTestState();
+        using var source = CreateRemoteModeSource(state);
 
         // Assert
         Assert.That(source.KeyMode, Is.EqualTo(KeyVaultCertificateKeyMode.Remote));
@@ -465,7 +514,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void RequiresRemoteSigning_WhenKeyModeRemote_ReturnsTrue()
     {
         // Arrange
-        using var source = CreateRemoteModeSource();
+        var state = CreateTestState();
+        using var source = CreateRemoteModeSource(state);
 
         // Assert
         Assert.That(source.RequiresRemoteSigning, Is.True);
@@ -475,7 +525,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void RequiresRemoteSigning_WhenKeyModeLocal_ReturnsFalse()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Assert
         Assert.That(source.RequiresRemoteSigning, Is.False);
@@ -489,21 +540,23 @@ public class AzureKeyVaultCertificateSourceTests
     public void GetSigningCertificate_ReturnsCertificate()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Act
         var cert = source.GetSigningCertificate();
 
         // Assert
         Assert.That(cert, Is.Not.Null);
-        Assert.That(cert.Subject, Is.EqualTo(TestCertificate.Subject));
+        Assert.That(cert.Subject, Is.EqualTo(state.TestCertificate.Subject));
     }
 
     [Test]
     public void GetSigningCertificate_WhenLocalMode_CertificateHasPrivateKey()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
 
         // Act
         var cert = source.GetSigningCertificate();
@@ -516,14 +569,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void GetSigningCertificate_WhenRemoteMode_CertificatePublicKeyUsable()
     {
         // Arrange
-        using var source = CreateRemoteModeSource();
+        var state = CreateTestState();
+        using var source = CreateRemoteModeSource(state);
 
         // Act
         var cert = source.GetSigningCertificate();
 
         // Assert - certificate should be accessible even in remote mode
         Assert.That(cert, Is.Not.Null);
-        Assert.That(cert.Subject, Is.EqualTo(TestCertificate.Subject));
+        Assert.That(cert.Subject, Is.EqualTo(state.TestCertificate.Subject));
     }
 
     #endregion
@@ -534,7 +588,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithRsa_WhenLocalMode_SignsData()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
@@ -549,7 +604,8 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignDataWithRsaAsync_WhenLocalMode_SignsData()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
@@ -564,7 +620,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignHashWithRsa_WhenLocalMode_SignsHash()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -580,7 +637,8 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignHashWithRsaAsync_WhenLocalMode_SignsHash()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -596,14 +654,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithRsa_WhenLocalMode_VerifiesSuccessfully()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
         var signature = source.SignDataWithRsa(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
         // Assert - Verify the signature with the public key
-        using var rsa = TestCertificate.GetRSAPublicKey();
+        using var rsa = state.TestCertificate.GetRSAPublicKey();
         var isValid = rsa!.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         Assert.That(isValid, Is.True);
     }
@@ -616,7 +675,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithEcdsa_WhenLocalMode_SignsData()
     {
         // Arrange
-        using var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeEcdsaSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
@@ -631,7 +691,8 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignDataWithEcdsaAsync_WhenLocalMode_SignsData()
     {
         // Arrange
-        using var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeEcdsaSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
@@ -646,7 +707,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignHashWithEcdsa_WhenLocalMode_SignsHash()
     {
         // Arrange
-        using var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeEcdsaSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -662,7 +724,8 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignHashWithEcdsaAsync_WhenLocalMode_SignsHash()
     {
         // Arrange
-        using var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeEcdsaSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var hash = SHA256.HashData(data);
 
@@ -678,14 +741,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithEcdsa_WhenLocalMode_VerifiesSuccessfully()
     {
         // Arrange
-        using var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeEcdsaSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
         var signature = source.SignDataWithEcdsa(data, HashAlgorithmName.SHA256);
 
         // Assert - Verify the signature with the public key
-        using var ecdsa = TestEcdsaCertificate.GetECDsaPublicKey();
+        using var ecdsa = state.TestEcdsaCertificate.GetECDsaPublicKey();
         var isValid = ecdsa!.VerifyData(data, signature, HashAlgorithmName.SHA256);
         Assert.That(isValid, Is.True);
     }
@@ -698,9 +762,10 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignDataWithRsaAsync_WhenRemoteMode_UsesCryptoWrapper()
     {
         // Arrange
+        var state = CreateTestState();
         var expectedSignature = new byte[] { 10, 20, 30, 40, 50 };
         var mockCryptoWrapper = CreateMockCryptoWrapper(expectedSignature);
-        using var source = CreateRemoteModeSourceWithMockWrapper(mockCryptoWrapper);
+        using var source = CreateRemoteModeSourceWithMockWrapper(state, mockCryptoWrapper);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
@@ -714,9 +779,10 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignHashWithRsaAsync_WhenRemoteMode_UsesCryptoWrapper()
     {
         // Arrange
+        var state = CreateTestState();
         var expectedSignature = new byte[] { 10, 20, 30, 40, 50 };
         var mockCryptoWrapper = CreateMockCryptoWrapper(expectedSignature);
-        using var source = CreateRemoteModeSourceWithMockWrapper(mockCryptoWrapper);
+        using var source = CreateRemoteModeSourceWithMockWrapper(state, mockCryptoWrapper);
         var hash = SHA256.HashData(new byte[] { 1, 2, 3, 4, 5 });
 
         // Act
@@ -734,6 +800,7 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task CreateAsync_WhenCertificateIsExportableAndNotForced_UsesSecretPlaneAndReturnsLocalModeWithPrivateKey()
     {
         // Arrange
+        var state = CreateTestState();
         using var certWithKey = LocalCertificateFactory.CreateRsaCertificate("AKVExportable", 2048);
         var pfxBytes = certWithKey.Export(X509ContentType.Pkcs12);
         var secretValue = Convert.ToBase64String(pfxBytes);
@@ -743,11 +810,11 @@ public class AzureKeyVaultCertificateSourceTests
             version: TestCertificateVersion,
             cerBytes: certWithKey.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        state.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockSecretClient
+        state.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultSecret(
@@ -759,10 +826,10 @@ public class AzureKeyVaultCertificateSourceTests
         using var source = await AzureKeyVaultCertificateSource.CreateAsync(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
             certificateVersion: null,
             refreshInterval: null,
             forceRemoteMode: false,
@@ -779,6 +846,7 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task CreateAsync_WhenExportableButForcedRemote_UsesRemoteModeAndCreatesCryptoWrapper()
     {
         // Arrange
+        var state = CreateTestState();
         using var cert = LocalCertificateFactory.CreateRsaCertificate("AKVForcedRemote", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -786,11 +854,11 @@ public class AzureKeyVaultCertificateSourceTests
             version: TestCertificateVersion,
             cerBytes: cert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        state.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockKeyClient
+        state.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultRsaKey(TestKeyId), new Mock<Response>().Object));
 
@@ -798,10 +866,10 @@ public class AzureKeyVaultCertificateSourceTests
         using var source = await AzureKeyVaultCertificateSource.CreateAsync(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
             certificateVersion: null,
             refreshInterval: null,
             forceRemoteMode: true,
@@ -817,6 +885,7 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task CreateAsync_WhenCertificateIsNotExportable_UsesRemoteMode()
     {
         // Arrange
+        var state = CreateTestState();
         using var cert = LocalCertificateFactory.CreateRsaCertificate("AKVNotExportable", 2048);
 
         var kvCert = CreateKeyVaultCertificateWithPolicy(
@@ -824,11 +893,11 @@ public class AzureKeyVaultCertificateSourceTests
             version: TestCertificateVersion,
             cerBytes: cert.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        state.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
-        MockKeyClient
+        state.KeyClient
             .Setup(k => k.GetKeyAsync(TestCertificateName, TestCertificateVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(CreateKeyVaultRsaKey(TestKeyId), new Mock<Response>().Object));
 
@@ -836,10 +905,10 @@ public class AzureKeyVaultCertificateSourceTests
         using var source = await AzureKeyVaultCertificateSource.CreateAsync(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
             certificateVersion: null,
             refreshInterval: null,
             forceRemoteMode: false,
@@ -855,12 +924,13 @@ public class AzureKeyVaultCertificateSourceTests
     public void CreateAsync_WhenRemoteModeAndCertBytesMissing_ThrowsInvalidOperationException()
     {
         // Arrange
+        var state = CreateTestState();
         var kvCert = CreateKeyVaultCertificateWithPolicy(
             exportable: false,
             version: TestCertificateVersion,
             cerBytes: Array.Empty<byte>());
 
-        MockCertificateClient
+        state.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
@@ -869,10 +939,10 @@ public class AzureKeyVaultCertificateSourceTests
             await AzureKeyVaultCertificateSource.CreateAsync(
                 TestVaultUri,
                 TestCertificateName,
-                MockCredential.Object,
-                MockCertificateClient.Object,
-                MockSecretClient.Object,
-                MockKeyClient.Object,
+                state.Credential.Object,
+                state.CertificateClient.Object,
+                state.SecretClient.Object,
+                state.KeyClient.Object,
                 certificateVersion: null,
                 refreshInterval: null,
                 forceRemoteMode: false,
@@ -889,7 +959,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithMLDsa_ThrowsNotSupportedException()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act & Assert
@@ -901,7 +972,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignDataWithMLDsaAsync_ThrowsNotSupportedException()
     {
         // Arrange
-        using var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        using var source = CreateLocalModeSource(state);
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act & Assert
@@ -917,14 +989,15 @@ public class AzureKeyVaultCertificateSourceTests
     public void RefreshCertificateAsync_WhenPinned_ThrowsInvalidOperationException()
     {
         // Arrange
+        var state = CreateTestState();
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion,
@@ -939,14 +1012,15 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task RefreshCertificateAsync_WhenVersionUnchanged_ReturnsFalse()
     {
         // Arrange
+        var state = CreateTestState();
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion,
@@ -955,9 +1029,9 @@ public class AzureKeyVaultCertificateSourceTests
         var kvCert = CreateKeyVaultCertificateWithPolicy(
             exportable: true,
             version: TestCertificateVersion,
-            cerBytes: TestCertificate.Export(X509ContentType.Cert));
+            cerBytes: state.TestCertificate.Export(X509ContentType.Cert));
 
-        MockCertificateClient
+        state.CertificateClient
             .Setup(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(kvCert, new Mock<Response>().Object));
 
@@ -972,6 +1046,7 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task RefreshCertificateAsync_WhenVersionChanged_UpdatesCertificateAndReturnsTrue()
     {
         // Arrange
+        var state = CreateTestState();
         const string newVersion = "v2";
 
         using var initialCert = LocalCertificateFactory.CreateRsaCertificate("AKVRefreshOld", 2048);
@@ -980,10 +1055,10 @@ public class AzureKeyVaultCertificateSourceTests
         using var source = AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
             initialCert,
             KeyVaultCertificateKeyMode.Local,
             null,
@@ -997,14 +1072,14 @@ public class AzureKeyVaultCertificateSourceTests
             cerBytes: newCert.Export(X509ContentType.Cert));
 
         // Second call inside LoadCertificateAsync also hits GetCertificateAsync; return same latest
-        MockCertificateClient
+        state.CertificateClient
             .SetupSequence(c => c.GetCertificateAsync(TestCertificateName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(latestKvCert, new Mock<Response>().Object))
             .ReturnsAsync(Response.FromValue(latestKvCert, new Mock<Response>().Object));
 
         // Secret download for v2
         var pfxBytes = newCert.Export(X509ContentType.Pkcs12);
-        MockSecretClient
+        state.SecretClient
             .Setup(s => s.GetSecretAsync(TestCertificateName, newVersion, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(
                 CreateKeyVaultSecret(
@@ -1030,7 +1105,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void Dispose_DoesNotThrow()
     {
         // Arrange
-        var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeSource(state);
 
         // Act & Assert
         Assert.DoesNotThrow(() => source.Dispose());
@@ -1040,7 +1116,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void Dispose_CalledMultipleTimes_DoesNotThrow()
     {
         // Arrange
-        var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeSource(state);
 
         // Act & Assert
         Assert.DoesNotThrow(() =>
@@ -1055,7 +1132,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignAfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeSource(state);
         source.Dispose();
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
@@ -1068,7 +1146,8 @@ public class AzureKeyVaultCertificateSourceTests
     public async Task SignAsyncAfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeSource(state);
         source.Dispose();
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
@@ -1081,7 +1160,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignHashAfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var source = CreateLocalModeSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeSource(state);
         source.Dispose();
         var hash = SHA256.HashData(new byte[] { 1, 2, 3, 4, 5 });
 
@@ -1094,7 +1174,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignEcdsaAfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeEcdsaSource(state);
         source.Dispose();
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
@@ -1107,7 +1188,8 @@ public class AzureKeyVaultCertificateSourceTests
     public void SignHashEcdsaAfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var source = CreateLocalModeEcdsaSource();
+        var state = CreateTestState();
+        var source = CreateLocalModeEcdsaSource(state);
         source.Dispose();
         var hash = SHA256.HashData(new byte[] { 1, 2, 3, 4, 5 });
 
@@ -1120,68 +1202,73 @@ public class AzureKeyVaultCertificateSourceTests
 
     #region Helper Methods
 
-    private AzureKeyVaultCertificateSource CreateLocalModeSource()
+    private static AzureKeyVaultCertificateSource CreateLocalModeSource(
+        (Mock<TokenCredential> Credential, Mock<CertificateClient> CertificateClient, Mock<SecretClient> SecretClient, Mock<KeyClient> KeyClient, X509Certificate2 TestCertificate, X509Certificate2 TestEcdsaCertificate) state)
     {
         return AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion);
     }
 
-    private AzureKeyVaultCertificateSource CreateLocalModeEcdsaSource()
+    private static AzureKeyVaultCertificateSource CreateLocalModeEcdsaSource(
+        (Mock<TokenCredential> Credential, Mock<CertificateClient> CertificateClient, Mock<SecretClient> SecretClient, Mock<KeyClient> KeyClient, X509Certificate2 TestCertificate, X509Certificate2 TestEcdsaCertificate) state)
     {
         return AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestEcdsaCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestEcdsaCertificate,
             KeyVaultCertificateKeyMode.Local,
             null,
             TestCertificateVersion);
     }
 
-    private AzureKeyVaultCertificateSource CreateRemoteModeSource()
+    private static AzureKeyVaultCertificateSource CreateRemoteModeSource(
+        (Mock<TokenCredential> Credential, Mock<CertificateClient> CertificateClient, Mock<SecretClient> SecretClient, Mock<KeyClient> KeyClient, X509Certificate2 TestCertificate, X509Certificate2 TestEcdsaCertificate) state)
     {
         var cryptoWrapper = CreateTestCryptoWrapper();
         return AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Remote,
             cryptoWrapper,
             TestCertificateVersion);
     }
 
-    private AzureKeyVaultCertificateSource CreateRemoteModeSourceWithMockWrapper(KeyVaultCryptoClientWrapper wrapper)
+    private static AzureKeyVaultCertificateSource CreateRemoteModeSourceWithMockWrapper(
+        (Mock<TokenCredential> Credential, Mock<CertificateClient> CertificateClient, Mock<SecretClient> SecretClient, Mock<KeyClient> KeyClient, X509Certificate2 TestCertificate, X509Certificate2 TestEcdsaCertificate) state,
+        KeyVaultCryptoClientWrapper wrapper)
     {
         return AzureKeyVaultCertificateSource.Create(
             TestVaultUri,
             TestCertificateName,
-            MockCredential.Object,
-            MockCertificateClient.Object,
-            MockSecretClient.Object,
-            MockKeyClient.Object,
-            TestCertificate,
+            state.Credential.Object,
+            state.CertificateClient.Object,
+            state.SecretClient.Object,
+            state.KeyClient.Object,
+            state.TestCertificate,
             KeyVaultCertificateKeyMode.Remote,
             wrapper,
             TestCertificateVersion);
     }
 
-    private KeyVaultCryptoClientWrapper CreateTestCryptoWrapper()
+    private static KeyVaultCryptoClientWrapper CreateTestCryptoWrapper()
     {
         var mockCryptoClient = new Mock<CryptographyClient>();
 

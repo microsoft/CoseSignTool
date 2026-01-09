@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Builders;
 
 using CoseSign1.Validation.Interfaces;
+using Microsoft.Extensions.Logging;
 
 internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
 {
@@ -21,10 +22,21 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
 
     private readonly List<IValidator> Validators = new();
 
-    private readonly List<TrustPolicy> RequiredTrustPolicies = new();
     private TrustPolicy? ExplicitTrustPolicy;
 
     private readonly ValidationBuilderContext ContextField = new();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CoseSign1ValidationBuilder"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">Optional logger factory for creating loggers in validators.</param>
+    public CoseSign1ValidationBuilder(ILoggerFactory? loggerFactory = null)
+    {
+        LoggerFactory = loggerFactory;
+    }
+
+    /// <inheritdoc/>
+    public ILoggerFactory? LoggerFactory { get; }
 
     public ValidationBuilderContext Context => ContextField;
 
@@ -68,33 +80,31 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
     }
 
     /// <summary>
-    /// Requires that the specified trust policy is satisfied.
+    /// Overrides the default trust policy with a custom policy.
     /// </summary>
-    /// <param name="policy">The required trust policy.</param>
+    /// <param name="policy">The trust policy to use.</param>
     /// <returns>The same builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="policy"/> is null.</exception>
-    public ICoseSign1ValidationBuilder RequireTrust(TrustPolicy policy)
+    public ICoseSign1ValidationBuilder OverrideDefaultTrustPolicy(TrustPolicy policy)
     {
         if (policy == null)
         {
             throw new ArgumentNullException(nameof(policy));
         }
 
-        RequiredTrustPolicies.Add(policy);
+        ExplicitTrustPolicy = policy;
         return this;
     }
 
     public ICoseSign1ValidationBuilder AllowAllTrust(string? reason = null)
     {
         ExplicitTrustPolicy = TrustPolicy.AllowAll(reason);
-        RequiredTrustPolicies.Clear();
         return this;
     }
 
     public ICoseSign1ValidationBuilder DenyAllTrust(string? reason = null)
     {
         ExplicitTrustPolicy = TrustPolicy.DenyAll(reason);
-        RequiredTrustPolicies.Clear();
         return this;
     }
 
@@ -115,11 +125,13 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
         TrustPolicy trustPolicy;
         if (ExplicitTrustPolicy != null)
         {
+            // Explicit trust policy overrides all defaults from validators
             trustPolicy = ExplicitTrustPolicy;
         }
         else
         {
-            var policies = new List<TrustPolicy>(RequiredTrustPolicies);
+            // Collect default trust policies from trust validators
+            var policies = new List<TrustPolicy>();
 
             var overrides = GetTrustPolicyOverridesOrEmpty();
             foreach (var validator in trustValidators)

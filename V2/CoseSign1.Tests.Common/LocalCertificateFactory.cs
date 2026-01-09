@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Tests.Common;
+
 using System.Runtime.CompilerServices;
 using CoseSign1.Certificates.Local;
-
-namespace CoseSign1.Tests.Common;
 
 /// <summary>
 /// Provides convenient access to the <see cref="EphemeralCertificateFactory"/> 

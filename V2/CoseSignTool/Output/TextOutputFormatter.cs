@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSignTool.Output;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Text-based output formatter for console output.

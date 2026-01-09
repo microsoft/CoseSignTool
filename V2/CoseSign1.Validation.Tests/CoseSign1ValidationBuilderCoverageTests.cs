@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using CoseSign1.Validation.Builders;
 using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Validation.Tests;
 
 [TestFixture]
 public sealed class CoseSign1ValidationBuilderCoverageTests
@@ -44,11 +44,11 @@ public sealed class CoseSign1ValidationBuilderCoverageTests
     }
 
     [Test]
-    public void AllowAllTrust_OverridesAndClearsRequiredPolicies()
+    public void AllowAllTrust_OverridesAndClearsTrustPolicy()
     {
         var builder = new CoseSign1ValidationBuilder();
         builder.AddValidator(new NoOpValidator(ValidationStage.Signature));
-        builder.RequireTrust(TrustPolicy.Claim("x"));
+        builder.OverrideDefaultTrustPolicy(TrustPolicy.Claim("x"));
         builder.AllowAllTrust("ok");
 
         var validator = builder.Build();
@@ -60,11 +60,11 @@ public sealed class CoseSign1ValidationBuilderCoverageTests
     }
 
     [Test]
-    public void DenyAllTrust_OverridesAndClearsRequiredPolicies()
+    public void DenyAllTrust_OverridesAndClearsTrustPolicy()
     {
         var builder = new CoseSign1ValidationBuilder();
         builder.AddValidator(new NoOpValidator(ValidationStage.Signature));
-        builder.RequireTrust(TrustPolicy.Claim("x"));
+        builder.OverrideDefaultTrustPolicy(TrustPolicy.Claim("x"));
         builder.DenyAllTrust("no");
 
         var validator = builder.Build();
@@ -204,18 +204,18 @@ public sealed class CoseSign1ValidationBuilderCoverageTests
     }
 
     [Test]
-    public void RequireTrust_Null_Throws()
+    public void OverrideDefaultTrustPolicy_Null_Throws()
     {
         var builder = new CoseSign1ValidationBuilder();
-        Assert.That(() => builder.RequireTrust(null!), Throws.ArgumentNullException);
+        Assert.That(() => builder.OverrideDefaultTrustPolicy(null!), Throws.ArgumentNullException);
     }
 
     [Test]
-    public void Build_WithSingleRequiredTrustPolicy_UsesThatPolicy()
+    public void Build_WithOverrideDefaultTrustPolicy_UsesThatPolicy()
     {
         var builder = new CoseSign1ValidationBuilder();
         builder.AddValidator(new NoOpValidator(ValidationStage.Signature));
-        builder.RequireTrust(TrustPolicy.Claim("required"));
+        builder.OverrideDefaultTrustPolicy(TrustPolicy.Claim("required"));
 
         var validator = builder.Build();
 
@@ -224,12 +224,12 @@ public sealed class CoseSign1ValidationBuilderCoverageTests
     }
 
     [Test]
-    public void Build_WithMultipleRequiredTrustPolicies_UsesAllOf()
+    public void Build_WithMultipleTrustPolicies_CombineWithAnd()
     {
+        // Callers should combine policies using TrustPolicy.And() before calling OverrideDefaultTrustPolicy
         var builder = new CoseSign1ValidationBuilder();
         builder.AddValidator(new NoOpValidator(ValidationStage.Signature));
-        builder.RequireTrust(TrustPolicy.Claim("a"));
-        builder.RequireTrust(TrustPolicy.Claim("b"));
+        builder.OverrideDefaultTrustPolicy(TrustPolicy.And(TrustPolicy.Claim("a"), TrustPolicy.Claim("b")));
 
         var validator = builder.Build();
 

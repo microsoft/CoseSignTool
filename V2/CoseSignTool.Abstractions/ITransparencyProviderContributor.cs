@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Abstractions.Transparency;
-
 namespace CoseSignTool.Abstractions;
+
+using CoseSign1.Abstractions.Transparency;
 
 /// <summary>
 /// Interface for plugins that contribute transparency providers.

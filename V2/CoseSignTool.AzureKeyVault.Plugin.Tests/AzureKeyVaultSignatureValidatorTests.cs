@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.AzureKeyVault.Plugin.Tests;
+
 using System.Formats.Cbor;
-using System.CommandLine;
-using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Text;
 using Azure.Core;
@@ -15,10 +14,6 @@ using CoseSign1.AzureKeyVault;
 using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Results;
-using CoseSignTool.Abstractions;
-using Moq;
-
-namespace CoseSignTool.AzureKeyVault.Plugin.Tests;
 
 [TestFixture]
 public class AzureKeyVaultSignatureValidatorTests
@@ -170,10 +165,10 @@ public class AzureKeyVaultSignatureValidatorTests
     }
 
     [Test]
-    public void AddAzureKeyVaultSignatureValidator_AddsValidator()
+    public void ValidateAzureKeyVault_AddsValidator()
     {
         var builder = CoseSign1.Validation.Cose.Sign1Message();
-        var result = builder.AddAzureKeyVaultSignatureValidator(_ => { });
+        var result = builder.ValidateAzureKeyVault(_ => { });
         Assert.That(result, Is.SameAs(builder));
     }
 

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Direct;
 using CoseSign1.Tests.Common;
@@ -8,25 +10,19 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Validators;
 
-namespace CoseSign1.Validation.Tests;
-
 [TestFixture]
 public class CompositeValidatorAdditionalTests
 {
-    private CoseSign1Message? ValidMessage;
-
-    [SetUp]
     [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
-    public void SetUp()
+    private static CoseSign1Message CreateValidMessage()
     {
-        var cert = TestCertificateUtils.CreateCertificate("CompositeAdditionalTest");
+        using var cert = TestCertificateUtils.CreateCertificate("CompositeAdditionalTest");
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
-        cert.Dispose();
+        return CoseSign1Message.DecodeSign1(messageBytes);
     }
 
     [Test]
@@ -42,18 +38,22 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithEmptyValidators_ReturnsSuccess()
     {
+        var validMessage = CreateValidMessage();
         var composite = new CompositeValidator(new List<IValidator>());
 
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithParallelExecution_RunsInParallel()
     {
+        var validMessage = CreateValidMessage();
         var probe = new ConcurrencyProbe();
         var validators = new List<IValidator>
         {
@@ -63,7 +63,7 @@ public class CompositeValidatorAdditionalTests
         };
         var composite = new CompositeValidator(validators, runInParallel: true);
 
-        var validateTask = composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var validateTask = composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         // If running in parallel, multiple validators should start before we release them.
         await probe.StartedAtLeastTwoTask.WaitAsync(TimeSpan.FromSeconds(5));
@@ -75,8 +75,10 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithSequentialExecution_RunsSequentially()
     {
+        var validMessage = CreateValidMessage();
         var validators = new List<IValidator>
         {
             new DelayedValidator(50, true),
@@ -85,7 +87,7 @@ public class CompositeValidatorAdditionalTests
         var composite = new CompositeValidator(validators, runInParallel: false);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
         sw.Stop();
 
         Assert.That(result.IsValid, Is.True);
@@ -94,8 +96,10 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithParallelAndFailure_CollectsAllFailures()
     {
+        var validMessage = CreateValidMessage();
         var validators = new List<IValidator>
         {
             new MockValidator(false, "Error1"),
@@ -104,15 +108,17 @@ public class CompositeValidatorAdditionalTests
         };
         var composite = new CompositeValidator(validators, runInParallel: true);
 
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.Count, Is.EqualTo(3));
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithStopOnFirstFailure_StopsAfterFirstFailure()
     {
+        var validMessage = CreateValidMessage();
         var validator1 = new MockValidator(true);
         var validator2 = new MockValidator(false);
         var validator3 = new MockValidator(true);
@@ -120,7 +126,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: true);
 
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -129,8 +135,10 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_WithoutStopOnFirstFailure_RunsAllValidators()
     {
+        var validMessage = CreateValidMessage();
         var validator1 = new MockValidator(false);
         var validator2 = new MockValidator(false);
         var validator3 = new MockValidator(true);
@@ -138,7 +146,7 @@ public class CompositeValidatorAdditionalTests
         var validators = new List<IValidator> { validator1, validator2, validator3 };
         var composite = new CompositeValidator(validators, stopOnFirstFailure: false);
 
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(validator1.WasCalled, Is.True);
@@ -147,15 +155,17 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public async Task ValidateAsync_MergesMetadataFromSuccessfulValidators()
     {
+        var validMessage = CreateValidMessage();
         var validator1 = new MockValidator(true, metadata: new Dictionary<string, object> { ["Data1"] = "Value1" });
         var validator2 = new MockValidator(true, metadata: new Dictionary<string, object> { ["Data2"] = "Value2" });
 
         var validators = new List<IValidator> { validator1, validator2 };
         var composite = new CompositeValidator(validators);
 
-        var result = await composite.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await composite.ValidateAsync(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata.ContainsKey("MockValidator.Data1"), Is.True);
@@ -163,15 +173,17 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public void Validate_WithMetadataConflicts_NamespacesWithValidatorName()
     {
+        var validMessage = CreateValidMessage();
         var validator1 = new MockValidator(true, "V1", new Dictionary<string, object> { ["Key"] = "Value1" });
         var validator2 = new MockValidator(true, "V2", new Dictionary<string, object> { ["Key"] = "Value2" });
 
         var validators = new List<IValidator> { validator1, validator2 };
         var composite = new CompositeValidator(validators);
 
-        var result = composite.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = composite.Validate(validMessage, ValidationStage.Signature);
 
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.Metadata["MockValidator_V1.Key"], Is.EqualTo("Value1"));
@@ -179,14 +191,16 @@ public class CompositeValidatorAdditionalTests
     }
 
     [Test]
+    [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
     public void ValidateAsync_WithCancellationRequested_ThrowsTaskCanceledException()
     {
+        var validMessage = CreateValidMessage();
         var validator = new CancellableValidator();
         var composite = new CompositeValidator(new List<IValidator> { validator });
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Assert.ThrowsAsync<TaskCanceledException>(() => composite.ValidateAsync(ValidMessage!, ValidationStage.Signature, cts.Token));
+        Assert.ThrowsAsync<TaskCanceledException>(() => composite.ValidateAsync(validMessage, ValidationStage.Signature, cts.Token));
     }
 
     // Mock validators for testing

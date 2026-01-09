@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -11,33 +13,20 @@ using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 using Moq;
 
-namespace CoseSign1.Transparent.MST.Tests;
-
 [TestFixture]
 public class MstReceiptValidatorTests
 {
-    private Mock<CodeTransparencyClient> MockClient = null!;
-    private Mock<MstTransparencyProvider> MockProvider = null!;
-    private Mock<ICodeTransparencyVerifier> MockVerifier = null!;
-    private X509Certificate2 TestCert = null!;
+    private static X509Certificate2 CreateTestCert() =>
+        TestCertificateUtils.CreateCertificate("MstValidatorTestCert", useEcc: true);
 
-    [SetUp]
-    public void Setup()
-    {
-        MockClient = new Mock<CodeTransparencyClient>();
-        MockVerifier = new Mock<ICodeTransparencyVerifier>();
-        MockProvider = new Mock<MstTransparencyProvider>(
-            MockClient.Object,
-            MockVerifier.Object,
-            null, null, null, null);
-        TestCert = TestCertificateUtils.CreateCertificate("MstValidatorTestCert", useEcc: true);
-    }
+    private static Mock<CodeTransparencyClient> CreateMockClient() => new();
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static Mock<ICodeTransparencyVerifier> CreateMockVerifier() => new();
+
+    private static Mock<MstTransparencyProvider> CreateMockProvider(
+        Mock<CodeTransparencyClient> mockClient,
+        Mock<ICodeTransparencyVerifier> mockVerifier) =>
+        new(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
     #region Constructor Tests
 
@@ -45,7 +34,8 @@ public class MstReceiptValidatorTests
     public void Constructor_WithClient_CreatesValidator()
     {
         // Arrange & Act
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -62,10 +52,11 @@ public class MstReceiptValidatorTests
     public void Constructor_WithClientAndOptions_CreatesValidator()
     {
         // Arrange
+        var mockClient = CreateMockClient();
         var verificationOptions = new CodeTransparencyVerificationOptions();
 
         // Act
-        var validator = new MstReceiptValidator(MockClient.Object, verificationOptions);
+        var validator = new MstReceiptValidator(mockClient.Object, verificationOptions);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -75,19 +66,21 @@ public class MstReceiptValidatorTests
     public void Constructor_WithClientAndNullVerificationOptions_ThrowsArgumentNullException()
     {
         // Act & Assert
+        var mockClient = CreateMockClient();
         Assert.Throws<ArgumentNullException>(() =>
-            new MstReceiptValidator(MockClient.Object, null!));
+            new MstReceiptValidator(mockClient.Object, null!));
     }
 
     [Test]
     public void Constructor_WithClientOptionsAndClientOptions_CreatesValidator()
     {
         // Arrange
+        var mockClient = CreateMockClient();
         var verificationOptions = new CodeTransparencyVerificationOptions();
         var clientOptions = new CodeTransparencyClientOptions();
 
         // Act
-        var validator = new MstReceiptValidator(MockClient.Object, verificationOptions, clientOptions);
+        var validator = new MstReceiptValidator(mockClient.Object, verificationOptions, clientOptions);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -97,7 +90,10 @@ public class MstReceiptValidatorTests
     public void Constructor_WithProvider_CreatesValidator()
     {
         // Arrange & Act
-        var validator = new MstReceiptValidator(MockProvider.Object);
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        var mockProvider = CreateMockProvider(mockClient, mockVerifier);
+        var validator = new MstReceiptValidator(mockProvider.Object);
 
         // Assert
         Assert.That(validator, Is.Not.Null);
@@ -118,7 +114,8 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WithNullMessage_ReturnsFailure()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Act
         var result = await validator.ValidateAsync(null!, ValidationStage.KeyMaterialTrust);
@@ -134,7 +131,8 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WhenStageIsNotKeyMaterialTrust_ReturnsNotApplicable()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Act
         var result = await validator.ValidateAsync(null!, ValidationStage.Signature);
@@ -150,10 +148,13 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WithoutMstReceipt_ReturnsSuccessWithNegativeTrustAssertions()
     {
         // Arrange
-        var message = CreateTestMessage("test payload");
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateTestMessage(cert, "test payload");
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -174,17 +175,20 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WithValidReceipt_ReturnsSuccess()
     {
         // Arrange
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -206,9 +210,12 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WhenVerificationFails_ReturnsSuccessWithNegativeTrustedAssertion()
     {
         // Arrange
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
@@ -216,8 +223,8 @@ public class MstReceiptValidatorTests
             .Throws(new InvalidOperationException("Verification failed"));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -240,10 +247,13 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WhenExceptionThrown_ReturnsSuccessWithExceptionMetadata()
     {
         // Arrange
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateMessageWithMstReceipt(cert);
         var expectedException = new Exception("Unexpected error");
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
@@ -251,8 +261,8 @@ public class MstReceiptValidatorTests
             .Throws(expectedException);
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -275,12 +285,15 @@ public class MstReceiptValidatorTests
     public async Task ValidateAsync_WithCancellation_ReturnsSuccessWithNegativeTrustedAssertion()
     {
         // Arrange
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateMessageWithMstReceipt(cert);
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         // The exception is caught and converted to a failure result
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
@@ -288,8 +301,8 @@ public class MstReceiptValidatorTests
             .Throws(new OperationCanceledException());
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -314,7 +327,8 @@ public class MstReceiptValidatorTests
     public void Validate_WithNullMessage_ReturnsFailure()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Act
         var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
@@ -330,7 +344,8 @@ public class MstReceiptValidatorTests
     public void Validate_WhenStageIsNotKeyMaterialTrust_ReturnsNotApplicable()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Act
         var result = validator.Validate(null!, ValidationStage.Signature);
@@ -346,10 +361,13 @@ public class MstReceiptValidatorTests
     public void Validate_WithoutMstReceipt_ReturnsSuccessWithNegativeTrustAssertions()
     {
         // Arrange
-        var message = CreateTestMessage("test payload");
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateTestMessage(cert, "test payload");
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -370,17 +388,20 @@ public class MstReceiptValidatorTests
     public void Validate_WithValidReceipt_ReturnsSuccess()
     {
         // Arrange
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var message = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null, null, null, null);
         var validator = new MstReceiptValidator(provider);
 
@@ -405,7 +426,8 @@ public class MstReceiptValidatorTests
     public void IsApplicable_WithNullInput_ReturnsFalse()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var validator = new MstReceiptValidator(mockClient.Object);
 
         // Act
         var isApplicable = validator.IsApplicable(null!, ValidationStage.KeyMaterialTrust);
@@ -418,8 +440,10 @@ public class MstReceiptValidatorTests
     public void IsApplicable_WhenStageIsNotKeyMaterialTrust_ReturnsFalse()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var validator = new MstReceiptValidator(mockClient.Object);
+        var message = CreateMessageWithMstReceipt(cert);
 
         // Act
         var isApplicable = validator.IsApplicable(message, ValidationStage.Signature);
@@ -432,8 +456,10 @@ public class MstReceiptValidatorTests
     public void IsApplicable_WithoutMstReceipt_ReturnsFalse()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
-        var message = CreateTestMessage("test payload");
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var validator = new MstReceiptValidator(mockClient.Object);
+        var message = CreateTestMessage(cert, "test payload");
 
         // Act
         var isApplicable = validator.IsApplicable(message, ValidationStage.KeyMaterialTrust);
@@ -446,8 +472,10 @@ public class MstReceiptValidatorTests
     public void IsApplicable_WithMstReceipt_ReturnsTrue()
     {
         // Arrange
-        var validator = new MstReceiptValidator(MockClient.Object);
-        var message = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var validator = new MstReceiptValidator(mockClient.Object);
+        var message = CreateMessageWithMstReceipt(cert);
 
         // Act
         var isApplicable = validator.IsApplicable(message, ValidationStage.KeyMaterialTrust);
@@ -460,16 +488,16 @@ public class MstReceiptValidatorTests
 
     #region Helper Methods
 
-    private CoseSign1Message CreateTestMessage(string payload)
+    private static CoseSign1Message CreateTestMessage(X509Certificate2 cert, string payload)
     {
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var key = cert.GetECDsaPrivateKey()!;
         var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
         var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);
         var signedBytes = CoseSign1Message.SignEmbedded(payloadBytes, signer);
         return CoseMessage.DecodeSign1(signedBytes);
     }
 
-    private CoseSign1Message CreateMessageWithMstReceipt()
+    private static CoseSign1Message CreateMessageWithMstReceipt(X509Certificate2 cert)
     {
         // Create a minimal MST receipt (COSE_Sign1 structure for label 394)
         var receiptWriter = new CborWriter();
@@ -501,7 +529,7 @@ public class MstReceiptValidatorTests
         var payload = System.Text.Encoding.UTF8.GetBytes("test payload");
 
         // Create signature
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var key = cert.GetECDsaPrivateKey()!;
         var toBeSigned = CreateToBeSigned(protectedBytes, payload);
         var signature = key.SignData(toBeSigned, HashAlgorithmName.SHA256);
 

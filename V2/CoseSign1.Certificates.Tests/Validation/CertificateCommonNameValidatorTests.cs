@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Tests.Validation;
 
 /// <summary>
 /// Tests for CertificateCommonNameValidator.
@@ -15,27 +15,27 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateCommonNameValidatorTests
 {
-    private X509Certificate2? TestCert;
-    private CoseSign1Message? ValidMessage;
     private const string TestCertCN = "CommonNameTest";
 
-    [SetUp]
-    public void SetUp()
+    private sealed record TestContext(
+        X509Certificate2 TestCert,
+        CoseSign1Message ValidMessage) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate(TestCertCN);
+        public void Dispose() => TestCert.Dispose();
+    }
+
+    private static TestContext CreateTestContext()
+    {
+        var testCert = TestCertificateUtils.CreateCertificate(TestCertCN);
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
-    }
+        var validMessage = CoseSign1Message.DecodeSign1(messageBytes);
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
+        return new TestContext(testCert, validMessage);
     }
 
     [Test]
@@ -90,8 +90,9 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithMatchingCommonName_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator(TestCertCN);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -106,9 +107,10 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithMatchingCommonNameCaseInsensitive_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         // Test case-insensitive matching
         var validator = new CertificateCommonNameValidator(TestCertCN.ToUpperInvariant());
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -116,8 +118,9 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithNonMatchingCommonName_ReturnsFailure()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator("WrongCN");
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.Multiple(() =>
         {
@@ -130,8 +133,9 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public async Task ValidateAsync_WithMatchingCommonName_ReturnsSuccess()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator(TestCertCN);
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -139,9 +143,10 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public async Task ValidateAsync_WithCancellationToken_CompletesSuccessfully()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator(TestCertCN);
         using var cts = new CancellationTokenSource();
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.KeyMaterialTrust, cts.Token);
+        var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust, cts.Token);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -149,8 +154,9 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithAllowUnprotectedHeadersTrue_ValidatesSuccessfully()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator(TestCertCN, allowUnprotectedHeaders: true);
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
@@ -178,9 +184,10 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithPartialCnMatch_ReturnsFailure()
     {
+        using var ctx = CreateTestContext();
         // Partial matches should not succeed
         var validator = new CertificateCommonNameValidator("CommonName");
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
     }
@@ -206,8 +213,9 @@ public class CertificateCommonNameValidatorTests
     [Test]
     public void Validate_WithDifferentCase_MatchesCaseInsensitively()
     {
+        using var ctx = CreateTestContext();
         var validator = new CertificateCommonNameValidator("commonnametest");
-        var result = validator.Validate(ValidMessage!, ValidationStage.KeyMaterialTrust);
+        var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }

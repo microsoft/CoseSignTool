@@ -118,7 +118,7 @@ When verifying with MST:
 
 ## Integration with Validators
 
-Add MST validation to the validation pipeline:
+Add MST validation to the validation pipeline using the fluent API:
 
 ```csharp
 using Azure.Security.CodeTransparency;
@@ -128,14 +128,34 @@ using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
-var provider = new MstTransparencyProvider(client);
 
+// Build validator with fluent MST validation
 var validator = Cose.Sign1Message()
-    .AddMstReceiptValidator(b => b.UseProvider(provider))
+    .ValidateMst(mst => mst
+        .RequireReceiptPresence()           // Emit mst.receipt.present trust claim
+        .VerifyReceipt(client))             // Offline receipt validation
+    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
     .Build();
 
 CoseSign1Message message = /* ... */;
-var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var result = validator.Validate(message);
+
+if (result.Overall.IsValid)
+{
+    Console.WriteLine("MST receipt verified!");
+}
+```
+
+### Online Receipt Verification
+
+For online verification that fetches current signing keys from the service:
+
+```csharp
+var validator = Cose.Sign1Message()
+    .ValidateMst(mst => mst
+        .VerifyReceiptOnline(client, "dataplane.codetransparency.azure.net"))
+    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
+    .Build();
 ```
 
 ## Security Considerations

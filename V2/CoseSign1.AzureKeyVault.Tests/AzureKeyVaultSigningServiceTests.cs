@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Formats.Cbor;
+namespace CoseSign1.AzureKeyVault.Tests;
+
 using System.Reflection;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
-
-namespace CoseSign1.AzureKeyVault.Tests;
 
 /// <summary>
 /// Tests for <see cref="AzureKeyVaultSigningService"/>.

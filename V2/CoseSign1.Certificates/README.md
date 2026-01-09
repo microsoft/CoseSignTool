@@ -157,11 +157,12 @@ using CoseSign1.Validation;
 
 // Build validation pipeline
 var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
     .ValidateCertificate(cert => cert
         .NotExpired()
         .HasCommonName("My Trusted Signer")
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")) // Code signing
+        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3") // Code signing
+        .ValidateChain())
+    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("x509.chain.trusted"))
     .Build();
 var signatureResult = validator.Validate(message, ValidationStage.Signature);
 if (!signatureResult.IsValid)
@@ -186,13 +187,10 @@ if (!postSignatureResult.IsValid)
 
 ```csharp
 var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
-    .ValidateCertificateChain(options =>
-    {
-        options.AllowUntrusted = false;
-        options.TrustUserRoots = true;
-        options.CustomRoots = trustedRoots;
-    })
+    .ValidateCertificate(cert => cert.ValidateChain(
+        customRoots: trustedRoots,
+        trustUserRoots: true))
+    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("x509.chain.trusted"))
     .Build();
 ```
 
@@ -313,9 +311,10 @@ var result = validator.Validate(message, ValidationStage.Signature);
 
 // Or, when using the fluent builder:
 // var result = Cose.Sign1Message()
-//     .ValidateCertificateSignature(originalPayload, allowUnprotectedHeaders: false)
+//     .ValidateCertificate(originalPayload, cert => { })
+//     .AllowAllTrust("detached validation")
 //     .Build()
-//     .Validate(message, ValidationStage.Signature);
+//     .Validate(message);
 ```
 
 ## Supported Algorithms

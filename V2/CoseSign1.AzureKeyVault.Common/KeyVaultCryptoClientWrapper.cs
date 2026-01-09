@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault.Common;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using Azure.Core;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
-
-namespace CoseSign1.AzureKeyVault.Common;
 
 /// <summary>
 /// Wraps an Azure Key Vault CryptographyClient to provide remote signing operations.

@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.ChainBuilders;
+
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Certificates.ChainBuilders;
 
 /// <summary>
 /// A certificate chain builder that wraps the standard <see cref="X509Chain"/> for automatic chain building.

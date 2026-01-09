@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Extensions;
+
 using System.Formats.Cbor;
 using System.Text;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Direct;
-
-namespace CoseSign1.Certificates.Tests.Extensions;
 
 /// <summary>
 /// Tests for CoseSign1MessageCertificateExtensions certificate extraction methods.

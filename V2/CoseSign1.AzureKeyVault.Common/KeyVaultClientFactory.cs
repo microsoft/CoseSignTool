@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault.Common;
+
 using Azure.Core;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Security.KeyVault.Secrets;
-
-namespace CoseSign1.AzureKeyVault.Common;
 
 /// <summary>
 /// Factory abstraction for creating and providing Azure Key Vault SDK clients.

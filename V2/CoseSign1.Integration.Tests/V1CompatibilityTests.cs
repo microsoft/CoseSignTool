@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Integration.Tests;
+
 using System.Reflection;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using CoseSign1.Certificates.Extensions;
-
-namespace CoseSign1.Integration.Tests;
 
 /// <summary>
 /// Integration tests verifying that V2 can properly read and process COSE messages

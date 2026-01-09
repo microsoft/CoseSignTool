@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Commands.Builders;
+
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
@@ -11,8 +13,7 @@ using CoseSign1.Indirect;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Output;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool.Commands.Builders;
+using IConsole = CoseSignTool.Abstractions.IO.IConsole;
 
 /// <summary>
 /// Builds signing commands from plugin providers.
@@ -150,34 +151,23 @@ public class SigningCommandBuilder
 
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
     private readonly ILoggerFactory? LoggerFactory;
-    private readonly Func<Stream> StandardInputProvider;
-    private readonly Func<Stream> StandardOutputProvider;
-    private readonly TextWriter StandardOutput;
-    private readonly TextWriter StandardError;
+    private readonly IConsole Console;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SigningCommandBuilder"/> class.
     /// </summary>
+    /// <param name="console">Console I/O abstraction. Required for stream access.</param>
     /// <param name="transparencyProviders">Optional transparency providers to attach to signing commands.</param>
     /// <param name="loggerFactory">Optional logger factory used to create loggers for signing components.</param>
-    /// <param name="standardInputProvider">Optional provider for standard input stream (used when reading payload from stdin). Defaults to <see cref="Console.OpenStandardInput()"/>.</param>
-    /// <param name="standardOutputProvider">Optional provider for standard output stream (used when writing signatures to stdout). Defaults to <see cref="Console.OpenStandardOutput()"/>.</param>
-    /// <param name="standardOutput">Optional standard output writer (used for formatted output/help). Defaults to <see cref="Console.Out"/>.</param>
-    /// <param name="standardError">Optional standard error writer (used for formatted errors). Defaults to <see cref="Console.Error"/>.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
     public SigningCommandBuilder(
+        IConsole console,
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
-        ILoggerFactory? loggerFactory = null,
-        Func<Stream>? standardInputProvider = null,
-        Func<Stream>? standardOutputProvider = null,
-        TextWriter? standardOutput = null,
-        TextWriter? standardError = null)
+        ILoggerFactory? loggerFactory = null)
     {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
         TransparencyProviders = transparencyProviders;
         LoggerFactory = loggerFactory;
-        StandardInputProvider = standardInputProvider ?? Console.OpenStandardInput;
-        StandardOutputProvider = standardOutputProvider ?? Console.OpenStandardOutput;
-        StandardOutput = standardOutput ?? Console.Out;
-        StandardError = standardError ?? Console.Error;
     }
 
     /// <summary>
@@ -287,7 +277,7 @@ public class SigningCommandBuilder
         }
 
         // Create formatter based on output format (declare outside try for use in catch blocks)
-        var formatter = OutputFormatterFactory.Create(outputFormat, StandardOutput, StandardError);
+        var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
 
         try
         {
@@ -360,9 +350,9 @@ public class SigningCommandBuilder
 
             if (useStdin)
             {
-                // Use stdin with timeout protection - prevents hanging when no input is piped
-                payloadStream = new IO.TimeoutReadStream(StandardInputProvider());
-                shouldDisposeStream = true; // TimeoutReadStream should be disposed
+                // IConsole.StandardInput already has timeout protection via SystemConsole
+                payloadStream = Console.StandardInput;
+                shouldDisposeStream = false; // Don't dispose the console's stdin
             }
             else
             {
@@ -432,7 +422,7 @@ public class SigningCommandBuilder
                     context.GetCancellationToken(),
                     stdoutTimeoutCts.Token);
 
-                await using var stdout = StandardOutputProvider();
+                await using var stdout = Console.StandardOutputStreamProvider();
                 await WriteToStreamChunkedAsync(stdout, signatureBytes, stdoutLinkedCts.Token);
             }
             else
@@ -538,7 +528,7 @@ public class SigningCommandBuilder
         }
 
         // Add standard error writer so plugins can emit informational/errors without using global Console.Error.
-        options[ClassStrings.PluginOptionStandardError] = StandardError;
+        options[ClassStrings.PluginOptionStandardError] = Console.StandardError;
 
         return options;
     }

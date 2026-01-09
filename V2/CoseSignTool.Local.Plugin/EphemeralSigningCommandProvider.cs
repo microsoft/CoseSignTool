@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
@@ -9,8 +11,6 @@ using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSignTool.Abstractions;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool.Local.Plugin;
 
 /// <summary>
 /// Command provider for signing with ephemeral (in-memory) certificates.

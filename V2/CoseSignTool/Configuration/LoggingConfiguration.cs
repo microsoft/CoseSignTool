@@ -1,10 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
-
 namespace CoseSignTool.Configuration;
+
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Xml;
+using CoseSignTool.Abstractions.IO;
+using CoseSignTool.Output;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Configures logging for the CoseSignTool CLI application.
@@ -14,9 +18,6 @@ public static class LoggingConfiguration
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        // Console formatter
-        public static readonly string FormatterNameSimple = "simple";
-
         // Log filter namespaces
         public static readonly string FilterSystem = "System";
         public static readonly string FilterMicrosoft = "Microsoft";
@@ -31,56 +32,53 @@ public static class LoggingConfiguration
         // TextWriter logger formatting
         public static readonly string LogPrefixCloseBracketSpace = "] ";
         public static readonly string LogCategorySeparator = ": ";
+        public static readonly string LogTimestampFormat = "yyyy-MM-dd HH:mm:ss.fff";
+
+        // JSON log entry property names
+        public static readonly string JsonTimestamp = "timestamp";
+        public static readonly string JsonLevel = "level";
+        public static readonly string JsonCategory = "category";
+        public static readonly string JsonMessage = "message";
+        public static readonly string JsonException = "exception";
+
+        // XML log element names
+        public static readonly string XmlLogEntry = "LogEntry";
+        public static readonly string XmlTimestamp = "Timestamp";
+        public static readonly string XmlLevel = "Level";
+        public static readonly string XmlCategory = "Category";
+        public static readonly string XmlMessage = "Message";
+        public static readonly string XmlException = "Exception";
+
+        // ISO timestamp format
+        public static readonly string IsoTimestampFormat = "o";
     }
 
     /// <summary>
-    /// Creates and configures a logger factory based on verbosity level.
-    /// </summary>
-    /// <param name="verbosity">The verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug).</param>
-    /// <returns>A configured ILoggerFactory instance.</returns>
-    public static ILoggerFactory CreateLoggerFactory(int verbosity = 1)
-    {
-        var minLevel = verbosity switch
-        {
-            0 => LogLevel.None,
-            1 => LogLevel.Warning,
-            2 => LogLevel.Information,
-            3 => LogLevel.Debug,
-            _ when verbosity >= 4 => LogLevel.Trace,
-            _ => LogLevel.Warning
-        };
-
-        return LoggerFactory.Create(builder =>
-        {
-            builder
-                .SetMinimumLevel(minLevel)
-                .AddConsole(options =>
-                {
-                    options.FormatterName = ClassStrings.FormatterNameSimple;
-                });
-
-            // Filter out noise from System and Microsoft namespaces unless debug level
-            if (minLevel > LogLevel.Debug)
-            {
-                builder.AddFilter(ClassStrings.FilterSystem, LogLevel.Warning);
-                builder.AddFilter(ClassStrings.FilterMicrosoft, LogLevel.Warning);
-            }
-        });
-    }
-
-    /// <summary>
-    /// Creates and configures a logger factory that writes to a provided writer.
-    /// This avoids writing to global System.Console and is intended for test scenarios.
+    /// Creates and configures a logger factory that writes to the console's StandardError.
     /// </summary>
     /// <param name="verbosity">The verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace).</param>
-    /// <param name="logWriter">The writer to receive log output.</param>
+    /// <param name="console">The console to write log output to (uses StandardError).</param>
     /// <returns>A configured ILoggerFactory instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="logWriter"/> is null.</exception>
-    public static ILoggerFactory CreateLoggerFactory(int verbosity, TextWriter logWriter)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
+    public static ILoggerFactory CreateLoggerFactory(int verbosity, IConsole console)
     {
-        ArgumentNullException.ThrowIfNull(logWriter);
+        return CreateLoggerFactory(verbosity, console, logFileOptions: null);
+    }
 
-        var minLevel = verbosity switch
+    /// <summary>
+    /// Creates and configures a logger factory that writes to the console's StandardError
+    /// and optionally to a log file.
+    /// </summary>
+    /// <param name="verbosity">The verbosity level (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace).</param>
+    /// <param name="console">The console to write log output to (uses StandardError).</param>
+    /// <param name="logFileOptions">Optional log file configuration. When provided and enabled, logs will also be written to the specified file.</param>
+    /// <returns>A configured ILoggerFactory instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
+    public static ILoggerFactory CreateLoggerFactory(int verbosity, IConsole console, LogFileOptions? logFileOptions)
+    {
+        ArgumentNullException.ThrowIfNull(console);
+
+        var consoleMinLevel = verbosity switch
         {
             0 => LogLevel.None,
             1 => LogLevel.Warning,
@@ -90,17 +88,37 @@ public static class LoggingConfiguration
             _ => LogLevel.Warning
         };
 
-        // Ensure thread-safe output across parallel tests.
-        var synchronized = TextWriter.Synchronized(logWriter);
+        // File logger always uses Debug level for full diagnostics
+        var fileMinLevel = LogLevel.Debug;
+
+        // Global minimum is the lower of the two (more permissive)
+        var globalMinLevel = logFileOptions?.IsEnabled == true
+            ? (LogLevel)Math.Min((int)consoleMinLevel, (int)fileMinLevel)
+            : consoleMinLevel;
+
+        // Ensure thread-safe output across parallel operations.
+        var synchronized = TextWriter.Synchronized(console.StandardError);
 
         return LoggerFactory.Create(builder =>
         {
-            builder
-                .SetMinimumLevel(minLevel)
-                .AddProvider(new TextWriterLoggerProvider(synchronized));
+            builder.SetMinimumLevel(globalMinLevel);
+
+            // Add console provider with console-specific minimum level
+            builder.AddProvider(new TextWriterLoggerProvider(synchronized, includeTimestamp: false, ownsWriter: false, minimumLevel: consoleMinLevel));
+
+            // Add file provider if configured (always at Debug level)
+            if (logFileOptions?.IsEnabled == true)
+            {
+                var fileWriter = logFileOptions.OpenLogFile();
+                if (fileWriter != null)
+                {
+                    var synchronizedFile = TextWriter.Synchronized(fileWriter);
+                    builder.AddProvider(new FormattedLoggerProvider(synchronizedFile, logFileOptions.EffectiveFormat, ownsWriter: true, minimumLevel: fileMinLevel));
+                }
+            }
 
             // Filter out noise from System and Microsoft namespaces unless debug level
-            if (minLevel > LogLevel.Debug)
+            if (consoleMinLevel > LogLevel.Debug)
             {
                 builder.AddFilter(ClassStrings.FilterSystem, LogLevel.Warning);
                 builder.AddFilter(ClassStrings.FilterMicrosoft, LogLevel.Warning);
@@ -175,20 +193,29 @@ public static class LoggingConfiguration
     private sealed class TextWriterLoggerProvider : ILoggerProvider
     {
         private readonly TextWriter Writer;
+        private readonly bool IncludeTimestamp;
+        private readonly bool OwnsWriter;
+        private readonly LogLevel MinimumLevel;
 
-        public TextWriterLoggerProvider(TextWriter writer)
+        public TextWriterLoggerProvider(TextWriter writer, bool includeTimestamp = false, bool ownsWriter = false, LogLevel minimumLevel = LogLevel.Trace)
         {
             Writer = writer;
+            IncludeTimestamp = includeTimestamp;
+            OwnsWriter = ownsWriter;
+            MinimumLevel = minimumLevel;
         }
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new TextWriterLogger(Writer, categoryName);
+            return new TextWriterLogger(Writer, categoryName, IncludeTimestamp, MinimumLevel);
         }
 
         public void Dispose()
         {
-            // Do not dispose the underlying writer; caller owns it.
+            if (OwnsWriter)
+            {
+                Writer.Dispose();
+            }
         }
     }
 
@@ -197,11 +224,15 @@ public static class LoggingConfiguration
     {
         private readonly TextWriter Writer;
         private readonly string CategoryName;
+        private readonly bool IncludeTimestamp;
+        private readonly LogLevel MinimumLevel;
 
-        public TextWriterLogger(TextWriter writer, string categoryName)
+        public TextWriterLogger(TextWriter writer, string categoryName, bool includeTimestamp = false, LogLevel minimumLevel = LogLevel.Trace)
         {
             Writer = writer;
             CategoryName = categoryName;
+            IncludeTimestamp = includeTimestamp;
+            MinimumLevel = minimumLevel;
         }
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull
@@ -211,7 +242,7 @@ public static class LoggingConfiguration
 
         public bool IsEnabled(LogLevel logLevel)
         {
-            return logLevel != LogLevel.None;
+            return logLevel != LogLevel.None && logLevel >= MinimumLevel;
         }
 
         public void Log<TState>(
@@ -232,6 +263,12 @@ public static class LoggingConfiguration
                 return;
             }
 
+            if (IncludeTimestamp)
+            {
+                Writer.Write(DateTime.UtcNow.ToString(ClassStrings.LogTimestampFormat));
+                Writer.Write(' ');
+            }
+
             Writer.Write('[');
             Writer.Write(logLevel);
             Writer.Write(ClassStrings.LogPrefixCloseBracketSpace);
@@ -243,6 +280,171 @@ public static class LoggingConfiguration
             {
                 Writer.WriteLine(exception);
             }
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static readonly NullScope Instance = new();
+
+            public void Dispose()
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// Logger provider that formats log entries according to the specified output format.
+    /// </summary>
+    [ExcludeFromCodeCoverage]
+    private sealed class FormattedLoggerProvider : ILoggerProvider
+    {
+        private readonly TextWriter Writer;
+        private readonly OutputFormat Format;
+        private readonly bool OwnsWriter;
+        private readonly LogLevel MinimumLevel;
+
+        public FormattedLoggerProvider(TextWriter writer, OutputFormat format, bool ownsWriter = false, LogLevel minimumLevel = LogLevel.Trace)
+        {
+            Writer = writer;
+            Format = format;
+            OwnsWriter = ownsWriter;
+            MinimumLevel = minimumLevel;
+        }
+
+        public ILogger CreateLogger(string categoryName)
+        {
+            return new FormattedLogger(Writer, categoryName, Format, MinimumLevel);
+        }
+
+        public void Dispose()
+        {
+            if (OwnsWriter)
+            {
+                Writer.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Logger that formats log entries according to the specified output format.
+    /// </summary>
+    [ExcludeFromCodeCoverage]
+    private sealed class FormattedLogger : ILogger
+    {
+        private readonly TextWriter Writer;
+        private readonly string CategoryName;
+        private readonly OutputFormat Format;
+        private readonly LogLevel MinimumLevel;
+
+        public FormattedLogger(TextWriter writer, string categoryName, OutputFormat format, LogLevel minimumLevel = LogLevel.Trace)
+        {
+            Writer = writer;
+            CategoryName = categoryName;
+            Format = format;
+            MinimumLevel = minimumLevel;
+        }
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull
+        {
+            return NullScope.Instance;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return logLevel != LogLevel.None && logLevel >= MinimumLevel && Format != OutputFormat.Quiet;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (!IsEnabled(logLevel))
+            {
+                return;
+            }
+
+            var message = formatter(state, exception);
+            if (string.IsNullOrWhiteSpace(message) && exception is null)
+            {
+                return;
+            }
+
+            switch (Format)
+            {
+                case OutputFormat.Json:
+                    WriteJsonEntry(logLevel, message, exception);
+                    break;
+                case OutputFormat.Xml:
+                    WriteXmlEntry(logLevel, message, exception);
+                    break;
+                default:
+                    WriteTextEntry(logLevel, message, exception);
+                    break;
+            }
+        }
+
+        private void WriteTextEntry(LogLevel logLevel, string message, Exception? exception)
+        {
+            Writer.Write(DateTime.UtcNow.ToString(ClassStrings.LogTimestampFormat));
+            Writer.Write(' ');
+            Writer.Write('[');
+            Writer.Write(logLevel);
+            Writer.Write(ClassStrings.LogPrefixCloseBracketSpace);
+            Writer.Write(CategoryName);
+            Writer.Write(ClassStrings.LogCategorySeparator);
+            Writer.WriteLine(message);
+
+            if (exception is not null)
+            {
+                Writer.WriteLine(exception);
+            }
+        }
+
+        private void WriteJsonEntry(LogLevel logLevel, string message, Exception? exception)
+        {
+            using var stream = new MemoryStream();
+            using var jsonWriter = new Utf8JsonWriter(stream);
+
+            jsonWriter.WriteStartObject();
+            jsonWriter.WriteString(ClassStrings.JsonTimestamp, DateTime.UtcNow.ToString(ClassStrings.IsoTimestampFormat));
+            jsonWriter.WriteString(ClassStrings.JsonLevel, logLevel.ToString());
+            jsonWriter.WriteString(ClassStrings.JsonCategory, CategoryName);
+            jsonWriter.WriteString(ClassStrings.JsonMessage, message);
+            if (exception is not null)
+            {
+                jsonWriter.WriteString(ClassStrings.JsonException, exception.ToString());
+            }
+            jsonWriter.WriteEndObject();
+            jsonWriter.Flush();
+
+            stream.Position = 0;
+            using var reader = new StreamReader(stream);
+            Writer.WriteLine(reader.ReadToEnd());
+        }
+
+        private void WriteXmlEntry(LogLevel logLevel, string message, Exception? exception)
+        {
+            using var stream = new MemoryStream();
+            using var xmlWriter = XmlWriter.Create(stream, new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false });
+
+            xmlWriter.WriteStartElement(ClassStrings.XmlLogEntry);
+            xmlWriter.WriteElementString(ClassStrings.XmlTimestamp, DateTime.UtcNow.ToString(ClassStrings.IsoTimestampFormat));
+            xmlWriter.WriteElementString(ClassStrings.XmlLevel, logLevel.ToString());
+            xmlWriter.WriteElementString(ClassStrings.XmlCategory, CategoryName);
+            xmlWriter.WriteElementString(ClassStrings.XmlMessage, message);
+            if (exception is not null)
+            {
+                xmlWriter.WriteElementString(ClassStrings.XmlException, exception.ToString());
+            }
+            xmlWriter.WriteEndElement();
+            xmlWriter.Flush();
+
+            stream.Position = 0;
+            using var reader = new StreamReader(stream);
+            Writer.WriteLine(reader.ReadToEnd());
         }
 
         private sealed class NullScope : IDisposable

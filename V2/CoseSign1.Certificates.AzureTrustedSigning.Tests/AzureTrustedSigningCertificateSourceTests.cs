@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using CoseSign1.Certificates.Local;
-
 namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
+
+using Azure.Developer.TrustedSigning.CryptoProvider;
 
 /// <summary>
 /// Tests for <see cref="AzureTrustedSigningCertificateSource"/>.
@@ -14,24 +13,17 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningCertificateSourceTests
 {
-    private Mock<AzSignContext> MockSignContext = null!;
-    private X509Certificate2 TestCert = null!;
+    /// <summary>
+    /// Creates a test certificate for use in tests.
+    /// </summary>
+    private static X509Certificate2 CreateTestCert(string name = "AzureTrustedSigningTest")
+        => TestCertificateUtils.CreateCertificate(name);
 
-    [SetUp]
-    public void Setup()
-    {
-        // Create a real test certificate for use in tests
-        TestCert = TestCertificateUtils.CreateCertificate("AzureTrustedSigningTest");
-
-        // Create mock AzSignContext
-        MockSignContext = new Mock<AzSignContext>();
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    /// <summary>
+    /// Creates a mock AzSignContext for use in tests.
+    /// </summary>
+    private static Mock<AzSignContext> CreateMockSignContext()
+        => new Mock<AzSignContext>();
 
     #region Constructor Tests
 
@@ -49,11 +41,12 @@ public class AzureTrustedSigningCertificateSourceTests
     public void Constructor_WithNullCertChain_ThrowsInvalidOperationException()
     {
         // Arrange
-        MockSignContext.Setup(s => s.GetCertChain()).Returns((IReadOnlyList<X509Certificate2>?)null);
+        var mockSignContext = CreateMockSignContext();
+        mockSignContext.Setup(s => s.GetCertChain()).Returns((IReadOnlyList<X509Certificate2>?)null);
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            new AzureTrustedSigningCertificateSource(MockSignContext.Object));
+            new AzureTrustedSigningCertificateSource(mockSignContext.Object));
 
         Assert.That(ex.Message, Does.Contain("did not return a certificate chain"));
     }
@@ -62,11 +55,12 @@ public class AzureTrustedSigningCertificateSourceTests
     public void Constructor_WithEmptyCertChain_ThrowsInvalidOperationException()
     {
         // Arrange
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(new List<X509Certificate2>());
+        var mockSignContext = CreateMockSignContext();
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(new List<X509Certificate2>());
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            new AzureTrustedSigningCertificateSource(MockSignContext.Object));
+            new AzureTrustedSigningCertificateSource(mockSignContext.Object));
 
         Assert.That(ex.Message, Does.Contain("empty certificate chain"));
     }
@@ -75,12 +69,14 @@ public class AzureTrustedSigningCertificateSourceTests
     public void Constructor_WithValidCertChain_CreatesInstance()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
 
         // Act
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Assert
         Assert.That(source, Is.Not.Null);
@@ -94,27 +90,31 @@ public class AzureTrustedSigningCertificateSourceTests
     public void GetSigningCertificate_ReturnsCertificateFromContext()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act
         var result = source.GetSigningCertificate();
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Subject, Is.EqualTo(TestCert.Subject));
+        Assert.That(result.Subject, Is.EqualTo(testCert.Subject));
     }
 
     [Test]
     public void GetSigningCertificate_WhenNullReturned_ThrowsInvalidOperationException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns((X509Certificate2?)null);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns((X509Certificate2?)null);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
@@ -127,10 +127,12 @@ public class AzureTrustedSigningCertificateSourceTests
     public void GetSigningCertificate_CalledMultipleTimes_ReturnsCachedCertificate()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act
         var result1 = source.GetSigningCertificate();
@@ -138,7 +140,7 @@ public class AzureTrustedSigningCertificateSourceTests
 
         // Assert
         Assert.That(result1, Is.SameAs(result2));
-        MockSignContext.Verify(s => s.GetSigningCertificate(), Times.Once);
+        mockSignContext.Verify(s => s.GetSigningCertificate(), Times.Once);
     }
 
     #endregion
@@ -149,9 +151,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignDataWithRsa_WithNullData_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -162,9 +166,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignHashWithRsa_WithNullHash_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -175,9 +181,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public async Task SignDataWithRsaAsync_WithNullData_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -188,9 +196,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public async Task SignHashWithRsaAsync_WithNullHash_ThrowsArgumentNullException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -205,9 +215,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignDataWithEcdsa_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var data = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -221,9 +233,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignDataWithEcdsaAsync_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var data = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -237,9 +251,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignHashWithEcdsa_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var hash = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -253,9 +269,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignHashWithEcdsaAsync_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var hash = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -273,9 +291,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignDataWithMLDsa_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var data = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -289,9 +309,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void SignDataWithMLDsaAsync_ThrowsNotSupportedException()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
         var data = new byte[] { 1, 2, 3 };
 
         // Act & Assert
@@ -309,9 +331,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void Dispose_DoesNotThrow()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.DoesNotThrow(() => source.Dispose());
@@ -321,9 +345,11 @@ public class AzureTrustedSigningCertificateSourceTests
     public void Dispose_CalledMultipleTimes_DoesNotThrow()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        var source = new AzureTrustedSigningCertificateSource(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        var source = new AzureTrustedSigningCertificateSource(mockSignContext.Object);
 
         // Act & Assert
         Assert.DoesNotThrow(() =>

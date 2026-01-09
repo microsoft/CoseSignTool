@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
@@ -9,12 +11,9 @@ using System.Text;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Keys;
-using CoseSign1.AzureKeyVault;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.AzureKeyVault.Validation;
 
 /// <summary>
 /// Verifies a COSE_Sign1 signature using an embedded COSE_Key public key produced by the

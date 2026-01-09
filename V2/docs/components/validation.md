@@ -13,9 +13,37 @@ This package defines a small set of primitives for validating `CoseSign1Message`
 - `IConditionalValidator` can opt out when not applicable
 - `AnySignatureValidator` orchestrates multiple signature validators
 
-For end-to-end verification (trust-first staged verification), the preferred entry point is an immutable `CoseSign1VerificationPipeline` built via `Cose.Sign1Verifier()`.
+For end-to-end verification (trust-first staged verification), the preferred entry point is `Cose.Sign1Message()` which returns an `ICoseSign1ValidationBuilder`.
 
-`CoseSign1Verifier` is the underlying orchestration engine used by the pipeline.
+## Quick Start
+
+```csharp
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using CoseSign1.Validation.Extensions;
+
+// Option 1: Shorthand validation with inline configuration
+var result = message.Validate(builder => builder
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .HasCommonName("MySigner")
+        .ValidateChain()));
+
+if (result.Overall.IsValid)
+{
+    Console.WriteLine("Valid!");
+}
+
+// Option 2: Build a reusable validator for multiple messages
+var validator = Cose.Sign1Message()
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .HasCommonName("MySigner")
+        .ValidateChain())
+    .Build();
+
+var result = message.Validate(validator);
+```
 
 ## Core types
 
@@ -24,10 +52,10 @@ For end-to-end verification (trust-first staged verification), the preferred ent
 ```csharp
 public enum ValidationStage
 {
-    KeyMaterialResolution,
-    KeyMaterialTrust,
-    Signature,
-    PostSignature,
+    KeyMaterialResolution,  // Extract signing key from headers
+    KeyMaterialTrust,       // Evaluate trust policy
+    Signature,              // Cryptographic verification
+    PostSignature,          // Additional business rules
 }
 ```
 
@@ -126,5 +154,6 @@ ValidationResult sigResult = signatureValidator.Validate(message, ValidationStag
 ## See Also
 
 - [Architecture: Validation Framework](../architecture/validation-framework.md)
+- [Trust Policy Guide](../guides/trust-policy.md)
 - [Certificates Component](certificates.md)
 - [Custom Validators Guide](../guides/custom-validators.md)

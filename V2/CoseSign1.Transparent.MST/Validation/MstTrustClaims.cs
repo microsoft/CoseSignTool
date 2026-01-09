@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSign1.Transparent.MST.Validation;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Well-known trust-claim IDs emitted by MST trust providers.

@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Abstractions;
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSignTool.Abstractions;
 
 /// <summary>
 /// Interface for plugins that provide verification capabilities.

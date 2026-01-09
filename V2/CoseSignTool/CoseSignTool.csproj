@@ -121,8 +121,10 @@
     <!-- Automatic plugin discovery and deployment after build -->
     <Target Name="DeployAllPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
         <!-- Discover all plugin projects by looking for *.Plugin.csproj files -->
+        <!-- Exclude TestPlugins - they are only deployed during test execution -->
         <ItemGroup>
-            <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+            <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                            Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
 
         <!-- Extract plugin names from project paths -->
@@ -143,8 +145,10 @@
     <!-- Deploy plugins for publish operations -->
     <Target Name="DeployAllPluginsForPublish" AfterTargets="Publish" Condition="'$(DeployPlugins)' == 'true'">
         <!-- Discover all plugin projects -->
+        <!-- Exclude TestPlugins - they are only deployed during test execution -->
         <ItemGroup>
-            <PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+            <PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                                      Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
 
         <!-- Extract plugin names -->
@@ -163,9 +167,10 @@
 
     <!-- Target to build and deploy all plugins for local development -->
     <Target Name="BuildAndDeployPlugins">
-        <!-- First build plugins -->
+        <!-- First build plugins (exclude TestPlugins - they are only for test execution) -->
         <ItemGroup>
-            <PluginProjectsToBuild Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+            <PluginProjectsToBuild Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                                   Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
 
         <MSBuild Projects="@(PluginProjectsToBuild)" Properties="Configuration=$(Configuration)" Targets="Build" />

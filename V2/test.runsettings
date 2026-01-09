@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Test configuration for V2 projects with parallel execution -->
-<!-- Usage: dotnet test --settings test.runsettings -->
+<!--
+  Test configuration for V2 projects with parallel execution
+  Usage: dotnet test settings test.runsettings
+-->
 <RunSettings>
   <RunConfiguration>
-    <!-- Use all available CPU cores (0 = auto-detect) -->
+    <!-- Use all available CPU cores (0 = auto detect) -->
     <MaxCpuCount>0</MaxCpuCount>
     <ResultsDirectory>.\TestResults</ResultsDirectory>
     <TreatNoTestsAsError>true</TreatNoTestsAsError>
-    <!-- Don't create deployment folder per test -->
+    <!-- Do not create deployment folder per test -->
     <DisableAppDomain>false</DisableAppDomain>
   </RunConfiguration>
 

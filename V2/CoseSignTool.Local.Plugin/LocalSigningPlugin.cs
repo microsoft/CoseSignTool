@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.Local.Plugin;
 
 /// <summary>
 /// Local signing plugin for COSE Sign1 operations with local certificates.

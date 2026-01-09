@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Plugins;
+
 using System.CommandLine;
 using System.Reflection;
 using System.Runtime.Loader;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Plugins;
-
-namespace CoseSignTool.Tests.Plugins;
 
 /// <summary>
 /// Tests for the PluginLoader class.

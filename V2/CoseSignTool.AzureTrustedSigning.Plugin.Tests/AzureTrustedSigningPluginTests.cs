@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.Abstractions;
-using CoseSignTool.AzureTrustedSigning.Plugin;
-
 namespace CoseSignTool.AzureTrustedSigning.Plugin.Tests;
+
+using CoseSignTool.Abstractions;
 
 /// <summary>
 /// Tests for AzureTrustedSigningPlugin.

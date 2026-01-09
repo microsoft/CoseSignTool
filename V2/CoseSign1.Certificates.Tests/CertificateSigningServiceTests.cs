@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests;
+
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Extensions;
@@ -8,8 +10,6 @@ using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
 using Moq;
-
-namespace CoseSign1.Certificates.Tests;
 
 /// <summary>
 /// TDD tests for CertificateSigningService (shared base for local and remote).
@@ -352,7 +352,7 @@ public class CertificateSigningServiceTests
         Assert.That(options1, Is.Not.Null);
         Assert.That(options2, Is.Not.Null);
         Assert.That(options1, Is.Not.SameAs(options2), "Should return new instance each time");
-        Assert.That(options1.EnableScittCompliance, Is.False, "Default should be false");
+        Assert.That(options1.EnableScittCompliance, Is.True, "Default should be true");
     }
 
     #endregion

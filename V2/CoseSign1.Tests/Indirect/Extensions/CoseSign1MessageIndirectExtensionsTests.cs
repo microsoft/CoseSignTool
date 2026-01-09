@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Tests.Indirect.Extensions;
+
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Direct;
 using CoseSign1.Indirect.Extensions;
 using CoseSign1.Tests.Common;
-
-namespace CoseSign1.Tests.Indirect.Extensions;
 
 [TestFixture]
 public class CoseSign1MessageIndirectExtensionsTests

@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using CoseSignTool.Commands;
-
 namespace CoseSignTool.Tests.Commands;
+
+using System.CommandLine;
 
 /// <summary>
 /// Integration tests for command execution through CommandBuilder.
@@ -16,7 +15,7 @@ public class CommandIntegrationTests
     public async Task SignCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid()}.bin");
 
@@ -32,7 +31,7 @@ public class CommandIntegrationTests
     public async Task SignCommand_WithValidFile_ReturnsSuccess()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllTextAsync(tempFile, "test data");
@@ -63,7 +62,7 @@ public class CommandIntegrationTests
     public async Task VerifyCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid()}.cose");
 
@@ -79,7 +78,7 @@ public class CommandIntegrationTests
     public async Task VerifyCommand_WithInvalidCoseFile_ReturnsInvalidSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]); // Invalid COSE (incomplete)
@@ -105,7 +104,7 @@ public class CommandIntegrationTests
     public async Task InspectCommand_WithMissingFile_ReturnsFileNotFound()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid()}.cose");
 
@@ -121,7 +120,7 @@ public class CommandIntegrationTests
     public async Task InspectCommand_WithInvalidCoseFile_ReturnsInspectionFailed()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]); // Invalid COSE (incomplete)
@@ -147,7 +146,7 @@ public class CommandIntegrationTests
     public async Task SignCommand_WithDetachedSignatureType_ReturnsSuccess()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllTextAsync(tempFile, "test data");
@@ -178,7 +177,7 @@ public class CommandIntegrationTests
     public async Task SignCommand_WithCustomOutput_ReturnsSuccess()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempFile = Path.GetTempFileName();
         var customOutput = Path.Combine(Path.GetTempPath(), $"custom_{Guid.NewGuid()}.cose");

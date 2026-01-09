@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Interfaces;
-
 namespace CoseSign1.Certificates.Tests.Local;
+
+using CoseSign1.Certificates.Interfaces;
 
 /// <summary>
 /// Tests for the CertificateSigningService.Create() factory methods for local certificates.

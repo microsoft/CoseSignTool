@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates;
+
 using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
-
-namespace CoseSign1.Certificates;
 
 /// <summary>
 /// Header contributor that adds X5T (certificate thumbprint) and X5Chain (certificate chain) headers

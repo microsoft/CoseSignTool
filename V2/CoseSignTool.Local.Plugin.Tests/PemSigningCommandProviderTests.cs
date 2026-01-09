@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using CoseSignTool.Local.Plugin;
-
 namespace CoseSignTool.Local.Plugin.Tests;
+
+using System.CommandLine;
 
 /// <summary>
 /// Tests for PemSigningCommandProvider.

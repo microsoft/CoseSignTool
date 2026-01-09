@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using DIDx509.Models;
-
 namespace DIDx509.Tests.Models;
+
+using DIDx509.Models;
 
 [TestFixture]
 public class DidX509ParsedIdentifierTests

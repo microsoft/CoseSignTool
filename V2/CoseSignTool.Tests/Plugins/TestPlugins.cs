@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Plugins;
+
 using System.CommandLine;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.Tests.Plugins;
 
 // These types exist solely to be loaded by PluginLoader in tests.
 // See CommandBuilderTests for how the test assembly is copied/renamed to *.Plugin.dll.

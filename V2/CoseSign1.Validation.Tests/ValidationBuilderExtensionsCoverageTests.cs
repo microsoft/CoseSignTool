@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using CoseSign1.Validation.Builders;
 using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Validation.Tests;
 
 [TestFixture]
 public sealed class VerificationBuilderExtensionsCoverageTests
@@ -57,6 +57,8 @@ public sealed class VerificationBuilderExtensionsCoverageTests
 
     private sealed class RecordingBuilder : ICoseSign1ValidationBuilder
     {
+        public Microsoft.Extensions.Logging.ILoggerFactory? LoggerFactory { get; }
+
         public ValidationBuilderContext Context { get; } = new();
 
         public System.Collections.Generic.List<string> Calls { get; } = new();
@@ -67,9 +69,9 @@ public sealed class VerificationBuilderExtensionsCoverageTests
             return this;
         }
 
-        public ICoseSign1ValidationBuilder RequireTrust(TrustPolicy policy)
+        public ICoseSign1ValidationBuilder OverrideDefaultTrustPolicy(TrustPolicy policy)
         {
-            Calls.Add("RequireTrust");
+            Calls.Add("OverrideDefaultTrustPolicy");
             return this;
         }
 

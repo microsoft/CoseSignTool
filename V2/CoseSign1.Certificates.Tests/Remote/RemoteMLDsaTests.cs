@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Remote;
+
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
 #pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview
-
-namespace CoseSign1.Certificates.Tests.Remote;
 
 /// <summary>
 /// Tests for RemoteMLDsa class.
@@ -16,8 +16,11 @@ namespace CoseSign1.Certificates.Tests.Remote;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class RemoteMLDsaTests
 {
-    [SetUp]
-    public void Setup()
+    /// <summary>
+    /// Ensures ML-DSA is available before running each test.
+    /// Called at the beginning of each test method.
+    /// </summary>
+    private static void EnsureMLDsaSupported()
     {
         PlatformHelper.SkipIfMLDsaNotSupported();
     }
@@ -25,6 +28,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Constructor_WithMLDsa44_CreatesInstance()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -47,6 +51,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Constructor_WithMLDsa65_CreatesInstance()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -69,6 +74,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Constructor_WithMLDsa87_CreatesInstance()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -91,6 +97,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Constructor_WithNullSource_ThrowsArgumentNullException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var publicKey = new byte[1312]; // ML-DSA-44 public key size
 
@@ -101,6 +108,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Constructor_WithNullPublicKey_ThrowsArgumentNullException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -115,6 +123,7 @@ public class RemoteMLDsaTests
     [Test]
     public void SignData_DelegatesToRemoteSource()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -141,6 +150,7 @@ public class RemoteMLDsaTests
     [Test]
     public void SignPreHash_WithSHA256_DelegatesToRemoteSource()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -167,6 +177,7 @@ public class RemoteMLDsaTests
     [Test]
     public void SignPreHash_WithSHA384_DelegatesToRemoteSource()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -193,6 +204,7 @@ public class RemoteMLDsaTests
     [Test]
     public void SignPreHash_WithSHA512_DelegatesToRemoteSource()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -219,6 +231,7 @@ public class RemoteMLDsaTests
     [Test]
     public void ExportMLDsaPublicKey_ReturnsPublicKey()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -245,6 +258,7 @@ public class RemoteMLDsaTests
     [Test]
     public void ExportMLDsaPrivateKey_ThrowsCryptographicException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -267,6 +281,7 @@ public class RemoteMLDsaTests
     [Test]
     public void ExportMLDsaPrivateSeed_ThrowsCryptographicException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -288,6 +303,7 @@ public class RemoteMLDsaTests
     [Test]
     public void TryExportPkcs8PrivateKey_ThrowsCryptographicException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -309,6 +325,7 @@ public class RemoteMLDsaTests
     [Test]
     public void VerifyData_ThrowsNotSupportedException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -331,6 +348,7 @@ public class RemoteMLDsaTests
     [Test]
     public void VerifyPreHash_ThrowsNotSupportedException()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o
@@ -353,6 +371,7 @@ public class RemoteMLDsaTests
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
+        EnsureMLDsaSupported();
         // Arrange
         var factory = new EphemeralCertificateFactory();
         using var cert = factory.CreateCertificate(o => o

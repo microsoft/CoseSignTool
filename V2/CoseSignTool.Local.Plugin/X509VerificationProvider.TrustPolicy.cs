@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine.Parsing;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.Local.Plugin;
 
 public partial class X509VerificationProvider : IVerificationProviderWithTrustPolicy
 {

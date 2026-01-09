@@ -10,7 +10,7 @@
  * Enable parallel test execution at the all levels.
  * Tests within a class run sequentially, but different test classes run in parallel.
  */
-[assembly: Parallelizable(ParallelScope.All)]
+[assembly: NUnit.Framework.Parallelizable(NUnit.Framework.ParallelScope.All)]
 
 /*
  * The number of parallel workers is controlled by coverage.runsettings:

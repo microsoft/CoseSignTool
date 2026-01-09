@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.MST.Plugin.Tests;
+
 using System.CommandLine;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -11,26 +13,12 @@ using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
-using CoseSignTool.MST.Plugin;
-
-namespace CoseSignTool.MST.Plugin.Tests;
 
 [TestFixture]
 public class MstVerificationProviderTests
 {
-    private X509Certificate2 TestCert = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        TestCert = TestCertificateUtils.CreateCertificate("MstVerificationProviderTests", useEcc: true);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static X509Certificate2 CreateTestCertificate()
+        => TestCertificateUtils.CreateCertificate(nameof(MstVerificationProviderTests), useEcc: true);
 
     [Test]
     public void IsActivated_WithNoMstArgs_ReturnsFalse()
@@ -142,7 +130,8 @@ public class MstVerificationProviderTests
         var provider = new MstVerificationProvider();
         var parse = Parse(provider, new[] { "--mst-endpoint", "https://example.test", "--verify-receipt", "false" });
 
-        var message = CreateSignedMessage(TestCert);
+        using var testCert = CreateTestCertificate();
+        var message = CreateSignedMessage(testCert);
         var validationResult = ValidationResult.Success("test", ValidationStage.KeyMaterialTrust);
 
         var metadata = provider.GetVerificationMetadata(parse, message, validationResult);

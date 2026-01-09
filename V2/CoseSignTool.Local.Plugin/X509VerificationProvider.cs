@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin;
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Diagnostics.CodeAnalysis;
@@ -14,14 +16,14 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Security;
-
-namespace CoseSignTool.Local.Plugin;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Verification provider for X.509 certificate-based signature validation.
 /// Supports system trust, custom trust roots, and certificate identity validation.
 /// </summary>
-public partial class X509VerificationProvider : IVerificationProvider
+public partial class X509VerificationProvider : IVerificationProvider, IVerificationProviderWithContext
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -70,9 +72,9 @@ public partial class X509VerificationProvider : IVerificationProvider
         // Environment variable default
         public static readonly string DefaultTrustPfxPasswordEnvVar = "COSESIGNTOOL_TRUST_PFX_PASSWORD";
 
-        // Info messages
-        public static readonly string InfoUsingEnvPassword = "Using trust PFX password from environment variable: {0}";
-        public static readonly string InfoReadingPasswordFile = "Reading trust PFX password from file: {0}";
+        // Info messages - logger templates (no format specifier for structured logging)
+        public static readonly string InfoUsingEnvPassword = "Using trust PFX password from environment variable: {EnvVarName}";
+        public static readonly string InfoReadingPasswordFile = "Reading trust PFX password from file: {PasswordFile}";
 
         // Metadata keys and values
         public static readonly string MetaKeyTrustMode = "Trust Mode";
@@ -182,8 +184,20 @@ public partial class X509VerificationProvider : IVerificationProvider
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult) =>
+        CreateValidators(parseResult, context: null);
+
+    /// <inheritdoc/>
+    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext? context)
     {
+        // Get logger from context options if available
+        var loggerFactory = context?.LoggerFactory;
+        var logger = loggerFactory?.CreateLogger<X509VerificationProvider>() ?? NullLogger<X509VerificationProvider>.Instance;
+        var chainValidatorLogger = loggerFactory?.CreateLogger<CertificateChainValidator>();
+        var keyMaterialLogger = loggerFactory?.CreateLogger<CertificateKeyMaterialResolutionValidator>();
+        var cnValidatorLogger = loggerFactory?.CreateLogger<CertificateCommonNameValidator>();
+        var issuerValidatorLogger = loggerFactory?.CreateLogger<CertificateIssuerValidator>();
+
         var validators = new List<IValidator>();
 
         bool HasX509Headers(CoseSign1Message message)
@@ -209,7 +223,18 @@ public partial class X509VerificationProvider : IVerificationProvider
         // Stage 1 (Key Material Resolution): validate we can extract and parse x5t/x5chain.
         // This provides clear failures when key material is missing or malformed and allows
         // orchestration layers to run resolution before trust and signature verification.
-        validators.Add(new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true));
+        validators.Add(new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true, logger: keyMaterialLogger));
+
+        // Stage 3 (Signature): cryptographic signature verification using the X.509 certificate.
+        // The signature validator uses detached payload from context if provided.
+        if (context?.DetachedPayload != null)
+        {
+            validators.Add(new CertificateSignatureValidator(context.DetachedPayload.Value, allowUnprotectedHeaders: true));
+        }
+        else
+        {
+            validators.Add(new CertificateSignatureValidator(allowUnprotectedHeaders: true));
+        }
 
         // Parse revocation mode
         var revocationMode = ParseRevocationMode(parseResult);
@@ -217,14 +242,15 @@ public partial class X509VerificationProvider : IVerificationProvider
         // Add chain validation if we have trust requirements
         if (HasCustomTrustRoots(parseResult))
         {
-            var customRoots = LoadCustomRoots(parseResult);
+            var customRoots = LoadCustomRoots(parseResult, logger);
             if (customRoots.Count > 0)
             {
                 validators.Add(new CertificateChainValidator(
                     customRoots,
                     allowUnprotectedHeaders: true,
                     trustUserRoots: true,
-                    revocationMode: revocationMode));
+                    revocationMode: revocationMode,
+                    logger: chainValidatorLogger));
             }
         }
         else if (IsTrustSystemRoots(parseResult))
@@ -232,7 +258,8 @@ public partial class X509VerificationProvider : IVerificationProvider
             validators.Add(WhenX509Headers(new CertificateChainValidator(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: IsAllowUntrusted(parseResult),
-                revocationMode: revocationMode)));
+                revocationMode: revocationMode,
+                logger: chainValidatorLogger)));
         }
         else if (IsAllowUntrusted(parseResult))
         {
@@ -241,21 +268,22 @@ public partial class X509VerificationProvider : IVerificationProvider
             validators.Add(WhenX509Headers(new CertificateChainValidator(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: true,
-                revocationMode: X509RevocationMode.NoCheck)));
+                revocationMode: X509RevocationMode.NoCheck,
+                logger: chainValidatorLogger)));
         }
 
         // Add subject name validation
         if (HasSubjectNameRequirement(parseResult))
         {
             string subjectName = GetSubjectName(parseResult)!;
-            validators.Add(WhenX509Headers(new CertificateCommonNameValidator(subjectName, allowUnprotectedHeaders: true)));
+            validators.Add(WhenX509Headers(new CertificateCommonNameValidator(subjectName, allowUnprotectedHeaders: true, logger: cnValidatorLogger)));
         }
 
         // Add issuer name validation
         if (HasIssuerNameRequirement(parseResult))
         {
             string issuerName = GetIssuerName(parseResult)!;
-            validators.Add(WhenX509Headers(new CertificateIssuerValidator(issuerName, allowUnprotectedHeaders: true)));
+            validators.Add(WhenX509Headers(new CertificateIssuerValidator(issuerName, allowUnprotectedHeaders: true, logger: issuerValidatorLogger)));
         }
 
         return validators;
@@ -325,13 +353,13 @@ public partial class X509VerificationProvider : IVerificationProvider
         return pfx?.Exists == true;
     }
 
-    private SecureString? GetTrustPfxPassword(ParseResult parseResult)
+    private SecureString? GetTrustPfxPassword(ParseResult parseResult, ILogger logger)
     {
         // Check password file first
         var passwordFile = parseResult.GetValueForOption(TrustPfxPasswordFileOption);
         if (passwordFile?.Exists == true)
         {
-            Console.WriteLine(string.Format(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName));
+            logger.LogInformation(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName);
             return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
         }
 
@@ -341,7 +369,7 @@ public partial class X509VerificationProvider : IVerificationProvider
         var envPassword = Environment.GetEnvironmentVariable(envVarName);
         if (!string.IsNullOrEmpty(envPassword))
         {
-            Console.WriteLine(string.Format(ClassStrings.InfoUsingEnvPassword, envVarName));
+            logger.LogInformation(ClassStrings.InfoUsingEnvPassword, envVarName);
             return SecurePasswordProvider.ConvertToSecureString(envPassword);
         }
 
@@ -403,7 +431,7 @@ public partial class X509VerificationProvider : IVerificationProvider
         }
     }
 
-    private X509Certificate2Collection LoadCustomRoots(ParseResult parseResult)
+    private X509Certificate2Collection LoadCustomRoots(ParseResult parseResult, ILogger logger)
     {
         var collection = new X509Certificate2Collection();
 
@@ -433,7 +461,7 @@ public partial class X509VerificationProvider : IVerificationProvider
         {
             try
             {
-                var password = GetTrustPfxPassword(parseResult);
+                var password = GetTrustPfxPassword(parseResult, logger);
                 X509Certificate2Collection pfxCollection;
 
                 // Load from PFX using the new X509CertificateLoader API

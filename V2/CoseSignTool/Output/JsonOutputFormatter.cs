@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Output;
+
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
-
-namespace CoseSignTool.Output;
 
 /// <summary>
 /// JSON-based output formatter.
@@ -38,25 +38,25 @@ public class JsonOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        Messages.Add(new { type = ClassStrings.TypeSuccess, message });
+        Messages.Add(new { type = ClassStrings.TypeSuccess, message = message.Trim() });
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        Messages.Add(new { type = ClassStrings.TypeError, message });
+        Messages.Add(new { type = ClassStrings.TypeError, message = message.Trim() });
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        Messages.Add(new { type = ClassStrings.TypeInfo, message });
+        Messages.Add(new { type = ClassStrings.TypeInfo, message = message.Trim() });
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        Messages.Add(new { type = ClassStrings.TypeWarning, message });
+        Messages.Add(new { type = ClassStrings.TypeWarning, message = message.Trim() });
     }
 
     /// <inheritdoc/>

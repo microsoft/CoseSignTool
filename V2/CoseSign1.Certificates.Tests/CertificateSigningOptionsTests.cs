@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Headers;
-
 namespace CoseSign1.Certificates.Tests;
+
+using CoseSign1.Headers;
 
 [TestFixture]
 public class CertificateSigningOptionsTests
@@ -15,37 +15,37 @@ public class CertificateSigningOptionsTests
         var options = new CertificateSigningOptions();
 
         // Assert
-        Assert.That(options.EnableScittCompliance, Is.False, "EnableScittCompliance should default to false");
+        Assert.That(options.EnableScittCompliance, Is.True, "EnableScittCompliance should default to true");
         Assert.That(options.CustomCwtClaims, Is.Null, "CustomCwtClaims should default to null");
-    }
-
-    [Test]
-    public void EnableScittCompliance_SetToTrue_ReturnsTrue()
-    {
-        // Arrange
-        var options = new CertificateSigningOptions();
-
-        // Act
-        options.EnableScittCompliance = true;
-
-        // Assert
-        Assert.That(options.EnableScittCompliance, Is.True);
     }
 
     [Test]
     public void EnableScittCompliance_SetToFalse_ReturnsFalse()
     {
         // Arrange
-        var options = new CertificateSigningOptions
-        {
-            EnableScittCompliance = true
-        };
+        var options = new CertificateSigningOptions();
 
         // Act
         options.EnableScittCompliance = false;
 
         // Assert
         Assert.That(options.EnableScittCompliance, Is.False);
+    }
+
+    [Test]
+    public void EnableScittCompliance_SetToTrue_ReturnsTrue()
+    {
+        // Arrange
+        var options = new CertificateSigningOptions
+        {
+            EnableScittCompliance = false
+        };
+
+        // Act
+        options.EnableScittCompliance = true;
+
+        // Assert
+        Assert.That(options.EnableScittCompliance, Is.True);
     }
 
     [Test]

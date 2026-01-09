@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates that X.509 signing key material can be resolved from a COSE_Sign1 message.
@@ -26,7 +28,7 @@ namespace CoseSign1.Certificates.Validation;
 /// by matching <c>x5t</c> to a certificate in <c>x5chain</c>.
 /// </para>
 /// </remarks>
-public sealed class CertificateKeyMaterialResolutionValidator :
+public sealed partial class CertificateKeyMaterialResolutionValidator :
     IValidator,
     IConditionalValidator
 {
@@ -56,6 +58,7 @@ public sealed class CertificateKeyMaterialResolutionValidator :
     }
 
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificateKeyMaterialResolutionValidator> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateKeyMaterialResolutionValidator"/> class.
@@ -64,10 +67,33 @@ public sealed class CertificateKeyMaterialResolutionValidator :
     /// Whether key material may be resolved from unprotected headers.
     /// For compatibility with some existing emitters, the CLI defaults to allowing unprotected headers.
     /// </param>
-    public CertificateKeyMaterialResolutionValidator(bool allowUnprotectedHeaders = false)
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateKeyMaterialResolutionValidator(
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateKeyMaterialResolutionValidator>? logger = null)
     {
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateKeyMaterialResolutionValidator>.Instance;
     }
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating key material resolution for message")]
+    private partial void LogValidatingKeyMaterial();
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Found certificate chain with {ChainLength} certificate(s)")]
+    private partial void LogChainFound(int chainLength);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Signing certificate resolved: Subject={Subject}, Thumbprint={Thumbprint}")]
+    private partial void LogSigningCertResolved(string subject, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Missing or invalid x5chain header")]
+    private partial void LogMissingChain();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Missing or invalid x5t header")]
+    private partial void LogMissingThumbprint();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Signing certificate not found in chain (x5t does not match any certificate)")]
+    private partial void LogSigningCertNotFound();
 
     /// <inheritdoc/>
     public bool IsApplicable(CoseSign1Message input, ValidationStage stage)
@@ -86,6 +112,8 @@ public sealed class CertificateKeyMaterialResolutionValidator :
     /// <inheritdoc/>
     public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
+        LogValidatingKeyMaterial();
+
         if (input is null)
         {
             return ValidationResult.Failure(
@@ -96,14 +124,18 @@ public sealed class CertificateKeyMaterialResolutionValidator :
 
         if (!input.TryGetCertificateChain(out var chain, AllowUnprotectedHeaders) || chain == null || chain.Count == 0)
         {
+            LogMissingChain();
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 ClassStrings.ErrorMessageMissingOrInvalidChain,
                 ClassStrings.ErrorCodeMissingOrInvalidChain);
         }
 
+        LogChainFound(chain.Count);
+
         if (!input.TryGetCertificateThumbprint(out var thumbprint, AllowUnprotectedHeaders) || thumbprint == null)
         {
+            LogMissingThumbprint();
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 ClassStrings.ErrorMessageMissingOrInvalidThumbprint,
@@ -112,11 +144,14 @@ public sealed class CertificateKeyMaterialResolutionValidator :
 
         if (!input.TryGetSigningCertificate(out var signingCertificate, AllowUnprotectedHeaders) || signingCertificate == null)
         {
+            LogSigningCertNotFound();
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 ClassStrings.ErrorMessageSigningCertNotFound,
                 ClassStrings.ErrorCodeSigningCertNotFound);
         }
+
+        LogSigningCertResolved(signingCertificate.Subject, signingCertificate.Thumbprint);
 
         var metadata = new Dictionary<string, object>
         {

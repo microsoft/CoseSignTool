@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.CertificateChain;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
 using CoseSign1.Tests.Common;
 using DIDx509.CertificateChain;
-
-namespace DIDx509.Tests.CertificateChain;
 
 /// <summary>
 /// Tests for CertificateChainConverter static class.

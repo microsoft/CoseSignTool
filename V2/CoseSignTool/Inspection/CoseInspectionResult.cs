@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Inspection;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
-
-namespace CoseSignTool.Inspection;
 
 /// <summary>
 /// Represents the fully decoded result of inspecting a COSE Sign1 message.

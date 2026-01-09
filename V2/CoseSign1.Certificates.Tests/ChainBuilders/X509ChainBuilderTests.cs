@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.ChainBuilders;
-
 namespace CoseSign1.Certificates.Tests.ChainBuilders;
+
+using CoseSign1.Certificates.ChainBuilders;
 
 public class X509ChainBuilderTests
 {

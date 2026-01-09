@@ -1,17 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates the certificate chain trust using the provided chain builder.
 /// </summary>
-public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrustPolicy
+public sealed partial class CertificateChainValidator : IValidator, IProvidesDefaultTrustPolicy
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -43,11 +46,76 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
         public static readonly string TrustDetailsAllowedUntrusted = "AllowedUntrusted";
     }
 
+    #region LoggerMessage methods
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Debug,
+        Message = "Starting certificate chain validation for thumbprint {Thumbprint}")]
+    private partial void LogChainValidationStarted(string thumbprint);
+
+    [LoggerMessage(
+        EventId = 3002,
+        Level = LogLevel.Information,
+        Message = "Certificate chain validation succeeded for thumbprint {Thumbprint} in {ElapsedMs}ms")]
+    private partial void LogChainValidationSucceeded(string thumbprint, long elapsedMs);
+
+    [LoggerMessage(
+        EventId = 3003,
+        Level = LogLevel.Warning,
+        Message = "Certificate chain validation failed for thumbprint {Thumbprint}: {ErrorCount} errors")]
+    private partial void LogChainValidationFailed(string thumbprint, int errorCount);
+
+    [LoggerMessage(
+        EventId = 3004,
+        Level = LogLevel.Debug,
+        Message = "Retrying chain build due to revocation status unknown (attempt {Attempt}/3)")]
+    private partial void LogChainRetrying(int attempt);
+
+    [LoggerMessage(
+        EventId = 3005,
+        Level = LogLevel.Information,
+        Message = "Chain build succeeded on retry attempt {Attempt}")]
+    private partial void LogChainRetrySucceeded(int attempt);
+
+    [LoggerMessage(
+        EventId = 3006,
+        Level = LogLevel.Information,
+        Message = "AllowUntrusted mode enabled - accepting untrusted root for thumbprint {Thumbprint}")]
+    private partial void LogAllowUntrustedEnabled(string thumbprint);
+
+    [LoggerMessage(
+        EventId = 3007,
+        Level = LogLevel.Information,
+        Message = "Custom root certificate trusted: {RootThumbprint}")]
+    private partial void LogCustomRootTrusted(string rootThumbprint);
+
+    [LoggerMessage(
+        EventId = 3008,
+        Level = LogLevel.Debug,
+        Message = "Configured {Count} custom root certificates")]
+    private partial void LogCustomRootsConfigured(int count);
+
+    [LoggerMessage(
+        EventId = 3009,
+        Level = LogLevel.Warning,
+        Message = "Validation failed: input message is null")]
+    private partial void LogNullInput();
+
+    [LoggerMessage(
+        EventId = 3010,
+        Level = LogLevel.Warning,
+        Message = "Validation failed: could not extract signing certificate from message")]
+    private partial void LogCertNotFound();
+
+    #endregion
+
     private readonly ICertificateChainBuilder ChainBuilder;
     private readonly bool AllowUnprotectedHeaders;
     private readonly bool AllowUntrusted;
     private readonly X509Certificate2Collection? CustomRoots;
     private readonly bool TrustUserRoots;
+    private readonly ILogger<CertificateChainValidator> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateChainValidator"/> class.
@@ -56,10 +124,12 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="allowUntrusted">Whether to allow untrusted roots to pass validation.</param>
     /// <param name="revocationMode">The revocation check mode.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public CertificateChainValidator(
         bool allowUnprotectedHeaders = false,
         bool allowUntrusted = false,
-        X509RevocationMode revocationMode = X509RevocationMode.Online)
+        X509RevocationMode revocationMode = X509RevocationMode.Online,
+        ILogger<CertificateChainValidator>? logger = null)
     {
         ChainBuilder = new X509ChainBuilder
         {
@@ -72,6 +142,7 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
         AllowUntrusted = allowUntrusted;
         CustomRoots = null;
         TrustUserRoots = true;
+        Logger = logger ?? NullLogger<CertificateChainValidator>.Instance;
     }
 
     /// <summary>
@@ -82,12 +153,14 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
     /// <param name="revocationMode">The revocation check mode.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="customRoots"/> is null.</exception>
     public CertificateChainValidator(
         X509Certificate2Collection customRoots,
         bool allowUnprotectedHeaders = false,
         bool trustUserRoots = true,
-        X509RevocationMode revocationMode = X509RevocationMode.Online)
+        X509RevocationMode revocationMode = X509RevocationMode.Online,
+        ILogger<CertificateChainValidator>? logger = null)
     {
         ChainBuilder = new X509ChainBuilder
         {
@@ -100,6 +173,9 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
         AllowUntrusted = false;
         CustomRoots = customRoots ?? throw new ArgumentNullException(nameof(customRoots));
         TrustUserRoots = trustUserRoots;
+        Logger = logger ?? NullLogger<CertificateChainValidator>.Instance;
+
+        LogCustomRootsConfigured(customRoots.Count);
     }
 
     /// <summary>
@@ -111,19 +187,22 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
     /// <param name="allowUntrusted">Whether to allow untrusted roots to pass validation.</param>
     /// <param name="customRoots">Optional custom root certificates.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="chainBuilder"/> is null.</exception>
     public CertificateChainValidator(
         ICertificateChainBuilder chainBuilder,
         bool allowUnprotectedHeaders = false,
         bool allowUntrusted = false,
         X509Certificate2Collection? customRoots = null,
-        bool trustUserRoots = true)
+        bool trustUserRoots = true,
+        ILogger<CertificateChainValidator>? logger = null)
     {
         ChainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
         AllowUntrusted = allowUntrusted;
         CustomRoots = customRoots;
         TrustUserRoots = trustUserRoots;
+        Logger = logger ?? NullLogger<CertificateChainValidator>.Instance;
     }
 
     /// <inheritdoc/>
@@ -131,6 +210,7 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
     {
         if (input == null)
         {
+            LogNullInput();
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 ClassStrings.ErrorMessageNullInput,
@@ -139,11 +219,15 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
 
         if (!input.TryGetSigningCertificate(out var signingCert, AllowUnprotectedHeaders))
         {
+            LogCertNotFound();
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 ClassStrings.ErrorMessageCertNotFound,
                 ClassStrings.ErrorCodeCertNotFound);
         }
+
+        var stopwatch = Stopwatch.StartNew();
+        LogChainValidationStarted(signingCert.Thumbprint);
 
         // Get the certificate chain from the message
         input.TryGetCertificateChain(out var messageChain, AllowUnprotectedHeaders);
@@ -184,6 +268,8 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
 
         if (chainBuildSuccess)
         {
+            stopwatch.Stop();
+            LogChainValidationSucceeded(signingCert.Thumbprint, stopwatch.ElapsedMilliseconds);
             return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
                 [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
@@ -201,9 +287,12 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
             {
                 if (ChainBuilder.ChainStatus.Any(s => (s.Status & X509ChainStatusFlags.RevocationStatusUnknown) != 0))
                 {
+                    LogChainRetrying(attempt + 1);
                     Thread.Sleep(1000);
                     if (ChainBuilder.Build(signingCert))
                     {
+                        stopwatch.Stop();
+                        LogChainRetrySucceeded(attempt + 1);
                         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                         {
                             [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
@@ -225,6 +314,8 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
         // Check if we should allow untrusted roots
         if (AllowUntrusted && ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
         {
+            stopwatch.Stop();
+            LogAllowUntrustedEnabled(signingCert.Thumbprint);
             return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
             {
                 [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
@@ -246,6 +337,8 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
                 // User-supplied root found in chain
                 if (ChainBuilder.ChainStatus.All(s => s.Status == X509ChainStatusFlags.UntrustedRoot || s.Status == X509ChainStatusFlags.NoError))
                 {
+                    stopwatch.Stop();
+                    LogCustomRootTrusted(chainRoot.Thumbprint);
                     return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
                     {
                         [ClassStrings.MetaKeyCertThumbprint] = signingCert.Thumbprint,
@@ -281,6 +374,8 @@ public sealed class CertificateChainValidator : IValidator, IProvidesDefaultTrus
             };
         }
 
+        stopwatch.Stop();
+        LogChainValidationFailed(signingCert.Thumbprint, failures.Length);
         return ValidationResult.Failure(ClassStrings.ValidatorName, failures);
     }
 

@@ -1,29 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Local;
-
 namespace CoseSign1.Certificates.Tests.Local;
+
+using CoseSign1.Certificates.Local;
 
 public class WindowsWindowsCertificateStoreCertificateSourceTests
 {
-    private X509Store? TestStore;
-    private X509Certificate2? TestCert;
-
-    [SetUp]
-    public void Setup()
+    private sealed class TestContext : IDisposable
     {
-        // Create a test certificate and add it to the CurrentUser\My store
-        TestCert = TestCertificateUtils.CreateCertificate("CertStoreTest");
-        TestStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-        TestStore.Open(OpenFlags.ReadWrite);
-        TestStore.Add(TestCert);
-    }
+        public X509Store TestStore { get; }
+        public X509Certificate2 TestCert { get; }
 
-    [TearDown]
-    public void Cleanup()
-    {
-        if (TestCert != null && TestStore != null)
+        public TestContext(X509Store testStore, X509Certificate2 testCert)
+        {
+            TestStore = testStore;
+            TestCert = testCert;
+        }
+
+        public void Dispose()
         {
             TestStore.Remove(TestCert);
             TestStore.Close();
@@ -31,16 +26,38 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
         }
     }
 
+    private static TestContext CreateTestContext()
+    {
+        // Create a test certificate and add it to the CurrentUser\My store
+        // We need to export/import with PersistKeySet to ensure the private key is stored in the key storage provider
+        var ephemeralCert = TestCertificateUtils.CreateCertificate("CertStoreTest");
+        var pfxBytes = ephemeralCert.Export(X509ContentType.Pfx, "testpwd");
+        ephemeralCert.Dispose();
+
+        // Import with PersistKeySet to ensure the private key is persisted in the key storage provider
+        var testCert = X509CertificateLoader.LoadPkcs12(
+            pfxBytes,
+            "testpwd",
+            X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable);
+
+        var testStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        testStore.Open(OpenFlags.ReadWrite);
+        testStore.Add(testCert);
+
+        return new TestContext(testStore, testCert);
+    }
+
     [Test]
     public void Constructor_WithValidThumbprint_Succeeds()
     {
+        using var ctx = CreateTestContext();
         using var source = new WindowsCertificateStoreCertificateSource(
-            TestCert!.Thumbprint,
+            ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
         Assert.That(source, Is.Not.Null);
-        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(TestCert.Thumbprint));
+        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(ctx.TestCert.Thumbprint));
     }
 
     [Test]
@@ -65,6 +82,7 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithSubjectName_Succeeds()
     {
+        using var ctx = CreateTestContext();
         using var source = new WindowsCertificateStoreCertificateSource(
             "CertStoreTest",
             StoreName.My,
@@ -78,13 +96,14 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithPredicate_Succeeds()
     {
+        using var ctx = CreateTestContext();
         using var source = new WindowsCertificateStoreCertificateSource(
-            cert => cert.Thumbprint == TestCert!.Thumbprint,
+            cert => cert.Thumbprint == ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
         Assert.That(source, Is.Not.Null);
-        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(TestCert.Thumbprint));
+        Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(ctx.TestCert.Thumbprint));
     }
 
     [Test]
@@ -107,8 +126,9 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void GetChainBuilder_ReturnsX509ChainBuilder()
     {
+        using var ctx = CreateTestContext();
         using var source = new WindowsCertificateStoreCertificateSource(
-            TestCert!.Thumbprint,
+            ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -121,8 +141,9 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void HasPrivateKey_ReturnsCorrectStatus()
     {
+        using var ctx = CreateTestContext();
         using var source = new WindowsCertificateStoreCertificateSource(
-            TestCert!.Thumbprint,
+            ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -135,9 +156,10 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void UsageWithLocalCertificateSigningService_Succeeds()
     {
+        using var ctx = CreateTestContext();
         // Demonstrate that WindowsCertificateStoreCertificateSource works with LocalCertificateSigningService
         using var source = new WindowsCertificateStoreCertificateSource(
-            TestCert!.Thumbprint,
+            ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 
@@ -160,8 +182,9 @@ public class WindowsWindowsCertificateStoreCertificateSourceTests
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
+        using var ctx = CreateTestContext();
         var source = new WindowsCertificateStoreCertificateSource(
-            TestCert!.Thumbprint,
+            ctx.TestCert.Thumbprint,
             StoreName.My,
             StoreLocation.CurrentUser);
 

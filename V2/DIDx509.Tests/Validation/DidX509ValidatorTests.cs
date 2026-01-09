@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.Validation;
+
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Tests.Common;
 using DIDx509.Validation;
-
-namespace DIDx509.Tests.Validation;
 
 [TestFixture]
 public class DidX509ValidatorTests

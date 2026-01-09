@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool;
+
 using System.CommandLine;
 using System.CommandLine.IO;
 using System.Diagnostics.CodeAnalysis;
 using CoseSignTool.Commands;
 using CoseSignTool.Configuration;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool;
 
 /// <summary>
 /// Main entry point for the CoseSignTool CLI application.
@@ -28,6 +28,12 @@ public static class Program
         // Log message templates
         public static readonly string LogStarting = "CoseSignTool starting with verbosity level {Verbosity}";
         public static readonly string LogExiting = "CoseSignTool exiting with code {ExitCode}";
+        public static readonly string LogBanner = "{Banner}";
+        public static readonly string LogBannerLogFile = "Log file: {FilePath} (mode: {Mode})";
+
+        // Mode strings
+        public static readonly string ModeAppend = "append";
+        public static readonly string ModeOverwrite = "overwrite";
     }
 
     /// <summary>
@@ -37,27 +43,22 @@ public static class Program
     /// <returns>Exit code indicating success or failure.</returns>
     public static int Main(string[] args)
     {
-        return Run(args, standardInput: null, standardOutput: null, standardError: null);
+        return Run(args, console: null);
     }
 
     /// <summary>
-    /// Application entry point with injectable standard streams.
+    /// Application entry point with injectable console.
     /// Intended for tests to avoid any shared global console state.
     /// </summary>
     /// <param name="args">Command-line arguments.</param>
-    /// <param name="standardInput">Optional standard input stream (stdin). When null, uses Console.OpenStandardInput().</param>
-    /// <param name="standardOutput">Optional standard output writer (stdout). When null, uses Console.Out.</param>
-    /// <param name="standardError">Optional standard error writer (stderr). When null, uses Console.Error.</param>
+    /// <param name="console">Optional console abstraction. When null, uses SystemConsole.Instance.</param>
     /// <returns>Exit code indicating success or failure.</returns>
-    public static int Run(string[] args, Stream? standardInput, TextWriter? standardOutput, TextWriter? standardError)
+    public static int Run(string[] args, Abstractions.IO.IConsole? console)
     {
         ArgumentNullException.ThrowIfNull(args);
 
-        var stdout = standardOutput ?? Console.Out;
-        var stderr = standardError ?? Console.Error;
-        var stdinProvider = standardInput != null
-            ? () => standardInput!
-            : Console.OpenStandardInput;
+        // Use provided console or fall back to system console
+        var effectiveConsole = console ?? Abstractions.Security.SystemConsole.Instance;
 
         ILoggerFactory? loggerFactory = null;
 
@@ -66,28 +67,28 @@ public static class Program
             // Parse verbosity before anything else - this modifies args to remove verbosity args
             var verbosity = LoggingConfiguration.ParseVerbosity(ref args);
 
-            // If streams were injected, avoid the built-in console logger (which writes to global System.Console)
-            // and instead log to the injected stderr.
-            loggerFactory = standardInput != null || standardOutput != null || standardError != null
-                ? LoggingConfiguration.CreateLoggerFactory(verbosity, stderr)
-                : LoggingConfiguration.CreateLoggerFactory(verbosity);
+            // Parse log file options - this also modifies args
+            var logFileOptions = LogFileOptions.Parse(ref args);
+
+            // Create logger factory using the console's stderr and optional log file
+            loggerFactory = LoggingConfiguration.CreateLoggerFactory(verbosity, effectiveConsole, logFileOptions);
 
             var logger = loggerFactory.CreateLogger(ClassStrings.LoggerCategory);
-            logger.LogDebug(ClassStrings.LogStarting, verbosity);
+
+            // Log startup banner
+            LogStartupBanner(logger, verbosity, logFileOptions, effectiveConsole);
 
             // Parse for global --additional-plugin-dir option before building commands
             var additionalPluginDirs = ExtractAdditionalPluginDirectories(ref args);
 
-            var rootCommand = CreateRootCommand(
-                additionalPluginDirs,
-                loggerFactory,
-                stdout,
-                stderr,
-                stdinProvider);
+            var builder = new CommandBuilder(effectiveConsole, loggerFactory);
+            var rootCommand = builder.BuildRootCommand(additionalPluginDirs);
 
             // Ensure System.CommandLine writes help and parse errors to the injected writers.
-            var console = new TextWriterConsole(stdout, stderr, stdinProvider);
-            var result = rootCommand.Invoke(args, console);
+            var systemCommandLineConsole = new TextWriterConsole(
+                effectiveConsole.StandardOutput,
+                effectiveConsole.StandardError);
+            var result = rootCommand.Invoke(args, systemCommandLineConsole);
 
             logger.LogDebug(ClassStrings.LogExiting, result);
 
@@ -111,12 +112,35 @@ public static class Program
                 // Best effort. Avoid throwing from error handling.
             }
 
-            stderr.WriteLine(string.Format(ClassStrings.ErrorFatal, ex.Message));
+            effectiveConsole.StandardError.WriteLine(string.Format(ClassStrings.ErrorFatal, ex.Message));
             return (int)ExitCode.GeneralError;
         }
         finally
         {
             loggerFactory?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Logs the startup banner with tool version and binary hash information.
+    /// The banner is written to stderr unless quiet mode is enabled.
+    /// The banner is always written to log file at Debug level.
+    /// </summary>
+    private static void LogStartupBanner(ILogger logger, int verbosity, LogFileOptions logFileOptions, Abstractions.IO.IConsole console)
+    {
+        // Always log startup and banner at Debug level (appears in log file)
+        logger.LogDebug(ClassStrings.LogStarting, verbosity);
+        logger.LogDebug(ClassStrings.LogBanner, ApplicationInfo.GetBanner());
+
+        if (logFileOptions.IsEnabled)
+        {
+            logger.LogDebug(ClassStrings.LogBannerLogFile, logFileOptions.FilePath, logFileOptions.Append ? ClassStrings.ModeAppend : ClassStrings.ModeOverwrite);
+        }
+
+        // Write banner to console stderr unless quiet mode (verbosity 0)
+        if (verbosity > 0)
+        {
+            console.StandardError.WriteLine(ApplicationInfo.GetBanner());
         }
     }
 
@@ -146,55 +170,32 @@ public static class Program
     }
 
     /// <summary>
-    /// Creates and configures the root command with all subcommands.
+    /// Adapter from TextWriter to System.CommandLine.IConsole for help and error output.
     /// </summary>
-    /// <param name="additionalPluginDirectories">Additional plugin directories to load.</param>
-    /// <param name="loggerFactory">Optional logger factory for creating loggers.</param>
-    /// <param name="standardOutput">Optional standard output writer (stdout). When null, uses Console.Out.</param>
-    /// <param name="standardError">Optional standard error writer (stderr). When null, uses Console.Error.</param>
-    /// <param name="standardInputProvider">Optional standard input provider (stdin). When null, uses Console.OpenStandardInput.</param>
-    /// <returns>The configured root command.</returns>
-    internal static RootCommand CreateRootCommand(
-        IEnumerable<string>? additionalPluginDirectories = null,
-        ILoggerFactory? loggerFactory = null,
-        TextWriter? standardOutput = null,
-        TextWriter? standardError = null,
-        Func<Stream>? standardInputProvider = null)
-    {
-        var builder = new CommandBuilder(
-            loggerFactory,
-            standardOutput,
-            standardError,
-            standardInputProvider);
-        return builder.BuildRootCommand(additionalPluginDirectories);
-    }
-
-    private sealed class TextWriterConsole : IConsole
+    private sealed class TextWriterConsole : System.CommandLine.IConsole
     {
         private sealed class Writer : IStandardStreamWriter
         {
-            private readonly TextWriter Inner;
+            private readonly TextWriter _inner;
 
             public Writer(TextWriter inner)
             {
-                Inner = inner;
+                _inner = inner;
             }
 
             public void Write(string? value)
             {
-                Inner.Write(value);
+                _inner.Write(value);
             }
         }
 
-        public TextWriterConsole(TextWriter stdout, TextWriter stderr, Func<Stream> stdinProvider)
+        public TextWriterConsole(TextWriter stdout, TextWriter stderr)
         {
             ArgumentNullException.ThrowIfNull(stdout);
             ArgumentNullException.ThrowIfNull(stderr);
-            ArgumentNullException.ThrowIfNull(stdinProvider);
 
             Out = new Writer(stdout);
             Error = new Writer(stderr);
-            In = new StreamReader(stdinProvider(), leaveOpen: true);
         }
 
         public IStandardStreamWriter Out { get; }
@@ -204,8 +205,6 @@ public static class Program
         public IStandardStreamWriter Error { get; }
 
         public bool IsErrorRedirected => true;
-
-        public TextReader In { get; }
 
         public bool IsInputRedirected => true;
     }

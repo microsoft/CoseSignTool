@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests;
+
 using System.Formats.Cbor;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Interfaces;
-
-namespace CoseSign1.Certificates.Tests;
 
 /// <summary>
 /// Tests for CertificateHeaderContributor class.

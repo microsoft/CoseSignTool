@@ -1,20 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Plugins;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CoseSignTool.Abstractions;
-using CoseSignTool.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSignTool.Plugins;
 
 /// <summary>
 /// Loads and manages plugins for CoseSignTool with isolated dependencies.
 /// Plugins must be in subdirectories under the "plugins" folder for security and isolation.
 /// </summary>
-public class PluginLoader
+public partial class PluginLoader
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -29,19 +28,71 @@ public class PluginLoader
         public static readonly string ErrorUnauthorizedPluginDirectory = string.Concat(
             "Plugin loading is only allowed from the 'plugins' subdirectory. ",
             "Attempted to load from: '{0}', but only '{1}' is authorized.");
-
-        // Log message templates
-        public static readonly string LogDiscoveryStarted = "Starting plugin discovery in directory: {PluginDirectory}";
-        public static readonly string LogAdditionalDirectory = "Loading plugins from additional directory: {AdditionalDirectory}";
-        public static readonly string LogDiscoveryCompleted = "Plugin discovery completed. Loaded {PluginCount} plugins";
-        public static readonly string LogRegisteringPlugin = "Registering plugin: {PluginName} v{PluginVersion}";
-        public static readonly string LogPluginInitialized = "Plugin initialized successfully: {PluginName}";
-        public static readonly string LogPluginAlreadyRegistered = "Plugin already registered, skipping: {PluginName}";
-        public static readonly string LogLoadingAssembly = "Loading plugin assembly: {AssemblyPath}";
-        public static readonly string LogTypeLoadFailed = "Failed to load types from plugin assembly: {AssemblyPath}";
-        public static readonly string LogLoaderException = "Loader exception detail";
-        public static readonly string LogFoundPluginType = "Found plugin type: {PluginType}";
     }
+
+    #region LoggerMessage methods
+
+    [LoggerMessage(
+        EventId = 5001,
+        Level = LogLevel.Debug,
+        Message = "Starting plugin discovery in directory: {PluginDirectory}")]
+    private partial void LogDiscoveryStarted(string pluginDirectory);
+
+    [LoggerMessage(
+        EventId = 5002,
+        Level = LogLevel.Debug,
+        Message = "Loading plugins from additional directory: {AdditionalDirectory}")]
+    private partial void LogAdditionalDirectory(string additionalDirectory);
+
+    [LoggerMessage(
+        EventId = 5003,
+        Level = LogLevel.Information,
+        Message = "Plugin discovery completed. Loaded {PluginCount} plugins")]
+    private partial void LogDiscoveryCompleted(int pluginCount);
+
+    [LoggerMessage(
+        EventId = 5004,
+        Level = LogLevel.Debug,
+        Message = "Registering plugin: {PluginName} v{PluginVersion}")]
+    private partial void LogRegisteringPlugin(string pluginName, string pluginVersion);
+
+    [LoggerMessage(
+        EventId = 5005,
+        Level = LogLevel.Information,
+        Message = "Plugin initialized successfully: {PluginName}")]
+    private partial void LogPluginInitialized(string pluginName);
+
+    [LoggerMessage(
+        EventId = 5006,
+        Level = LogLevel.Debug,
+        Message = "Plugin already registered, skipping: {PluginName}")]
+    private partial void LogPluginAlreadyRegistered(string pluginName);
+
+    [LoggerMessage(
+        EventId = 5007,
+        Level = LogLevel.Debug,
+        Message = "Loading plugin assembly: {AssemblyPath}")]
+    private partial void LogLoadingAssembly(string assemblyPath);
+
+    [LoggerMessage(
+        EventId = 5008,
+        Level = LogLevel.Error,
+        Message = "Failed to load types from plugin assembly: {AssemblyPath}")]
+    private partial void LogTypeLoadFailed(Exception ex, string assemblyPath);
+
+    [LoggerMessage(
+        EventId = 5009,
+        Level = LogLevel.Error,
+        Message = "Loader exception detail")]
+    private partial void LogLoaderException(Exception ex);
+
+    [LoggerMessage(
+        EventId = 5010,
+        Level = LogLevel.Trace,
+        Message = "Found plugin type: {PluginType}")]
+    private partial void LogFoundPluginType(string? pluginType);
+
+    #endregion
 
     private readonly List<IPlugin> PluginsList = [];
     private readonly ILogger<PluginLoader> Logger;
@@ -78,10 +129,7 @@ public class PluginLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginDirectory);
 
-        Logger.LogDebug(
-            LogEvents.PluginDiscoveryStartedEvent,
-            ClassStrings.LogDiscoveryStarted,
-            pluginDirectory);
+        LogDiscoveryStarted(pluginDirectory);
 
         // Load from main plugin directory
         await LoadPluginsFromDirectoryAsync(pluginDirectory, validateSecurity: true);
@@ -93,19 +141,13 @@ public class PluginLoader
             {
                 if (!string.IsNullOrWhiteSpace(additionalDir))
                 {
-                    Logger.LogDebug(
-                        LogEvents.PluginDiscoveryStartedEvent,
-                        ClassStrings.LogAdditionalDirectory,
-                        additionalDir);
+                    LogAdditionalDirectory(additionalDir);
                     await LoadPluginsFromDirectoryAsync(additionalDir, validateSecurity: false);
                 }
             }
         }
 
-        Logger.LogInformation(
-            LogEvents.PluginDiscoveryCompletedEvent,
-            ClassStrings.LogDiscoveryCompleted,
-            PluginsList.Count);
+        LogDiscoveryCompleted(PluginsList.Count);
     }
 
     private async Task LoadPluginsFromDirectoryAsync(string pluginDirectory, bool validateSecurity)
@@ -141,24 +183,14 @@ public class PluginLoader
 
         if (!PluginsList.Any(p => p.Name == plugin.Name))
         {
-            Logger.LogDebug(
-                LogEvents.PluginLoadedEvent,
-                ClassStrings.LogRegisteringPlugin,
-                plugin.Name,
-                plugin.Version);
+            LogRegisteringPlugin(plugin.Name, plugin.Version);
             PluginsList.Add(plugin);
             await plugin.InitializeAsync();
-            Logger.LogInformation(
-                LogEvents.PluginInitializedEvent,
-                ClassStrings.LogPluginInitialized,
-                plugin.Name);
+            LogPluginInitialized(plugin.Name);
         }
         else
         {
-            Logger.LogDebug(
-                LogEvents.PluginLoadedEvent,
-                ClassStrings.LogPluginAlreadyRegistered,
-                plugin.Name);
+            LogPluginAlreadyRegistered(plugin.Name);
         }
     }
 
@@ -216,10 +248,7 @@ public class PluginLoader
 
     private async Task LoadPluginWithContextAsync(string assemblyPath, string pluginDirectory)
     {
-        Logger.LogDebug(
-            LogEvents.PluginLoadedEvent,
-            ClassStrings.LogLoadingAssembly,
-            assemblyPath);
+        LogLoadingAssembly(assemblyPath);
 
         // Create isolated AssemblyLoadContext for this plugin
         var loadContext = new PluginLoadContext(assemblyPath, pluginDirectory, StandardError);
@@ -231,21 +260,14 @@ public class PluginLoader
         }
         catch (ReflectionTypeLoadException ex)
         {
-            Logger.LogError(
-                LogEvents.PluginLoadFailedEvent,
-                ex,
-                ClassStrings.LogTypeLoadFailed,
-                assemblyPath);
+            LogTypeLoadFailed(ex, assemblyPath);
             if (ex.LoaderExceptions != null)
             {
                 foreach (var loaderEx in ex.LoaderExceptions)
                 {
                     if (loaderEx != null)
                     {
-                        Logger.LogError(
-                            LogEvents.PluginLoadFailedEvent,
-                            loaderEx,
-                            ClassStrings.LogLoaderException);
+                        LogLoaderException(loaderEx);
                     }
                 }
             }
@@ -257,10 +279,7 @@ public class PluginLoader
 
         foreach (var pluginType in pluginTypes)
         {
-            Logger.LogTrace(
-                LogEvents.PluginLoadedEvent,
-                ClassStrings.LogFoundPluginType,
-                pluginType.FullName);
+            LogFoundPluginType(pluginType.FullName);
 
             if (Activator.CreateInstance(pluginType) is IPlugin plugin)
             {

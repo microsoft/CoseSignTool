@@ -7,10 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using DIDx509.Models;
 #if NET10_0_OR_GREATER
 using System.Formats.Asn1;
+using System.Text;
 #endif
 
 /// <summary>

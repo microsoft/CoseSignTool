@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Text.Json;
-using CoseSignTool.Local.Plugin;
-
 namespace CoseSignTool.Local.Plugin.Tests;
+
+using System.Text.Json;
 
 /// <summary>
 /// Tests for EphemeralCertificateConfig.
@@ -12,15 +11,31 @@ namespace CoseSignTool.Local.Plugin.Tests;
 [TestFixture]
 public class EphemeralCertificateConfigTests
 {
-    private string? TempFile;
-
-    [TearDown]
-    public void Cleanup()
+    /// <summary>
+    /// Creates a temporary file with the given content and returns a disposable wrapper that cleans up the file.
+    /// </summary>
+    private static TempFileContext CreateTempFile(string content)
     {
-        if (TempFile != null && File.Exists(TempFile))
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, content);
+        return new TempFileContext(tempFile);
+    }
+
+    /// <summary>
+    /// Disposable wrapper for temporary files that ensures cleanup.
+    /// </summary>
+    private sealed class TempFileContext : IDisposable
+    {
+        public string FilePath { get; }
+
+        public TempFileContext(string filePath) => FilePath = filePath;
+
+        public void Dispose()
         {
-            File.Delete(TempFile);
-            TempFile = null;
+            if (File.Exists(FilePath))
+            {
+                File.Delete(FilePath);
+            }
         }
     }
 
@@ -342,11 +357,10 @@ public class EphemeralCertificateConfigTests
         }
         """;
 
-        TempFile = Path.GetTempFileName();
-        File.WriteAllText(TempFile, json);
+        using var tempFile = CreateTempFile(json);
 
         // Act
-        var config = EphemeralCertificateConfig.LoadFromFile(TempFile);
+        var config = EphemeralCertificateConfig.LoadFromFile(tempFile.FilePath);
 
         // Assert
         Assert.That(config.Subject, Is.EqualTo("CN=File Test Subject"));

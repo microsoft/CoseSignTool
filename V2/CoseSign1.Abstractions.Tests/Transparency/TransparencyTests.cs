@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Abstractions.Tests.Transparency;
+
 using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Tests.Common;
 using Moq;
-
-namespace CoseSign1.Abstractions.Tests.Transparency;
 
 [TestFixture]
 public class TransparencyValidationResultTests
@@ -104,15 +105,13 @@ public class TransparencyValidationResultTests
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class TransparencyExtensionsTests
 {
-    private Mock<ITransparencyProvider> MockProvider = null!;
-    private CoseSign1Message Message = null!;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Creates a test context with a mock provider and a valid COSE Sign1 message.
+    /// The returned context is disposable to properly clean up the certificate.
+    /// </summary>
+    private static TestContext CreateTestContext()
     {
-        MockProvider = new Mock<ITransparencyProvider>();
-
-        // Create a COSE Sign1 message using the factory with TestCertificateUtils
+        var mockProvider = new Mock<ITransparencyProvider>();
         var cert = TestCertificateUtils.CreateCertificate("CN=Test");
         var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
@@ -120,24 +119,43 @@ public class TransparencyExtensionsTests
         var payload = new byte[] { 1, 2, 3 };
 
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        Message = CoseSign1Message.DecodeSign1(messageBytes);
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+
+        return new TestContext(mockProvider, message, cert);
+    }
+
+    private sealed class TestContext : IDisposable
+    {
+        public Mock<ITransparencyProvider> MockProvider { get; }
+        public CoseSign1Message Message { get; }
+        private readonly X509Certificate2 _certificate;
+
+        public TestContext(Mock<ITransparencyProvider> mockProvider, CoseSign1Message message, X509Certificate2 certificate)
+        {
+            MockProvider = mockProvider;
+            Message = message;
+            _certificate = certificate;
+        }
+
+        public void Dispose() => _certificate.Dispose();
     }
 
     [Test]
     public async Task VerifyTransparencyAsync_WithValidMessage_CallsProvider()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var expectedResult = TransparencyValidationResult.Success("TestProvider");
-        MockProvider
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
+        ctx.MockProvider
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await Message.VerifyTransparencyAsync(MockProvider.Object);
+        var result = await ctx.Message.VerifyTransparencyAsync(ctx.MockProvider.Object);
 
         // Assert
         Assert.That(result, Is.SameAs(expectedResult));
-        MockProvider.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.MockProvider.Verify(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -145,65 +163,71 @@ public class TransparencyExtensionsTests
     {
         // Arrange
         CoseSign1Message? nullMessage = null;
+        var mockProvider = new Mock<ITransparencyProvider>();
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await nullMessage!.VerifyTransparencyAsync(MockProvider.Object));
+            await nullMessage!.VerifyTransparencyAsync(mockProvider.Object));
     }
 
     [Test]
     public void VerifyTransparencyAsync_WithNullProvider_ThrowsArgumentNullException()
     {
+        // Arrange
+        using var ctx = CreateTestContext();
+
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await Message.VerifyTransparencyAsync((ITransparencyProvider)null!));
+            await ctx.Message.VerifyTransparencyAsync((ITransparencyProvider)null!));
     }
 
     [Test]
     public async Task VerifyTransparencyAsync_WithCancellationToken_PassesTokenToProvider()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var ctx = CreateTestContext();
+        using var cts = new CancellationTokenSource();
         var expectedResult = TransparencyValidationResult.Success("TestProvider");
-        MockProvider
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, cts.Token))
+        ctx.MockProvider
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, cts.Token))
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await Message.VerifyTransparencyAsync(MockProvider.Object, cts.Token);
+        var result = await ctx.Message.VerifyTransparencyAsync(ctx.MockProvider.Object, cts.Token);
 
         // Assert
         Assert.That(result, Is.SameAs(expectedResult));
-        MockProvider.Verify(p => p.VerifyTransparencyProofAsync(Message, cts.Token), Times.Once);
+        ctx.MockProvider.Verify(p => p.VerifyTransparencyProofAsync(ctx.Message, cts.Token), Times.Once);
     }
 
     [Test]
     public async Task VerifyTransparencyAsync_MultipleProviders_CallsAllProviders()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var provider1 = new Mock<ITransparencyProvider>();
         var provider2 = new Mock<ITransparencyProvider>();
         var result1 = TransparencyValidationResult.Success("Provider1");
         var result2 = TransparencyValidationResult.Success("Provider2");
 
         provider1
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(result1);
         provider2
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(result2);
 
         var providers = new List<ITransparencyProvider> { provider1.Object, provider2.Object };
 
         // Act
-        var results = await Message.VerifyTransparencyAsync(providers);
+        var results = await ctx.Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Has.Count.EqualTo(2));
         Assert.That(results[0], Is.SameAs(result1));
         Assert.That(results[1], Is.SameAs(result2));
-        provider1.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
-        provider2.Verify(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()), Times.Once);
+        provider1.Verify(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()), Times.Once);
+        provider2.Verify(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -211,7 +235,8 @@ public class TransparencyExtensionsTests
     {
         // Arrange
         CoseSign1Message? nullMessage = null;
-        var providers = new List<ITransparencyProvider> { MockProvider.Object };
+        var mockProvider = new Mock<ITransparencyProvider>();
+        var providers = new List<ITransparencyProvider> { mockProvider.Object };
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -222,33 +247,35 @@ public class TransparencyExtensionsTests
     public void VerifyTransparencyAsync_MultipleProviders_WithNullProviders_ThrowsArgumentNullException()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         IReadOnlyList<ITransparencyProvider>? nullProviders = null;
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await Message.VerifyTransparencyAsync(nullProviders!));
+            await ctx.Message.VerifyTransparencyAsync(nullProviders!));
     }
 
     [Test]
     public async Task VerifyTransparencyAsync_MultipleProviders_WithMixedResults_ReturnsAllResults()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var provider1 = new Mock<ITransparencyProvider>();
         var provider2 = new Mock<ITransparencyProvider>();
         var successResult = TransparencyValidationResult.Success("Provider1");
         var failureResult = TransparencyValidationResult.Failure("Provider2", "Verification failed");
 
         provider1
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(successResult);
         provider2
-            .Setup(p => p.VerifyTransparencyProofAsync(Message, It.IsAny<CancellationToken>()))
+            .Setup(p => p.VerifyTransparencyProofAsync(ctx.Message, It.IsAny<CancellationToken>()))
             .ReturnsAsync(failureResult);
 
         var providers = new List<ITransparencyProvider> { provider1.Object, provider2.Object };
 
         // Act
-        var results = await Message.VerifyTransparencyAsync(providers);
+        var results = await ctx.Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Has.Count.EqualTo(2));
@@ -260,10 +287,11 @@ public class TransparencyExtensionsTests
     public async Task VerifyTransparencyAsync_MultipleProviders_WithEmptyList_ReturnsEmptyResults()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var providers = new List<ITransparencyProvider>();
 
         // Act
-        var results = await Message.VerifyTransparencyAsync(providers);
+        var results = await ctx.Message.VerifyTransparencyAsync(providers);
 
         // Assert
         Assert.That(results, Is.Empty);

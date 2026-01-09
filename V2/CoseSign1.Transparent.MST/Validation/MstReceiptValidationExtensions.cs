@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Validation;
+
 using Azure.Security.CodeTransparency;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Validation.Interfaces;
-
-namespace CoseSign1.Transparent.MST.Validation;
 
 /// <summary>
 /// Builder for configuring MST receipt validation.

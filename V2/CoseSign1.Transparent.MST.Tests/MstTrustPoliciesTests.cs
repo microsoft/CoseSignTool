@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Transparent.MST.Validation;
-
 namespace CoseSign1.Transparent.MST.Tests;
+
+using CoseSign1.Transparent.MST.Validation;
 
 [TestFixture]
 public class MstTrustPoliciesTests

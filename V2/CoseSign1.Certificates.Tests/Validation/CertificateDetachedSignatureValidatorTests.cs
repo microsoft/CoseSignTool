@@ -1,31 +1,29 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateDetachedSignatureValidatorTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
-    private byte[]? Payload;
-
-    [SetUp]
-    public void SetUp()
+    private sealed record TestContext(
+        System.Security.Cryptography.X509Certificates.X509Certificate2 TestCert,
+        byte[] Payload) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
-        Payload = new byte[] { 1, 2, 3, 4, 5 };
+        public void Dispose() => TestCert.Dispose();
     }
 
-    [TearDown]
-    public void TearDown()
+    private static TestContext CreateTestContext()
     {
-        TestCert?.Dispose();
+        var testCert = TestCertificateUtils.CreateCertificate("CertificateDetachedSignatureValidatorTest");
+        var payload = new byte[] { 1, 2, 3, 4, 5 };
+        return new TestContext(testCert, payload);
     }
 
     [Test]
@@ -105,7 +103,8 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithNullInput_ReturnsFailure()
     {
         // Arrange
-        var validator = new CertificateDetachedSignatureValidator(Payload!);
+        using var ctx = CreateTestContext();
+        var validator = new CertificateDetachedSignatureValidator(ctx.Payload);
 
         // Act
         var result = validator.Validate(null!, ValidationStage.Signature);
@@ -121,8 +120,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithEmbeddedContent_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create message with embedded payload (not detached)
@@ -130,7 +130,7 @@ public class CertificateDetachedSignatureValidatorTests
         var messageBytes = factory.CreateCoseSign1MessageBytes(embeddedPayload, "application/test");
         var message = CoseSign1Message.DecodeSign1(messageBytes);
 
-        var validator = new CertificateDetachedSignatureValidator(Payload!);
+        var validator = new CertificateDetachedSignatureValidator(ctx.Payload);
 
         // Act
         var result = validator.Validate(message, ValidationStage.Signature);
@@ -146,8 +146,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithValidDetachedSignature_ReturnsSuccess()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature
@@ -169,8 +170,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithMismatchedPayload_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create detached signature with one payload
@@ -196,8 +198,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithReadOnlyMemoryConstructor_ValidatesCorrectly()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -218,8 +221,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithLargePayload_ValidatesCorrectly()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         // Create large payload (1MB)
@@ -242,8 +246,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_AllowUnprotectedHeadersFalse_ValidatesProtectedHeaders()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -263,8 +268,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_AllowUnprotectedHeadersTrue_AllowsUnprotectedHeaders()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -284,8 +290,9 @@ public class CertificateDetachedSignatureValidatorTests
     public async Task ValidateAsync_WithValidDetachedSignature_ReturnsSuccess()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -306,7 +313,8 @@ public class CertificateDetachedSignatureValidatorTests
     public async Task ValidateAsync_WithNullInput_ReturnsFailure()
     {
         // Arrange
-        var validator = new CertificateDetachedSignatureValidator(Payload!);
+        using var ctx = CreateTestContext();
+        var validator = new CertificateDetachedSignatureValidator(ctx.Payload);
 
         // Act
         var result = await validator.ValidateAsync(null!, ValidationStage.Signature);
@@ -321,8 +329,9 @@ public class CertificateDetachedSignatureValidatorTests
     public async Task ValidateAsync_WithMismatchedPayload_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -344,8 +353,9 @@ public class CertificateDetachedSignatureValidatorTests
     public async Task ValidateAsync_WithCancellationToken_CompletesSuccessfully()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -366,8 +376,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithSlightlyModifiedPayload_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -390,8 +401,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithDifferentPayloadLength_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var originalPayload = new byte[] { 1, 2, 3, 4, 5 };
@@ -414,8 +426,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_MultipleValidationsWithSameValidator_AllSucceed()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };
@@ -439,8 +452,9 @@ public class CertificateDetachedSignatureValidatorTests
     public void Validate_WithDifferentContentTypes_ValidatesCorrectly()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        var signingService = CertificateSigningService.Create(ctx.TestCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
 
         var payload = new byte[] { 1, 2, 3, 4, 5 };

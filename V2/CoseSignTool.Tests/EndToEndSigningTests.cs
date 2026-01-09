@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using CoseSignTool.Commands;
-
 namespace CoseSignTool.Tests;
+
+using System.CommandLine;
 
 /// <summary>
 /// End-to-end integration tests that create real COSE signatures and test them.
@@ -16,7 +15,7 @@ public class EndToEndSigningTests
     public void SignAndVerify_WithValidPayload_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose"; // Output is <payload>.cose, not replacing extension
@@ -59,7 +58,7 @@ public class EndToEndSigningTests
     public void SignAndInspect_WithValidPayload_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -95,7 +94,7 @@ public class EndToEndSigningTests
     public void SignWithDetached_CreatesSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -128,7 +127,7 @@ public class EndToEndSigningTests
     public void SignWithCustomOutput_CreatesSignatureAtSpecifiedPath()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var customOutput = Path.Combine(Path.GetTempPath(), $"custom_{Guid.NewGuid()}.cose");
@@ -161,7 +160,7 @@ public class EndToEndSigningTests
     public void SignWithDirectSignatureType_CreatesSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -194,7 +193,7 @@ public class EndToEndSigningTests
     public void SignWithEmbeddedSignatureType_CreatesSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -227,7 +226,7 @@ public class EndToEndSigningTests
     public void SignWithContentType_CreatesSignatureWithContentType()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -260,7 +259,7 @@ public class EndToEndSigningTests
     public void SignWithQuietOption_CreatesSignature()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -293,7 +292,7 @@ public class EndToEndSigningTests
     public void SignAndInspect_WithJsonOutput_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -329,7 +328,7 @@ public class EndToEndSigningTests
     public void SignAndInspect_WithXmlOutput_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -365,7 +364,7 @@ public class EndToEndSigningTests
     public void SignLargePayload_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
@@ -400,7 +399,7 @@ public class EndToEndSigningTests
     public void SignBinaryPayload_Succeeds()
     {
         // Arrange
-        var builder = new CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";

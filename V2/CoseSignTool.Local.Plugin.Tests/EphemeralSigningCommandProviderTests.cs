@@ -1,13 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Local.Plugin.Tests;
+
 using System.CommandLine;
 using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
-using CoseSignTool.Local.Plugin;
-
-namespace CoseSignTool.Local.Plugin.Tests;
 
 /// <summary>
 /// Tests for EphemeralSigningCommandProvider.

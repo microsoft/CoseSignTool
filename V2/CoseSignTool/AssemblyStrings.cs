@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSignTool;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Internal static strings shared across multiple classes within the CoseSignTool assembly.

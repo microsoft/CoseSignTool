@@ -1,28 +1,25 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Validators;
 
-namespace CoseSign1.Validation.Tests;
-
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class FunctionValidatorTests
 {
-    private CoseSign1Message? ValidMessage;
-
-    [SetUp]
-    public void Setup()
+    private static CoseSign1Message CreateValidMessage()
     {
         // Create a simple valid message for testing
         var payload = new byte[] { 1, 2, 3, 4 };
         using var ecdsa = ECDsa.Create();
         var signer = new CoseSigner(ecdsa, HashAlgorithmName.SHA256);
         var signedBytes = CoseSign1Message.SignDetached(payload, signer);
-        ValidMessage = CoseSign1Message.DecodeSign1(signedBytes);
+        return CoseSign1Message.DecodeSign1(signedBytes);
     }
 
     [Test]
@@ -46,10 +43,11 @@ public class FunctionValidatorTests
     public void Validate_WithSuccessFunction_ReturnsSuccess()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) => ValidationResult.Success("TestValidator"));
 
         // Act
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -59,11 +57,12 @@ public class FunctionValidatorTests
     public void Validate_WithFailureFunction_ReturnsFailure()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) =>
             ValidationResult.Failure("TestValidator", "Test error", "TEST_ERROR"));
 
         // Act
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -75,7 +74,7 @@ public class FunctionValidatorTests
     public void Validate_WithNullMessage_PassesNullToFunction()
     {
         // Arrange
-        CoseSign1Message? capturedMessage = ValidMessage;
+        CoseSign1Message? capturedMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) =>
         {
             capturedMessage = msg;
@@ -93,6 +92,7 @@ public class FunctionValidatorTests
     public void Validate_FunctionReceivesCorrectMessage()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         CoseSign1Message? capturedMessage = null;
         var validator = new FunctionValidator((msg, _) =>
         {
@@ -101,20 +101,21 @@ public class FunctionValidatorTests
         });
 
         // Act
-        validator.Validate(ValidMessage!, ValidationStage.Signature);
+        validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
-        Assert.That(capturedMessage, Is.SameAs(ValidMessage));
+        Assert.That(capturedMessage, Is.SameAs(validMessage));
     }
 
     [Test]
     public async Task ValidateAsync_WithSuccessFunction_ReturnsSuccess()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) => ValidationResult.Success("TestValidator"));
 
         // Act
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -124,11 +125,12 @@ public class FunctionValidatorTests
     public async Task ValidateAsync_WithFailureFunction_ReturnsFailure()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) =>
             ValidationResult.Failure("TestValidator", "Async error", "ASYNC_ERROR"));
 
         // Act
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature);
+        var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -138,11 +140,12 @@ public class FunctionValidatorTests
     public async Task ValidateAsync_WithCancellationToken_CompletesSuccessfully()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) => ValidationResult.Success("TestValidator"));
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(ValidMessage!, ValidationStage.Signature, cts.Token);
+        var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature, cts.Token);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
@@ -152,10 +155,11 @@ public class FunctionValidatorTests
     public void Validate_WithExceptionInFunction_ReturnsFailure()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var validator = new FunctionValidator((msg, _) => throw new InvalidOperationException("Test exception"));
 
         // Act
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
@@ -168,12 +172,13 @@ public class FunctionValidatorTests
     public void Validate_WithMetadataInResult_PreservesMetadata()
     {
         // Arrange
+        var validMessage = CreateValidMessage();
         var metadata = new Dictionary<string, object> { ["TestKey"] = "TestValue" };
         var validator = new FunctionValidator((msg, _) =>
             ValidationResult.Success("TestValidator", metadata));
 
         // Act
-        var result = validator.Validate(ValidMessage!, ValidationStage.Signature);
+        var result = validator.Validate(validMessage, ValidationStage.Signature);
 
         // Assert
         Assert.That(result.IsValid, Is.True);

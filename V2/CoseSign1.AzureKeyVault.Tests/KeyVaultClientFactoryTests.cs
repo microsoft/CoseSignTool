@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using Azure.Core;
-using CoseSign1.AzureKeyVault.Common;
-
 namespace CoseSign1.AzureKeyVault.Tests;
+
+using CoseSign1.AzureKeyVault.Common;
 
 public sealed class KeyVaultClientFactoryTests
 {

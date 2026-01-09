@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Commands.Builders;
+
 using System.CommandLine;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -9,8 +11,6 @@ using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
 using CoseSignTool.Output;
 using Microsoft.Extensions.Logging;
-
-namespace CoseSignTool.Tests.Commands.Builders;
 
 [TestFixture]
 public class SigningCommandBuilderTests
@@ -94,7 +94,7 @@ public class SigningCommandBuilderTests
         // Arrange
         var provider = new TestSigningCommandProvider();
         using var loggerFactory = LoggerFactory.Create(_ => { });
-        var builder = new SigningCommandBuilder(loggerFactory: loggerFactory);
+        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviders: null, loggerFactory: loggerFactory);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -118,7 +118,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -143,7 +143,7 @@ public class SigningCommandBuilderTests
         // Arrange
         var provider = new TestSigningCommandProvider();
         using var loggerFactory = LoggerFactory.Create(_ => { });
-        var builder = new SigningCommandBuilder(loggerFactory: loggerFactory);
+        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviders: null, loggerFactory: loggerFactory);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -183,7 +183,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -233,7 +233,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -269,7 +269,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -305,7 +305,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -334,7 +334,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -375,7 +375,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -404,7 +404,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -445,7 +445,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -486,8 +486,8 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var sw = new StringWriter();
-        var builder = new SigningCommandBuilder(standardOutput: sw, standardError: TextWriter.Null);
+        var console = new TestConsole();
+        var builder = new SigningCommandBuilder(console);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -515,7 +515,7 @@ public class SigningCommandBuilderTests
             // Assert
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(File.Exists(outputPath), Is.True);
-            Assert.That(sw.ToString(), Does.Contain("Signing Operation"));
+            Assert.That(console.GetStdout(), Does.Contain("Signing Operation"));
         }
         finally
         {
@@ -531,7 +531,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder(standardOutputProvider: () => Stream.Null);
+        var builder = new SigningCommandBuilder(new TestConsole());
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -576,7 +576,7 @@ public class SigningCommandBuilderTests
     {
         // Arrange
         var provider = new TestSigningCommandProvider();
-        var builder = new SigningCommandBuilder();
+        var builder = TestConsole.CreateSigningCommandBuilder();
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
@@ -10,28 +12,15 @@ using Azure.Security.CodeTransparency;
 using CoseSign1.Tests.Common;
 using Moq;
 
-namespace CoseSign1.Transparent.MST.Tests;
-
 [TestFixture]
 public class MstTransparencyProviderTests
 {
-    private Mock<CodeTransparencyClient> MockClient = null!;
-    private Mock<ICodeTransparencyVerifier> MockVerifier = null!;
-    private X509Certificate2 TestCert = null!;
+    private static X509Certificate2 CreateTestCert() =>
+        TestCertificateUtils.CreateCertificate("MstTestCert", useEcc: true);
 
-    [SetUp]
-    public void Setup()
-    {
-        MockClient = new Mock<CodeTransparencyClient>();
-        MockVerifier = new Mock<ICodeTransparencyVerifier>();
-        TestCert = TestCertificateUtils.CreateCertificate("MstTestCert", useEcc: true);
-    }
+    private static Mock<CodeTransparencyClient> CreateMockClient() => new();
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static Mock<ICodeTransparencyVerifier> CreateMockVerifier() => new();
 
     #region Constructor Tests
 
@@ -39,7 +28,8 @@ public class MstTransparencyProviderTests
     public void Constructor_WithClient_CreatesProvider()
     {
         // Act
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Assert
         Assert.That(provider, Is.Not.Null);
@@ -57,11 +47,12 @@ public class MstTransparencyProviderTests
     public void Constructor_WithClientAndOptions_CreatesProvider()
     {
         // Arrange
+        var mockClient = CreateMockClient();
         var verificationOptions = new CodeTransparencyVerificationOptions();
         var clientOptions = new CodeTransparencyClientOptions();
 
         // Act
-        var provider = new MstTransparencyProvider(MockClient.Object, verificationOptions, clientOptions);
+        var provider = new MstTransparencyProvider(mockClient.Object, verificationOptions, clientOptions);
 
         // Assert
         Assert.That(provider, Is.Not.Null);
@@ -71,13 +62,14 @@ public class MstTransparencyProviderTests
     public void Constructor_WithLogging_CreatesProvider()
     {
         // Arrange
+        var mockClient = CreateMockClient();
         var logs = new List<string>();
         Action<string> logVerbose = msg => logs.Add($"VERBOSE: {msg}");
         Action<string> logError = msg => logs.Add($"ERROR: {msg}");
 
         // Act
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
+            mockClient.Object,
             null,
             null,
             logVerbose,
@@ -91,9 +83,11 @@ public class MstTransparencyProviderTests
     public void Constructor_WithVerifier_CreatesProvider()
     {
         // Act
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null,
             null,
             null,
@@ -107,9 +101,10 @@ public class MstTransparencyProviderTests
     public void Constructor_WithNullVerifier_ThrowsArgumentNullException()
     {
         // Act & Assert
+        var mockClient = CreateMockClient();
         Assert.Throws<ArgumentNullException>(() =>
             new MstTransparencyProvider(
-                MockClient.Object,
+                mockClient.Object,
                 null!,  // verifier
                 null,
                 null,
@@ -125,7 +120,8 @@ public class MstTransparencyProviderTests
     public void ProviderName_ReturnsExpectedValue()
     {
         // Arrange
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Act & Assert
         Assert.That(provider.ProviderName, Is.EqualTo("Microsoft Signing Transparency"));
@@ -139,7 +135,8 @@ public class MstTransparencyProviderTests
     public void AddTransparencyProofAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         // Arrange
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var mockClient = CreateMockClient();
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -150,7 +147,9 @@ public class MstTransparencyProviderTests
     public async Task AddTransparencyProofAsync_WithValidMessage_SubmitsToService()
     {
         // Arrange
-        var testMessage = CreateTestSignedMessage("test payload");
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var testMessage = CreateTestSignedMessage(cert, "test payload");
 
         // Create CBOR-encoded entry ID response (as MST returns)
         var entryIdResponse = CreateCborEntryIdResponse("1.234");
@@ -159,31 +158,31 @@ public class MstTransparencyProviderTests
         var mockOperation = CreateMockOperation(true, entryIdResponse);
         var mockStatementResponse = CreateMockResponse(transparentStatementBytes);
 
-        MockClient
+        mockClient
             .Setup(c => c.CreateEntryAsync(
                 It.IsAny<WaitUntil>(),
                 It.IsAny<BinaryData>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockOperation.Object);
 
-        MockClient
+        mockClient
             .Setup(c => c.GetEntryStatementAsync(
                 "1.234",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockStatementResponse);
 
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Act
         var result = await provider.AddTransparencyProofAsync(testMessage);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        MockClient.Verify(c => c.CreateEntryAsync(
+        mockClient.Verify(c => c.CreateEntryAsync(
             WaitUntil.Completed,
             It.IsAny<BinaryData>(),
             It.IsAny<CancellationToken>()), Times.Once);
-        MockClient.Verify(c => c.GetEntryStatementAsync(
+        mockClient.Verify(c => c.GetEntryStatementAsync(
             "1.234",
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -192,21 +191,23 @@ public class MstTransparencyProviderTests
     public async Task AddTransparencyProofAsync_WhenOperationFails_ThrowsInvalidOperationException()
     {
         // Arrange
-        var testMessage = CreateTestSignedMessage("test payload");
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var testMessage = CreateTestSignedMessage(cert, "test payload");
 
         var mockOperation = CreateMockOperation(false, null);
         var mockResponse = new Mock<Response>();
         mockResponse.Setup(r => r.ReasonPhrase).Returns("Service unavailable");
         mockOperation.Setup(o => o.GetRawResponse()).Returns(mockResponse.Object);
 
-        MockClient
+        mockClient
             .Setup(c => c.CreateEntryAsync(
                 It.IsAny<WaitUntil>(),
                 It.IsAny<BinaryData>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockOperation.Object);
 
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -219,20 +220,22 @@ public class MstTransparencyProviderTests
     public async Task AddTransparencyProofAsync_WhenEntryIdMissing_ThrowsInvalidOperationException()
     {
         // Arrange
-        var testMessage = CreateTestSignedMessage("test payload");
+        var mockClient = CreateMockClient();
+        using var cert = CreateTestCert();
+        var testMessage = CreateTestSignedMessage(cert, "test payload");
 
         // Create an invalid response without proper CBOR entryId
         var invalidResponse = BinaryData.FromBytes(new byte[] { 0x00 });
         var mockOperation = CreateMockOperation(true, invalidResponse);
 
-        MockClient
+        mockClient
             .Setup(c => c.CreateEntryAsync(
                 It.IsAny<WaitUntil>(),
                 It.IsAny<BinaryData>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockOperation.Object);
 
-        var provider = new MstTransparencyProvider(MockClient.Object);
+        var provider = new MstTransparencyProvider(mockClient.Object);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -245,8 +248,10 @@ public class MstTransparencyProviderTests
     public async Task AddTransparencyProofAsync_LogsProgress()
     {
         // Arrange
+        var mockClient = CreateMockClient();
         var logs = new List<string>();
-        var testMessage = CreateTestSignedMessage("test payload");
+        using var cert = CreateTestCert();
+        var testMessage = CreateTestSignedMessage(cert, "test payload");
 
         var entryIdResponse = CreateCborEntryIdResponse("1.234");
         var transparentStatementBytes = testMessage.Encode();
@@ -254,21 +259,21 @@ public class MstTransparencyProviderTests
         var mockOperation = CreateMockOperation(true, entryIdResponse);
         var mockStatementResponse = CreateMockResponse(transparentStatementBytes);
 
-        MockClient
+        mockClient
             .Setup(c => c.CreateEntryAsync(
                 It.IsAny<WaitUntil>(),
                 It.IsAny<BinaryData>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockOperation.Object);
 
-        MockClient
+        mockClient
             .Setup(c => c.GetEntryStatementAsync(
                 "1.234",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockStatementResponse);
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
+            mockClient.Object,
             null,
             null,
             msg => logs.Add(msg),
@@ -291,7 +296,9 @@ public class MstTransparencyProviderTests
     public void VerifyTransparencyProofAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         // Arrange
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -302,8 +309,11 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WithoutMstReceipt_ReturnsFailure()
     {
         // Arrange
-        var testMessage = CreateTestSignedMessage("test payload");
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateTestSignedMessage(cert, "test payload");
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -319,15 +329,18 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WithValidReceipt_ReturnsSuccess()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -335,7 +348,7 @@ public class MstTransparencyProviderTests
         // Assert
         Assert.That(result.IsValid, Is.True);
         Assert.That(result.ProviderName, Is.EqualTo("Microsoft Signing Transparency"));
-        MockVerifier.Verify(v => v.VerifyTransparentStatement(
+        mockVerifier.Verify(v => v.VerifyTransparentStatement(
             It.IsAny<byte[]>(),
             null,
             null), Times.Once);
@@ -345,22 +358,25 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WithVerificationOptions_PassesOptionsToVerifier()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
             AuthorizedDomains = new List<string> { "example.com" }
         };
         var clientOptions = new CodeTransparencyClientOptions();
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 verificationOptions,
                 clientOptions));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             verificationOptions,
             clientOptions,
             null,
@@ -370,7 +386,7 @@ public class MstTransparencyProviderTests
         await provider.VerifyTransparencyProofAsync(testMessage);
 
         // Assert
-        MockVerifier.Verify(v => v.VerifyTransparentStatement(
+        mockVerifier.Verify(v => v.VerifyTransparentStatement(
             It.IsAny<byte[]>(),
             verificationOptions,
             clientOptions), Times.Once);
@@ -380,16 +396,19 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WhenVerificationFails_ReturnsFailure()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()))
             .Throws(new InvalidOperationException("Receipt signature invalid"));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -404,16 +423,19 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WhenCryptographicExceptionThrown_ReturnsFailure()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()))
             .Throws(new CryptographicException("Key verification failed"));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -427,16 +449,19 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WhenCborExceptionThrown_ReturnsFailure()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()))
             .Throws(new CborContentException("Invalid CBOR structure"));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -450,16 +475,19 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WhenArgumentExceptionThrown_ReturnsFailure()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()))
             .Throws(new ArgumentException("Invalid authorized domain"));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -473,7 +501,10 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_WhenAggregateExceptionThrown_ReturnsAllErrors()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
         var innerExceptions = new[]
         {
@@ -481,14 +512,14 @@ public class MstTransparencyProviderTests
             new InvalidOperationException("Error 2")
         };
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()))
             .Throws(new AggregateException(innerExceptions));
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act
         var result = await provider.VerifyTransparencyProofAsync(testMessage);
@@ -504,19 +535,22 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_LogsVerificationProgress()
     {
         // Arrange
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
         var logs = new List<string>();
         var errors = new List<string>();
-        var testMessage = CreateMessageWithMstReceipt();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             null,
             null,
             msg => logs.Add(msg),
@@ -535,22 +569,25 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_LogsVerificationOptionsWhenConfigured()
     {
         // Arrange
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
         var logs = new List<string>();
-        var testMessage = CreateMessageWithMstReceipt();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
             AuthorizedDomains = new List<string> { "test.example.com" }
         };
 
-        MockVerifier
+        mockVerifier
             .Setup(v => v.VerifyTransparentStatement(
                 It.IsAny<byte[]>(),
                 It.IsAny<CodeTransparencyVerificationOptions?>(),
                 It.IsAny<CodeTransparencyClientOptions?>()));
 
         var provider = new MstTransparencyProvider(
-            MockClient.Object,
-            MockVerifier.Object,
+            mockClient.Object,
+            mockVerifier.Object,
             verificationOptions,
             null,
             msg => logs.Add(msg),
@@ -569,11 +606,14 @@ public class MstTransparencyProviderTests
     public async Task VerifyTransparencyProofAsync_RespectsCanncellationToken()
     {
         // Arrange
-        var testMessage = CreateMessageWithMstReceipt();
+        var mockClient = CreateMockClient();
+        var mockVerifier = CreateMockVerifier();
+        using var cert = CreateTestCert();
+        var testMessage = CreateMessageWithMstReceipt(cert);
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var provider = new MstTransparencyProvider(MockClient.Object, MockVerifier.Object, null, null, null, null);
+        var provider = new MstTransparencyProvider(mockClient.Object, mockVerifier.Object, null, null, null, null);
 
         // Act & Assert
         Assert.ThrowsAsync<OperationCanceledException>(async () =>
@@ -587,9 +627,9 @@ public class MstTransparencyProviderTests
     /// <summary>
     /// Creates a test COSE Sign1 message with the given payload.
     /// </summary>
-    private CoseSign1Message CreateTestSignedMessage(string payload)
+    private static CoseSign1Message CreateTestSignedMessage(X509Certificate2 cert, string payload)
     {
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var key = cert.GetECDsaPrivateKey()!;
         var signer = new CoseSigner(key, HashAlgorithmName.SHA256);
         var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);
         var signedBytes = CoseSign1Message.SignEmbedded(payloadBytes, signer);
@@ -635,7 +675,7 @@ public class MstTransparencyProviderTests
     /// <summary>
     /// Creates a CoseSign1Message with an MST receipt in unprotected headers.
     /// </summary>
-    private CoseSign1Message CreateMessageWithMstReceipt()
+    private static CoseSign1Message CreateMessageWithMstReceipt(X509Certificate2 cert)
     {
         // Create a minimal MST receipt (COSE_Sign1 structure for label 394)
         var receiptWriter = new CborWriter();
@@ -668,7 +708,7 @@ public class MstTransparencyProviderTests
         var payload = System.Text.Encoding.UTF8.GetBytes("test payload");
 
         // Create signature
-        using var key = TestCert.GetECDsaPrivateKey()!;
+        using var key = cert.GetECDsaPrivateKey()!;
         var toBeSigned = CreateToBeSigned(protectedBytes, payload);
         var signature = key.SignData(toBeSigned, HashAlgorithmName.SHA256);
 

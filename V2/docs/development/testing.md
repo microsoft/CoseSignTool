@@ -77,37 +77,126 @@ dotnet test --verbosity detailed
 
 ## Writing Tests
 
+### Test Isolation Requirements
+
+**IMPORTANT:** All tests MUST be fully isolated to support parallel test execution. Do NOT use `[SetUp]` or `[TearDown]` attributes with class-level state. Each test must create its own state within the test method.
+
+#### Why No SetUp/TearDown?
+
+- **Parallel Execution**: NUnit runs tests in parallel by default. Class-level fields modified in `[SetUp]` can be overwritten by concurrent tests.
+- **Deterministic Behavior**: Each test should be self-contained and produce the same result regardless of execution order.
+- **Clear Dependencies**: Test dependencies are explicit when created inline.
+
 ### Test Structure
 
 ```csharp
 [TestFixture]
 public sealed class MyClassTests
 {
-    private MyClass _sut; // System Under Test
+    // ✓ Constants are OK - immutable
+    private const string TestValue = "test";
     
-    [SetUp]
-    public void Setup()
-    {
-        _sut = new MyClass();
-    }
+    // ✓ Readonly value types are OK - immutable
+    private readonly Uri TestUri = new("https://example.com");
     
-    [TearDown]
-    public void Cleanup()
-    {
-        // Dispose resources
-    }
+    // ✗ AVOID: Mutable class-level fields that change per test
+    // private MyClass _sut;
     
+    // ✗ AVOID: [SetUp] with mutable state
+    // [SetUp]
+    // public void Setup() { _sut = new MyClass(); }
+
     [Test]
     public void MethodName_Scenario_ExpectedResult()
     {
-        // Arrange
-        var input = "test";
-        
+        // Arrange - create all state within the test
+        var sut = new MyClass();
+        var input = TestValue;
+
         // Act
-        var result = _sut.Method(input);
-        
+        var result = sut.Method(input);
+
         // Assert
         Assert.That(result, Is.EqualTo(expected));
+    }
+    
+    [Test]
+    public void MethodName_WithDisposable_DisposesCorrectly()
+    {
+        // Arrange - use 'using' for IDisposable resources
+        using var cert = LocalCertificateFactory.CreateRsaCertificate();
+        using var sut = new MyDisposableClass(cert);
+
+        // Act
+        var result = sut.DoSomething();
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+    }
+}
+```
+
+### Helper Methods for Test State
+
+When multiple tests need similar setup, use private static factory methods:
+
+```csharp
+[TestFixture]
+public sealed class ValidatorTests
+{
+    [Test]
+    public void Validate_WithValidMessage_ReturnsSuccess()
+    {
+        // Arrange
+        using var testContext = CreateTestContext();
+        var validator = new CertificateChainValidator(allowUntrusted: true);
+
+        // Act
+        var result = validator.Validate(testContext.Message, ValidationStage.KeyMaterialTrust);
+
+        // Assert
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public void Validate_WithNullMessage_ReturnsFailure()
+    {
+        // Arrange
+        var validator = new CertificateChainValidator(allowUntrusted: true);
+
+        // Act
+        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
+
+        // Assert
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    // Private helper that returns a disposable context
+    private static TestContext CreateTestContext()
+    {
+        var cert = TestCertificateUtils.CreateCertificate("TestCert");
+        var chainBuilder = new X509ChainBuilder();
+        var signingService = CertificateSigningService.Create(cert, chainBuilder);
+        var factory = new DirectSignatureFactory(signingService);
+        var messageBytes = factory.CreateCoseSign1MessageBytes(
+            new byte[] { 1, 2, 3 }, "application/test");
+        var message = CoseSign1Message.DecodeSign1(messageBytes);
+        
+        return new TestContext(cert, message);
+    }
+
+    private sealed class TestContext : IDisposable
+    {
+        public X509Certificate2 Certificate { get; }
+        public CoseSign1Message Message { get; }
+
+        public TestContext(X509Certificate2 cert, CoseSign1Message message)
+        {
+            Certificate = cert;
+            Message = message;
+        }
+
+        public void Dispose() => Certificate.Dispose();
     }
 }
 ```
@@ -118,12 +207,13 @@ public sealed class MyClassTests
 [Test]
 public async Task AsyncMethod_Scenario_ExpectedResult()
 {
-    // Arrange
+    // Arrange - create state within the test
+    using var sut = new MyAsyncClass();
     var input = "test";
-    
+
     // Act
-    var result = await _sut.MethodAsync(input);
-    
+    var result = await sut.MethodAsync(input);
+
     // Assert
     Assert.That(result, Is.EqualTo(expected));
 }
@@ -263,11 +353,12 @@ public class SignVerifyIntegrationTests
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificateSignature()
+            .ValidateCertificate(cert => { })
+            .AllowAllTrust("test")
             .Build();
-        var result = await validator.ValidateAsync(message, ValidationStage.Signature);
+        var result = await validator.ValidateAsync(message);
         
-        Assert.IsTrue(result.IsValid);
+        Assert.IsTrue(result.Overall.IsValid);
     }
 }
 ```

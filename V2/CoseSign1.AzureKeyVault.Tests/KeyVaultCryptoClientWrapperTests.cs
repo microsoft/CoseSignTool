@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography;
+namespace CoseSign1.AzureKeyVault.Tests;
+
 using Azure;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using CoseSign1.AzureKeyVault.Common;
 using Moq;
-
-namespace CoseSign1.AzureKeyVault.Tests;
 
 /// <summary>
 /// Tests for <see cref="KeyVaultCryptoClientWrapper"/>.

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace CoseSign1.Certificates.Local;
+
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Signing key provider that uses X509Certificate2 private keys directly.

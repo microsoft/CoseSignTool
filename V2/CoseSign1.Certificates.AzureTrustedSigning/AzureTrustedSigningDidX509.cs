@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.AzureTrustedSigning;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using DIDx509.Builder;
-
-namespace CoseSign1.Certificates.AzureTrustedSigning;
 
 /// <summary>
 /// Generates DID:X509 identifiers specifically for Azure Trusted Signing certificates.

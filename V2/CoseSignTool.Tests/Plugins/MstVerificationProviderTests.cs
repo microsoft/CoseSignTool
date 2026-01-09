@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Plugins;
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using CoseSign1.Validation;
 using CoseSign1.Validation.Results;
-using CoseSignTool.Abstractions;
 using CoseSignTool.MST.Plugin;
-
-namespace CoseSignTool.Tests.Plugins;
 
 /// <summary>
 /// Tests for the MstVerificationProvider class.
@@ -16,22 +14,23 @@ namespace CoseSignTool.Tests.Plugins;
 [TestFixture]
 public class MstVerificationProviderTests
 {
-    private MstVerificationProvider Provider = null!;
-    private Command Command = null!;
-    private Parser Parser = null!;
+    private record TestState(MstVerificationProvider Provider, Command Command, Parser Parser);
 
-    [SetUp]
-    public void Setup()
+    private static TestState CreateTestState()
     {
-        Provider = new MstVerificationProvider();
-        Command = new Command("verify", "Test verify command");
-        Provider.AddVerificationOptions(Command);
-        Parser = new Parser(Command);
+        var provider = new MstVerificationProvider();
+        var command = new Command("verify", "Test verify command");
+        provider.AddVerificationOptions(command);
+        var parser = new Parser(command);
+        return new TestState(provider, command, parser);
     }
 
     [Test]
     public void ProviderName_ReturnsMST()
     {
+        // Arrange
+        var (Provider, _, _) = CreateTestState();
+
         // Assert
         Assert.That(Provider.ProviderName, Is.EqualTo("MST"));
     }
@@ -39,6 +38,9 @@ public class MstVerificationProviderTests
     [Test]
     public void Description_ReturnsExpectedDescription()
     {
+        // Arrange
+        var (Provider, _, _) = CreateTestState();
+
         // Assert
         Assert.That(Provider.Description, Does.Contain("Microsoft Signing Transparency"));
     }
@@ -46,6 +48,9 @@ public class MstVerificationProviderTests
     [Test]
     public void Priority_Returns100()
     {
+        // Arrange
+        var (Provider, _, _) = CreateTestState();
+
         // Assert - MST should run after signature and chain validation
         Assert.That(Provider.Priority, Is.EqualTo(100));
     }
@@ -53,6 +58,9 @@ public class MstVerificationProviderTests
     [Test]
     public void AddVerificationOptions_AddsAllRequiredOptions()
     {
+        // Arrange
+        var (_, Command, _) = CreateTestState();
+
         // Assert
         Assert.That(Command.Options.Any(o => o.Name == "require-receipt"), Is.True);
         Assert.That(Command.Options.Any(o => o.Name == "mst-endpoint"), Is.True);
@@ -66,6 +74,7 @@ public class MstVerificationProviderTests
     public void IsActivated_WithDefaultOptions_ReturnsFalse()
     {
         // Arrange - no MST options specified
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("");
 
         // Act
@@ -79,6 +88,7 @@ public class MstVerificationProviderTests
     public void IsActivated_WithRequireReceipt_ReturnsTrue()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt");
 
         // Act
@@ -92,6 +102,7 @@ public class MstVerificationProviderTests
     public void IsActivated_WithMstEndpoint_ReturnsTrue()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.com");
 
         // Act
@@ -105,6 +116,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithNoOptions_ReturnsEmpty()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("");
 
         // Act
@@ -118,6 +130,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithRequireReceipt_IncludesPresenceValidator()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt");
 
         // Act
@@ -132,6 +145,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithEndpoint_IncludesReceiptValidator()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.codetransparency.azure.net");
 
         // Act
@@ -147,6 +161,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithEndpointAndNoVerify_ReturnsEmpty()
     {
         // Arrange - endpoint but verify-receipt set to false
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.com --verify-receipt false");
 
         // Act
@@ -161,6 +176,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithBothOptions_IncludesBothValidators()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt --mst-endpoint https://example.codetransparency.azure.net");
 
         // Act
@@ -176,6 +192,7 @@ public class MstVerificationProviderTests
     public void CreateValidators_WithOfflineTrustModeAndTrustFile_IncludesOfflineReceiptValidator()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var tmp = Path.Combine(Path.GetTempPath(), $"mst_trust_{Guid.NewGuid():N}.json");
         // Minimal SDK-compatible shape produced by the SDK serializer.
         var empty = new Azure.Security.CodeTransparency.CodeTransparencyOfflineKeys();
@@ -206,6 +223,7 @@ public class MstVerificationProviderTests
     public void GetVerificationMetadata_WithNoOptions_ShowsNotRequired()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("");
 
         // Act
@@ -220,6 +238,7 @@ public class MstVerificationProviderTests
     public void GetVerificationMetadata_WithRequireReceipt_ShowsRequired()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt");
 
         // Act
@@ -234,6 +253,7 @@ public class MstVerificationProviderTests
     public void GetVerificationMetadata_WithEndpoint_IncludesEndpointInfo()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://myservice.codetransparency.azure.net");
 
         // Act
@@ -250,6 +270,7 @@ public class MstVerificationProviderTests
     public void GetVerificationMetadata_WithEndpointNoVerify_ShowsNoVerify()
     {
         // Arrange
+        var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.com --verify-receipt false");
 
         // Act

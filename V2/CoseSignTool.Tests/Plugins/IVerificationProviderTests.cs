@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Plugins;
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
@@ -8,8 +10,6 @@ using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.Tests.Plugins;
 
 /// <summary>
 /// Tests for the IVerificationProvider interface and its implementations.

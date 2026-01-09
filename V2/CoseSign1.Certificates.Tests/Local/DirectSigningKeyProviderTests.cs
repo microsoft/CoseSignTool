@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Local;
-
 namespace CoseSign1.Certificates.Tests.Local;
+
+using CoseSign1.Certificates.Local;
 
 public class DirectSigningKeyProviderTests
 {

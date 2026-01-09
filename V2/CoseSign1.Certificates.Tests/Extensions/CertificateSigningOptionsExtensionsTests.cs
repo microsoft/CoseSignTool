@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Extensions;
+
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
-
-namespace CoseSign1.Certificates.Tests.Extensions;
 
 [TestFixture]
 public class CertificateSigningOptionsExtensionsTests

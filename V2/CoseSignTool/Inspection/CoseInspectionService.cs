@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Inspection;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
@@ -8,8 +10,6 @@ using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
 using CoseSign1.Indirect;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Inspection;
 
 /// <summary>
 /// Service for inspecting COSE Sign1 messages and extracting information.

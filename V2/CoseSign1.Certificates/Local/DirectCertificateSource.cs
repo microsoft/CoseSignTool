@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.ChainBuilders;
-
 namespace CoseSign1.Certificates.Local;
+
+using CoseSign1.Certificates.ChainBuilders;
 
 /// <summary>
 /// Certificate source that wraps a directly provided X509Certificate2 with chain support.

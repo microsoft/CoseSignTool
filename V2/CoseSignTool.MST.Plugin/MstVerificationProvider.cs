@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.MST.Plugin;
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.ClientModel.Primitives;
@@ -8,14 +10,11 @@ using System.Security.Cryptography.Cose;
 using System.Text;
 using System.Text.Json;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.MST.Plugin;
 
 /// <summary>
 /// Verification provider for Microsoft Signing Transparency (MST) receipt validation.

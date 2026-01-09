@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Output;
+
 using System.Xml;
 using System.Xml.Linq;
 using System.Diagnostics.CodeAnalysis;
-
-namespace CoseSignTool.Output;
 
 /// <summary>
 /// XML-based output formatter.
@@ -46,25 +46,25 @@ public class XmlOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
-        Messages.Add(new XElement(ClassStrings.ElementSuccess, message));
+        Messages.Add(new XElement(ClassStrings.ElementSuccess, message.Trim()));
     }
 
     /// <inheritdoc/>
     public void WriteError(string message)
     {
-        Messages.Add(new XElement(ClassStrings.ElementError, message));
+        Messages.Add(new XElement(ClassStrings.ElementError, message.Trim()));
     }
 
     /// <inheritdoc/>
     public void WriteInfo(string message)
     {
-        Messages.Add(new XElement(ClassStrings.ElementInfo, message));
+        Messages.Add(new XElement(ClassStrings.ElementInfo, message.Trim()));
     }
 
     /// <inheritdoc/>
     public void WriteWarning(string message)
     {
-        Messages.Add(new XElement(ClassStrings.ElementWarning, message));
+        Messages.Add(new XElement(ClassStrings.ElementWarning, message.Trim()));
     }
 
     /// <inheritdoc/>

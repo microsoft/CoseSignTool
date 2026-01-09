@@ -1,28 +1,31 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 public class CertificateValidatorBuilderCoverageTests
 {
-    private X509Certificate2? TestCert;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Holds the test state for each test method.
+    /// </summary>
+    private sealed record TestContext(X509Certificate2 TestCert) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate("CoverageTest");
+        public void Dispose() => TestCert?.Dispose();
     }
 
-    [TearDown]
-    public void TearDown()
+    /// <summary>
+    /// Creates a fresh test context with isolated state.
+    /// </summary>
+    private static TestContext CreateTestContext()
     {
-        TestCert?.Dispose();
+        var testCert = TestCertificateUtils.CreateCertificate("CoverageTest");
+        return new TestContext(testCert);
     }
 
     [Test]
@@ -35,9 +38,10 @@ public class CertificateValidatorBuilderCoverageTests
     [Test]
     public void CertificateValidationBuilder_CanInvokeAllBuilderMethods()
     {
+        using var ctx = CreateTestContext();
         var builder = Cose.Sign1Message();
 
-        var customRoots = new X509Certificate2Collection { TestCert! };
+        var customRoots = new X509Certificate2Collection { ctx.TestCert };
         var chainBuilder = new X509ChainBuilder();
 
         var certValidator = new CertificateValidationBuilder()

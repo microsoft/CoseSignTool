@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Security.Cryptography;
 using Azure.Security.CodeTransparency;
-
-namespace CoseSign1.Transparent.MST.Tests;
 
 [TestFixture]
 public class CodeTransparencyVerifierAdapterTests

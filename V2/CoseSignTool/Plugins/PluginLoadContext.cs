@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Plugins;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
-
-namespace CoseSignTool.Plugins;
 
 /// <summary>
 /// Custom AssemblyLoadContext for loading plugins with isolated dependencies.

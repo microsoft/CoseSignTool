@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace DIDx509.Tests.Parsing;
+
 using DIDx509.Parsing;
 using System.Reflection;
-
-namespace DIDx509.Tests.Parsing;
 
 [TestFixture]
 public class DidX509ParserTests

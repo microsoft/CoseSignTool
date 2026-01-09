@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates;
+
 using CoseSign1.Certificates.ChainBuilders;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Certificates;
 
 /// <summary>
 /// Abstract base class for certificate sources.

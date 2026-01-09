@@ -1,16 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates a certificate using a custom predicate function.
 /// </summary>
-internal sealed class CertificatePredicateValidator : IValidator
+internal sealed partial class CertificatePredicateValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -38,6 +40,17 @@ internal sealed class CertificatePredicateValidator : IValidator
     private readonly Func<X509Certificate2, bool> Predicate;
     private readonly string? FailureMessage;
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificatePredicateValidator> Logger;
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Evaluating certificate predicate. Thumbprint: {Thumbprint}")]
+    private partial void LogEvaluatingPredicate(string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Certificate predicate passed. Thumbprint: {Thumbprint}")]
+    private partial void LogPredicatePassed(string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Certificate predicate failed. Thumbprint: {Thumbprint}, Message: {FailureMessage}")]
+    private partial void LogPredicateFailed(string thumbprint, string failureMessage);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificatePredicateValidator"/> class.
@@ -45,14 +58,17 @@ internal sealed class CertificatePredicateValidator : IValidator
     /// <param name="predicate">The predicate function to validate the certificate.</param>
     /// <param name="failureMessage">The error message if validation fails.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public CertificatePredicateValidator(
         Func<X509Certificate2, bool> predicate,
         string? failureMessage = null,
-        bool allowUnprotectedHeaders = false)
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificatePredicateValidator>? logger = null)
     {
         Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
         FailureMessage = failureMessage;
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificatePredicateValidator>.Instance;
     }
 
     public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
@@ -73,8 +89,11 @@ internal sealed class CertificatePredicateValidator : IValidator
                 ClassStrings.ErrorCodeCertNotFound);
         }
 
+        LogEvaluatingPredicate(cert.Thumbprint);
+
         if (Predicate(cert))
         {
+            LogPredicatePassed(cert.Thumbprint);
             return ValidationResult.Success(
                 ClassStrings.ValidatorName,
                 new Dictionary<string, object>
@@ -83,9 +102,11 @@ internal sealed class CertificatePredicateValidator : IValidator
                 });
         }
 
+        var message = FailureMessage ?? ClassStrings.ErrorMessagePredicateFailed;
+        LogPredicateFailed(cert.Thumbprint, message);
         return ValidationResult.Failure(
             ClassStrings.ValidatorName,
-            FailureMessage ?? ClassStrings.ErrorMessagePredicateFailed,
+            message,
             ClassStrings.ErrorCodePredicateFailed);
     }
 

@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
-using CoseSignTool.AzureTrustedSigning.Plugin;
-
 namespace CoseSignTool.AzureTrustedSigning.Plugin.Tests;
+
+using System.CommandLine;
 
 /// <summary>
 /// Tests for AzureTrustedSigningCommandProvider.

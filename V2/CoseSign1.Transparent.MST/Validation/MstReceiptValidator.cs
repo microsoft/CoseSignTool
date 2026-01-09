@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using Azure.Security.CodeTransparency;
@@ -9,8 +11,6 @@ using CoseSign1.Validation;
 using CoseSign1.Validation.Builders;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Transparent.MST.Validation;
 
 /// <summary>
 /// Validates that a COSE Sign1 message contains valid MST (Microsoft Signing Transparency) receipts.

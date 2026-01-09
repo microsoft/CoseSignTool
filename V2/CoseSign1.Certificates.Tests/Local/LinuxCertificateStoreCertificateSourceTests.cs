@@ -1,59 +1,62 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Certificates.Local;
-
 namespace CoseSign1.Certificates.Tests.Local;
+
+using CoseSign1.Certificates.Local;
 
 public class LinuxCertificateStoreCertificateSourceTests
 {
-    private string? TestCertDirectory;
-    private X509Certificate2? TestCert;
-    private string? CertFilePath;
-    private string? KeyFilePath;
-
-    [SetUp]
-    public void Setup()
+    private sealed record TestContext(
+        string TestCertDirectory,
+        X509Certificate2 TestCert,
+        string CertFilePath,
+        string KeyFilePath) : IDisposable
     {
-        // Create a temporary directory for test certificates
-        TestCertDirectory = Path.Combine(Path.GetTempPath(), $"CoseSignTest_{Guid.NewGuid()}");
-        Directory.CreateDirectory(TestCertDirectory);
+        public void Dispose()
+        {
+            TestCert.Dispose();
 
-        // Create a test certificate
-        TestCert = TestCertificateUtils.CreateCertificate("LinuxCertStoreTest");
-
-        // Export certificate to PEM format
-        CertFilePath = Path.Combine(TestCertDirectory, "test.crt");
-        var certPem = TestCert.ExportCertificatePem();
-        File.WriteAllText(CertFilePath, certPem);
-
-        // Export private key to PEM format
-        KeyFilePath = Path.Combine(TestCertDirectory, "test.key");
-        var keyPem = TestCert.GetRSAPrivateKey()!.ExportRSAPrivateKeyPem();
-        File.WriteAllText(KeyFilePath, keyPem);
+            if (Directory.Exists(TestCertDirectory))
+            {
+                Directory.Delete(TestCertDirectory, recursive: true);
+            }
+        }
     }
 
-    [TearDown]
-    public void Cleanup()
+    private static TestContext CreateTestContext()
     {
-        TestCert?.Dispose();
+        // Create a temporary directory for test certificates
+        string testCertDirectory = Path.Combine(Path.GetTempPath(), $"CoseSignTest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testCertDirectory);
 
-        if (TestCertDirectory != null && Directory.Exists(TestCertDirectory))
-        {
-            Directory.Delete(TestCertDirectory, recursive: true);
-        }
+        // Create a test certificate
+        X509Certificate2 testCert = TestCertificateUtils.CreateCertificate("LinuxCertStoreTest");
+
+        // Export certificate to PEM format
+        string certFilePath = Path.Combine(testCertDirectory, "test.crt");
+        var certPem = testCert.ExportCertificatePem();
+        File.WriteAllText(certFilePath, certPem);
+
+        // Export private key to PEM format
+        string keyFilePath = Path.Combine(testCertDirectory, "test.key");
+        var keyPem = testCert.GetRSAPrivateKey()!.ExportRSAPrivateKeyPem();
+        File.WriteAllText(keyFilePath, keyPem);
+
+        return new TestContext(testCertDirectory, testCert, certFilePath, keyFilePath);
     }
 
     [Test]
     public void Constructor_WithCertificateAndKeyFiles_Succeeds()
     {
+        using var ctx = CreateTestContext();
         // This test may fail on Windows since the constructor is marked with [SupportedOSPlatform("linux")]
         // but we'll test the basic file loading logic
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!);
+                ctx.CertFilePath,
+                ctx.KeyFilePath);
 
             Assert.That(source, Is.Not.Null);
         }
@@ -66,36 +69,41 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithNullCertificateFile_ThrowsArgumentException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentNullException>(() =>
-            new LinuxCertificateStoreCertificateSource((string)null!, KeyFilePath!));
+            new LinuxCertificateStoreCertificateSource((string)null!, ctx.KeyFilePath));
     }
 
     [Test]
     public void Constructor_WithNullKeyFile_ThrowsArgumentException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentNullException>(() =>
-            new LinuxCertificateStoreCertificateSource(CertFilePath!, (string)null!));
+            new LinuxCertificateStoreCertificateSource(ctx.CertFilePath, (string)null!));
     }
 
     [Test]
     public void Constructor_WithNonExistentCertificateFile_ThrowsFileNotFoundException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<FileNotFoundException>(() =>
-            new LinuxCertificateStoreCertificateSource("nonexistent.crt", KeyFilePath!));
+            new LinuxCertificateStoreCertificateSource("nonexistent.crt", ctx.KeyFilePath));
     }
 
     [Test]
     public void Constructor_WithNonExistentKeyFile_ThrowsFileNotFoundException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<FileNotFoundException>(() =>
-            new LinuxCertificateStoreCertificateSource(CertFilePath!, "nonexistent.key"));
+            new LinuxCertificateStoreCertificateSource(ctx.CertFilePath, "nonexistent.key"));
     }
 
     [Test]
     public void Constructor_WithInvalidPrivateKeyFile_ThrowsInvalidOperationException()
     {
+        using var ctx = CreateTestContext();
         // Arrange
-        var invalidKeyPath = Path.Combine(TestCertDirectory!, "invalid.key");
+        var invalidKeyPath = Path.Combine(ctx.TestCertDirectory, "invalid.key");
         // Provide both RSA and EC blocks with invalid key material so that:
         // - RSA.ImportFromPem throws CryptographicException (caught)
         // - ECDsa.ImportFromPem throws CryptographicException (caught)
@@ -108,7 +116,7 @@ public class LinuxCertificateStoreCertificateSourceTests
         {
             // Act & Assert
             var ex = Assert.Throws<InvalidOperationException>(() =>
-                new LinuxCertificateStoreCertificateSource(CertFilePath!, invalidKeyPath));
+                new LinuxCertificateStoreCertificateSource(ctx.CertFilePath, invalidKeyPath));
 
             Assert.That(ex!.Message, Does.Contain("Unable to import private key"));
         }
@@ -121,16 +129,17 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithThumbprint_SearchesDefaultPaths()
     {
+        using var ctx = CreateTestContext();
         // Create certificate in test directory
         var anotherCert = TestCertificateUtils.CreateCertificate("AnotherTest");
-        var anotherCertPath = Path.Combine(TestCertDirectory!, "another.pem");
+        var anotherCertPath = Path.Combine(ctx.TestCertDirectory, "another.pem");
         File.WriteAllText(anotherCertPath, anotherCert.ExportCertificatePem());
 
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 anotherCert.Thumbprint,
-                storePaths: new[] { TestCertDirectory! });
+                storePaths: new[] { ctx.TestCertDirectory });
 
             Assert.That(source, Is.Not.Null);
             Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(anotherCert.Thumbprint));
@@ -148,9 +157,10 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithThumbprintContainingSpacesAndColons_FindsCertificate()
     {
+        using var ctx = CreateTestContext();
         // Arrange
         var anotherCert = TestCertificateUtils.CreateCertificate("AnotherTestNormalizedThumbprint");
-        var anotherCertPath = Path.Combine(TestCertDirectory!, "another2.pem");
+        var anotherCertPath = Path.Combine(ctx.TestCertDirectory, "another2.pem");
         File.WriteAllText(anotherCertPath, anotherCert.ExportCertificatePem());
 
         // Introduce spaces and colons to validate normalization.
@@ -163,7 +173,7 @@ public class LinuxCertificateStoreCertificateSourceTests
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 thumbprintWithNoise,
-                storePaths: new[] { TestCertDirectory! });
+                storePaths: new[] { ctx.TestCertDirectory });
 
             Assert.That(source.GetSigningCertificate().Thumbprint, Is.EqualTo(anotherCert.Thumbprint));
         }
@@ -180,20 +190,22 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithInvalidThumbprint_ThrowsInvalidOperationException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<InvalidOperationException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 "0000000000000000000000000000000000000000",
-                storePaths: new[] { TestCertDirectory! }));
+                storePaths: new[] { ctx.TestCertDirectory }));
     }
 
     [Test]
     public void Constructor_WithSubjectName_FindsCertificate()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 "LinuxCertStoreTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
 
             Assert.That(source, Is.Not.Null);
@@ -208,11 +220,12 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithPredicate_FindsCertificate()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 cert => cert.Subject.Contains("LinuxCertStoreTest"),
-                storePaths: new[] { TestCertDirectory! });
+                storePaths: new[] { ctx.TestCertDirectory });
 
             Assert.That(source, Is.Not.Null);
             Assert.That(source.GetSigningCertificate().Subject, Does.Contain("LinuxCertStoreTest"));
@@ -226,19 +239,21 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithNullPredicate_ThrowsArgumentNullException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentNullException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 (Func<X509Certificate2, bool>)null!,
-                storePaths: new[] { TestCertDirectory! }));
+                storePaths: new[] { ctx.TestCertDirectory }));
     }
 
     [Test]
     public void Constructor_WithNonMatchingPredicate_ThrowsInvalidOperationException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<InvalidOperationException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 cert => false,
-                storePaths: new[] { TestCertDirectory! }));
+                storePaths: new[] { ctx.TestCertDirectory }));
     }
 
     [Test]
@@ -255,11 +270,12 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void GetChainBuilder_ReturnsX509ChainBuilder()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!);
+                ctx.CertFilePath,
+                ctx.KeyFilePath);
 
             var chainBuilder = source.GetChainBuilder();
 
@@ -275,11 +291,12 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void UsageWithLocalCertificateSigningService_Succeeds()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!);
+                ctx.CertFilePath,
+                ctx.KeyFilePath);
 
             var cert = source.GetSigningCertificate();
 
@@ -304,9 +321,10 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
+        using var ctx = CreateTestContext();
         var source = new LinuxCertificateStoreCertificateSource(
             cert => cert.Subject.Contains("LinuxCertStoreTest"),
-            storePaths: new[] { TestCertDirectory! });
+            storePaths: new[] { ctx.TestCertDirectory });
 
         source.Dispose();
         source.Dispose(); // Should not throw
@@ -315,7 +333,8 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithCustomStorePaths_UsesProvidedPaths()
     {
-        var customPath = Path.Combine(TestCertDirectory!, "custom");
+        using var ctx = CreateTestContext();
+        var customPath = Path.Combine(ctx.TestCertDirectory, "custom");
         Directory.CreateDirectory(customPath);
 
         var customCert = TestCertificateUtils.CreateCertificate("CustomPathTest");
@@ -344,35 +363,36 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithMultipleCertificateExtensions_FindsAll()
     {
+        using var ctx = CreateTestContext();
         // Create certificates with different extensions
         var pemCert = TestCertificateUtils.CreateCertificate("PemTest");
         var crtCert = TestCertificateUtils.CreateCertificate("CrtTest");
         var cerCert = TestCertificateUtils.CreateCertificate("CerTest");
 
-        File.WriteAllText(Path.Combine(TestCertDirectory!, "test.pem"), pemCert.ExportCertificatePem());
-        File.WriteAllText(Path.Combine(TestCertDirectory!, "test2.crt"), crtCert.ExportCertificatePem());
-        File.WriteAllText(Path.Combine(TestCertDirectory!, "test3.cer"), cerCert.ExportCertificatePem());
+        File.WriteAllText(Path.Combine(ctx.TestCertDirectory, "test.pem"), pemCert.ExportCertificatePem());
+        File.WriteAllText(Path.Combine(ctx.TestCertDirectory, "test2.crt"), crtCert.ExportCertificatePem());
+        File.WriteAllText(Path.Combine(ctx.TestCertDirectory, "test3.cer"), cerCert.ExportCertificatePem());
 
         try
         {
             // Should find PemTest certificate
             using var source1 = new LinuxCertificateStoreCertificateSource(
                 "PemTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
             Assert.That(source1.GetSigningCertificate().Subject, Does.Contain("PemTest"));
 
             // Should find CrtTest certificate
             using var source2 = new LinuxCertificateStoreCertificateSource(
                 "CrtTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
             Assert.That(source2.GetSigningCertificate().Subject, Does.Contain("CrtTest"));
 
             // Should find CerTest certificate
             using var source3 = new LinuxCertificateStoreCertificateSource(
                 "CerTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
             Assert.That(source3.GetSigningCertificate().Subject, Does.Contain("CerTest"));
         }
@@ -391,9 +411,10 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithThumbprintNormalization_HandlesVariousFormats()
     {
+        using var ctx = CreateTestContext();
         // Test thumbprint with spaces and colons
         var cert = TestCertificateUtils.CreateCertificate("NormalizeTest");
-        var certPath = Path.Combine(TestCertDirectory!, "normalize.pem");
+        var certPath = Path.Combine(ctx.TestCertDirectory, "normalize.pem");
         File.WriteAllText(certPath, cert.ExportCertificatePem());
 
         try
@@ -402,14 +423,14 @@ public class LinuxCertificateStoreCertificateSourceTests
             var thumbprintWithSpaces = string.Join(" ", cert.Thumbprint.ToCharArray().Select((c, i) => i % 2 == 1 ? c + " " : c.ToString()).ToArray()).Trim();
             using var source1 = new LinuxCertificateStoreCertificateSource(
                 thumbprintWithSpaces,
-                storePaths: new[] { TestCertDirectory! });
+                storePaths: new[] { ctx.TestCertDirectory });
             Assert.That(source1.GetSigningCertificate().Thumbprint, Is.EqualTo(cert.Thumbprint));
 
             // Format with colons
             var thumbprintWithColons = string.Join(":", cert.Thumbprint.ToCharArray().Select((c, i) => i % 2 == 1 ? c + ":" : c.ToString()).ToArray()).TrimEnd(':');
             using var source2 = new LinuxCertificateStoreCertificateSource(
                 thumbprintWithColons,
-                storePaths: new[] { TestCertDirectory! });
+                storePaths: new[] { ctx.TestCertDirectory });
             Assert.That(source2.GetSigningCertificate().Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
         catch (PlatformNotSupportedException)
@@ -425,13 +446,14 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithValidOnlyFilter_FiltersExpiredCertificates()
     {
+        using var ctx = CreateTestContext();
         // Create an expired certificate using duration
         var expiredDuration = TimeSpan.FromDays(-1); // Already expired
         var expiredCert = TestCertificateUtils.CreateCertificate(
             "ExpiredTest",
             duration: expiredDuration);
 
-        var expiredPath = Path.Combine(TestCertDirectory!, "expired.pem");
+        var expiredPath = Path.Combine(ctx.TestCertDirectory, "expired.pem");
         File.WriteAllText(expiredPath, expiredCert.ExportCertificatePem());
 
         try
@@ -440,13 +462,13 @@ public class LinuxCertificateStoreCertificateSourceTests
             Assert.Throws<InvalidOperationException>(() =>
                 new LinuxCertificateStoreCertificateSource(
                     "ExpiredTest",
-                    storePaths: new[] { TestCertDirectory! },
+                    storePaths: new[] { ctx.TestCertDirectory },
                     validOnly: true));
 
             // Should find expired certificate with validOnly=false
             using var source = new LinuxCertificateStoreCertificateSource(
                 "ExpiredTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
             Assert.That(source, Is.Not.Null);
         }
@@ -463,12 +485,13 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithInvalidPrivateKeyFile_ThrowsException()
     {
+        using var ctx = CreateTestContext();
         // Create a file with invalid key data
-        var invalidKeyPath = Path.Combine(TestCertDirectory!, "invalid.key");
+        var invalidKeyPath = Path.Combine(ctx.TestCertDirectory, "invalid.key");
         File.WriteAllText(invalidKeyPath, "This is not a valid PEM key");
 
         var ex = Assert.Throws<ArgumentException>(() =>
-            new LinuxCertificateStoreCertificateSource(CertFilePath!, invalidKeyPath));
+            new LinuxCertificateStoreCertificateSource(ctx.CertFilePath, invalidKeyPath));
 
         Assert.That(ex.Message, Does.Contain("No supported key formats were found"));
     }
@@ -476,10 +499,11 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithECDSACertificate_LoadsSuccessfully()
     {
+        using var ctx = CreateTestContext();
         // Create an ECDSA certificate
         var ecdsaCert = TestCertificateUtils.CreateECDsaCertificate("ECDSATest");
-        var ecdsaCertPath = Path.Combine(TestCertDirectory!, "ecdsa.crt");
-        var ecdsaKeyPath = Path.Combine(TestCertDirectory!, "ecdsa.key");
+        var ecdsaCertPath = Path.Combine(ctx.TestCertDirectory, "ecdsa.crt");
+        var ecdsaKeyPath = Path.Combine(ctx.TestCertDirectory, "ecdsa.key");
 
         File.WriteAllText(ecdsaCertPath, ecdsaCert.ExportCertificatePem());
 
@@ -510,14 +534,15 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithCustomChainBuilder_UsesProvidedBuilder()
     {
+        using var ctx = CreateTestContext();
         var customBuilder = new CoseSign1.Certificates.ChainBuilders.ExplicitCertificateChainBuilder(
-            new[] { TestCert! });
+            new[] { ctx.TestCert });
 
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!,
+                ctx.CertFilePath,
+                ctx.KeyFilePath,
                 chainBuilder: customBuilder);
 
             var builder = source.GetChainBuilder();
@@ -532,7 +557,8 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithNonExistentStorePath_SkipsPath()
     {
-        var nonExistentPath = Path.Combine(TestCertDirectory!, "nonexistent");
+        using var ctx = CreateTestContext();
+        var nonExistentPath = Path.Combine(ctx.TestCertDirectory, "nonexistent");
 
         // Should not throw, just skip the non-existent path
         Assert.Throws<InvalidOperationException>(() =>
@@ -544,8 +570,9 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithCorruptedCertificateFiles_SkipsThem()
     {
+        using var ctx = CreateTestContext();
         // Create a corrupted certificate file
-        var corruptedPath = Path.Combine(TestCertDirectory!, "corrupted.pem");
+        var corruptedPath = Path.Combine(ctx.TestCertDirectory, "corrupted.pem");
         File.WriteAllText(corruptedPath, "-----BEGIN CERTIFICATE-----\nThis is not valid base64\n-----END CERTIFICATE-----");
 
         // Should skip corrupted file and find the valid one
@@ -553,7 +580,7 @@ public class LinuxCertificateStoreCertificateSourceTests
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 "LinuxCertStoreTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
 
             Assert.That(source, Is.Not.Null);
@@ -568,39 +595,43 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithEmptyThumbprint_ThrowsArgumentException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 "",
-                storePaths: new[] { TestCertDirectory! }));
+                storePaths: new[] { ctx.TestCertDirectory }));
     }
 
     [Test]
     public void Constructor_WithWhitespaceThumbprint_ThrowsArgumentException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 "   ",
-                storePaths: new[] { TestCertDirectory! }));
+                storePaths: new[] { ctx.TestCertDirectory }));
     }
 
     [Test]
     public void Constructor_WithEmptySubjectName_ThrowsArgumentException()
     {
+        using var ctx = CreateTestContext();
         Assert.Throws<ArgumentException>(() =>
             new LinuxCertificateStoreCertificateSource(
                 "",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false));
     }
 
     [Test]
     public void Constructor_WithKeyStorageFlags_AppliesFlags()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!,
+                ctx.CertFilePath,
+                ctx.KeyFilePath,
                 keyStorageFlags: X509KeyStorageFlags.EphemeralKeySet);
 
             Assert.That(source, Is.Not.Null);
@@ -615,16 +646,17 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void HasPrivateKey_ReturnsFalse_WhenCertificateHasNoPrivateKey()
     {
+        using var ctx = CreateTestContext();
         // Create certificate without private key in store
         var certOnlyCert = TestCertificateUtils.CreateCertificate("CertOnly");
-        var certOnlyPath = Path.Combine(TestCertDirectory!, "certonly.pem");
+        var certOnlyPath = Path.Combine(ctx.TestCertDirectory, "certonly.pem");
         File.WriteAllText(certOnlyPath, certOnlyCert.ExportCertificatePem());
 
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 "CertOnly",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
 
             Assert.That(source.HasPrivateKey, Is.False);
@@ -642,14 +674,15 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithMultipleCertificatesInPath_PrefersOneWithPrivateKey()
     {
+        using var ctx = CreateTestContext();
         // Create two certificates with same subject, one with private key accessible
         var cert1 = TestCertificateUtils.CreateCertificate("MultiTest");
         var cert2 = TestCertificateUtils.CreateCertificate("MultiTest");
 
         // Write both to disk (cert1 without key file, cert2 with key file)
-        var cert1Path = Path.Combine(TestCertDirectory!, "multi1.pem");
-        var cert2Path = Path.Combine(TestCertDirectory!, "multi2.pem");
-        var cert2KeyPath = Path.Combine(TestCertDirectory!, "multi2.key");
+        var cert1Path = Path.Combine(ctx.TestCertDirectory, "multi1.pem");
+        var cert2Path = Path.Combine(ctx.TestCertDirectory, "multi2.pem");
+        var cert2KeyPath = Path.Combine(ctx.TestCertDirectory, "multi2.key");
 
         File.WriteAllText(cert1Path, cert1.ExportCertificatePem());
         File.WriteAllText(cert2Path, cert2.ExportCertificatePem());
@@ -659,7 +692,7 @@ public class LinuxCertificateStoreCertificateSourceTests
         {
             using var source = new LinuxCertificateStoreCertificateSource(
                 "MultiTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
 
             // Should prefer the certificate without private key since we can't detect
@@ -680,12 +713,13 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithNullStorePaths_UsesDefaultPaths()
     {
+        using var ctx = CreateTestContext();
         try
         {
             // This will fail because test cert is not in default paths, but validates null handling
             Assert.Throws<InvalidOperationException>(() =>
                 new LinuxCertificateStoreCertificateSource(
-                    TestCert!.Thumbprint,
+                    ctx.TestCert.Thumbprint,
                     storePaths: null));
         }
         catch (PlatformNotSupportedException)
@@ -697,11 +731,12 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void GetSigningCertificate_ReturnsSameCertificateInstance()
     {
+        using var ctx = CreateTestContext();
         try
         {
             using var source = new LinuxCertificateStoreCertificateSource(
-                CertFilePath!,
-                KeyFilePath!);
+                ctx.CertFilePath,
+                ctx.KeyFilePath);
 
             var cert1 = source.GetSigningCertificate();
             var cert2 = source.GetSigningCertificate();
@@ -717,8 +752,9 @@ public class LinuxCertificateStoreCertificateSourceTests
     [Test]
     public void Constructor_WithIOExceptionOnFileRead_SkipsFile()
     {
+        using var ctx = CreateTestContext();
         // Create a directory instead of a file to trigger IOException
-        var directoryAsFile = Path.Combine(TestCertDirectory!, "fake.pem");
+        var directoryAsFile = Path.Combine(ctx.TestCertDirectory, "fake.pem");
         Directory.CreateDirectory(directoryAsFile);
 
         try
@@ -726,7 +762,7 @@ public class LinuxCertificateStoreCertificateSourceTests
             // Should skip the directory and find the valid certificate
             using var source = new LinuxCertificateStoreCertificateSource(
                 "LinuxCertStoreTest",
-                storePaths: new[] { TestCertDirectory! },
+                storePaths: new[] { ctx.TestCertDirectory },
                 validOnly: false);
 
             Assert.That(source, Is.Not.Null);

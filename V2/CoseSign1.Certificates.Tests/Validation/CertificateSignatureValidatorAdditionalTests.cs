@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Tests.Validation;
 
 /// <summary>
 /// Additional tests for CertificateSignatureValidator to improve coverage.
@@ -15,18 +15,21 @@ namespace CoseSign1.Certificates.Tests.Validation;
 [TestFixture]
 public class CertificateSignatureValidatorAdditionalTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Holds the test state for each test method.
+    /// </summary>
+    private sealed record TestContext(System.Security.Cryptography.X509Certificates.X509Certificate2 TestCert) : IDisposable
     {
-        TestCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorAdditionalTest");
+        public void Dispose() => TestCert?.Dispose();
     }
 
-    [TearDown]
-    public void TearDown()
+    /// <summary>
+    /// Creates a fresh test context with isolated state.
+    /// </summary>
+    private static TestContext CreateTestContext()
     {
-        TestCert?.Dispose();
+        var testCert = TestCertificateUtils.CreateCertificate("CertificateSignatureValidatorAdditionalTest");
+        return new TestContext(testCert);
     }
 
     #region Error Code Tests
@@ -51,8 +54,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithDetachedSignature_ReturnsDetachedContentNotSupportedErrorCode()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var detachedMessage = CreateDetachedSignature();
+        var detachedMessage = CreateDetachedSignature(ctx);
 
         // Act
         var result = validator.Validate(detachedMessage, ValidationStage.Signature);
@@ -69,8 +73,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithTamperedSignature_ReturnsSignatureInvalidErrorCode()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var tamperedMessage = CreateTamperedSignature();
+        var tamperedMessage = CreateTamperedSignature(ctx);
 
         // Act
         var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
@@ -90,8 +95,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithDetachedSignatureAllowUnprotected_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var detachedMessage = CreateDetachedSignature();
+        var detachedMessage = CreateDetachedSignature(ctx);
 
         // Act
         var result = validator.Validate(detachedMessage, ValidationStage.Signature);
@@ -105,8 +111,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public async Task ValidateAsync_WithDetachedSignature_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var detachedMessage = CreateDetachedSignature();
+        var detachedMessage = CreateDetachedSignature(ctx);
 
         // Act
         var result = await validator.ValidateAsync(detachedMessage, ValidationStage.Signature, CancellationToken.None);
@@ -124,8 +131,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithTamperedContent_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var tamperedMessage = CreateTamperedSignature();
+        var tamperedMessage = CreateTamperedSignature(ctx);
 
         // Act
         var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
@@ -140,8 +148,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithTamperedContentAllowUnprotected_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var tamperedMessage = CreateTamperedSignature();
+        var tamperedMessage = CreateTamperedSignature(ctx);
 
         // Act
         var result = validator.Validate(tamperedMessage, ValidationStage.Signature);
@@ -155,8 +164,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public async Task ValidateAsync_WithTamperedSignature_ReturnsFailure()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var tamperedMessage = CreateTamperedSignature();
+        var tamperedMessage = CreateTamperedSignature(ctx);
 
         // Act
         var result = await validator.ValidateAsync(tamperedMessage, ValidationStage.Signature, CancellationToken.None);
@@ -174,8 +184,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithValidEmbeddedSignature_ReturnsSuccess()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var validMessage = CreateValidEmbeddedSignature();
+        var validMessage = CreateValidEmbeddedSignature(ctx);
 
         // Act
         var result = validator.Validate(validMessage, ValidationStage.Signature);
@@ -191,8 +202,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public void Validate_WithValidEmbeddedSignatureAllowUnprotected_ReturnsSuccess()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator(allowUnprotectedHeaders: true);
-        var validMessage = CreateValidEmbeddedSignature();
+        var validMessage = CreateValidEmbeddedSignature(ctx);
 
         // Act
         var result = validator.Validate(validMessage, ValidationStage.Signature);
@@ -206,8 +218,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public async Task ValidateAsync_WithValidEmbeddedSignature_ReturnsSuccess()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var validMessage = CreateValidEmbeddedSignature();
+        var validMessage = CreateValidEmbeddedSignature(ctx);
 
         // Act
         var result = await validator.ValidateAsync(validMessage, ValidationStage.Signature, CancellationToken.None);
@@ -222,8 +235,9 @@ public class CertificateSignatureValidatorAdditionalTests
     public async Task ValidateAsync_WithCancellationTokenNotCancelled_CompletesSuccessfully()
     {
         // Arrange
+        using var ctx = CreateTestContext();
         var validator = new CertificateSignatureValidator();
-        var validMessage = CreateValidEmbeddedSignature();
+        var validMessage = CreateValidEmbeddedSignature(ctx);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -237,21 +251,21 @@ public class CertificateSignatureValidatorAdditionalTests
 
     #region Helper Methods
 
-    private CoseSign1Message CreateValidEmbeddedSignature()
+    private static CoseSign1Message CreateValidEmbeddedSignature(TestContext ctx)
     {
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(ctx.TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
         return CoseSign1Message.DecodeSign1(messageBytes);
     }
 
-    private CoseSign1Message CreateDetachedSignature()
+    private static CoseSign1Message CreateDetachedSignature(TestContext ctx)
     {
         // Create a valid embedded signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(ctx.TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
@@ -289,11 +303,11 @@ public class CertificateSignatureValidatorAdditionalTests
         return CoseSign1Message.DecodeSign1(messageBytes);
     }
 
-    private CoseSign1Message CreateTamperedSignature()
+    private static CoseSign1Message CreateTamperedSignature(TestContext ctx)
     {
         // Create a valid signature using factory
         var chainBuilder = new X509ChainBuilder();
-        using var signingService = CertificateSigningService.Create(TestCert!, chainBuilder);
+        using var signingService = CertificateSigningService.Create(ctx.TestCert!, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Tests.Commands.Handlers;
+
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
@@ -8,8 +10,6 @@ using System.Text.Json;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Inspection;
 using CoseSignTool.Output;
-
-namespace CoseSignTool.Tests.Commands.Handlers;
 
 /// <summary>
 /// Tests for the InspectCommandHandler class.
@@ -61,7 +61,7 @@ public class InspectCommandHandlerTests
     public void Constructor_WithNullFormatter_UsesDefaultFormatter()
     {
         // Arrange & Act
-        var handler = new InspectCommandHandler(null);
+        var handler = new InspectCommandHandler(new TestConsole(), null);
 
         // Assert
         Assert.That(handler, Is.Not.Null);
@@ -74,7 +74,7 @@ public class InspectCommandHandlerTests
         var formatter = new TextOutputFormatter();
 
         // Act
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         // Assert
         Assert.That(handler, Is.Not.Null);
@@ -84,7 +84,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithNullFile_ReturnsFileNotFound()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
         var context = CreateInvocationContext(file: null);
 
         // Act
@@ -98,7 +98,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithNonExistentFile_ReturnsFileNotFound()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
         var nonExistentFile = new FileInfo(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.cose"));
         var context = CreateInvocationContext(file: nonExistentFile);
 
@@ -113,7 +113,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithValidFile_ReturnsInspectionFailedForInvalidCose()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84, 0x43, 0xA1]); // Invalid COSE bytes (incomplete)
         var file = new FileInfo(tempFile);
@@ -140,7 +140,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithNullContext_ThrowsArgumentNullException()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
 
         // Act & Assert
         Assert.ThrowsAsync<ArgumentNullException>(() => handler.HandleAsync(null!));
@@ -150,7 +150,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithRandomBytes_ReturnsInspectionFailed()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0x01, 0x02, 0x03, 0x04, 0x05]);
         var file = new FileInfo(tempFile);
@@ -179,7 +179,7 @@ public class InspectCommandHandlerTests
         // Arrange
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, [0xD2, 0x84]);
         var file = new FileInfo(tempFile);
@@ -208,7 +208,7 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithEmptyFile_ReturnsInspectionFailed()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
         var tempFile = Path.GetTempFileName();
         await File.WriteAllBytesAsync(tempFile, []);
         var file = new FileInfo(tempFile);
@@ -235,11 +235,11 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithStdinAndNoData_ReturnsFileNotFoundAndWritesNoStdinDataError()
     {
         // Arrange
-        using var emptyStdin = new MemoryStream(Array.Empty<byte>());
+        var console = new TestConsole(Array.Empty<byte>());
         var outputWriter = new StringWriter();
         var errorWriter = new StringWriter();
         var formatter = new TextOutputFormatter(outputWriter, errorWriter);
-        var handler = new InspectCommandHandler(formatter, () => emptyStdin)
+        var handler = new InspectCommandHandler(console, formatter)
         {
             StdinTimeout = TimeSpan.FromMilliseconds(200)
         };
@@ -257,39 +257,14 @@ public class InspectCommandHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WithStdinTimeout_ReturnsFileNotFoundAndWritesTimeoutError()
-    {
-        // Arrange
-        using var blockingStdin = new BlockingStream();
-        var outputWriter = new StringWriter();
-        var errorWriter = new StringWriter();
-        var formatter = new TextOutputFormatter(outputWriter, errorWriter);
-        var handler = new InspectCommandHandler(formatter, () => blockingStdin)
-        {
-            StdinTimeout = TimeSpan.FromMilliseconds(50)
-        };
-
-        var context = CreateInvocationContext(fileArgumentValue: "-");
-
-        // Act
-        var result = await handler.HandleAsync(context);
-        formatter.Flush();
-
-        // Assert
-        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-        var output = errorWriter.ToString();
-        Assert.That(output, Does.Contain("timed out").IgnoreCase.Or.Contain("timeout").IgnoreCase);
-    }
-
-    [Test]
     public async Task HandleAsync_WithStdinData_UsesInspectionServiceAndReturnsInvalidSignatureForInvalidCose()
     {
         // Arrange
         var invalidCose = new byte[] { 0xD2, 0x84, 0x43, 0xA1 };
-        using var stdin = new MemoryStream(invalidCose);
+        var console = new TestConsole(invalidCose);
         var writer = new StringWriter();
         var formatter = new TextOutputFormatter(writer);
-        var handler = new InspectCommandHandler(formatter, () => stdin)
+        var handler = new InspectCommandHandler(console, formatter)
         {
             StdinTimeout = TimeSpan.FromSeconds(1)
         };
@@ -330,11 +305,11 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccess()
     {
         // Arrange - Create a real signature using sign-ephemeral
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
 
         try
         {
@@ -368,13 +343,13 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithJsonFormatter_ProducesJsonOutput()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new JsonOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -430,13 +405,13 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithXmlFormatter_ProducesXmlOutput()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new XmlOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -471,12 +446,12 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithQuietFormatter_ReturnsResult()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var formatter = new QuietOutputFormatter();
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -510,13 +485,13 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithLargePayload_ReturnsSuccess()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -554,14 +529,14 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithExtractPayloadPath_ExtractsPayload()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var extractPath = Path.Combine(Path.GetTempPath(), $"extracted_{Guid.NewGuid()}.bin");
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -600,65 +575,10 @@ public class InspectCommandHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WithDashFile_ReturnsFileNotFoundWhenNoStdin()
-    {
-        // Arrange
-        var stdoutWriter = new StringWriter();
-        var stderrWriter = new StringWriter();
-        var formatter = new TextOutputFormatter(stdoutWriter, stderrWriter);
-
-        var handler = new InspectCommandHandler(
-            formatter,
-            standardInputProvider: () => new BlockingReadStream())
-        {
-            // Set short timeout to avoid long test duration
-            StdinTimeout = TimeSpan.FromMilliseconds(100)
-        };
-
-        // Create context with "-" for stdin
-        var context = CreateStdinContext();
-
-        // Act
-        var result = await handler.HandleAsync(context);
-        formatter.Flush();
-
-        // Assert - Should return FileNotFound due to no stdin data
-        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-        var errorOutput = stderrWriter.ToString();
-        Assert.That(errorOutput, Does.Contain("timeout").Or.Contain("stdin").IgnoreCase);
-    }
-
-    [Test]
-    public async Task HandleAsync_WithDashFile_ReturnsTimeoutMessage_WhenStdinReadBlocksUntilTimeout()
-    {
-        // Arrange
-        var stdoutWriter = new StringWriter();
-        var stderrWriter = new StringWriter();
-        var formatter = new TextOutputFormatter(stdoutWriter, stderrWriter);
-
-        var handler = new InspectCommandHandler(
-            formatter,
-            standardInputProvider: () => new BlockingReadStream())
-        {
-            StdinTimeout = TimeSpan.FromMilliseconds(50)
-        };
-
-        var context = CreateStdinContext();
-
-        // Act
-        var result = await handler.HandleAsync(context);
-        formatter.Flush();
-
-        // Assert
-        Assert.That(result, Is.EqualTo((int)ExitCode.FileNotFound));
-        Assert.That(stderrWriter.ToString(), Does.Contain("timed out").Or.Contain("timeout").IgnoreCase);
-    }
-
-    [Test]
     public void StdinTimeout_CanBeConfigured()
     {
         // Arrange
-        var handler = new InspectCommandHandler();
+        var handler = TestConsole.CreateInspectCommandHandler();
 
         // Act
         handler.StdinTimeout = TimeSpan.FromSeconds(5);
@@ -709,14 +629,14 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithDetachedSignature_ExtractPayloadShowsWarning()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var extractPath = Path.Combine(Path.GetTempPath(), $"extracted_{Guid.NewGuid()}.bin");
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -760,13 +680,13 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithExtractPayloadNull_DoesNotExtract()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {
@@ -804,13 +724,13 @@ public class InspectCommandHandlerTests
     public async Task HandleAsync_WithIndirectSignature_ShowsHashInfo()
     {
         // Arrange
-        var builder = new CoseSignTool.Commands.CommandBuilder();
+        var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(stringWriter);
-        var handler = new InspectCommandHandler(formatter);
+        var handler = TestConsole.CreateInspectCommandHandler(formatter);
 
         try
         {

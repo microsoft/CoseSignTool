@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.AzureTrustedSigning;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -8,8 +10,6 @@ using Azure.Developer.TrustedSigning.CryptoProvider;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Remote;
-
-namespace CoseSign1.Certificates.AzureTrustedSigning;
 
 /// <summary>
 /// Provides certificate and signing operations using Azure Trusted Signing service.

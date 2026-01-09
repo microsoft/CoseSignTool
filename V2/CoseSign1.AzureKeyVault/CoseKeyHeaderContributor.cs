@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault;
+
 using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
-
-namespace CoseSign1.AzureKeyVault;
 
 /// <summary>
 /// Header contributor that embeds the public key as a COSE_Key structure in the COSE message headers.

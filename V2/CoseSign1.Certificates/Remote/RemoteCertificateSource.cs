@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Remote;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.ChainBuilders;
-
-namespace CoseSign1.Certificates.Remote;
 
 /// <summary>
 /// Abstract base class for remote certificate sources that perform signing operations

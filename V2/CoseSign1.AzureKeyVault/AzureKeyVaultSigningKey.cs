@@ -1,15 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.AzureKeyVault;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure.Security.KeyVault.Keys;
-using Azure.Security.KeyVault.Keys.Cryptography;
 using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
-
-namespace CoseSign1.AzureKeyVault;
 
 /// <summary>
 /// An <see cref="ISigningKey"/> implementation for Azure Key Vault keys.

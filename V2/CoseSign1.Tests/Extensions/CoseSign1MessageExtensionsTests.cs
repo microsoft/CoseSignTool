@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Tests.Extensions;
+
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Direct;
 using CoseSign1.Extensions;
 using CoseSign1.Indirect.Extensions;
 using CoseSign1.Tests.Common;
-
-namespace CoseSign1.Tests.Extensions;
 
 /// <summary>
 /// Tests for CoseSign1MessageExtensions core header extraction methods.

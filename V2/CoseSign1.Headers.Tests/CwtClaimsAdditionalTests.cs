@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Formats.Cbor;
-
 namespace CoseSign1.Headers.Tests;
+
+using System.Formats.Cbor;
 
 [TestFixture]
 public class CwtClaimsAdditionalTests

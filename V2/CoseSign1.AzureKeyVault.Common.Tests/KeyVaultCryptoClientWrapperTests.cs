@@ -11,18 +11,9 @@ namespace CoseSign1.AzureKeyVault.Common.Tests;
 [TestFixture]
 public class KeyVaultCryptoClientWrapperTests
 {
-    private Mock<KeyClient> MockKeyClient = null!;
-    private Mock<TokenCredential> MockCredential = null!;
     private const string TestKeyName = "test-signing-key";
     private const string TestKeyVersion = "v1";
     private readonly Uri TestVaultUri = new("https://test-vault.vault.azure.net");
-
-    [SetUp]
-    public void Setup()
-    {
-        MockKeyClient = new Mock<KeyClient>();
-        MockCredential = new Mock<TokenCredential>();
-    }
 
     #region Constructor Tests
 

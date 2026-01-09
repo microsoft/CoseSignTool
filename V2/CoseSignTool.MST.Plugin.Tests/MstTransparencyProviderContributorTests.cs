@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSignTool.MST.Plugin;
-
 namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>

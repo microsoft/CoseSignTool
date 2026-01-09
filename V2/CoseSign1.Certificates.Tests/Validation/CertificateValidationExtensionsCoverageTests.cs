@@ -1,27 +1,41 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.Interfaces;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Builders;
 using CoseSign1.Validation.Interfaces;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 public sealed class CertificateValidationExtensionsCoverageTests
 {
     [Test]
-    public void ValidateCertificateSignature_AllOverloads_Coverage()
+    public void ValidateCertificate_AllOverloads_Coverage()
     {
         var builder = new RecordingBuilder();
 
-        builder.ValidateCertificateSignature();
-        builder.ValidateCertificateSignature(new byte[] { 1, 2, 3 });
-        builder.ValidateCertificateSignature(new ReadOnlyMemory<byte>(new byte[] { 4, 5, 6 }));
+        builder.ValidateCertificate(cert => cert.NotExpired());
+        builder.ValidateCertificate(new byte[] { 1, 2, 3 }, cert => cert.NotExpired());
+        builder.ValidateCertificate(new ReadOnlyMemory<byte>(new byte[] { 4, 5, 6 }), cert => cert.NotExpired());
 
-        Assert.That(builder.Calls, Does.Contain("AddValidator"));
+        Assert.That(builder.Calls.Count(c => c == "AddValidator"), Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ValidateCertificate_NullArguments_Throw()
+    {
+        var builder = new RecordingBuilder();
+
+        Assert.That(() => SignatureValidationExtensions.ValidateCertificate(null!, cert => cert.NotExpired()), Throws.ArgumentNullException);
+        Assert.That(() => builder.ValidateCertificate((Action<ICertificateValidationBuilder>)null!), Throws.ArgumentNullException);
+        Assert.That(() => SignatureValidationExtensions.ValidateCertificate(null!, new byte[] { 1 }, cert => cert.NotExpired()), Throws.ArgumentNullException);
+        Assert.That(() => builder.ValidateCertificate((byte[])null!, cert => cert.NotExpired()), Throws.ArgumentNullException);
+        Assert.That(() => builder.ValidateCertificate(new byte[] { 1 }, null!), Throws.ArgumentNullException);
+        Assert.That(() => SignatureValidationExtensions.ValidateCertificate(null!, new ReadOnlyMemory<byte>(new byte[] { 1 }), cert => cert.NotExpired()), Throws.ArgumentNullException);
+        Assert.That(() => builder.ValidateCertificate(new ReadOnlyMemory<byte>(new byte[] { 1 }), null!), Throws.ArgumentNullException);
     }
 
     [Test]
@@ -33,10 +47,6 @@ public sealed class CertificateValidationExtensionsCoverageTests
         Assert.That(() => builder.Matches(null!), Throws.ArgumentNullException);
         Assert.That(() => builder.ValidateChain((X509Certificate2Collection)null!), Throws.ArgumentNullException);
         Assert.That(() => builder.ValidateChain((ICertificateChainBuilder)null!), Throws.ArgumentNullException);
-
-        Assert.That(() => SignatureValidationExtensions.ValidateCertificateSignature(null!), Throws.ArgumentNullException);
-        Assert.That(() => SignatureValidationExtensions.ValidateCertificateSignature(null!, new byte[] { 1 }), Throws.ArgumentNullException);
-        Assert.That(() => SignatureValidationExtensions.ValidateCertificateSignature(null!, new ReadOnlyMemory<byte>(new byte[] { 1 })), Throws.ArgumentNullException);
     }
 
     [Test]
@@ -97,6 +107,8 @@ public sealed class CertificateValidationExtensionsCoverageTests
 
     private sealed class RecordingBuilder : ICoseSign1ValidationBuilder
     {
+        public Microsoft.Extensions.Logging.ILoggerFactory? LoggerFactory { get; }
+
         public ValidationBuilderContext Context { get; } = new();
 
         public System.Collections.Generic.List<string> Calls { get; } = new();
@@ -107,9 +119,9 @@ public sealed class CertificateValidationExtensionsCoverageTests
             return this;
         }
 
-        public ICoseSign1ValidationBuilder RequireTrust(TrustPolicy policy)
+        public ICoseSign1ValidationBuilder OverrideDefaultTrustPolicy(TrustPolicy policy)
         {
-            Calls.Add("RequireTrust");
+            Calls.Add("OverrideDefaultTrustPolicy");
             return this;
         }
 

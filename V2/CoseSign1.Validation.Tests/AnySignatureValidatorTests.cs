@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Validators;
-
-namespace CoseSign1.Validation.Tests;
 
 public class AnySignatureValidatorTests
 {

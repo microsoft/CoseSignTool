@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Text;
-
 namespace CoseSign1.Validation.Tests;
+
+using System.Text;
 
 /// <summary>
 /// Architectural guardrail tests.

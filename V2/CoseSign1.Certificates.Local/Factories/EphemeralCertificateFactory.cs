@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Local;
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Certificates.Local;
 
 /// <summary>
 /// Factory for creating ephemeral (in-memory) certificates.

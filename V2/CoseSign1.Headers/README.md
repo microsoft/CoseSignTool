@@ -268,7 +268,8 @@ claims.AdditionalClaims["build_number"] = buildNumber;
 using CoseSign1.Validation;
 
 var validator = Cose.Sign1Message()
-    .ValidateCertificateSignature()
+    .ValidateCertificate(cert => { })
+    .AllowAllTrust("CWT validation example")
     .AddValidator((message, stage) =>
     {
         const string validatorName = "CwtClaimsValidator";

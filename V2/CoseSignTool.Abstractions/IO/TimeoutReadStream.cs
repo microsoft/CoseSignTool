@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSignTool.IO;
+namespace CoseSignTool.Abstractions.IO;
 
 /// <summary>
 /// A read-only stream wrapper that implements a timeout for initial data availability.
@@ -81,9 +81,67 @@ public sealed class TimeoutReadStream : Stream
     /// <inheritdoc/>
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
+#if NETSTANDARD2_0
+        // netstandard2.0 doesn't have Memory<T> overload, implement directly here
+        // If we already timed out, return EOF
+        lock (Lock)
+        {
+            if (IsTimedOut)
+            {
+                return 0;
+            }
+        }
+
+        // If we haven't received data yet, apply the initial timeout
+        bool needsTimeout;
+        lock (Lock)
+        {
+            needsTimeout = !ReceivedData;
+        }
+
+        if (needsTimeout)
+        {
+            try
+            {
+                // Create a combined cancellation token with our timeout
+                using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, TimeoutCts.Token);
+
+                // Start the timeout
+                TimeoutCts.CancelAfter(InitialTimeout);
+
+                // Try to read with timeout
+                int bytesRead = await InnerStream.ReadAsync(buffer, offset, count, linkedCts.Token).ConfigureAwait(false);
+
+                if (bytesRead > 0)
+                {
+                    lock (Lock)
+                    {
+                        ReceivedData = true;
+                    }
+                }
+
+                return bytesRead;
+            }
+            catch (OperationCanceledException) when (TimeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                // Our timeout fired, not the external cancellation
+                lock (Lock)
+                {
+                    IsTimedOut = true;
+                }
+                return 0; // Return EOF to signal no data
+            }
+        }
+
+        // Already received data, just pass through
+        return await InnerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+#else
         return await ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
+#endif
     }
 
+#if !NETSTANDARD2_0
     /// <inheritdoc/>
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -141,6 +199,7 @@ public sealed class TimeoutReadStream : Stream
         // Already received data, just pass through
         return await InnerStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
     }
+#endif
 
     /// <inheritdoc/>
     public override void Flush()

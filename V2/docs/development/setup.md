@@ -215,6 +215,25 @@ The solution uses .NET analyzers:
 </PropertyGroup>
 ```
 
+### Logging Best Practices
+
+For high-performance logging in hot paths, use the `[LoggerMessage]` source generator:
+
+```csharp
+public partial class MyValidator
+{
+    private readonly ILogger<MyValidator> _logger;
+
+    [LoggerMessage(Level = LogLevel.Debug, EventId = 1001, Message = "Validating item {ItemName}")]
+    private partial void LogValidatingItem(string itemName);
+}
+```
+
+See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md#high-performance-logging-pattern) for:
+- When to use `[LoggerMessage]` vs standard logging
+- EventId allocation guidelines
+- Code examples and anti-patterns
+
 ## Creating Test Certificates
 
 ### Using PowerShell

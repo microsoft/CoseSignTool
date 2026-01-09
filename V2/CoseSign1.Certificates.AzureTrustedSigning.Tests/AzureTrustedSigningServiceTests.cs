@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using CoseSign1.Certificates.Local;
-
 namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
+
+using Azure.Developer.TrustedSigning.CryptoProvider;
 
 /// <summary>
 /// Tests for <see cref="AzureTrustedSigningService"/>.
@@ -13,24 +12,17 @@ namespace CoseSign1.Certificates.AzureTrustedSigning.Tests;
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class AzureTrustedSigningServiceTests
 {
-    private Mock<AzSignContext> MockSignContext = null!;
-    private X509Certificate2 TestCert = null!;
+    /// <summary>
+    /// Creates a test certificate for use in tests.
+    /// </summary>
+    private static X509Certificate2 CreateTestCert(string name = "AzureTrustedSigningServiceTest")
+        => TestCertificateUtils.CreateCertificate(name);
 
-    [SetUp]
-    public void Setup()
-    {
-        // Create a real test certificate for use in tests
-        TestCert = TestCertificateUtils.CreateCertificate("AzureTrustedSigningServiceTest");
-
-        // Create mock AzSignContext
-        MockSignContext = new Mock<AzSignContext>();
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    /// <summary>
+    /// Creates a mock AzSignContext for use in tests.
+    /// </summary>
+    private static Mock<AzSignContext> CreateMockSignContext()
+        => new Mock<AzSignContext>();
 
     #region Constructor Tests
 
@@ -48,12 +40,14 @@ public class AzureTrustedSigningServiceTests
     public void Constructor_WithValidContext_CreatesService()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
 
         // Act
-        var service = new AzureTrustedSigningService(MockSignContext.Object);
+        var service = new AzureTrustedSigningService(mockSignContext.Object);
 
         // Assert
         Assert.That(service, Is.Not.Null);
@@ -64,13 +58,15 @@ public class AzureTrustedSigningServiceTests
     public void Constructor_WithCustomMetadata_UsesProvidedMetadata()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
         var customMetadata = new CoseSign1.Abstractions.SigningServiceMetadata("CustomService", "Custom description");
 
         // Act
-        var service = new AzureTrustedSigningService(MockSignContext.Object, serviceMetadata: customMetadata);
+        var service = new AzureTrustedSigningService(mockSignContext.Object, serviceMetadata: customMetadata);
 
         // Assert
         Assert.That(service.ServiceMetadata.ServiceName, Is.EqualTo("CustomService"));
@@ -84,12 +80,14 @@ public class AzureTrustedSigningServiceTests
     public void ServiceMetadata_HasCorrectDefaultValues()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
 
         // Act
-        var service = new AzureTrustedSigningService(MockSignContext.Object);
+        var service = new AzureTrustedSigningService(mockSignContext.Object);
 
         // Assert
         Assert.That(service.ServiceMetadata.ServiceName, Is.EqualTo("AzureTrustedSigning"));
@@ -104,12 +102,14 @@ public class AzureTrustedSigningServiceTests
     public void IsRemote_ReturnsTrue()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
 
         // Act
-        var service = new AzureTrustedSigningService(MockSignContext.Object);
+        var service = new AzureTrustedSigningService(mockSignContext.Object);
 
         // Assert
         Assert.That(service.IsRemote, Is.True);
@@ -123,10 +123,12 @@ public class AzureTrustedSigningServiceTests
     public void Dispose_DoesNotThrow()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
-        var service = new AzureTrustedSigningService(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
+        var service = new AzureTrustedSigningService(mockSignContext.Object);
 
         // Act & Assert
         Assert.DoesNotThrow(() => service.Dispose());
@@ -136,10 +138,12 @@ public class AzureTrustedSigningServiceTests
     public void Dispose_CalledMultipleTimes_DoesNotThrow()
     {
         // Arrange
-        var chain = new List<X509Certificate2> { TestCert };
-        MockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
-        MockSignContext.Setup(s => s.GetSigningCertificate()).Returns(TestCert);
-        var service = new AzureTrustedSigningService(MockSignContext.Object);
+        using var testCert = CreateTestCert();
+        var mockSignContext = CreateMockSignContext();
+        var chain = new List<X509Certificate2> { testCert };
+        mockSignContext.Setup(s => s.GetCertChain()).Returns(chain);
+        mockSignContext.Setup(s => s.GetSigningCertificate()).Returns(testCert);
+        var service = new AzureTrustedSigningService(mockSignContext.Object);
 
         // Act & Assert
         Assert.DoesNotThrow(() =>

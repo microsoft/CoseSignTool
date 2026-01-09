@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Formats.Cbor;
-
 namespace CoseSign1.Certificates.Tests;
+
+using System.Formats.Cbor;
 
 /// <summary>
 /// Tests for CoseX509Thumbprint class.
@@ -11,31 +11,24 @@ namespace CoseSign1.Certificates.Tests;
 [TestFixture]
 public class CoseX509ThumbprintTests
 {
-    private X509Certificate2? TestCert;
-
-    [SetUp]
-    public void Setup()
+    private static X509Certificate2 CreateTestCertificate()
     {
-        // Create test certificate
         using var certKey = ECDsa.Create();
         var certReq = new CertificateRequest(
             new X500DistinguishedName("CN=Test Certificate"),
             certKey,
             HashAlgorithmName.SHA256);
-        TestCert = certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
+        return certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
     }
 
     [Test]
     public void Constructor_WithCertificate_UsesSHA256ByDefault()
     {
+        // Arrange
+        using var testCert = CreateTestCertificate();
+
         // Act
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        var thumbprint = new CoseX509Thumbprint(testCert);
 
         // Assert
         Assert.That(thumbprint.HashId, Is.EqualTo(-16)); // SHA256 = -16
@@ -45,8 +38,11 @@ public class CoseX509ThumbprintTests
     [Test]
     public void Constructor_WithCertificateAndSHA384_UsesCorrectHashId()
     {
+        // Arrange
+        using var testCert = CreateTestCertificate();
+
         // Act
-        var thumbprint = new CoseX509Thumbprint(TestCert!, HashAlgorithmName.SHA384);
+        var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA384);
 
         // Assert
         Assert.That(thumbprint.HashId, Is.EqualTo(-43)); // SHA384 = -43
@@ -56,8 +52,11 @@ public class CoseX509ThumbprintTests
     [Test]
     public void Constructor_WithCertificateAndSHA512_UsesCorrectHashId()
     {
+        // Arrange
+        using var testCert = CreateTestCertificate();
+
         // Act
-        var thumbprint = new CoseX509Thumbprint(TestCert!, HashAlgorithmName.SHA512);
+        var thumbprint = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA512);
 
         // Assert
         Assert.That(thumbprint.HashId, Is.EqualTo(-44)); // SHA512 = -44
@@ -74,18 +73,22 @@ public class CoseX509ThumbprintTests
     [Test]
     public void Constructor_WithUnsupportedHashAlgorithm_ThrowsArgumentException()
     {
+        // Arrange
+        using var testCert = CreateTestCertificate();
+
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new CoseX509Thumbprint(TestCert!, HashAlgorithmName.MD5));
+        Assert.Throws<ArgumentException>(() => new CoseX509Thumbprint(testCert, HashAlgorithmName.MD5));
     }
 
     [Test]
     public void Match_WithMatchingCertificate_ReturnsTrue()
     {
         // Arrange
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        using var testCert = CreateTestCertificate();
+        var thumbprint = new CoseX509Thumbprint(testCert);
 
         // Act
-        bool result = thumbprint.Match(TestCert);
+        bool result = thumbprint.Match(testCert);
 
         // Assert
         Assert.That(result, Is.True);
@@ -95,7 +98,8 @@ public class CoseX509ThumbprintTests
     public void Match_WithDifferentCertificate_ReturnsFalse()
     {
         // Arrange
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        using var testCert = CreateTestCertificate();
+        var thumbprint = new CoseX509Thumbprint(testCert);
 
         using var otherKey = ECDsa.Create();
         var otherReq = new CertificateRequest(
@@ -115,7 +119,8 @@ public class CoseX509ThumbprintTests
     public void Match_WithNullCertificate_ThrowsArgumentNullException()
     {
         // Arrange
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        using var testCert = CreateTestCertificate();
+        var thumbprint = new CoseX509Thumbprint(testCert);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => thumbprint.Match(null!));
@@ -125,7 +130,8 @@ public class CoseX509ThumbprintTests
     public void Serialize_ProducesValidCBOR()
     {
         // Arrange
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        using var testCert = CreateTestCertificate();
+        var thumbprint = new CoseX509Thumbprint(testCert);
         var writer = new CborWriter();
 
         // Act
@@ -219,7 +225,8 @@ public class CoseX509ThumbprintTests
     public void Serialize_WithNullWriter_ThrowsArgumentNullException()
     {
         // Arrange
-        var thumbprint = new CoseX509Thumbprint(TestCert!);
+        using var testCert = CreateTestCertificate();
+        var thumbprint = new CoseX509Thumbprint(testCert);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => thumbprint.Serialize(null!));
@@ -229,7 +236,8 @@ public class CoseX509ThumbprintTests
     public void RoundTrip_PreservesThumbprintData()
     {
         // Arrange
-        var original = new CoseX509Thumbprint(TestCert!, HashAlgorithmName.SHA384);
+        using var testCert = CreateTestCertificate();
+        var original = new CoseX509Thumbprint(testCert, HashAlgorithmName.SHA384);
         var writer = new CborWriter();
 
         // Act
@@ -240,6 +248,6 @@ public class CoseX509ThumbprintTests
         // Assert
         Assert.That(deserialized.HashId, Is.EqualTo(original.HashId));
         Assert.That(deserialized.Thumbprint.ToArray(), Is.EqualTo(original.Thumbprint.ToArray()));
-        Assert.That(deserialized.Match(TestCert!), Is.True);
+        Assert.That(deserialized.Match(testCert), Is.True);
     }
 }

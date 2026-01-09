@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.TestPlugins.Plugin;
+
 using System.CommandLine;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
-
-namespace CoseSignTool.TestPlugins.Plugin;
 
 /// <summary>
 /// Test plugin that throws from <see cref="IPlugin.GetExtensions"/>.

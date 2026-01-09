@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Extensions;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
-
-namespace CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Extension methods for <see cref="BinaryData"/> to work with MST responses.

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Security.Cryptography.Cose;
-
 namespace CoseSign1.Abstractions.Tests;
+
+using System.Security.Cryptography.Cose;
 
 /// <summary>
 /// Tests for ISigningKey interface contract and implementations.

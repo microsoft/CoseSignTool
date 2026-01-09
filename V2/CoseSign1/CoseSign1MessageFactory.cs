@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1;
+
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Direct;
 using CoseSign1.Indirect;
-
-namespace CoseSign1;
 
 /// <summary>
 /// Routes COSE Sign1 creation to the appropriate implementation based on the runtime type of <see cref="SigningOptions"/>.

@@ -1,43 +1,49 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Tests.Validation;
+
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Certificates.Tests.Validation;
-
 [TestFixture]
 [System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
 public class CertificateValidatorBuilderExtensionsTests
 {
-    private System.Security.Cryptography.X509Certificates.X509Certificate2? TestCert;
-    private CoseSign1Message? ValidMessage;
+    /// <summary>
+    /// Holds the test state for each test method.
+    /// </summary>
+    private sealed record TestContext(
+        System.Security.Cryptography.X509Certificates.X509Certificate2 TestCert,
+        CoseSign1Message ValidMessage) : IDisposable
+    {
+        public void Dispose() => TestCert?.Dispose();
+    }
 
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Creates a fresh test context with isolated state.
+    /// </summary>
+    private static TestContext CreateTestContext()
     {
         // Create a self-signed cert with subject CN = "ExtensionTest".
-        TestCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
+        var testCert = TestCertificateUtils.CreateCertificate("ExtensionTest");
 
         var chainBuilder = new X509ChainBuilder();
-        var signingService = CertificateSigningService.Create(TestCert, chainBuilder);
+        var signingService = CertificateSigningService.Create(testCert, chainBuilder);
         var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3, 4, 5 };
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");
-        ValidMessage = CoseSign1Message.DecodeSign1(messageBytes);
-    }
+        var validMessage = CoseSign1Message.DecodeSign1(messageBytes);
 
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
+        return new TestContext(testCert, validMessage);
     }
 
     [Test]
     public void ValidateCertificate_AddsValidatorsAndValidatesMessage()
     {
+        using var ctx = CreateTestContext();
         var verifier = Cose.Sign1Message()
             .AddValidator(
                 new CertificateValidationBuilder()
@@ -47,7 +53,7 @@ public class CertificateValidatorBuilderExtensionsTests
                     .Build())
             .Build();
 
-        var result = verifier.Validate(ValidMessage!);
+        var result = verifier.Validate(ctx.ValidMessage);
 
         Assert.That(result.Trust.IsValid, Is.True);
         Assert.That(result.Signature.IsValid, Is.True);

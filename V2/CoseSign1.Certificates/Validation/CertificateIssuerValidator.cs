@@ -1,16 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates that the signing certificate was issued by an issuer with the expected common name.
 /// </summary>
-public sealed class CertificateIssuerValidator : IValidator
+public sealed partial class CertificateIssuerValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -45,22 +47,40 @@ public sealed class CertificateIssuerValidator : IValidator
 
     private readonly string ExpectedIssuerName;
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificateIssuerValidator> Logger;
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating certificate issuer. Expected: {ExpectedIssuer}")]
+    private partial void LogValidatingIssuer(string expectedIssuer);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Certificate issuer validated: {ActualIssuer}")]
+    private partial void LogIssuerMatched(string actualIssuer);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Certificate issuer mismatch. Expected: {ExpectedIssuer}, Actual: {ActualIssuer}")]
+    private partial void LogIssuerMismatch(string expectedIssuer, string actualIssuer);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateIssuerValidator"/> class.
     /// </summary>
     /// <param name="expectedIssuerName">The expected issuer common name (CN) value.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="expectedIssuerName"/> is null.</exception>
-    public CertificateIssuerValidator(string expectedIssuerName, bool allowUnprotectedHeaders = false)
+    public CertificateIssuerValidator(
+        string expectedIssuerName,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateIssuerValidator>? logger = null)
     {
         ExpectedIssuerName = expectedIssuerName ?? throw new ArgumentNullException(nameof(expectedIssuerName));
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateIssuerValidator>.Instance;
     }
 
     /// <inheritdoc/>
     public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
     {
+        LogValidatingIssuer(ExpectedIssuerName);
+
         if (input == null)
         {
             return ValidationResult.Failure(
@@ -91,11 +111,14 @@ public sealed class CertificateIssuerValidator : IValidator
         // Compare issuer CN with expected value (case-insensitive)
         if (!string.Equals(issuerCn, ExpectedIssuerName, StringComparison.OrdinalIgnoreCase))
         {
+            LogIssuerMismatch(ExpectedIssuerName, issuerCn);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatIssuerCnMismatch, issuerCn, ExpectedIssuerName),
                 ClassStrings.ErrorCodeIssuerCnMismatch);
         }
+
+        LogIssuerMatched(issuerCn);
 
         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {

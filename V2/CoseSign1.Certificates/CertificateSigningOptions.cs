@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Headers;
-
 namespace CoseSign1.Certificates;
+
+using CoseSign1.Headers;
 
 /// <summary>
 /// Options specific to certificate-based signing operations.
@@ -15,7 +15,7 @@ public class CertificateSigningOptions : SigningOptions
     /// Gets or sets whether SCITT (Supply Chain Integrity, Transparency, and Trust) compliance is enabled.
     /// When enabled, default CWT claims (issuer and subject) will be automatically added to the signature
     /// for compliance with SCITT transparency service requirements.
-    /// Default is false.
+    /// Default is true.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -30,7 +30,7 @@ public class CertificateSigningOptions : SigningOptions
     /// See: https://ietf-wg-scitt.github.io/draft-ietf-scitt-architecture/
     /// </para>
     /// </remarks>
-    public bool EnableScittCompliance { get; set; } = false;
+    public bool EnableScittCompliance { get; set; } = true;
 
     /// <summary>
     /// Gets or sets custom CWT claims to use when SCITT compliance is enabled.

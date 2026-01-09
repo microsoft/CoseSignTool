@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Transparent.MST.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
@@ -9,24 +11,11 @@ using CoseSign1.Tests.Common;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 
-namespace CoseSign1.Transparent.MST.Tests;
-
 [TestFixture]
 public class MstReceiptOnlineValidatorTests
 {
-    private X509Certificate2 TestCert = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        TestCert = TestCertificateUtils.CreateCertificate("MstReceiptOnlineValidatorTests", useEcc: true);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        TestCert?.Dispose();
-    }
+    private static X509Certificate2 CreateTestCert() =>
+        TestCertificateUtils.CreateCertificate("MstReceiptOnlineValidatorTests", useEcc: true);
 
     [Test]
     public void IsApplicable_WithNullInput_ReturnsFalse()
@@ -39,7 +28,8 @@ public class MstReceiptOnlineValidatorTests
     public void IsApplicable_WithWrongStage_ReturnsFalse()
     {
         var validator = new MstReceiptOnlineValidator(new CodeTransparencyClient(new Uri("https://example.test")), "example.test");
-        var message = CreateSignedMessage(TestCert);
+        using var cert = CreateTestCert();
+        var message = CreateSignedMessage(cert);
         Assert.That(validator.IsApplicable(message, ValidationStage.Signature), Is.False);
     }
 
@@ -47,7 +37,8 @@ public class MstReceiptOnlineValidatorTests
     public void Validate_WithWrongStage_ReturnsNotApplicable()
     {
         var validator = new MstReceiptOnlineValidator(new CodeTransparencyClient(new Uri("https://example.test")), "example.test");
-        var message = CreateSignedMessage(TestCert);
+        using var cert = CreateTestCert();
+        var message = CreateSignedMessage(cert);
 
         var result = validator.Validate(message, ValidationStage.Signature);
         Assert.That(result.IsNotApplicable, Is.True);

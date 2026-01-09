@@ -3,5 +3,4 @@
 
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.X509Certificates;
-global using CoseSign1.Certificates.Local;
 global using CoseSign1.Tests.Common;

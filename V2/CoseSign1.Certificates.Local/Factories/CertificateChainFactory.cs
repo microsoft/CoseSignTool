@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Local;
+
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
-
-namespace CoseSign1.Certificates.Local;
 
 /// <summary>
 /// Factory for creating certificate chains (root → intermediate → leaf).
@@ -16,21 +16,47 @@ namespace CoseSign1.Certificates.Local;
 /// validation, chain building, and production-like signing scenarios.
 /// </para>
 /// </remarks>
-public class CertificateChainFactory
+public partial class CertificateChainFactory
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public const string LogCreatingCertificateChain =
-            "Creating certificate chain. Algorithm: {Algorithm}, HasIntermediate: {HasIntermediate}";
-
-        public const string LogCreatedRootCa = "Created root CA: {SerialNumber}";
-        public const string LogCreatedIntermediateCa = "Created intermediate CA: {SerialNumber}";
-        public const string LogCreatedLeafCertificate = "Created leaf certificate: {Subject}";
-
-        public const string LogCertificateChainCreatedSuccessfully =
-            "Certificate chain created successfully. CertificateCount: {Count}, ElapsedMs: {ElapsedMs}";
+        // Keep only non-log messages
     }
+
+    #region LoggerMessage methods
+
+    [LoggerMessage(
+        EventId = 4001,
+        Level = LogLevel.Debug,
+        Message = "Creating certificate chain. Algorithm: {Algorithm}, HasIntermediate: {HasIntermediate}")]
+    private partial void LogCreatingCertificateChain(KeyAlgorithm algorithm, bool hasIntermediate);
+
+    [LoggerMessage(
+        EventId = 4002,
+        Level = LogLevel.Trace,
+        Message = "Created root CA: {SerialNumber}")]
+    private partial void LogCreatedRootCa(string serialNumber);
+
+    [LoggerMessage(
+        EventId = 4003,
+        Level = LogLevel.Trace,
+        Message = "Created intermediate CA: {SerialNumber}")]
+    private partial void LogCreatedIntermediateCa(string serialNumber);
+
+    [LoggerMessage(
+        EventId = 4004,
+        Level = LogLevel.Trace,
+        Message = "Created leaf certificate: {Subject}")]
+    private partial void LogCreatedLeafCertificate(string subject);
+
+    [LoggerMessage(
+        EventId = 4005,
+        Level = LogLevel.Debug,
+        Message = "Certificate chain created successfully. CertificateCount: {Count}, ElapsedMs: {ElapsedMs}")]
+    private partial void LogCertificateChainCreatedSuccessfully(int count, long elapsedMs);
+
+    #endregion
 
     private readonly EphemeralCertificateFactory CertificateFactory;
     private readonly ILogger<CertificateChainFactory> Logger;
@@ -91,10 +117,7 @@ public class CertificateChainFactory
     {
         var stopwatch = Stopwatch.StartNew();
 
-        Logger.LogDebug(
-            ClassStrings.LogCreatingCertificateChain,
-            options.KeyAlgorithm,
-            options.IntermediateName != null);
+        LogCreatingCertificateChain(options.KeyAlgorithm, options.IntermediateName != null);
 
         var result = new X509Certificate2Collection();
 
@@ -106,7 +129,7 @@ public class CertificateChainFactory
             .WithValidity(options.RootValidity)
             .AsCertificateAuthority(pathLengthConstraint: options.IntermediateName != null ? 1 : 0));
 
-        Logger.LogTrace(ClassStrings.LogCreatedRootCa, root.SerialNumber);
+        LogCreatedRootCa(root.SerialNumber);
 
         // Determine the issuer for the leaf
         X509Certificate2 leafIssuer;
@@ -123,7 +146,7 @@ public class CertificateChainFactory
                 .AsCertificateAuthority(pathLengthConstraint: 0)
                 .SignedBy(root));
 
-            Logger.LogTrace(ClassStrings.LogCreatedIntermediateCa, intermediate.SerialNumber);
+            LogCreatedIntermediateCa(intermediate.SerialNumber);
 
             leafIssuer = intermediate;
         }
@@ -160,7 +183,7 @@ public class CertificateChainFactory
             o.EnhancedKeyUsages = leafOptions.EnhancedKeyUsages;
         });
 
-        Logger.LogTrace(ClassStrings.LogCreatedLeafCertificate, leaf.Subject);
+        LogCreatedLeafCertificate(leaf.Subject);
 
         // Optionally strip private keys from root and intermediate
         if (options.LeafOnlyPrivateKey)
@@ -198,10 +221,7 @@ public class CertificateChainFactory
         }
 
         stopwatch.Stop();
-        Logger.LogDebug(
-            ClassStrings.LogCertificateChainCreatedSuccessfully,
-            result.Count,
-            stopwatch.ElapsedMilliseconds);
+        LogCertificateChainCreatedSuccessfully(result.Count, stopwatch.ElapsedMilliseconds);
 
         return result;
     }

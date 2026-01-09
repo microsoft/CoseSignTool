@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using NUnit.Framework;
-
 namespace CoseSign1.Tests.Common;
+
+using NUnit.Framework;
 
 /// <summary>
 /// Provides platform detection and test skipping utilities.

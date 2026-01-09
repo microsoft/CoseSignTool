@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSignTool.Abstractions.Tests.Security;
+
 using System.Security;
+using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Abstractions.Security;
 using Moq;
-
-namespace CoseSignTool.Abstractions.Tests.Security;
 
 /// <summary>
 /// Tests for SecurePasswordProvider.
@@ -17,29 +18,31 @@ namespace CoseSignTool.Abstractions.Tests.Security;
 [NonParallelizable]
 public class SecurePasswordProviderTests
 {
-    private string? TempPasswordFile;
-    private Mock<IConsole> MockConsole = null!;
-    private SecurePasswordProvider Provider = null!;
-
-    [SetUp]
-    public void SetUp()
+    /// <summary>
+    /// Holds the test state for tests that need a provider with mocked console.
+    /// </summary>
+    private sealed record TestContext(Mock<IConsole> MockConsole, SecurePasswordProvider Provider) : IDisposable
     {
-        MockConsole = new Mock<IConsole>();
-        Provider = new SecurePasswordProvider(MockConsole.Object);
+        public string? TempPasswordFile { get; set; }
+
+        public void Dispose()
+        {
+            if (TempPasswordFile != null && File.Exists(TempPasswordFile))
+            {
+                File.Delete(TempPasswordFile);
+            }
+
+            // Clean up any test environment variables
+            Environment.SetEnvironmentVariable("TEST_PFX_PASSWORD", null);
+            Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
+        }
     }
 
-    [TearDown]
-    public void TearDown()
+    private static TestContext CreateTestContext()
     {
-        if (TempPasswordFile != null && File.Exists(TempPasswordFile))
-        {
-            File.Delete(TempPasswordFile);
-            TempPasswordFile = null;
-        }
-
-        // Clean up any test environment variables
-        Environment.SetEnvironmentVariable("TEST_PFX_PASSWORD", null);
-        Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
+        var mockConsole = new Mock<IConsole>();
+        var provider = new SecurePasswordProvider(mockConsole.Object);
+        return new TestContext(mockConsole, provider);
     }
 
     [Test]
@@ -168,6 +171,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPasswordFromEnvironment_WithEmptyVariable_ReturnsNull()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         Environment.SetEnvironmentVariable("TEST_PFX_PASSWORD", "");
 
@@ -181,6 +186,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPasswordFromEnvironment_WithSetVariable_ReturnsSecureString()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var password = "EnvTestPassword123";
         Environment.SetEnvironmentVariable("TEST_PFX_PASSWORD", password);
@@ -199,6 +206,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPasswordFromEnvironment_UsesDefaultEnvVarName()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var password = "DefaultEnvVarTest";
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, password);
@@ -226,13 +235,15 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromFile_WithExistingFile_ReturnsPassword()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var password = "FilePassword123!";
-        TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
-        File.WriteAllText(TempPasswordFile, password);
+        ctx.TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
+        File.WriteAllText(ctx.TempPasswordFile, password);
 
         // Act
-        var result = SecurePasswordProvider.ReadPasswordFromFile(TempPasswordFile);
+        var result = SecurePasswordProvider.ReadPasswordFromFile(ctx.TempPasswordFile);
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -243,13 +254,15 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromFile_TrimsTrailingNewlines()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var password = "FilePassword";
-        TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
-        File.WriteAllText(TempPasswordFile, password + "\r\n");
+        ctx.TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
+        File.WriteAllText(ctx.TempPasswordFile, password + "\r\n");
 
         // Act
-        var result = SecurePasswordProvider.ReadPasswordFromFile(TempPasswordFile);
+        var result = SecurePasswordProvider.ReadPasswordFromFile(ctx.TempPasswordFile);
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
@@ -259,12 +272,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void IsInteractiveInputAvailable_WhenNotRedirectedAndUserInteractive_ReturnsTrue()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.IsInputRedirected).Returns(false);
-        MockConsole.Setup(c => c.IsUserInteractive).Returns(true);
+        ctx.MockConsole.Setup(c => c.IsInputRedirected).Returns(false);
+        ctx.MockConsole.Setup(c => c.IsUserInteractive).Returns(true);
 
         // Act
-        var result = Provider.IsInteractiveInputAvailable();
+        var result = ctx.Provider.IsInteractiveInputAvailable();
 
         // Assert
         Assert.That(result, Is.True);
@@ -273,12 +288,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void IsInteractiveInputAvailable_WhenInputRedirected_ReturnsFalse()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.IsInputRedirected).Returns(true);
-        MockConsole.Setup(c => c.IsUserInteractive).Returns(true);
+        ctx.MockConsole.Setup(c => c.IsInputRedirected).Returns(true);
+        ctx.MockConsole.Setup(c => c.IsUserInteractive).Returns(true);
 
         // Act
-        var result = Provider.IsInteractiveInputAvailable();
+        var result = ctx.Provider.IsInteractiveInputAvailable();
 
         // Assert
         Assert.That(result, Is.False);
@@ -287,12 +304,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void IsInteractiveInputAvailable_WhenNotUserInteractive_ReturnsFalse()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.IsInputRedirected).Returns(false);
-        MockConsole.Setup(c => c.IsUserInteractive).Returns(false);
+        ctx.MockConsole.Setup(c => c.IsInputRedirected).Returns(false);
+        ctx.MockConsole.Setup(c => c.IsUserInteractive).Returns(false);
 
         // Act
-        var result = Provider.IsInteractiveInputAvailable();
+        var result = ctx.Provider.IsInteractiveInputAvailable();
 
         // Assert
         Assert.That(result, Is.False);
@@ -301,11 +320,13 @@ public class SecurePasswordProviderTests
     [Test]
     public void IsInteractiveInputAvailable_WhenExceptionThrown_ReturnsFalse()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.IsInputRedirected).Throws<InvalidOperationException>();
+        ctx.MockConsole.Setup(c => c.IsInputRedirected).Throws<InvalidOperationException>();
 
         // Act
-        var result = Provider.IsInteractiveInputAvailable();
+        var result = ctx.Provider.IsInteractiveInputAvailable();
 
         // Assert
         Assert.That(result, Is.False);
@@ -314,12 +335,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPassword_WithEnvironmentVariable_ReturnsEnvPassword()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var password = "GetPasswordEnvTest";
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, password);
 
         // Act
-        var result = Provider.GetPassword();
+        var result = ctx.Provider.GetPassword();
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -330,15 +353,17 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPassword_WithPasswordFile_ReturnsFilePassword()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange - Make sure env var is not set
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
 
         var password = "GetPasswordFileTest";
-        TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
-        File.WriteAllText(TempPasswordFile, password);
+        ctx.TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
+        File.WriteAllText(ctx.TempPasswordFile, password);
 
         // Act
-        var result = Provider.GetPassword(passwordFilePath: TempPasswordFile);
+        var result = ctx.Provider.GetPassword(passwordFilePath: ctx.TempPasswordFile);
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -349,17 +374,19 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPassword_EnvVarTakesPrecedenceOverFile()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var envPassword = "EnvPassword";
         var filePassword = "FilePassword";
 
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, envPassword);
 
-        TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
-        File.WriteAllText(TempPasswordFile, filePassword);
+        ctx.TempPasswordFile = Path.Combine(Path.GetTempPath(), $"password_{Guid.NewGuid()}.txt");
+        File.WriteAllText(ctx.TempPasswordFile, filePassword);
 
         // Act
-        var result = Provider.GetPassword(passwordFilePath: TempPasswordFile);
+        var result = ctx.Provider.GetPassword(passwordFilePath: ctx.TempPasswordFile);
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
@@ -414,6 +441,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromConsole_WithSimplePassword_ReturnsPassword()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
@@ -424,22 +453,24 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.ReadPasswordFromConsole("Enter: ");
+        var result = ctx.Provider.ReadPasswordFromConsole("Enter: ");
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
         Assert.That(plain, Is.EqualTo("test"));
-        MockConsole.Verify(c => c.Write("Enter: "), Times.Once);
-        MockConsole.Verify(c => c.Write("*"), Times.Exactly(4));
-        MockConsole.Verify(c => c.WriteLine(), Times.Once);
+        ctx.MockConsole.Verify(c => c.Write("Enter: "), Times.Once);
+        ctx.MockConsole.Verify(c => c.Write("*"), Times.Exactly(4));
+        ctx.MockConsole.Verify(c => c.WriteLine(), Times.Once);
     }
 
     [Test]
     public void ReadPasswordFromConsole_WithBackspace_RemovesCharacter()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
@@ -450,20 +481,22 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
         Assert.That(plain, Is.EqualTo("ac"));
-        MockConsole.Verify(c => c.Write("\b \b"), Times.Once);
+        ctx.MockConsole.Verify(c => c.Write("\b \b"), Times.Once);
     }
 
     [Test]
     public void ReadPasswordFromConsole_BackspaceOnEmpty_DoesNothing()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
@@ -472,20 +505,22 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
         Assert.That(plain, Is.EqualTo("x"));
-        MockConsole.Verify(c => c.Write("\b \b"), Times.Never);
+        ctx.MockConsole.Verify(c => c.Write("\b \b"), Times.Never);
     }
 
     [Test]
     public void ReadPasswordFromConsole_WithEscape_ReturnsEmpty()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
@@ -494,10 +529,10 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         Assert.That(result.Length, Is.EqualTo(0));
@@ -506,6 +541,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromConsole_IgnoresControlCharacters()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
@@ -515,10 +552,10 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
@@ -528,12 +565,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromConsole_WhenReadKeyThrows_FallsBackToReadLine()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.ReadKey(true)).Throws<InvalidOperationException>();
-        MockConsole.Setup(c => c.ReadLine()).Returns("fallbackpassword");
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Throws<InvalidOperationException>();
+        ctx.MockConsole.Setup(c => c.ReadLine()).Returns("fallbackpassword");
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
@@ -543,12 +582,14 @@ public class SecurePasswordProviderTests
     [Test]
     public void ReadPasswordFromConsole_WhenReadLineReturnsNull_ReturnsEmpty()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
-        MockConsole.Setup(c => c.ReadKey(true)).Throws<InvalidOperationException>();
-        MockConsole.Setup(c => c.ReadLine()).Returns((string?)null);
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Throws<InvalidOperationException>();
+        ctx.MockConsole.Setup(c => c.ReadLine()).Returns((string?)null);
 
         // Act
-        var result = Provider.ReadPasswordFromConsole();
+        var result = ctx.Provider.ReadPasswordFromConsole();
 
         // Assert
         Assert.That(result.Length, Is.EqualTo(0));
@@ -557,6 +598,8 @@ public class SecurePasswordProviderTests
     [Test]
     public void GetPassword_WhenNoEnvOrFile_CallsReadPasswordFromConsole()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
         
@@ -568,20 +611,22 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.GetPassword(prompt: "Test: ");
+        var result = ctx.Provider.GetPassword(prompt: "Test: ");
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);
         Assert.That(plain, Is.EqualTo("pwd"));
-        MockConsole.Verify(c => c.Write("Test: "), Times.Once);
+        ctx.MockConsole.Verify(c => c.Write("Test: "), Times.Once);
     }
 
     [Test]
     public void GetPassword_WithNonExistentPasswordFile_FallsBackToConsole()
     {
+        using var ctx = CreateTestContext();
+
         // Arrange
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.txt");
@@ -592,10 +637,10 @@ public class SecurePasswordProviderTests
             new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)
         });
 
-        MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
+        ctx.MockConsole.Setup(c => c.ReadKey(true)).Returns(() => keyPresses.Dequeue());
 
         // Act
-        var result = Provider.GetPassword(passwordFilePath: nonExistentFile);
+        var result = ctx.Provider.GetPassword(passwordFilePath: nonExistentFile);
 
         // Assert
         var plain = SecurePasswordProvider.ConvertToPlainString(result);

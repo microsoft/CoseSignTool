@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Validation.Tests;
+
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
-
-namespace CoseSign1.Validation.Tests;
 
 [TestFixture]
 public class CoseSign1VerifierCoverageTests

@@ -1,16 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+namespace CoseSign1.Certificates.Validation;
+
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation;
-
-namespace CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Validates that the signing certificate has not expired and is currently valid.
 /// </summary>
-public sealed class CertificateExpirationValidator : IValidator
+public sealed partial class CertificateExpirationValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField = new[] { ValidationStage.KeyMaterialTrust };
 
@@ -44,16 +46,34 @@ public sealed class CertificateExpirationValidator : IValidator
 
     private readonly DateTime? ValidationTime;
     private readonly bool AllowUnprotectedHeaders;
+    private readonly ILogger<CertificateExpirationValidator> Logger;
+
+    // Log methods using source generators for high-performance logging
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Validating certificate expiration. ValidationTime: {ValidationTime}")]
+    private partial void LogValidatingExpiration(DateTime validationTime);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Certificate is within validity period. NotBefore: {NotBefore}, NotAfter: {NotAfter}, Thumbprint: {Thumbprint}")]
+    private partial void LogCertificateValid(DateTime notBefore, DateTime notAfter, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Certificate is not yet valid. NotBefore: {NotBefore}, ValidationTime: {ValidationTime}, Thumbprint: {Thumbprint}")]
+    private partial void LogCertificateNotYetValid(DateTime notBefore, DateTime validationTime, string thumbprint);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Certificate has expired. NotAfter: {NotAfter}, ValidationTime: {ValidationTime}, Thumbprint: {Thumbprint}")]
+    private partial void LogCertificateExpired(DateTime notAfter, DateTime validationTime, string thumbprint);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateExpirationValidator"/> class.
     /// Validates the certificate is valid at the current time.
     /// </summary>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public CertificateExpirationValidator(bool allowUnprotectedHeaders = false)
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateExpirationValidator(
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateExpirationValidator>? logger = null)
     {
         ValidationTime = null;
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateExpirationValidator>.Instance;
     }
 
     /// <summary>
@@ -62,10 +82,15 @@ public sealed class CertificateExpirationValidator : IValidator
     /// </summary>
     /// <param name="validationTime">The time at which to validate the certificate.</param>
     /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
-    public CertificateExpirationValidator(DateTime validationTime, bool allowUnprotectedHeaders = false)
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateExpirationValidator(
+        DateTime validationTime,
+        bool allowUnprotectedHeaders = false,
+        ILogger<CertificateExpirationValidator>? logger = null)
     {
         ValidationTime = validationTime;
         AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        Logger = logger ?? NullLogger<CertificateExpirationValidator>.Instance;
     }
 
     /// <inheritdoc/>
@@ -88,9 +113,11 @@ public sealed class CertificateExpirationValidator : IValidator
         }
 
         DateTime checkTime = ValidationTime ?? DateTime.UtcNow;
+        LogValidatingExpiration(checkTime);
 
         if (checkTime < certificate.NotBefore)
         {
+            LogCertificateNotYetValid(certificate.NotBefore, checkTime, certificate.Thumbprint);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatNotYetValid, certificate.NotBefore, checkTime),
@@ -99,11 +126,14 @@ public sealed class CertificateExpirationValidator : IValidator
 
         if (checkTime > certificate.NotAfter)
         {
+            LogCertificateExpired(certificate.NotAfter, checkTime, certificate.Thumbprint);
             return ValidationResult.Failure(
                 ClassStrings.ValidatorName,
                 string.Format(ClassStrings.ErrorFormatExpired, certificate.NotAfter, checkTime),
                 ClassStrings.ErrorCodeExpired);
         }
+
+        LogCertificateValid(certificate.NotBefore, certificate.NotAfter, certificate.Thumbprint);
 
         var metadata = new Dictionary<string, object>
         {

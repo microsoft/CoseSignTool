@@ -9,6 +9,7 @@ using CoseSignTool.Output;
 /// <summary>
 /// Configuration options for file-based logging.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public sealed class LogFileOptions
 {
     /// <summary>

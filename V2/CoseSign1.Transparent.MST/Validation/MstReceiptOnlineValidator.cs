@@ -16,6 +16,7 @@ using CoseSign1.Validation.Results;
 /// Validates MST receipts by first querying the configured endpoint for its current signing keys,
 /// then performing full receipt proof validation using only those keys (no fallback).
 /// </summary>
+[ExcludeFromCodeCoverage] // Requires live MST service integration
 public sealed class MstReceiptOnlineValidator : IConditionalValidator, IProvidesDefaultTrustPolicy
 {
     [ExcludeFromCodeCoverage]

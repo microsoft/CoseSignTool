@@ -9,6 +9,7 @@ using System.Formats.Cbor;
 /// <summary>
 /// Extension methods for <see cref="BinaryData"/> to work with MST responses.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class BinaryDataExtensions
 {
     [ExcludeFromCodeCoverage]

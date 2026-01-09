@@ -12,6 +12,7 @@ using System.Runtime.Loader;
 /// Each plugin gets its own context to avoid dependency conflicts (DLL hell).
 /// Uses a fallback strategy: try shared context first, then plugin directory.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class PluginLoadContext : AssemblyLoadContext
 {
     [ExcludeFromCodeCoverage]

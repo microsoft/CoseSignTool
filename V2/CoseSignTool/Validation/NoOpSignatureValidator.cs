@@ -3,6 +3,7 @@
 
 namespace CoseSignTool.Validation;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// occurred. It should only be used in scenarios where signature validation is intentionally
 /// skipped or when no provider is configured to handle the signature type.
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public sealed partial class NoOpSignatureValidator : IValidator
 {
     private static readonly IReadOnlyCollection<ValidationStage> StagesField =

@@ -3,6 +3,7 @@
 
 namespace CoseSignTool.Logging;
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging;
 /// - 5100-5199: Command operations (sign, verify, inspect)
 /// - 5200-5299: I/O operations
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public static class LogEvents
 {
     // Plugin Operations (5000-5099)

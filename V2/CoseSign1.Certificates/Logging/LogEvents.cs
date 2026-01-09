@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Logging;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Defines event IDs for structured logging in the CoseSign1.Certificates library.
 /// </summary>
@@ -12,6 +14,7 @@ namespace CoseSign1.Certificates.Logging;
 /// - 3000-3049: Certificate loading and chain building
 /// - 3050-3099: Certificate validation operations
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public static class LogEvents
 {
     // Signing Operations (certificate-specific)

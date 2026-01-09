@@ -3,12 +3,14 @@
 
 namespace CoseSign1.Transparent.MST.Extensions;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
 /// Extension methods for <see cref="CoseSign1Message"/> to work with MST receipts.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class CoseSign1MessageExtensions
 {
     // MST uses the same CBOR Web Token (CWT) header as defined in RFC 8392

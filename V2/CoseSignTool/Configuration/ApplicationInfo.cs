@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 /// <summary>
 /// Provides information about the running application including version and binary hash.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class ApplicationInfo
 {
     private static string? _cachedBinaryHash;

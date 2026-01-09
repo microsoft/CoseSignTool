@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Logging;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Defines event IDs for structured logging in the CoseSign1 library.
 /// </summary>
@@ -12,6 +14,7 @@ namespace CoseSign1.Logging;
 /// 
 /// For validation operations, see <see cref="CoseSign1.Validation.Logging.LogEvents"/>.
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public static class LogEvents
 {
     // Signing Operations (1000-1099)

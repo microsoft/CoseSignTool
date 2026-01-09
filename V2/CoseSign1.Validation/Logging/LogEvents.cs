@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Validation.Logging;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Defines event IDs for structured logging in the CoseSign1.Validation library.
 /// </summary>
@@ -14,6 +16,7 @@ namespace CoseSign1.Validation.Logging;
 /// - 2030-2039: Trust policy evaluation
 /// - 2040-2049: Signature validation specifics
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public static class LogEvents
 {
     // Overall Validation Lifecycle (2000-2009)

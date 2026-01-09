@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Transparent.MST;
 
+using System.Diagnostics.CodeAnalysis;
 using Azure.Security.CodeTransparency;
 
 /// <summary>
@@ -15,6 +16,7 @@ using Azure.Security.CodeTransparency;
 /// that cannot be mocked directly. By injecting this adapter, consumers can substitute a mock
 /// implementation for testing purposes.
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public class CodeTransparencyVerifierAdapter : ICodeTransparencyVerifier
 {
     /// <summary>

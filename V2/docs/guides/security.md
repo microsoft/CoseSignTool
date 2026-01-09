@@ -89,17 +89,16 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 var validator = Cose.Sign1Message()
     .ValidateCertificate(cert => cert
         .ValidateChain())
     .Build();
 
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var results = validator.Validate(message);
 
-if (!signatureResult.IsValid || !trustResult.IsValid)
+if (!results.Signature.IsValid || !results.Trust.IsValid)
 {
     throw new SecurityException("Signature validation failed");
 }
@@ -107,15 +106,13 @@ if (!signatureResult.IsValid || !trustResult.IsValid)
 
 ### Chain Validation
 
-Always validate the full certificate chain:
+Always validate the full certificate chain (online revocation checking is the default):
 
 ```csharp
-var chainOptions = new ChainBuildOptions
-{
-    RevocationMode = X509RevocationMode.Online, // Check revocation
-    RevocationFlag = X509RevocationFlag.EntireChain,
-    VerificationFlags = X509VerificationFlags.NoFlag // Strict
-};
+var validator = Cose.Sign1Message()
+    .ValidateCertificate(cert => cert
+        .ValidateChain(allowUntrusted: false, revocationMode: X509RevocationMode.Online))
+    .Build();
 ```
 
 ### Trust Roots
@@ -153,21 +150,14 @@ Avoid using:
 
 ### ML-DSA Support
 
-CoseSignTool V2 supports ML-DSA (FIPS 204) algorithms:
+CoseSignTool V2 supports ML-DSA (FIPS 204) via Windows-only platform crypto support.
 
-```csharp
-// ML-DSA is Windows-only currently
-var algorithms = CoseAlgorithm.GetMlDsaAlgorithms();
-```
+> **Note:** ML-DSA is only available on Windows with .NET 10+.
 
-> **Note:** ML-DSA is only available on Windows with .NET 9+.
+### Hybrid / Dual Signatures
 
-### Hybrid Approach
-
-Consider hybrid signatures during transition:
-1. Sign with classical algorithm (ES384)
-2. Add counter-signature with ML-DSA
-3. Verify both during transition period
+The V2 library surface does not provide a first-class "countersignature" feature.
+If you need both classical + post-quantum assurances, produce two independent signatures over the same payload and ship them side-by-side.
 
 ## Operational Security
 
@@ -238,15 +228,19 @@ services.AddRateLimiter(options =>
 Include security tests:
 
 ```csharp
-[TestMethod]
+using System.Security.Cryptography.Cose;
+using NUnit.Framework;
+
+[Test]
 public void Verify_WithTamperedSignature_Fails()
 {
     var signature = CreateValidSignature();
     var tamperedSignature = TamperWithSignature(signature);
-    
-    var result = validator.Validate(tamperedSignature);
-    
-    Assert.IsFalse(result.IsValid);
+
+    var message = CoseSign1Message.DecodeSign1(tamperedSignature);
+    var result = validator.Validate(message);
+
+    Assert.That(result.Overall.IsValid, Is.False);
 }
 ```
 

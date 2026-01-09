@@ -42,7 +42,7 @@ Verification is composed from multiple validators:
 | `--trust-pfx <file>` | PFX/PKCS#12 file containing trusted root certificate(s) |
 | `--trust-pfx-password-file <file>` | Path to file containing PFX password (more secure) |
 | `--trust-pfx-password-env <name>` | Environment variable containing PFX password (default: `COSESIGNTOOL_TRUST_PFX_PASSWORD`) |
-| `--skip-revocation` | Skip certificate revocation checking |
+| `--revocation-mode <none|offline|online>` | Certificate revocation checking mode (default: `online`) |
 | `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
 
 ### Certificate Options

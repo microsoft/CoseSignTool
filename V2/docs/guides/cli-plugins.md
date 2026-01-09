@@ -1,79 +1,57 @@
 # CLI Plugins Guide
 
-This guide explains how CLI plugins work in CoseSignTool V2 and how to create custom plugins.
+This guide explains how CLI plugins work in CoseSignTool V2, how built-in plugins are loaded, and how to build your own plugin.
 
-## Overview
+For the plugin authoring model (interfaces and extension points), see the [Plugin Development Guide](../plugins/README.md).
 
-CoseSignTool V2 uses a plugin architecture to extend CLI functionality. Plugins can add new commands, options, and integrate with external services without modifying the core tool.
+## What plugins can do
 
-## Built-in Plugins
+Plugins implement `CoseSignTool.Abstractions.IPlugin` and can contribute functionality via:
 
-### Local Signing Plugin
+- **Signing commands** (e.g., `sign-pfx`, `sign-azure`) via `ISigningCommandProvider`
+- **Verification providers** (extra verification behaviors and/or options surfaced by `verify`) via `IVerificationProvider`
+- **Transparency providers** (e.g., MST) via `ITransparencyProviderContributor`
 
-Provides commands for local certificate-based signing:
+In V2, **all signing commands are provided by plugins**. The core CLI provides the built-in `verify` and `inspect` commands.
 
-| Command | Description |
-|---------|-------------|
-| `sign-pfx` | Sign using a PFX/PKCS#12 file |
-| `sign-certstore` | Sign using Windows Certificate Store |
-| `sign-pem` | Sign using PEM certificate/key files |
-| `sign-ephemeral` | Sign using a temporary self-signed certificate |
+## Built-in plugins
 
-### Azure Trusted Signing Plugin
+The default distribution includes these plugins (each has its own documentation page):
 
-Provides cloud signing integration:
+- **Local signing**: [Local plugin](../plugins/local-plugin.md)
+  - Commands: `sign-pfx`, `sign-pem`, `sign-certstore`, `sign-ephemeral`
+- **Azure Key Vault**: [Azure Key Vault plugin](../plugins/azure-keyvault-plugin.md)
+  - Commands: `sign-akv-cert`, `sign-akv-key`
+- **Azure Trusted Signing**: [Azure plugin](../plugins/azure-plugin.md)
+  - Command: `sign-azure`
+- **Microsoft Signing Transparency (MST)**: [MST plugin](../plugins/mst-plugin.md)
+  - Adds verification options (for example `--require-receipt`, `--mst-endpoint`, `--mst-trust-mode`)
+- **Indirect signatures**: [Indirect plugin](../plugins/indirect-plugin.md)
+  - Adds signing options (for example `--signature-type indirect`, `--hash-algorithm`)
 
-| Command | Description |
-|---------|-------------|
-| `sign-azure` | Sign using Azure Trusted Signing |
+This guide intentionally links to the plugin-specific docs above rather than duplicating every command/option detail.
 
-### MST Plugin
+## How plugin discovery works
 
-Adds Microsoft's Signing Transparency options to verification:
+By default, CoseSignTool loads plugins from a `plugins` directory next to the executable.
 
-| Options | Description |
-|---------|-------------|
-| `--mst-endpoint` | MST service endpoint |
-| `--verify-receipt` | Verify MST receipt (default: true) |
-| `--require-receipt` | Fail if no receipt is present |
+- The tool scans **subdirectories** under `plugins/`.
+- Each plugin must live in its **own subdirectory** (dependency isolation).
+- Plugin assemblies are discovered by filename suffix: `*.Plugin.dll`.
+- Each `*.Plugin.dll` is loaded into an isolated `AssemblyLoadContext`.
+- Types implementing `IPlugin` are instantiated via a **parameterless constructor** and registered.
 
-### Indirect Signature Plugin
+You can also load plugins from additional locations:
 
-Adds indirect (hash envelope) signature support:
-
-| Options | Description |
-|---------|-------------|
-| `--signature-type indirect` | Create indirect signature |
-| `--hash-algorithm` | Hash algorithm for indirect signatures |
-
-## Plugin Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CoseSignTool CLI                          │
-│                     (Core Commands)                          │
-├─────────────────────────────────────────────────────────────┤
-│  verify  │  inspect  │  help  │  version                     │
-└─────────────────────────────────────────────────────────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-     │   Local     │ │   Azure     │ │    MST      │
-     │   Plugin    │ │   Plugin    │ │   Plugin    │
-     ├─────────────┤ ├─────────────┤ ├─────────────┤
-     │ sign-pfx    │ │ sign-azure  │ │ --verify-   │
-     │ sign-cert-  │ │             │ │   mst-      │
-     │   store     │ │             │ │   receipt   │
-     │ sign-pem    │ │             │ │             │
-     │ sign-       │ │             │ │             │
-     │   ephemeral │ │             │ │             │
-     └─────────────┘ └─────────────┘ └─────────────┘
+```text
+--additional-plugin-dir <dir>
 ```
 
-## Creating a Custom Plugin
+`--additional-plugin-dir` may be provided multiple times. Each additional directory is expected to have the same structure (subdirectory-per-plugin).
 
-### 1. Create Plugin Project
+## Creating a custom plugin
+
+### 1. Create a plugin project
 
 ```bash
 dotnet new classlib -n CoseSignTool.MyPlugin
@@ -81,183 +59,56 @@ cd CoseSignTool.MyPlugin
 dotnet add reference ../CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj
 ```
 
-### 2. Implement ICliPlugin
+### 2. Implement `IPlugin`
+
+Minimal skeleton:
 
 ```csharp
-using CoseSignTool.Abstractions;
 using System.CommandLine;
+using CoseSignTool.Abstractions;
 
-public class MyPlugin : ICliPlugin
+public sealed class MyPlugin : IPlugin
 {
-    public string Name => "My Custom Plugin";
-    public string Description => "Adds custom signing functionality";
-    public Version Version => new Version(1, 0, 0);
+    public string Name => "my-plugin";
+    public string Version => "1.0.0";
+    public string Description => "Example plugin";
 
-    public void RegisterCommands(RootCommand rootCommand)
+    public Task InitializeAsync(IDictionary<string, string>? configuration = null)
+        => Task.CompletedTask;
+
+    public PluginExtensions GetExtensions()
+        => PluginExtensions.None;
+
+    public void RegisterCommands(Command rootCommand)
     {
-        var myCommand = new Command("sign-custom", "Sign using custom method");
-        
-        var inputOption = new Option<string>(
-            "--input",
-            "Input file to sign") { IsRequired = true };
-        
-        var outputOption = new Option<string>(
-            "--output",
-            "Output signature file") { IsRequired = true };
-        
-        myCommand.AddOption(inputOption);
-        myCommand.AddOption(outputOption);
-        
-        myCommand.SetHandler(async (input, output) =>
-        {
-            await SignCustomAsync(input, output);
-        }, inputOption, outputOption);
-        
-        rootCommand.AddCommand(myCommand);
-    }
-
-    public void RegisterOptions(Command command)
-    {
-        // Add options to existing commands (like verify)
-        if (command.Name == "verify")
-        {
-            var customOption = new Option<bool>(
-                "--verify-custom",
-                "Enable custom verification");
-            command.AddOption(customOption);
-        }
-    }
-
-    private async Task SignCustomAsync(string input, string output)
-    {
-        // Implementation
+        // Optional: register standalone utility commands.
+        // Signing commands and verify providers should typically be exposed via GetExtensions().
     }
 }
 ```
 
-### 3. Register Plugin
+Then add your signing commands / verification providers using the extension points described in [Plugin Development Guide](../plugins/README.md).
 
-Plugins are discovered via assembly scanning or explicit registration:
+### 3. Package the plugin for loading
 
-```csharp
-// In Program.cs or startup
-var builder = new CliBuilder();
-builder.AddPlugin<MyPlugin>();
-var cli = builder.Build();
+To be discoverable by the default loader:
+
+- Ensure your output assembly name ends with `.Plugin.dll`.
+- Create a dedicated directory for the plugin under `plugins/`.
+- Copy the plugin DLL and all dependencies into that directory.
+
+Example layout:
+
+```text
+<cosesigntool>/
+  CoseSignTool.exe
+  plugins/
+    MyPlugin/
+      CoseSignTool.MyPlugin.Plugin.dll
+      <dependencies>.dll
 ```
 
-## Plugin Interfaces
-
-### ICliPlugin
-
-Main plugin interface:
-
-```csharp
-public interface ICliPlugin
-{
-    string Name { get; }
-    string Description { get; }
-    Version Version { get; }
-    
-    void RegisterCommands(RootCommand rootCommand);
-    void RegisterOptions(Command command);
-}
-```
-
-### ISigningPlugin
-
-For plugins that provide signing services:
-
-```csharp
-public interface ISigningPlugin : ICliPlugin
-{
-    ISigningService CreateSigningService(SigningOptions options);
-}
-```
-
-### IValidationPlugin
-
-For plugins that add validation:
-
-```csharp
-public interface IValidationPlugin : ICliPlugin
-{
-    IValidator CreateValidator(ValidationOptions options);
-}
-```
-
-## Adding Options to Existing Commands
-
-Plugins can add options to existing commands:
-
-```csharp
-public void RegisterOptions(Command command)
-{
-    switch (command.Name)
-    {
-        case "verify":
-            AddVerifyOptions(command);
-            break;
-        case "inspect":
-            AddInspectOptions(command);
-            break;
-    }
-}
-
-private void AddVerifyOptions(Command command)
-{
-    command.AddOption(new Option<string>(
-        "--custom-root",
-        "Custom root certificate for validation"));
-}
-```
-
-## Plugin Configuration
-
-Plugins can access configuration:
-
-```csharp
-public class ConfigurablePlugin : ICliPlugin
-{
-    private readonly MyPluginOptions _options;
-    
-    public ConfigurablePlugin(IOptions<MyPluginOptions> options)
-    {
-        _options = options.Value;
-    }
-    
-    // Plugin implementation using _options
-}
-```
-
-Configuration in appsettings.json:
-
-```json
-{
-  "Plugins": {
-    "MyPlugin": {
-      "ServiceUrl": "https://example.com",
-      "ApiKey": "..."
-    }
-  }
-}
-```
-
-## Plugin Discovery
-
-### Assembly Scanning
-
-Plugins can be discovered automatically:
-
-```csharp
-var pluginPath = Path.Combine(AppContext.BaseDirectory, "plugins");
-var plugins = PluginLoader.LoadPlugins(pluginPath);
-
-foreach (var plugin in plugins)
-{
-    builder.AddPlugin(plugin);
-}
-```
+To load from a different location, place the plugin under a directory you pass via `--additional-plugin-dir`, still using the subdirectory-per-plugin layout.
 
 ### NuGet Packages
 
@@ -295,10 +146,12 @@ myCommand.SetHandler(async (input, output) =>
 ## Testing Plugins
 
 ```csharp
-[TestClass]
+using NUnit.Framework;
+
+[TestFixture]
 public class MyPluginTests
 {
-    [TestMethod]
+    [Test]
     public void RegisterCommands_AddsSignCustomCommand()
     {
         // Arrange
@@ -312,7 +165,7 @@ public class MyPluginTests
         var command = rootCommand.Children
             .OfType<Command>()
             .FirstOrDefault(c => c.Name == "sign-custom");
-        Assert.IsNotNull(command);
+        Assert.That(command, Is.Not.Null);
     }
 }
 ```

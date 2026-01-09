@@ -36,7 +36,7 @@ The plugin adds support for indirect signatures via the `--signature-type` optio
 
 ```bash
 CoseSignTool sign-pfx large-file.bin ^
-    --pfx-file cert.pfx ^
+    --pfx cert.pfx ^
     --signature-type indirect ^
     --hash-algorithm SHA384 ^
     --output large-file.sig
@@ -72,20 +72,20 @@ Use indirect signatures when:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Indirect Signature                         │
+│                   Indirect Signature                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌────────────┐     ┌────────────────┐     ┌────────────┐   │
-│  │  Payload   │────▶│  Hash(SHA384)  │────▶│  Sign      │   │
+│  │  Payload   │───▶│  Hash(SHA384)  │────▶│  Sign      │   │
 │  │  (Large)   │     │                │     │  Hash      │   │
 │  └────────────┘     └────────────────┘     └────────────┘   │
-│                                                   │          │
-│                                                   ▼          │
+│                                                   │         │
+│                                                   ▼         │
 │                                            ┌────────────┐   │
 │                                            │ Signature  │   │
 │                                            │ (Small)    │   │
 │                                            └────────────┘   │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

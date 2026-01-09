@@ -203,9 +203,14 @@ public class CustomHeaderContributor : IHeaderContributor
 }
 
 var factory = new DirectSignatureFactory(
-    service,
-    headerContributors: new[] { new CustomHeaderContributor() }
-);
+    service);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new[] { new CustomHeaderContributor() }
+};
+
+byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType, options);
 ```
 
 ## Builder Pattern
@@ -215,27 +220,28 @@ Builders construct complex objects step-by-step.
 ### Validator Builder
 
 ```csharp
-var validator = new ValidatorBuilder()
-    .WithSignatureValidator()           // Verify cryptographic signature
-    .WithExpirationValidator()          // Check certificate expiration
-    .WithEkuPolicy(requiredEkus)        // Require specific EKUs
-    .WithSanPolicy(allowedSans)         // Require specific SANs
-    .WithCustomValidator(myValidator)   // Add custom logic
+var validator = Cose.Sign1Message()
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .ValidateChain())
     .Build();
 ```
 
 ### Certificate Chain Builder
 
 ```csharp
-var chain = new CertificateChainBuilder()
-    .WithChainPolicy(policy => 
-    {
-        policy.RevocationMode = X509RevocationMode.Online;
-        policy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-    })
-    .WithRootCertificates(rootCerts)
-    .WithIntermediateCertificates(intermediates)
-    .Build();
+using CoseSign1.Certificates.ChainBuilders;
+using System.Security.Cryptography.X509Certificates;
+
+var policy = new X509ChainPolicy
+{
+    RevocationMode = X509RevocationMode.Online,
+    VerificationFlags = X509VerificationFlags.NoFlag,
+};
+
+using var chainBuilder = new X509ChainBuilder(policy);
+bool ok = chainBuilder.Build(leafCertificate);
+IReadOnlyCollection<X509Certificate2> chain = chainBuilder.ChainElements;
 ```
 
 ### Builder Benefits

@@ -11,11 +11,25 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 
 - [Overview](architecture/overview.md) - Package structure, design principles, data flows
 - [Validation Framework](architecture/validation-framework.md) - Staged validation pipeline
+- [Core Concepts](architecture/core-concepts.md) - Trust, stages, signature types, policies
+- [Signing Services](architecture/signing-services.md) - Local and remote signing services
+- [Certificate Management](architecture/certificate-management.md) - Certificate sources and chain building
+- [Header Contributors](architecture/header-contributors.md) - Extensible header contribution model
 
 ## Guides
 
+- [Direct vs Indirect](guides/direct-vs-indirect.md) - Choose the right signature strategy
+- [Detached Signatures](guides/detached-signatures.md) - Detached payload workflows
+- [SCITT Compliance](guides/scitt-compliance.md) - SCITT-friendly signing and verification
 - [Trust Policy](guides/trust-policy.md) - Declarative trust policies deep-dive
+- [Chain Validation](guides/chain-validation.md) - Chain-building and trust roots
+- [Certificate Sources](guides/certificate-sources.md) - PFX/PEM/Store and remote sources
+- [Remote Signing](guides/remote-signing.md) - Azure Trusted Signing and other remote services
+- [Post-Quantum](guides/post-quantum.md) - PQC signing options and constraints
+- [Custom Headers](guides/custom-headers.md) - Add and validate custom headers
+- [Custom Validators](guides/custom-validators.md) - Extend validation stages
 - [Logging and Diagnostics](guides/logging-diagnostics.md) - Verbosity, log files, structured output
+- [Security](guides/security.md) - Security guidance and recommended defaults
 
 ## CLI Reference
 
@@ -30,6 +44,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 - [Plugin Guide](plugins/README.md) - Creating custom plugins
 - [ISigningCommandProvider](plugins/README.md#creating-a-signing-command-provider) - Custom signing commands
 - [IVerificationProvider](plugins/README.md#creating-a-verification-provider) - Custom verification
+- [CLI Plugins Guide](guides/cli-plugins.md) - How the CLI discovers and loads plugins
 
 ## Package Documentation
 
@@ -47,7 +62,6 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 | Package | Description |
 |---------|-------------|
 | [CoseSign1.Certificates.Local](components/certificates-local.md) | PFX, PEM, Certificate Store |
-| [CoseSign1.Certificates.AzureKeyVault](components/azure-keyvault.md) | Azure Key Vault |
 | [CoseSign1.Certificates.AzureTrustedSigning](components/azure-trusted-signing.md) | Azure Trusted Signing |
 
 ### Extensions
@@ -64,13 +78,10 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 
 ## Examples
 
-- [Basic Signing](examples/signing.md)
-- [Basic Verification](examples/verification.md)
-- [Advanced Trust Policies](examples/trust-policies.md)
-- [Custom Validators](examples/custom-validators.md)
+- [Examples](examples/README.md) - End-to-end code examples and snippets
 
 ## Development
 
-- [Building from Source](development/building.md)
+- [Development Setup](development/setup.md)
 - [Running Tests](development/testing.md)
-- [Contributing](development/contributing.md)
+- [Code Coverage](development/coverage.md)

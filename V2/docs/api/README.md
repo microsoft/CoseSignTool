@@ -1,6 +1,6 @@
 # API Reference
 
-This section provides API reference documentation for CoseSignTool V2 packages.
+This section provides API reference documentation for the CoseSignTool V2 libraries.
 
 ## Core Packages
 
@@ -10,12 +10,10 @@ Core interfaces and types for COSE signing operations.
 
 | Type | Description |
 |------|-------------|
-| `ISigningService<TSigningOptions>` | Interface for signing operations |
-| `IValidator` | Stage-aware validator interface |
-| `ValidationStage` | Verification/validation stage enumeration |
+| `ISigningService<TSigningOptions>` | Signing service abstraction that produces `CoseSigner` instances |
 | `IHeaderContributor` | Interface for adding headers to signatures |
-| `CoseAlgorithm` | COSE algorithm identifiers |
-| `ValidationResult` | Result of validation operations |
+| `SigningOptions` | Base per-operation options (headers, AAD, transparency toggles) |
+| `CoseSign1.Abstractions.Transparency.ITransparencyProvider` | Transparency provider abstraction |
 
 ### CoseSign1
 
@@ -23,17 +21,12 @@ Direct signature implementation.
 
 | Type | Description |
 |------|-------------|
-| `DirectSignatureFactory` | Creates COSE_Sign1 messages |
-| `CoseMessage.DecodeSign1(...)` | Parses COSE_Sign1 messages (from `System.Security.Cryptography.Cose`) |
+| `DirectSignatureFactory` | Creates COSE_Sign1 messages via direct signing |
+| `IndirectSignatureFactory` | Creates COSE hash-envelope (indirect) signatures |
+| `CoseSign1MessageFactory` | Routes to the correct factory based on options |
+| `System.Security.Cryptography.Cose.CoseSign1Message` | COSE_Sign1 message type used across V2 |
 
-### CoseSign1.Indirect
-
-Indirect (hash envelope) signing.
-
-| Type | Description |
-|------|-------------|
-| `IndirectSignatureFactory` | Creates indirect signatures |
-| `CoseHashEnvelopeHeaderContributor` | Adds COSE hash-envelope headers during signing |
+Indirect signing is implemented in the `CoseSign1` package under the `CoseSign1.Indirect` namespace.
 
 ## Certificate Packages
 
@@ -43,9 +36,8 @@ Certificate management and chain building.
 
 | Type | Description |
 |------|-------------|
-| `ICertificateChainBuilder` | Builds certificate chains |
-| `ICertificateSource` | Interface for certificate sources |
 | `CertificateSigningService` | Signing with certificates (local or remote sources) |
+| `X509ChainBuilder` | Helper for building chains using `X509ChainPolicy` |
 
 ### CoseSign1.Certificates.AzureTrustedSigning
 
@@ -58,15 +50,6 @@ Azure Trusted Signing integration.
 
 ## Transparency Packages
 
-### CoseSign1.Transparent
-
-Transparency service abstractions.
-
-| Type | Description |
-|------|-------------|
-| `ITransparencyProvider` | Interface for transparency services |
-| `ITransparencyReceipt` | Transparency receipt interface |
-
 ### CoseSign1.Transparent.MST
 
 Microsoft's Signing Transparency integration.
@@ -74,7 +57,7 @@ Microsoft's Signing Transparency integration.
 | Type | Description |
 |------|-------------|
 | `MstTransparencyProvider` | MST provider implementation |
-| `CodeTransparencyClient` | Azure Code Transparency client used by MST |
+| `CodeTransparencyVerifierAdapter` | Adapter for verifying receipts with Code Transparency |
 
 ## Header Packages
 
@@ -87,55 +70,34 @@ Header contribution and management.
 | `CwtClaimsHeaderContributor` | Adds CWT claims to headers |
 | `CertificateHeaderContributor` | Adds certificates to headers |
 
-## Validation Types
+## Validation
 
-### ValidationResult
+### CoseSign1.Validation
 
-```csharp
-public sealed class ValidationResult
-{
-    public bool IsValid { get; init; }
-    public string ValidatorName { get; init; } = string.Empty;
-    public IReadOnlyList<ValidationFailure> Failures { get; init; } = Array.Empty<ValidationFailure>();
+| Type | Description |
+|------|-------------|
+| `Cose.Sign1Message()` | Entry point for building staged validators |
+| `ICoseSign1Validator` | Validates a `CoseSign1Message` and returns staged results |
+| `CoseSign1ValidationResult` | Staged results: Resolution, Trust, Signature, PostSignaturePolicy, Overall |
+| `ValidationResult` | Per-stage result (Success/Failure/NotApplicable + metadata) |
+| `ValidationStage` | Stage identifiers used by orchestration/validators |
 
-    public static ValidationResult Success(string validatorName, IDictionary<string, object>? metadata = null);
-    public static ValidationResult Failure(string validatorName, params ValidationFailure[] failures);
-    public static ValidationResult Failure(string validatorName, string message, string? errorCode = null);
-}
+## COSE Algorithm Identifiers
 
-public sealed class ValidationFailure
-{
-    public string Message { get; init; } = string.Empty;
-    public string? ErrorCode { get; init; }
-    public string? PropertyName { get; init; }
-    public object? AttemptedValue { get; init; }
-    public Exception? Exception { get; init; }
-}
-```
+V2 primarily uses integer COSE algorithm identifiers (per the IANA COSE registry) in places like metadata and some header contributors.
 
-## Algorithm Constants
+Common values used by V2:
 
-### CoseAlgorithm
+| Algorithm | COSE ID |
+|----------|---------|
+| ES256 | -7 |
+| ES384 | -35 |
+| ES512 | -36 |
+| PS256 | -37 |
+| PS384 | -38 |
+| PS512 | -39 |
 
-```csharp
-public static class CoseAlgorithm
-{
-    // ECDSA
-    public const int ES256 = -7;   // ECDSA w/ SHA-256
-    public const int ES384 = -35;  // ECDSA w/ SHA-384
-    public const int ES512 = -36;  // ECDSA w/ SHA-512
-    
-    // RSA-PSS
-    public const int PS256 = -37;  // RSASSA-PSS w/ SHA-256
-    public const int PS384 = -38;  // RSASSA-PSS w/ SHA-384
-    public const int PS512 = -39;  // RSASSA-PSS w/ SHA-512
-    
-    // ML-DSA (Windows only)
-    public const int MlDsa44 = -48;
-    public const int MlDsa65 = -49;
-    public const int MlDsa87 = -50;
-}
-```
+When working directly with .NET COSE signing/verification APIs, use `System.Security.Cryptography.Cose.CoseAlgorithm` and related types.
 
 ## Common Patterns
 
@@ -160,12 +122,11 @@ byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType);
 ### Validating a Signature
 
 ```csharp
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
 // 1. Decode COSE
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 // 2. Build validator
 var validator = Cose.Sign1Message()
@@ -174,11 +135,10 @@ var validator = Cose.Sign1Message()
     .Build();
 
 // 3. Validate
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var result = message.Validate(validator);
 
-// 3. Check result
-if (signatureResult.IsValid && trustResult.IsValid)
+// 4. Check result
+if (result.Overall.IsValid)
 {
     // Signature is valid
 }
@@ -204,9 +164,12 @@ public class MyHeaderContributor : IHeaderContributor
 }
 
 // 2. Use with factory
-var factory = new DirectSignatureFactory(
-    service,
-    headerContributors: new[] { new MyHeaderContributor() });
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new[] { new MyHeaderContributor() }
+};
+
+byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType, options);
 ```
 
 ## See Also

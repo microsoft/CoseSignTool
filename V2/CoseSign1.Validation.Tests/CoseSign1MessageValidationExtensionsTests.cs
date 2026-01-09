@@ -5,7 +5,6 @@ namespace CoseSign1.Validation.Tests;
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using Microsoft.Extensions.Logging;

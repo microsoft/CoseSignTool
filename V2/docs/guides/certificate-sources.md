@@ -21,7 +21,7 @@ var cert = source.GetCertificate();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx
+CoseSignTool sign-pfx document.json --pfx cert.pfx
 ```
 
 > **Note:** Set the password via the `COSESIGNTOOL_PFX_PASSWORD` environment variable for security.
@@ -173,25 +173,32 @@ public class VaultCertificateSource : ICertificateSource
 
 ## Certificate Chain Building
 
-V2 provides automatic chain building:
+V2 provides chain-building helpers based on `X509ChainPolicy`.
 
 ```csharp
-var chainBuilder = new CertificateChainBuilder();
-var chain = chainBuilder.Build(leafCertificate);
+using CoseSign1.Certificates.ChainBuilders;
+using System.Security.Cryptography.X509Certificates;
+
+using var chainBuilder = new X509ChainBuilder();
+bool ok = chainBuilder.Build(leafCertificate);
+
+IReadOnlyCollection<X509Certificate2> chain = chainBuilder.ChainElements;
 ```
 
-Options for chain building:
+To customize revocation behavior or add intermediates, provide a custom `X509ChainPolicy`:
 
 ```csharp
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
     RevocationMode = X509RevocationMode.Online,
     RevocationFlag = X509RevocationFlag.EntireChain,
     VerificationFlags = X509VerificationFlags.NoFlag,
-    AdditionalStore = intermediateCerts
 };
 
-var chain = chainBuilder.Build(leafCertificate, options);
+policy.ExtraStore.AddRange(intermediateCerts);
+
+using var chainBuilder = new X509ChainBuilder(policy);
+bool ok = chainBuilder.Build(leafCertificate);
 ```
 
 ## Certificate Requirements

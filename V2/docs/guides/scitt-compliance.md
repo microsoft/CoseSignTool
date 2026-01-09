@@ -19,20 +19,20 @@ SCITT defines:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     SCITT Architecture                       │
+│                     SCITT Architecture                      │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌─────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │   Issuer    │───▶│  Transparency   │───▶│  Verifier   │  │
+│  │   Issuer    │──▶│  Transparency   │───▶│  Verifier  │  │
 │  │  (Signer)   │    │    Service      │    │             │  │
 │  └─────────────┘    └─────────────────┘    └─────────────┘  │
-│         │                   │                     │          │
-│         ▼                   ▼                     ▼          │
+│         │                   │                     │         │
+│         ▼                   ▼                     ▼         │
 │  ┌─────────────┐    ┌─────────────────┐    ┌─────────────┐  │
 │  │   Signed    │    │    Receipt      │    │  Verified   │  │
 │  │  Statement  │    │                 │    │  Statement  │  │
 │  └─────────────┘    └─────────────────┘    └─────────────┘  │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -131,15 +131,16 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(statement);
+var message = CoseSign1Message.DecodeSign1(statement);
 
 var validator = Cose.Sign1Message()
     .ValidateCertificate(cert => cert
         .ValidateChain())
     .Build();
 
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var results = validator.Validate(message);
+var signatureResult = results.Signature;
+var trustResult = results.Trust;
 ```
 
 ### Verify Receipt
@@ -174,7 +175,7 @@ if (!receiptResult.IsValid)
 
 ```bash
 CoseSignTool sign-pfx artifact-manifest.json ^
-    --pfx-file issuer.pfx ^
+    --pfx issuer.pfx ^
     --content-type "application/vnd.scitt.claim+cbor" ^
     --output statement.cose
 ```

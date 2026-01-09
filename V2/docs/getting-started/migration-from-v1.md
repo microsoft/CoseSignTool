@@ -140,7 +140,7 @@ if (result.Success)
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Extensions;
 
-var message = CoseMessage.DecodeSign1(signedMessage);
+var message = CoseSign1Message.DecodeSign1(signedMessage);
 bool isValid = message.VerifySignature();
 
 if (isValid)
@@ -175,22 +175,21 @@ var validator = Cose.Sign1Message()
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
     .Build();
 
-var message = CoseMessage.DecodeSign1(signedMessage);
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var message = CoseSign1Message.DecodeSign1(signedMessage);
+var results = validator.Validate(message);
 
-if (signatureResult.IsValid && trustResult.IsValid)
+if (results.Signature.IsValid && results.Trust.IsValid)
 {
     // All validations passed
 }
 else
 {
-    foreach (var failure in signatureResult.Failures)
+    foreach (var failure in results.Signature.Failures)
     {
         Console.WriteLine($"Validation failed: {failure.Message}");
     }
 
-    foreach (var failure in trustResult.Failures)
+    foreach (var failure in results.Trust.Failures)
     {
         Console.WriteLine($"Validation failed: {failure.Message}");
     }
@@ -419,8 +418,8 @@ var validator = Cose.Sign1Message()
     .Build();
 
 // Validate multiple messages
-var result1 = await validator.ValidateAsync(message1);
-var result2 = await validator.ValidateAsync(message2);
+var result1 = validator.Validate(message1);
+var result2 = validator.Validate(message2);
 ```
 
 ### Pattern: Custom Header Contribution

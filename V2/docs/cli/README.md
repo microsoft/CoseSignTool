@@ -20,15 +20,16 @@ These options apply to all commands:
 
 | Option | Description |
 |--------|-------------|
-| `-q`, `--quiet` | Suppress output except errors (verbosity 0) |
+| `-q`, `--quiet` | Suppress informational messages (errors still shown) |
 | `-vv` | Debug verbosity (level 3) |
 | `-vvv` | Trace verbosity (level 4) |
 | `--verbosity <N>` | Set verbosity level (0-4) |
 | `--log-file <path>` | Write logs to file |
 | `--log-file-append` | Append to existing log file |
-| `--output-format <format>` | Output format: text, json, xml, quiet |
+| `-f`, `--output-format <format>` | Output format: text, json, xml, quiet |
 | `--additional-plugin-dir <path>` | Load plugins from additional directory |
 | `-h`, `--help` | Show help |
+| `--verbose` | Show detailed help including all options and examples |
 | `--version` | Show version |
 
 ### Output Formats
@@ -58,11 +59,25 @@ cosesigntool verify <signature> [options]
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--payload <file>` | Detached payload file |
-| `--signature-only` | Skip payload verification |
-| `--trust-roots <files>` | Custom trust root certificates |
-| `--allow-untrusted` | Allow self-signed certificates |
-| `--subject-name <name>` | Required certificate subject name |
+| `-p`, `--payload <payload>` | Payload file for detached/indirect verification |
+| `--signature-only` | Verify signature only; skip payload/hash verification |
+| `--allow-online-verify` | Allow Azure Key Vault network calls to fetch public key by `kid` when needed |
+| `--require-az-key` | Require an Azure Key Vault key-only signature (`kid` + `COSE_Key`) |
+| `-r`, `--trust-roots <trust-roots>` | Trusted root certificate(s) in PEM or DER format (repeatable) |
+| `--trust-pfx <trust-pfx>` | Trusted roots from a PFX/PKCS#12 file |
+| `--trust-pfx-password-file <file>` | Password file for `--trust-pfx` |
+| `--trust-pfx-password-env <env>` | Env var name for `--trust-pfx` password (default: `COSESIGNTOOL_TRUST_PFX_PASSWORD`) |
+| `--trust-system-roots` | Trust system certificate store roots (default: true) |
+| `--allow-untrusted` | Allow self-signed or otherwise untrusted roots |
+| `-s`, `--subject-name <subject-name>` | Required subject name (CN) in the signing certificate |
+| `-i`, `--issuer-name <issuer-name>` | Required issuer name (CN) in the signing certificate |
+| `--revocation-mode <none|offline|online>` | Certificate revocation check mode (default: online) |
+| `--require-receipt` | Require an MST transparency receipt in the signature |
+| `--mst-endpoint <mst-endpoint>` | MST service endpoint URL for receipt verification |
+| `--verify-receipt` | Verify receipt against MST service (default: true when endpoint provided) |
+| `--mst-trust-mode <offline|online>` | MST trust mode (default: online) |
+| `--mst-trust-file <mst-trust-file>` | Offline trust list JSON (replaces individual trusted keys) |
+| `--mst-trusted-key <mst-trusted-key>` | Offline trusted key mapping (repeatable): `<mst-endpoint>=<path-to-jwk-or-jwks-json>` |
 
 **Examples:**
 ```bash
@@ -86,18 +101,16 @@ cosesigntool verify document.cose --output-format json
 Inspect a COSE Sign1 message structure.
 
 ```bash
-cosesigntool inspect <file> [options]
+cosesigntool inspect [<file>] [options]
 ```
 
 **Arguments:**
-- `<file>` - Path to COSE signature file
+- `<file>` - Path to COSE signature file (use `-` or omit to read from stdin)
 
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--extract-payload <path>` | Extract embedded payload to file |
-| `--show-headers` | Show all COSE headers |
-| `--show-certificate` | Show signing certificate details |
+| `-x`, `--extract-payload <path>` | Extract embedded payload (only works for embedded signatures). Use `-` for stdout |
 
 **Examples:**
 ```bash
@@ -118,7 +131,7 @@ cosesigntool inspect document.cose --output-format json
 Sign with a PFX/PKCS#12 certificate file.
 
 ```bash
-cosesigntool sign-pfx <payload> [options]
+cosesigntool sign-pfx [<payload>] [options]
 ```
 
 **Arguments:**
@@ -132,8 +145,9 @@ cosesigntool sign-pfx <payload> [options]
 **Optional:**
 | Option | Description |
 |--------|-------------|
-| `--pfx-password <password>` | PFX password (insecure, prefer --pfx-password-file) |
 | `--pfx-password-file <file>` | File containing PFX password |
+| `--pfx-password-env <env>` | Name of env var containing the PFX password (default: `COSESIGNTOOL_PFX_PASSWORD`) |
+| `--pfx-password-prompt` | Prompt for the PFX password |
 | `--output`, `-o` | Output file path |
 | `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
 | `--content-type`, `-c` | Content type header |
@@ -157,21 +171,18 @@ cosesigntool sign-pfx document.txt --pfx cert.pfx --pfx-password-file password.t
 Sign with PEM certificate and key files.
 
 ```bash
-cosesigntool sign-pem <payload> [options]
+cosesigntool sign-pem [<payload>] [options]
 ```
 
 **Required Options:**
 | Option | Description |
 |--------|-------------|
-| `--cert <file>` | Path to PEM certificate file |
-| `--key <file>` | Path to PEM private key file |
+| `--cert-file <cert-file>` | Path to the certificate file (`.pem`, `.crt`) |
+| `--key-file <key-file>` | Path to the private key file (`.key`, `.pem`) |
 
 **Optional:**
 | Option | Description |
 |--------|-------------|
-| `--key-password <password>` | Private key password |
-| `--key-password-file <file>` | File containing key password |
-| `--chain <file>` | Certificate chain PEM file |
 | `--output`, `-o` | Output file path |
 | `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
 | `--content-type`, `-c` | Content type header |
@@ -179,27 +190,23 @@ cosesigntool sign-pem <payload> [options]
 **Examples:**
 ```bash
 # Sign with PEM files
-cosesigntool sign-pem document.txt --cert cert.pem --key key.pem --output document.cose
-
-# Sign with certificate chain
-cosesigntool sign-pem document.txt --cert cert.pem --key key.pem --chain chain.pem --output document.cose
+cosesigntool sign-pem document.txt --cert-file cert.pem --key-file key.pem --output document.cose
 ```
 
 ---
 
-### sign-cert-store
+### sign-certstore
 
 Sign with a certificate from Windows Certificate Store.
 
 ```bash
-cosesigntool sign-cert-store <payload> [options]
+cosesigntool sign-certstore [<payload>] [options]
 ```
 
-**Required Options (one of):**
+**Required Options:**
 | Option | Description |
 |--------|-------------|
-| `--thumbprint <hash>` | Certificate thumbprint (SHA1) |
-| `--subject-name <name>` | Certificate subject name |
+| `--thumbprint <thumbprint>` | Certificate thumbprint (SHA1) |
 
 **Optional:**
 | Option | Description |
@@ -213,10 +220,7 @@ cosesigntool sign-cert-store <payload> [options]
 **Examples:**
 ```bash
 # Sign with certificate by thumbprint
-cosesigntool sign-cert-store document.txt --thumbprint ABC123... --output document.cose
-
-# Sign with certificate by subject name
-cosesigntool sign-cert-store document.txt --subject-name "CN=My Signer" --output document.cose
+cosesigntool sign-certstore document.txt --thumbprint ABC123... --output document.cose
 ```
 
 ---
@@ -226,17 +230,23 @@ cosesigntool sign-cert-store document.txt --subject-name "CN=My Signer" --output
 Sign with a temporary self-signed certificate (development/testing only).
 
 ```bash
-cosesigntool sign-ephemeral <payload> [options]
+cosesigntool sign-ephemeral [<payload>] [options]
 ```
 
 **Optional:**
 | Option | Description |
 |--------|-------------|
-| `--subject-name <name>` | Subject name (default: "CN=Ephemeral") |
-| `--key-size <bits>` | RSA key size (default: 2048) |
-| `--algorithm <algo>` | Signing algorithm |
+| `--config <config>` | Path to JSON certificate config file |
+| `--subject <subject>` | Certificate subject name (overrides config) |
+| `--algorithm <ECDSA|MLDSA|RSA>` | Key algorithm (default: RSA; overrides config) |
+| `--key-size <key-size>` | Key size in bits (defaults: RSA=4096, ECDSA=384, MLDSA=65) |
+| `--validity-days <validity-days>` | Certificate validity period in days (default: 365) |
+| `--no-chain` | Generate self-signed cert instead of full Root → Intermediate → Leaf chain |
+| `--minimal` | Minimal config (RSA-2048, self-signed, 1 day validity) |
+| `--pqc` | Post-quantum signing (ML-DSA-65 with full chain) |
 | `--output`, `-o` | Output file path |
 | `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
+| `--content-type`, `-c` | Content type header |
 
 **Examples:**
 ```bash
@@ -244,7 +254,7 @@ cosesigntool sign-ephemeral <payload> [options]
 cosesigntool sign-ephemeral document.txt --output document.cose
 
 # With custom subject
-cosesigntool sign-ephemeral document.txt --subject-name "CN=Test Signer" --output document.cose
+cosesigntool sign-ephemeral document.txt --subject "CN=Test Signer" --output document.cose
 ```
 
 > **Warning**: Ephemeral certificates should only be used for testing. The private key is discarded after signing.
@@ -256,76 +266,102 @@ cosesigntool sign-ephemeral document.txt --subject-name "CN=Test Signer" --outpu
 Sign with an Azure Key Vault certificate.
 
 ```bash
-cosesigntool sign-akv-cert <payload> [options]
+cosesigntool sign-akv-cert [<payload>] [options]
 ```
 
 **Required Options:**
 | Option | Description |
 |--------|-------------|
-| `--vault-uri <uri>` | Azure Key Vault URI |
-| `--cert-name <name>` | Certificate name in vault |
+| `--akv-vault <uri>` | Azure Key Vault URL (e.g., https://my-vault.vault.azure.net) |
+| `--akv-cert-name <name>` | Name of the certificate in Azure Key Vault |
 
 **Optional:**
 | Option | Description |
 |--------|-------------|
-| `--cert-version <version>` | Specific certificate version |
-| `--tenant-id <id>` | Azure AD tenant ID |
-| `--client-id <id>` | Azure AD client ID |
-| `--client-secret <secret>` | Azure AD client secret |
+| `--akv-cert-version <version>` | Specific certificate version (uses latest if omitted) |
+| `--akv-refresh-interval <minutes>` | Auto-refresh interval in minutes (default: 15, 0 to disable) |
 | `--output`, `-o` | Output file path |
 | `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
+| `--content-type`, `-c` | Content type header |
+
+Authentication uses `DefaultAzureCredential`. Configure credentials via environment variables, Managed Identity, or developer tooling (Azure CLI / Visual Studio sign-in).
 
 **Examples:**
 ```bash
 # Sign with Azure Key Vault (uses DefaultAzureCredential)
 cosesigntool sign-akv-cert document.txt \
-    --vault-uri https://myvault.vault.azure.net \
-    --cert-name signing-cert \
+    --akv-vault https://myvault.vault.azure.net \
+    --akv-cert-name signing-cert \
     --output document.cose
 
-# Sign with service principal
+# Pin to a specific certificate version
 cosesigntool sign-akv-cert document.txt \
-    --vault-uri https://myvault.vault.azure.net \
-    --cert-name signing-cert \
-    --tenant-id $TENANT_ID \
-    --client-id $CLIENT_ID \
-    --client-secret $CLIENT_SECRET \
+    --akv-vault https://myvault.vault.azure.net \
+    --akv-cert-name signing-cert \
+    --akv-cert-version 0123456789abcdef0123456789abcdef \
     --output document.cose
 ```
 
 ---
 
-### sign-ats
+### sign-azure
 
 Sign with Azure Trusted Signing.
 
 ```bash
-cosesigntool sign-ats <payload> [options]
+cosesigntool sign-azure [<payload>] [options]
 ```
 
 **Required Options:**
 | Option | Description |
 |--------|-------------|
-| `--endpoint <uri>` | Azure Trusted Signing endpoint |
-| `--account-name <name>` | Trusted Signing account name |
-| `--certificate-profile <name>` | Certificate profile name |
+| `--ats-endpoint <uri>` | Azure Trusted Signing endpoint |
+| `--ats-account-name <name>` | Trusted Signing account name |
+| `--ats-cert-profile-name <name>` | Certificate profile name |
 
 **Optional:**
 | Option | Description |
 |--------|-------------|
-| `--tenant-id <id>` | Azure AD tenant ID |
-| `--client-id <id>` | Azure AD client ID |
-| `--client-secret <secret>` | Azure AD client secret |
 | `--output`, `-o` | Output file path |
 | `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
+| `--content-type`, `-c` | Content type header |
+
+Authentication uses `DefaultAzureCredential`. Configure credentials via environment variables, Managed Identity, or developer tooling (Azure CLI / Visual Studio sign-in).
+
+---
+
+### sign-akv-key
+
+Sign with an Azure Key Vault key.
+
+```bash
+cosesigntool sign-akv-key [<payload>] [options]
+```
+
+**Required Options:**
+| Option | Description |
+|--------|-------------|
+| `--akv-vault <uri>` | Azure Key Vault URL (e.g., https://my-vault.vault.azure.net) |
+| `--akv-key-name <name>` | Name of the key in Azure Key Vault |
+
+**Optional:**
+| Option | Description |
+|--------|-------------|
+| `--akv-key-version <version>` | Specific key version (uses latest if omitted) |
+| `--akv-refresh-interval <minutes>` | Auto-refresh interval in minutes (default: 15, 0 to disable) |
+| `--output`, `-o` | Output file path |
+| `--signature-type`, `-t` | Type: `embedded`, `detached`, `indirect` |
+| `--content-type`, `-c` | Content type header |
+
+Authentication uses `DefaultAzureCredential`. Configure credentials via environment variables, Managed Identity, or developer tooling (Azure CLI / Visual Studio sign-in).
 
 **Examples:**
 ```bash
 # Sign with Azure Trusted Signing
-cosesigntool sign-ats document.txt \
-    --endpoint https://wus.codesigning.azure.net \
-    --account-name myaccount \
-    --certificate-profile production-profile \
+cosesigntool sign-azure document.txt \
+    --ats-endpoint https://wus.codesigning.azure.net \
+    --ats-account-name myaccount \
+    --ats-cert-profile-name production-profile \
     --output document.cose
 ```
 
@@ -403,9 +439,9 @@ cosesigntool --additional-plugin-dir /path/to/plugins verify document.cose
 
 | Plugin | Commands |
 |--------|----------|
-| Local | `sign-pfx`, `sign-pem`, `sign-cert-store`, `sign-ephemeral` |
-| Azure Key Vault | `sign-akv-cert` |
-| Azure Trusted Signing | `sign-ats` |
+| Local | `sign-pfx`, `sign-pem`, `sign-certstore`, `sign-ephemeral` |
+| Azure Key Vault | `sign-akv-cert`, `sign-akv-key` |
+| Azure Trusted Signing | `sign-azure` |
 | MST | (verification only) |
 
 See [Plugin Development](../plugins/README.md) for creating custom plugins.

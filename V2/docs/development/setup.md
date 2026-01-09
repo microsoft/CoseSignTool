@@ -8,7 +8,7 @@ This guide explains how to set up a development environment for CoseSignTool V2.
 
 | Software | Version | Notes |
 |----------|---------|-------|
-| .NET SDK | 9.0+ | Required for building and testing |
+| .NET SDK | 10.0+ | Required for building and testing |
 | Git | Latest | For source control |
 | Visual Studio 2022 | 17.8+ | Recommended IDE (optional) |
 | VS Code | Latest | Alternative IDE (optional) |
@@ -33,19 +33,19 @@ cd CoseSignTool
 ### Build the Solution
 
 ```bash
-dotnet build CoseSignTool.sln
+dotnet build CoseSignToolV2.sln
 ```
 
 ### Run Tests
 
 ```bash
-dotnet test CoseSignTool.sln
+dotnet test CoseSignToolV2.sln
 ```
 
 ### Run Tests with Coverage
 
 ```bash
-dotnet test CoseSignTool.sln --collect:"XPlat Code Coverage"
+dotnet test CoseSignToolV2.sln --collect:"XPlat Code Coverage"
 ```
 
 ## Project Structure
@@ -54,11 +54,9 @@ dotnet test CoseSignTool.sln --collect:"XPlat Code Coverage"
 CoseSignTool/
 ├── V2/                           # V2 implementation
 │   ├── CoseSign1.Abstractions/   # Core interfaces
-│   ├── CoseSign1/                # Direct signatures
-│   ├── CoseIndirectSignature/    # Indirect signatures
+│   ├── CoseSign1/                # Core signing (direct + indirect)
 │   ├── CoseSign1.Certificates/   # Certificate handling
 │   ├── CoseSign1.Headers/        # Header contributors
-│   ├── CoseSign1.Transparent/    # Transparency abstractions
 │   ├── CoseSign1.Transparent.MST/# MST integration
 │   ├── CoseSignTool/             # CLI application
 │   ├── CoseSignTool.Abstractions/# Plugin interfaces
@@ -117,14 +115,14 @@ dotnet test V2/CoseSign1.Tests/CoseSign1.Tests.csproj
 dotnet test --filter "FullyQualifiedName~SigningTests"
 
 # Specific category
-dotnet test --filter "TestCategory=Unit"
+dotnet test --filter "TestCategory=V1Compatibility"
 ```
 
 ### Running the CLI
 
 ```bash
 cd V2/CoseSignTool
-dotnet run -- help
+dotnet run -- --help
 dotnet run -- sign-ephemeral test.json --output test.cose
 ```
 

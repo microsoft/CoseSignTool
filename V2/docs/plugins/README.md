@@ -439,7 +439,7 @@ CoseSignTool V2 includes the following bundled plugins:
 
 | Plugin | Commands | Description |
 |--------|----------|-------------|
-| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-pem`, `sign-cert-store`, `sign-ephemeral` | Local certificate signing |
+| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-pem`, `sign-certstore`, `sign-ephemeral` | Local certificate signing |
 | `CoseSignTool.AzureKeyVault.Plugin` | `sign-akv-cert` | Azure Key Vault signing |
-| `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-ats` | Azure Trusted Signing |
+| `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-azure` | Azure Trusted Signing |
 | `CoseSignTool.MST.Plugin` | (verification only) | MST transparency verification |

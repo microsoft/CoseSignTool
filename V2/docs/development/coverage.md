@@ -90,7 +90,7 @@ Create a `coverlet.runsettings` file for configuration:
         <Configuration>
           <Format>cobertura,opencover</Format>
           <Exclude>[*.Tests]*,[*]*.Migrations.*</Exclude>
-          <Include>[CoseSign1*]*,[CoseIndirectSignature*]*,[CoseHandler*]*</Include>
+          <Include>[CoseSign1*]*,[CoseSignTool*]*,[DIDx509*]*</Include>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverage</ExcludeByAttribute>
           <SingleHit>false</SingleHit>
           <UseSourceLink>true</UseSourceLink>

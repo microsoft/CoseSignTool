@@ -251,10 +251,12 @@ if (message.UnprotectedHeaders.TryGetValue(
 ## Testing Header Contributors
 
 ```csharp
-[TestClass]
+using NUnit.Framework;
+
+[TestFixture]
 public class BuildInfoHeaderContributorTests
 {
-    [TestMethod]
+    [Test]
     public void ContributeProtectedHeaders_AddsBuildInfo()
     {
         // Arrange
@@ -280,8 +282,8 @@ public class BuildInfoHeaderContributorTests
         contributor.ContributeProtectedHeaders(headers, context);
         
         // Assert
-        Assert.IsTrue(headers.ContainsKey(new CoseHeaderLabel("build-id")));
-        Assert.IsTrue(headers.ContainsKey(new CoseHeaderLabel("build-pipeline")));
+        Assert.That(headers.ContainsKey(new CoseHeaderLabel("build-id")), Is.True);
+        Assert.That(headers.ContainsKey(new CoseHeaderLabel("build-pipeline")), Is.True);
     }
 }
 ```

@@ -495,8 +495,8 @@ var validator = Cose.Sign1Message()
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Stage 2: Key Material Trust                                         │
-│                                                                     │
+│ Stage 2: Key Material Trust                                        │
+│                                                                    │
 │ 1. Run trust validators (KeyMaterialTrust stage)                   │
 │    ├─ CertificateChainValidator                                    │
 │    │   └─ Emits: x509.chain.trusted, x509.chain.revoked            │
@@ -508,15 +508,15 @@ var validator = Cose.Sign1Message()
 │    │   └─ Emits: mst.receipt.present                               │
 │    └─ CustomTrustValidator                                         │
 │        └─ Emits: issuer.internal, org.approved                     │
-│                                                                     │
+│                                                                    │
 │ 2. Collect TrustAssertions from validator metadata                 │
 │    claims = { "x509.chain.trusted": true, "cert.notexpired": true, │
 │               "akv.key.detected": true, "akv.kid.allowed": true,   │
 │               "mst.receipt.present": true }                        │
-│                                                                     │
+│                                                                    │
 │ 3. Evaluate TrustPolicy against claims                             │
 │    policy.IsSatisfied(claims) → true/false                         │
-│                                                                     │
+│                                                                    │
 │ 4. If policy not satisfied:                                        │
 │    • Short-circuit remaining stages                                │
 │    • Return trust failure with explanation                         │

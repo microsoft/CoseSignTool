@@ -6,14 +6,48 @@
 
 ## Overview
 
-`CoseSign1` provides two primary implementations of `ICoseSign1MessageFactory<TOptions>`:
+`CoseSign1` provides:
+
+- A unified `CoseSign1MessageFactory` that routes to direct vs indirect signing based on the runtime type of the provided `SigningOptions`.
+- The underlying `DirectSignatureFactory` and `IndirectSignatureFactory` implementations.
 
 - **Direct signatures**: sign the payload bytes (optionally embedded, optionally detached).
 - **Indirect signatures**: hash the payload bytes, then sign the hash (adds a COSE hash envelope to the message headers).
 
 Both factories are built around `ISigningService<SigningOptions>` (from `CoseSign1.Abstractions`), which supplies a `CoseSigner` and any required header contributors for the chosen signing backend.
 
+If you want a single entry point in code, use `CoseSign1MessageFactory` and pass either `DirectSignatureOptions` or `IndirectSignatureOptions` for each call. Passing `null` (or the base `SigningOptions` type) is invalid and will throw.
+
 ## Key Types
+
+### CoseSign1MessageFactory
+
+`CoseSign1MessageFactory` is a convenience router that implements `ICoseSign1MessageFactory<SigningOptions>`.
+
+- It delegates to `DirectSignatureFactory` when `options` is `DirectSignatureOptions`.
+- It delegates to `IndirectSignatureFactory` when `options` is `IndirectSignatureOptions`.
+
+**Basic usage (single factory, choose per call):**
+
+```csharp
+using System.Text;
+using CoseSign1;
+using CoseSign1.Abstractions;
+using CoseSign1.Direct;
+using CoseSign1.Indirect;
+
+ISigningService<SigningOptions> signingService = /* e.g. CertificateSigningService, Azure Key Vault, ... */;
+
+using var factory = new CoseSign1MessageFactory(signingService);
+
+byte[] payload = Encoding.UTF8.GetBytes("hello");
+
+// Direct signature
+byte[] direct = factory.CreateCoseSign1MessageBytes(payload, "text/plain", new DirectSignatureOptions());
+
+// Indirect signature (hash envelope)
+byte[] indirect = factory.CreateCoseSign1MessageBytes(payload, "text/plain", new IndirectSignatureOptions());
+```
 
 ### DirectSignatureFactory
 
@@ -52,7 +86,7 @@ using System.Security.Cryptography.Cose;
 
 var message = factory.CreateCoseSign1Message(payload, "text/plain");
 // or decode bytes later:
-var decoded = CoseMessage.DecodeSign1(coseBytes);
+var decoded = CoseSign1Message.DecodeSign1(coseBytes);
 ```
 
 **Detached signatures (payload not embedded):**

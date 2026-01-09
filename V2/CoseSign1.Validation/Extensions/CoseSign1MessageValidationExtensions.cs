@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Validation.Extensions;
+namespace System.Security.Cryptography.Cose;
 
-using System.Security.Cryptography.Cose;
+using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using Microsoft.Extensions.Logging;
 

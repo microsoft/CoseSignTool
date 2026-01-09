@@ -56,7 +56,7 @@ using NUnit.Framework;
 public class SigningTests
 {
     [Test]
-    public async Task SignAndValidate_Succeeds()
+    public void SignAndValidate_Succeeds()
     {
         using var cert = LocalCertificateFactory.CreateEcdsaCertificate();
         var signingService = CertificateSigningService.Create(cert, new X509ChainBuilder());
@@ -64,14 +64,14 @@ public class SigningTests
 
         var payload = Encoding.UTF8.GetBytes("hello");
         var coseBytes = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
-        var message = CoseMessage.DecodeSign1(coseBytes);
+        var message = CoseSign1Message.DecodeSign1(coseBytes);
 
         var validator = Cose.Sign1Message()
             .ValidateCertificate(cert => { })
             .AllowAllTrust("test")
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = validator.Validate(message);
         Assert.That(result.Overall.IsValid, Is.True);
     }
 }

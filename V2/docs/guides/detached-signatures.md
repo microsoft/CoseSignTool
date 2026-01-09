@@ -22,15 +22,15 @@ A detached signature is a COSE signature where the payload is not embedded in th
 ### Programmatic API
 
 ```csharp
-using CoseSign1;
+using CoseSign1.Direct;
 
 var factory = new DirectSignatureFactory(signingService);
 
 // Create detached signature
 byte[] signature = factory.CreateCoseSign1MessageBytes(
     payload,
-    contentType: "application/json",
-    isDetached: true);
+    "application/json",
+    new DirectSignatureOptions { EmbedPayload = false });
 
 // Save signature separately from payload
 await File.WriteAllBytesAsync("document.json.sig", signature);
@@ -41,7 +41,7 @@ await File.WriteAllBytesAsync("document.json.sig", signature);
 ```bash
 # Create detached signature
 CoseSignTool sign-pfx document.json ^
-    --pfx-file cert.pfx ^
+    --pfx cert.pfx ^
     --signature-type detached ^
     --output document.json.sig
 ```
@@ -77,23 +77,23 @@ CoseSignTool verify document.json.sig --payload document.json
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Embedded Signature                         │
+│                   Embedded Signature                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │                   COSE_Sign1                         │    │
+│  │                   COSE_Sign1                        │    │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │    │
 │  │  │  Protected  │ │ Unprotected │ │   Payload   │    │    │
 │  │  │  Headers    │ │  Headers    │ │   (Data)    │    │    │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘    │    │
 │  └─────────────────────────────────────────────────────┘    │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│                   Detached Signature                         │
+│                   Detached Signature                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌──────────────────────────┐    ┌──────────────────────┐   │
 │  │       COSE_Sign1         │    │      Payload         │   │
 │  │  ┌─────────┐ ┌─────────┐ │    │      (Data)          │   │
@@ -102,9 +102,9 @@ CoseSignTool verify document.json.sig --payload document.json
 │  │  └─────────┘ └─────────┘ │    │                      │   │
 │  │  (nil payload)           │    │                      │   │
 │  └──────────────────────────┘    └──────────────────────┘   │
-│           ▲                               │                  │
-│           └───────── Linked ──────────────┘                  │
-│                                                              │
+│           ▲                               │                 │
+│           └───────── Linked ──────────────┘                 │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -149,19 +149,19 @@ Detached signatures enable multiple parties to sign the same payload:
 ```bash
 # Developer signs
 CoseSignTool sign-pfx artifact.bin ^
-    --pfx-file developer.pfx ^
+    --pfx developer.pfx ^
     --signature-type detached ^
     --output artifact.bin.dev-sig
 
 # QA signs
 CoseSignTool sign-pfx artifact.bin ^
-    --pfx-file qa.pfx ^
+    --pfx qa.pfx ^
     --signature-type detached ^
     --output artifact.bin.qa-sig
 
 # Security signs
 CoseSignTool sign-pfx artifact.bin ^
-    --pfx-file security.pfx ^
+    --pfx security.pfx ^
     --signature-type detached ^
     --output artifact.bin.sec-sig
 ```
@@ -182,29 +182,30 @@ The content type header binds the signature to a specific interpretation:
 // Sign JSON document
 var jsonSig = factory.CreateCoseSign1MessageBytes(
     jsonPayload,
-    contentType: "application/json",
-    isDetached: true);
+    "application/json",
+    new DirectSignatureOptions { EmbedPayload = false });
 
 // Sign binary data
 var binSig = factory.CreateCoseSign1MessageBytes(
     binaryPayload,
-    contentType: "application/octet-stream",
-    isDetached: true);
+    "application/octet-stream",
+    new DirectSignatureOptions { EmbedPayload = false });
 ```
 
 ## Streaming Verification
 
-For large files, verify without loading entire payload:
+Detached signatures require the payload bytes to verify. If you need a streaming-friendly workflow for large files, use indirect signatures.
 
 ```csharp
-// Load signature (small)
-var signature = await File.ReadAllBytesAsync("large-file.bin.sig");
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
 
-// Stream the payload (large)
-using var payloadStream = File.OpenRead("large-file.bin");
+// Load signature + payload
+var signatureBytes = File.ReadAllBytes("large-file.bin.sig");
+var payloadBytes = File.ReadAllBytes("large-file.bin");
 
-// Verify with streaming
-var result = await validator.ValidateAsync(signature, payloadStream);
+var message = CoseSign1Message.DecodeSign1(signatureBytes);
+bool isValid = message.VerifySignature(payloadBytes);
 ```
 
 ## Security Considerations
@@ -231,7 +232,7 @@ Be careful about TOCTOU issues:
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 // ❌ Bad: Read payload, verify, then use different read
 var payload1 = File.ReadAllBytes(path); // For verification
@@ -252,7 +253,7 @@ bool ok = message.VerifySignature(payload);
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(detachedSignature);
+var message = CoseSign1Message.DecodeSign1(detachedSignature);
 
 // For detached signatures, the payload is required. Without it, verification returns false.
 if (!message.VerifySignature(payload: null))
@@ -267,7 +268,7 @@ if (!message.VerifySignature(payload: null))
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 bool ok = message.VerifySignature(wrongPayload);
 if (!ok)
 {

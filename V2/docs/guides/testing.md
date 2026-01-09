@@ -20,15 +20,17 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Direct;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
+using System.Text;
+using NUnit.Framework;
 
-[TestClass]
+[TestFixture]
 public class SigningTests
 {
-    [TestMethod]
+    [Test]
     public void SignAndVerify_WithEphemeralCert_Succeeds()
     {
         // Create ephemeral certificate
-        using var cert = TestCertificates.CreateEphemeral();
+        using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
 
         // Use for signing
         using var chainBuilder = new X509ChainBuilder();
@@ -36,16 +38,16 @@ public class SigningTests
         using var factory = new DirectSignatureFactory(service);
         
         var payload = Encoding.UTF8.GetBytes("test payload");
-        var signature = factory.CreateCoseSign1MessageBytes(payload);
+        var signature = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
 
         // Verify
-        var message = CoseMessage.DecodeSign1(signature);
+        var message = CoseSign1Message.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => { })
+            .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
         var result = validator.Validate(message);
-        Assert.IsTrue(result.IsValid);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 }
 ```
@@ -54,12 +56,15 @@ public class SigningTests
 
 ```csharp
 // Create various test certificates
-var rsaCert = TestCertificates.CreateRsa(keySize: 2048);
-var ecdsaP256 = TestCertificates.CreateEcdsa(ECCurve.NamedCurves.nistP256);
-var ecdsaP384 = TestCertificates.CreateEcdsa(ECCurve.NamedCurves.nistP384);
+using var rsaCert = LocalCertificateFactory.CreateRsaCertificate(keySize: 2048);
+using var ecdsaP256 = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
+using var ecdsaP384 = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 384);
 
-// Create certificate chain
-var (root, intermediate, leaf) = TestCertificates.CreateChain();
+// Create certificate chain (leaf-first order)
+var chain = LocalCertificateFactory.CreateEcdsaChain(leafFirst: true);
+using var leaf = chain[0];
+using var intermediate = chain[1];
+using var root = chain[2];
 ```
 
 ## Unit Testing
@@ -67,42 +72,46 @@ var (root, intermediate, leaf) = TestCertificates.CreateChain();
 ### Testing Validators
 
 ```csharp
-[TestClass]
+using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using NUnit.Framework;
+
+[TestFixture]
 public class CustomValidatorTests
 {
-    private CustomValidator _validator;
-    
-    [TestInitialize]
-    public void Setup()
+    private IValidator _validator = null!;
+
+    [SetUp]
+    public void SetUp()
     {
         _validator = new CustomValidator();
     }
-    
-    [TestMethod]
+
+    [Test]
     public async Task ValidateAsync_WithValidMessage_ReturnsSuccess()
     {
         // Arrange
         var message = CreateValidTestMessage();
-        
+
         // Act
         var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
-        
+
         // Assert
-        Assert.IsTrue(result.IsValid);
+        Assert.That(result.IsValid, Is.True);
     }
-    
-    [TestMethod]
+
+    [Test]
     public async Task ValidateAsync_WithInvalidMessage_ReturnsFailure()
     {
         // Arrange
         var message = CreateInvalidTestMessage();
-        
+
         // Act
         var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
-        
+
         // Assert
-        Assert.IsFalse(result.IsValid);
-        Assert.AreEqual("CUSTOM_ERROR", result.Failures.First().ErrorCode);
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures.First().ErrorCode, Is.EqualTo("CUSTOM_ERROR"));
     }
 }
 ```
@@ -110,22 +119,24 @@ public class CustomValidatorTests
 ### Testing Header Contributors
 
 ```csharp
-[TestClass]
+using NUnit.Framework;
+
+[TestFixture]
 public class CustomHeaderContributorTests
 {
-    [TestMethod]
+    [Test]
     public void ContributeProtectedHeaders_AddsExpectedHeaders()
     {
         // Arrange
         var contributor = new CustomHeaderContributor("test-value");
         var headers = new CoseHeaderMap();
         var context = /* create a HeaderContributorContext */;
-        
+
         // Act
         contributor.ContributeProtectedHeaders(headers, context);
-        
+
         // Assert
-        Assert.IsTrue(headers.ContainsKey(new CoseHeaderLabel("custom-header")));
+        Assert.That(headers.ContainsKey(new CoseHeaderLabel("custom-header")), Is.True);
     }
 }
 ```
@@ -133,28 +144,30 @@ public class CustomHeaderContributorTests
 ### Testing Signing Services
 
 ```csharp
-[TestClass]
+using NUnit.Framework;
+
+[TestFixture]
 public class SigningServiceTests
 {
-    [TestMethod]
+    [Test]
     public void SignAndVerify_WithValidData_ReturnsValidSignature()
     {
         // Arrange
-        using var cert = TestCertificates.CreateEcdsa();
+        using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
         using var chainBuilder = new X509ChainBuilder();
         using var service = CertificateSigningService.Create(cert, chainBuilder);
         using var factory = new DirectSignatureFactory(service);
 
         byte[] payload = new byte[] { 1, 2, 3, 4, 5 };
-        byte[] signatureBytes = factory.CreateCoseSign1MessageBytes(payload);
+        byte[] signatureBytes = factory.CreateCoseSign1MessageBytes(payload, "application/octet-stream");
 
-        var message = CoseMessage.DecodeSign1(signatureBytes);
+        var message = CoseSign1Message.DecodeSign1(signatureBytes);
         var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => { })
+            .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
 
-        Assert.IsTrue(validator.Validate(message).Signature.IsValid);
+        Assert.That(validator.Validate(message).Overall.IsValid, Is.True);
     }
 }
 ```
@@ -164,14 +177,14 @@ public class SigningServiceTests
 ### Full Sign-Verify Cycle
 
 ```csharp
-[TestClass]
+[TestFixture]
 public class SignVerifyIntegrationTests
 {
-    [TestMethod]
-    public async Task FullCycle_DirectSignature_Succeeds()
+    [Test]
+    public Task FullCycle_DirectSignature_Succeeds()
     {
         // Arrange
-        using var cert = TestCertificates.CreateEcdsa();
+        using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
         using var chainBuilder = new X509ChainBuilder();
         using var signingService = CertificateSigningService.Create(cert, chainBuilder);
         using var factory = new DirectSignatureFactory(signingService);
@@ -189,23 +202,25 @@ public class SignVerifyIntegrationTests
             "application/json");
         
         // Act - Verify
-        var message = CoseMessage.DecodeSign1(signature);
+        var message = CoseSign1Message.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => { })
-            .AllowAllTrust(\"test\")
+            .ValidateCertificate(cert => cert.NotExpired())
+            .AllowAllTrust("test")
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = validator.Validate(message);
         
         // Assert
-        Assert.IsTrue(result.Overall.IsValid);
+        Assert.That(result.Overall.IsValid, Is.True);
+
+        return Task.CompletedTask;
     }
     
-    [TestMethod]
-    public async Task FullCycle_IndirectSignature_Succeeds()
+    [Test]
+    public Task FullCycle_IndirectSignature_Succeeds()
     {
         // Arrange
-        using var cert = TestCertificates.CreateEcdsa();
+        using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
         using var chainBuilder = new X509ChainBuilder();
         using var signingService = CertificateSigningService.Create(cert, chainBuilder);
         using var factory = new IndirectSignatureFactory(signingService);
@@ -220,16 +235,18 @@ public class SignVerifyIntegrationTests
             "application/octet-stream");
 
         // Act - Verify signature over the hash envelope (payload is not required for signature verification)
-        var message = CoseMessage.DecodeSign1(signature);
+        var message = CoseSign1Message.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
-            .ValidateCertificate(cert => { })
+            .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
 
-        var result = await validator.ValidateAsync(message);
+        var result = validator.Validate(message);
         
         // Assert
-        Assert.IsTrue(result.Overall.IsValid);
+        Assert.That(result.Overall.IsValid, Is.True);
+
+        return Task.CompletedTask;
     }
 }
 ```
@@ -237,11 +254,14 @@ public class SignVerifyIntegrationTests
 ### Certificate Chain Testing
 
 ```csharp
-[TestMethod]
-public async Task Verify_WithFullChain_Succeeds()
+[Test]
+public void Verify_WithFullChain_Succeeds()
 {
     // Create test chain
-    var (root, intermediate, leaf) = TestCertificates.CreateChain();
+    var chain = LocalCertificateFactory.CreateEcdsaChain(leafFirst: true);
+    using var leaf = chain[0];
+    using var intermediate = chain[1];
+    using var root = chain[2];
     
     // Sign with leaf
     using var service = CertificateSigningService.Create(
@@ -249,10 +269,10 @@ public async Task Verify_WithFullChain_Succeeds()
         new[] { leaf, intermediate, root });
     using var factory = new DirectSignatureFactory(service);
     
-    var signature = factory.CreateCoseSign1MessageBytes(payload);
+    var signature = factory.CreateCoseSign1MessageBytes(payload, "application/octet-stream");
     
     // Verify with custom trust root
-    var message = CoseMessage.DecodeSign1(signature);
+    var message = CoseSign1Message.DecodeSign1(signature);
     var trustedRoots = new X509Certificate2Collection { root };
 
     var validator = Cose.Sign1Message()
@@ -260,10 +280,9 @@ public async Task Verify_WithFullChain_Succeeds()
             .ValidateChain(trustedRoots))
         .Build();
 
-    var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-    var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
-    Assert.IsTrue(signatureResult.IsValid);
-    Assert.IsTrue(trustResult.IsValid);
+    var result = validator.Validate(message);
+    Assert.That(result.Signature.IsValid, Is.True);
+    Assert.That(result.Trust.IsValid, Is.True);
 }
 ```
 
@@ -272,10 +291,10 @@ public async Task Verify_WithFullChain_Succeeds()
 ### Testing CLI Commands
 
 ```csharp
-[TestClass]
+[TestFixture]
 public class CliIntegrationTests
 {
-    [TestMethod]
+    [Test]
     public async Task SignPfx_CreatesValidSignature()
     {
         // Arrange
@@ -289,7 +308,10 @@ public class CliIntegrationTests
             var pfxFile = Path.Combine(tempDir, "test.pfx");
             
             await File.WriteAllTextAsync(inputFile, "{}");
-            TestCertificates.CreatePfxFile(pfxFile, "test-password");
+            var chain = new CoseSign1.Certificates.Local.CertificateChainFactory()
+                .CreateChain(o => o.ForPfxExport());
+            File.WriteAllBytes(pfxFile, chain.Export(X509ContentType.Pfx, "test-password")!);
+            foreach (var c in chain) { c.Dispose(); }
             
             // Set password in environment
             Environment.SetEnvironmentVariable("COSESIGNTOOL_PFX_PASSWORD", "test-password");
@@ -299,13 +321,13 @@ public class CliIntegrationTests
             {
                 "sign-pfx",
                 inputFile,
-                "--pfx-file", pfxFile,
+                "--pfx", pfxFile,
                 "--output", outputFile
             });
             
             // Assert
-            Assert.AreEqual(0, exitCode);
-            Assert.IsTrue(File.Exists(outputFile));
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(File.Exists(outputFile), Is.True);
         }
         finally
         {
@@ -370,28 +392,24 @@ TestData/
 Organize tests with categories:
 
 ```csharp
-[TestClass]
-[TestCategory("Unit")]
+[TestFixture, Category("Unit")]
 public class UnitTests { }
 
-[TestClass]
-[TestCategory("Integration")]
+[TestFixture, Category("Integration")]
 public class IntegrationTests { }
 
-[TestClass]
-[TestCategory("PQC")]
+[TestFixture, Category("PQC")]
 public class PostQuantumTests { }
 
-[TestClass]
-[TestCategory("Slow")]
+[TestFixture, Category("Slow")]
 public class SlowTests { }
 ```
 
 Run specific categories:
 
 ```bash
-dotnet test --filter "TestCategory=Unit"
-dotnet test --filter "TestCategory!=Slow"
+dotnet test --filter "Category=Unit"
+dotnet test --filter "Category!=Slow"
 ```
 
 ## Code Coverage

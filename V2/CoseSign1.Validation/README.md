@@ -21,7 +21,6 @@ This package provides:
 
 ```csharp
 using CoseSign1.Validation;
-using CoseSign1.Validation.Extensions;
 using System.Security.Cryptography.Cose;
 
 // Decode COSE message
@@ -64,8 +63,6 @@ else
 For quick validation, use the `Validate()` extension method on `CoseSign1Message`:
 
 ```csharp
-using CoseSign1.Validation.Extensions;
-
 // Inline configuration - builds validator internally
 var result = message.Validate(builder => builder
     .ValidateCertificate(cert => cert.ValidateChain()));

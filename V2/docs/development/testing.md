@@ -8,38 +8,36 @@ This guide covers testing practices and procedures for CoseSignTool V2 developme
 
 | Project | Description |
 |---------|-------------|
-| `CoseSign1.Abstractions.Tests` | Core interface tests |
-| `CoseSign1.Tests` | Direct signature tests |
-| `CoseIndirectSignature.Tests` | Indirect signature tests |
-| `CoseSign1.Certificates.Tests` | Certificate handling tests |
-| `CoseSign1.Headers.Tests` | Header contributor tests |
-| `CoseSign1.Transparent.Tests` | Transparency tests |
-| `CoseSign1.Transparent.MST.Tests` | MST integration tests |
-| `CoseSignTool.Tests` | CLI tests |
-| `CoseSignTool.Abstractions.Tests` | Plugin interface tests |
+| `CoseSign1.Abstractions.Tests` | Shared contract tests |
+| `CoseSign1.Tests` | Core signing tests (direct + indirect) |
+| `CoseSign1.Certificates.Tests` | Certificate sources, chain building, X.509 validation |
+| `CoseSign1.Headers.Tests` | Header contributors and header parsing |
+| `CoseSign1.Transparent.MST.Tests` | MST integration and receipt validation (offline/unit scenarios) |
+| `CoseSign1.Validation.Tests` | Staged validation framework and builder APIs |
+| `CoseSign1.Integration.Tests` | End-to-end integration tests across packages |
+| `CoseSignTool.Tests` | CLI behavior tests |
+| `CoseSignTool.Abstractions.Tests` | Plugin API surface tests |
+| `DIDx509.Tests` | DID:x509 parsing/resolution/validation tests |
 
 ### Test Categories
 
-```csharp
-[Category("Unit")]        // Fast, isolated tests
-[Category("Integration")] // Tests with dependencies
-[Category("PQC")]         // Post-quantum specific
-[Category("Slow")]        // Long-running tests
-[Category("Windows")]     // Windows-only tests
-```
+The V2 test suite primarily uses naming + project boundaries rather than heavy category tagging.
+
+If a test needs an explicit category (e.g., for CI filtering), it uses NUnit's `[Category("...")]`.
+Currently, category usage is intentionally sparse.
 
 ## Running Tests
 
 ### All Tests
 
 ```bash
-dotnet test CoseSignTool.sln
+dotnet test CoseSignToolV2.sln
 ```
 
 ### Specific Project
 
 ```bash
-dotnet test V2/CoseSign1.Tests/CoseSign1.Tests.csproj
+dotnet test CoseSign1.Tests/CoseSign1.Tests.csproj
 ```
 
 ### By Category
@@ -79,13 +77,11 @@ dotnet test --verbosity detailed
 
 ### Test Isolation Requirements
 
-**IMPORTANT:** All tests MUST be fully isolated to support parallel test execution. Do NOT use `[SetUp]` or `[TearDown]` attributes with class-level state. Each test must create its own state within the test method.
+Tests should be deterministic and safe to run in parallel.
 
-#### Why No SetUp/TearDown?
-
-- **Parallel Execution**: NUnit runs tests in parallel by default. Class-level fields modified in `[SetUp]` can be overwritten by concurrent tests.
-- **Deterministic Behavior**: Each test should be self-contained and produce the same result regardless of execution order.
-- **Clear Dependencies**: Test dependencies are explicit when created inline.
+- Prefer creating state inside each test method.
+- `[SetUp]` is allowed for per-test initialization as long as it does not rely on shared mutable/static state and does not introduce ordering dependencies.
+- Avoid using shared mutable fields across tests; if you must keep data on the fixture, keep it immutable.
 
 ### Test Structure
 
@@ -99,12 +95,7 @@ public sealed class MyClassTests
     // ✓ Readonly value types are OK - immutable
     private readonly Uri TestUri = new("https://example.com");
     
-    // ✗ AVOID: Mutable class-level fields that change per test
-    // private MyClass _sut;
-    
-    // ✗ AVOID: [SetUp] with mutable state
-    // [SetUp]
-    // public void Setup() { _sut = new MyClass(); }
+    // Avoid shared mutable fields; if you use [SetUp], keep it per-test and deterministic.
 
     [Test]
     public void MethodName_Scenario_ExpectedResult()
@@ -222,13 +213,20 @@ public async Task AsyncMethod_Scenario_ExpectedResult()
 ### Data-Driven Tests
 
 ```csharp
-[TestCase("ES256", -7)]
-[TestCase("ES384", -35)]
-[TestCase("ES512", -36)]
-public void ParseAlgorithm_ValidInput_ReturnsCorrectValue(string name, int expected)
+using CoseSign1.AzureKeyVault;
+using NUnit.Framework;
+using System.Security.Cryptography;
+
+[TestCase(-37)] // PS256
+[TestCase(-38)] // PS384
+[TestCase(-39)] // PS512
+public void CoseKeyHeaderContributor_StoresAlgorithmId(int coseAlgorithmId)
 {
-    var result = CoseAlgorithm.Parse(name);
-    Assert.That(result, Is.EqualTo(expected));
+    using var rsa = RSA.Create(2048);
+    var publicParams = rsa.ExportParameters(includePrivateParameters: false);
+
+    var contributor = new CoseKeyHeaderContributor(publicParams, coseAlgorithmId);
+    Assert.That(contributor.CoseAlgorithm, Is.EqualTo(coseAlgorithmId));
 }
 ```
 
@@ -238,7 +236,8 @@ public void ParseAlgorithm_ValidInput_ReturnsCorrectValue(string name, int expec
 [Test]
 public void Method_WithNullInput_ThrowsArgumentNullException()
 {
-    Assert.Throws<ArgumentNullException>(() => _sut.Method(null));
+    var sut = new MyClass();
+    Assert.Throws<ArgumentNullException>(() => sut.Method(null));
 }
 
 [Test]
@@ -251,15 +250,14 @@ public async Task AsyncMethod_WithInvalidInput_ThrowsArgumentException()
 ### Platform-Specific Tests
 
 ```csharp
+using CoseSign1.Tests.Common;
+using NUnit.Framework;
+
 [Test]
-[Category("Windows")]
-public void MlDsa_OnWindows_Available()
+public void MlDsa_OnSupportedPlatforms_Available()
 {
-    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    {
-        Assert.Ignore("Test requires Windows");
-    }
-    
+    PlatformHelper.SkipIfMLDsaNotSupported();
+
     // Test ML-DSA functionality
 }
 ```
@@ -269,28 +267,24 @@ public void MlDsa_OnWindows_Available()
 ### Test Certificates
 
 ```csharp
-// Create ephemeral certificate
-using var cert = TestCertificates.CreateEphemeral();
+using CoseSign1.Tests.Common;
+using System.Security.Cryptography.X509Certificates;
 
-// Create specific algorithm
-using var ecdsaCert = TestCertificates.CreateEcdsa(ECCurve.NamedCurves.nistP384);
-using var rsaCert = TestCertificates.CreateRsa(keySize: 3072);
+using var ecdsaCert = LocalCertificateFactory.CreateEcdsaCertificate();
+using var rsaCert = LocalCertificateFactory.CreateRsaCertificate();
 
-// Create chain
-var (root, intermediate, leaf) = TestCertificates.CreateChain();
+X509Certificate2Collection chain = LocalCertificateFactory.CreateEcdsaChain(leafFirst: true);
+X509Certificate2 leaf = chain[0];
 ```
 
 ### Test Payloads
 
 ```csharp
-// JSON payload
-var json = TestPayloads.Json;
+using System.Text;
 
-// Binary payload
-var binary = TestPayloads.Binary;
-
-// Large payload for streaming tests
-var large = TestPayloads.Large(size: 1024 * 1024);
+byte[] json = Encoding.UTF8.GetBytes("{\"hello\":\"world\"}");
+byte[] binary = new byte[] { 0x01, 0x02, 0x03 };
+byte[] large = new byte[1024 * 1024];
 ```
 
 ### Mock Objects
@@ -334,31 +328,39 @@ using var stream = assembly.GetManifestResourceStream("Tests.TestData.sample.cos
 ### Full Sign-Verify Cycle
 
 ```csharp
-[TestClass]
-[TestCategory("Integration")]
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Direct;
+using CoseSign1.Tests.Common;
+using CoseSign1.Validation;
+using NUnit.Framework;
+using System.Security.Cryptography.Cose;
+using System.Text;
+
+[TestFixture]
 public class SignVerifyIntegrationTests
 {
-    [TestMethod]
-    public async Task SignAndVerify_RoundTrip_Succeeds()
+    [Test]
+    public void SignAndVerify_RoundTrip_Succeeds()
     {
         // Create certificate
-        using var cert = TestCertificates.CreateEcdsa();
+        using var cert = LocalCertificateFactory.CreateEcdsaCertificate();
         
         // Sign
-        var service = CertificateSigningService.Create(cert, new X509ChainBuilder());
-        var factory = new DirectSignatureFactory(service);
+        using var service = CertificateSigningService.Create(cert, new X509ChainBuilder());
+        using var factory = new DirectSignatureFactory(service);
         var payload = Encoding.UTF8.GetBytes("test payload");
         var signature = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
         
         // Verify
-        var message = CoseMessage.DecodeSign1(signature);
+        var message = CoseSign1Message.DecodeSign1(signature);
         var validator = Cose.Sign1Message()
             .ValidateCertificate(cert => { })
             .AllowAllTrust("test")
             .Build();
-        var result = await validator.ValidateAsync(message);
+        var result = validator.Validate(message);
         
-        Assert.IsTrue(result.Overall.IsValid);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 }
 ```
@@ -366,29 +368,17 @@ public class SignVerifyIntegrationTests
 ### CLI Testing
 
 ```csharp
-[TestClass]
-[TestCategory("Integration")]
+using NUnit.Framework;
+using System.IO;
+
+[TestFixture]
 public class CliIntegrationTests
 {
-    [TestMethod]
-    public async Task SignCommand_WithValidInput_ExitsSuccessfully()
+    [Test]
+    public void VerifyCommand_WithMissingArgs_ReturnsNonZero()
     {
-        using var temp = new TempDirectory();
-        var inputFile = temp.CreateFile("input.json", "{}");
-        var outputFile = temp.GetPath("output.cose");
-        var pfxFile = temp.CreatePfxFile("test.pfx", "password");
-        
-        Environment.SetEnvironmentVariable("COSESIGNTOOL_PFX_PASSWORD", "password");
-        
-        var exitCode = await CoseSignToolCli.Main(new[]
-        {
-            "sign-pfx", inputFile,
-            "--pfx-file", pfxFile,
-            "--output", outputFile
-        });
-        
-        Assert.AreEqual(0, exitCode);
-        Assert.IsTrue(File.Exists(outputFile));
+        int exitCode = CoseSignTool.Program.Main(["verify"]);
+        Assert.That(exitCode, Is.Not.EqualTo(0));
     }
 }
 ```

@@ -82,7 +82,7 @@ Receipts can be embedded in COSE signature unprotected headers:
 var receipt = await provider.GetReceiptAsync(signature);
 
 // Receipt bytes can be added to unprotected headers
-// during signature creation or as a counter-signature
+// during signature creation (typically by a transparency provider)
 ```
 
 ## Verification Process

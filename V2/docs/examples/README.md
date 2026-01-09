@@ -90,7 +90,7 @@ var signature = await factory.CreateCoseSign1MessageBytesAsync(payload, "applica
 ### Create Indirect Signature for Large File
 
 ```csharp
-using CoseIndirectSignature;
+using CoseSign1.Indirect;
 
 var factory = new IndirectSignatureFactory(signingService);
 
@@ -122,9 +122,14 @@ public class BuildInfoHeaderContributor : IHeaderContributor
 }
 
 // Usage
-var factory = new DirectSignatureFactory(
-    service,
-    headerContributors: new[] { new BuildInfoHeaderContributor("build-12345") });
+var factory = new DirectSignatureFactory(service);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new[] { new BuildInfoHeaderContributor("build-12345") }
+};
+
+var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json", options);
 ```
 
 ### Detached Signature
@@ -134,7 +139,7 @@ var factory = new DirectSignatureFactory(
 var signature = factory.CreateCoseSign1MessageBytes(
     payload,
     "application/json",
-    isDetached: true);
+    new DirectSignatureOptions { EmbedPayload = false });
 
 // Verify with detached payload
 var result = validator.Validate(signature, detachedPayload: payload);
@@ -297,7 +302,8 @@ var validator = Cose.Sign1Message()
 set COSESIGNTOOL_PFX_PASSWORD=your-password
 
 # Sign
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --output signed.cose
+CoseSignTool sign-pfx document.json --pfx cert.pfx --output signed.cose
+
 ```
 
 ### Sign with Certificate Store
@@ -326,7 +332,7 @@ CoseSignTool inspect signed.cose
 
 ```bash
 CoseSignTool sign-pfx document.json ^
-    --pfx-file cert.pfx ^
+    --pfx cert.pfx ^
     --signature-type detached ^
     --output document.json.sig
 ```

@@ -130,7 +130,6 @@ byte[] signature = await factory.CreateCoseSign1MessageAsync(
 
 ```csharp
 using CoseSign1.Validation;
-using CoseSign1.Validation.Extensions;
 using System.Security.Cryptography.Cose;
 
 // Decode the COSE message

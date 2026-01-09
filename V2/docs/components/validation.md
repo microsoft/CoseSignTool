@@ -20,7 +20,7 @@ For end-to-end verification (trust-first staged verification), the preferred ent
 ```csharp
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
-using CoseSign1.Validation.Extensions;
+using System.Security.Cryptography.Cose;
 
 // Option 1: Shorthand validation with inline configuration
 var result = message.Validate(builder => builder
@@ -75,13 +75,26 @@ public interface IValidator
 ```csharp
 public sealed class ValidationResult
 {
-    public bool IsValid { get; init; }
+    public ValidationResultKind Kind { get; init; }
+    public ValidationStage? Stage { get; init; }
+    public bool IsValid => Kind == ValidationResultKind.Success;
+    public bool IsSuccess => Kind == ValidationResultKind.Success;
+    public bool IsFailure => Kind == ValidationResultKind.Failure;
+    public bool IsNotApplicable => Kind == ValidationResultKind.NotApplicable;
+
     public string ValidatorName { get; init; } = string.Empty;
     public IReadOnlyList<ValidationFailure> Failures { get; init; } = Array.Empty<ValidationFailure>();
+    public IReadOnlyDictionary<string, object> Metadata { get; init; } = new Dictionary<string, object>();
 
     public static ValidationResult Success(string validatorName, IDictionary<string, object>? metadata = null);
+    public static ValidationResult Success(string validatorName, ValidationStage stage, IDictionary<string, object>? metadata = null);
+
     public static ValidationResult Failure(string validatorName, params ValidationFailure[] failures);
+    public static ValidationResult Failure(string validatorName, ValidationStage stage, params ValidationFailure[] failures);
     public static ValidationResult Failure(string validatorName, string message, string? errorCode = null);
+    public static ValidationResult Failure(string validatorName, ValidationStage stage, string message, string? errorCode = null);
+
+    public static ValidationResult NotApplicable(string validatorName, ValidationStage stage, string? reason = null);
 }
 
 public sealed class ValidationFailure

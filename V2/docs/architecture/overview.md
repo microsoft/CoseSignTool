@@ -76,15 +76,15 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
 
 ```
 +-----------------------------------------------------------------------+
-|                         Application Layer                              |
-|                   (Your code using CoseSignTool V2)                    |
+|                         Application Layer                             |
+|                   (Your code using CoseSignTool V2)                   |
 +-----------------------------------------------------------------------+
                                     |
                                     v
 +-----------------------------------------------------------------------+
-|                       Message Factory Layer                            |
-|                       CoseSign1MessageFactory                          |
-|           (Routes based on SigningOptions runtime type)                |
+|                       Message Factory Layer                           |
+|                       CoseSign1MessageFactory                         |
+|           (Routes based on SigningOptions runtime type)               |
 +-----------------------------------------------------------------------+
                                     |
                  +------------------+------------------+
@@ -100,17 +100,17 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
                                     |
                                     v
 +-----------------------------------------------------------------------+
-|                          Factory Layer                                 |
-|              ICoseSign1MessageFactory<TOptions>                        |
+|                          Factory Layer                                |
+|              ICoseSign1MessageFactory<TOptions>                       |
 +-----------------------------------------------------------------------+
                                     |
                                     v
 +-----------------------------------------------------------------------+
-|                      Signing Service Layer                             |
-|                      ISigningService<TOptions>                         |
-|                  - CertificateSigningService.Create()                  |
-|                  - AzureTrustedSigningService                          |
-|                  - CertificateSigningService (base)                    |
+|                      Signing Service Layer                            |
+|                      ISigningService<TOptions>                        |
+|                  - CertificateSigningService.Create()                 |
+|                  - AzureTrustedSigningService                         |
+|                  - CertificateSigningService (base)                   |
 +-----------------------------------------------------------------------+
                                     |
                  +------------------+------------------+
@@ -359,10 +359,10 @@ cosesigntool
 +-- inspect <file>            # Built-in inspect command
 +-- sign-pfx ...              # Plugin: Local
 +-- sign-pem ...              # Plugin: Local
-+-- sign-cert-store ...       # Plugin: Local
++-- sign-certstore ...        # Plugin: Local
 +-- sign-ephemeral ...        # Plugin: Local
 +-- sign-akv-cert ...         # Plugin: AzureKeyVault
-+-- sign-ats ...              # Plugin: AzureTrustedSigning
++-- sign-azure ...            # Plugin: AzureTrustedSigning
 ```
 
 ### Plugin System
@@ -468,8 +468,8 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
    +-- CoseSign1Message.DecodeSign1(bytes)
          |
          v
-2. Build validation pipeline
-   +-- Cose.Sign1Message().AddValidator(...).OverrideDefaultTrustPolicy(...).Build()
+2. Validate message (builds pipeline internally)
+    +-- message.Validate(builder => { ... }, loggerFactory?)
          |
          v
 3. Execute staged validation
@@ -493,3 +493,21 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
    +-- Resolution, Trust, Signature, PostSignature stage results
    +-- Overall result
 ```
+
+In code, the most concise form is the validation extension method:
+
+```csharp
+using System.Security.Cryptography.Cose;
+using Microsoft.Extensions.Logging;
+
+ILoggerFactory? loggerFactory = null;
+
+var message = CoseSign1Message.DecodeSign1(signatureBytes);
+var result = message.Validate(builder =>
+{
+    // Configure your staged validation pipeline here.
+    // Example validators/policies are documented in the validation and trust-policy guides.
+}, loggerFactory);
+```
+
+If you will validate many messages with the same configuration, prefer building an `ICoseSign1Validator` once via `Cose.Sign1Message(loggerFactory).Build()` and reusing it.

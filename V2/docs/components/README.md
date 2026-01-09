@@ -64,8 +64,7 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 **Key Features**:
 - `CompositeValidator` - Combine multiple validators
-- `ValidatorBuilder` - Fluent validation pipeline creation
-- `FunctionValidator` - Custom validation logic
+- `Cose.Sign1Message()` - Fluent builder entry point for staged validation
 - Signature, chain, EKU, SAN validators
 - Validation reporting
 
@@ -220,7 +219,7 @@ CoseSign1.Abstractions (implement ISigningService)
 
 #### **Build custom validators**
 ```
-CoseSign1.Validation (use ValidatorBuilder or FunctionValidator)
+CoseSign1.Validation (use `Cose.Sign1Message()` and/or implement `IValidator`)
 ```
 
 #### **Use CLI for local certificate signing**

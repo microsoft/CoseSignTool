@@ -15,21 +15,21 @@ CoseSignTool V2 supports two signing modes:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Direct Signature                          │
+│                    Direct Signature                         │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌────────────────┐                                          │
-│  │    Payload     │                                          │
-│  │    (Data)      │                                          │
-│  └───────┬────────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
+│                                                             │
+│  ┌────────────────┐                                         │
+│  │    Payload     │                                         │
+│  │    (Data)      │                                         │
+│  └───────┬────────┘                                         │
+│          │                                                  │
+│          ▼                                                  │
 │  ┌────────────────┐    ┌────────────────┐                   │
 │  │   Protected    │    │   Private      │                   │
-│  │   Headers +    │───▶│     Key        │───▶ Signature     │
+│  │   Headers +    │──▶│     Key        │ ───▶ Signature    │
 │  │   Payload      │    └────────────────┘                   │
-│  └────────────────┘                                          │
-│                                                              │
+│  └────────────────┘                                         │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -43,30 +43,31 @@ CoseSignTool V2 supports two signing modes:
 ### Example
 
 ```csharp
-using CoseSign1;
+using CoseSign1.Direct;
 
 var factory = new DirectSignatureFactory(signingService);
 
 // Embedded payload
-byte[] signature = factory.CreateCoseSign1MessageBytes(
-    payload, 
-    "application/json");
-
-// Detached payload (payload not in signature)
-byte[] signature = factory.CreateCoseSign1MessageBytes(
-    payload, 
+byte[] embeddedSignature = factory.CreateCoseSign1MessageBytes(
+    payload,
     "application/json",
-    isDetached: true);
+    new DirectSignatureOptions { EmbedPayload = true });
+
+// Detached payload (payload not embedded in signature)
+byte[] detachedSignature = factory.CreateCoseSign1MessageBytes(
+    payload,
+    "application/json",
+    new DirectSignatureOptions { EmbedPayload = false });
 ```
 
 ### CLI Usage
 
 ```bash
 # Embedded direct signature
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --signature-type embedded --output signed.cose
+CoseSignTool sign-pfx document.json --pfx cert.pfx --signature-type embedded --output signed.cose
 
 # Detached direct signature
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --signature-type detached --output signed.cose
+CoseSignTool sign-pfx document.json --pfx cert.pfx --signature-type detached --output signed.cose
 ```
 
 ## Indirect Signatures
@@ -75,26 +76,26 @@ CoseSignTool sign-pfx document.json --pfx-file cert.pfx --signature-type detache
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Indirect Signature                         │
+│                   Indirect Signature                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌────────────────┐                                          │
-│  │    Payload     │                                          │
-│  │    (Data)      │                                          │
-│  └───────┬────────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│  ┌────────────────┐                                          │
-│  │   Hash(SHA256) │                                          │
-│  └───────┬────────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
+│                                                             │
+│  ┌────────────────┐                                         │
+│  │    Payload     │                                         │
+│  │    (Data)      │                                         │
+│  └───────┬────────┘                                         │
+│          │                                                  │
+│          ▼                                                  │
+│  ┌────────────────┐                                         │
+│  │   Hash(SHA256) │                                         │
+│  └───────┬────────┘                                         │
+│          │                                                  │
+│          ▼                                                  │
 │  ┌────────────────┐    ┌────────────────┐                   │
 │  │   Protected    │    │   Private      │                   │
-│  │   Headers +    │───▶│     Key        │───▶ Signature     │
+│  │   Headers +    │──▶│     Key        │ ───▶ Signature    │
 │  │   Hash Envelope│    └────────────────┘                   │
-│  └────────────────┘                                          │
-│                                                              │
+│  └────────────────┘                                         │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -121,7 +122,7 @@ Indirect signatures use a "hash envelope" payload:
 ### Example
 
 ```csharp
-using CoseIndirectSignature;
+using CoseSign1.Indirect;
 
 var factory = new IndirectSignatureFactory(signingService);
 
@@ -144,7 +145,7 @@ byte[] signature = await factory.CreateIndirectSignatureBytesAsync(
 ```bash
 # Indirect signature
 CoseSignTool sign-pfx large-file.bin ^
-    --pfx-file cert.pfx ^
+    --pfx cert.pfx ^
     --signature-type indirect ^
     --hash-algorithm SHA256 ^
     --output signed.cose
@@ -174,7 +175,7 @@ CoseSignTool sign-pfx large-file.bin ^
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 // Embedded - payload in signature, fully self-contained
 bool isValid = message.VerifySignature();

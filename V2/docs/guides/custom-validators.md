@@ -247,10 +247,12 @@ public class ExternalServiceValidator : IValidator
 ## Testing Custom Validators
 
 ```csharp
-[TestClass]
+using NUnit.Framework;
+
+[TestFixture]
 public class MyCustomValidatorTests
 {
-    [TestMethod]
+    [Test]
     public async Task ValidateAsync_WithValidMessage_ReturnsSuccess()
     {
         // Arrange
@@ -261,10 +263,10 @@ public class MyCustomValidatorTests
         var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
-        Assert.IsTrue(result.IsValid);
+        Assert.That(result.IsValid, Is.True);
     }
     
-    [TestMethod]
+    [Test]
     public async Task ValidateAsync_WithInvalidMessage_ReturnsFailure()
     {
         // Arrange
@@ -275,8 +277,8 @@ public class MyCustomValidatorTests
         var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
         
         // Assert
-        Assert.IsFalse(result.IsValid);
-        Assert.IsNotEmpty(result.Failures);
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Failures, Is.Not.Empty);
     }
 }
 ```

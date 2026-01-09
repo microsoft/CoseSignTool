@@ -19,6 +19,8 @@ Sign commands are provided by CLI plugins:
 
 | Command | Description |
 |---------|-------------|
+| `sign-akv-cert` | Sign using an Azure Key Vault certificate |
+| `sign-akv-key` | Sign using an Azure Key Vault key (adds `kid` header) |
 | `sign-azure` | Sign using Azure Trusted Signing |
 
 ## sign-pfx
@@ -35,18 +37,21 @@ CoseSignTool sign-pfx <input-file> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--pfx-file <path>` | Path to PFX certificate file (required) |
+| `--pfx <path>` | Path to PFX/PKCS#12 file containing the signing certificate (required) |
+| `--pfx-password-file <path>` | Path to a file containing the PFX password (more secure than command-line) |
+| `--pfx-password-env <name>` | Name of environment variable containing the PFX password (default: `COSESIGNTOOL_PFX_PASSWORD`) |
+| `--pfx-password-prompt` | Prompt for password interactively (automatic if no password is provided) |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
 | `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
-> **Note:** Set the PFX password via the `COSESIGNTOOL_PFX_PASSWORD` environment variable.
+> **Note:** Provide the PFX password using `--pfx-password-file`, `--pfx-password-env`, `--pfx-password-prompt`, or the `COSESIGNTOOL_PFX_PASSWORD` environment variable.
 
 ### Example
 
 ```bash
 set COSESIGNTOOL_PFX_PASSWORD=my-password
-CoseSignTool sign-pfx document.json --pfx-file cert.pfx --output signed.cose
+CoseSignTool sign-pfx document.json --pfx cert.pfx --output signed.cose
 ```
 
 ## sign-certstore
@@ -127,7 +132,14 @@ CoseSignTool sign-ephemeral <input-file> [options]
 |--------|-------------|
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
-| `--algorithm <alg>` | Signing algorithm: `ES256`, `ES384`, `PS256`, etc. |
+| `--config <path>` | Path to JSON configuration file for certificate settings |
+| `--subject <subject>` | Certificate subject name (overrides config) |
+| `--algorithm <ECDSA|MLDSA|RSA>` | Key algorithm (default: RSA). `MLDSA` is post-quantum and Windows-only |
+| `--key-size <n>` | Key size. Defaults: RSA=4096, ECDSA=384, MLDSA=65 |
+| `--validity-days <n>` | Certificate validity period in days (default: 365) |
+| `--no-chain` | Generate a self-signed certificate instead of a full chain |
+| `--minimal` | Minimal configuration (RSA-2048, self-signed, 1 day validity) |
+| `--pqc` | Post-quantum quick mode (MLDSA-65 with full chain) |
 | `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 
 ### Example
@@ -137,6 +149,72 @@ CoseSignTool sign-ephemeral document.json --output test.cose
 ```
 
 > **Warning:** Ephemeral certificates are self-signed and should not be used in production.
+
+## sign-akv-cert
+
+Sign using a certificate stored in Azure Key Vault.
+
+### Synopsis
+
+```bash
+CoseSignTool sign-akv-cert <input-file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--akv-vault <uri>` | Azure Key Vault URL (required) |
+| `--akv-cert-name <name>` | Certificate name (required) |
+| `--akv-cert-version <version>` | Certificate version (optional; uses latest if omitted) |
+| `--akv-refresh-interval <minutes>` | Auto-refresh interval in minutes (default: 15, 0 to disable) |
+| `--output <path>` | Output signature file path |
+| `--content-type <type>` | Content type header value |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
+
+Authentication uses `DefaultAzureCredential` (non-interactive). Configure credentials via environment variables (e.g., `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) or Managed Identity.
+
+### Example
+
+```bash
+CoseSignTool sign-akv-cert document.json ^
+    --akv-vault https://my-vault.vault.azure.net ^
+    --akv-cert-name signing-cert ^
+    --output signed.cose
+```
+
+## sign-akv-key
+
+Sign using a key stored in Azure Key Vault (no certificate). This adds a `kid` header per RFC 9052.
+
+### Synopsis
+
+```bash
+CoseSignTool sign-akv-key <input-file> [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--akv-vault <uri>` | Azure Key Vault URL (required) |
+| `--akv-key-name <name>` | Key name (required) |
+| `--akv-key-version <version>` | Key version (optional; uses latest if omitted) |
+| `--akv-refresh-interval <minutes>` | Auto-refresh interval in minutes (default: 15, 0 to disable) |
+| `--output <path>` | Output signature file path |
+| `--content-type <type>` | Content type header value |
+| `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
+
+Authentication uses `DefaultAzureCredential` (non-interactive). Configure credentials via environment variables (e.g., `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) or Managed Identity.
+
+### Example
+
+```bash
+CoseSignTool sign-akv-key document.json ^
+    --akv-vault https://my-vault.vault.azure.net ^
+    --akv-key-name signing-key ^
+    --output signed.cose
+```
 
 ## sign-azure
 

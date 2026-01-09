@@ -6,7 +6,7 @@ This guide explains post-quantum cryptography (PQC) support in CoseSignTool V2.
 
 Post-quantum cryptography uses algorithms designed to be secure against both classical and quantum computer attacks. CoseSignTool V2 supports ML-DSA (Module-Lattice Digital Signature Algorithm) as specified in FIPS 204.
 
-> **Important:** PQC support is currently **Windows-only** and requires .NET 9 or later.
+> **Important:** PQC support is currently **Windows-only** and requires the V2 toolchain/runtime (net10.0 / .NET 10+).
 
 ## Why Post-Quantum?
 
@@ -16,17 +16,17 @@ Current cryptographic algorithms (RSA, ECDSA) may be vulnerable to attacks from 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│               Cryptographic Transition Timeline              │
+│               Cryptographic Transition Timeline             │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Today ─────────────────────────────▶ Quantum Threat         │
-│    │                                         │               │
-│    ▼                                         ▼               │
-│  Hybrid signatures                    PQC-only signatures    │
-│  (Classical + PQC)                                           │
-│                                                              │
-│  Recommended: Start hybrid signatures now                    │
-│                                                              │
+│                                                             │
+│  Today ─────────────────────────────▶ Quantum Threat       │
+│    │                                         │              │
+│    ▼                                         ▼              │
+│  Dual signatures                     PQC-only signatures    │
+│  (two independent signatures)                               │
+│                                                             │
+│  Recommended: Plan for algorithm agility                    │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -34,11 +34,13 @@ Current cryptographic algorithms (RSA, ECDSA) may be vulnerable to attacks from 
 
 ### ML-DSA (FIPS 204)
 
-| Algorithm | Security Level | Signature Size | Public Key Size |
-|-----------|---------------|----------------|-----------------|
-| ML-DSA-44 | NIST Level 2 | ~2,420 bytes | ~1,312 bytes |
-| ML-DSA-65 | NIST Level 3 | ~3,293 bytes | ~1,952 bytes |
-| ML-DSA-87 | NIST Level 5 | ~4,595 bytes | ~2,592 bytes |
+ML-DSA is supported via the `MLDSA` key algorithm, with parameter sets selected via key size.
+
+| Parameter Set | `--key-size` | Notes |
+|--------------|--------------|-------|
+| ML-DSA-44 | 44 | Smaller signatures/keys |
+| ML-DSA-65 | 65 | Default/recommended in V2 presets |
+| ML-DSA-87 | 87 | Largest signatures/keys |
 
 ### Algorithm Selection
 
@@ -54,94 +56,54 @@ Current cryptographic algorithms (RSA, ECDSA) may be vulnerable to attacks from 
 | Requirement | Value |
 |-------------|-------|
 | Operating System | Windows only |
-| .NET Version | .NET 9+ |
+| .NET Version | .NET 10+ |
 | CNG Provider | Windows CNG with ML-DSA support |
 
 ### Checking Availability
 
-```csharp
-using CoseSign1.Abstractions;
-
-// Check if PQC is available
-if (PqcSupport.IsAvailable)
-{
-    Console.WriteLine("ML-DSA is available");
-}
-else
-{
-    Console.WriteLine($"ML-DSA not available: {PqcSupport.UnavailableReason}");
-}
-```
+There is no dedicated "PQC availability" API. In practice, attempt to create/use an ML-DSA key/certificate and handle `PlatformNotSupportedException` / `NotSupportedException`.
 
 ## Usage
 
 ### Signing with ML-DSA
 
 ```csharp
-using CoseSign1.Certificates.Pqc;
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Direct;
 
-// Create ML-DSA key provider
-var keyProvider = new MlDsaKeyProvider(MlDsaParameterSet.MlDsa65);
+// Create an ephemeral ML-DSA certificate (Windows-only)
+using var cert = new EphemeralCertificateFactory().CreateCertificate(o => o
+    .WithSubjectName("CN=Test ML-DSA Certificate")
+    .WithKeyAlgorithm(KeyAlgorithm.MLDSA)
+    .WithKeySize(65));
 
-// Generate key pair
-var keyPair = keyProvider.GenerateKeyPair();
+using var chainBuilder = new X509ChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
+using var factory = new DirectSignatureFactory(signingService);
 
-// Create signing service
-var signingService = new MlDsaSigningService(keyPair);
-
-// Create signature factory
-var factory = new DirectSignatureFactory(signingService);
-
-// Sign payload
 var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json");
-```
-
-### Creating ML-DSA Certificates
-
-```csharp
-// Generate ML-DSA certificate for testing
-var certProvider = new MlDsaCertificateProvider();
-var cert = certProvider.GenerateSelfSignedCertificate(
-    "CN=Test ML-DSA Certificate",
-    MlDsaParameterSet.MlDsa65);
 ```
 
 ### CLI Usage
 
 ```bash
-# Sign with ephemeral ML-DSA certificate (testing only)
+# Sign with an ephemeral ML-DSA certificate (testing only)
 CoseSignTool sign-ephemeral document.json ^
-    --algorithm ML-DSA-65 ^
+    --algorithm MLDSA ^
+    --key-size 65 ^
     --output signed.cose
 
 # Verify ML-DSA signature
 CoseSignTool verify signed.cose
 ```
 
-## Hybrid Signatures
+## Hybrid / Dual Signatures
 
-During the transition period, consider using hybrid signatures that combine classical and post-quantum algorithms.
+CoseSignTool V2 does not provide a first-class "countersignature" or "hybrid signature" feature in the library surface.
 
-### Approach 1: Dual Signatures
-
-```csharp
-// Create classical signature
-var classicalFactory = new DirectSignatureFactory(ecdsaService);
-var classicalSig = classicalFactory.CreateCoseSign1MessageBytes(payload);
-
-// Create PQC counter-signature
-var pqcFactory = new DirectSignatureFactory(mldsaService);
-var hybridSig = pqcFactory.AddCounterSignature(classicalSig);
-```
-
-### Approach 2: Combined Headers
-
-```csharp
-// Add both algorithms to header
-var contributor = new HybridAlgorithmHeaderContributor(
-    primaryAlgorithm: CoseAlgorithm.ES384,
-    secondaryAlgorithm: CoseAlgorithm.MlDsa65);
-```
+If you need both classical + post-quantum assurances today, the simplest approach is to produce two independent signatures over the same payload (for example, one ECDSA signature and one ML-DSA signature) and ship them side-by-side.
 
 ## Verification
 
@@ -151,7 +113,7 @@ var contributor = new HybridAlgorithmHeaderContributor(
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 // Automatically verifies RSA, ECDSA, and (on supported platforms) ML-DSA certificates.
 bool isValid = message.VerifySignature();
@@ -169,45 +131,9 @@ If you need to enforce a specific policy (for example, requiring ML-DSA), implem
 
 ## Cross-Platform Considerations
 
-Since ML-DSA is Windows-only, design for graceful degradation:
+Since ML-DSA is Windows-only, design for graceful degradation (for example, select ECDSA/RSA on non-Windows, and enable ML-DSA only where the platform supports it).
 
-```csharp
-public ISigningService CreateSigningService()
-{
-    if (PqcSupport.IsAvailable)
-    {
-        return new MlDsaSigningService(keyPair);
-    }
-    else
-    {
-        // Fall back to classical algorithm
-        return new EcdsaSigningService(ecdsaKey);
-    }
-}
-```
-
-### Conditional Compilation
-
-```csharp
-#if WINDOWS
-    // Use ML-DSA when available
-    services.AddSingleton<ISigningService, MlDsaSigningService>();
-#else
-    // Use classical algorithm on other platforms
-    services.AddSingleton<ISigningService, EcdsaSigningService>();
-#endif
-```
-
-## Performance Considerations
-
-| Operation | ML-DSA-65 | ECDSA P-384 |
-|-----------|-----------|-------------|
-| Key Generation | ~1ms | ~1ms |
-| Sign | ~1ms | ~1ms |
-| Verify | ~1ms | ~2ms |
-| Signature Size | 3,293 bytes | 96 bytes |
-
-### Size Impact
+## Size Impact
 
 ML-DSA signatures are significantly larger than classical signatures. Consider:
 - Storage requirements
@@ -231,41 +157,22 @@ ML-DSA (FIPS 204) is a NIST-standardized algorithm, but:
 
 ## Testing
 
-### Unit Tests
+The repository uses NUnit for V2 tests. To keep ML-DSA tests stable across OS/runtime combinations, use the shared helper:
 
 ```csharp
-[TestClass]
-[TestCategory("PQC")]
+using CoseSign1.Tests.Common;
+using NUnit.Framework;
+
+[TestFixture]
 public class MlDsaSigningTests
 {
-    [TestMethod]
-    [PlatformCondition(Platform.Windows)]
+    [Test]
     public void SignAndVerify_WithMlDsa65_Succeeds()
     {
-        // Skip if PQC not available
-        if (!PqcSupport.IsAvailable)
-        {
-            Assert.Inconclusive("ML-DSA not available on this platform");
-        }
-        
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
         // Test implementation
     }
-}
-```
-
-### Integration Tests
-
-```csharp
-[TestMethod]
-public void CrossPlatformVerification_ClassicalAndPqc_BothValid()
-{
-    // Create signature on Windows with ML-DSA
-    var signature = CreateMlDsaSignature();
-    
-    // Verify on any platform
-    var result = validator.Validate(signature);
-    
-    Assert.IsTrue(result.IsValid);
 }
 ```
 

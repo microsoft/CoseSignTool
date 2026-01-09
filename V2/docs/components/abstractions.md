@@ -84,8 +84,10 @@ Key members:
 
 `CoseSign1.Abstractions.Transparency` defines `ITransparencyProvider`, which can:
 
-- Augment a signed `CoseSign1Message` with a transparency proof (receipt, countersignature, etc.)
+- Augment a signed `CoseSign1Message` with a transparency proof (e.g., a receipt)
 - Verify transparency proofs on an existing message
+
+In V2, this is typically implemented by embedding receipt/proof data into COSE headers.
 
 Factories in `CoseSign1` can apply configured transparency providers automatically after signing.
 

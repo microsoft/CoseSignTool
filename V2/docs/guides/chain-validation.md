@@ -14,66 +14,72 @@ Certificate chain validation ensures that a signing certificate:
 
 ### Automatic Chain Building
 
-CoseSignTool V2 automatically builds certificate chains:
+CoseSignTool V2 uses the built-in X.509 chain builder wrapper:
 
 ```csharp
-using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 
-var chainBuilder = new CertificateChainBuilder();
-var chain = chainBuilder.Build(signingCertificate);
+using var chainBuilder = new X509ChainBuilder();
+bool ok = chainBuilder.Build(signingCertificate);
 
-if (chain.IsValid)
+if (!ok)
 {
-    Console.WriteLine($"Chain has {chain.Certificates.Count} certificates");
+    // Inspect chainBuilder.ChainStatus for X509ChainStatusFlags values
+    foreach (var status in chainBuilder.ChainStatus)
+    {
+        Console.WriteLine($"{status.Status}: {status.StatusInformation}");
+    }
+}
+else
+{
+    Console.WriteLine($"Chain length: {chainBuilder.ChainElements.Count}");
 }
 ```
 
 ### Chain Building Options
 
 ```csharp
-var options = new ChainBuildOptions
+using CoseSign1.Certificates.ChainBuilders;
+
+var policy = new X509ChainPolicy
 {
-    // Revocation checking
     RevocationMode = X509RevocationMode.Online,
-    RevocationFlag = X509RevocationFlag.EntireChain,
-    
-    // Verification flags
+    RevocationFlag = X509RevocationFlag.ExcludeRoot,
     VerificationFlags = X509VerificationFlags.NoFlag,
-    
-    // Additional certificates to consider
-    AdditionalStore = intermediateCertificates,
-    
-    // Time for validation (default: now)
-    VerificationTime = DateTimeOffset.UtcNow
+    UrlRetrievalTimeout = TimeSpan.FromSeconds(30),
 };
 
-var chain = chainBuilder.Build(certificate, options);
+// Optional: provide intermediates
+policy.ExtraStore.AddRange(intermediateCertificates);
+
+using var chainBuilder = new X509ChainBuilder(policy);
+bool ok = chainBuilder.Build(certificate);
 ```
 
 ## Chain Structure
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Certificate Chain                          │
+│                   Certificate Chain                         │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              Root CA Certificate                     │    │
+│  │              Root CA Certificate                    │    │
 │  │         (Self-signed, in trust store)               │    │
 │  └───────────────────────┬─────────────────────────────┘    │
-│                          │                                   │
-│                          ▼                                   │
+│                          │                                  │
+│                          ▼                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │         Intermediate CA Certificate                  │    │
+│  │         Intermediate CA Certificate                 │    │
 │  │         (Signed by Root CA)                         │    │
 │  └───────────────────────┬─────────────────────────────┘    │
-│                          │                                   │
-│                          ▼                                   │
+│                          │                                  │
+│                          ▼                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │           Leaf/End-Entity Certificate                │    │
-│  │           (Signing certificate)                      │    │
+│  │           Leaf/End-Entity Certificate               │    │
+│  │           (Signing certificate)                     │    │
 │  └─────────────────────────────────────────────────────┘    │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,19 +88,20 @@ var chain = chainBuilder.Build(certificate, options);
 ### Online Checking (OCSP/CRL)
 
 ```csharp
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
     RevocationMode = X509RevocationMode.Online,
-    RevocationFlag = X509RevocationFlag.EntireChain
+    RevocationFlag = X509RevocationFlag.ExcludeRoot
 };
 ```
 
 ### Offline Checking (Cached CRLs)
 
 ```csharp
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
-    RevocationMode = X509RevocationMode.Offline
+    RevocationMode = X509RevocationMode.Offline,
+    RevocationFlag = X509RevocationFlag.ExcludeRoot
 };
 ```
 
@@ -102,9 +109,10 @@ var options = new ChainBuildOptions
 
 ```csharp
 // Use with caution - only for testing
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
-    RevocationMode = X509RevocationMode.NoCheck
+    RevocationMode = X509RevocationMode.NoCheck,
+    RevocationFlag = X509RevocationFlag.ExcludeRoot
 };
 ```
 
@@ -140,25 +148,28 @@ Implement this as a custom validator that extracts the signing certificate and a
 ### Add to Validation Builder
 
 ```csharp
-var message = CoseMessage.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
 
 var validator = Cose.Sign1Message()
     .ValidateCertificate(cert => cert
         .ValidateChain(revocationMode: X509RevocationMode.Online))
     .Build();
 
-var signatureResult = await validator.ValidateAsync(message, ValidationStage.Signature);
-var trustResult = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+
+var results = validator.Validate(message);
+var signatureResult = results.Signature;
+var trustResult = results.Trust;
 ```
 
 ### Validation Results
 
 ```csharp
-var result = await validator.ValidateAsync(message, ValidationStage.KeyMaterialTrust);
+var trustResult = validator.Validate(message).Trust;
 
-if (!result.IsValid)
+if (!trustResult.IsValid)
 {
-    foreach (var failure in result.Failures)
+    foreach (var failure in trustResult.Failures)
     {
         if (failure.ErrorCode == "CHAIN_BUILD_FAILED")
         {
@@ -191,51 +202,40 @@ if (!result.IsValid)
 # Default: validates chain with online revocation check
 CoseSignTool verify signed.cose
 
-# With custom trust root
-CoseSignTool verify signed.cose --trust-root custom-root.cer
+# With custom trust roots (repeatable)
+CoseSignTool verify signed.cose --trust-roots custom-root.cer
 
-# Skip revocation check (not recommended)
-CoseSignTool verify signed.cose --skip-revocation
+# Disable revocation check (not recommended)
+CoseSignTool verify signed.cose --revocation-mode none
 ```
 
 ### Inspect Certificate Chain
 
 ```bash
-# Show certificate chain details
-CoseSignTool inspect signed.cose --show-chain
+# Inspect output includes certificate chain details
+CoseSignTool inspect signed.cose
 ```
 
 ## Including Certificates in Signatures
 
-### Include Full Chain
+Certificate-based signing in V2 adds X.509 key material headers by default:
 
-```csharp
-var options = new SigningOptions
-{
-    IncludeCertificateChain = true  // Include full chain in signature
-};
+- `x5t` (certificate thumbprint)
+- `x5chain` (leaf-first certificate chain)
 
-var factory = new DirectSignatureFactory(signingService, options);
-```
+These headers are required for certificate-based verification (the verifier resolves the signing certificate by matching `x5t` to a certificate in `x5chain`).
 
-### Include Only Leaf Certificate
-
-```csharp
-var options = new SigningOptions
-{
-    IncludeCertificateChain = false  // Only leaf certificate
-};
-```
+If you want a signature with no X.509 material (for example, a key-only signature with `kid` + embedded COSE_Key), use `sign-akv-key` instead of certificate-based signing.
 
 ## Best Practices
 
 ### Production
 
 ```csharp
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
     RevocationMode = X509RevocationMode.Online,
-    RevocationFlag = X509RevocationFlag.EntireChain,
+    RevocationFlag = X509RevocationFlag.ExcludeRoot,
     VerificationFlags = X509VerificationFlags.NoFlag // Strict
 };
 ```
@@ -243,7 +243,7 @@ var options = new ChainBuildOptions
 ### Development/Testing
 
 ```csharp
-var options = new ChainBuildOptions
+var policy = new X509ChainPolicy
 {
     RevocationMode = X509RevocationMode.NoCheck,
     // Allow self-signed for testing
@@ -259,21 +259,25 @@ var options = new ChainBuildOptions
 var intermediates = new X509Certificate2Collection();
 intermediates.Add(new X509Certificate2("intermediate.cer"));
 
-var options = new ChainBuildOptions
-{
-    AdditionalStore = intermediates
-};
+var policy = new X509ChainPolicy();
+policy.ExtraStore.AddRange(intermediates);
 ```
 
 ### Extracting from Signature
 
 ```csharp
-var message = CoseMessage.DecodeSign1(signature);
-var certs = message.UnprotectedHeaders.GetCertificates();
+using CoseSign1.Certificates.Extensions;
+using System.Security.Cryptography.Cose;
 
-// First cert is usually leaf, rest are chain
-var leafCert = certs.First();
-var intermediates = new X509Certificate2Collection(certs.Skip(1).ToArray());
+var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseSign1Message.DecodeSign1(signature);
+
+if (message.TryGetCertificateChain(out var chain))
+{
+    // Chain is leaf-first
+    var leafCert = chain[0];
+    var intermediates = new X509Certificate2Collection(chain.Cast<X509Certificate2>().Skip(1).ToArray());
+}
 ```
 
 ## Cross-Platform Considerations

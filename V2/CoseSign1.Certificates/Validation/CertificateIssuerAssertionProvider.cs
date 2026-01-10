@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Extracts assertions about the signing certificate's issuer.
 /// </summary>
-public sealed partial class CertificateIssuerAssertionProvider : ISigningKeyAssertionProvider
+public sealed partial class CertificateIssuerAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -69,18 +69,13 @@ public sealed partial class CertificateIssuerAssertionProvider : ISigningKeyAsse
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         LogValidatingIssuer(ExpectedIssuerName);
 
@@ -98,7 +93,7 @@ public sealed partial class CertificateIssuerAssertionProvider : ISigningKeyAsse
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.IssuerMatches, false, details: ClassStrings.ErrorMessageIssuerCnNotFound) { SigningKey = signingKey }
+                new X509IssuerAssertion(false, null) { SigningKey = signingKey }
             };
         }
 
@@ -116,9 +111,7 @@ public sealed partial class CertificateIssuerAssertionProvider : ISigningKeyAsse
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.IssuerMatches, matches,
-                details: matches ? issuerCn : string.Format(ClassStrings.ErrorFormatIssuerCnMismatch, issuerCn, ExpectedIssuerName))
-            { SigningKey = signingKey }
+            new X509IssuerAssertion(matches, issuerCn) { SigningKey = signingKey }
         };
     }
 
@@ -126,9 +119,10 @@ public sealed partial class CertificateIssuerAssertionProvider : ISigningKeyAsse
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 
     /// <summary>

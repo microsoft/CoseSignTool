@@ -25,27 +25,27 @@ using CoseSign1.Abstractions;
 /// </para>
 /// <para>
 /// Multiple providers can contribute assertions for the same key. The orchestrator
-/// aggregates all assertions into a <see cref="SigningKeyAssertionSet"/> for policy evaluation.
+/// aggregates all assertions for policy evaluation.
+/// </para>
+/// <para>
+/// Providers implement <see cref="IValidationComponent.IsApplicableTo"/> to indicate
+/// whether they can process a given message. This is checked by the orchestrator before
+/// calling <see cref="ExtractAssertions"/>.
 /// </para>
 /// </remarks>
 public interface ISigningKeyAssertionProvider : IValidationComponent
 {
     /// <summary>
-    /// Determines whether this provider can extract assertions from the given key.
-    /// </summary>
-    /// <param name="signingKey">The signing key to check.</param>
-    /// <returns>True if this provider can process the key.</returns>
-    bool CanProvideAssertions(ISigningKey signingKey);
-
-    /// <summary>
     /// Extracts assertions from the signing key.
     /// </summary>
     /// <param name="signingKey">The signing key to extract assertions from.</param>
     /// <param name="message">The original message (for context).</param>
-    /// <returns>A list of strongly-typed assertions about the key.</returns>
-    IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
+/// <param name="options">Optional validation options that may affect assertion extraction.</param>
+/// <returns>A list of strongly-typed assertions about the key.</returns>
+IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message);
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null);
 
     /// <summary>
     /// Asynchronously extracts assertions from the signing key.
@@ -54,10 +54,12 @@ public interface ISigningKeyAssertionProvider : IValidationComponent
     /// </summary>
     /// <param name="signingKey">The signing key to extract assertions from.</param>
     /// <param name="message">The original message (for context).</param>
+    /// <param name="options">Optional validation options that may affect assertion extraction.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task containing the list of strongly-typed assertions.</returns>
     Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default);
 }

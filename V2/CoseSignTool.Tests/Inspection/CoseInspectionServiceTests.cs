@@ -12,7 +12,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
-using CoseSign1.Indirect;
+using CoseSign1.Factories.Indirect;
 using CoseSign1.Tests.Common;
 using CoseSignTool.Inspection;
 using CoseSignTool.Output;
@@ -3331,3 +3331,4 @@ public class CoseInspectionServiceTests
         Assert.That(sw.ToString(), Does.Contain("PS512"));
     }
 }
+

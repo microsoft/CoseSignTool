@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1", "CoseSign1\CoseSign1.csproj", "{D0BDA122-D03D-46F4-9ADD-D66D2F71DB03}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Factories", "CoseSign1.Factories\CoseSign1.Factories.csproj", "{D0BDA122-D03D-46F4-9ADD-D66D2F71DB03}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Abstractions", "CoseSign1.Abstractions\CoseSign1.Abstractions.csproj", "{0838A28D-CF9B-49D9-ADD6-B927EDF0643A}"
 EndProject
@@ -27,7 +27,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Certificates.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Headers.Tests", "CoseSign1.Headers.Tests\CoseSign1.Headers.Tests.csproj", "{F6FDDACD-8129-4C6D-9E75-0621C6AE4F71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Tests", "CoseSign1.Tests\CoseSign1.Tests.csproj", "{9F90C146-19B3-4601-8539-48062F640A3D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Factories.Tests", "CoseSign1.Factories.Tests\CoseSign1.Factories.Tests.csproj", "{9F90C146-19B3-4601-8539-48062F640A3D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation.Tests", "CoseSign1.Validation.Tests\CoseSign1.Validation.Tests.csproj", "{8DB80D63-A68D-4E4D-AD01-145F2CDD1678}"
 EndProject

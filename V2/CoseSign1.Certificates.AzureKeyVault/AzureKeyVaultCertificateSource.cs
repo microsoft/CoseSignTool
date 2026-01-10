@@ -9,6 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Secrets;
+using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
 using CoseSign1.Certificates.Remote;
 
@@ -55,9 +56,13 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         public const string ErrorKeyVaultReturnedCertificateWithoutVersion = "Key Vault returned a certificate without a version.";
         public const string ErrorCertificateDataFromKeyVaultInvalid = "Certificate data retrieved from Key Vault is invalid.";
         public const string ErrorKeyVaultSecretDidNotContainCertificateWithPrivateKey = "Key Vault secret did not contain a certificate with a private key.";
+        public const string ErrorInvalidPemFormat = "Invalid PEM format: could not find certificate data.";
 
         public const string ContentTypePkcs12 = "application/x-pkcs12";
         public const string ContentTypePemFile = "application/x-pem-file";
+
+        public const string PemCertificateHeader = "-----BEGIN CERTIFICATE-----";
+        public const string PemCertificateFooter = "-----END CERTIFICATE-----";
     }
 
     private sealed class State
@@ -158,8 +163,8 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         TimeSpan? refreshInterval = null,
         bool forceRemoteMode = false)
     {
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentNullException.ThrowIfNull(certificateName);
+        Guard.ThrowIfNull(clientFactory);
+        Guard.ThrowIfNull(certificateName);
 
         ClientFactory = clientFactory;
         CertificateClient = clientFactory.CertificateClient;
@@ -715,7 +720,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         }
         else if (string.Equals(contentType, ClassStrings.ContentTypePemFile, StringComparison.OrdinalIgnoreCase))
         {
-            cert = X509Certificate2.CreateFromPem(value);
+            cert = CreateCertificateFromPem(value);
         }
         else
         {
@@ -728,7 +733,7 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
             }
             catch
             {
-                cert = X509Certificate2.CreateFromPem(value);
+                cert = CreateCertificateFromPem(value);
             }
         }
 
@@ -741,8 +746,49 @@ public sealed class AzureKeyVaultCertificateSource : RemoteCertificateSource
         return cert;
     }
 
+    /// <summary>
+    /// Creates an X509Certificate2 from PEM-encoded data.
+    /// Uses the native API on .NET 5+ and a polyfill implementation on netstandard2.0.
+    /// </summary>
+    /// <param name="pem">The PEM-encoded certificate (and optionally key) data.</param>
+    /// <returns>An X509Certificate2 instance.</returns>
+    private static X509Certificate2 CreateCertificateFromPem(string pem)
+    {
+#if NET5_0_OR_GREATER
+        return X509Certificate2.CreateFromPem(pem);
+#else
+        // For netstandard2.0, we need to extract the certificate from PEM format
+        // This handles the case where the PEM contains just a certificate (no private key)
+        var startIndex = pem.IndexOf(ClassStrings.PemCertificateHeader, StringComparison.Ordinal);
+        if (startIndex < 0)
+        {
+            throw new ArgumentException(ClassStrings.ErrorInvalidPemFormat, nameof(pem));
+        }
+
+        var endIndex = pem.IndexOf(ClassStrings.PemCertificateFooter, startIndex, StringComparison.Ordinal);
+        if (endIndex < 0)
+        {
+            throw new ArgumentException(ClassStrings.ErrorInvalidPemFormat, nameof(pem));
+        }
+
+        var base64Start = startIndex + ClassStrings.PemCertificateHeader.Length;
+        var base64Builder = new System.Text.StringBuilder();
+        for (int i = base64Start; i < endIndex; i++)
+        {
+            char c = pem[i];
+            if (c != '\r' && c != '\n' && c != ' ')
+            {
+                base64Builder.Append(c);
+            }
+        }
+
+        var certBytes = Convert.FromBase64String(base64Builder.ToString());
+        return new X509Certificate2(certBytes);
+#endif
+    }
+
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        Guard.ThrowIfDisposed(Disposed, this);
     }
 }

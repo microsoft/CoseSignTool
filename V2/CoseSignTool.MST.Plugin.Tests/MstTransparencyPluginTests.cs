@@ -7,6 +7,7 @@ using System.CommandLine;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Validation.Interfaces;
 using Moq;
 
 /// <summary>
@@ -142,53 +143,57 @@ public class MstTransparencyPluginTests
     [Test]
     public void ValidateMst_WithVerifyReceiptClient_AddsValidator()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        builder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>())).Returns(builder.Object);
         var client = new Mock<CodeTransparencyClient>().Object;
 
-        var result = builder.ValidateMst(b => b.VerifyReceipt(client));
+        var result = builder.Object.ValidateMst(b => b.VerifyReceipt(client));
 
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(result, Is.SameAs(builder.Object));
     }
 
     [Test]
     public void ValidateMst_WithVerifyReceiptProvider_AddsValidator()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        builder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>())).Returns(builder.Object);
         var client = new Mock<CodeTransparencyClient>().Object;
         var provider = new MstTransparencyProvider(client);
 
-        var result = builder.ValidateMst(b => b.VerifyReceipt(provider));
+        var result = builder.Object.ValidateMst(b => b.VerifyReceipt(provider));
 
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(result, Is.SameAs(builder.Object));
     }
 
     [Test]
     public void ValidateMst_WithRequireReceiptPresence_AddsValidator()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        builder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>())).Returns(builder.Object);
 
-        var result = builder.ValidateMst(b => b.RequireReceiptPresence());
+        var result = builder.Object.ValidateMst(b => b.RequireReceiptPresence());
 
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(result, Is.SameAs(builder.Object));
     }
 
     [Test]
     public void ValidateMst_WithVerifyReceiptOnline_AddsValidator()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        builder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>())).Returns(builder.Object);
         var client = new Mock<CodeTransparencyClient>().Object;
 
-        var result = builder.ValidateMst(b => b.VerifyReceiptOnline(client, "example.com"));
+        var result = builder.Object.ValidateMst(b => b.VerifyReceiptOnline(client, "example.com"));
 
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(result, Is.SameAs(builder.Object));
     }
 
     [Test]
     public void ValidateMst_WithNoValidatorsConfigured_ThrowsInvalidOperationException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
 
-        var ex = Assert.Throws<InvalidOperationException>(() => builder.ValidateMst(_ => { }));
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.Object.ValidateMst(_ => { }));
         Assert.That(ex!.Message, Is.EqualTo("No MST validators configured"));
     }
 
@@ -201,45 +206,45 @@ public class MstTransparencyPluginTests
     [Test]
     public void ValidateMst_WithNullConfigure_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(null!));
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(null!));
     }
 
     [Test]
     public void ValidateMst_VerifyReceiptWithNullClient_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(b => b.VerifyReceipt((CodeTransparencyClient)null!)));
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(b => b.VerifyReceipt((CodeTransparencyClient)null!)));
     }
 
     [Test]
     public void ValidateMst_VerifyReceiptWithNullProvider_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(b => b.VerifyReceipt((MstTransparencyProvider)null!)));
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(b => b.VerifyReceipt((MstTransparencyProvider)null!)));
     }
 
     [Test]
     public void ValidateMst_VerifyReceiptOnlineWithNullClient_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(b => b.VerifyReceiptOnline(null!, "example.com")));
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(b => b.VerifyReceiptOnline(null!, "example.com")));
     }
 
     [Test]
     public void ValidateMst_VerifyReceiptOnlineWithNullIssuerHost_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
         var client = new Mock<CodeTransparencyClient>().Object;
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(b => b.VerifyReceiptOnline(client, null!)));
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(b => b.VerifyReceiptOnline(client, null!)));
     }
 
     [Test]
     public void ValidateMst_VerifyReceiptOnlineWithEmptyIssuerHost_ThrowsArgumentNullException()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
         var client = new Mock<CodeTransparencyClient>().Object;
-        Assert.Throws<ArgumentNullException>(() => builder.ValidateMst(b => b.VerifyReceiptOnline(client, "")));
+        Assert.Throws<ArgumentNullException>(() => builder.Object.ValidateMst(b => b.VerifyReceiptOnline(client, "")));
     }
 
     #region Legacy API Tests
@@ -248,12 +253,13 @@ public class MstTransparencyPluginTests
     [Test]
     public void AddMstValidator_WithVerifyReceiptClient_AddsValidator()
     {
-        var builder = CoseSign1.Validation.Cose.Sign1Message();
+        var builder = new Mock<ICoseSign1ValidationBuilder>();
+        builder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>())).Returns(builder.Object);
         var client = new Mock<CodeTransparencyClient>().Object;
 
-        var result = builder.AddMstValidator(b => b.VerifyReceipt(client));
+        var result = builder.Object.AddMstValidator(b => b.VerifyReceipt(client));
 
-        Assert.That(result, Is.SameAs(builder));
+        Assert.That(result, Is.SameAs(builder.Object));
     }
 
     [Test]

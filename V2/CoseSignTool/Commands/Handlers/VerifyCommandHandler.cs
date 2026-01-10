@@ -8,9 +8,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Indirect;
+using CoseSign1.Factories.Indirect;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Output;
@@ -293,11 +294,11 @@ public class VerifyCommandHandler
                 }
             }
 
-            // Build a validator using the fluent Cose.Sign1Message() builder pattern.
+            // Build a validator using the fluent CoseSign1ValidationBuilder pattern.
             // This demonstrates the V2 API that programmatic callers should use.
             // Providers are responsible for supplying signing key resolvers to enable
             // signature verification (e.g., CertificateSigningKeyResolver for X.509).
-            var builder = Cose.Sign1Message(LoggerFactory);
+            var builder = new CoseSign1ValidationBuilder(LoggerFactory);
 
             // Add validators from activated providers
             foreach (var validator in providerValidators)

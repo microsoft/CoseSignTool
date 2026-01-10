@@ -6,7 +6,7 @@ namespace CoseSign1.Certificates.Tests.Extensions;
 using System.Formats.Cbor;
 using System.Text;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 
 /// <summary>
 /// Tests for CoseSign1MessageCertificateExtensions certificate extraction methods.

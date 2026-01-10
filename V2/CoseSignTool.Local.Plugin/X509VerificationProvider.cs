@@ -203,7 +203,7 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         // orchestration layers to run resolution before trust and signature verification.
         // Note: Signature verification (Stage 3) is now handled by the orchestrator using
         // ISigningKey.GetCoseKey() from the resolved signing key.
-        validators.Add(new CertificateSigningKeyResolver(allowUnprotectedHeaders: true, logger: keyMaterialLogger));
+        validators.Add(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any, logger: keyMaterialLogger));
 
         // Parse revocation mode
         var revocationMode = ParseRevocationMode(parseResult);
@@ -216,7 +216,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             {
                 validators.Add(new CertificateChainAssertionProvider(
                     customRoots,
-                    allowUnprotectedHeaders: true,
                     trustUserRoots: true,
                     revocationMode: revocationMode,
                     logger: chainValidatorLogger));
@@ -225,7 +224,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         else if (IsTrustSystemRoots(parseResult))
         {
             validators.Add(new CertificateChainAssertionProvider(
-                allowUnprotectedHeaders: true,
                 allowUntrusted: IsAllowUntrusted(parseResult),
                 revocationMode: revocationMode,
                 logger: chainValidatorLogger));
@@ -235,7 +233,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             // Skip chain validation when explicitly allowing untrusted
             // but still add a minimal validator that accepts any chain
             validators.Add(new CertificateChainAssertionProvider(
-                allowUnprotectedHeaders: true,
                 allowUntrusted: true,
                 revocationMode: X509RevocationMode.NoCheck,
                 logger: chainValidatorLogger));

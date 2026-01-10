@@ -174,7 +174,7 @@ public class DirectCertificateSourceTests
         Assert.That(cert.Subject, Is.Not.Null);
     }
 
-    #region Integration Tests: DirectCertificateSource + CertificateSigningKey Metadata Detection
+    #region Integration Tests: DirectCertificateSource + CertificateSigningServiceKey Metadata Detection
 
     [Test]
     public void Integration_RSA2048Certificate_DetectsPS256Metadata()
@@ -184,12 +184,12 @@ public class DirectCertificateSourceTests
         var chain = new[] { cert };
         using var source = new DirectCertificateSource(cert, chain);
 
-        // Create signing key provider and CertificateSigningKey
+        // Create signing key provider and CertificateSigningServiceKey
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
-        // Act: Get metadata through CertificateSigningKey
+        // Act: Get metadata through CertificateSigningServiceKey
         var metadata = signingKey.Metadata;
 
         // Assert: Verify full integration detects RSA 2048 → PS256
@@ -210,7 +210,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -232,7 +232,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -254,7 +254,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -276,7 +276,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -298,7 +298,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -323,7 +323,7 @@ public class DirectCertificateSourceTests
         // Note: DirectSigningKeyProvider requires private key, so use mock
         using var mockKeyProvider = new MockSigningKeyProvider(publicOnly, isRemote: false);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, mockKeyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, mockKeyProvider, mockService);
 
         // Act: Metadata detection should work from public key alone
         var metadata = signingKey.Metadata;
@@ -344,7 +344,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new DirectSigningKeyProvider(cert);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act: Access metadata multiple times
         var metadata1 = signingKey.Metadata;
@@ -375,9 +375,9 @@ public class DirectCertificateSourceTests
         using var provider4096 = new DirectSigningKeyProvider(cert4096);
 
         using var mockService = new MockSigningService(false);
-        using var key2048 = new CertificateSigningKey(source2048, provider2048, mockService);
-        using var key3072 = new CertificateSigningKey(source3072, provider3072, mockService);
-        using var key4096 = new CertificateSigningKey(source4096, provider4096, mockService);
+        using var key2048 = new CertificateSigningServiceKey(source2048, provider2048, mockService);
+        using var key3072 = new CertificateSigningServiceKey(source3072, provider3072, mockService);
+        using var key4096 = new CertificateSigningServiceKey(source4096, provider4096, mockService);
 
         // Act
         var metadata2048 = key2048.Metadata;
@@ -408,8 +408,8 @@ public class DirectCertificateSourceTests
         using var ecdsaProvider = new DirectSigningKeyProvider(ecdsaCert);
 
         using var mockService = new MockSigningService(false);
-        using var rsaKey = new CertificateSigningKey(rsaSource, rsaProvider, mockService);
-        using var ecdsaKey = new CertificateSigningKey(ecdsaSource, ecdsaProvider, mockService);
+        using var rsaKey = new CertificateSigningServiceKey(rsaSource, rsaProvider, mockService);
+        using var ecdsaKey = new CertificateSigningServiceKey(ecdsaSource, ecdsaProvider, mockService);
 
         // Act
         var rsaMetadata = rsaKey.Metadata;
@@ -438,8 +438,8 @@ public class DirectCertificateSourceTests
         using var serviceLocal = new MockSigningService(false);
         using var serviceRemote = new MockSigningService(true);
 
-        using var keyLocal = new CertificateSigningKey(sourceLocal, providerLocal, serviceLocal);
-        using var keyRemote = new CertificateSigningKey(sourceRemote, providerRemote, serviceRemote);
+        using var keyLocal = new CertificateSigningServiceKey(sourceLocal, providerLocal, serviceLocal);
+        using var keyRemote = new CertificateSigningServiceKey(sourceRemote, providerRemote, serviceRemote);
 
         // Act
         var localMetadata = keyLocal.Metadata;
@@ -465,9 +465,9 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
-        // Act: Get metadata through CertificateSigningKey
+        // Act: Get metadata through CertificateSigningServiceKey
         var metadata = signingKey.Metadata;
 
         // Assert: Verify ML-DSA-44 detection
@@ -490,7 +490,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -515,7 +515,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
         using var mockService = new MockSigningService(false);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -540,7 +540,7 @@ public class DirectCertificateSourceTests
 
         using var keyProvider = new MockSigningKeyProvider(mldsaCert, isRemote: true);
         using var mockService = new MockSigningService(true);
-        using var signingKey = new CertificateSigningKey(source, keyProvider, mockService);
+        using var signingKey = new CertificateSigningServiceKey(source, keyProvider, mockService);
 
         // Act
         var metadata = signingKey.Metadata;
@@ -569,9 +569,9 @@ public class DirectCertificateSourceTests
         using var mldsaProvider = new MockSigningKeyProvider(mldsaCert, isRemote: false);
 
         using var mockService = new MockSigningService(false);
-        using var rsaKey = new CertificateSigningKey(rsaSource, rsaProvider, mockService);
-        using var ecdsaKey = new CertificateSigningKey(ecdsaSource, ecdsaProvider, mockService);
-        using var mldsaKey = new CertificateSigningKey(mldsaSource, mldsaProvider, mockService);
+        using var rsaKey = new CertificateSigningServiceKey(rsaSource, rsaProvider, mockService);
+        using var ecdsaKey = new CertificateSigningServiceKey(ecdsaSource, ecdsaProvider, mockService);
+        using var mldsaKey = new CertificateSigningServiceKey(mldsaSource, mldsaProvider, mockService);
 
         // Act
         var rsaMetadata = rsaKey.Metadata;

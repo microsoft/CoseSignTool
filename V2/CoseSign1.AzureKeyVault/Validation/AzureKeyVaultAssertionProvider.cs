@@ -21,10 +21,10 @@ using CoseSign1.Validation.Interfaces;
 ///   <item><description><c>akv.kid.allowed</c> - True if the kid matches one of the allowed patterns</description></item>
 /// </list>
 /// </remarks>
-public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvider
+public sealed class AzureKeyVaultAssertionProvider : AkvValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
-    internal static class ClassStrings
+    internal static new class ClassStrings
     {
         public static readonly string ValidatorName = nameof(AzureKeyVaultAssertionProvider);
 
@@ -38,29 +38,26 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
         public const string TrustDetailsPatternMatched = "PatternMatched";
         public const string TrustDetailsNoAllowedPatterns = "NoAllowedPatterns";
 
-        public const string KeyVaultHostSuffix = ".vault.azure.net";
-        public const string KeyVaultKeysPathFragment = "/keys/";
-
         public const string RegexPrefix = "regex:";
         public const string RegexWildcard = ".*";
         public const string RegexSingleChar = ".";
         public const string RegexAnchorStart = "^";
         public const string RegexOptionalSuffix = "(/.*)?$";
-        public const string UriSchemeHttps = "https";
 
         // Escaped pattern replacements for glob-to-regex conversion
         public const string EscapedAsterisk = @"\*";
         public const string EscapedQuestionMark = @"\?";
     }
 
-    private static readonly CoseHeaderLabel KidLabel = new(4); // kid header label
-
     private readonly IReadOnlyList<string> AllowedPatterns;
     private readonly IReadOnlyList<Regex>? CompiledPatterns;
-    private readonly bool RequireAzureKeyVaultKey;
+    private readonly bool _requireAzureKeyVaultKey;
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
+    public override string ComponentName => ClassStrings.ValidatorName;
+
+    /// <inheritdoc/>
+    protected override bool RequireAzureKeyVaultKid => _requireAzureKeyVaultKey;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureKeyVaultAssertionProvider"/> class.
@@ -82,7 +79,7 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
     public AzureKeyVaultAssertionProvider(IEnumerable<string>? allowedPatterns = null, bool requireAzureKeyVaultKey = true)
     {
         AllowedPatterns = allowedPatterns?.ToList() ?? new List<string>();
-        RequireAzureKeyVaultKey = requireAzureKeyVaultKey;
+        _requireAzureKeyVaultKey = requireAzureKeyVaultKey;
 
         // Pre-compile regex patterns
         var compiled = new List<Regex>();
@@ -106,17 +103,10 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
     }
 
     /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        // This provider works on message headers, so it can provide assertions for any signing key
-        // as long as we have access to the message
-        return true;
-    }
-
-    /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         if (message == null)
         {
@@ -130,7 +120,7 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
 
         bool isAkvKey = LooksLikeAzureKeyVaultKeyId(kid);
 
-        if (RequireAzureKeyVaultKey && !isAkvKey)
+        if (_requireAzureKeyVaultKey && !isAkvKey)
         {
             return Array.Empty<ISigningKeyAssertion>();
         }
@@ -161,8 +151,8 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(AkvTrustClaims.IsAzureKeyVaultKey, isAkvKey),
-            new SigningKeyAssertion(AkvTrustClaims.KidAllowed, kidAllowed, details: allowedDetails)
+            new AkvKeyDetectedAssertion(isAkvKey),
+            new AkvKidAllowedAssertion(kidAllowed, allowedDetails)
         };
     }
 
@@ -170,63 +160,9 @@ public sealed class AzureKeyVaultAssertionProvider : ISigningKeyAssertionProvide
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
-    }
-
-    private static bool TryGetKid(CoseSign1Message message, out string kid)
-    {
-        kid = string.Empty;
-
-        // Try protected headers first
-        if (message.ProtectedHeaders.TryGetValue(KidLabel, out var protectedKid))
-        {
-            var bytes = protectedKid.GetValueAsBytes();
-            if (bytes.Length > 0)
-            {
-                kid = System.Text.Encoding.UTF8.GetString(bytes);
-                return true;
-            }
-        }
-
-        // Fall back to unprotected headers
-        if (message.UnprotectedHeaders.TryGetValue(KidLabel, out var unprotectedKid))
-        {
-            var bytes = unprotectedKid.GetValueAsBytes();
-            if (bytes.Length > 0)
-            {
-                kid = System.Text.Encoding.UTF8.GetString(bytes);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool LooksLikeAzureKeyVaultKeyId(string kid)
-    {
-        // AKV key ids look like: https://{vault-name}.vault.azure.net/keys/{key-name}[/{version}]
-        if (!Uri.TryCreate(kid, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
-
-        if (!string.Equals(uri.Scheme, ClassStrings.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!uri.Host.EndsWith(ClassStrings.KeyVaultHostSuffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!uri.AbsolutePath.StartsWith(ClassStrings.KeyVaultKeysPathFragment, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return true;
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

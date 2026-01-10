@@ -4,7 +4,7 @@
 namespace CoseSignTool.Abstractions;
 
 using System.CommandLine.Parsing;
-using CoseSign1.Validation;
+using CoseSign1.Validation.Trust;
 
 /// <summary>
 /// Optional extension interface for verification providers that can contribute a <see cref="TrustPolicy"/>

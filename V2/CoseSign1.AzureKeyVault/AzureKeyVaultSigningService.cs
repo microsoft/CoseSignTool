@@ -182,8 +182,8 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         string? keyVersion = null,
         TimeSpan? refreshInterval = null)
     {
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentNullException.ThrowIfNull(keyName);
+        Guard.ThrowIfNull(clientFactory);
+        Guard.ThrowIfNull(keyName);
 
         ClientFactory = clientFactory;
         KeyName = keyName;
@@ -215,9 +215,9 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         TimeSpan? refreshInterval = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(vaultUri);
-        ArgumentNullException.ThrowIfNull(keyName);
-        ArgumentNullException.ThrowIfNull(credential);
+        Guard.ThrowIfNull(vaultUri);
+        Guard.ThrowIfNull(keyName);
+        Guard.ThrowIfNull(credential);
 
         var factory = new KeyVaultClientFactory(vaultUri, credential);
         var service = new AzureKeyVaultSigningService(factory, keyName, keyVersion, refreshInterval);
@@ -247,10 +247,10 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         string? pinnedVersion = null,
         TimeSpan? refreshInterval = null)
     {
-        ArgumentNullException.ThrowIfNull(vaultUri);
-        ArgumentNullException.ThrowIfNull(keyClient);
-        ArgumentNullException.ThrowIfNull(credential);
-        ArgumentNullException.ThrowIfNull(cryptoWrapper);
+        Guard.ThrowIfNull(vaultUri);
+        Guard.ThrowIfNull(keyClient);
+        Guard.ThrowIfNull(credential);
+        Guard.ThrowIfNull(cryptoWrapper);
 
         var factory = new FixedKeyVaultClientFactory(vaultUri, credential, keyClient);
         var service = new AzureKeyVaultSigningService(factory, cryptoWrapper.Name, pinnedVersion, refreshInterval);
@@ -311,7 +311,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
     public CoseSigner GetCoseSigner(SigningContext context)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(context);
+        Guard.ThrowIfNull(context);
 
         var state = GetRequiredState();
         var coseKey = state.SigningKey.GetCoseKey();
@@ -473,15 +473,27 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        Guard.ThrowIfDisposed(Disposed, this);
     }
 
     private sealed class State
     {
-        public required KeyVaultCryptoClientWrapper CryptoWrapper { get; init; }
-        public required AzureKeyVaultSigningKey SigningKey { get; init; }
-        public required KeyIdHeaderContributor KeyIdContributor { get; init; }
-        public required string Version { get; init; }
+        public State(
+            KeyVaultCryptoClientWrapper cryptoWrapper,
+            AzureKeyVaultSigningKey signingKey,
+            KeyIdHeaderContributor keyIdContributor,
+            string version)
+        {
+            CryptoWrapper = cryptoWrapper;
+            SigningKey = signingKey;
+            KeyIdContributor = keyIdContributor;
+            Version = version;
+        }
+
+        public KeyVaultCryptoClientWrapper CryptoWrapper { get; }
+        public AzureKeyVaultSigningKey SigningKey { get; }
+        public KeyIdHeaderContributor KeyIdContributor { get; }
+        public string Version { get; }
     }
 
     private State GetRequiredState()
@@ -496,13 +508,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
             throw new InvalidOperationException(ClassStrings.ErrorNotInitialized);
         }
 
-        return new State
-        {
-            CryptoWrapper = wrapper,
-            SigningKey = signingKey,
-            KeyIdContributor = keyIdContributor,
-            Version = version
-        };
+        return new State(wrapper, signingKey, keyIdContributor, version);
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
@@ -578,9 +584,9 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
 
         public FixedKeyVaultClientFactory(Uri vaultUri, TokenCredential credential, KeyClient keyClient)
         {
-            ArgumentNullException.ThrowIfNull(vaultUri);
-            ArgumentNullException.ThrowIfNull(credential);
-            ArgumentNullException.ThrowIfNull(keyClient);
+            Guard.ThrowIfNull(vaultUri);
+            Guard.ThrowIfNull(credential);
+            Guard.ThrowIfNull(keyClient);
 
             VaultUri = vaultUri;
             Credential = credential;
@@ -592,7 +598,7 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
 
         public CryptographyClient CreateCryptographyClient(Uri keyId)
         {
-            ArgumentNullException.ThrowIfNull(keyId);
+            Guard.ThrowIfNull(keyId);
             return new CryptographyClient(keyId, Credential);
         }
     }

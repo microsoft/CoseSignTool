@@ -13,9 +13,11 @@ using System.Text;
 /// V2 should not use empty interfaces ("marker interfaces").
 ///
 /// Empty interfaces are brittle because they encode semantics in type identity rather than in an explicit API.
-/// In V2, staged validation is represented via <see cref="CoseSign1.Validation.Interfaces.IValidator"/>
-/// (stages + stage-aware Validate methods) and <see cref="CoseSign1.Validation.ValidationStage"/>,
-/// which provide an explicit contract.
+/// In V2, staged validation is represented via <see cref="CoseSign1.Validation.Interfaces.IValidationComponent"/>
+/// (component types), <see cref="CoseSign1.Validation.Interfaces.ISigningKeyResolver"/>,
+/// <see cref="CoseSign1.Validation.Interfaces.ISigningKeyAssertionProvider"/>,
+/// and <see cref="CoseSign1.Validation.Interfaces.IPostSignatureValidator"/>,
+/// which provide explicit contracts for each validation stage.
 /// </remarks>
 [TestFixture]
 public sealed class NoEmptyInterfacesTests

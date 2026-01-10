@@ -11,7 +11,6 @@ using System.Text;
 using System.Text.Json;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST.Validation;
-using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
@@ -190,7 +189,7 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
     }
 
     /// <inheritdoc/>
-    public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+    public CoseSign1.Validation.Trust.TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
     {
         ThrowIfNull(parseResult);
 

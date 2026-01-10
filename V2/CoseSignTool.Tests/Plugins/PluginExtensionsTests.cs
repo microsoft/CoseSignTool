@@ -208,7 +208,7 @@ public class PluginExtensionsTests
         public int Priority => 50;
         public void AddVerificationOptions(Command command) { }
         public bool IsActivated(ParseResult parseResult) => true;
-        public IEnumerable<IValidator> CreateValidators(ParseResult parseResult) => [];
+        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult) => [];
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult) => new Dictionary<string, object?>();
     }
 

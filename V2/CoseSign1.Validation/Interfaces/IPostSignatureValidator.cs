@@ -36,7 +36,7 @@ public interface IPostSignatureValidationContext
     /// <summary>
     /// Gets all trust assertions collected during the trust stage (from stage 2: Key Material Trust).
     /// </summary>
-    SigningKeyAssertionSet TrustAssertions { get; }
+    IReadOnlyList<ISigningKeyAssertion> TrustAssertions { get; }
 
     /// <summary>
     /// Gets the trust decision from evaluating TrustPolicy against assertions (from stage 2).
@@ -79,7 +79,7 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
     /// <exception cref="ArgumentNullException">Thrown when required parameters are null.</exception>
     public PostSignatureValidationContext(
         CoseSign1Message message,
-        SigningKeyAssertionSet trustAssertions,
+        IReadOnlyList<ISigningKeyAssertion> trustAssertions,
         TrustDecision trustDecision,
         IReadOnlyDictionary<string, object> signatureMetadata,
         CoseSign1ValidationOptions options,
@@ -100,7 +100,7 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
     public ISigningKey? ResolvedSigningKey { get; }
 
     /// <inheritdoc />
-    public SigningKeyAssertionSet TrustAssertions { get; }
+    public IReadOnlyList<ISigningKeyAssertion> TrustAssertions { get; }
 
     /// <inheritdoc />
     public TrustDecision TrustDecision { get; }

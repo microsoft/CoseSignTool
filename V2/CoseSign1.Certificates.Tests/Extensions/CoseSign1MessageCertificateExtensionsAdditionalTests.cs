@@ -4,9 +4,10 @@
 namespace CoseSign1.Certificates.Tests.Extensions;
 
 using System.Formats.Cbor;
+using System.Security.Cryptography.Cose;
 using System.Text;
 using CoseSign1.Certificates.Extensions;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 
 /// <summary>
 /// Additional tests for CoseSign1MessageCertificateExtensions to improve coverage.
@@ -25,10 +26,10 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         return CoseMessage.DecodeSign1(signedBytes);
     }
 
-    #region TryGetCertificateChain - allowUnprotected Tests
+    #region TryGetCertificateChain - headerLocation Tests
 
     [Test]
-    public void TryGetCertificateChain_WithUnprotectedHeader_AndAllowUnprotectedTrue_ReturnsChain()
+    public void TryGetCertificateChain_WithUnprotectedHeader_AndHeaderLocationAny_ReturnsChain()
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
@@ -42,7 +43,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
         // Act
-        bool result = message.TryGetCertificateChain(out X509Certificate2Collection? chain, allowUnprotected: true);
+        bool result = message.TryGetCertificateChain(out X509Certificate2Collection? chain, CoseHeaderLocation.Any);
 
         // Assert
         Assert.That(result, Is.True);
@@ -51,7 +52,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     }
 
     [Test]
-    public void TryGetCertificateChain_WithUnprotectedHeader_AndAllowUnprotectedFalse_ReturnsFalse()
+    public void TryGetCertificateChain_WithUnprotectedHeader_AndHeaderLocationProtected_ReturnsFalse()
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
@@ -65,7 +66,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
         // Act
-        bool result = message.TryGetCertificateChain(out X509Certificate2Collection? chain, allowUnprotected: false);
+        bool result = message.TryGetCertificateChain(out X509Certificate2Collection? chain, CoseHeaderLocation.Protected);
 
         // Assert
         Assert.That(result, Is.False);
@@ -193,7 +194,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     }
 
     [Test]
-    public void TryGetExtraCertificates_WithAllowUnprotectedTrue_ReadsFromUnprotected()
+    public void TryGetExtraCertificates_WithHeaderLocationAny_ReadsFromUnprotected()
     {
         // Arrange
         using var cert = TestCertificateUtils.CreateCertificate();
@@ -207,7 +208,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
         // Act
-        bool result = message.TryGetExtraCertificates(out X509Certificate2Collection? certs, allowUnprotected: true);
+        bool result = message.TryGetExtraCertificates(out X509Certificate2Collection? certs, CoseHeaderLocation.Any);
 
         // Assert
         Assert.That(result, Is.True);
@@ -286,7 +287,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     }
 
     [Test]
-    public void TryGetCertificateThumbprint_WithAllowUnprotectedTrue_ReadsFromUnprotected()
+    public void TryGetCertificateThumbprint_WithHeaderLocationAny_ReadsFromUnprotected()
     {
         // Arrange
         using var cert = TestCertificateUtils.CreateCertificate();
@@ -301,7 +302,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
         // Act
-        bool result = message.TryGetCertificateThumbprint(out CoseX509Thumbprint? extractedThumbprint, allowUnprotected: true);
+        bool result = message.TryGetCertificateThumbprint(out CoseX509Thumbprint? extractedThumbprint, CoseHeaderLocation.Any);
 
         // Assert
         Assert.That(result, Is.True);
@@ -389,7 +390,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     }
 
     [Test]
-    public void TryGetSigningCertificate_WithAllowUnprotectedTrue_FindsCertInUnprotected()
+    public void TryGetSigningCertificate_WithHeaderLocationAny_FindsCertInUnprotected()
     {
         // Arrange
         using var testCert = TestCertificateUtils.CreateCertificate();
@@ -407,7 +408,7 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
         // Act
-        bool result = message.TryGetSigningCertificate(out X509Certificate2? cert, allowUnprotected: true);
+        bool result = message.TryGetSigningCertificate(out X509Certificate2? cert, CoseHeaderLocation.Any);
 
         // Assert
         Assert.That(result, Is.True);
@@ -528,10 +529,10 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
     }
 
     [Test]
-    public void VerifySignature_WithAllowUnprotectedTrue_UsesUnprotectedHeaders()
+    public void VerifySignature_WithHeaderLocationAny_UsesUnprotectedHeaders()
     {
         // Arrange
-        using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithAllowUnprotectedTrue_UsesUnprotectedHeaders), useEcc: true);
+        using var testCert = TestCertificateUtils.CreateCertificate(nameof(VerifySignature_WithHeaderLocationAny_UsesUnprotectedHeaders), useEcc: true);
         using var signingService = CertificateSigningService.Create(testCert, new X509Certificate2[] { testCert });
 
         // Create message with unprotected headers using factory
@@ -540,11 +541,11 @@ public class CoseSign1MessageCertificateExtensionsAdditionalTests
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // The factory places certs in protected headers, so we need to manually move them to unprotected
-        // For this test, just verify that the allowUnprotected parameter is accepted
+        // For this test, just verify that the headerLocation parameter is accepted
         // (actual unprotected cert extraction is already tested in TryGetSigningCertificate tests)
 
-        // Act - allowUnprotected=true should work with certs in protected headers too
-        bool result = message.VerifySignature(allowUnprotected: true);
+        // Act - CoseHeaderLocation.Any should work with certs in protected headers too
+        bool result = message.VerifySignature(headerLocation: CoseHeaderLocation.Any);
 
         // Assert
         Assert.That(result, Is.True);

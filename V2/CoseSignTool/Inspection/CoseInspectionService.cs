@@ -8,7 +8,7 @@ using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
-using CoseSign1.Indirect;
+using CoseSign1.Factories.Indirect;
 using CoseSignTool.Output;
 
 /// <summary>

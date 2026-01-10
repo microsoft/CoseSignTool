@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CoseSign1.Certificates.Local;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 
 /// <summary>
 /// Integration tests for remote signing architecture using TestRemoteCertificateSource.

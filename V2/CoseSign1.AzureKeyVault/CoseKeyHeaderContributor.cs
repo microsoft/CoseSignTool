@@ -187,8 +187,8 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
             throw new ArgumentException(ClassStrings.ErrorRsaParametersMustNotIncludePrivateKeyComponents, nameof(rsaParameters));
         }
 
-        ArgumentNullException.ThrowIfNull(rsaParameters.Modulus);
-        ArgumentNullException.ThrowIfNull(rsaParameters.Exponent);
+        Guard.ThrowIfNull(rsaParameters.Modulus);
+        Guard.ThrowIfNull(rsaParameters.Exponent);
 
         KeyId = keyId;
         CoseAlgorithm = coseAlgorithm;
@@ -209,8 +209,8 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
             throw new ArgumentException(ClassStrings.ErrorEcParametersMustNotIncludePrivateKey, nameof(ecParameters));
         }
 
-        ArgumentNullException.ThrowIfNull(ecParameters.Q.X);
-        ArgumentNullException.ThrowIfNull(ecParameters.Q.Y);
+        Guard.ThrowIfNull(ecParameters.Q.X);
+        Guard.ThrowIfNull(ecParameters.Q.Y);
 
         KeyId = keyId;
         CoseAlgorithm = coseAlgorithm;

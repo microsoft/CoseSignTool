@@ -32,16 +32,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// after signing.
 /// </para>
 /// </remarks>
-public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
+public sealed partial class IndirectSignatureValidator : ValidationComponentBase, IPostSignatureValidator
 {
     [ExcludeFromCodeCoverage]
-    internal static class ClassStrings
+    internal static new class ClassStrings
     {
         public const string ComponentName = "IndirectSignatureValidator";
 
-        // Regex patterns
+        // Regex pattern for extracting algorithm from content-type
         public const string HashMimeTypePattern = @"\+hash-(?<algorithm>[\w_]+)";
-        public const string CoseHashVMimeTypePattern = @"\+cose-hash-v";
         public const string AlgorithmGroupName = "algorithm";
 
         // Validation result messages
@@ -77,21 +76,6 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     }
 
     /// <summary>
-    /// COSE header labels for Hash Envelope format (RFC 9054).
-    /// </summary>
-    internal static class HeaderLabels
-    {
-        /// <summary>PayloadHashAlg (258) - COSE algorithm identifier for the hash algorithm.</summary>
-        public static readonly CoseHeaderLabel PayloadHashAlg = new(258);
-
-        /// <summary>PreimageContentType (259) - Content type of the original payload before hashing.</summary>
-        public static readonly CoseHeaderLabel PreimageContentType = new(259);
-
-        /// <summary>PayloadLocation (260) - Optional location where the payload can be retrieved.</summary>
-        public static readonly CoseHeaderLabel PayloadLocation = new(260);
-    }
-
-    /// <summary>
     /// COSE algorithm identifiers for hash algorithms from IANA registry.
     /// </summary>
     internal enum CoseHashAlgorithm : long
@@ -106,33 +90,11 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         SHA512 = -44,
     }
 
-    /// <summary>
-    /// The type of indirect signature detected in the message.
-    /// </summary>
-    public enum IndirectSignatureType
-    {
-        /// <summary>Not an indirect signature.</summary>
-        None,
-
-        /// <summary>COSE Hash Envelope format (RFC 9054) with PayloadHashAlg header.</summary>
-        CoseHashEnvelope,
-
-        /// <summary>COSE Hash V format with +cose-hash-v content-type extension.</summary>
-        CoseHashV,
-
-        /// <summary>Content-type hash extension format (e.g., +hash-sha256).</summary>
-        ContentTypeHashExtension,
-    }
-
     private static readonly Regex HashMimeTypeExtension = new(
         ClassStrings.HashMimeTypePattern,
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    private static readonly Regex CoseHashVMimeTypeExtension = new(
-        ClassStrings.CoseHashVMimeTypePattern,
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private readonly ILogger<IndirectSignatureValidator> _logger;
+    private readonly ILogger<IndirectSignatureValidator> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IndirectSignatureValidator"/> class.
@@ -140,11 +102,21 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     /// <param name="logger">Optional logger for diagnostic output.</param>
     public IndirectSignatureValidator(ILogger<IndirectSignatureValidator>? logger = null)
     {
-        _logger = logger ?? NullLogger<IndirectSignatureValidator>.Instance;
+        Logger = logger ?? NullLogger<IndirectSignatureValidator>.Instance;
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ComponentName;
+    public override string ComponentName => ClassStrings.ComponentName;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// This validator is only applicable to indirect signatures (messages with PayloadHashAlg header
+    /// or content-type containing +cose-hash-v or +hash-* extension).
+    /// </remarks>
+    protected override bool ComputeApplicability(CoseSign1Message message, CoseSign1ValidationOptions? options = null)
+    {
+        return message.IsIndirectSignature();
+    }
 
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is null.</exception>
@@ -158,16 +130,16 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         var message = context.Message;
         var options = context.Options;
 
-        // Detect indirect signature type
-        var signatureType = DetectIndirectSignatureType(message);
+        // Detect indirect signature type using the shared extension
+        var signatureFormat = message.GetSignatureFormat();
 
-        if (signatureType == IndirectSignatureType.None)
+        if (signatureFormat == SignatureFormat.Direct)
         {
             LogNotIndirectSignature();
             return ValidationResult.NotApplicable(ComponentName, ClassStrings.NotApplicableReason);
         }
 
-        LogIndirectSignatureDetected(signatureType.ToString());
+        LogIndirectSignatureDetected(signatureFormat.ToString());
 
         // Need payload to validate hash
         if (options.DetachedPayload == null)
@@ -186,27 +158,27 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         }
 
         // Validate based on signature type
-        bool matches = signatureType switch
+        bool matches = signatureFormat switch
         {
-            IndirectSignatureType.CoseHashEnvelope => ValidateCoseHashEnvelope(message, options.DetachedPayload),
-            IndirectSignatureType.CoseHashV => ValidateCoseHashV(message, options.DetachedPayload),
-            IndirectSignatureType.ContentTypeHashExtension => ValidateContentTypeHashExtension(message, options.DetachedPayload),
+            SignatureFormat.IndirectCoseHashEnvelope => ValidateCoseHashEnvelope(message, options.DetachedPayload),
+            SignatureFormat.IndirectCoseHashV => ValidateCoseHashV(message, options.DetachedPayload),
+            SignatureFormat.IndirectHashLegacy => ValidateContentTypeHashExtension(message, options.DetachedPayload),
             _ => false
         };
 
         if (!matches)
         {
-            LogPayloadHashMismatch(signatureType.ToString());
+            LogPayloadHashMismatch(signatureFormat.ToString());
             return ValidationResult.Failure(
                 ComponentName,
                 ClassStrings.ErrorPayloadMismatch,
                 ClassStrings.ErrorCodePayloadMismatch);
         }
 
-        LogPayloadHashValidated(signatureType.ToString());
+        LogPayloadHashValidated(signatureFormat.ToString());
         return ValidationResult.Success(ComponentName, new Dictionary<string, object>
         {
-            [ClassStrings.MetadataKeySignatureType] = signatureType.ToString(),
+            [ClassStrings.MetadataKeySignatureType] = signatureFormat.ToString(),
             [ClassStrings.MetadataKeyPayloadHashValidated] = true
         });
     }
@@ -220,60 +192,13 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         return Task.FromResult(Validate(context));
     }
 
-    /// <summary>
-    /// Detects the type of indirect signature in the message.
-    /// </summary>
-    /// <param name="message">The COSE Sign1 message to check.</param>
-    /// <returns>The detected indirect signature type, or <see cref="IndirectSignatureType.None"/>.</returns>
-    public static IndirectSignatureType DetectIndirectSignatureType(CoseSign1Message? message)
-    {
-        if (message == null)
-        {
-            return IndirectSignatureType.None;
-        }
-
-        // Check for COSE Hash Envelope (PayloadHashAlg header)
-        if (message.ProtectedHeaders.ContainsKey(HeaderLabels.PayloadHashAlg))
-        {
-            return IndirectSignatureType.CoseHashEnvelope;
-        }
-
-        // Check content-type for COSE Hash V or hash extension
-        if (message.ProtectedHeaders.TryGetValue(CoseHeaderLabel.ContentType, out var contentTypeValue))
-        {
-            string contentType = contentTypeValue.GetValueAsString();
-            if (!string.IsNullOrEmpty(contentType))
-            {
-                if (CoseHashVMimeTypeExtension.IsMatch(contentType))
-                {
-                    return IndirectSignatureType.CoseHashV;
-                }
-
-                if (HashMimeTypeExtension.IsMatch(contentType))
-                {
-                    return IndirectSignatureType.ContentTypeHashExtension;
-                }
-            }
-        }
-
-        return IndirectSignatureType.None;
-    }
-
-    /// <summary>
-    /// Checks if the message is an indirect signature (any supported format).
-    /// </summary>
-    /// <param name="message">The COSE Sign1 message to check.</param>
-    /// <returns><c>true</c> if the message is an indirect signature; otherwise, <c>false</c>.</returns>
-    public static bool IsIndirectSignature(CoseSign1Message? message)
-        => DetectIndirectSignatureType(message) != IndirectSignatureType.None;
-
     #region COSE Hash Envelope Validation
 
     private bool ValidateCoseHashEnvelope(CoseSign1Message message, Stream payload)
     {
         if (!TryGetPayloadHashAlgorithm(message, out var hasher) || hasher == null)
         {
-            _logger.LogWarning(ClassStrings.LogHashAlgorithmFailed);
+            Logger.LogWarning(ClassStrings.LogHashAlgorithmFailed);
             return false;
         }
 
@@ -281,7 +206,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         {
             if (!message.Content.HasValue)
             {
-                _logger.LogWarning(ClassStrings.LogNoContent);
+                Logger.LogWarning(ClassStrings.LogNoContent);
                 return false;
             }
 
@@ -296,30 +221,21 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     {
         hasher = null;
 
-        if (!message.ProtectedHeaders.TryGetValue(HeaderLabels.PayloadHashAlg, out var hashAlgValue))
+        // Use the shared header label from Abstractions
+        if (!message.TryGetHeader(IndirectSignatureHeaderLabels.PayloadHashAlg, out int algId))
         {
             return false;
         }
 
-        try
+        hasher = (CoseHashAlgorithm)algId switch
         {
-            var reader = new CborReader(hashAlgValue.EncodedValue);
-            var algId = reader.ReadInt64();
+            CoseHashAlgorithm.SHA256 => SHA256.Create(),
+            CoseHashAlgorithm.SHA384 => SHA384.Create(),
+            CoseHashAlgorithm.SHA512 => SHA512.Create(),
+            _ => null
+        };
 
-            hasher = (CoseHashAlgorithm)algId switch
-            {
-                CoseHashAlgorithm.SHA256 => SHA256.Create(),
-                CoseHashAlgorithm.SHA384 => SHA384.Create(),
-                CoseHashAlgorithm.SHA512 => SHA512.Create(),
-                _ => null
-            };
-
-            return hasher != null;
-        }
-        catch
-        {
-            return false;
-        }
+        return hasher != null;
     }
 
     #endregion
@@ -330,7 +246,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     {
         if (!message.Content.HasValue)
         {
-            _logger.LogWarning(ClassStrings.LogNoContentCoseHashV);
+            Logger.LogWarning(ClassStrings.LogNoContentCoseHashV);
             return false;
         }
 
@@ -343,7 +259,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
             var arrayLength = reader.ReadStartArray();
             if (arrayLength == null || arrayLength < 2)
             {
-                _logger.LogWarning(ClassStrings.LogInvalidCoseHashVStructure);
+                Logger.LogWarning(ClassStrings.LogInvalidCoseHashVStructure);
                 return false;
             }
 
@@ -364,7 +280,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
 
             if (hasher == null)
             {
-                _logger.LogWarning(ClassStrings.LogUnsupportedCoseHashVAlgorithm, algorithm);
+                Logger.LogWarning(ClassStrings.LogUnsupportedCoseHashVAlgorithm, algorithm);
                 return false;
             }
 
@@ -373,7 +289,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, ClassStrings.LogFailedParseCoseHashV);
+            Logger.LogWarning(ex, ClassStrings.LogFailedParseCoseHashV);
             return false;
         }
     }
@@ -384,12 +300,13 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
 
     private bool ValidateContentTypeHashExtension(CoseSign1Message message, Stream payload)
     {
-        if (!message.ProtectedHeaders.TryGetValue(CoseHeaderLabel.ContentType, out var contentTypeValue))
+        // Use the shared extension method to get content type
+        if (!message.TryGetHeader(CoseHeaderLabel.ContentType, out string? contentType) ||
+            string.IsNullOrEmpty(contentType))
         {
             return false;
         }
 
-        var contentType = contentTypeValue.GetValueAsString();
         var match = HashMimeTypeExtension.Match(contentType);
         if (!match.Success)
         {
@@ -402,13 +319,13 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         using var hasher = CreateHashAlgorithmFromName(algorithmName);
         if (hasher == null)
         {
-            _logger.LogWarning(ClassStrings.LogUnsupportedHashAlgorithm, algorithmName);
+            Logger.LogWarning(ClassStrings.LogUnsupportedHashAlgorithm, algorithmName);
             return false;
         }
 
         if (!message.Content.HasValue)
         {
-            _logger.LogWarning(ClassStrings.LogNoContentHashComparison);
+            Logger.LogWarning(ClassStrings.LogNoContentHashComparison);
             return false;
         }
 

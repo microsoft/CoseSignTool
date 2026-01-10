@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <!--Build configuration-->
     <PropertyGroup>
@@ -24,7 +24,7 @@
     <!--Project references-->
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
-        <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
+        <ProjectReference Include="..\CoseSign1.Factories\CoseSign1.Factories.csproj" />
         <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
         <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
         <ProjectReference Include="..\DIDx509\DIDx509.csproj" />

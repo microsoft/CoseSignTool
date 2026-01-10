@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation.Interfaces;
 
-using CoseSign1.Validation.Builders;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -20,11 +19,6 @@ public interface ICoseSign1ValidationBuilder
     /// May be null if logging is not configured.
     /// </summary>
     ILoggerFactory? LoggerFactory { get; }
-
-    /// <summary>
-    /// Gets the current builder context (for advanced scenarios).
-    /// </summary>
-    ValidationBuilderContext Context { get; }
 
     /// <summary>
     /// Adds a validation component to the validation pipeline.

@@ -59,8 +59,8 @@ public sealed class AzureKeyVaultSigningKey : ISigningServiceKey
         ISigningService<SigningOptions> signingService,
         KeyVaultCryptoClientWrapper cryptoWrapper)
     {
-        ArgumentNullException.ThrowIfNull(signingService);
-        ArgumentNullException.ThrowIfNull(cryptoWrapper);
+        Guard.ThrowIfNull(signingService);
+        Guard.ThrowIfNull(cryptoWrapper);
 
         SigningService = signingService;
         CryptoWrapper = cryptoWrapper;
@@ -182,7 +182,8 @@ public sealed class AzureKeyVaultSigningKey : ISigningServiceKey
                 Exponent = key.Key.E
             };
 
-            var rsa = RSA.Create(rsaParams);
+            var rsa = RSA.Create();
+            rsa.ImportParameters(rsaParams);
             var remoteRsa = new KeyVaultRemoteRsa(rsa, CryptoWrapper);
             return new CoseKey(remoteRsa, RSASignaturePadding.Pss, hashAlgorithm);
         }
@@ -213,7 +214,8 @@ public sealed class AzureKeyVaultSigningKey : ISigningServiceKey
                 }
             };
 
-            var ecdsa = ECDsa.Create(ecParams);
+            var ecdsa = ECDsa.Create();
+            ecdsa.ImportParameters(ecParams);
             var remoteEcdsa = new KeyVaultRemoteECDsa(ecdsa, CryptoWrapper);
             return new CoseKey(remoteEcdsa, hashAlgorithm);
         }

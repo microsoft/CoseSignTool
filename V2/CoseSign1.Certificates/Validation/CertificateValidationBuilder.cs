@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Interfaces;
 
 /// <summary>
@@ -120,7 +121,7 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     }
 
     /// <inheritdoc />
-    public ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true)
+    public ICertificateValidationBuilder WithCertificateHeaderLocation(CoseHeaderLocation headerLocation)
     {
         // This is no longer used as assertion providers receive the signing key directly
         // Keeping for API compatibility but it's a no-op
@@ -134,7 +135,6 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     {
         ProviderFactories.Add(loggerFactory =>
             new CertificateChainAssertionProvider(
-                allowUnprotectedHeaders: false,
                 allowUntrusted,
                 revocationMode,
                 loggerFactory?.CreateLogger<CertificateChainAssertionProvider>()));
@@ -152,7 +152,6 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
         ProviderFactories.Add(loggerFactory =>
             new CertificateChainAssertionProvider(
                 customRoots,
-                allowUnprotectedHeaders: false,
                 trustUserRoots,
                 revocationMode,
                 loggerFactory?.CreateLogger<CertificateChainAssertionProvider>()));
@@ -171,7 +170,6 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
         ProviderFactories.Add(loggerFactory =>
             new CertificateChainAssertionProvider(
                 chainBuilder,
-                allowUnprotectedHeaders: false,
                 allowUntrusted,
                 customRoots,
                 trustUserRoots,

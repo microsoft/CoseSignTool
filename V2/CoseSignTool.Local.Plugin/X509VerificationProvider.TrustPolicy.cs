@@ -5,14 +5,13 @@ namespace CoseSignTool.Local.Plugin;
 
 using System.CommandLine.Parsing;
 using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
 using CoseSignTool.Abstractions;
 
 public partial class X509VerificationProvider : IVerificationProviderWithTrustPolicy
 {
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException"><paramref name="parseResult"/> is <see langword="null"/>.</exception>
-    public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+    public CoseSign1.Validation.Trust.TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
     {
         if (parseResult == null)
         {
@@ -23,7 +22,7 @@ public partial class X509VerificationProvider : IVerificationProviderWithTrustPo
         // Chain validation may still run for diagnostics / metadata, but policy remains permissive.
         if (IsAllowUntrusted(parseResult))
         {
-            return TrustPolicy.Or();
+            return CoseSign1.Validation.Trust.TrustPolicy.Or();
         }
 
         return X509TrustPolicies.RequireTrustedChain();

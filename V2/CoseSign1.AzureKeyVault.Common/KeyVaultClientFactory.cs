@@ -8,6 +8,7 @@ using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Security.KeyVault.Secrets;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Factory abstraction for creating and providing Azure Key Vault SDK clients.
@@ -70,8 +71,8 @@ public sealed class KeyVaultClientFactory : IKeyVaultClientFactory
     /// <param name="credential">The credential used to authenticate with Key Vault.</param>
     public KeyVaultClientFactory(Uri vaultUri, TokenCredential credential)
     {
-        ArgumentNullException.ThrowIfNull(vaultUri);
-        ArgumentNullException.ThrowIfNull(credential);
+        Guard.ThrowIfNull(vaultUri);
+        Guard.ThrowIfNull(credential);
 
         VaultUri = vaultUri;
         Credential = credential;
@@ -85,7 +86,7 @@ public sealed class KeyVaultClientFactory : IKeyVaultClientFactory
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="keyId"/> is null.</exception>
     public CryptographyClient CreateCryptographyClient(Uri keyId)
     {
-        ArgumentNullException.ThrowIfNull(keyId);
+        Guard.ThrowIfNull(keyId);
         return new CryptographyClient(keyId, Credential);
     }
 }

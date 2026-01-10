@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Extracts assertions about the signing certificate's validity period.
 /// </summary>
-public sealed partial class CertificateExpirationAssertionProvider : ISigningKeyAssertionProvider
+public sealed partial class CertificateExpirationAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -83,18 +83,13 @@ public sealed partial class CertificateExpirationAssertionProvider : ISigningKey
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         if (signingKey is not X509CertificateSigningKey certKey || certKey.Certificate == null)
         {
@@ -110,9 +105,7 @@ public sealed partial class CertificateExpirationAssertionProvider : ISigningKey
             LogCertificateNotYetValid(certificate.NotBefore, checkTime, certificate.Thumbprint);
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.NotExpired, false,
-                    details: string.Format(ClassStrings.ErrorFormatNotYetValid, certificate.NotBefore, checkTime))
-                { SigningKey = signingKey }
+                new X509ValidityAssertion(false, isExpired: false) { SigningKey = signingKey }
             };
         }
 
@@ -121,9 +114,7 @@ public sealed partial class CertificateExpirationAssertionProvider : ISigningKey
             LogCertificateExpired(certificate.NotAfter, checkTime, certificate.Thumbprint);
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.NotExpired, false,
-                    details: string.Format(ClassStrings.ErrorFormatExpired, certificate.NotAfter, checkTime))
-                { SigningKey = signingKey }
+                new X509ValidityAssertion(false, isExpired: true) { SigningKey = signingKey }
             };
         }
 
@@ -131,7 +122,7 @@ public sealed partial class CertificateExpirationAssertionProvider : ISigningKey
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.NotExpired, true) { SigningKey = signingKey }
+            new X509ValidityAssertion(true) { SigningKey = signingKey }
         };
     }
 
@@ -139,8 +130,9 @@ public sealed partial class CertificateExpirationAssertionProvider : ISigningKey
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

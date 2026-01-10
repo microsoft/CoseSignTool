@@ -14,7 +14,7 @@ using CoseSign1.Validation.Interfaces;
 /// Emits trust assertions about whether an MST receipt is present.
 /// This validator does not verify receipt trust.
 /// </summary>
-public sealed class MstReceiptPresenceAssertionProvider : ISigningKeyAssertionProvider
+public sealed class MstReceiptPresenceAssertionProvider : MstValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -26,18 +26,13 @@ public sealed class MstReceiptPresenceAssertionProvider : ISigningKeyAssertionPr
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return true;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         if (message == null)
         {
@@ -48,8 +43,8 @@ public sealed class MstReceiptPresenceAssertionProvider : ISigningKeyAssertionPr
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(MstTrustClaims.ReceiptPresent, hasReceipt),
-            new SigningKeyAssertion(MstTrustClaims.ReceiptTrusted, false, details: hasReceipt ? ClassStrings.TrustDetailsNotVerified : ClassStrings.TrustDetailsNoReceipt)
+            new MstReceiptPresentAssertion(hasReceipt),
+            new MstReceiptTrustedAssertion(false, hasReceipt ? ClassStrings.TrustDetailsNotVerified : ClassStrings.TrustDetailsNoReceipt)
         };
     }
 
@@ -57,8 +52,9 @@ public sealed class MstReceiptPresenceAssertionProvider : ISigningKeyAssertionPr
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

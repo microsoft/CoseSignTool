@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Validates the certificate chain trust using the provided chain builder.
 /// </summary>
-public sealed partial class CertificateChainAssertionProvider : ISigningKeyAssertionProvider
+public sealed partial class CertificateChainAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -111,7 +111,6 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     #endregion
 
     private readonly ICertificateChainBuilder ChainBuilder;
-    private readonly bool AllowUnprotectedHeaders;
     private readonly bool AllowUntrusted;
     private readonly X509Certificate2Collection? CustomRoots;
     private readonly bool TrustUserRoots;
@@ -121,12 +120,10 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     /// Initializes a new instance of the <see cref="CertificateChainAssertionProvider"/> class.
     /// Uses system roots for trust validation.
     /// </summary>
-    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="allowUntrusted">Whether to allow untrusted roots to pass validation.</param>
     /// <param name="revocationMode">The revocation check mode.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     public CertificateChainAssertionProvider(
-        bool allowUnprotectedHeaders = false,
         bool allowUntrusted = false,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         ILogger<CertificateChainAssertionProvider>? logger = null)
@@ -138,7 +135,6 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
                 RevocationMode = revocationMode
             }
         };
-        AllowUnprotectedHeaders = allowUnprotectedHeaders;
         AllowUntrusted = allowUntrusted;
         CustomRoots = null;
         TrustUserRoots = true;
@@ -150,14 +146,12 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     /// Uses custom roots for trust validation.
     /// </summary>
     /// <param name="customRoots">Custom root certificates to trust.</param>
-    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
     /// <param name="revocationMode">The revocation check mode.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="customRoots"/> is null.</exception>
     public CertificateChainAssertionProvider(
         X509Certificate2Collection customRoots,
-        bool allowUnprotectedHeaders = false,
         bool trustUserRoots = true,
         X509RevocationMode revocationMode = X509RevocationMode.Online,
         ILogger<CertificateChainAssertionProvider>? logger = null)
@@ -169,7 +163,6 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
                 RevocationMode = revocationMode
             }
         };
-        AllowUnprotectedHeaders = allowUnprotectedHeaders;
         AllowUntrusted = false;
         CustomRoots = customRoots ?? throw new ArgumentNullException(nameof(customRoots));
         TrustUserRoots = trustUserRoots;
@@ -183,7 +176,6 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     /// Uses a custom chain builder.
     /// </summary>
     /// <param name="chainBuilder">The chain builder to use for validation.</param>
-    /// <param name="allowUnprotectedHeaders">Whether to allow unprotected headers for certificate lookup.</param>
     /// <param name="allowUntrusted">Whether to allow untrusted roots to pass validation.</param>
     /// <param name="customRoots">Optional custom root certificates.</param>
     /// <param name="trustUserRoots">Whether to trust the custom roots.</param>
@@ -191,14 +183,12 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="chainBuilder"/> is null.</exception>
     public CertificateChainAssertionProvider(
         ICertificateChainBuilder chainBuilder,
-        bool allowUnprotectedHeaders = false,
         bool allowUntrusted = false,
         X509Certificate2Collection? customRoots = null,
         bool trustUserRoots = true,
         ILogger<CertificateChainAssertionProvider>? logger = null)
     {
         ChainBuilder = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
-        AllowUnprotectedHeaders = allowUnprotectedHeaders;
         AllowUntrusted = allowUntrusted;
         CustomRoots = customRoots;
         TrustUserRoots = trustUserRoots;
@@ -206,19 +196,16 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
+        CoseHeaderLocation headerLocation = options?.CertificateHeaderLocation ?? CoseHeaderLocation.Protected;
+
         if (signingKey is not X509CertificateSigningKey certKey)
         {
             LogNullInput();
@@ -236,8 +223,8 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
         LogChainValidationStarted(signingCert.Thumbprint);
 
         // Get the certificate chain from the message
-        message.TryGetCertificateChain(out var messageChain, AllowUnprotectedHeaders);
-        message.TryGetExtraCertificates(out var extraCerts, AllowUnprotectedHeaders);
+        message.TryGetCertificateChain(out var messageChain, headerLocation);
+        message.TryGetExtraCertificates(out var extraCerts, headerLocation);
 
         // Configure custom roots if provided
         if (CustomRoots != null && CustomRoots.Count > 0)
@@ -278,7 +265,7 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
             LogChainValidationSucceeded(signingCert.Thumbprint, stopwatch.ElapsedMilliseconds);
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.ChainTrusted, true) { SigningKey = signingKey }
+                new X509ChainTrustedAssertion(true) { SigningKey = signingKey }
             };
         }
 
@@ -297,7 +284,7 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
                         LogChainRetrySucceeded(attempt + 1);
                         return new ISigningKeyAssertion[]
                         {
-                            new SigningKeyAssertion(X509TrustClaims.ChainTrusted, true) { SigningKey = signingKey }
+                            new X509ChainTrustedAssertion(true) { SigningKey = signingKey }
                         };
                     }
                 }
@@ -316,7 +303,7 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
             // Explicitly NOT trusted; allowed by policy.
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.ChainTrusted, false, details: ClassStrings.TrustDetailsAllowedUntrusted) { SigningKey = signingKey }
+                new X509ChainTrustedAssertion(false, ClassStrings.TrustDetailsAllowedUntrusted) { SigningKey = signingKey }
             };
         }
 
@@ -333,7 +320,7 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
                     LogCustomRootTrusted(chainRoot.Thumbprint);
                     return new ISigningKeyAssertion[]
                     {
-                        new SigningKeyAssertion(X509TrustClaims.ChainTrusted, true) { SigningKey = signingKey }
+                        new X509ChainTrustedAssertion(true) { SigningKey = signingKey }
                     };
                 }
             }
@@ -353,7 +340,7 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
         LogChainValidationFailed(signingCert.Thumbprint, ChainBuilder.ChainStatus.Length);
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.ChainTrusted, false, details: failureDetails) { SigningKey = signingKey }
+            new X509ChainTrustedAssertion(false, failureDetails) { SigningKey = signingKey }
         };
     }
 
@@ -361,8 +348,9 @@ public sealed partial class CertificateChainAssertionProvider : ISigningKeyAsser
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

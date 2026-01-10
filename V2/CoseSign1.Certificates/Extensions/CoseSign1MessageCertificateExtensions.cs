@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Extensions;
 
 using System.Formats.Cbor;
+using System.Security.Cryptography.Cose;
 
 /// <summary>
 /// Extension methods for extracting certificates from CoseSign1Message.
@@ -18,12 +19,12 @@ public static class CoseSign1MessageCertificateExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message.</param>
     /// <param name="certificate">The extracted signing certificate.</param>
-    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <returns>True when the signing certificate was found; otherwise false.</returns>
     public static bool TryGetSigningCertificate(
         this CoseSign1Message message,
         out X509Certificate2? certificate,
-        bool allowUnprotected = false)
+        CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
         certificate = null;
 
@@ -33,13 +34,13 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         // Get the certificate chain
-        if (!message.TryGetCertificateChain(out X509Certificate2Collection? chain, allowUnprotected))
+        if (!message.TryGetCertificateChain(out X509Certificate2Collection? chain, headerLocation))
         {
             return false;
         }
 
         // Get the thumbprint
-        if (!message.TryGetCertificateThumbprint(out CoseX509Thumbprint? thumbprint, allowUnprotected))
+        if (!message.TryGetCertificateThumbprint(out CoseX509Thumbprint? thumbprint, headerLocation))
         {
             return false;
         }
@@ -62,12 +63,12 @@ public static class CoseSign1MessageCertificateExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message.</param>
     /// <param name="chain">The extracted certificate chain.</param>
-    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <returns>True when a certificate chain was found; otherwise false.</returns>
     public static bool TryGetCertificateChain(
         this CoseSign1Message message,
         out X509Certificate2Collection? chain,
-        bool allowUnprotected = false)
+        CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
         chain = null;
 
@@ -77,7 +78,7 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         var label = CertificateHeaderContributor.HeaderLabels.X5Chain;
-        var headers = allowUnprotected
+        var headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
             ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
             : message.ProtectedHeaders;
 
@@ -143,12 +144,12 @@ public static class CoseSign1MessageCertificateExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message.</param>
     /// <param name="certificates">The extracted certificates.</param>
-    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <returns>True when certificates were found; otherwise false.</returns>
     public static bool TryGetExtraCertificates(
         this CoseSign1Message message,
         out X509Certificate2Collection? certificates,
-        bool allowUnprotected = false)
+        CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
         certificates = null;
 
@@ -158,7 +159,7 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         var label = CertificateHeaderContributor.HeaderLabels.X5Bag;
-        var headers = allowUnprotected
+        var headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
             ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
             : message.ProtectedHeaders;
 
@@ -224,12 +225,12 @@ public static class CoseSign1MessageCertificateExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message.</param>
     /// <param name="thumbprint">The extracted thumbprint.</param>
-    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <returns>True when a thumbprint was found; otherwise false.</returns>
     public static bool TryGetCertificateThumbprint(
         this CoseSign1Message message,
         out CoseX509Thumbprint? thumbprint,
-        bool allowUnprotected = false)
+        CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
         thumbprint = null;
 
@@ -239,7 +240,7 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         var label = CertificateHeaderContributor.HeaderLabels.X5T;
-        var headers = allowUnprotected
+        var headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
             ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
             : message.ProtectedHeaders;
 
@@ -269,19 +270,19 @@ public static class CoseSign1MessageCertificateExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message to verify</param>
     /// <param name="payload">The detached payload bytes (required only for detached signatures where message.Content is null)</param>
-    /// <param name="allowUnprotected">Whether to allow unprotected headers for certificate lookup</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data</param>
     /// <returns>True if the signature is valid, false otherwise</returns>
     public static bool VerifySignature(
         this CoseSign1Message message,
         byte[]? payload = null,
-        bool allowUnprotected = false)
+        CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
         if (message == null)
         {
             return false;
         }
 
-        if (!message.TryGetSigningCertificate(out X509Certificate2? certificate, allowUnprotected))
+        if (!message.TryGetSigningCertificate(out X509Certificate2? certificate, headerLocation))
         {
             return false;
         }

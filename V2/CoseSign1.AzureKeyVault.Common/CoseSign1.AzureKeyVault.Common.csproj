@@ -2,7 +2,7 @@
 
   <!--Build configuration-->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
   </PropertyGroup>
 
   <!--NuGet package configuration-->
@@ -10,6 +10,10 @@
     <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
     <Description>Common utilities for Azure Key Vault COSE signing operations. Provides shared CryptographyClient abstractions and algorithm mapping.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" />

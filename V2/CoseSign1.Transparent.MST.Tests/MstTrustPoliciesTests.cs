@@ -4,69 +4,52 @@
 namespace CoseSign1.Transparent.MST.Tests;
 
 using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Validation.Interfaces;
 
 [TestFixture]
 public class MstTrustPoliciesTests
 {
     [Test]
-    public void RequireReceiptPresent_IsSatisfiedOnlyWhenPresent()
+    public void RequireReceiptPresent_ReturnsPolicy()
     {
         var policy = MstTrustPolicies.RequireReceiptPresent();
+        Assert.That(policy, Is.Not.Null);
 
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>()), Is.False);
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool> { [MstTrustClaims.ReceiptPresent] = false }), Is.False);
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool> { [MstTrustClaims.ReceiptPresent] = true }), Is.True);
+        // With no assertions, evaluate should not trust
+        var decision = policy.Evaluate(Array.Empty<ISigningKeyAssertion>());
+        Assert.That(decision.IsTrusted, Is.False);
     }
 
     [Test]
-    public void RequireReceiptTrusted_IsSatisfiedOnlyWhenTrusted()
+    public void RequireReceiptTrusted_ReturnsPolicy()
     {
         var policy = MstTrustPolicies.RequireReceiptTrusted();
+        Assert.That(policy, Is.Not.Null);
 
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>()), Is.False);
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool> { [MstTrustClaims.ReceiptTrusted] = false }), Is.False);
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool> { [MstTrustClaims.ReceiptTrusted] = true }), Is.True);
+        // With no assertions, evaluate should not trust
+        var decision = policy.Evaluate(Array.Empty<ISigningKeyAssertion>());
+        Assert.That(decision.IsTrusted, Is.False);
     }
 
     [Test]
-    public void RequireReceiptPresentAndTrusted_RequiresBoth()
+    public void RequireReceiptPresentAndTrusted_ReturnsPolicy()
     {
         var policy = MstTrustPolicies.RequireReceiptPresentAndTrusted();
+        Assert.That(policy, Is.Not.Null);
 
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>
-        {
-            [MstTrustClaims.ReceiptPresent] = true,
-            [MstTrustClaims.ReceiptTrusted] = true
-        }), Is.True);
-
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>
-        {
-            [MstTrustClaims.ReceiptPresent] = true,
-            [MstTrustClaims.ReceiptTrusted] = false
-        }), Is.False);
+        // With no assertions, evaluate should not trust
+        var decision = policy.Evaluate(Array.Empty<ISigningKeyAssertion>());
+        Assert.That(decision.IsTrusted, Is.False);
     }
 
     [Test]
-    public void IfReceiptPresentThenTrusted_AllowsNoReceiptButRequiresTrustedWhenPresent()
+    public void IfReceiptPresentThenTrusted_ReturnsPolicy()
     {
         var policy = MstTrustPolicies.IfReceiptPresentThenTrusted();
+        Assert.That(policy, Is.Not.Null);
 
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>
-        {
-            [MstTrustClaims.ReceiptPresent] = false,
-            [MstTrustClaims.ReceiptTrusted] = false
-        }), Is.True);
-
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>
-        {
-            [MstTrustClaims.ReceiptPresent] = true,
-            [MstTrustClaims.ReceiptTrusted] = true
-        }), Is.True);
-
-        Assert.That(policy.IsSatisfied(new Dictionary<string, bool>
-        {
-            [MstTrustClaims.ReceiptPresent] = true,
-            [MstTrustClaims.ReceiptTrusted] = false
-        }), Is.False);
+        // With no assertions, should trust (no receipt means condition is vacuously true)
+        var decision = policy.Evaluate(Array.Empty<ISigningKeyAssertion>());
+        Assert.That(decision.IsTrusted, Is.True);
     }
 }

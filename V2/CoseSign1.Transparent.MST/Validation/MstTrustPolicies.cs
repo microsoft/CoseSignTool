@@ -3,20 +3,30 @@
 
 namespace CoseSign1.Transparent.MST.Validation;
 
-using CoseSign1.Validation;
+using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Validation.Trust;
 
 /// <summary>
 /// Convenience helpers for building MST-related trust policies.
 /// </summary>
 public static class MstTrustPolicies
 {
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        public const string ReceiptMustBePresentFailure = "MST receipt must be present";
+        public const string ReceiptMustBeVerifiedFailure = "MST receipt must be cryptographically verified";
+    }
+
     /// <summary>
     /// Creates a trust policy requiring an MST receipt to be present.
     /// </summary>
     /// <returns>A trust policy requiring receipt presence.</returns>
     public static TrustPolicy RequireReceiptPresent()
     {
-        return TrustPolicy.Claim(MstTrustClaims.ReceiptPresent);
+        return TrustPolicy.Require<MstReceiptPresentAssertion>(
+            a => a.IsPresent,
+            ClassStrings.ReceiptMustBePresentFailure);
     }
 
     /// <summary>
@@ -25,7 +35,9 @@ public static class MstTrustPolicies
     /// <returns>A trust policy requiring receipt trust.</returns>
     public static TrustPolicy RequireReceiptTrusted()
     {
-        return TrustPolicy.Claim(MstTrustClaims.ReceiptTrusted);
+        return TrustPolicy.Require<MstReceiptTrustedAssertion>(
+            a => a.IsTrusted,
+            ClassStrings.ReceiptMustBeVerifiedFailure);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Extracts assertions about the signing certificate's key usage extensions.
 /// </summary>
-public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAssertionProvider
+public sealed partial class CertificateKeyUsageAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -128,18 +128,13 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         if (signingKey is not X509CertificateSigningKey certKey || certKey.Certificate == null)
         {
@@ -171,7 +166,7 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, false, details: ClassStrings.ErrorMessageKeyUsageNotFound) { SigningKey = signingKey }
+                new X509KeyUsageAssertion(false, ClassStrings.ErrorMessageKeyUsageNotFound) { SigningKey = signingKey }
             };
         }
 
@@ -182,16 +177,14 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
             LogKeyUsageMismatch(required.ToString(), keyUsageExt.KeyUsages.ToString(), certificate.Thumbprint);
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, false,
-                    details: string.Format(ClassStrings.ErrorFormatKeyUsageMismatch, keyUsageExt.KeyUsages, required))
-                { SigningKey = signingKey }
+                new X509KeyUsageAssertion(false, string.Format(ClassStrings.ErrorFormatKeyUsageMismatch, keyUsageExt.KeyUsages, required)) { SigningKey = signingKey }
             };
         }
 
         LogKeyUsageValid(keyUsageExt.KeyUsages.ToString(), certificate.Thumbprint);
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, true) { SigningKey = signingKey }
+            new X509KeyUsageAssertion(true) { SigningKey = signingKey }
         };
     }
 
@@ -203,7 +196,7 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, false, details: ClassStrings.ErrorMessageEkuNotFound) { SigningKey = signingKey }
+                new X509KeyUsageAssertion(false, ClassStrings.ErrorMessageEkuNotFound) { SigningKey = signingKey }
             };
         }
 
@@ -217,16 +210,14 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
             LogEkuMismatch(requiredEku.Value ?? ClassStrings.MetaValueUnknown, ekuList, certificate.Thumbprint);
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, false,
-                    details: string.Format(ClassStrings.ErrorFormatEkuMismatch, requiredEku.Value, ekuList))
-                { SigningKey = signingKey }
+                new X509KeyUsageAssertion(false, string.Format(ClassStrings.ErrorFormatEkuMismatch, requiredEku.Value, ekuList)) { SigningKey = signingKey }
             };
         }
 
         LogEkuValid(requiredEku.Value ?? requiredEku.FriendlyName ?? ClassStrings.MetaValueUnknown, certificate.Thumbprint);
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.KeyUsageValid, true) { SigningKey = signingKey }
+            new X509KeyUsageAssertion(true) { SigningKey = signingKey }
         };
     }
 
@@ -234,8 +225,9 @@ public sealed partial class CertificateKeyUsageAssertionProvider : ISigningKeyAs
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

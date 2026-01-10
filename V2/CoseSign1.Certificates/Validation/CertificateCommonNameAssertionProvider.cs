@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Extracts assertions about the signing certificate's subject common name.
 /// </summary>
-public sealed partial class CertificateCommonNameAssertionProvider : ISigningKeyAssertionProvider
+public sealed partial class CertificateCommonNameAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -72,18 +72,13 @@ public sealed partial class CertificateCommonNameAssertionProvider : ISigningKey
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         LogValidatingCN(ExpectedCommonName);
 
@@ -101,7 +96,7 @@ public sealed partial class CertificateCommonNameAssertionProvider : ISigningKey
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(X509TrustClaims.CommonNameMatches, false, details: ClassStrings.ErrorMessageCnNotFound) { SigningKey = signingKey }
+                new X509CommonNameAssertion(false, null) { SigningKey = signingKey }
             };
         }
 
@@ -118,9 +113,7 @@ public sealed partial class CertificateCommonNameAssertionProvider : ISigningKey
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.CommonNameMatches, matches,
-                details: matches ? actualCN : string.Format(ClassStrings.ErrorFormatCnMismatch, actualCN, ExpectedCommonName))
-            { SigningKey = signingKey }
+            new X509CommonNameAssertion(matches, actualCN) { SigningKey = signingKey }
         };
     }
 
@@ -128,8 +121,9 @@ public sealed partial class CertificateCommonNameAssertionProvider : ISigningKey
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

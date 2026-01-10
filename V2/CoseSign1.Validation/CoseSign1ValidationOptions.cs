@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Validation;
 
+using System.Security.Cryptography.Cose;
+
 /// <summary>
 /// Options for configuring COSE Sign1 message validation.
 /// </summary>
@@ -44,6 +46,21 @@ public sealed class CoseSign1ValidationOptions
     public CancellationToken CancellationToken { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating where certificate data may be read from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When <see cref="CoseHeaderLocation.Protected"/> (default), certificate chains (x5chain) are only read from protected headers.
+    /// When <see cref="CoseHeaderLocation.Any"/>, certificate chains may also be read from unprotected headers.
+    /// </para>
+    /// <para>
+    /// <b>Security Note:</b> Unprotected headers are not covered by the signature and could be
+    /// modified by an attacker. Only enable unprotected header access if you understand the security implications.
+    /// </para>
+    /// </remarks>
+    public CoseHeaderLocation CertificateHeaderLocation { get; set; } = CoseHeaderLocation.Protected;
+
+    /// <summary>
     /// Creates a new instance of <see cref="CoseSign1ValidationOptions"/> with default values.
     /// </summary>
     public CoseSign1ValidationOptions()
@@ -60,7 +77,8 @@ public sealed class CoseSign1ValidationOptions
         {
             DetachedPayload = DetachedPayload,
             AssociatedData = AssociatedData,
-            CancellationToken = CancellationToken
+            CancellationToken = CancellationToken,
+            CertificateHeaderLocation = CertificateHeaderLocation
         };
     }
 }

@@ -271,9 +271,9 @@ public class CertificateSigningServiceTests
     }
 
     [Test]
-    public void GetCoseSigner_WithScittComplianceButNonCertificateSigningKey_ThrowsInvalidOperationException()
+    public void GetCoseSigner_WithScittComplianceButNonCertificateSigningServiceKey_ThrowsInvalidOperationException()
     {
-        // Arrange - default SCITT claims require an ICertificateSigningKey
+        // Arrange - default SCITT claims require an ICertificateSigningServiceKey
         var mockSigningKey = CreateMockSigningKey();
         var service = new TestCertificateSigningService(mockSigningKey.Object, false);
 
@@ -395,9 +395,9 @@ public class CertificateSigningServiceTests
         var certificateSource = new DirectCertificateSource(cert, chainBuilder);
         var signingKeyProvider = new DirectSigningKeyProvider(cert);
 
-        // Create a test service to pass to CertificateSigningKey
+        // Create a test service to pass to CertificateSigningServiceKey
         using var testService = CertificateSigningService.Create(cert, chainBuilder);
-        var signingKey = new CertificateSigningKey(certificateSource, signingKeyProvider, testService);
+        var signingKey = new CertificateSigningServiceKey(certificateSource, signingKeyProvider, testService);
 
         // Act
         using var service = new CertificateSigningService(signingKey);

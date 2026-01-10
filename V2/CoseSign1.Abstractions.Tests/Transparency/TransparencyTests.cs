@@ -6,6 +6,7 @@ namespace CoseSign1.Abstractions.Tests.Transparency;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Factories.Direct;
 using CoseSign1.Tests.Common;
 using Moq;
 
@@ -115,7 +116,7 @@ public class TransparencyExtensionsTests
         var cert = TestCertificateUtils.CreateCertificate("CN=Test");
         var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
-        var factory = new Direct.DirectSignatureFactory(signingService);
+        var factory = new DirectSignatureFactory(signingService);
         var payload = new byte[] { 1, 2, 3 };
 
         var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "application/test");

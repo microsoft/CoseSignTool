@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Validation;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,10 +28,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// by matching <c>x5t</c> to a certificate in <c>x5chain</c>.
 /// </para>
 /// </remarks>
-public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
+public sealed partial class CertificateSigningKeyResolver : CertificateValidationComponentBase, ISigningKeyResolver
 {
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -52,22 +53,22 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
         public static readonly string MetaKeySigningSubject = "SigningSubject";
     }
 
-    private readonly bool AllowUnprotectedHeaders;
+    private readonly CoseHeaderLocation CertificateHeaderLocation;
     private readonly ILogger<CertificateSigningKeyResolver> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CertificateSigningKeyResolver"/> class.
     /// </summary>
-    /// <param name="allowUnprotectedHeaders">
-    /// Whether key material may be resolved from unprotected headers.
+    /// <param name="certificateHeaderLocation">
+    /// Specifies where key material may be resolved from.
     /// For compatibility with some existing emitters, the CLI defaults to allowing unprotected headers.
     /// </param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     public CertificateSigningKeyResolver(
-        bool allowUnprotectedHeaders = false,
+        CoseHeaderLocation certificateHeaderLocation = CoseHeaderLocation.Protected,
         ILogger<CertificateSigningKeyResolver>? logger = null)
     {
-        AllowUnprotectedHeaders = allowUnprotectedHeaders;
+        CertificateHeaderLocation = certificateHeaderLocation;
         Logger = logger ?? NullLogger<CertificateSigningKeyResolver>.Instance;
     }
 
@@ -95,7 +96,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
     {
         LogValidatingKeyMaterial();
 
-        bool allowUnprotected = AllowUnprotectedHeaders;
+        CoseHeaderLocation headerLocation = CertificateHeaderLocation;
 
         if (message is null)
         {
@@ -104,7 +105,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
                 ClassStrings.ErrorCodeNullInput);
         }
 
-        if (!message.TryGetCertificateChain(out var chain, allowUnprotected) || chain == null || chain.Count == 0)
+        if (!message.TryGetCertificateChain(out var chain, headerLocation) || chain == null || chain.Count == 0)
         {
             LogMissingChain();
             return SigningKeyResolutionResult.Failure(
@@ -114,7 +115,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
 
         LogChainFound(chain.Count);
 
-        if (!message.TryGetCertificateThumbprint(out var thumbprint, allowUnprotected) || thumbprint == null)
+        if (!message.TryGetCertificateThumbprint(out var thumbprint, headerLocation) || thumbprint == null)
         {
             LogMissingThumbprint();
             return SigningKeyResolutionResult.Failure(
@@ -122,7 +123,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
                 ClassStrings.ErrorCodeMissingOrInvalidThumbprint);
         }
 
-        if (!message.TryGetSigningCertificate(out var signingCertificate, allowUnprotected) || signingCertificate == null)
+        if (!message.TryGetSigningCertificate(out var signingCertificate, headerLocation) || signingCertificate == null)
         {
             LogSigningCertNotFound();
             return SigningKeyResolutionResult.Failure(

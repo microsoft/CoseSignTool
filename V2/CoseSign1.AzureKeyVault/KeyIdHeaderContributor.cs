@@ -57,8 +57,8 @@ public sealed class KeyIdHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentException">Thrown if <paramref name="keyId"/> is empty or whitespace.</exception>
     public KeyIdHeaderContributor(string keyId, bool isHsmProtected = false)
     {
-        ArgumentNullException.ThrowIfNull(keyId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(keyId);
+        Guard.ThrowIfNull(keyId);
+        Guard.ThrowIfNullOrWhiteSpace(keyId);
         KeyId = keyId;
         IsHsmProtected = isHsmProtected;
     }

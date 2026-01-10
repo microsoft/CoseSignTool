@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using Azure.Core;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Wraps an Azure Key Vault CryptographyClient to provide remote signing operations.
@@ -85,9 +86,9 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
         string? keyVersion = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(keyClient);
-        ArgumentNullException.ThrowIfNull(credential);
-        ArgumentNullException.ThrowIfNull(keyName);
+        Guard.ThrowIfNull(keyClient);
+        Guard.ThrowIfNull(credential);
+        Guard.ThrowIfNull(keyName);
 
         var keyResponse = await keyClient.GetKeyAsync(keyName, keyVersion, cancellationToken).ConfigureAwait(false);
         var key = keyResponse.Value;
@@ -324,7 +325,7 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        Guard.ThrowIfDisposed(Disposed, this);
     }
 
     /// <inheritdoc/>

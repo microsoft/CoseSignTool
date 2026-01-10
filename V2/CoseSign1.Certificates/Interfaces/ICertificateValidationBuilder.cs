@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Interfaces;
 
+using System.Security.Cryptography.Cose;
 using CoseSign1.Validation.Interfaces;
 
 /// <summary>
@@ -74,11 +75,11 @@ public interface ICertificateValidationBuilder
     ICertificateValidationBuilder Matches(Func<X509Certificate2, bool> predicate, string? failureMessage = null);
 
     /// <summary>
-    /// Configures whether to allow unprotected headers for certificate lookup.
+    /// Configures where to search for certificate headers.
     /// </summary>
-    /// <param name="allow">Whether to allow unprotected headers.</param>
+    /// <param name="headerLocation">The header location(s) to search.</param>
     /// <returns>The builder for method chaining.</returns>
-    ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true);
+    ICertificateValidationBuilder WithCertificateHeaderLocation(CoseHeaderLocation headerLocation);
 
     /// <summary>
     /// Configures the logger factory for diagnostic logging in validators.

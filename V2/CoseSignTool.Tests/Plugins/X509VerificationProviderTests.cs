@@ -168,7 +168,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(policy, Is.Not.Null);
-        Assert.That(policy!.IsSatisfied(new Dictionary<string, bool>()), Is.True);
+        Assert.That(policy!.Evaluate(Array.Empty<ISigningKeyAssertion>()).IsTrusted, Is.True);
     }
 
     [Test]
@@ -183,7 +183,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(policy, Is.Not.Null);
-        Assert.That(policy!.IsSatisfied(new Dictionary<string, bool>()), Is.False);
+        Assert.That(policy!.Evaluate(Array.Empty<ISigningKeyAssertion>()).IsTrusted, Is.False);
     }
 
     [Test]
@@ -196,10 +196,9 @@ public class X509VerificationProviderTests
         // Act
         var validators = ctx.Provider.CreateValidators(parseResult).ToList();
 
-        // Assert - now includes CertificateSignatureValidator for complete X.509 validation
-        Assert.That(validators, Has.Count.EqualTo(3));
+        // Assert - resolver + chain assertion provider
+        Assert.That(validators, Has.Count.EqualTo(2));
         Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSignatureValidator"), Is.True);
         Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
     }
 
@@ -513,14 +512,13 @@ public class X509VerificationProviderTests
         // Act
         var validators = ctx.Provider.CreateValidators(parseResult).ToList();
 
-        // Assert - now includes CertificateSignatureValidator for complete X.509 validation
-        Assert.That(validators, Has.Count.EqualTo(3));
+        // Assert - resolver + chain assertion provider
+        Assert.That(validators, Has.Count.EqualTo(2));
         Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSignatureValidator"), Is.True);
         Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
     }
 
-    private static object UnwrapConditional(IValidator validator)
+    private static object UnwrapConditional(IValidationComponent validator)
     {
         var t = validator.GetType();
         if (!string.Equals(t.Name, "ConditionalX509Validator", StringComparison.Ordinal))

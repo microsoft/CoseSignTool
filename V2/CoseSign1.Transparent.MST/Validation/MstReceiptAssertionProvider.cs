@@ -18,7 +18,7 @@ using CoseSign1.Validation.Interfaces;
 /// This validator checks for the presence of MST receipts in the message's unprotected headers
 /// and verifies their validity using the Azure Code Transparency client.
 /// </remarks>
-public sealed class MstReceiptAssertionProvider : ISigningKeyAssertionProvider
+public sealed class MstReceiptAssertionProvider : MstValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -40,7 +40,7 @@ public sealed class MstReceiptAssertionProvider : ISigningKeyAssertionProvider
     private readonly MstTransparencyProvider Provider;
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstReceiptAssertionProvider"/> class.
@@ -94,23 +94,19 @@ public sealed class MstReceiptAssertionProvider : ISigningKeyAssertionProvider
     }
 
     /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return true;
-    }
-
-    /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
-        return ExtractAssertionsAsync(signingKey, message, CancellationToken.None).GetAwaiter().GetResult();
+        return ExtractAssertionsAsync(signingKey, message, options, CancellationToken.None).GetAwaiter().GetResult();
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         if (message == null)
@@ -123,8 +119,8 @@ public sealed class MstReceiptAssertionProvider : ISigningKeyAssertionProvider
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(MstTrustClaims.ReceiptPresent, false),
-                new SigningKeyAssertion(MstTrustClaims.ReceiptTrusted, false, details: ClassStrings.TrustDetailsNoReceipt)
+                new MstReceiptPresentAssertion(false),
+                new MstReceiptTrustedAssertion(false, ClassStrings.TrustDetailsNoReceipt)
             };
         }
 
@@ -138,23 +134,23 @@ public sealed class MstReceiptAssertionProvider : ISigningKeyAssertionProvider
             {
                 return new ISigningKeyAssertion[]
                 {
-                    new SigningKeyAssertion(MstTrustClaims.ReceiptPresent, true),
-                    new SigningKeyAssertion(MstTrustClaims.ReceiptTrusted, false, details: ClassStrings.TrustDetailsVerificationFailed)
+                    new MstReceiptPresentAssertion(true),
+                    new MstReceiptTrustedAssertion(false, ClassStrings.TrustDetailsVerificationFailed)
                 };
             }
 
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(MstTrustClaims.ReceiptPresent, true),
-                new SigningKeyAssertion(MstTrustClaims.ReceiptTrusted, true)
+                new MstReceiptPresentAssertion(true),
+                new MstReceiptTrustedAssertion(true)
             };
         }
         catch (Exception)
         {
             return new ISigningKeyAssertion[]
             {
-                new SigningKeyAssertion(MstTrustClaims.ReceiptPresent, true),
-                new SigningKeyAssertion(MstTrustClaims.ReceiptTrusted, false, details: ClassStrings.TrustDetailsException)
+                new MstReceiptPresentAssertion(true),
+                new MstReceiptTrustedAssertion(false, ClassStrings.TrustDetailsException)
             };
         }
     }

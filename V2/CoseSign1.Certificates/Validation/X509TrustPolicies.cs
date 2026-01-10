@@ -3,7 +3,7 @@
 
 namespace CoseSign1.Certificates.Validation;
 
-using CoseSign1.Validation;
+using CoseSign1.Validation.Trust;
 
 /// <summary>
 /// Convenience helpers for building X.509 trust policies.
@@ -16,6 +16,8 @@ public static class X509TrustPolicies
     /// <returns>A trust policy requiring a strongly trusted X.509 chain.</returns>
     public static TrustPolicy RequireTrustedChain()
     {
-        return TrustPolicy.Claim(X509TrustClaims.ChainTrusted);
+        return TrustPolicy.Require<X509ChainTrustedAssertion>(
+            a => a.IsTrusted,
+            X509ChainTrustedAssertion.ClassStrings.DefaultPolicyFailureReason);
     }
 }

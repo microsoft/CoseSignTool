@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Extracts assertions about a certificate using a custom predicate function.
 /// </summary>
-internal sealed partial class CertificatePredicateAssertionProvider : ISigningKeyAssertionProvider
+internal sealed partial class CertificatePredicateAssertionProvider : CertificateValidationComponentBase, ISigningKeyAssertionProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -67,18 +67,13 @@ internal sealed partial class CertificatePredicateAssertionProvider : ISigningKe
     }
 
     /// <inheritdoc/>
-    public string ComponentName => ClassStrings.ValidatorName;
-
-    /// <inheritdoc/>
-    public bool CanProvideAssertions(ISigningKey signingKey)
-    {
-        return signingKey is X509CertificateSigningKey;
-    }
+    public override string ComponentName => ClassStrings.ValidatorName;
 
     /// <inheritdoc/>
     public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
         ISigningKey signingKey,
-        CoseSign1Message message)
+        CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null)
     {
         if (signingKey is not X509CertificateSigningKey certKey || certKey.Certificate == null)
         {
@@ -102,9 +97,7 @@ internal sealed partial class CertificatePredicateAssertionProvider : ISigningKe
 
         return new ISigningKeyAssertion[]
         {
-            new SigningKeyAssertion(X509TrustClaims.PredicateSatisfied, passed,
-                details: passed ? null : (FailureMessage ?? ClassStrings.ErrorMessagePredicateFailed))
-            { SigningKey = signingKey }
+            new X509PredicateAssertion(passed, passed ? null : (FailureMessage ?? ClassStrings.ErrorMessagePredicateFailed)) { SigningKey = signingKey }
         };
     }
 
@@ -112,8 +105,9 @@ internal sealed partial class CertificatePredicateAssertionProvider : ISigningKe
     public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
         ISigningKey signingKey,
         CoseSign1Message message,
+        CoseSign1ValidationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(ExtractAssertions(signingKey, message));
+        return Task.FromResult(ExtractAssertions(signingKey, message, options));
     }
 }

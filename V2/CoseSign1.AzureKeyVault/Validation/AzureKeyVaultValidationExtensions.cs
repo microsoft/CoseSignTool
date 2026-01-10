@@ -4,6 +4,7 @@
 namespace CoseSign1.AzureKeyVault.Validation;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
 
 /// <summary>
@@ -65,8 +66,8 @@ public static class AzureKeyVaultValidationExtensions
         this ICoseSign1ValidationBuilder builder,
         Action<IAzureKeyVaultValidatorBuilder> configure)
     {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(configure);
+        Guard.ThrowIfNull(builder);
+        Guard.ThrowIfNull(configure);
 
         var b = new Builder();
         configure(b);

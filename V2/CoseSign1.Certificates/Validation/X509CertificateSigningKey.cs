@@ -52,14 +52,7 @@ internal sealed class X509CertificateSigningKey : ISigningKey
     /// <inheritdoc/>
     public CoseKey GetCoseKey()
     {
-#if NET6_0_OR_GREATER
-        ObjectDisposedException.ThrowIf(Disposed, this);
-#else
-        if (Disposed)
-        {
-            throw new ObjectDisposedException(GetType().FullName);
-        }
-#endif
+        Guard.ThrowIfDisposed(Disposed, this);
 
         if (CoseKeyField != null)
         {

@@ -29,11 +29,7 @@ public abstract class CertificateSourceBase : ICertificateSource
     /// <param name="logger">Optional logger for diagnostic output.</param>
     protected CertificateSourceBase(IReadOnlyList<X509Certificate2> certificates, ICertificateChainBuilder? chainBuilder = null, ILogger? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(certificates);
-#else
-        if (certificates == null) { throw new ArgumentNullException(nameof(certificates)); }
-#endif
+        Guard.ThrowIfNull(certificates);
         ChainBuilderField = chainBuilder ?? new ExplicitCertificateChainBuilder(certificates);
         Logger = logger ?? NullLogger.Instance;
     }

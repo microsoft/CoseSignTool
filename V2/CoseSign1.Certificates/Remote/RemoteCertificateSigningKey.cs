@@ -51,13 +51,8 @@ public class RemoteCertificateSigningKey : ICertificateSigningKey
         RemoteCertificateSource certificateSource,
         ISigningService<SigningOptions> signingService)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(certificateSource);
-        ArgumentNullException.ThrowIfNull(signingService);
-#else
-        if (certificateSource == null) { throw new ArgumentNullException(nameof(certificateSource)); }
-        if (signingService == null) { throw new ArgumentNullException(nameof(signingService)); }
-#endif
+        Guard.ThrowIfNull(certificateSource);
+        Guard.ThrowIfNull(signingService);
         CertificateSource = certificateSource;
         SigningServiceField = signingService;
         LazyMetadata = new Lazy<SigningKeyMetadata>(() => CreateMetadata());

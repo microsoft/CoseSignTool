@@ -209,11 +209,7 @@ public class PfxCertificateSource : CertificateSourceBase
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
-#else
-    if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(pfxFilePath)); }
-#endif
+        Guard.ThrowIfNullOrWhiteSpace(pfxFilePath);
 
         logger?.LogTrace(
             LogEvents.CertificateLoadedEvent,
@@ -255,11 +251,7 @@ public class PfxCertificateSource : CertificateSourceBase
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentException.ThrowIfNullOrWhiteSpace(pfxFilePath);
-#else
-    if (string.IsNullOrWhiteSpace(pfxFilePath)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(pfxFilePath)); }
-#endif
+        Guard.ThrowIfNullOrWhiteSpace(pfxFilePath);
 
         logger?.LogTrace(
             LogEvents.CertificateLoadedEvent,
@@ -291,11 +283,7 @@ public class PfxCertificateSource : CertificateSourceBase
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(pfxData);
-#else
-        if (pfxData == null) { throw new ArgumentNullException(nameof(pfxData)); }
-#endif
+        Guard.ThrowIfNull(pfxData);
 
         logger?.LogTrace(
             LogEvents.CertificateLoadedEvent,
@@ -328,11 +316,7 @@ public class PfxCertificateSource : CertificateSourceBase
         X509KeyStorageFlags keyStorageFlags,
         ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(pfxData);
-#else
-        if (pfxData == null) { throw new ArgumentNullException(nameof(pfxData)); }
-#endif
+        Guard.ThrowIfNull(pfxData);
 
         logger?.LogTrace(
             LogEvents.CertificateLoadedEvent,

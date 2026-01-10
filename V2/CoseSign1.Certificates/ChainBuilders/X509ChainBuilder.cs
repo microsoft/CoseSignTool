@@ -64,11 +64,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="chainPolicy"/> is null.</exception>
     public X509ChainBuilder(X509ChainPolicy chainPolicy, ILogger<X509ChainBuilder>? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(chainPolicy);
-#else
-        if (chainPolicy == null) { throw new ArgumentNullException(nameof(chainPolicy)); }
-#endif
+        Guard.ThrowIfNull(chainPolicy);
         LoggerField = logger ?? NullLogger<X509ChainBuilder>.Instance;
         Chain = new X509Chain();
 
@@ -125,11 +121,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     {
         get
         {
-#if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(Disposed, this);
-#else
-            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-#endif
+            Guard.ThrowIfDisposed(Disposed, this);
             var elements = new List<X509Certificate2>(Chain.ChainElements.Count);
             foreach (var element in Chain.ChainElements)
             {
@@ -146,22 +138,13 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     {
         get
         {
-#if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(Disposed, this);
-#else
-            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-#endif
+            Guard.ThrowIfDisposed(Disposed, this);
             return Chain.ChainPolicy;
         }
         set
         {
-#if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(Disposed, this);
-            ArgumentNullException.ThrowIfNull(value);
-#else
-            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-            if (value == null) { throw new ArgumentNullException(nameof(value)); }
-#endif
+            Guard.ThrowIfDisposed(Disposed, this);
+            Guard.ThrowIfNull(value);
             Chain.ChainPolicy = value;
         }
     }
@@ -172,11 +155,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     {
         get
         {
-#if NET5_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(Disposed, this);
-#else
-            if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-#endif
+            Guard.ThrowIfDisposed(Disposed, this);
             return Chain.ChainStatus;
         }
     }
@@ -186,13 +165,8 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
     public bool Build(X509Certificate2 certificate)
     {
-#if NET5_0_OR_GREATER
-        ObjectDisposedException.ThrowIf(Disposed, this);
-        ArgumentNullException.ThrowIfNull(certificate);
-#else
-        if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-        if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
-#endif
+        Guard.ThrowIfDisposed(Disposed, this);
+        Guard.ThrowIfNull(certificate);
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,

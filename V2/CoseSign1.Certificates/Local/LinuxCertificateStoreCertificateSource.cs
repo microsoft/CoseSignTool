@@ -206,8 +206,8 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
         ILogger<LinuxCertificateStoreCertificateSource>? logger = null)
         : base(chainBuilder ?? new X509ChainBuilder(), logger)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(certificateFilePath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(privateKeyFilePath);
+        Guard.ThrowIfNullOrWhiteSpace(certificateFilePath);
+        Guard.ThrowIfNullOrWhiteSpace(privateKeyFilePath);
 
         Logger.LogTrace(
             LogEvents.CertificateLoadedEvent,
@@ -314,7 +314,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// </summary>
     private static X509Certificate2? FindCertificateByThumbprint(IEnumerable<string> storePaths, string thumbprint, ILogger? logger)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
+        Guard.ThrowIfNullOrWhiteSpace(thumbprint);
 
         // Normalize thumbprint: remove whitespace and convert to uppercase
         string normalizedThumbprint = thumbprint
@@ -379,7 +379,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// </summary>
     private static X509Certificate2? FindCertificateBySubjectName(IEnumerable<string> storePaths, string subjectName, bool validOnly, ILogger? logger)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
+        Guard.ThrowIfNullOrWhiteSpace(subjectName);
 
         logger?.LogTrace(
             LogEvents.CertificateStoreAccessEvent,
@@ -477,7 +477,7 @@ public class LinuxCertificateStoreCertificateSource : CertificateSourceBase
     /// </summary>
     private static X509Certificate2? FindCertificateByPredicate(IEnumerable<string> storePaths, Func<X509Certificate2, bool> predicate, ILogger? logger)
     {
-        ArgumentNullException.ThrowIfNull(predicate);
+        Guard.ThrowIfNull(predicate);
 
         logger?.LogTrace(
             LogEvents.CertificateStoreAccessEvent,

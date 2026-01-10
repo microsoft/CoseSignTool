@@ -58,11 +58,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// <exception cref="ArgumentException">Thrown when <paramref name="certificateChain"/> is empty.</exception>
     public ExplicitCertificateChainBuilder(IReadOnlyList<X509Certificate2> certificateChain, ILogger<ExplicitCertificateChainBuilder>? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(certificateChain);
-#else
-        if (certificateChain == null) { throw new ArgumentNullException(nameof(certificateChain)); }
-#endif
+        Guard.ThrowIfNull(certificateChain);
         if (certificateChain.Count == 0)
         {
             throw new ArgumentException(ClassStrings.ErrorCertificateChainCannotBeEmpty, nameof(certificateChain));
@@ -131,11 +127,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
     public bool Build(X509Certificate2 certificate)
     {
-#if NET5_0_OR_GREATER
-        ObjectDisposedException.ThrowIf(Disposed, this);
-#else
-        if (Disposed) { throw new ObjectDisposedException(GetType().FullName); }
-#endif
+        Guard.ThrowIfDisposed(Disposed, this);
 
         LoggerField.LogTrace(
             LogEvents.CertificateChainBuildStartedEvent,

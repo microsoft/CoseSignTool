@@ -96,13 +96,8 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         ICertificateChainBuilder chainBuilder,
         ILogger? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(certificate);
-        ArgumentNullException.ThrowIfNull(chainBuilder);
-#else
-        if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
-        if (chainBuilder == null) { throw new ArgumentNullException(nameof(chainBuilder)); }
-#endif
+        Guard.ThrowIfNull(certificate);
+        Guard.ThrowIfNull(chainBuilder);
 
         if (!certificate.HasPrivateKey)
         {
@@ -139,13 +134,8 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         IReadOnlyList<X509Certificate2> certificateChain,
         ILogger? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(certificate);
-        ArgumentNullException.ThrowIfNull(certificateChain);
-#else
-        if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
-        if (certificateChain == null) { throw new ArgumentNullException(nameof(certificateChain)); }
-#endif
+        Guard.ThrowIfNull(certificate);
+        Guard.ThrowIfNull(certificateChain);
 
         if (!certificate.HasPrivateKey)
         {
@@ -179,11 +169,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         RemoteCertificateSource source,
         ILogger? logger = null)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(source);
-#else
-        if (source == null) { throw new ArgumentNullException(nameof(source)); }
-#endif
+        Guard.ThrowIfNull(source);
 
         var service = new CertificateSigningService(isRemote: true, logger: logger);
         service.SigningKeyField = new RemoteCertificateSigningKey(source, service);
@@ -212,11 +198,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
                    ClassStrings.DefaultServiceDescription),
                logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(signingKey);
-#else
-        if (signingKey == null) { throw new ArgumentNullException(nameof(signingKey)); }
-#endif
+        Guard.ThrowIfNull(signingKey);
         SigningKeyField = signingKey;
     }
 

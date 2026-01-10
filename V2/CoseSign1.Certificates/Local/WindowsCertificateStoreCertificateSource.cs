@@ -200,11 +200,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
 
     private static X509Certificate2? FindCertificateByThumbprint(X509Store store, string thumbprint, ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
-#else
-        if (string.IsNullOrWhiteSpace(thumbprint)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(thumbprint)); }
-#endif
+        Guard.ThrowIfNullOrWhiteSpace(thumbprint);
 
         // Normalize thumbprint (remove spaces, colons, make uppercase)
         var normalizedThumbprint = thumbprint
@@ -238,11 +234,7 @@ public class WindowsCertificateStoreCertificateSource : CertificateSourceBase
         bool validOnly,
         ILogger? logger)
     {
-#if NET5_0_OR_GREATER
-        ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
-#else
-    if (string.IsNullOrWhiteSpace(subjectName)) { throw new ArgumentException(ClassStrings.ErrorValueCannotBeNullOrWhiteSpace, nameof(subjectName)); }
-#endif
+        Guard.ThrowIfNullOrWhiteSpace(subjectName);
 
         logger?.LogTrace(
             LogEvents.CertificateStoreAccessEvent,

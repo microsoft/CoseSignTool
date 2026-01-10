@@ -94,7 +94,7 @@ public static class MstValidationExtensions
 
         foreach (var v in b.BuildValidators())
         {
-            builder.AddValidator(v);
+            builder.AddComponent(v);
         }
 
         return builder;
@@ -118,17 +118,17 @@ public static class MstValidationExtensions
 
     private sealed class Builder : IMstValidatorBuilder
     {
-        private readonly List<IValidator> Validators = new();
+        private readonly List<IValidationComponent> Validators = new();
 
         public IMstValidatorBuilder VerifyReceipt(CodeTransparencyClient client)
         {
-            Validators.Add(new MstReceiptValidator(client ?? throw new ArgumentNullException(nameof(client))));
+            Validators.Add(new MstReceiptAssertionProvider(client ?? throw new ArgumentNullException(nameof(client))));
             return this;
         }
 
         public IMstValidatorBuilder VerifyReceipt(MstTransparencyProvider provider)
         {
-            Validators.Add(new MstReceiptValidator(provider ?? throw new ArgumentNullException(nameof(provider))));
+            Validators.Add(new MstReceiptAssertionProvider(provider ?? throw new ArgumentNullException(nameof(provider))));
             return this;
         }
 
@@ -144,17 +144,17 @@ public static class MstValidationExtensions
                 throw new ArgumentNullException(nameof(issuerHost));
             }
 
-            Validators.Add(new MstReceiptOnlineValidator(client, issuerHost));
+            Validators.Add(new MstReceiptOnlineAssertionProvider(client, issuerHost));
             return this;
         }
 
         public IMstValidatorBuilder RequireReceiptPresence()
         {
-            Validators.Add(new MstReceiptPresenceTrustValidator());
+            Validators.Add(new MstReceiptPresenceAssertionProvider());
             return this;
         }
 
-        public IReadOnlyList<IValidator> BuildValidators()
+        public IReadOnlyList<IValidationComponent> BuildValidators()
         {
             if (Validators.Count == 0)
             {

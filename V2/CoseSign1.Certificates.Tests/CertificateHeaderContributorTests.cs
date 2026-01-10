@@ -296,12 +296,11 @@ public class CertificateHeaderContributorTests
 
     /// <summary>
     /// Mock non-certificate signing key for testing the contributor skips non-certificate keys.
+    /// This implements only ISigningKey (not ISigningServiceKey) to test minimal key material scenarios.
     /// </summary>
     private class MockNonCertificateSigningKey : ISigningKey
     {
         public CoseKey GetCoseKey() => throw new NotImplementedException();
-        public SigningKeyMetadata Metadata => throw new NotImplementedException()!;
-        public ISigningService<SigningOptions> SigningService => throw new NotImplementedException()!;
         public void Dispose() { }
     }
 

@@ -18,5 +18,5 @@ public interface IVerificationProviderWithContext : IVerificationProvider
     /// <param name="parseResult">The parsed command-line result.</param>
     /// <param name="context">The verification context.</param>
     /// <returns>The validators to apply.</returns>
-    IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext context);
+    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult, VerificationContext context);
 }

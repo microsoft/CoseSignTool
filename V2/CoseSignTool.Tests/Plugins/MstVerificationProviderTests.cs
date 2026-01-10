@@ -138,7 +138,7 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator>());
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider>());
     }
 
     [Test]
@@ -153,8 +153,8 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator), Is.True);
-        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptOnlineValidator), Is.True);
+        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider), Is.True);
+        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptOnlineAssertionProvider), Is.True);
     }
 
     [Test]
@@ -169,7 +169,7 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator>());
+        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider>());
     }
 
     [Test]
@@ -184,8 +184,8 @@ public class MstVerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptOnlineValidator"), Is.True);
-        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptPresenceTrustValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptOnlineAssertionProvider"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptPresenceAssertionProvider"), Is.True);
     }
 
     [Test]
@@ -206,7 +206,7 @@ public class MstVerificationProviderTests
             var validators = Provider.CreateValidators(parseResult).ToList();
 
             // Assert
-            Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceTrustValidator), Is.True);
+            Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider), Is.True);
             // If no usable keys, provider conservatively omits the receipt validator.
             // This test just ensures parsing does not throw and presence validator is still emitted.
         }

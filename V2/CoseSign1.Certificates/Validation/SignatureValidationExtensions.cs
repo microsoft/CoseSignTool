@@ -43,67 +43,13 @@ public static class SignatureValidationExtensions
 
         var certBuilder = new CertificateValidationBuilder(builder.LoggerFactory);
         configure(certBuilder);
-        return builder.AddValidator(certBuilder.Build());
-    }
 
-    /// <summary>
-    /// Adds certificate validation for a detached payload using a fluent builder API.
-    /// </summary>
-    /// <param name="builder">The validation builder.</param>
-    /// <param name="detachedPayload">The detached payload bytes.</param>
-    /// <param name="configure">Action to configure the certificate validation builder.</param>
-    /// <returns>The builder for method chaining.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/>, <paramref name="detachedPayload"/>, or <paramref name="configure"/> is null.</exception>
-    public static ICoseSign1ValidationBuilder ValidateCertificate(
-        this ICoseSign1ValidationBuilder builder,
-        byte[] detachedPayload,
-        Action<ICertificateValidationBuilder> configure)
-    {
-        if (builder is null)
+        // Add each assertion provider component to the builder
+        foreach (var component in certBuilder.Build())
         {
-            throw new ArgumentNullException(nameof(builder));
+            builder.AddComponent(component);
         }
 
-        if (detachedPayload is null)
-        {
-            throw new ArgumentNullException(nameof(detachedPayload));
-        }
-
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
-
-        var certBuilder = new CertificateValidationBuilder(detachedPayload, builder.LoggerFactory);
-        configure(certBuilder);
-        return builder.AddValidator(certBuilder.Build());
-    }
-
-    /// <summary>
-    /// Adds certificate validation for a detached payload using a fluent builder API.
-    /// </summary>
-    /// <param name="builder">The validation builder.</param>
-    /// <param name="detachedPayload">The detached payload.</param>
-    /// <param name="configure">Action to configure the certificate validation builder.</param>
-    /// <returns>The builder for method chaining.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> or <paramref name="configure"/> is null.</exception>
-    public static ICoseSign1ValidationBuilder ValidateCertificate(
-        this ICoseSign1ValidationBuilder builder,
-        ReadOnlyMemory<byte> detachedPayload,
-        Action<ICertificateValidationBuilder> configure)
-    {
-        if (builder is null)
-        {
-            throw new ArgumentNullException(nameof(builder));
-        }
-
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
-
-        var certBuilder = new CertificateValidationBuilder(detachedPayload, builder.LoggerFactory);
-        configure(certBuilder);
-        return builder.AddValidator(certBuilder.Build());
+        return builder;
     }
 }

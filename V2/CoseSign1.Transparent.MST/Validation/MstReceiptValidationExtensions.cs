@@ -9,23 +9,23 @@ using CoseSign1.Validation.Interfaces;
 
 /// <summary>
 /// Builder for configuring MST receipt validation.
-/// Intended to be used via <c>Cose.Sign1Message().AddMstReceiptValidator(b =&gt; ...)</c>.
+/// Intended to be used via <c>Cose.Sign1Message().AddMstReceiptAssertionProvider(b =&gt; ...)</c>.
 /// </summary>
-public interface IMstReceiptValidatorBuilder
+public interface IMstReceiptAssertionProviderBuilder
 {
     /// <summary>
     /// Uses a CodeTransparency client to validate receipts.
     /// </summary>
     /// <param name="client">The Azure Code Transparency client.</param>
     /// <returns>The same builder instance.</returns>
-    IMstReceiptValidatorBuilder UseClient(CodeTransparencyClient client);
+    IMstReceiptAssertionProviderBuilder UseClient(CodeTransparencyClient client);
 
     /// <summary>
     /// Uses a pre-configured transparency provider.
     /// </summary>
     /// <param name="provider">The MST transparency provider.</param>
     /// <returns>The same builder instance.</returns>
-    IMstReceiptValidatorBuilder UseProvider(MstTransparencyProvider provider);
+    IMstReceiptAssertionProviderBuilder UseProvider(MstTransparencyProvider provider);
 
     /// <summary>
     /// Configures verification options (requires a client via <see cref="UseClient"/>).
@@ -33,7 +33,7 @@ public interface IMstReceiptValidatorBuilder
     /// <param name="options">The verification options.</param>
     /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
     /// <returns>The same builder instance.</returns>
-    IMstReceiptValidatorBuilder WithVerificationOptions(
+    IMstReceiptAssertionProviderBuilder WithVerificationOptions(
         CodeTransparencyVerificationOptions options,
         CodeTransparencyClientOptions? clientOptions = null);
 }
@@ -51,9 +51,9 @@ public static class MstReceiptValidationExtensions
     /// <returns>The same validation builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
-    public static ICoseSign1ValidationBuilder AddMstReceiptValidator(
+    public static ICoseSign1ValidationBuilder AddMstReceiptAssertionProvider(
         this ICoseSign1ValidationBuilder builder,
-        Action<IMstReceiptValidatorBuilder> configure)
+        Action<IMstReceiptAssertionProviderBuilder> configure)
     {
         if (builder == null)
         {
@@ -68,24 +68,24 @@ public static class MstReceiptValidationExtensions
         var b = new Builder();
         configure(b);
 
-        return builder.AddValidator(b.Build());
+        return builder.AddComponent(b.Build());
     }
 
-    private sealed class Builder : IMstReceiptValidatorBuilder
+    private sealed class Builder : IMstReceiptAssertionProviderBuilder
     {
         private CodeTransparencyClient? Client;
         private MstTransparencyProvider? Provider;
         private CodeTransparencyVerificationOptions? VerificationOptions;
         private CodeTransparencyClientOptions? ClientOptions;
 
-        public IMstReceiptValidatorBuilder UseClient(CodeTransparencyClient client)
+        public IMstReceiptAssertionProviderBuilder UseClient(CodeTransparencyClient client)
         {
             Client = client ?? throw new ArgumentNullException(nameof(client));
             Provider = null;
             return this;
         }
 
-        public IMstReceiptValidatorBuilder UseProvider(MstTransparencyProvider provider)
+        public IMstReceiptAssertionProviderBuilder UseProvider(MstTransparencyProvider provider)
         {
             Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             Client = null;
@@ -94,18 +94,18 @@ public static class MstReceiptValidationExtensions
             return this;
         }
 
-        public IMstReceiptValidatorBuilder WithVerificationOptions(CodeTransparencyVerificationOptions options, CodeTransparencyClientOptions? clientOptions = null)
+        public IMstReceiptAssertionProviderBuilder WithVerificationOptions(CodeTransparencyVerificationOptions options, CodeTransparencyClientOptions? clientOptions = null)
         {
             VerificationOptions = options ?? throw new ArgumentNullException(nameof(options));
             ClientOptions = clientOptions;
             return this;
         }
 
-        public MstReceiptValidator Build()
+        public MstReceiptAssertionProvider Build()
         {
             if (Provider != null)
             {
-                return new MstReceiptValidator(Provider);
+                return new MstReceiptAssertionProvider(Provider);
             }
 
             if (Client == null)
@@ -115,10 +115,10 @@ public static class MstReceiptValidationExtensions
 
             if (VerificationOptions == null)
             {
-                return new MstReceiptValidator(Client);
+                return new MstReceiptAssertionProvider(Client);
             }
 
-            return new MstReceiptValidator(Client, VerificationOptions, ClientOptions);
+            return new MstReceiptAssertionProvider(Client, VerificationOptions, ClientOptions);
         }
 
         [ExcludeFromCodeCoverage]

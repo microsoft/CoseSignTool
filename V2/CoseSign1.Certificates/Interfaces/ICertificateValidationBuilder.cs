@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Interfaces;
 
+using CoseSign1.Validation.Interfaces;
+
 /// <summary>
 /// Domain-specific builder for certificate validation.
 /// Keeps certificate-specific APIs separate from main builder.
@@ -10,11 +12,10 @@ namespace CoseSign1.Certificates.Interfaces;
 public interface ICertificateValidationBuilder
 {
     /// <summary>
-    /// Builds the configured certificate validator.
-    /// Signature validation is always included.
+    /// Builds the configured certificate validation components.
     /// </summary>
-    /// <returns>The composed validator.</returns>
-    IValidator Build();
+    /// <returns>A collection of assertion providers for certificate validation.</returns>
+    IReadOnlyList<ISigningKeyAssertionProvider> Build();
 
     /// <summary>
     /// Validates that the certificate has the specified common name (CN).

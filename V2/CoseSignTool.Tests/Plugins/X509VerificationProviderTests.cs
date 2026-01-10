@@ -198,9 +198,9 @@ public class X509VerificationProviderTests
 
         // Assert - now includes CertificateSignatureValidator for complete X.509 validation
         Assert.That(validators, Has.Count.EqualTo(3));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
         Assert.That(validators.Any(v => v.GetType().Name == "CertificateSignatureValidator"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
     }
 
     [Test]
@@ -215,7 +215,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateCommonNameValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateCommonNameAssertionProvider"), Is.True);
     }
 
     [Test]
@@ -230,7 +230,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateIssuerValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateIssuerAssertionProvider"), Is.True);
     }
 
     [Test]
@@ -245,9 +245,9 @@ public class X509VerificationProviderTests
 
         // Assert - now includes CertificateSignatureValidator for complete X.509 validation
         Assert.That(validators, Has.Count.EqualTo(3));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
         Assert.That(validators.Any(v => v.GetType().Name == "CertificateSignatureValidator"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
     }
 
     [Test]
@@ -515,9 +515,9 @@ public class X509VerificationProviderTests
 
         // Assert - now includes CertificateSignatureValidator for complete X.509 validation
         Assert.That(validators, Has.Count.EqualTo(3));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateKeyMaterialResolutionValidator"), Is.True);
+        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
         Assert.That(validators.Any(v => v.GetType().Name == "CertificateSignatureValidator"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
+        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
     }
 
     private static object UnwrapConditional(IValidator validator)
@@ -555,7 +555,7 @@ public class X509VerificationProviderTests
 
                 // Assert - should have a chain validator
                 Assert.That(validators, Has.Count.GreaterThan(0));
-                Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainValidator"), Is.True);
+                Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
             }
             finally
             {
@@ -699,7 +699,7 @@ public class X509VerificationProviderTests
 
             // Assert
             Assert.That(validators, Has.Count.GreaterThan(0));
-            Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainValidator"), Is.True);
+            Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainAssertionProvider"), Is.True);
         }
         finally
         {

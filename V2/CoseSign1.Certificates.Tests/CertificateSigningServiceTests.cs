@@ -651,9 +651,9 @@ public class CertificateSigningServiceTests
 
     #region Helper Methods
 
-    private static Mock<ISigningKey> CreateMockSigningKey()
+    private static Mock<ISigningServiceKey> CreateMockSigningKey()
     {
-        var mockKey = new Mock<ISigningKey>();
+        var mockKey = new Mock<ISigningServiceKey>();
 
         // Create a real RSA key for CoseKey
         var rsa = RSA.Create(2048);

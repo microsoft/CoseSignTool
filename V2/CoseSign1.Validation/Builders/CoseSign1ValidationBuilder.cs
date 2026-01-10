@@ -10,19 +10,16 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
 {
     internal static class ClassStrings
     {
-        public const string TrustPolicyOverridesKey = "CoseSign1.Validation.TrustPolicyOverrides";
-        public const string ErrorValidationRequiresSignatureValidator = "Validation requires at least one signature validator.";
-        public const string TrustPolicyReasonNoTrustPolicyProvided = "No trust policy was provided";
-        public const string TrustPolicyReasonNoExplicitTrustPolicy = "No explicit trust policy; trust validators enforced by validator failures";
-        public const string ErrorValidatorDoesNotSpecifyStagesFormat = "Validator '{0}' does not specify any stages.";
-        public const string ErrorUnsupportedValidationStageFormat = "Unsupported validation stage: {0}";
+        public const string ErrorValidationRequiresSigningKeyResolver = "Validation requires at least one signing key resolver (ISigningKeyResolver).";
     }
 
-    private const string TrustPolicyOverridesKey = ClassStrings.TrustPolicyOverridesKey;
-
-    private readonly List<IValidator> Validators = new();
+    private readonly List<IValidationComponent> Components = new();
 
     private TrustPolicy? ExplicitTrustPolicy;
+
+    private bool SkipContentVerification;
+
+    private CoseSign1ValidationOptions ValidationOptions = new();
 
     private readonly ValidationBuilderContext ContextField = new();
 
@@ -41,41 +38,43 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
     public ValidationBuilderContext Context => ContextField;
 
     /// <summary>
-    /// Adds a validator to the builder.
+    /// Adds a validation component to the builder.
     /// </summary>
-    /// <param name="validator">The validator to add.</param>
+    /// <param name="component">The component to add.</param>
     /// <returns>The same builder instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="validator"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when <paramref name="validator"/> does not specify valid stages.</exception>
-    public ICoseSign1ValidationBuilder AddValidator(IValidator validator)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="component"/> is null.</exception>
+    public ICoseSign1ValidationBuilder AddComponent(IValidationComponent component)
     {
-        if (validator == null)
+        if (component == null)
         {
-            throw new ArgumentNullException(nameof(validator));
+            throw new ArgumentNullException(nameof(component));
         }
 
-        if (validator.Stages == null || validator.Stages.Count == 0)
+        Components.Add(component);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public ICoseSign1ValidationBuilder WithOptions(CoseSign1ValidationOptions options)
+    {
+        if (options == null)
         {
-            var name = validator.GetType().FullName ?? validator.GetType().Name;
-            throw new InvalidOperationException(string.Format(ClassStrings.ErrorValidatorDoesNotSpecifyStagesFormat, name));
+            throw new ArgumentNullException(nameof(options));
         }
 
-        foreach (var stage in validator.Stages)
-        {
-            switch (stage)
-            {
-                case ValidationStage.KeyMaterialResolution:
-                case ValidationStage.KeyMaterialTrust:
-                case ValidationStage.Signature:
-                case ValidationStage.PostSignature:
-                    break;
+        ValidationOptions = options;
+        return this;
+    }
 
-                default:
-                    throw new InvalidOperationException(string.Format(ClassStrings.ErrorUnsupportedValidationStageFormat, stage));
-            }
+    /// <inheritdoc/>
+    public ICoseSign1ValidationBuilder WithOptions(Action<CoseSign1ValidationOptions> configure)
+    {
+        if (configure == null)
+        {
+            throw new ArgumentNullException(nameof(configure));
         }
 
-        Validators.Add(validator);
+        configure(ValidationOptions);
         return this;
     }
 
@@ -109,125 +108,44 @@ internal sealed class CoseSign1ValidationBuilder : ICoseSign1ValidationBuilder
     }
 
     /// <summary>
+    /// Disables automatic indirect signature validation.
+    /// </summary>
+    /// <remarks>
+    /// By default, <see cref="PostSignature.IndirectSignatureValidator"/> is automatically added to validate
+    /// payload hashes for indirect signatures. Call this method to disable that behavior.
+    /// </remarks>
+    /// <returns>The same builder instance.</returns>
+    public ICoseSign1ValidationBuilder WithoutContentVerification()
+    {
+        SkipContentVerification = true;
+        return this;
+    }
+
+    /// <summary>
     /// Builds a reusable validator instance.
     /// </summary>
     /// <returns>A validator instance.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the builder does not include a signature validator.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the builder does not include a signing key resolver.</exception>
     public ICoseSign1Validator Build()
     {
-        if (!Validators.Any(v => HasStage(v, ValidationStage.Signature)))
+        var signingKeyResolvers = Components.OfType<ISigningKeyResolver>().ToList();
+        if (signingKeyResolvers.Count == 0)
         {
-            throw new InvalidOperationException(ClassStrings.ErrorValidationRequiresSignatureValidator);
+            throw new InvalidOperationException(ClassStrings.ErrorValidationRequiresSigningKeyResolver);
         }
 
-        var trustValidators = Validators.Where(v => HasStage(v, ValidationStage.KeyMaterialTrust)).ToArray();
+        // Use explicit trust policy if provided, otherwise use assertion defaults
+        var trustPolicy = ExplicitTrustPolicy ?? TrustPolicy.FromAssertionDefaults();
 
-        TrustPolicy trustPolicy;
-        if (ExplicitTrustPolicy != null)
+        // Build final component list, adding default validators unless skipped
+        var finalComponents = new List<IValidationComponent>(Components);
+
+        if (!SkipContentVerification)
         {
-            // Explicit trust policy overrides all defaults from validators
-            trustPolicy = ExplicitTrustPolicy;
-        }
-        else
-        {
-            // Collect default trust policies from trust validators
-            var policies = new List<TrustPolicy>();
-
-            var overrides = GetTrustPolicyOverridesOrEmpty();
-            foreach (var validator in trustValidators)
-            {
-                var overridePolicy = FindOverride(overrides, validator);
-                if (overridePolicy != null)
-                {
-                    policies.Add(overridePolicy);
-                    continue;
-                }
-
-                if (validator is IProvidesDefaultTrustPolicy provider)
-                {
-                    policies.Add(provider.GetDefaultTrustPolicy(ContextField));
-                }
-            }
-
-            if (policies.Count == 0)
-            {
-                // Secure-by-default: if the caller didn't add any trust validators or requirements,
-                // do not silently allow trust.
-                //
-                // However, if the caller *did* add trust validators, those validators may implement
-                // trust checks by returning failures rather than emitting assertions. In that case,
-                // we allow the trust policy to be permissive and rely on the validators.
-                trustPolicy = trustValidators.Length == 0
-                    ? TrustPolicy.DenyAll(ClassStrings.TrustPolicyReasonNoTrustPolicyProvided)
-                    : TrustPolicy.AllowAll(ClassStrings.TrustPolicyReasonNoExplicitTrustPolicy);
-            }
-            else if (policies.Count == 1)
-            {
-                trustPolicy = policies[0];
-            }
-            else
-            {
-                trustPolicy = TrustPolicy.And(policies.ToArray());
-            }
+            var logger = LoggerFactory?.CreateLogger<PostSignature.IndirectSignatureValidator>();
+            finalComponents.Add(new PostSignature.IndirectSignatureValidator(logger));
         }
 
-        return new CoseSign1Validator(Validators.ToArray(), trustPolicy);
+        return new CoseSign1Validator(finalComponents.ToArray(), trustPolicy, ValidationOptions);
     }
-
-    private static bool HasStage(IValidator validator, ValidationStage stage)
-    {
-        if (validator == null)
-        {
-            return false;
-        }
-
-        if (validator.Stages == null)
-        {
-            return false;
-        }
-
-        foreach (var s in validator.Stages)
-        {
-            if (s == stage)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private IReadOnlyList<TrustPolicyOverride> GetTrustPolicyOverridesOrEmpty()
-    {
-        if (!ContextField.Properties.TryGetValue(TrustPolicyOverridesKey, out var value) || value == null)
-        {
-            return Array.Empty<TrustPolicyOverride>();
-        }
-
-        if (value is IReadOnlyList<TrustPolicyOverride> list)
-        {
-            return list;
-        }
-
-        if (value is IEnumerable<TrustPolicyOverride> enumerable)
-        {
-            return enumerable.ToList();
-        }
-
-        return Array.Empty<TrustPolicyOverride>();
-    }
-
-    private static TrustPolicy? FindOverride(IReadOnlyList<TrustPolicyOverride> overrides, IValidator validator)
-    {
-        foreach (var o in overrides)
-        {
-            if (ReferenceEquals(o.Validator, validator))
-            {
-                return o.Policy;
-            }
-        }
-
-        return null;
-    }
-
 }

@@ -122,9 +122,9 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
     {
-        var validators = new List<IValidator>();
+        var validators = new List<IValidationComponent>();
 
         bool requireReceipt = IsReceiptRequired(parseResult) || HasMstEndpoint(parseResult);
         bool verifyReceipt = IsVerifyReceipt(parseResult);
@@ -133,7 +133,7 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
         // If the user cares about receipts (presence and/or trust), ensure we emit receipt-present assertions.
         if (requireReceipt)
         {
-            validators.Add(new MstReceiptPresenceTrustValidator());
+            validators.Add(new MstReceiptPresenceAssertionProvider());
         }
 
         // Add receipt verification validator when requested.
@@ -151,7 +151,7 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
 
                 string endpoint = GetMstEndpoint(parseResult)!;
                 var client = new CodeTransparencyClient(new Uri(endpoint));
-                validators.Add(new MstReceiptOnlineValidator(client, issuerHost: new Uri(endpoint).Host));
+                validators.Add(new MstReceiptOnlineAssertionProvider(client, issuerHost: new Uri(endpoint).Host));
             }
             else
             {
@@ -179,11 +179,11 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
                 };
 
                 var client = new CodeTransparencyClient(new Uri(endpoint));
-                validators.Add(new MstReceiptValidator(client, verificationOptions));
+                validators.Add(new MstReceiptAssertionProvider(client, verificationOptions));
             }
         }
 
-        // NOTE: Receipt presence is expressed as a trust claim by MstReceiptValidator.
+        // NOTE: Receipt presence is expressed as a trust claim by MstReceiptAssertionProvider.
         // If the CLI requires a receipt, it should express that requirement via the TrustPolicy.
 
         return validators;

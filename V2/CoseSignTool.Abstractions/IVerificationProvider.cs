@@ -53,7 +53,7 @@ public interface IVerificationProvider
     /// </summary>
     /// <param name="parseResult">The parsed command-line result.</param>
     /// <returns>One or more validators to add to the pipeline.</returns>
-    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
 
     /// <summary>
     /// Gets metadata about the verification result (for display purposes).

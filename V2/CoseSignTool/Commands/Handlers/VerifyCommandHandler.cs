@@ -256,7 +256,7 @@ public class VerifyCommandHandler
             };
             var verificationContext = new VerificationContext(detachedPayload: payloadBytes, options: contextOptions);
 
-            var providerValidators = new List<IValidator>();
+            var providerValidators = new List<IValidationComponent>();
             var activatedProviders = new List<string>();
 
             var providerTrustPolicies = new List<TrustPolicy>();
@@ -271,7 +271,7 @@ public class VerifyCommandHandler
                 activatedProviders.Add(provider.ProviderName);
 
                 // Priority order: IVerificationProviderWithContext > IVerificationProvider
-                IEnumerable<IValidator> validators;
+                IEnumerable<IValidationComponent> validators;
                 if (provider is IVerificationProviderWithContext withContext)
                 {
                     validators = withContext.CreateValidators(parseResult, verificationContext);
@@ -295,30 +295,20 @@ public class VerifyCommandHandler
 
             // Build a validator using the fluent Cose.Sign1Message() builder pattern.
             // This demonstrates the V2 API that programmatic callers should use.
-            // Providers are responsible for supplying all necessary validators including
-            // signature validators (e.g., CertificateSignatureValidator for X.509).
+            // Providers are responsible for supplying signing key resolvers to enable
+            // signature verification (e.g., CertificateSigningKeyResolver for X.509).
             var builder = Cose.Sign1Message(LoggerFactory);
 
-            // Add validators from activated providers, tracking if any provide signature validation
-            bool hasSignatureValidator = false;
+            // Add validators from activated providers
             foreach (var validator in providerValidators)
             {
-                builder.AddValidator(validator);
-                if (validator.Stages.Contains(ValidationStage.Signature))
-                {
-                    hasSignatureValidator = true;
-                }
+                builder.AddComponent(validator);
             }
 
-            // Fallback: if no provider supplied a signature-stage validator, add a no-op
-            // validator that logs a warning. This ensures the builder can build successfully
-            // while making it clear that no actual signature verification occurred.
-            // Real signature validators should be provided by verification providers that
-            // understand the signature type (e.g., X509VerificationProvider for X.509).
-            if (!hasSignatureValidator)
+            // Configure detached payload if provided
+            if (payloadBytes != null)
             {
-                var noOpLogger = LoggerFactory?.CreateLogger<Validation.NoOpSignatureValidator>();
-                builder.AddValidator(new Validation.NoOpSignatureValidator(noOpLogger));
+                builder.WithOptions(opts => opts.WithDetachedPayload(payloadBytes));
             }
 
             // Configure trust policy

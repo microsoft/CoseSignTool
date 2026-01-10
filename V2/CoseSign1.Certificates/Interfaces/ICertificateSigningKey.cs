@@ -4,10 +4,15 @@
 namespace CoseSign1.Certificates.Interfaces;
 
 /// <summary>
-/// Extends ISigningKey with certificate-specific operations.
+/// Extends ISigningServiceKey with certificate-specific operations.
 /// Provides access to the signing certificate and certificate chain for X5T/X5Chain header generation.
 /// </summary>
-public interface ICertificateSigningKey : ISigningKey
+/// <remarks>
+/// This interface extends <see cref="ISigningServiceKey"/> (not just <see cref="ISigningKey"/>) because
+/// certificate-based signing inherently requires metadata and service context for proper header
+/// construction (algorithm selection, chain building, etc.).
+/// </remarks>
+public interface ICertificateSigningKey : ISigningServiceKey
 {
     /// <summary>
     /// Gets the signing certificate used for the signing operation.

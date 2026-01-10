@@ -34,52 +34,52 @@ public class AdditionalValidatorTests
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Constructor_WithRequiredName_CreatesValidator()
+    public void CertificateCommonNameAssertionProvider_Constructor_WithRequiredName_CreatesValidator()
     {
-        var validator = new CertificateCommonNameValidator("Test");
+        var validator = new CertificateCommonNameAssertionProvider("Test");
         Assert.That(validator, Is.Not.Null);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Constructor_WithNullName_ThrowsArgumentException()
+    public void CertificateCommonNameAssertionProvider_Constructor_WithNullName_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new CertificateCommonNameValidator(null!));
+        Assert.Throws<ArgumentException>(() => new CertificateCommonNameAssertionProvider(null!));
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Constructor_WithEmptyName_ThrowsArgumentException()
+    public void CertificateCommonNameAssertionProvider_Constructor_WithEmptyName_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new CertificateCommonNameValidator(""));
+        Assert.Throws<ArgumentException>(() => new CertificateCommonNameAssertionProvider(""));
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Constructor_WithWhitespaceName_ThrowsArgumentException()
+    public void CertificateCommonNameAssertionProvider_Constructor_WithWhitespaceName_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new CertificateCommonNameValidator("   "));
+        Assert.Throws<ArgumentException>(() => new CertificateCommonNameAssertionProvider("   "));
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Constructor_WithAllowUnprotectedHeaders_CreatesValidator()
+    public void CertificateCommonNameAssertionProvider_Constructor_WithAllowUnprotectedHeaders_CreatesValidator()
     {
-        var validator = new CertificateCommonNameValidator("Test", allowUnprotectedHeaders: true);
+        var validator = new CertificateCommonNameAssertionProvider("Test", allowUnprotectedHeaders: true);
         Assert.That(validator, Is.Not.Null);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithMatchingName_ReturnsSuccess()
+    public void CertificateCommonNameAssertionProvider_Validate_WithMatchingName_ReturnsSuccess()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateCommonNameValidator("ValidatorTest");
+        var validator = new CertificateCommonNameAssertionProvider("ValidatorTest");
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithMatchingName_ReturnsMetadata()
+    public void CertificateCommonNameAssertionProvider_Validate_WithMatchingName_ReturnsMetadata()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateCommonNameValidator("ValidatorTest");
+        var validator = new CertificateCommonNameAssertionProvider("ValidatorTest");
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
@@ -90,31 +90,31 @@ public class AdditionalValidatorTests
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_CaseInsensitiveMatch_ReturnsSuccess()
+    public void CertificateCommonNameAssertionProvider_Validate_CaseInsensitiveMatch_ReturnsSuccess()
     {
         using var ctx = CreateTestContext();
         // Test case-insensitive matching
-        var validator = new CertificateCommonNameValidator("VALIDATORTEST");
+        var validator = new CertificateCommonNameAssertionProvider("VALIDATORTEST");
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithNonMatchingName_ReturnsFailure()
+    public void CertificateCommonNameAssertionProvider_Validate_WithNonMatchingName_ReturnsFailure()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateCommonNameValidator("WrongName");
+        var validator = new CertificateCommonNameAssertionProvider("WrongName");
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithNonMatchingName_HasFailureMessage()
+    public void CertificateCommonNameAssertionProvider_Validate_WithNonMatchingName_HasFailureMessage()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateCommonNameValidator("WrongName");
+        var validator = new CertificateCommonNameAssertionProvider("WrongName");
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
@@ -122,18 +122,18 @@ public class AdditionalValidatorTests
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithNullInput_ReturnsFailure()
+    public void CertificateCommonNameAssertionProvider_Validate_WithNullInput_ReturnsFailure()
     {
-        var validator = new CertificateCommonNameValidator("Test");
+        var validator = new CertificateCommonNameAssertionProvider("Test");
         var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
-    public void CertificateCommonNameValidator_Validate_WithNullInput_HasFailureMessage()
+    public void CertificateCommonNameAssertionProvider_Validate_WithNullInput_HasFailureMessage()
     {
-        var validator = new CertificateCommonNameValidator("Test");
+        var validator = new CertificateCommonNameAssertionProvider("Test");
         var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
@@ -141,46 +141,46 @@ public class AdditionalValidatorTests
     }
 
     [Test]
-    public async Task CertificateCommonNameValidator_ValidateAsync_CompletesSuccessfully()
+    public async Task CertificateCommonNameAssertionProvider_ValidateAsync_CompletesSuccessfully()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateCommonNameValidator("ValidatorTest");
+        var validator = new CertificateCommonNameAssertionProvider("ValidatorTest");
         var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void CertificateExpirationValidator_Constructor_CreatesValidator()
+    public void CertificateExpirationAssertionProvider_Constructor_CreatesValidator()
     {
-        var validator = new CertificateExpirationValidator();
+        var validator = new CertificateExpirationAssertionProvider();
         Assert.That(validator, Is.Not.Null);
     }
 
     [Test]
-    public void CertificateExpirationValidator_Validate_WithValidCertificate_ReturnsSuccess()
+    public void CertificateExpirationAssertionProvider_Validate_WithValidCertificate_ReturnsSuccess()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateExpirationValidator();
+        var validator = new CertificateExpirationAssertionProvider();
         var result = validator.Validate(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public void CertificateExpirationValidator_Validate_WithNullInput_ReturnsFailure()
+    public void CertificateExpirationAssertionProvider_Validate_WithNullInput_ReturnsFailure()
     {
-        var validator = new CertificateExpirationValidator();
+        var validator = new CertificateExpirationAssertionProvider();
         var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
-    public async Task CertificateExpirationValidator_ValidateAsync_CompletesSuccessfully()
+    public async Task CertificateExpirationAssertionProvider_ValidateAsync_CompletesSuccessfully()
     {
         using var ctx = CreateTestContext();
-        var validator = new CertificateExpirationValidator();
+        var validator = new CertificateExpirationAssertionProvider();
         var result = await validator.ValidateAsync(ctx.ValidMessage, ValidationStage.KeyMaterialTrust);
 
         Assert.That(result.IsValid, Is.True);

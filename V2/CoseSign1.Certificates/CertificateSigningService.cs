@@ -114,7 +114,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         var service = new CertificateSigningService(isRemote: false, logger: logger);
         var certificateSource = new DirectCertificateSource(certificate, chainBuilder);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);
-        service.SigningKeyField = new CertificateSigningKey(certificateSource, signingKeyProvider, service);
+        service.SigningKeyField = new CertificateSigningServiceKey(certificateSource, signingKeyProvider, service);
 
         logger?.LogDebug(
             LogEvents.CertificateLoadedEvent,
@@ -157,7 +157,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         var service = new CertificateSigningService(isRemote: false, logger: logger);
         var certificateSource = new DirectCertificateSource(certificate, certificateChain);
         var signingKeyProvider = new DirectSigningKeyProvider(certificate);
-        service.SigningKeyField = new CertificateSigningKey(certificateSource, signingKeyProvider, service);
+        service.SigningKeyField = new CertificateSigningServiceKey(certificateSource, signingKeyProvider, service);
 
         logger?.LogDebug(
             LogEvents.CertificateLoadedEvent,
@@ -303,11 +303,14 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         // Step 1: Acquire signing key dynamically (enables rotation, multi-key, context-aware scenarios)
         var signingKey = GetSigningKey(context);
 
-        Logger.LogTrace(
-            LogEvents.SigningKeyAcquiredEvent,
-            ClassStrings.LogSigningKeyAcquiredFormat,
-            signingKey.Metadata.CoseAlgorithmId,
-            signingKey.Metadata.KeyType);
+        if (signingKey is ISigningServiceKey serviceKey)
+        {
+            Logger.LogTrace(
+                LogEvents.SigningKeyAcquiredEvent,
+                ClassStrings.LogSigningKeyAcquiredFormat,
+                serviceKey.Metadata.CoseAlgorithmId,
+                serviceKey.Metadata.KeyType);
+        }
 
         // Step 2: Get CoseKey from signing key
         var coseKey = signingKey.GetCoseKey();

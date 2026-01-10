@@ -11,7 +11,7 @@ using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
 
 /// <summary>
-/// An <see cref="ISigningKey"/> implementation for Azure Key Vault keys.
+/// An <see cref="ISigningServiceKey"/> implementation for Azure Key Vault keys.
 /// Wraps a Key Vault key and provides remote signing via the CryptographyClient.
 /// </summary>
 /// <remarks>
@@ -24,8 +24,12 @@ using CoseSign1.AzureKeyVault.Common;
 /// Per RFC 9052, when signing without a certificate chain, the kid (Key ID)
 /// header should be included to identify the signing key.
 /// </para>
+/// <para>
+/// This implements <see cref="ISigningServiceKey"/> (not just <see cref="ISigningKey"/>) because
+/// Azure Key Vault signing inherently requires service context and metadata for proper operation.
+/// </para>
 /// </remarks>
-public sealed class AzureKeyVaultSigningKey : ISigningKey
+public sealed class AzureKeyVaultSigningKey : ISigningServiceKey
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings

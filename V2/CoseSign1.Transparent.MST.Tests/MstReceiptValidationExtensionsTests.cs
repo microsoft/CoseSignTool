@@ -12,39 +12,39 @@ using Moq;
 public class MstReceiptValidationExtensionsTests
 {
     [Test]
-    public void AddMstReceiptValidator_WithClient_AddsValidator()
+    public void AddMstReceiptAssertionProvider_WithClient_AddsValidator()
     {
         var client = new Mock<CodeTransparencyClient>().Object;
 
         var builder = Cose.Sign1Message();
 
-        var result = builder.AddMstReceiptValidator(b => b.UseClient(client));
+        var result = builder.AddMstReceiptAssertionProvider(b => b.UseClient(client));
 
         Assert.That(result, Is.SameAs(builder));
     }
 
     [Test]
-    public void AddMstReceiptValidator_WithProvider_AddsValidator()
+    public void AddMstReceiptAssertionProvider_WithProvider_AddsValidator()
     {
         var client = new Mock<CodeTransparencyClient>().Object;
         var provider = new MstTransparencyProvider(client);
 
         var builder = Cose.Sign1Message();
 
-        var result = builder.AddMstReceiptValidator(b => b.UseProvider(provider));
+        var result = builder.AddMstReceiptAssertionProvider(b => b.UseProvider(provider));
 
         Assert.That(result, Is.SameAs(builder));
     }
 
     [Test]
-    public void AddMstReceiptValidator_WithVerificationOptions_AddsValidator()
+    public void AddMstReceiptAssertionProvider_WithVerificationOptions_AddsValidator()
     {
         var client = new Mock<CodeTransparencyClient>().Object;
         var options = new CodeTransparencyVerificationOptions();
 
         var builder = Cose.Sign1Message();
 
-        var result = builder.AddMstReceiptValidator(b => b
+        var result = builder.AddMstReceiptAssertionProvider(b => b
             .UseClient(client)
             .WithVerificationOptions(options));
 
@@ -52,19 +52,19 @@ public class MstReceiptValidationExtensionsTests
     }
 
     [Test]
-    public void AddMstReceiptValidator_WithVerificationOptionsWithoutClientOrProvider_Throws()
+    public void AddMstReceiptAssertionProvider_WithVerificationOptionsWithoutClientOrProvider_Throws()
     {
         var builder = Cose.Sign1Message();
 
-        Assert.Throws<InvalidOperationException>(() => builder.AddMstReceiptValidator(b => b
+        Assert.Throws<InvalidOperationException>(() => builder.AddMstReceiptAssertionProvider(b => b
             .WithVerificationOptions(new CodeTransparencyVerificationOptions())));
     }
 
     [Test]
-    public void AddMstReceiptValidator_WithNoConfiguration_Throws()
+    public void AddMstReceiptAssertionProvider_WithNoConfiguration_Throws()
     {
         var builder = Cose.Sign1Message();
 
-        Assert.Throws<InvalidOperationException>(() => builder.AddMstReceiptValidator(_ => { }));
+        Assert.Throws<InvalidOperationException>(() => builder.AddMstReceiptAssertionProvider(_ => { }));
     }
 }

@@ -20,11 +20,6 @@ public sealed class ValidationResult
     public ValidationResultKind Kind { get; init; }
 
     /// <summary>
-    /// Gets the stage that produced this result, if known.
-    /// </summary>
-    public ValidationStage? Stage { get; init; }
-
-    /// <summary>
     /// Gets a value indicating whether the validation passed.
     /// </summary>
     public bool IsValid => Kind == ValidationResultKind.Success;
@@ -79,33 +74,12 @@ public sealed class ValidationResult
     }
 
     /// <summary>
-    /// Creates a successful validation result.
-    /// </summary>
-    /// <param name="validatorName">The name of the validator.</param>
-    /// <param name="stage">The validation stage.</param>
-    /// <param name="metadata">Optional metadata to include with the result.</param>
-    /// <returns>A successful validation result.</returns>
-    public static ValidationResult Success(string validatorName, ValidationStage stage, IDictionary<string, object>? metadata = null)
-    {
-        return new ValidationResult
-        {
-            Kind = ValidationResultKind.Success,
-            ValidatorName = validatorName,
-            Stage = stage,
-            Metadata = metadata != null
-                ? new Dictionary<string, object>(metadata)
-                : new Dictionary<string, object>()
-        };
-    }
-
-    /// <summary>
     /// Creates a not-applicable validation result.
     /// </summary>
     /// <param name="validatorName">The name of the validator.</param>
-    /// <param name="stage">The validation stage.</param>
     /// <param name="reason">Optional reason for not-applicable.</param>
     /// <returns>A not-applicable validation result.</returns>
-    public static ValidationResult NotApplicable(string validatorName, ValidationStage stage, string? reason = null)
+    public static ValidationResult NotApplicable(string validatorName, string? reason = null)
     {
         var metadata = new Dictionary<string, object>();
         if (!string.IsNullOrWhiteSpace(reason))
@@ -117,7 +91,6 @@ public sealed class ValidationResult
         {
             Kind = ValidationResultKind.NotApplicable,
             ValidatorName = validatorName,
-            Stage = stage,
             Failures = Array.Empty<ValidationFailure>(),
             Metadata = metadata
         };
@@ -140,24 +113,6 @@ public sealed class ValidationResult
     }
 
     /// <summary>
-    /// Creates a failed validation result with multiple failures.
-    /// </summary>
-    /// <param name="validatorName">The name of the validator.</param>
-    /// <param name="stage">The validation stage.</param>
-    /// <param name="failures">The validation failures.</param>
-    /// <returns>A failed validation result.</returns>
-    public static ValidationResult Failure(string validatorName, ValidationStage stage, params ValidationFailure[] failures)
-    {
-        return new ValidationResult
-        {
-            Kind = ValidationResultKind.Failure,
-            ValidatorName = validatorName,
-            Stage = stage,
-            Failures = failures
-        };
-    }
-
-    /// <summary>
     /// Creates a failed validation result with a single failure message.
     /// </summary>
     /// <param name="validatorName">The name of the validator.</param>
@@ -170,32 +125,6 @@ public sealed class ValidationResult
         {
             Kind = ValidationResultKind.Failure,
             ValidatorName = validatorName,
-            Failures = new[]
-            {
-                new ValidationFailure
-                {
-                    Message = message,
-                    ErrorCode = errorCode
-                }
-            }
-        };
-    }
-
-    /// <summary>
-    /// Creates a failed validation result with a single failure message.
-    /// </summary>
-    /// <param name="validatorName">The name of the validator.</param>
-    /// <param name="stage">The validation stage.</param>
-    /// <param name="message">The failure message.</param>
-    /// <param name="errorCode">Optional error code.</param>
-    /// <returns>A failed validation result.</returns>
-    public static ValidationResult Failure(string validatorName, ValidationStage stage, string message, string? errorCode = null)
-    {
-        return new ValidationResult
-        {
-            Kind = ValidationResultKind.Failure,
-            ValidatorName = validatorName,
-            Stage = stage,
             Failures = new[]
             {
                 new ValidationFailure

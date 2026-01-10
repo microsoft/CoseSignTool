@@ -6,45 +6,23 @@ namespace CoseSign1.Abstractions.Tests;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
-/// Tests for ISigningKey interface contract and implementations.
+/// Tests for ISigningKey and ISigningServiceKey interface contracts.
 /// </summary>
 [TestFixture]
 public class ISigningKeyTests
 {
     [Test]
-    public void ISigningKey_ShouldDefineRequiredProperties()
+    public void ISigningKey_ShouldDefineMinimalContract()
     {
         // Arrange & Act
         var type = typeof(ISigningKey);
 
         // Assert
         Assert.That(type.IsInterface, Is.True, "ISigningKey should be an interface");
-        Assert.That(type.GetProperty(nameof(ISigningKey.Metadata)), Is.Not.Null, "Should have Metadata property");
-        Assert.That(type.GetProperty(nameof(ISigningKey.SigningService)), Is.Not.Null, "Should have SigningService property");
-    }
-
-    [Test]
-    public void ISigningKey_Metadata_ShouldBeReadOnly()
-    {
-        // Arrange & Act
-        var metadataProperty = typeof(ISigningKey).GetProperty(nameof(ISigningKey.Metadata));
-
-        // Assert
-        Assert.That(metadataProperty, Is.Not.Null);
-        Assert.That(metadataProperty!.CanRead, Is.True, "Metadata should be readable");
-        Assert.That(metadataProperty.PropertyType, Is.EqualTo(typeof(SigningKeyMetadata)), "Metadata should be SigningKeyMetadata type");
-    }
-
-    [Test]
-    public void ISigningKey_SigningService_ShouldBeReadOnly()
-    {
-        // Arrange & Act
-        var signingServiceProperty = typeof(ISigningKey).GetProperty(nameof(ISigningKey.SigningService));
-
-        // Assert
-        Assert.That(signingServiceProperty, Is.Not.Null);
-        Assert.That(signingServiceProperty!.CanRead, Is.True, "SigningService should be readable");
-        Assert.That(signingServiceProperty.PropertyType, Is.EqualTo(typeof(ISigningService<SigningOptions>)), "SigningService should be ISigningService<SigningOptions> type");
+        
+        // ISigningKey should only have GetCoseKey - no Metadata or SigningService
+        Assert.That(type.GetProperty("Metadata"), Is.Null, "ISigningKey should NOT have Metadata property (use ISigningServiceKey)");
+        Assert.That(type.GetProperty("SigningService"), Is.Null, "ISigningKey should NOT have SigningService property (use ISigningServiceKey)");
     }
 
     [Test]
@@ -73,5 +51,54 @@ public class ISigningKeyTests
         // Verify Dispose is in the interface map
         var interfaces = type.GetInterfaces();
         Assert.That(interfaces, Does.Contain(typeof(IDisposable)), "ISigningKey should explicitly inherit IDisposable");
+    }
+
+    [Test]
+    public void ISigningServiceKey_ShouldExtendISigningKey()
+    {
+        // Arrange & Act
+        var type = typeof(ISigningServiceKey);
+
+        // Assert
+        Assert.That(type.IsInterface, Is.True, "ISigningServiceKey should be an interface");
+        Assert.That(typeof(ISigningKey).IsAssignableFrom(type), Is.True, "ISigningServiceKey should extend ISigningKey");
+    }
+
+    [Test]
+    public void ISigningServiceKey_ShouldDefineMetadataProperty()
+    {
+        // Arrange & Act
+        var metadataProperty = typeof(ISigningServiceKey).GetProperty(nameof(ISigningServiceKey.Metadata));
+
+        // Assert
+        Assert.That(metadataProperty, Is.Not.Null, "ISigningServiceKey should have Metadata property");
+        Assert.That(metadataProperty!.CanRead, Is.True, "Metadata should be readable");
+        Assert.That(metadataProperty.PropertyType, Is.EqualTo(typeof(SigningKeyMetadata)), "Metadata should be SigningKeyMetadata type");
+    }
+
+    [Test]
+    public void ISigningServiceKey_ShouldDefineSigningServiceProperty()
+    {
+        // Arrange & Act
+        var signingServiceProperty = typeof(ISigningServiceKey).GetProperty(nameof(ISigningServiceKey.SigningService));
+
+        // Assert
+        Assert.That(signingServiceProperty, Is.Not.Null, "ISigningServiceKey should have SigningService property");
+        Assert.That(signingServiceProperty!.CanRead, Is.True, "SigningService should be readable");
+        Assert.That(signingServiceProperty.PropertyType, Is.EqualTo(typeof(ISigningService<SigningOptions>)), "SigningService should be ISigningService<SigningOptions> type");
+    }
+
+    [Test]
+    public void ISigningServiceKey_ShouldInheritGetCoseKeyFromISigningKey()
+    {
+        // Arrange & Act
+        var type = typeof(ISigningServiceKey);
+        
+        // ISigningServiceKey inherits GetCoseKey from ISigningKey
+        var getCoseKeyMethod = type.GetMethod(nameof(ISigningKey.GetCoseKey));
+
+        // Assert
+        Assert.That(getCoseKeyMethod, Is.Not.Null, "ISigningServiceKey should inherit GetCoseKey from ISigningKey");
+        Assert.That(getCoseKeyMethod!.ReturnType, Is.EqualTo(typeof(CoseKey)), "GetCoseKey should return CoseKey");
     }
 }

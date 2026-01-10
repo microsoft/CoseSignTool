@@ -9,9 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates;
 using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
@@ -184,57 +182,28 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult) =>
+    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult) =>
         CreateValidators(parseResult, context: null);
 
     /// <inheritdoc/>
-    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult, VerificationContext? context)
+    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult, VerificationContext? context)
     {
         // Get logger from context options if available
         var loggerFactory = context?.LoggerFactory;
         var logger = loggerFactory?.CreateLogger<X509VerificationProvider>() ?? NullLogger<X509VerificationProvider>.Instance;
-        var chainValidatorLogger = loggerFactory?.CreateLogger<CertificateChainValidator>();
-        var keyMaterialLogger = loggerFactory?.CreateLogger<CertificateKeyMaterialResolutionValidator>();
-        var cnValidatorLogger = loggerFactory?.CreateLogger<CertificateCommonNameValidator>();
-        var issuerValidatorLogger = loggerFactory?.CreateLogger<CertificateIssuerValidator>();
+        var chainValidatorLogger = loggerFactory?.CreateLogger<CertificateChainAssertionProvider>();
+        var keyMaterialLogger = loggerFactory?.CreateLogger<CertificateSigningKeyResolver>();
+        var cnValidatorLogger = loggerFactory?.CreateLogger<CertificateCommonNameAssertionProvider>();
+        var issuerValidatorLogger = loggerFactory?.CreateLogger<CertificateIssuerAssertionProvider>();
 
-        var validators = new List<IValidator>();
-
-        bool HasX509Headers(CoseSign1Message message)
-        {
-            if (message == null)
-            {
-                return false;
-            }
-
-            bool hasX5t = message.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T)
-                || message.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5T);
-            bool hasX5chain = message.ProtectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain)
-                || message.UnprotectedHeaders.ContainsKey(CertificateHeaderContributor.HeaderLabels.X5Chain);
-
-            return hasX5t && hasX5chain;
-        }
-
-        IValidator WhenX509Headers(IValidator inner)
-        {
-            return new ConditionalX509Validator(inner, HasX509Headers);
-        }
+        var validators = new List<IValidationComponent>();
 
         // Stage 1 (Key Material Resolution): validate we can extract and parse x5t/x5chain.
         // This provides clear failures when key material is missing or malformed and allows
         // orchestration layers to run resolution before trust and signature verification.
-        validators.Add(new CertificateKeyMaterialResolutionValidator(allowUnprotectedHeaders: true, logger: keyMaterialLogger));
-
-        // Stage 3 (Signature): cryptographic signature verification using the X.509 certificate.
-        // The signature validator uses detached payload from context if provided.
-        if (context?.DetachedPayload != null)
-        {
-            validators.Add(new CertificateSignatureValidator(context.DetachedPayload.Value, allowUnprotectedHeaders: true));
-        }
-        else
-        {
-            validators.Add(new CertificateSignatureValidator(allowUnprotectedHeaders: true));
-        }
+        // Note: Signature verification (Stage 3) is now handled by the orchestrator using
+        // ISigningKey.GetCoseKey() from the resolved signing key.
+        validators.Add(new CertificateSigningKeyResolver(allowUnprotectedHeaders: true, logger: keyMaterialLogger));
 
         // Parse revocation mode
         var revocationMode = ParseRevocationMode(parseResult);
@@ -245,7 +214,7 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             var customRoots = LoadCustomRoots(parseResult, logger);
             if (customRoots.Count > 0)
             {
-                validators.Add(new CertificateChainValidator(
+                validators.Add(new CertificateChainAssertionProvider(
                     customRoots,
                     allowUnprotectedHeaders: true,
                     trustUserRoots: true,
@@ -255,59 +224,38 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         }
         else if (IsTrustSystemRoots(parseResult))
         {
-            validators.Add(WhenX509Headers(new CertificateChainValidator(
+            validators.Add(new CertificateChainAssertionProvider(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: IsAllowUntrusted(parseResult),
                 revocationMode: revocationMode,
-                logger: chainValidatorLogger)));
+                logger: chainValidatorLogger));
         }
         else if (IsAllowUntrusted(parseResult))
         {
             // Skip chain validation when explicitly allowing untrusted
             // but still add a minimal validator that accepts any chain
-            validators.Add(WhenX509Headers(new CertificateChainValidator(
+            validators.Add(new CertificateChainAssertionProvider(
                 allowUnprotectedHeaders: true,
                 allowUntrusted: true,
                 revocationMode: X509RevocationMode.NoCheck,
-                logger: chainValidatorLogger)));
+                logger: chainValidatorLogger));
         }
 
         // Add subject name validation
         if (HasSubjectNameRequirement(parseResult))
         {
             string subjectName = GetSubjectName(parseResult)!;
-            validators.Add(WhenX509Headers(new CertificateCommonNameValidator(subjectName, allowUnprotectedHeaders: true, logger: cnValidatorLogger)));
+            validators.Add(new CertificateCommonNameAssertionProvider(subjectName, logger: cnValidatorLogger));
         }
 
         // Add issuer name validation
         if (HasIssuerNameRequirement(parseResult))
         {
             string issuerName = GetIssuerName(parseResult)!;
-            validators.Add(WhenX509Headers(new CertificateIssuerValidator(issuerName, allowUnprotectedHeaders: true, logger: issuerValidatorLogger)));
+            validators.Add(new CertificateIssuerAssertionProvider(issuerName, logger: issuerValidatorLogger));
         }
 
         return validators;
-    }
-
-    private sealed class ConditionalX509Validator : IConditionalValidator
-    {
-        private readonly IValidator Inner;
-        private readonly Func<CoseSign1Message, bool> Predicate;
-
-        public ConditionalX509Validator(IValidator inner, Func<CoseSign1Message, bool> predicate)
-        {
-            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
-        }
-
-        public IReadOnlyCollection<ValidationStage> Stages => Inner.Stages;
-
-        public bool IsApplicable(CoseSign1Message input, ValidationStage stage) => Predicate(input);
-
-        public ValidationResult Validate(CoseSign1Message input, ValidationStage stage) => Inner.Validate(input, stage);
-
-        public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
-            => Inner.ValidateAsync(input, stage, cancellationToken);
     }
 
     /// <inheritdoc/>

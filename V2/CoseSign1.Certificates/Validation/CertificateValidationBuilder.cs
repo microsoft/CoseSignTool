@@ -3,75 +3,30 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using CoseSign1.Validation.Interfaces;
+
 /// <summary>
 /// Implementation of the certificate validation builder.
-/// Collects certificate validators and builds a composite validator.
+/// Collects certificate assertion providers and builds a collection of them.
 /// </summary>
 public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
 {
-    private readonly List<Func<bool, ILoggerFactory?, IValidator>> ValidatorFactories = new();
-    private bool AllowUnprotectedHeadersField = false;
+    private readonly List<Func<ILoggerFactory?, ISigningKeyAssertionProvider>> ProviderFactories = new();
     private ILoggerFactory? LoggerFactoryField;
 
-    private readonly byte[]? DetachedPayload;
-
     /// <summary>
-    /// Creates a builder for embedded signature validation.
+    /// Creates a builder for certificate assertion providers.
     /// </summary>
     public CertificateValidationBuilder()
     {
-        DetachedPayload = null;
     }
 
     /// <summary>
-    /// Creates a builder for embedded signature validation with logging.
+    /// Creates a builder for certificate assertion providers with logging.
     /// </summary>
     /// <param name="loggerFactory">Optional logger factory for diagnostic logging.</param>
     public CertificateValidationBuilder(ILoggerFactory? loggerFactory)
     {
-        DetachedPayload = null;
-        LoggerFactoryField = loggerFactory;
-    }
-
-    /// <summary>
-    /// Creates a builder for detached signature validation.
-    /// </summary>
-    /// <param name="detachedPayload">The detached payload bytes.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detachedPayload"/> is null.</exception>
-    public CertificateValidationBuilder(byte[] detachedPayload)
-    {
-        DetachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
-    }
-
-    /// <summary>
-    /// Creates a builder for detached signature validation with logging.
-    /// </summary>
-    /// <param name="detachedPayload">The detached payload bytes.</param>
-    /// <param name="loggerFactory">Optional logger factory for diagnostic logging.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detachedPayload"/> is null.</exception>
-    public CertificateValidationBuilder(byte[] detachedPayload, ILoggerFactory? loggerFactory)
-    {
-        DetachedPayload = detachedPayload ?? throw new ArgumentNullException(nameof(detachedPayload));
-        LoggerFactoryField = loggerFactory;
-    }
-
-    /// <summary>
-    /// Creates a builder for detached signature validation.
-    /// </summary>
-    /// <param name="detachedPayload">The detached payload bytes.</param>
-    public CertificateValidationBuilder(ReadOnlyMemory<byte> detachedPayload)
-    {
-        DetachedPayload = detachedPayload.ToArray();
-    }
-
-    /// <summary>
-    /// Creates a builder for detached signature validation with logging.
-    /// </summary>
-    /// <param name="detachedPayload">The detached payload bytes.</param>
-    /// <param name="loggerFactory">Optional logger factory for diagnostic logging.</param>
-    public CertificateValidationBuilder(ReadOnlyMemory<byte> detachedPayload, ILoggerFactory? loggerFactory)
-    {
-        DetachedPayload = detachedPayload.ToArray();
         LoggerFactoryField = loggerFactory;
     }
 
@@ -85,76 +40,69 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     /// <inheritdoc />
     public ICertificateValidationBuilder HasCommonName(string commonName)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateCommonNameValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateCommonNameAssertionProvider(
                 commonName,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateCommonNameValidator>()));
+                loggerFactory?.CreateLogger<CertificateCommonNameAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder IsIssuedBy(string issuerName)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateIssuerValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateIssuerAssertionProvider(
                 issuerName,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateIssuerValidator>()));
+                loggerFactory?.CreateLogger<CertificateIssuerAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder NotExpired()
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateExpirationValidator(
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateExpirationValidator>()));
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateExpirationAssertionProvider(
+                loggerFactory?.CreateLogger<CertificateExpirationAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder NotExpired(DateTime asOf)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateExpirationValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateExpirationAssertionProvider(
                 asOf,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateExpirationValidator>()));
+                loggerFactory?.CreateLogger<CertificateExpirationAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder HasEnhancedKeyUsage(Oid eku)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateKeyUsageValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateKeyUsageAssertionProvider(
                 eku,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateKeyUsageValidator>()));
+                loggerFactory?.CreateLogger<CertificateKeyUsageAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder HasEnhancedKeyUsage(string ekuOid)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateKeyUsageValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateKeyUsageAssertionProvider(
                 ekuOid,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateKeyUsageValidator>()));
+                loggerFactory?.CreateLogger<CertificateKeyUsageAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder HasKeyUsage(X509KeyUsageFlags usage)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateKeyUsageValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateKeyUsageAssertionProvider(
                 usage,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificateKeyUsageValidator>()));
+                loggerFactory?.CreateLogger<CertificateKeyUsageAssertionProvider>()));
         return this;
     }
 
@@ -163,19 +111,19 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     {
         ThrowIfNull(predicate, nameof(predicate));
 
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificatePredicateValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificatePredicateAssertionProvider(
                 predicate,
                 failureMessage,
-                allowUnprotectedHeaders,
-                loggerFactory?.CreateLogger<CertificatePredicateValidator>()));
+                loggerFactory?.CreateLogger<CertificatePredicateAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
     public ICertificateValidationBuilder AllowUnprotectedHeaders(bool allow = true)
     {
-        AllowUnprotectedHeadersField = allow;
+        // This is no longer used as assertion providers receive the signing key directly
+        // Keeping for API compatibility but it's a no-op
         return this;
     }
 
@@ -184,12 +132,12 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
         bool allowUntrusted = false,
         X509RevocationMode revocationMode = X509RevocationMode.Online)
     {
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateChainValidator(
-                allowUnprotectedHeaders,
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateChainAssertionProvider(
+                allowUnprotectedHeaders: false,
                 allowUntrusted,
                 revocationMode,
-                loggerFactory?.CreateLogger<CertificateChainValidator>()));
+                loggerFactory?.CreateLogger<CertificateChainAssertionProvider>()));
         return this;
     }
 
@@ -201,13 +149,13 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     {
         ThrowIfNull(customRoots, nameof(customRoots));
 
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateChainValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateChainAssertionProvider(
                 customRoots,
-                allowUnprotectedHeaders,
+                allowUnprotectedHeaders: false,
                 trustUserRoots,
                 revocationMode,
-                loggerFactory?.CreateLogger<CertificateChainValidator>()));
+                loggerFactory?.CreateLogger<CertificateChainAssertionProvider>()));
         return this;
     }
 
@@ -220,36 +168,23 @@ public sealed class CertificateValidationBuilder : ICertificateValidationBuilder
     {
         ThrowIfNull(chainBuilder, nameof(chainBuilder));
 
-        ValidatorFactories.Add((allowUnprotectedHeaders, loggerFactory) =>
-            new CertificateChainValidator(
+        ProviderFactories.Add(loggerFactory =>
+            new CertificateChainAssertionProvider(
                 chainBuilder,
-                allowUnprotectedHeaders,
+                allowUnprotectedHeaders: false,
                 allowUntrusted,
                 customRoots,
                 trustUserRoots,
-                loggerFactory?.CreateLogger<CertificateChainValidator>()));
+                loggerFactory?.CreateLogger<CertificateChainAssertionProvider>()));
         return this;
     }
 
     /// <inheritdoc />
-    public IValidator Build()
+    public IReadOnlyList<ISigningKeyAssertionProvider> Build()
     {
-        var validators = new List<IValidator>
-        {
-            DetachedPayload is null
-                ? new CertificateSignatureValidator(AllowUnprotectedHeadersField)
-                : new CertificateSignatureValidator(DetachedPayload, AllowUnprotectedHeadersField)
-        };
-
-        validators.AddRange(
-            ValidatorFactories.Select(factory => factory(AllowUnprotectedHeadersField, LoggerFactoryField)));
-
-        if (validators.Count == 1)
-        {
-            return validators[0];
-        }
-
-        return new CompositeValidator(validators);
+        return ProviderFactories
+            .Select(factory => factory(LoggerFactoryField))
+            .ToList();
     }
 
     private static void ThrowIfNull(object? value, string paramName)

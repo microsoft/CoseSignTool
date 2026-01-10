@@ -15,7 +15,6 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     internal static class ClassStrings
     {
         public static readonly string ErrorCertificateMustHavePrivateKeyForLocalSigning = "Certificate must have a private key for local signing.";
-        public static readonly string ErrorUnsupportedKeyAlgorithmForLocalSigning = "Certificate uses unsupported key algorithm. Only RSA, ECDsa, and ML-DSA are supported for local signing.";
     }
 
     private readonly X509Certificate2 Certificate;
@@ -54,7 +53,7 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
                 return CoseKeyField;
             }
 
-            CoseKeyField = CreateCoseKey();
+            CoseKeyField = X509CertificateCoseKeyFactory.CreateFromPrivateKey(Certificate);
             return CoseKeyField;
         }
     }
@@ -73,47 +72,5 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
         // Don't dispose certificate - caller owns it
         Disposed = true;
         GC.SuppressFinalize(this);
-    }
-
-    private CoseKey CreateCoseKey()
-    {
-        // Try RSA first
-        var rsa = Certificate.GetRSAPrivateKey();
-        if (rsa != null)
-        {
-            // Determine hash algorithm based on key size
-            var hashAlgorithm = rsa.KeySize switch
-            {
-                >= 4096 => HashAlgorithmName.SHA512, // PS512
-                >= 3072 => HashAlgorithmName.SHA384, // PS384
-                _ => HashAlgorithmName.SHA256        // PS256
-            };
-            return new CoseKey(rsa, RSASignaturePadding.Pss, hashAlgorithm);
-        }
-
-        // Try ECDsa
-        var ecdsa = Certificate.GetECDsaPrivateKey();
-        if (ecdsa != null)
-        {
-            // Determine hash algorithm based on curve size
-            var hashAlgorithm = ecdsa.KeySize switch
-            {
-                521 => HashAlgorithmName.SHA512, // ES512 (P-521)
-                384 => HashAlgorithmName.SHA384, // ES384 (P-384)
-                _ => HashAlgorithmName.SHA256    // ES256 (P-256)
-            };
-            return new CoseKey(ecdsa, hashAlgorithm);
-        }
-
-        // Try ML-DSA (Post-Quantum)
-#pragma warning disable SYSLIB5006 // ML-DSA APIs are marked as preview in .NET 10
-        var mlDsa = Certificate.GetMLDsaPrivateKey();
-        if (mlDsa != null)
-        {
-            return new CoseKey(mlDsa);
-        }
-#pragma warning restore SYSLIB5006
-
-        throw new NotSupportedException(ClassStrings.ErrorUnsupportedKeyAlgorithmForLocalSigning);
     }
 }

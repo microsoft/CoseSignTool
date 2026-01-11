@@ -344,7 +344,10 @@ public sealed partial class IndirectSignatureValidator : ValidationComponentBase
             ClassStrings.AlgSHA256 => SHA256.Create(),
             ClassStrings.AlgSHA384 => SHA384.Create(),
             ClassStrings.AlgSHA512 => SHA512.Create(),
-#pragma warning disable CA5350 // Do not use weak cryptographic algorithms - legacy support only
+            // CodeQL[cs/weak-crypto]: SHA-1 is used ONLY for validation of existing legacy content,
+            // not for creating new signatures. This enables backward compatibility with existing
+            // COSE_Hash_V signatures that were created with SHA-1. New signatures should use SHA-256+.
+#pragma warning disable CA5350 // Do not use weak cryptographic algorithms - legacy validation only
             ClassStrings.AlgSHA1 => SHA1.Create(),
 #pragma warning restore CA5350
             _ => null

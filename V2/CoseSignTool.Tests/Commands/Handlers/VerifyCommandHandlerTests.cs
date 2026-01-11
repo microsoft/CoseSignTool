@@ -564,7 +564,8 @@ public class VerifyCommandHandlerTests
         // Use X509VerificationProvider to resolve the real signing key from x5chain
         // Then the failing assertion provider to test assertion failure handling
         var x509Provider = new X509VerificationProvider();
-        var failingProvider = new MockVerificationProvider(isActivated: true, validationPasses: false);
+        // Don't include mock key resolver - let X509 provider handle key resolution
+        var failingProvider = new MockVerificationProvider(isActivated: true, validationPasses: false, includeKeyResolver: false);
         var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] { x509Provider, failingProvider });
 
         try
@@ -584,10 +585,10 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context, new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
-            // Assert - Validation fails due to mock provider's failing assertion
-            Assert.That(result, Is.EqualTo((int)ExitCode.VerificationFailed));
+            // Assert - Validation fails due to mock provider's failing assertion (trust policy not satisfied)
+            Assert.That(result, Is.EqualTo((int)ExitCode.UntrustedCertificate));
             var output = stringWriter.ToString();
-            Assert.That(output, Does.Contain("Signature verification failed"));
+            Assert.That(output, Does.Contain("not trusted").IgnoreCase);
             Assert.That(output, Does.Contain("MOCK_ERROR"));
         }
         finally
@@ -892,7 +893,7 @@ public class VerifyCommandHandlerTests
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayloadPath), signatureOnly: false);
 
             Assert.That(result, Is.EqualTo((int)ExitCode.VerificationFailed));
-            Assert.That(error.ToString(), Does.Contain("Payload hash does not match"));
+            Assert.That(error.ToString(), Does.Contain("payload hash does not match").IgnoreCase);
             Assert.That(output.ToString(), Does.Contain("Payload File"));
         }
         finally
@@ -1177,7 +1178,8 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(stringWriter);
 
         // Create a mock provider that is activated and returns validators
-        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: true);
+        // Don't include mock key resolver - let X509 provider handle key resolution
+        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: true, includeKeyResolver: false);
         // Include X509VerificationProvider to resolve the actual signing key
         var x509Provider = new X509VerificationProvider();
         var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] 
@@ -1196,10 +1198,10 @@ public class VerifyCommandHandlerTests
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, mockProvider },
-                $"verify \"{signature.FullName}\" --allow-untrusted");
+                $"verify \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
 
-            // Act
-            var result = await handler.HandleAsync(context);
+            // Act - provide payload for indirect signature validation
+            var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
             // Assert - Provider should have been called
@@ -1254,10 +1256,10 @@ public class VerifyCommandHandlerTests
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, nullMetadataProvider },
-                $"verify \"{signature.FullName}\" --allow-untrusted");
+                $"verify \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
 
-            // Act
-            var result = await handler.HandleAsync(context);
+            // Act - pass payloadFile to validate the payload hash
+            var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
             // Assert - only check output for null formatting (success vs trust may vary)
@@ -1578,8 +1580,8 @@ public class VerifyCommandHandlerTests
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, new AllowAllTrustProvider("P1"), new AllowAllTrustProvider("P2") },
-                $"verify \"{tempSignature}\" --allow-untrusted");
-            var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
+                $"verify \"{tempSignature}\" --allow-untrusted --payload \"{tempPayload}\"");
+            var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
             Assert.That(result, Is.EqualTo((int)ExitCode.Success).Or.EqualTo((int)ExitCode.UntrustedCertificate));
@@ -1672,7 +1674,8 @@ public class VerifyCommandHandlerTests
 
         public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
         {
-            yield return new MockSigningKeyResolver();
+            // Don't add key resolver - rely on X509VerificationProvider when combined
+            yield break;
         }
 
         public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
@@ -1702,8 +1705,8 @@ public class VerifyCommandHandlerTests
 
         public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
         {
-            // Only return the failing assertion provider - rely on X509VerificationProvider for key resolution
-            yield return new MockFailingAssertionProvider();
+            // Return a failing post-signature validator
+            yield return new MockFailingPostSignatureValidator();
         }
 
         public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
@@ -1922,15 +1925,24 @@ public class VerifyCommandHandlerTests
     {
         private readonly bool IsActivatedValue;
         private readonly bool ValidationPasses;
+        private readonly bool IncludeKeyResolver;
 
         public bool IsActivatedCalled { get; private set; }
         public bool CreateValidatorsCalled { get; private set; }
         public bool GetMetadataCalled { get; private set; }
 
-        public MockVerificationProvider(bool isActivated, bool validationPasses)
+        /// <summary>
+        /// Creates a mock verification provider for testing.
+        /// </summary>
+        /// <param name="isActivated">Whether this provider is activated.</param>
+        /// <param name="validationPasses">Whether validation should pass.</param>
+        /// <param name="includeKeyResolver">If true, adds a mock key resolver. Set to false when using alongside
+        /// X509VerificationProvider to let the real certificate-based resolver handle key resolution.</param>
+        public MockVerificationProvider(bool isActivated, bool validationPasses, bool includeKeyResolver = true)
         {
             IsActivatedValue = isActivated;
             ValidationPasses = validationPasses;
+            IncludeKeyResolver = includeKeyResolver;
         }
 
         public string ProviderName => "MockProvider";
@@ -1953,7 +1965,10 @@ public class VerifyCommandHandlerTests
         public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
         {
             CreateValidatorsCalled = true;
-            yield return new MockSigningKeyResolver();
+            if (IncludeKeyResolver)
+            {
+                yield return new MockSigningKeyResolver();
+            }
             if (!ValidationPasses)
             {
                 yield return new MockFailingAssertionProvider();
@@ -1962,7 +1977,14 @@ public class VerifyCommandHandlerTests
 
         public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
         {
-            // Permit trust so the test can focus on provider integration behavior.
+            // When validation should fail, require the mock assertion to be valid (which it won't be)
+            if (!ValidationPasses)
+            {
+                return TrustPolicy.Require<MockFailedAssertion>(
+                    a => a.IsValid,
+                    "MOCK_ERROR: Mock validation must pass");
+            }
+            // Otherwise permit trust so the test can focus on provider integration behavior.
             return TrustPolicy.Or();
         }
 
@@ -1996,8 +2018,8 @@ public class VerifyCommandHandlerTests
 
         public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
         {
-            // Always pass so we can reach metadata writing.
-            yield return new MockSigningKeyResolver();
+            // Don't add a key resolver - let X509 provider handle key resolution when combined
+            yield break;
         }
 
         public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
@@ -2145,6 +2167,29 @@ public class VerifyCommandHandlerTests
         public MockFailedAssertion(string description)
         {
             Description = description;
+        }
+    }
+
+    /// <summary>
+    /// Mock post-signature validator that always fails.
+    /// </summary>
+    private sealed class MockFailingPostSignatureValidator : IPostSignatureValidator
+    {
+        public string ComponentName => "MockFailingPostSignature";
+
+        public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
+
+        public ValidationResult Validate(IPostSignatureValidationContext context)
+        {
+            return ValidationResult.Failure(
+                ComponentName,
+                "Post-signature validation failed",
+                "POST_SIGNATURE_FAILED");
+        }
+
+        public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Validate(context));
         }
     }
 

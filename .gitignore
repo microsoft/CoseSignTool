@@ -12,6 +12,9 @@ CHANGELOG.md
 !**/TestData/*.cose
 test.txt
 
+# Build lock file for parallel coverage runs
+.build.lock
+
 # User-specific files
 *.rsuser
 *.suo

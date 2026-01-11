@@ -47,6 +47,20 @@ public sealed class TrustDecision
     public static TrustDecision Trusted() => TrustedInstance;
 
     /// <summary>
+    /// Creates a trusted decision with optional reasons explaining why trust was granted.
+    /// </summary>
+    /// <param name="reasons">The reasons why trust was granted.</param>
+    /// <returns>A decision indicating trust with optional explanations.</returns>
+    public static TrustDecision Trusted(params string[] reasons)
+    {
+        if (reasons == null || reasons.Length == 0)
+        {
+            return TrustedInstance;
+        }
+        return new TrustDecision(true, reasons);
+    }
+
+    /// <summary>
     /// Creates an untrusted decision with reasons.
     /// </summary>
     /// <param name="reasons">The reasons why trust was denied.</param>

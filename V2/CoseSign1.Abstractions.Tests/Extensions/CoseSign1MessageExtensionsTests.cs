@@ -491,5 +491,197 @@ public class CoseSign1MessageExtensionsTests
         Assert.That(message!.HasHeader(CoseHeaderLabel.ContentType), Is.False);
     }
 
+    [Test]
+    public void HasHeader_WithUnprotectedHeader_AndUnprotectedLocation_ReturnsTrue()
+    {
+        var unprotectedHeaders = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json") }
+        };
+        var message = CreateMessageWithHeaders(null, unprotectedHeaders);
+
+        Assert.That(message.HasHeader(CoseHeaderLabel.ContentType, CoseHeaderLocation.Unprotected), Is.True);
+    }
+
+    #endregion
+
+    #region TryGetHeader Type Conversion Edge Cases
+
+    [Test]
+    public void TryGetHeader_String_WithIntHeader_ReturnsFalse()
+    {
+        // Try to read an int header as string - should fail conversion
+        var headers = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.Algorithm, CoseHeaderValue.FromInt32(-7) }
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out string? value);
+
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.Null);
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithStringHeader_ReturnsFalse()
+    {
+        // Try to read a string header as int - should fail conversion
+        var headers = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json") }
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetHeader(CoseHeaderLabel.ContentType, out int value);
+
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.EqualTo(default(int)));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithStringHeader_ReturnsFalse()
+    {
+        // Try to read a string header as bytes - should fail conversion
+        var headers = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("application/json") }
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetHeader(CoseHeaderLabel.ContentType, out ReadOnlyMemory<byte> value);
+
+        Assert.That(result, Is.False);
+        Assert.That(value.IsEmpty, Is.True);
+    }
+
+    [Test]
+    public void TryGetHeader_Int_WithMissingHeader_ReturnsFalse()
+    {
+        var message = CreateMessageWithHeaders(new CoseHeaderMap());
+
+        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out int value);
+
+        Assert.That(result, Is.False);
+        Assert.That(value, Is.EqualTo(default(int)));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithMissingHeader_ReturnsFalse()
+    {
+        var message = CreateMessageWithHeaders(new CoseHeaderMap());
+        var keyIdLabel = new CoseHeaderLabel(4);
+
+        bool result = message.TryGetHeader(keyIdLabel, out ReadOnlyMemory<byte> value);
+
+        Assert.That(result, Is.False);
+        Assert.That(value.IsEmpty, Is.True);
+    }
+
+    #endregion
+
+    #region TryGetHeader with Unprotected Headers
+
+    [Test]
+    public void TryGetHeader_Int_WithUnprotectedHeader_AndAnyLocation_ReturnsValue()
+    {
+        var unprotectedHeaders = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.Algorithm, CoseHeaderValue.FromInt32(-7) }
+        };
+        var message = CreateMessageWithHeaders(null, unprotectedHeaders);
+
+        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out int value, CoseHeaderLocation.Any);
+
+        Assert.That(result, Is.True);
+        Assert.That(value, Is.EqualTo(-7));
+    }
+
+    [Test]
+    public void TryGetHeader_Bytes_WithUnprotectedHeader_AndAnyLocation_ReturnsValue()
+    {
+        var testBytes = new byte[] { 1, 2, 3 };
+        var keyIdLabel = new CoseHeaderLabel(4);
+        var unprotectedHeaders = new CoseHeaderMap
+        {
+            { keyIdLabel, CoseHeaderValue.FromBytes(testBytes) }
+        };
+        var message = CreateMessageWithHeaders(null, unprotectedHeaders);
+
+        bool result = message.TryGetHeader(keyIdLabel, out ReadOnlyMemory<byte> value, CoseHeaderLocation.Any);
+
+        Assert.That(result, Is.True);
+        Assert.That(value.ToArray(), Is.EqualTo(testBytes));
+    }
+
+    #endregion
+
+    #region TryGetIndirectContentType Edge Cases
+
+    [Test]
+    public void TryGetContentType_WithCoseHashVAndOnlySuffix_ReturnsFalse()
+    {
+        // Content type that is only the suffix, stripping it leaves empty
+        var headers = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("+cose-hash-v") }
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetContentType(out string? contentType);
+
+        Assert.That(result, Is.False);
+        Assert.That(contentType, Is.Null.Or.Empty);
+    }
+
+    [Test]
+    public void TryGetContentType_WithHashLegacyAndOnlySuffix_ReturnsFalse()
+    {
+        // Content type that is only the suffix, stripping it leaves empty
+        var headers = new CoseHeaderMap
+        {
+            { CoseHeaderLabel.ContentType, CoseHeaderValue.FromString("+hash-sha256") }
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetContentType(out string? contentType);
+
+        Assert.That(result, Is.False);
+        Assert.That(contentType, Is.Null.Or.Empty);
+    }
+
+    [Test]
+    public void TryGetContentType_WithCoseHashEnvelopeAndCoAPIntContentType_ReturnsFormattedContentType()
+    {
+        // Test CoAP int content type format (header 259 as int)
+        var headers = new CoseHeaderMap
+        {
+            { IndirectSignatureHeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-16) },
+            { IndirectSignatureHeaderLabels.PreimageContentType, CoseHeaderValue.FromInt32(50) } // CoAP content format
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetContentType(out string? contentType);
+
+        Assert.That(result, Is.True);
+        Assert.That(contentType, Is.EqualTo("coap/50"));
+    }
+
+    [Test]
+    public void TryGetContentType_WithCoseHashEnvelopeAndNoPreimageContentType_ReturnsFalse()
+    {
+        var headers = new CoseHeaderMap
+        {
+            { IndirectSignatureHeaderLabels.PayloadHashAlg, CoseHeaderValue.FromInt32(-16) }
+            // No PreimageContentType header
+        };
+        var message = CreateMessageWithHeaders(headers);
+
+        bool result = message.TryGetContentType(out string? contentType);
+
+        Assert.That(result, Is.False);
+        Assert.That(contentType, Is.Null);
+    }
+
     #endregion
 }

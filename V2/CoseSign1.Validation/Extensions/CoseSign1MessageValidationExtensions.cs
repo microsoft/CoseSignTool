@@ -125,18 +125,7 @@ public static class CoseSign1MessageValidationExtensions
         }
 
         var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        if (configure != null)
-        {
-            configure(builder);
-        }
-        else
-        {
-            var components = DefaultComponentDiscovery.GetDefaultComponents(loggerFactory);
-            foreach (var component in components)
-            {
-                builder.AddComponent(component);
-            }
-        }
+        configure(builder);
         var validator = builder.Build();
 
         return validator.Validate(message);
@@ -204,19 +193,13 @@ public static class CoseSign1MessageValidationExtensions
             throw new ArgumentNullException(nameof(message));
         }
 
+        if (configure == null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
         var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        if(configure != null)
-        {
-            configure(builder);
-        }
-        else
-        {
-            var components = DefaultComponentDiscovery.GetDefaultComponents(loggerFactory);
-            foreach (var component in components)
-            {
-                builder.AddComponent(component);
-            }
-        }
+        configure(builder);
         var validator = builder.Build();
 
         return validator.ValidateAsync(message, cancellationToken);

@@ -110,4 +110,65 @@ public class DirectSigningKeyProviderTests
         // Certificate should still be usable
         Assert.That(cert.Subject, Is.Not.Null);
     }
+
+    #region ML-DSA Tests
+
+    [Test]
+    [Category("MLDSA")]
+    public void GetCoseKey_WithMLDsa44Certificate_ReturnsValidKey()
+    {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
+        using var cert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA44Provider", mlDsaParameterSet: 44);
+        using var provider = new DirectSigningKeyProvider(cert);
+
+        var key = provider.GetCoseKey();
+
+        Assert.That(key, Is.Not.Null);
+    }
+
+    [Test]
+    [Category("MLDSA")]
+    public void GetCoseKey_WithMLDsa65Certificate_ReturnsValidKey()
+    {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
+        using var cert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA65Provider", mlDsaParameterSet: 65);
+        using var provider = new DirectSigningKeyProvider(cert);
+
+        var key = provider.GetCoseKey();
+
+        Assert.That(key, Is.Not.Null);
+    }
+
+    [Test]
+    [Category("MLDSA")]
+    public void GetCoseKey_WithMLDsa87Certificate_ReturnsValidKey()
+    {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
+        using var cert = TestCertificateUtils.CreateMLDsaCertificate("MLDSA87Provider", mlDsaParameterSet: 87);
+        using var provider = new DirectSigningKeyProvider(cert);
+
+        var key = provider.GetCoseKey();
+
+        Assert.That(key, Is.Not.Null);
+    }
+
+    [Test]
+    [Category("MLDSA")]
+    public void GetCoseKey_WithMLDsa_CalledMultipleTimes_ReturnsSameInstance()
+    {
+        PlatformHelper.SkipIfMLDsaNotSupported();
+
+        using var cert = TestCertificateUtils.CreateMLDsaCertificate("MLDSAMultiCall", mlDsaParameterSet: 65);
+        using var provider = new DirectSigningKeyProvider(cert);
+
+        var key1 = provider.GetCoseKey();
+        var key2 = provider.GetCoseKey();
+
+        Assert.That(key1, Is.SameAs(key2));
+    }
+
+    #endregion
 }

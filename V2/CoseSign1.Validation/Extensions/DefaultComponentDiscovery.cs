@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation.Extensions;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CoseSign1.Validation.Abstractions;
 using CoseSign1.Validation.Interfaces;
@@ -28,7 +27,6 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 internal static class DefaultComponentDiscovery
 {
-    [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public const string ErrorNoProvidersFound = "No default validation component providers were discovered. " +

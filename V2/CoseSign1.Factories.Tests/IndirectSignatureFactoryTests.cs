@@ -456,8 +456,11 @@ public class IndirectSignatureFactoryTests
         cts.Cancel(); // Cancel immediately
 
         // Act & Assert - OperationCanceledException is the base class of TaskCanceledException
-        Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        // Use CatchAsync + InstanceOf to allow derived types
+        var caughtException = Assert.CatchAsync<OperationCanceledException>(async () =>
             await factory.CreateCoseSign1MessageBytesAsync(stream, contentType, cancellationToken: cts.Token));
+        
+        Assert.That(caughtException, Is.InstanceOf<OperationCanceledException>());
     }
     [Test]
     public void CreateCoseSign1MessageIndirect_WithByteArray_ShouldReturnCoseSign1Message()

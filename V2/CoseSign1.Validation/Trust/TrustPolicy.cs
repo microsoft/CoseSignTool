@@ -222,14 +222,16 @@ public abstract class TrustPolicy
 
     private sealed class AllowAllPolicy : TrustPolicy
     {
+        private readonly string? Reason;
+
         public AllowAllPolicy(string? reason)
         {
-            // reason parameter kept for API compatibility but not used since AllowAll always trusts
+            Reason = reason;
         }
 
         public override TrustDecision Evaluate(IReadOnlyList<ISigningKeyAssertion> assertions)
         {
-            return TrustDecision.Trusted();
+            return Reason != null ? TrustDecision.Trusted(Reason) : TrustDecision.Trusted();
         }
     }
 

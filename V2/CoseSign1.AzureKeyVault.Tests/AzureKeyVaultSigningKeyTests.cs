@@ -102,6 +102,23 @@ public class AzureKeyVaultSigningKeyTests
     }
 
     [Test]
+    public void Metadata_With3072BitRsaKey_UsesPS384()
+    {
+        // Arrange - 3072-bit key
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestRsaKey(3072);
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var metadata = signingKey.Metadata;
+
+        // Assert - COSE algorithm -38 is PS384
+        Assert.That(metadata.CoseAlgorithmId, Is.EqualTo(-38));
+        Assert.That(metadata.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA384));
+    }
+
+    [Test]
     public void Metadata_With4096BitRsaKey_UsesPS512()
     {
         // Arrange - 4096-bit key
@@ -116,6 +133,23 @@ public class AzureKeyVaultSigningKeyTests
         // Assert - COSE algorithm -39 is PS512
         Assert.That(metadata.CoseAlgorithmId, Is.EqualTo(-39));
         Assert.That(metadata.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA512));
+    }
+
+    [Test]
+    public void Metadata_WithRsaHsmKey_HasRsaKeyType()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestRsaHsmKey(2048);
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var metadata = signingKey.Metadata;
+
+        // Assert
+        Assert.That(metadata.KeyType, Is.EqualTo(CryptographicKeyType.RSA));
+        Assert.That(metadata.IsRemote, Is.True);
     }
 
     #endregion
@@ -190,6 +224,70 @@ public class AzureKeyVaultSigningKeyTests
         Assert.That(metadata.IsRemote, Is.True);
     }
 
+    [Test]
+    public void Metadata_WithEcHsmKey_HasECDsaKeyType()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestEcHsmKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var metadata = signingKey.Metadata;
+
+        // Assert
+        Assert.That(metadata.KeyType, Is.EqualTo(CryptographicKeyType.ECDsa));
+        Assert.That(metadata.IsRemote, Is.True);
+    }
+
+    [Test]
+    public void Metadata_WithEcKeyNullCurveName_DefaultsToP256()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestEcKeyWithNullCurve();
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var metadata = signingKey.Metadata;
+
+        // Assert - Should default to ES256
+        Assert.That(metadata.CoseAlgorithmId, Is.EqualTo(-7));
+        Assert.That(metadata.HashAlgorithm, Is.EqualTo(HashAlgorithmName.SHA256));
+    }
+
+    #endregion
+
+    #region Unsupported Key Type Tests
+
+    [Test]
+    public void Metadata_WithUnsupportedKeyType_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestOctKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => _ = signingKey.Metadata);
+    }
+
+    [Test]
+    public void GetCoseKey_WithUnsupportedKeyType_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestOctKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => signingKey.GetCoseKey());
+    }
+
     #endregion
 
     #region CoseKey Tests
@@ -233,6 +331,38 @@ public class AzureKeyVaultSigningKeyTests
         // Arrange
         var mockSigningService = CreateMockSigningService();
         var keyVaultKey = CreateTestEcKey();
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var coseKey = signingKey.GetCoseKey();
+
+        // Assert
+        Assert.That(coseKey, Is.Not.Null);
+    }
+
+    [Test]
+    public void GetCoseKey_WithEcP384Key_ReturnsValidCoseKey()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestEcKey(ECCurve.NamedCurves.nistP384);
+        var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
+        using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
+
+        // Act
+        var coseKey = signingKey.GetCoseKey();
+
+        // Assert
+        Assert.That(coseKey, Is.Not.Null);
+    }
+
+    [Test]
+    public void GetCoseKey_WithEcP521Key_ReturnsValidCoseKey()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var keyVaultKey = CreateTestEcKey(ECCurve.NamedCurves.nistP521);
         var wrapper = new KeyVaultCryptoClientWrapper(keyVaultKey, new Mock<CryptographyClient>().Object);
         using var signingKey = new AzureKeyVaultSigningKey(mockSigningService.Object, wrapper);
 
@@ -322,6 +452,23 @@ public class AzureKeyVaultSigningKeyTests
     }
 
     /// <summary>
+    /// Creates a test RSA HSM KeyVaultKey using the model factory.
+    /// </summary>
+    private KeyVaultKey CreateTestRsaHsmKey(int keySize = 2048)
+    {
+        var keyId = new Uri($"{TestVaultUri}/keys/{TestKeyName}/{TestKeyVersion}");
+        var rsa = RSA.Create(keySize);
+        var jsonWebKey = new JsonWebKey(rsa, includePrivateParameters: false)
+        {
+            KeyType = KeyType.RsaHsm
+        };
+
+        return KeyModelFactory.KeyVaultKey(
+            KeyModelFactory.KeyProperties(keyId, name: TestKeyName, version: TestKeyVersion),
+            jsonWebKey);
+    }
+
+    /// <summary>
     /// Creates a test EC KeyVaultKey using the model factory.
     /// </summary>
     private KeyVaultKey CreateTestEcKey(ECCurve? curve = null)
@@ -329,6 +476,58 @@ public class AzureKeyVaultSigningKeyTests
         var keyId = new Uri($"{TestVaultUri}/keys/{TestKeyName}/{TestKeyVersion}");
         var ecdsa = ECDsa.Create(curve ?? ECCurve.NamedCurves.nistP256);
         var jsonWebKey = new JsonWebKey(ecdsa, includePrivateParameters: false);
+
+        return KeyModelFactory.KeyVaultKey(
+            KeyModelFactory.KeyProperties(keyId, name: TestKeyName, version: TestKeyVersion),
+            jsonWebKey);
+    }
+
+    /// <summary>
+    /// Creates a test EC HSM KeyVaultKey using the model factory.
+    /// </summary>
+    private KeyVaultKey CreateTestEcHsmKey()
+    {
+        var keyId = new Uri($"{TestVaultUri}/keys/{TestKeyName}/{TestKeyVersion}");
+        var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jsonWebKey = new JsonWebKey(ecdsa, includePrivateParameters: false)
+        {
+            KeyType = KeyType.EcHsm
+        };
+
+        return KeyModelFactory.KeyVaultKey(
+            KeyModelFactory.KeyProperties(keyId, name: TestKeyName, version: TestKeyVersion),
+            jsonWebKey);
+    }
+
+    /// <summary>
+    /// Creates a test EC KeyVaultKey with no curve name set (for testing default curve handling).
+    /// </summary>
+    private KeyVaultKey CreateTestEcKeyWithNullCurve()
+    {
+        var keyId = new Uri($"{TestVaultUri}/keys/{TestKeyName}/{TestKeyVersion}");
+        var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jsonWebKey = new JsonWebKey(ecdsa, includePrivateParameters: false)
+        {
+            CurveName = null
+        };
+
+        return KeyModelFactory.KeyVaultKey(
+            KeyModelFactory.KeyProperties(keyId, name: TestKeyName, version: TestKeyVersion),
+            jsonWebKey);
+    }
+
+    /// <summary>
+    /// Creates a test Oct (symmetric) KeyVaultKey using the model factory.
+    /// This key type is not supported for COSE signing.
+    /// </summary>
+    private KeyVaultKey CreateTestOctKey()
+    {
+        var keyId = new Uri($"{TestVaultUri}/keys/{TestKeyName}/{TestKeyVersion}");
+
+        var jsonWebKey = new JsonWebKey([])
+        {
+            KeyType = KeyType.Oct
+        };
 
         return KeyModelFactory.KeyVaultKey(
             KeyModelFactory.KeyProperties(keyId, name: TestKeyName, version: TestKeyVersion),

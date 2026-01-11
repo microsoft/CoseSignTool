@@ -318,6 +318,8 @@ public class VerifyCommandHandler
                 // Signature-only mode is intended to validate cryptographic correctness only.
                 // It should not fail due to trust policy requirements.
                 builder.AllowAllTrust(ClassStrings.TrustPolicyReasonSignatureOnlyMode);
+                // Skip content/payload verification in signature-only mode
+                builder.WithoutContentVerification();
             }
             else if (providerTrustPolicies.Count == 0)
             {

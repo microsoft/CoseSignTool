@@ -6,6 +6,8 @@ namespace CoseSignTool.Inspection;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.Extensions;
 using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
 using CoseSign1.Factories.Indirect;
@@ -308,9 +310,24 @@ public class CoseInspectionService
             catch { }
         }
 
-        // Certificate thumbprint (x5t - label 34)
-        var x5tLabel = new CoseHeaderLabel(34);
-        if (protectedHeaders.ContainsKey(x5tLabel))
+        // Certificate thumbprint (x5t) + chain length (x5chain)
+        // Prefer shared helpers for parsing where possible, but keep chain-length counting
+        // tolerant of non-certificate test vectors (inspection should report structure even
+        // if certificate bytes are malformed).
+        var x5tLabel = CertificateHeaderContributor.HeaderLabels.X5T;
+        var x5chainLabel = CertificateHeaderContributor.HeaderLabels.X5Chain;
+
+        // Prefer the shared certificate extensions, but fall back to tolerant parsing
+        // so inspection can still report thumbprints even for unknown hash algorithms.
+        if (message.TryGetCertificateThumbprint(out var thumbprint, CoseHeaderLocation.Protected) && thumbprint != null)
+        {
+            info.CertificateThumbprint = new CertificateThumbprintInfo
+            {
+                Algorithm = GetHashAlgorithmName(thumbprint.HashId),
+                Value = Convert.ToHexString(thumbprint.Thumbprint.ToArray())
+            };
+        }
+        else if (protectedHeaders.ContainsKey(x5tLabel))
         {
             try
             {
@@ -319,21 +336,23 @@ public class CoseInspectionService
                 {
                     reader.ReadStartArray();
                     var algId = reader.ReadInt32();
-                    var thumbprint = reader.ReadByteString();
+                    var thumbprintBytes = reader.ReadByteString();
                     reader.ReadEndArray();
                     info.CertificateThumbprint = new CertificateThumbprintInfo
                     {
                         Algorithm = GetHashAlgorithmName(algId),
-                        Value = Convert.ToHexString(thumbprint)
+                        Value = Convert.ToHexString(thumbprintBytes)
                     };
                 }
             }
             catch { }
         }
 
-        // Certificate chain length (x5chain - label 33)
-        var x5chainLabel = new CoseHeaderLabel(33);
-        if (protectedHeaders.ContainsKey(x5chainLabel))
+        if (message.TryGetCertificateChain(out var chain, CoseHeaderLocation.Protected) && chain != null)
+        {
+            info.CertificateChainLength = chain.Count;
+        }
+        else if (protectedHeaders.ContainsKey(x5chainLabel))
         {
             try
             {
@@ -405,7 +424,7 @@ public class CoseInspectionService
             if (header.Key.Equals(CoseHeaderLabel.Algorithm) ||
                 header.Key.Equals(CoseHeaderLabel.ContentType) ||
                 header.Key.Equals(CoseHeaderLabel.CriticalHeaders) ||
-                header.Key.Equals(x5tLabel) ||
+                header.Key.Equals(CertificateHeaderContributor.HeaderLabels.X5T) ||
                 header.Key.Equals(x5chainLabel) ||
                 header.Key.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg) ||
                 header.Key.Equals(CoseHashEnvelopeHeaderContributor.HeaderLabels.PreimageContentType) ||
@@ -613,7 +632,7 @@ public class CoseInspectionService
             TotalSizeBytes = encoded.Length
         };
 
-        var x5chainLabel = new CoseHeaderLabel(33);
+        var x5chainLabel = CertificateHeaderContributor.HeaderLabels.X5Chain;
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
             info.CertificateChainLocation = ClassStrings.ValueUnprotected;
@@ -628,71 +647,140 @@ public class CoseInspectionService
 
     private List<CertificateInfo>? BuildCertificateInfo(CoseSign1Message message)
     {
-        var x5chainLabel = new CoseHeaderLabel(33);
-        CoseHeaderValue? chainValue = null;
-
-        if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
-        {
-            chainValue = message.ProtectedHeaders[x5chainLabel];
-        }
-        else if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
-        {
-            chainValue = message.UnprotectedHeaders[x5chainLabel];
-        }
-
-        if (chainValue == null)
-        {
-            return null;
-        }
-
         var certs = new List<CertificateInfo>();
 
         try
         {
-            var reader = new CborReader(chainValue.Value.EncodedValue);
-            var state = reader.PeekState();
-
-            var certBytes = new List<byte[]>();
-            if (state == CborReaderState.StartArray)
+            if (message.TryGetCertificateChain(out var chain, CoseHeaderLocation.Any) && chain != null && chain.Count > 0)
             {
-                reader.ReadStartArray();
-                while (reader.PeekState() != CborReaderState.EndArray)
+                foreach (var cert in chain)
                 {
-                    certBytes.Add(reader.ReadByteString());
-                }
-            }
-            else if (state == CborReaderState.ByteString)
-            {
-                certBytes.Add(reader.ReadByteString());
-            }
-
-            foreach (var certData in certBytes)
-            {
-                try
-                {
-                    using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificate(certData);
-                    certs.Add(new CertificateInfo
+                    try
                     {
-                        Subject = cert.Subject,
-                        Issuer = cert.Issuer,
-                        SerialNumber = cert.SerialNumber,
-                        Thumbprint = cert.Thumbprint,
-                        NotBefore = cert.NotBefore.ToString(AssemblyStrings.Formats.DateTimeUtc),
-                        NotAfter = cert.NotAfter.ToString(AssemblyStrings.Formats.DateTimeUtc),
-                        IsExpired = cert.NotAfter < DateTime.UtcNow,
-                        KeyAlgorithm = cert.GetKeyAlgorithm(),
-                        SignatureAlgorithm = cert.SignatureAlgorithm.FriendlyName
-                    });
+                        certs.Add(new CertificateInfo
+                        {
+                            Subject = cert.Subject,
+                            Issuer = cert.Issuer,
+                            SerialNumber = cert.SerialNumber,
+                            Thumbprint = cert.Thumbprint,
+                            NotBefore = cert.NotBefore.ToString(AssemblyStrings.Formats.DateTimeUtc),
+                            NotAfter = cert.NotAfter.ToString(AssemblyStrings.Formats.DateTimeUtc),
+                            IsExpired = cert.NotAfter < DateTime.UtcNow,
+                            KeyAlgorithm = cert.GetKeyAlgorithm(),
+                            SignatureAlgorithm = cert.SignatureAlgorithm.FriendlyName
+                        });
+                    }
+                    catch
+                    {
+                        // Skip malformed certificates
+                    }
+                    finally
+                    {
+                        cert.Dispose();
+                    }
                 }
-                catch
+            }
+            else
+            {
+                // Inspection should be tolerant of malformed x5chain test vectors.
+                // If the shared helper can't parse the full chain, fall back to structural
+                // CBOR parsing and include any certificates that can be loaded.
+                foreach (var rawCert in GetX5ChainRawCertificates(message))
                 {
-                    // Skip malformed certificates
+                    try
+                    {
+                        using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificate(rawCert);
+                        certs.Add(new CertificateInfo
+                        {
+                            Subject = cert.Subject,
+                            Issuer = cert.Issuer,
+                            SerialNumber = cert.SerialNumber,
+                            Thumbprint = cert.Thumbprint,
+                            NotBefore = cert.NotBefore.ToString(AssemblyStrings.Formats.DateTimeUtc),
+                            NotAfter = cert.NotAfter.ToString(AssemblyStrings.Formats.DateTimeUtc),
+                            IsExpired = cert.NotAfter < DateTime.UtcNow,
+                            KeyAlgorithm = cert.GetKeyAlgorithm(),
+                            SignatureAlgorithm = cert.SignatureAlgorithm.FriendlyName
+                        });
+                    }
+                    catch
+                    {
+                        // Skip malformed entries
+                    }
                 }
             }
         }
         catch { }
 
         return certs.Count > 0 ? certs : null;
+    }
+
+    private static List<byte[]> GetX5ChainRawCertificates(CoseSign1Message message)
+    {
+        var results = new List<byte[]>();
+        var x5chainLabel = CertificateHeaderContributor.HeaderLabels.X5Chain;
+
+        CoseHeaderValue? value = null;
+        if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
+        {
+            value = message.UnprotectedHeaders[x5chainLabel];
+        }
+        else if (message.ProtectedHeaders.ContainsKey(x5chainLabel))
+        {
+            value = message.ProtectedHeaders[x5chainLabel];
+        }
+
+        if (value is null)
+        {
+            return results;
+        }
+
+        CborReader reader;
+        try
+        {
+            reader = new CborReader(value.Value.EncodedValue);
+        }
+        catch
+        {
+            return results;
+        }
+
+        try
+        {
+            var state = reader.PeekState();
+            if (state == CborReaderState.ByteString)
+            {
+                results.Add(reader.ReadByteString());
+                return results;
+            }
+
+            if (state != CborReaderState.StartArray)
+            {
+                return results;
+            }
+
+            reader.ReadStartArray();
+            while (reader.PeekState() != CborReaderState.EndArray)
+            {
+                if (reader.PeekState() == CborReaderState.ByteString)
+                {
+                    results.Add(reader.ReadByteString());
+                }
+                else
+                {
+                    // Unknown/unsupported element type for x5chain; stop parsing.
+                    break;
+                }
+            }
+
+            reader.ReadEndArray();
+        }
+        catch
+        {
+            return results;
+        }
+
+        return results;
     }
 
     private void DisplayProtectedHeaders(CoseSign1Message message)
@@ -919,7 +1007,7 @@ public class CoseInspectionService
         Formatter.WriteKeyValue(ClassStrings.KeyTotalSize, string.Format(ClassStrings.FormatBytes, encoded.Length));
 
         // Try to extract certificate chain from unprotected headers (x5chain is label 33)
-        var x5chainLabel = new CoseHeaderLabel(33);
+        var x5chainLabel = CertificateHeaderContributor.HeaderLabels.X5Chain;
         if (message.UnprotectedHeaders.ContainsKey(x5chainLabel))
         {
             Formatter.WriteInfo(ClassStrings.InfoCertChainUnprotected);
@@ -1003,7 +1091,7 @@ public class CoseInspectionService
             }
 
             // For certificate thumbprint, show as hex
-            if (label.Equals(new CoseHeaderLabel(34))) // x5t
+            if (label.Equals(CertificateHeaderContributor.HeaderLabels.X5T))
             {
                 if (state == CborReaderState.StartArray)
                 {

@@ -118,10 +118,11 @@ When verifying with MST:
 
 ## Integration with Validators
 
-Add MST validation to the validation pipeline using the fluent API:
+Add MST validation to the V2 validation pipeline:
 
 ```csharp
 using Azure.Security.CodeTransparency;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
@@ -129,16 +130,19 @@ using System.Security.Cryptography.Cose;
 
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
 
-// Build validator with fluent MST validation
-var validator = Cose.Sign1Message()
+// Build validator with MST validation
+var validator = new CoseSign1ValidationBuilder()
+    // Typical COSE_Sign1 receipts are attached to X.509-backed signatures.
+    // Add an X.509 signing key resolver so the core validator can verify the signature.
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateMst(mst => mst
-        .RequireReceiptPresence()           // Emit mst.receipt.present trust claim
+        .RequireReceiptPresence()
         .VerifyReceipt(client))             // Offline receipt validation
-    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
+    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
     .Build();
 
 CoseSign1Message message = /* ... */;
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -151,10 +155,11 @@ if (result.Overall.IsValid)
 For online verification that fetches current signing keys from the service:
 
 ```csharp
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateMst(mst => mst
         .VerifyReceiptOnline(client, "dataplane.codetransparency.azure.net"))
-    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
+    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
     .Build();
 ```
 

@@ -175,6 +175,27 @@ $testExitCode = $LASTEXITCODE
 Write-Host ""
 Write-Host "Generating coverage report..." -ForegroundColor Yellow
 
+# Ensure reportgenerator is available (prefer a repo-local tool install).
+$reportGeneratorCmd = Get-Command reportgenerator -ErrorAction SilentlyContinue
+if (-not $reportGeneratorCmd) {
+    $toolPath = Join-Path $PSScriptRoot ".tools"
+    $reportGeneratorExe = Join-Path $toolPath "reportgenerator.exe"
+    if (-not (Test-Path $reportGeneratorExe)) {
+        Write-Host "reportgenerator not found; installing to $toolPath..." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $toolPath -Force | Out-Null
+        dotnet tool install dotnet-reportgenerator-globaltool --tool-path $toolPath
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Failed to install reportgenerator tool." -ForegroundColor Red
+            exit 1
+        }
+    }
+    $reportGeneratorCmd = Get-Command $reportGeneratorExe -ErrorAction SilentlyContinue
+    if (-not $reportGeneratorCmd) {
+        Write-Host "reportgenerator is still not available after install." -ForegroundColor Red
+        exit 1
+    }
+}
+
 # Ensure report directory exists
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 
@@ -194,7 +215,7 @@ if ($assemblyFilter) {
     $reportGenArgs += "-assemblyfilters:$assemblyFilter"
 }
 
-reportgenerator @reportGenArgs
+& $reportGeneratorCmd.Path @reportGenArgs
 
 # Copy merged Cobertura output to the expected location (only for full runs)
 if (-not $ProjectFilter) {

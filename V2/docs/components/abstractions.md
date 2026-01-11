@@ -6,7 +6,7 @@
 
 ## Overview
 
-`CoseSign1.Abstractions` defines the shared contracts used by factories, signing services, header contributors, and transparency integrations. Most consumers will use concrete packages (like `CoseSign1` and `CoseSign1.Certificates`), but these abstractions are the surface you implement when adding a new signing backend or custom header logic.
+`CoseSign1.Abstractions` defines the shared contracts used by factories, signing services, header contributors, and transparency integrations. Most consumers will use concrete packages (like `CoseSign1.Factories` and `CoseSign1.Certificates`), but these abstractions are the surface you implement when adding a new signing backend or custom header logic.
 
 ## Key Abstractions
 
@@ -89,12 +89,12 @@ Key members:
 
 In V2, this is typically implemented by embedding receipt/proof data into COSE headers.
 
-Factories in `CoseSign1` can apply configured transparency providers automatically after signing.
+Factories in `CoseSign1.Factories` can apply configured transparency providers automatically after signing.
 
 ## See Also
 
 - [Core Concepts](../architecture/core-concepts.md)
-- [CoseSign1 Package](cosesign1.md)
+- [CoseSign1.Factories Package](cosesign1.factories.md)
 - [Headers Package](headers.md)
 - [Validation Package](validation.md)
 

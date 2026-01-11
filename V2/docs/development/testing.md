@@ -132,6 +132,15 @@ public sealed class MyClassTests
 When multiple tests need similar setup, use private static factory methods:
 
 ```csharp
+using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Factories;
+using CoseSign1.Tests.Common;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+using NUnit.Framework;
+
 [TestFixture]
 public sealed class ValidatorTests
 {
@@ -140,26 +149,31 @@ public sealed class ValidatorTests
     {
         // Arrange
         using var testContext = CreateTestContext();
-        var validator = new CertificateChainValidator(allowUntrusted: true);
+        var validator = new CoseSign1ValidationBuilder()
+            .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+            .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: true))
+            .AllowAllTrust("test")
+            .Build();
 
         // Act
-        var result = validator.Validate(testContext.Message, ValidationStage.KeyMaterialTrust);
+        var result = testContext.Message.Validate(validator);
 
         // Assert
-        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Overall.IsValid, Is.True);
     }
 
     [Test]
-    public void Validate_WithNullMessage_ReturnsFailure()
+    public void IsApplicableTo_WithNullMessage_DoesNotThrow()
     {
         // Arrange
-        var validator = new CertificateChainValidator(allowUntrusted: true);
+        var resolver = new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any);
 
         // Act
-        var result = validator.Validate(null!, ValidationStage.KeyMaterialTrust);
+        var applicable = resolver.IsApplicableTo(null);
 
         // Assert
-        Assert.That(result.IsValid, Is.False);
+        Assert.That(applicable, Is.False);
     }
 
     // Private helper that returns a disposable context
@@ -168,10 +182,10 @@ public sealed class ValidatorTests
         var cert = TestCertificateUtils.CreateCertificate("TestCert");
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
-        var factory = new DirectSignatureFactory(signingService);
-        var messageBytes = factory.CreateCoseSign1MessageBytes(
+        using var factory = new CoseSign1MessageFactory(signingService);
+        var messageBytes = factory.CreateDirectCoseSign1MessageBytes(
             new byte[] { 1, 2, 3 }, "application/test");
-        var message = CoseSign1Message.DecodeSign1(messageBytes);
+        var message = CoseMessage.DecodeSign1(messageBytes);
         
         return new TestContext(cert, message);
     }
@@ -290,11 +304,19 @@ byte[] large = new byte[1024 * 1024];
 ### Mock Objects
 
 ```csharp
-// Mock validator
-var mockValidator = new Mock<IValidator>();
+// Mock a post-signature validator component
+var mockValidator = new Mock<IPostSignatureValidator>();
 mockValidator
-    .Setup(v => v.ValidateAsync(It.IsAny<CoseSign1Message>(), It.IsAny<ValidationStage>(), It.IsAny<CancellationToken>()))
-    .ReturnsAsync(ValidationResult.Success("MockValidator", ValidationStage.PostSignature));
+    .SetupGet(v => v.ComponentName)
+    .Returns("MockValidator");
+
+mockValidator
+    .Setup(v => v.IsApplicableTo(It.IsAny<CoseSign1Message>(), It.IsAny<CoseSign1ValidationOptions>()))
+    .Returns(true);
+
+mockValidator
+    .Setup(v => v.ValidateAsync(It.IsAny<IPostSignatureValidationContext>(), It.IsAny<CancellationToken>()))
+    .ReturnsAsync(ValidationResult.Success("MockValidator"));
 ```
 
 ## Test Data
@@ -330,7 +352,7 @@ using var stream = assembly.GetManifestResourceStream("Tests.TestData.sample.cos
 ```csharp
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
 using NUnit.Framework;
@@ -348,17 +370,18 @@ public class SignVerifyIntegrationTests
         
         // Sign
         using var service = CertificateSigningService.Create(cert, new X509ChainBuilder());
-        using var factory = new DirectSignatureFactory(service);
+        using var factory = new CoseSign1MessageFactory(service);
         var payload = Encoding.UTF8.GetBytes("test payload");
-        var signature = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
+        var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
         
         // Verify
-        var message = CoseSign1Message.DecodeSign1(signature);
-        var validator = Cose.Sign1Message()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => { })
             .AllowAllTrust("test")
             .Build();
-        var result = validator.Validate(message);
+        var result = message.Validate(validator);
         
         Assert.That(result.Overall.IsValid, Is.True);
     }

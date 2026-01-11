@@ -141,12 +141,13 @@ public class CoseSign1MessageValidationExtensionsTests
     }
 
     [Test]
-    public void Validate_NullConfigure_ThrowsArgumentNullException()
+    public void Validate_NullConfigure_UsesAutoDiscovery()
     {
         var message = CreateSignedMessage();
 
-        Assert.Throws<ArgumentNullException>(() =>
-            message.Validate((Action<ICoseSign1ValidationBuilder>?)null));
+        var result = message.Validate((Action<ICoseSign1ValidationBuilder>?)null);
+
+        Assert.That(result.Overall, Is.Not.Null);
     }
 
     [Test]
@@ -222,12 +223,13 @@ public class CoseSign1MessageValidationExtensionsTests
     }
 
     [Test]
-    public async Task ValidateAsync_NullConfigure_ThrowsArgumentNullException()
+    public async Task ValidateAsync_NullConfigure_UsesAutoDiscovery()
     {
         var message = CreateSignedMessage();
 
-        await Task.Run(() => Assert.ThrowsAsync<ArgumentNullException>(() =>
-            message.ValidateAsync((Action<ICoseSign1ValidationBuilder>?)null)));
+        var result = await message.ValidateAsync((Action<ICoseSign1ValidationBuilder>?)null);
+
+        Assert.That(result.Overall, Is.Not.Null);
     }
 
     [Test]

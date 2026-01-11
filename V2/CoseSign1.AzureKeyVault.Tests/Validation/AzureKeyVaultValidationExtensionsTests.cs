@@ -39,35 +39,43 @@ public class AzureKeyVaultValidationExtensionsTests
     [Test]
     public void ValidateAzureKeyVault_WithRequireAzureKeyVaultOrigin_AddsComponent()
     {
+        var addedComponents = new List<IValidationComponent>();
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        mockBuilder.Setup(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()))
+        mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
+            .Callback<IValidationComponent>(c => addedComponents.Add(c))
             .Returns(mockBuilder.Object);
 
         var result = mockBuilder.Object.ValidateAzureKeyVault(akv => akv.RequireAzureKeyVaultOrigin());
 
-        mockBuilder.Verify(b => b.AddComponent(It.Is<AzureKeyVaultAssertionProvider>(p => p != null)), Times.Once);
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
         Assert.That(result, Is.SameAs(mockBuilder.Object));
     }
 
     [Test]
     public void ValidateAzureKeyVault_WithFromAllowedVaults_AddsComponent()
     {
+        var addedComponents = new List<IValidationComponent>();
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        mockBuilder.Setup(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()))
+        mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
+            .Callback<IValidationComponent>(c => addedComponents.Add(c))
             .Returns(mockBuilder.Object);
 
         var result = mockBuilder.Object.ValidateAzureKeyVault(akv =>
             akv.FromAllowedVaults("https://myvault.vault.azure.net/keys/*"));
 
-        mockBuilder.Verify(b => b.AddComponent(It.Is<AzureKeyVaultAssertionProvider>(p => p != null)), Times.Once);
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
         Assert.That(result, Is.SameAs(mockBuilder.Object));
     }
 
     [Test]
     public void ValidateAzureKeyVault_WithMultipleAllowedVaults_AddsComponent()
     {
+        var addedComponents = new List<IValidationComponent>();
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        mockBuilder.Setup(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()))
+        mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
+            .Callback<IValidationComponent>(c => addedComponents.Add(c))
             .Returns(mockBuilder.Object);
 
         var result = mockBuilder.Object.ValidateAzureKeyVault(akv =>
@@ -75,20 +83,24 @@ public class AzureKeyVaultValidationExtensionsTests
                 "https://vault1.vault.azure.net/keys/*",
                 "https://vault2.vault.azure.net/keys/*"));
 
-        mockBuilder.Verify(b => b.AddComponent(It.Is<AzureKeyVaultAssertionProvider>(p => p != null)), Times.Once);
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
         Assert.That(result, Is.SameAs(mockBuilder.Object));
     }
 
     [Test]
-    public void ValidateAzureKeyVault_WithEmptyConfigure_DoesNotAddComponent()
+    public void ValidateAzureKeyVault_WithEmptyConfigure_AddsOnlyOfflineResolver()
     {
+        var addedComponents = new List<IValidationComponent>();
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        mockBuilder.Setup(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()))
+        mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
+            .Callback<IValidationComponent>(c => addedComponents.Add(c))
             .Returns(mockBuilder.Object);
 
         var result = mockBuilder.Object.ValidateAzureKeyVault(akv => { });
 
-        mockBuilder.Verify(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()), Times.Never);
+        Assert.That(addedComponents, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(addedComponents, Has.Exactly(0).InstanceOf<AzureKeyVaultAssertionProvider>());
         Assert.That(result, Is.SameAs(mockBuilder.Object));
     }
 
@@ -96,7 +108,7 @@ public class AzureKeyVaultValidationExtensionsTests
     public void ValidateAzureKeyVault_FluentChaining_Works()
     {
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        mockBuilder.Setup(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()))
+        mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
             .Returns(mockBuilder.Object);
 
         // Test fluent API - FromAllowedVaults then RequireAzureKeyVaultOrigin
@@ -104,7 +116,8 @@ public class AzureKeyVaultValidationExtensionsTests
             akv.FromAllowedVaults("https://myvault.vault.azure.net/keys/*")
                .RequireAzureKeyVaultOrigin());
 
-        mockBuilder.Verify(b => b.AddComponent(It.Is<AzureKeyVaultAssertionProvider>(p => p != null)), Times.Once);
+        mockBuilder.Verify(b => b.AddComponent(It.IsAny<AzureKeyVaultCoseKeySigningKeyResolver>()), Times.Once);
+        mockBuilder.Verify(b => b.AddComponent(It.IsAny<AzureKeyVaultAssertionProvider>()), Times.Once);
     }
 
     #endregion
@@ -115,49 +128,49 @@ public class AzureKeyVaultValidationExtensionsTests
     public void FromAllowedVaults_WithNullPatterns_CreatesProviderWithEmptyList()
     {
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        IValidationComponent? capturedProvider = null;
+        var captured = new List<IValidationComponent>();
 
         mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
-            .Callback<IValidationComponent>(p => capturedProvider = p)
+            .Callback<IValidationComponent>(p => captured.Add(p))
             .Returns(mockBuilder.Object);
 
         mockBuilder.Object.ValidateAzureKeyVault(akv => akv.FromAllowedVaults(null!));
 
-        Assert.That(capturedProvider, Is.Not.Null);
-        Assert.That(capturedProvider, Is.TypeOf<AzureKeyVaultAssertionProvider>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
     }
 
     [Test]
     public void FromAllowedVaults_WithEmptyPatterns_CreatesProviderWithEmptyList()
     {
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        IValidationComponent? capturedProvider = null;
+        var captured = new List<IValidationComponent>();
 
         mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
-            .Callback<IValidationComponent>(p => capturedProvider = p)
+            .Callback<IValidationComponent>(p => captured.Add(p))
             .Returns(mockBuilder.Object);
 
         mockBuilder.Object.ValidateAzureKeyVault(akv => akv.FromAllowedVaults());
 
-        Assert.That(capturedProvider, Is.Not.Null);
-        Assert.That(capturedProvider, Is.TypeOf<AzureKeyVaultAssertionProvider>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
     }
 
     [Test]
     public void FromAllowedVaults_WithRegexPattern_CreatesProvider()
     {
         var mockBuilder = new Mock<ICoseSign1ValidationBuilder>();
-        IValidationComponent? capturedProvider = null;
+        var captured = new List<IValidationComponent>();
 
         mockBuilder.Setup(b => b.AddComponent(It.IsAny<IValidationComponent>()))
-            .Callback<IValidationComponent>(p => capturedProvider = p)
+            .Callback<IValidationComponent>(p => captured.Add(p))
             .Returns(mockBuilder.Object);
 
         mockBuilder.Object.ValidateAzureKeyVault(akv =>
             akv.FromAllowedVaults("regex:https://.*\\.vault\\.azure\\.net/keys/.*"));
 
-        Assert.That(capturedProvider, Is.Not.Null);
-        Assert.That(capturedProvider, Is.TypeOf<AzureKeyVaultAssertionProvider>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultCoseKeySigningKeyResolver>());
+        Assert.That(captured, Has.Exactly(1).InstanceOf<AzureKeyVaultAssertionProvider>());
     }
 
     #endregion

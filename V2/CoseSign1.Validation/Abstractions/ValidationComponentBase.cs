@@ -116,6 +116,10 @@ public abstract class ValidationComponentBase : IValidationComponent
                 break;
         }
 
+        // This cache is a performance optimization; avoid unexpected scavenging-induced misses
+        // while still honoring configured expiration.
+        policy.Priority = CacheItemPriority.NotRemovable;
+
         SharedCache.Set(cacheKey, isApplicable, policy);
         return isApplicable;
     }

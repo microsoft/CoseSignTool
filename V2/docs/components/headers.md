@@ -125,11 +125,13 @@ var options = new DirectSignatureOptions
     AdditionalHeaderContributors = [contributor]
 };
 
-var factory = new DirectSignatureFactory(signingService);
-var message = await factory.CreateCoseSign1MessageAsync(
+var factory = new CoseSign1MessageFactory(signingService);
+var messageBytes = await factory.CreateDirectCoseSign1MessageBytesAsync(
     payload,
     contentType: "application/octet-stream",
     options: options);
+
+var message = CoseMessage.DecodeSign1(messageBytes);
 ```
 
 **Dynamic Claims**:
@@ -266,14 +268,14 @@ public class ScittStatementFactory
         }
         
         var contributor = new CwtClaimsHeaderContributor(claims);
-        var factory = new DirectSignatureFactory(_signingService);
+        var factory = new CoseSign1MessageFactory(_signingService);
 
         var options = new DirectSignatureOptions
         {
             AdditionalHeaderContributors = [contributor]
         };
 
-        return await factory.CreateCoseSign1MessageAsync(
+        return await factory.DirectFactory.CreateCoseSign1MessageAsync(
             payload,
             contentType: "application/octet-stream",
             options: options);
@@ -350,13 +352,13 @@ public class MultiIssuerAttestationService
             
             var contributor = new CwtClaimsHeaderContributor(claims);
 
-            var factory = new DirectSignatureFactory(service);
+            var factory = new CoseSign1MessageFactory(service);
             var options = new DirectSignatureOptions
             {
                 AdditionalHeaderContributors = [contributor]
             };
 
-            var attestation = await factory.CreateCoseSign1MessageAsync(
+            var attestation = await factory.DirectFactory.CreateCoseSign1MessageAsync(
                 payload,
                 contentType: "application/octet-stream",
                 options: options);
@@ -371,13 +373,15 @@ public class MultiIssuerAttestationService
 ### Claim Validation
 
 ```csharp
-public class CwtClaimsValidator : IValidator
+using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+
+public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
 {
     private readonly string[]? _allowedIssuers;
     private readonly bool _requireSubject;
     private readonly bool _checkExpiration;
-
-    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
 
     public CwtClaimsValidator(
         string[]? allowedIssuers = null,
@@ -389,18 +393,22 @@ public class CwtClaimsValidator : IValidator
         _checkExpiration = checkExpiration;
     }
 
-    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
+    public string ComponentName => nameof(CwtClaimsPostSignatureValidator);
+
+    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null)
     {
-        if (stage != ValidationStage.PostSignature)
-        {
-            return ValidationResult.NotApplicable(nameof(CwtClaimsValidator), stage);
-        }
+        // Run for any message; this validator enforces that CWT claims exist.
+        return message != null;
+    }
+
+    public ValidationResult Validate(IPostSignatureValidationContext context)
+    {
+        var message = context.Message;
 
         if (!message.ProtectedHeaders.TryGetCwtClaims(out var claims) || claims == null)
         {
             return ValidationResult.Failure(
-                nameof(CwtClaimsValidator),
-                stage,
+                ComponentName,
                 message: "CWT claims are required",
                 errorCode: "CWT_CLAIMS_MISSING");
         }
@@ -456,24 +464,27 @@ public class CwtClaimsValidator : IValidator
         }
         
         return failures.Count == 0
-            ? ValidationResult.Success(nameof(CwtClaimsValidator), stage)
-            : ValidationResult.Failure(nameof(CwtClaimsValidator), stage, failures.ToArray());
+            ? ValidationResult.Success(ComponentName)
+            : ValidationResult.Failure(ComponentName, failures.ToArray());
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message input, ValidationStage stage, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(input, stage));
+    public Task<ValidationResult> ValidateAsync(
+        IPostSignatureValidationContext context,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
 }
 
 // Usage
-var validator = new CompositeValidator(new IValidator[]
-{
-    new CwtClaimsValidator(
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CoseSign1.Certificates.Validation.CertificateSigningKeyResolver(
+        certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Protected))
+    .AddComponent(new CwtClaimsPostSignatureValidator(
         allowedIssuers: ["https://contoso.com", "https://build.contoso.com"],
         requireSubject: true,
-        checkExpiration: true)
-});
+        checkExpiration: true))
+    .Build();
 
-ValidationResult result = validator.Validate(message, ValidationStage.PostSignature);
+var result = message.Validate(validator);
 ```
 
 ### Claim Templates
@@ -628,13 +639,13 @@ public class AttestationController : ControllerBase
         
         var contributor = new CwtClaimsHeaderContributor(claims);
 
-        var factory = new DirectSignatureFactory(_signingService);
+        using var factory = new CoseSign1MessageFactory(_signingService);
         var options = new DirectSignatureOptions
         {
             AdditionalHeaderContributors = [contributor]
         };
 
-        var message = await factory.CreateCoseSign1MessageAsync(
+        var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
             request.Payload,
             contentType: "application/octet-stream",
             options: options);
@@ -672,13 +683,13 @@ public class SupplyChainAttestationService
         
         var contributor = new CwtClaimsHeaderContributor(claims);
 
-        var factory = new DirectSignatureFactory(_signingService);
+        var factory = new CoseSign1MessageFactory(_signingService);
         var options = new DirectSignatureOptions
         {
             AdditionalHeaderContributors = [contributor]
         };
 
-        return await factory.CreateCoseSign1MessageAsync(
+        return await factory.DirectFactory.CreateCoseSign1MessageAsync(
             artifact,
             contentType: "application/octet-stream",
             options: options);
@@ -699,6 +710,6 @@ public class SupplyChainAttestationService
 ## See Also
 
 - [Abstractions Package](abstractions.md)
-- [CoseSign1 Package](cosesign1.md)
+- [CoseSign1.Factories Package](cosesign1.factories.md)
 - [SCITT Compliance Guide](../guides/scitt-compliance.md)
 - [Transparency Overview](transparent.md)

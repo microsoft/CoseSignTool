@@ -5,7 +5,7 @@
 CoseSignTool V2 is a comprehensive .NET library and command-line tool for creating, verifying, and inspecting COSE Sign1 messages per [RFC 9052](https://datatracker.ietf.org/doc/rfc9052/).
 
 [![Build Status](https://github.com/microsoft/CoseSignTool/actions/workflows/build.yml/badge.svg)](https://github.com/microsoft/CoseSignTool/actions)
-[![NuGet](https://img.shields.io/nuget/v/CoseSign1.svg)](https://www.nuget.org/packages/CoseSign1/)
+[![NuGet](https://img.shields.io/nuget/v/CoseSign1.Factories.svg)](https://www.nuget.org/packages/CoseSign1.Factories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -47,8 +47,8 @@ dotnet tool install -g CoseSignTool
 
 #### NuGet Packages
 ```bash
-# Core signing library
-dotnet add package CoseSign1
+# Signature creation factories (direct + indirect)
+dotnet add package CoseSign1.Factories
 
 # Validation framework
 dotnet add package CoseSign1.Validation
@@ -104,8 +104,11 @@ cosesigntool inspect document.cose --extract-payload extracted.txt
 ### Creating Signatures
 
 ```csharp
-using CoseSign1;
 using CoseSign1.Certificates.Local;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
+using System.Security.Cryptography;
 
 // Load certificate
 var certSource = new PfxCertificateSource("mycert.pfx", password);
@@ -115,26 +118,35 @@ var chainBuilder = certSource.GetChainBuilder();
 // Create signing service
 var signingService = CertificateSigningService.Create(signingCert, chainBuilder);
 
-// Create message factory (preferred entry point)
-var factory = new CoseSign1MessageFactory(signingService);
+// Preferred V2 entry point: use the explicit direct/indirect overloads.
+// (The generic CreateCoseSign1MessageBytes* overloads still exist for dynamic routing.)
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign payload
 byte[] payload = File.ReadAllBytes("document.txt");
-byte[] signature = await factory.CreateCoseSign1MessageAsync(
+byte[] directSignature = await factory.CreateDirectCoseSign1MessageBytesAsync(
     payload,
-    contentType: "application/octet-stream",
-    options: new DirectSignatureOptions { EmbedPayload = true });
+    contentType: "application/octet-stream");
+
+byte[] indirectSignature = await factory.CreateIndirectCoseSign1MessageBytesAsync(
+    payload,
+    contentType: "application/octet-stream");
+
+// Underlying factories are also available (advanced scenarios):
+// using var directFactory = new DirectSignatureFactory(signingService);
+// using var indirectFactory = new IndirectSignatureFactory(signingService);
 ```
 
 ### Verifying Signatures
 
 ```csharp
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
 // Decode the COSE message
 byte[] signatureBytes = File.ReadAllBytes("document.cose");
-var message = CoseSign1Message.DecodeSign1(signatureBytes);
+var message = CoseMessage.DecodeSign1(signatureBytes);
 
 // Shorthand: Validate with inline configuration
 var result = message.Validate(builder => builder
@@ -156,31 +168,35 @@ else
 }
 
 // Or build a reusable validator for multiple messages
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert.ValidateChain())
     .Build();
 
-var result = message.Validate(validator);
+var result2 = message.Validate(validator);
 ```
 
 ### Custom Trust Policies
 
 ```csharp
-// Combine multiple requirements with TrustPolicy.And()
-// OverrideDefaultTrustPolicy replaces all validator defaults
+using CoseSign1.Certificates.Validation;
+
+// Trust policies are boolean expressions over typed assertions.
+// OverrideDefaultTrustPolicy replaces all validator defaults.
+
 var policy = TrustPolicy.And(
-    TrustPolicy.Claim("x509.chain.trusted"),
+    // Require a trusted chain (x5chain validated to roots)
+    X509TrustPolicies.RequireTrustedChain(),
+
+    // Require one of the configured issuer checks to match
     TrustPolicy.Or(
-        TrustPolicy.Claim("issuer.internal"),
-        TrustPolicy.And(
-            TrustPolicy.Claim("issuer.partner"),
-            TrustPolicy.Claim("partner.certified")
-        )
+        TrustPolicy.Require<X509IssuerAssertion>(a => a.Matches, "Issuer must match an allowed value")
     )
 );
 
-var validator = Cose.Sign1Message()
-    .AddCertificateValidators()
+var validator = new CoseSign1ValidationBuilder()
+    .ValidateCertificate(cert => cert
+        .IsIssuedBy("CN=issuer.internal")
+        .ValidateChain())
     .OverrideDefaultTrustPolicy(policy)  // Single call with combined policy
     .Build();
 ```
@@ -193,7 +209,7 @@ var validator = Cose.Sign1Message()
 
 | Package | Purpose |
 |---------|---------|
-| `CoseSign1` | Core signing with `CoseSign1MessageFactory` |
+| `CoseSign1.Factories` | Signature creation factories (direct + indirect) |
 | `CoseSign1.Abstractions` | Shared interfaces and models |
 | `CoseSign1.Validation` | Staged validation framework |
 | `CoseSign1.Certificates` | Certificate infrastructure |

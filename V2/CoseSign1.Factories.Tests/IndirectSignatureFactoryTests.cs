@@ -272,6 +272,69 @@ public class IndirectSignatureFactoryTests
     }
 
     [Test]
+    public async Task CreateCoseSign1MessageAsync_WithTransparencyProviders_AppliesProofs()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+        var contentType = "application/json";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var mockProvider = new Mock<ITransparencyProvider>();
+        mockProvider.Setup(p => p.ProviderName).Returns("TestProvider");
+        mockProvider
+            .Setup(p => p.AddTransparencyProofAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CoseSign1Message msg, CancellationToken ct) => msg);
+
+        var providers = new List<ITransparencyProvider> { mockProvider.Object };
+        var factory = new IndirectSignatureFactory(mockSigningService.Object, providers);
+
+        // Act
+        var result = await factory.CreateCoseSign1MessageAsync(payload, contentType, new IndirectSignatureOptions());
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        mockProvider.Verify(p => p.AddTransparencyProofAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CreateCoseSign1MessageAsync_WithDisableTransparency_SkipsProviders()
+    {
+        // Arrange
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("Test payload");
+        var contentType = "application/json";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        var mockProvider = new Mock<ITransparencyProvider>();
+        mockProvider.Setup(p => p.ProviderName).Returns("TestProvider");
+        mockProvider
+            .Setup(p => p.AddTransparencyProofAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CoseSign1Message msg, CancellationToken ct) => msg);
+
+        var providers = new List<ITransparencyProvider> { mockProvider.Object };
+        var factory = new IndirectSignatureFactory(mockSigningService.Object, providers);
+
+        // Act
+        var result = await factory.CreateCoseSign1MessageAsync(
+            payload,
+            contentType,
+            new IndirectSignatureOptions { DisableTransparency = true });
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        mockProvider.Verify(p => p.AddTransparencyProofAsync(It.IsAny<CoseSign1Message>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task CreateCoseSign1MessageBytesAsync_WithReadOnlyMemory_ShouldHashAndSign()
     {
         // Arrange

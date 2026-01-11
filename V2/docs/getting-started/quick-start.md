@@ -18,6 +18,7 @@ cosesigntool --version
 
 ```bash
 # Install the core library packages
+dotnet add package CoseSign1.Factories --version 2.0.0-preview
 dotnet add package CoseSign1.Certificates --version 2.0.0-preview
 dotnet add package CoseSign1.Validation --version 2.0.0-preview
 ```
@@ -47,7 +48,8 @@ cosesigntool inspect signed.cose
 ```csharp
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 using System.Security.Cryptography.X509Certificates;
 
 // Load your certificate
@@ -57,12 +59,12 @@ using var cert = new X509Certificate2("certificate.pfx", "password");
 using var chainBuilder = new X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
-// Create a signature factory
-using var factory = new DirectSignatureFactory(signingService);
+// Create a signature factory (preferred router)
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign your payload
 byte[] payload = "Hello, COSE!"u8.ToArray();
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
     payload, 
     contentType: "text/plain"
 );
@@ -80,18 +82,18 @@ using System.Security.Cryptography.Cose;
 
 // Load the signed message
 byte[] signedMessage = File.ReadAllBytes("signed.cose");
-var message = CoseSign1Message.DecodeSign1(signedMessage);
+var message = CoseMessage.DecodeSign1(signedMessage);
 
 // Build a validator with fluent certificate validation
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert
         .NotExpired()
         .ValidateChain(allowUntrusted: true)) // Allow self-signed for dev
-    .AllowAllTrust("Development testing")
     .Build();
 
 // Verify - returns staged results
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -128,23 +130,24 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 ```csharp
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
 // Build a validation pipeline with certificate requirements
-// Validators provide default trust policies - use OverrideDefaultTrustPolicy for custom requirements
-var validator = Cose.Sign1Message()
+// Assertion providers supply default trust policies; by default the validator uses
+// TrustPolicy.FromAssertionDefaults(), which enforces the default policies for the
+// assertions your providers emit.
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+    .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
     .ValidateCertificate(cert => cert
-        .AllowUnprotectedHeaders()
         .NotExpired()
         .HasCommonName("MyTrustedSigner")
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3") // Code signing EKU
         .ValidateChain())
-    .OverrideDefaultTrustPolicy(TrustPolicy.And(  // Combine multiple policies before calling
-        TrustPolicy.Claim("x509.chain.trusted"),
-        TrustPolicy.Claim("cert.notexpired")))
     .Build();
 
 // Validate returns comprehensive staged results
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -187,7 +190,7 @@ var options = new DirectSignatureOptions
     EmbedPayload = false 
 };
 
-byte[] detachedSignature = factory.CreateCoseSign1MessageBytes(
+byte[] detachedSignature = factory.CreateDirectCoseSign1MessageBytes(
     payload,
     contentType: "application/octet-stream",
     options: options
@@ -201,6 +204,7 @@ bool isValid = message.VerifySignature(payload);
 
 ```csharp
 using CoseSign1.Certificates.AzureTrustedSigning;
+using CoseSign1.Factories;
 
 var atsConfig = new AzureTrustedSigningConfiguration
 {
@@ -210,9 +214,9 @@ var atsConfig = new AzureTrustedSigningConfiguration
 };
 
 using var signingService = new AzureTrustedSigningService(atsConfig, credential);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
 ```
 
 ### Working with Transparency Receipts

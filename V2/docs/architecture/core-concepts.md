@@ -28,8 +28,10 @@ var signature = CoseHandler.Sign(payload);
 // ✅ V2: Explicit signing service configuration
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 var service = CertificateSigningService.Create(certificate, chainBuilder);
-var factory = new DirectSignatureFactory(service);
-var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
+using var factory = new CoseSign1MessageFactory(service);
+var message = await factory.CreateDirectCoseSign1MessageAsync(
+    payload,
+    contentType: "application/octet-stream");
 ```
 
 ### 2. Composition Over Configuration
@@ -41,7 +43,7 @@ Build functionality through composition rather than configuration strings:
 CoseHandler.SetValidation("RequireEku:1.3.6.1.4.1.311.10.3.13");
 
 // ✅ V2: Composable validators
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert
         .AllowUnprotectedHeaders()
         .HasEnhancedKeyUsage("1.3.6.1.4.1.311.10.3.13"))
@@ -55,13 +57,13 @@ All services use DI patterns:
 ```csharp
 // Register services
 builder.Services
-    .AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
+    .AddSingleton<ISigningService<SigningOptions>>(sp =>
     {
         using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         return CertificateSigningService.Create(certificate, cb);
     })
-    .AddSingleton<IValidator>(sp =>
-        Cose.Sign1Message()
+    .AddSingleton<ICoseSign1Validator>(sp =>
+        new CoseSign1ValidationBuilder()
             .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
             .AllowAllTrust("DI registration")
             .Build());
@@ -70,8 +72,10 @@ builder.Services
 public class DocumentSigner(ISigningService<SigningOptions> signingService)
 {
     public async Task<CoseSign1Message> SignAsync(byte[] document)
-        => await new DirectSignatureFactory(signingService)
-            .CreateCoseSign1MessageAsync(document, contentType: "application/octet-stream");
+        => await new CoseSign1MessageFactory(signingService)
+            .DirectFactory.CreateCoseSign1MessageAsync(
+                document,
+                contentType: "application/octet-stream");
 }
 ```
 
@@ -84,9 +88,11 @@ Every component is designed for testing:
 using var cert = TestCertificates.CreateEcdsa();
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signed = factory.CreateCoseSign1MessageBytes(payload, contentType: "application/octet-stream");
+byte[] signed = factory.CreateDirectCoseSign1MessageBytes(
+    payload,
+    contentType: "application/octet-stream");
 ```
 
 ## Dependency Injection and Services
@@ -104,13 +110,10 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     SigningServiceMetadata ServiceMetadata { get; }
 }
 
-public interface IValidator
+public interface ICoseSign1Validator
 {
-    IReadOnlyCollection<ValidationStage> Stages { get; }
-    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
+    CoseSign1ValidationResult Validate(CoseSign1Message message);
 }
-
-// V2 stage-aware validators implement IValidator (non-generic) with a ValidationStage parameter.
 ```
 
 ### Service Lifetime
@@ -119,8 +122,8 @@ Different services have different lifetimes:
 
 ```csharp
 // Singleton: stateless validators/builders
-services.AddSingleton<IValidator>(sp =>
-    Cose.Sign1Message()
+services.AddSingleton<ICoseSign1Validator>(sp =>
+    new CoseSign1ValidationBuilder()
         .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
         .AllowAllTrust("service registration")
         .Build());
@@ -138,7 +141,7 @@ services.AddScoped<ISigningService<CertificateSigningOptions>>(sp =>
 
 ```csharp
 // Simple registration
-services.AddSingleton<ISigningService<CertificateSigningOptions>>(sp =>
+services.AddSingleton<ISigningService<SigningOptions>>(sp =>
 {
     using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
     return CertificateSigningService.Create(certificate, cb);
@@ -154,15 +157,16 @@ Factories create COSE Sign1 messages with different characteristics.
 ### Direct vs Indirect Signatures
 
 ```csharp
-// Direct signature: Payload embedded in message
-var directFactory = new DirectSignatureFactory(signingService);
-var directMessage = await directFactory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
-// Message contains payload
+// Preferred: call the explicit methods for your intent
+using var factory = new CoseSign1MessageFactory(signingService);
 
-// Indirect signature: Payload referenced by hash
-var indirectFactory = new IndirectSignatureFactory(signingService);
-var indirectMessage = await indirectFactory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
-// Message contains hash(payload), not payload
+var directMessage = await factory.CreateDirectCoseSign1MessageAsync(
+    payload,
+    contentType: "application/octet-stream");
+
+var indirectMessage = await factory.CreateIndirectCoseSign1MessageAsync(
+    payload,
+    contentType: "application/octet-stream");
 ```
 
 ### Factory Configuration
@@ -170,7 +174,7 @@ var indirectMessage = await indirectFactory.CreateCoseSign1MessageAsync(payload,
 Factories accept optional configuration:
 
 ```csharp
-var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
 var options = new DirectSignatureOptions
 {
@@ -192,18 +196,18 @@ Extend factories with header contributors:
 ```csharp
 public class CustomHeaderContributor : IHeaderContributor
 {
-    public Task ContributeAsync(
-        CoseHeaderMap headers,
-        byte[] payload,
-        CancellationToken cancellationToken = default)
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+        => headers.Add(new CoseHeaderLabel("custom"), CoseHeaderValue.FromString("value"));
+
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        headers.SetValue(new CoseHeaderLabel("custom"), new CoseHeaderValue("value"));
-        return Task.CompletedTask;
+        // Optional: add unsigned metadata here.
     }
 }
 
-var factory = new DirectSignatureFactory(
-    service);
+using var factory = new CoseSign1MessageFactory(service);
 
 var options = new DirectSignatureOptions
 {
@@ -220,7 +224,7 @@ Builders construct complex objects step-by-step.
 ### Validator Builder
 
 ```csharp
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert
         .NotExpired()
         .ValidateChain())
@@ -258,35 +262,35 @@ V2 favors composition over class hierarchies.
 ### Validator Composition
 
 ```csharp
-// Compose validators instead of inheriting
-var validator = new CompositeValidator(
-    new IValidator[]
-    {
-        new CertificateSignatureValidator(),
-        new CertificateExpirationValidator(),
-        new EkuPolicyValidator(requiredEkus),
-        new CustomBusinessValidator()
-    });
+// Compose a validation pipeline by adding components
+var validator = new CoseSign1ValidationBuilder()
+    .ValidateCertificate(cert => cert.ValidateChain())
+    .AddComponent(new CustomBusinessValidator())
+    .Build();
 
-// Each validator is independent and testable
-var signatureResult = validator.Validate(message, ValidationStage.Signature);
-var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
+var result = message.Validate(validator);
+var signatureResult = result.Signature;
+var postSignatureResult = result.PostSignaturePolicy;
 ```
 
 ### Header Contribution Composition
 
 ```csharp
 // Compose header contributors
-var factory = new DirectSignatureFactory(
-    service,
-    headerContributors: new IHeaderContributor[]
+using var factory = new CoseSign1MessageFactory(service);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new IHeaderContributor[]
     {
         new CwtClaimsHeaderContributor(),      // Add CWT claims
-        new CertificateHeaderContributor(),    // Add certificate chain
+        new CertificateHeaderContributor(),    // Add certificate headers (x5t/x5chain)
         new TimestampHeaderContributor(),      // Add timestamp
         new CustomHeaderContributor()          // Add custom headers
     }
-);
+};
+
+var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream", options);
 ```
 
 ### Benefits
@@ -323,7 +327,6 @@ var options = new SigningOptions
 public sealed class ValidationResult
 {
     public ValidationResultKind Kind { get; init; }
-    public ValidationStage? Stage { get; init; }
 
     public bool IsValid { get; }
     public string ValidatorName { get; init; } = string.Empty;
@@ -331,7 +334,7 @@ public sealed class ValidationResult
 }
 
 // Result cannot be modified after creation
-var result = validator.Validate(message, ValidationStage.PostSignature);
+var result = message.Validate(validator);
 ```
 
 ### Benefits
@@ -373,8 +376,8 @@ public sealed class MySigningService : ISigningService<SigningOptions>
 // Automatic disposal
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(service);
-var message = await factory.CreateCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
+using var factory = new CoseSign1MessageFactory(service);
+var message = await factory.CreateDirectCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
 // service disposed here
 ```
 
@@ -420,41 +423,57 @@ using var service = CertificateSigningService.Create(cert, chainBuilder); // thr
 ### Results for Validation
 
 ```csharp
-// Return results for expected failures (validation)
-public ValidationResult Validate(CoseSign1Message message)
+public sealed class MyPostSignatureValidator : IPostSignatureValidator
 {
-    if (!VerifySignature(message))
+    public string ComponentName => nameof(MyPostSignatureValidator);
+
+    // Lightweight applicability check (no I/O)
+    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
+
+    public ValidationResult Validate(IPostSignatureValidationContext context)
     {
-        return ValidationResult.Failure(
-            validatorName: nameof(MyValidator),
-            message: "Cryptographic signature verification failed",
-            errorCode: "SignatureVerificationFailed");
+        if (!VerifyBusinessRules(context.Message))
+        {
+            return ValidationResult.Failure(
+                validatorName: ComponentName,
+                message: "Post-signature policy check failed",
+                errorCode: "PostSignaturePolicyFailed");
+        }
+
+        return ValidationResult.Success(ComponentName);
     }
 
-    return ValidationResult.Success(nameof(MyValidator), stage);
+    public Task<ValidationResult> ValidateAsync(
+        IPostSignatureValidationContext context,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
+
+    private static bool VerifyBusinessRules(CoseSign1Message message) => true;
 }
 ```
 
-### Exception Types
+### Common Exceptions
 
 ```csharp
-// Base exception
-public class CoseSign1Exception : Exception
-
-// Specific exceptions
-public class CoseSign1CertificateException : CoseSign1Exception
-public class CoseSign1ValidationException : CoseSign1Exception
-public class CoseSign1FormatException : CoseSign1Exception
+// Common exceptions you may see when processing COSE signatures:
+// - ArgumentNullException: invalid API usage
+// - InvalidOperationException: validation builder missing a signing key resolver
+// - CryptographicException: invalid COSE encoding/signature verification failure
+// - CoseX509FormatException: malformed X.509 header data (x5chain/x5t)
 ```
 
 ### Validation Result Pattern
 
 ```csharp
-var result = validator.Validate(message, ValidationStage.PostSignature);
+var message = CoseMessage.DecodeSign1(signatureBytes);
 
-if (!result.IsValid)
+var result = message.Validate(builder => builder
+    .ValidateCertificate(cert => cert.ValidateChain())
+    .AddComponent(new MyPostSignatureValidator()));
+
+if (!result.Overall.IsValid)
 {
-    foreach (var failure in result.Failures)
+    foreach (var failure in result.Overall.Failures)
     {
         Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
     }

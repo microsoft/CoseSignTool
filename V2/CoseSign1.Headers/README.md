@@ -9,45 +9,60 @@ dotnet add package CoseSign1.Headers --version 2.0.0-preview
 ```
 
 ## Overview
+using CoseSign1.Certificates.Validation;
 
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+using System.Security.Cryptography.Cose;
 Support for CBOR Web Token (CWT) claims and header management for Supply Chain Integrity, Transparency, and Trust (SCITT) compliance. Essential for creating verifiable supply chain attestations.
+public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
+{
+    public string ComponentName => nameof(CwtClaimsPostSignatureValidator);
+    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
 
-## Key Features
-
-- ✅ **CWT Claims** - Full CBOR Web Token claims support (RFC 8392)
+    public ValidationResult Validate(IPostSignatureValidationContext context)
 - ✅ **SCITT Compliance** - Standards-compliant attestation creation
-- ✅ **Auto DID Generation** - Automatic DID:x509 issuer from certificate
-- ✅ **Configurable Timestamps** - Automatic iat/nbf/exp population
-- ✅ **Custom Claims** - Extensible claim system
-- ✅ **Header Placement** - Protected, unprotected, or both
-
-## Quick Start
-
-### Basic CWT Claims
+        var claims = context.Message.GetCwtClaims();
 
 ```csharp
-using CoseSign1.Headers;
-
+            return ValidationResult.Failure(ComponentName, "Missing CWT claims");
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
+            return ValidationResult.Failure(ComponentName, "Claims have expired");
 // Create CWT claims
 var claims = new CwtClaims
-{
+            return ValidationResult.Failure(ComponentName, "Claims not yet valid");
     Issuer = "https://example.com",
     Subject = "package:npm/my-package@1.0.0",
-    IssuedAt = DateTimeOffset.UtcNow,
+            return ValidationResult.Failure(ComponentName, "Untrusted issuer");
     ExpirationTime = DateTimeOffset.UtcNow.AddDays(365)
-};
+        return ValidationResult.Success(ComponentName);
 
-// Create header contributor
+
+    public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
+}
+
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+    .ValidateCertificate(cert => { })
+    .AllowAllTrust("CWT validation example")
+    .AddComponent(new CwtClaimsPostSignatureValidator())
 var contributor = new CwtClaimsHeaderContributor(claims);
 
 // Use with factory
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: new[] { contributor });
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
+var options = new DirectSignatureOptions
+{
+    EmbedPayload = true,
+    AdditionalHeaderContributors = [contributor],
+};
+
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
     payload,
-    contentType: "application/json");
+    contentType: "application/json",
+    options: options);
 ```
 
 ### SCITT-Compliant Attestation
@@ -222,19 +237,22 @@ Standard CWT claim labels (RFC 8392):
 ### Multiple Header Contributors
 
 ```csharp
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: new IHeaderContributor[]
+using var factory = new CoseSign1MessageFactory(signingService);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new IHeaderContributor[]
     {
         // CWT claims
         new CwtClaimsHeaderContributor(claims),
-        
-        // Certificate headers (X5T, X5Chain)
+
+        // Certificate headers (x5t, x5chain)
         new CertificateHeaderContributor(),
-        
+
         // Custom contributor
-        new MyCustomHeaderContributor()
-    });
+        new MyCustomHeaderContributor(),
+    },
+};
 ```
 
 ### Conditional Claims
@@ -265,36 +283,45 @@ claims.AdditionalClaims["build_number"] = buildNumber;
 ### Validating CWT Claims
 
 ```csharp
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+using System.Security.Cryptography.Cose;
 
-var validator = Cose.Sign1Message()
+public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
+{
+    public string ComponentName => nameof(CwtClaimsPostSignatureValidator);
+    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
+
+    public ValidationResult Validate(IPostSignatureValidationContext context)
+    {
+        var claims = context.Message.GetCwtClaims();
+
+        if (claims == null)
+            return ValidationResult.Failure(ComponentName, "Missing CWT claims");
+
+        if (claims.ExpirationTime < DateTimeOffset.UtcNow)
+            return ValidationResult.Failure(ComponentName, "Claims have expired");
+
+        if (claims.NotBefore > DateTimeOffset.UtcNow)
+            return ValidationResult.Failure(ComponentName, "Claims not yet valid");
+
+        if (!claims.Issuer?.StartsWith("https://trusted.") ?? true)
+            return ValidationResult.Failure(ComponentName, "Untrusted issuer");
+
+        return ValidationResult.Success(ComponentName);
+    }
+
+    public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
+}
+
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateCertificate(cert => { })
     .AllowAllTrust("CWT validation example")
-    .AddValidator((message, stage) =>
-    {
-        const string validatorName = "CwtClaimsValidator";
-
-        if (stage != ValidationStage.PostSignature)
-        {
-            return ValidationResult.NotApplicable(validatorName, stage);
-        }
-
-        var claims = message.GetCwtClaims();
-        
-        if (claims == null)
-            return ValidationResult.Failure(validatorName, stage, "Missing CWT claims");
-        
-        if (claims.ExpirationTime < DateTimeOffset.UtcNow)
-            return ValidationResult.Failure(validatorName, stage, "Claims have expired");
-        
-        if (claims.NotBefore > DateTimeOffset.UtcNow)
-            return ValidationResult.Failure(validatorName, stage, "Claims not yet valid");
-        
-        if (!claims.Issuer?.StartsWith("https://trusted.") ?? true)
-            return ValidationResult.Failure(validatorName, stage, "Untrusted issuer");
-        
-        return ValidationResult.Success(validatorName, stage);
-    })
+    .AddComponent(new CwtClaimsPostSignatureValidator())
     .Build();
 ```
 
@@ -323,9 +350,12 @@ var contributor = new CwtClaimsHeaderContributor(
     autoGenerateIssuer: true,
     autoPopulateTimestamps: true);
 
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: new[] { contributor });
+using var factory = new CoseSign1MessageFactory(signingService);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = [contributor],
+};
 
 // Sign SCITT statement
 byte[] statement = JsonSerializer.SerializeToUtf8Bytes(new
@@ -335,14 +365,15 @@ byte[] statement = JsonSerializer.SerializeToUtf8Bytes(new
     predicate = attestationData
 });
 
-byte[] signedStatement = factory.CreateCoseSign1MessageBytes(
+byte[] signedStatement = factory.CreateDirectCoseSign1MessageBytes(
     statement,
-    contentType: "application/vnd.in-toto+json");
+    contentType: "application/vnd.in-toto+json",
+    options: options);
 ```
 
 ## See Also
 
-- [CoseSign1](../CoseSign1/README.md) - Signature factories
+- [CoseSign1.Factories](../CoseSign1.Factories/README.md) - Signature factories
 - [CoseSign1.Certificates](../CoseSign1.Certificates/README.md) - Certificate signing
 - [DIDx509](../DIDx509/README.md) - DID:x509 support
 - [SCITT Specification](https://datatracker.ietf.org/doc/draft-ietf-scitt-architecture/) - SCITT architecture

@@ -59,8 +59,9 @@ public class SignatureValidationExtensionsTests
 
         // Assert
         Assert.That(result, Is.SameAs(mockBuilder.Object));
-        Assert.That(addedComponents, Has.Count.EqualTo(1));
-        Assert.That(addedComponents[0], Is.InstanceOf<CertificateExpirationAssertionProvider>());
+        Assert.That(addedComponents, Has.Count.EqualTo(2));
+        Assert.That(addedComponents[0], Is.InstanceOf<CertificateSigningKeyResolver>());
+        Assert.That(addedComponents[1], Is.InstanceOf<CertificateExpirationAssertionProvider>());
     }
 
     [Test]
@@ -82,10 +83,11 @@ public class SignatureValidationExtensionsTests
 
         // Assert
         Assert.That(result, Is.SameAs(mockBuilder.Object));
-        Assert.That(addedComponents, Has.Count.EqualTo(3));
-        Assert.That(addedComponents[0], Is.InstanceOf<CertificateExpirationAssertionProvider>());
-        Assert.That(addedComponents[1], Is.InstanceOf<CertificateCommonNameAssertionProvider>());
-        Assert.That(addedComponents[2], Is.InstanceOf<CertificateIssuerAssertionProvider>());
+        Assert.That(addedComponents, Has.Count.EqualTo(4));
+        Assert.That(addedComponents[0], Is.InstanceOf<CertificateSigningKeyResolver>());
+        Assert.That(addedComponents[1], Is.InstanceOf<CertificateExpirationAssertionProvider>());
+        Assert.That(addedComponents[2], Is.InstanceOf<CertificateCommonNameAssertionProvider>());
+        Assert.That(addedComponents[3], Is.InstanceOf<CertificateIssuerAssertionProvider>());
     }
 
     [Test]
@@ -103,8 +105,9 @@ public class SignatureValidationExtensionsTests
         mockBuilder.Object.ValidateCertificate(cert => cert.ValidateChain());
 
         // Assert
-        Assert.That(addedComponents, Has.Count.EqualTo(1));
-        Assert.That(addedComponents[0], Is.InstanceOf<CertificateChainAssertionProvider>());
+        Assert.That(addedComponents, Has.Count.EqualTo(2));
+        Assert.That(addedComponents[0], Is.InstanceOf<CertificateSigningKeyResolver>());
+        Assert.That(addedComponents[1], Is.InstanceOf<CertificateChainAssertionProvider>());
     }
 
     [Test]
@@ -123,8 +126,9 @@ public class SignatureValidationExtensionsTests
             cert.HasKeyUsage(X509KeyUsageFlags.DigitalSignature));
 
         // Assert
-        Assert.That(addedComponents, Has.Count.EqualTo(1));
-        Assert.That(addedComponents[0], Is.InstanceOf<CertificateKeyUsageAssertionProvider>());
+        Assert.That(addedComponents, Has.Count.EqualTo(2));
+        Assert.That(addedComponents[0], Is.InstanceOf<CertificateSigningKeyResolver>());
+        Assert.That(addedComponents[1], Is.InstanceOf<CertificateKeyUsageAssertionProvider>());
     }
 
     [Test]
@@ -146,7 +150,7 @@ public class SignatureValidationExtensionsTests
         mockBuilder.Object.ValidateCertificate(cert => cert.NotExpired());
 
         // Assert - just verify it doesn't throw and components are added
-        Assert.That(addedComponents, Has.Count.EqualTo(1));
+        Assert.That(addedComponents, Has.Count.EqualTo(2));
     }
 
     #endregion

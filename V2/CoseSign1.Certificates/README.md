@@ -28,7 +28,8 @@ Comprehensive X.509 certificate support for COSE signing operations, including l
 ```csharp
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 // Load certificate with private key
 using var cert = new X509Certificate2("cert.pfx", "password");
@@ -37,10 +38,10 @@ using var cert = new X509Certificate2("cert.pfx", "password");
 using var chainBuilder = new X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
 
-// Create factory and sign
-using var factory = new DirectSignatureFactory(service);
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
-    payload, 
+// Preferred: route via CoseSign1MessageFactory
+using var factory = new CoseSign1MessageFactory(service);
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
+    payload,
     contentType: "application/json");
 ```
 
@@ -154,29 +155,21 @@ bool isValid = message.VerifySignature();
 ```csharp
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
 // Build validation pipeline
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert
         .NotExpired()
         .HasCommonName("My Trusted Signer")
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3") // Code signing
         .ValidateChain())
-    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("x509.chain.trusted"))
+    .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain())
     .Build();
-var signatureResult = validator.Validate(message, ValidationStage.Signature);
-if (!signatureResult.IsValid)
+var result = message.Validate(validator);
+if (!result.Overall.IsValid)
 {
-    foreach (var failure in signatureResult.Failures)
-    {
-        Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
-    }
-}
-
-var postSignatureResult = validator.Validate(message, ValidationStage.PostSignature);
-if (!postSignatureResult.IsValid)
-{
-    foreach (var failure in postSignatureResult.Failures)
+    foreach (var failure in result.Overall.Failures)
     {
         Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
     }
@@ -186,11 +179,11 @@ if (!postSignatureResult.IsValid)
 ### Certificate Chain Validation
 
 ```csharp
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert.ValidateChain(
         customRoots: trustedRoots,
         trustUserRoots: true))
-    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("x509.chain.trusted"))
+    .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain())
     .Build();
 ```
 
@@ -310,11 +303,11 @@ var validator = new CertificateSignatureValidator(
 var result = validator.Validate(message, ValidationStage.Signature);
 
 // Or, when using the fluent builder:
-// var result = Cose.Sign1Message()
-//     .ValidateCertificate(originalPayload, cert => { })
-//     .AllowAllTrust("detached validation")
-//     .Build()
-//     .Validate(message);
+// var result = message.Validate(builder => builder
+//     .WithOptions(o => o.WithDetachedPayload(originalPayload))
+//     .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+//     .ValidateCertificate(cert => { })
+//     .AllowAllTrust("detached validation"));
 ```
 
 ## Supported Algorithms
@@ -332,7 +325,7 @@ var result = validator.Validate(message, ValidationStage.Signature);
 
 ## See Also
 
-- [CoseSign1](../CoseSign1/README.md) - Signature factories
+- [CoseSign1.Factories](../CoseSign1.Factories/README.md) - Signature factories
 - [CoseSign1.Validation](../CoseSign1.Validation/README.md) - Validation framework
 - [CoseSign1.Certificates.AzureTrustedSigning](../CoseSign1.Certificates.AzureTrustedSigning/README.md) - Azure integration
 - [CoseSign1.Headers](../CoseSign1.Headers/README.md) - CWT claims

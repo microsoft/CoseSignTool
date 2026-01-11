@@ -43,13 +43,14 @@ SCITT defines:
 SCITT requires specific COSE headers:
 
 ```csharp
-var factory = new DirectSignatureFactory(signingService);
+using CoseSign1.Factories;
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Content type for SCITT statements
 var contentType = "application/vnd.scitt.claim+cbor";
 
 // Create SCITT-compatible signature
-var signature = factory.CreateCoseSign1MessageBytes(payload, contentType);
+var signature = factory.CreateDirectCoseSign1MessageBytes(payload, contentType);
 ```
 
 ### CWT Claims for SCITT
@@ -131,14 +132,14 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(statement);
+var message = CoseMessage.DecodeSign1(statement);
 
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert
-        .ValidateChain())
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain())
     .Build();
 
-var results = validator.Validate(message);
+var results = message.Validate(validator);
 var signatureResult = results.Signature;
 var trustResult = results.Trust;
 ```

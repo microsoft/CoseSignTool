@@ -43,27 +43,29 @@ CoseSignTool sign-akv-key <payload> \
 
 ## Verification Support
 
-The plugin contributes a signature validator for **key-only** signatures.
+The plugin contributes:
 
-By default, verification is **offline** when the message contains an embedded `COSE_Key` public key header.
+- An **offline signing key resolver** that can verify key-only signatures when the message contains an embedded `COSE_Key` public key header.
+- A **trust assertion provider** for evaluating `kid` (Azure Key Vault key URI) patterns.
+
+By default, verification is **offline**.
 
 ### Programmatic Verification
 
-Use the fluent API to configure Azure Key Vault signature validation:
+Use the V2 validation builder to add Azure Key Vault assertions:
 
 ```csharp
 using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
-using Azure.Identity;
+using System.Security.Cryptography.Cose;
 
-var validator = Cose.Sign1Message()
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKey()              // Require AKV key-only signature shape
-        .AllowOnlineVerify()            // Allow network calls to fetch public key
-        .WithCredential(new DefaultAzureCredential()))
+var validator = new CoseSign1ValidationBuilder()
+  .ValidateAzureKeyVault(akv => akv
+    .RequireAzureKeyVaultOrigin())
     .Build();
 
-var result = validator.Validate(message);
+CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
+var result = message.Validate(validator);
 ```
 
 ### Trust Policy Validation
@@ -75,15 +77,14 @@ using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
 
 // Validate that the kid matches allowed vault patterns
-var validator = Cose.Sign1Message()
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin()   // Enable trust validation
-        .FromAllowedVaults(
-            "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
-            "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
+var validator = new CoseSign1ValidationBuilder()
+  .ValidateAzureKeyVault(akv => akv
+    .FromAllowedVaults(
+      "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
+      "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
     .Build();
 
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 ```
 
 #### Pattern Syntax
@@ -96,27 +97,21 @@ The `FromAllowedVaults` method accepts patterns in three formats:
 | Wildcard | `https://*.vault.azure.net/keys/*` | `*` matches any characters |
 | Regex | `regex:https://.*\.vault\.azure\.net/keys/signing-.*` | Full regex (prefix with `regex:`) |
 
-#### Trust Claims
+#### Assertions
 
-The AKV trust validator emits two trust assertions:
+The AKV assertion provider emits typed assertions:
 
-| Claim | Description |
-|-------|-------------|
-| `akv.key.detected` | True if the kid looks like an Azure Key Vault key URI |
-| `akv.kid.allowed` | True if the kid matches one of the allowed patterns |
+- `AkvKeyDetectedAssertion` (whether the message `kid` looks like an AKV key URI)
+- `AkvKidAllowedAssertion` (whether the `kid` matches one of the allowed patterns)
 
-When patterns are configured, the default trust policy requires both claims to be satisfied.
+By default, each assertion supplies a `DefaultTrustPolicy`, so `TrustPolicy.FromAssertionDefaults()` will require them.
 
-### Online Verification (Optional)
+### CLI Options
 
 The `verify` command gains two plugin options:
 
-- `--allow-online-verify`: Allow network calls to Azure Key Vault to fetch the public key identified by `kid` when needed.
-- `--require-az-key`: Require an Azure Key Vault key-only signature shape (i.e., a `kid` that looks like an AKV key id, and typically an embedded `COSE_Key`).
-
-Online verification is only attempted when `--allow-online-verify` is specified, and one of these applies:
-- The message does not include an embedded `COSE_Key` (but does include a `kid`).
-- The message includes both a `kid` and an embedded `COSE_Key`, and the `kid` inside the `COSE_Key` does not match the message `kid`.
+- `--require-az-key`: Require the message to look like an AKV key-only signature (`kid` must look like an AKV key id).
+- `--allowed-vaults`: One or more allowed Key Vault URI patterns (glob or `regex:` prefix).
 
 Notes:
 - X.509 validators (chain/expiry/EKU/CN) only apply when the message contains `x5t` + `x5chain` headers.
@@ -125,14 +120,11 @@ Notes:
 Example:
 
 ```bash
-# Offline verification (embedded COSE_Key)
-CoseSignTool verify signature.cose --payload payload.bin
-
-# Allow online verification if needed
-CoseSignTool verify signature.cose --payload payload.bin --allow-online-verify
-
 # Require the signature to be an AKV key-only signature
 CoseSignTool verify signature.cose --payload payload.bin --require-az-key
+
+# Require that kid matches one of the allowed patterns
+CoseSignTool verify signature.cose --payload payload.bin --allowed-vaults "https://production-vault.vault.azure.net/keys/*"
 ```
 
 ## Authentication

@@ -22,9 +22,10 @@ A detached signature is a COSE signature where the payload is not embedded in th
 ### Programmatic API
 
 ```csharp
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
-var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Create detached signature
 byte[] signature = factory.CreateCoseSign1MessageBytes(
@@ -53,14 +54,20 @@ CoseSignTool sign-pfx document.json ^
 ### Programmatic API
 
 ```csharp
+using CoseSign1.Certificates.Validation;
+using System.Security.Cryptography.Cose;
+
 // Load signature and payload separately
 var signature = await File.ReadAllBytesAsync("document.json.sig");
 var payload = await File.ReadAllBytesAsync("document.json");
 
 // Payload is REQUIRED - it's part of the signed data
-var result = validator.Validate(signature, detachedPayload: payload);
+var message = CoseMessage.DecodeSign1(signature);
+var result = message.Validate(builder => builder
+    .WithOptions(o => o.WithDetachedPayload(payload))
+    .ValidateCertificate(cert => cert.ValidateChain()));
 
-if (result.IsValid)
+if (result.Overall.IsValid)
 {
     Console.WriteLine("Signature verified for provided payload");
 }
@@ -204,7 +211,7 @@ using System.Security.Cryptography.Cose;
 var signatureBytes = File.ReadAllBytes("large-file.bin.sig");
 var payloadBytes = File.ReadAllBytes("large-file.bin");
 
-var message = CoseSign1Message.DecodeSign1(signatureBytes);
+var message = CoseMessage.DecodeSign1(signatureBytes);
 bool isValid = message.VerifySignature(payloadBytes);
 ```
 
@@ -232,7 +239,7 @@ Be careful about TOCTOU issues:
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
 // ❌ Bad: Read payload, verify, then use different read
 var payload1 = File.ReadAllBytes(path); // For verification
@@ -253,7 +260,7 @@ bool ok = message.VerifySignature(payload);
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(detachedSignature);
+var message = CoseMessage.DecodeSign1(detachedSignature);
 
 // For detached signatures, the payload is required. Without it, verification returns false.
 if (!message.VerifySignature(payload: null))
@@ -268,7 +275,7 @@ if (!message.VerifySignature(payload: null))
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 bool ok = message.VerifySignature(wrongPayload);
 if (!ok)
 {

@@ -1,290 +1,119 @@
 # Custom Validators Guide
 
-This guide explains how to create custom validators for the CoseSignTool V2 validation framework.
+This guide explains how to add custom validation logic to the CoseSignTool V2 validation pipeline.
+
+If you are authoring a reusable NuGet package that plugs into validation (and you want applicability caching + default component auto-discovery), see [Authoring Validation Extension Packages](validation-extension-packages.md).
 
 ## Overview
 
-The V2 validation framework is designed to be extensible. You can create custom validators to implement organization-specific validation rules or integrate with external validation services.
+V2 validation is **component-based**. You provide one or more `IValidationComponent`s and the orchestrator runs them in a fixed order:
 
-## IValidator Interface
+1. Key material resolution (`ISigningKeyResolver`)
+2. Trust assertions + trust policy (`ISigningKeyAssertionProvider` + `TrustPolicy`)
+3. Signature verification (crypto using the resolved key)
+4. Post-signature checks (`IPostSignatureValidator`)
 
-All validators implement the stage-aware `IValidator` interface:
+Most custom business rules belong in a post-signature validator.
 
-```csharp
-public interface IValidator
-{
-    IReadOnlyCollection<ValidationStage> Stages { get; }
+## Implementing a post-signature validator
 
-    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
+Use `IPostSignatureValidator` when your check depends on verified signature + resolved identity + trust decision.
 
-    Task<ValidationResult> ValidateAsync(
-        CoseSign1Message input,
-        ValidationStage stage,
-        CancellationToken cancellationToken = default);
-}
-```
-
-## Creating a Custom Validator
-
-### Basic Structure
+For applicability caching, inherit from `ValidationComponentBase`.
 
 ```csharp
+using CoseSign1.Abstractions.Extensions;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Abstractions;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 
-public class MyCustomValidator : IValidator
+public sealed class ContentTypeValidator : ValidationComponentBase, IPostSignatureValidator
 {
-    private const string Name = nameof(MyCustomValidator);
+    private readonly HashSet<string> _allowed;
 
-    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
-
-    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
-    {
-        // Your validation logic here
-
-        if (stage != ValidationStage.PostSignature)
-        {
-            return ValidationResult.NotApplicable(Name, stage, "Validator only runs post-signature");
-        }
-
-        if (/* validation passes */)
-        {
-            return ValidationResult.Success(Name, stage);
-        }
-
-        return ValidationResult.Failure(Name, stage, "Validation failed: reason", errorCode: "CUSTOM_VALIDATION_FAILED");
-    }
-
-    public Task<ValidationResult> ValidateAsync(
-        CoseSign1Message message,
-        ValidationStage stage,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(Validate(message, stage));
-    }
-}
-```
-
-### Example: Content Type Validator
-
-```csharp
-using CoseSign1.Extensions;
-using CoseSign1.Validation;
-
-public class ContentTypeValidator : IValidator
-{
-    private readonly HashSet<string> _allowedContentTypes;
-    private const string Name = nameof(ContentTypeValidator);
-
-    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
-    
     public ContentTypeValidator(IEnumerable<string> allowedContentTypes)
     {
-        _allowedContentTypes = new HashSet<string>(allowedContentTypes, StringComparer.OrdinalIgnoreCase);
+        _allowed = new HashSet<string>(allowedContentTypes, StringComparer.OrdinalIgnoreCase);
     }
-    
-    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
+
+    public string ComponentName => nameof(ContentTypeValidator);
+
+    public override bool IsApplicableTo(System.Security.Cryptography.Cose.CoseSign1Message? message, CoseSign1ValidationOptions? options = null)
+        => message != null;
+
+    public ValidationResult Validate(IPostSignatureValidationContext context)
     {
-        if (stage != ValidationStage.PostSignature)
+        if (!context.Message.TryGetContentType(out string? contentType) || string.IsNullOrWhiteSpace(contentType))
         {
-            return ValidationResult.NotApplicable(Name, stage);
+            return ValidationResult.Failure(ComponentName, "Missing content type header", errorCode: "MISSING_CONTENT_TYPE");
         }
 
-        if (!message.TryGetContentType(out string? contentType) || string.IsNullOrWhiteSpace(contentType))
+        if (!_allowed.Contains(contentType))
         {
-            return ValidationResult.Failure(Name, stage, "Missing content type header", errorCode: "MISSING_CONTENT_TYPE");
+            return ValidationResult.Failure(ComponentName, $"Content type '{contentType}' is not allowed", errorCode: "CONTENT_TYPE_NOT_ALLOWED");
         }
 
-        if (!_allowedContentTypes.Contains(contentType))
-        {
-            return ValidationResult.Failure(Name, stage, $"Content type '{contentType}' is not allowed", errorCode: "CONTENT_TYPE_NOT_ALLOWED");
-        }
-
-        return ValidationResult.Success(Name, stage);
+        return ValidationResult.Success(ComponentName);
     }
 
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationStage stage, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(message, stage));
+    public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
 }
 ```
 
-### Example: Timestamp Range Validator
+## Registering components
+
+### Inline (single call)
 
 ```csharp
-using CoseSign1.Validation;
-
-public class TimestampRangeValidator : IValidator
-{
-    private readonly TimeSpan _maxAge;
-    private readonly TimeSpan _maxFutureSkew;
-    private const string Name = nameof(TimestampRangeValidator);
-
-    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
-    
-    public TimestampRangeValidator(TimeSpan maxAge, TimeSpan maxFutureSkew)
-    {
-        _maxAge = maxAge;
-        _maxFutureSkew = maxFutureSkew;
-    }
-    
-    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
-    {
-        if (stage != ValidationStage.PostSignature)
-        {
-            return ValidationResult.NotApplicable(Name, stage);
-        }
-
-        // Extract timestamp from CWT claims or custom header
-        var timestamp = ExtractTimestamp(message);
-        
-        if (!timestamp.HasValue)
-        {
-            return ValidationResult.Success(Name, stage); // No timestamp to validate
-        }
-        
-        var now = DateTimeOffset.UtcNow;
-        
-        if (timestamp.Value > now + _maxFutureSkew)
-        {
-            return ValidationResult.Failure(Name, stage, "Signature timestamp is too far in the future", errorCode: "TIMESTAMP_TOO_FAR_IN_FUTURE");
-        }
-        
-        if (timestamp.Value < now - _maxAge)
-        {
-            return ValidationResult.Failure(Name, stage, $"Signature is too old (max age: {_maxAge})", errorCode: "TIMESTAMP_TOO_OLD");
-        }
-
-        return ValidationResult.Success(Name, stage);
-    }
-    
-    private DateTimeOffset? ExtractTimestamp(CoseSign1Message message)
-    {
-        // Implementation to extract timestamp
-    }
-
-    public Task<ValidationResult> ValidateAsync(CoseSign1Message message, ValidationStage stage, CancellationToken cancellationToken = default)
-        => Task.FromResult(Validate(message, stage));
-}
+var result = message.Validate(builder => builder
+    .ValidateCertificate(cert => cert.ValidateChain())
+    .AddComponent(new ContentTypeValidator(new[] { "application/json" })));
 ```
 
-## Registering Custom Validators
-
-### Using ValidationBuilder
+### Reusable validator
 
 ```csharp
-var validator = Cose.Sign1Message()
-    .AddValidator(new MyCustomValidator())
-    .AddValidator(new ContentTypeValidator(new[] { "application/json", "application/xml" }))
+var validator = new CoseSign1ValidationBuilder()
+    .ValidateCertificate(cert => cert.ValidateChain())
+    .AddComponent(new ContentTypeValidator(new[] { "application/json" }))
     .Build();
+
+var result = message.Validate(validator);
 ```
 
-### With Dependency Injection
+### With dependency injection
+
+Register components as `IValidationComponent` and add them to the builder:
 
 ```csharp
-services.AddSingleton<IValidator, MyCustomValidator>();
-services.AddSingleton<IValidator>(sp =>
-    new ContentTypeValidator(new[] { "application/json" }));
+services.AddSingleton<IValidationComponent>(
+    _ => new ContentTypeValidator(new[] { "application/json" }));
 
-// Build composite validator from all registered validators
-services.AddSingleton<IValidator>(sp =>
-    new CompositeValidator(sp.GetServices<IValidator>()));
-```
-
-## Validator Ordering
-
-Validators run in the order you compose them.
-
-If you need strict ordering with dependency injection, register validators as distinct services and build a `CompositeValidator` with a deterministic ordering (for example, by ordering the sequence before passing it to the constructor).
-
-## Async Validation
-
-For validators that call external services:
-
-```csharp
-public class ExternalServiceValidator : IValidator
+// ... later, when validating:
+var result = message.Validate(builder =>
 {
-    private readonly HttpClient _httpClient;
+    // Ensure you add at least one signing key resolver (for example, certificate validation)
+    builder.ValidateCertificate(cert => cert.ValidateChain());
 
-    private const string Name = nameof(ExternalServiceValidator);
-
-    public IReadOnlyCollection<ValidationStage> Stages => new[] { ValidationStage.PostSignature };
-
-    public ValidationResult Validate(CoseSign1Message message, ValidationStage stage)
-        => throw new NotSupportedException("Use ValidateAsync for this validator.");
-
-    public async Task<ValidationResult> ValidateAsync(
-        CoseSign1Message message,
-        ValidationStage stage,
-        CancellationToken cancellationToken = default)
+    foreach (var component in serviceProvider.GetServices<IValidationComponent>())
     {
-        if (stage != ValidationStage.PostSignature)
-        {
-            return ValidationResult.NotApplicable(Name, stage);
-        }
-
-        try
-        {
-            var response = await _httpClient.PostAsync(
-                "https://validation-service.example.com/validate",
-                new ByteArrayContent(message.GetEncodedBytes()),
-                cancellationToken);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                return ValidationResult.Success(Name, stage);
-            }
-            
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            return ValidationResult.Failure(Name, stage, $"External validation failed: {error}");
-        }
-        catch (Exception ex)
-        {
-            return ValidationResult.Failure(Name, stage, $"External validation error: {ex.Message}");
-        }
+        builder.AddComponent(component);
     }
-}
+});
 ```
 
-## Testing Custom Validators
+## Ordering
 
-```csharp
-using NUnit.Framework;
+Ordering is primarily driven by the orchestrator stages. Within a given stage, components run in the order they were added to the builder.
 
-[TestFixture]
-public class MyCustomValidatorTests
-{
-    [Test]
-    public async Task ValidateAsync_WithValidMessage_ReturnsSuccess()
-    {
-        // Arrange
-        var validator = new MyCustomValidator();
-        var message = CreateTestMessage(/* valid data */);
-        
-        // Act
-        var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
-        
-        // Assert
-        Assert.That(result.IsValid, Is.True);
-    }
-    
-    [Test]
-    public async Task ValidateAsync_WithInvalidMessage_ReturnsFailure()
-    {
-        // Arrange
-        var validator = new MyCustomValidator();
-        var message = CreateTestMessage(/* invalid data */);
-        
-        // Act
-        var result = await validator.ValidateAsync(message, ValidationStage.PostSignature);
-        
-        // Assert
-        Assert.That(result.IsValid, Is.False);
-        Assert.That(result.Failures, Is.Not.Empty);
-    }
-}
-```
+## Async validation
 
-## See Also
+If your component needs network I/O (OCSP/CRL, external policy service, etc.), implement the `ValidateAsync(...)` method and use `message.ValidateAsync(...)`.
 
-- [Validation Framework Architecture](../architecture/validation-framework.md)
-- [Built-in Validators](../api/README.md)
-- [Testing Guide](testing.md)
+## See also
+
+- [Architecture: Validation Framework](../architecture/validation-framework.md)
+- [Trust Policy Guide](trust-policy.md)
+- [Authoring Validation Extension Packages](validation-extension-packages.md)

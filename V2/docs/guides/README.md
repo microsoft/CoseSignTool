@@ -7,6 +7,7 @@ This section contains how-to guides for common tasks with CoseSignTool V2.
 Learn how to extend and customize CoseSignTool V2:
 
 - [Creating Custom Validators](custom-validators.md) - Build custom validation logic
+- [Authoring Validation Extension Packages](validation-extension-packages.md) - Ship validation components with caching + auto-discovery
 - [Custom Header Contributors](custom-headers.md) - Extend header contribution
 - [Certificate Sources](certificate-sources.md) - Implement custom certificate sources
 - [Remote Signing](remote-signing.md) - Integrate with remote signing services
@@ -34,6 +35,7 @@ In-depth guides for advanced scenarios:
 | I want to... | Guide |
 |--------------|-------|
 | Create a custom validator | [Custom Validators](custom-validators.md) |
+| Publish a validation extension package | [Validation Extension Packages](validation-extension-packages.md) |
 | Add custom headers | [Custom Headers](custom-headers.md) |
 | Sign with Azure | [Remote Signing](remote-signing.md) |
 | Create a CLI plugin | [CLI Plugins](cli-plugins.md) |

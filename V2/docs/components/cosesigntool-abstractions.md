@@ -128,8 +128,8 @@ public interface IVerificationProvider
     /// <summary>Determines if this provider is activated.</summary>
     bool IsActivated(ParseResult parseResult);
 
-    /// <summary>Creates validators based on options.</summary>
-    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
+    /// <summary>Creates validation components based on options.</summary>
+    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
 
     /// <summary>Gets metadata about the verification result.</summary>
     IDictionary<string, object?> GetVerificationMetadata(

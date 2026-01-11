@@ -237,7 +237,7 @@ Your provider should **not** add these options.
 
 ## Creating a Verification Provider
 
-Verification providers contribute validators to the verify command.
+Verification providers contribute validation *components* (and optionally a trust policy) to the `verify` command.
 
 ### IVerificationProvider Interface
 
@@ -260,7 +260,7 @@ public interface IVerificationProvider
     bool IsActivated(ParseResult parseResult);
     
     /// <summary>Create validators when activated.</summary>
-    IEnumerable<IValidator> CreateValidators(ParseResult parseResult);
+    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
     
     /// <summary>Get metadata for display after verification.</summary>
     IDictionary<string, object?> GetVerificationMetadata(
@@ -270,23 +270,46 @@ public interface IVerificationProvider
 }
 ```
 
+    ### Optional interfaces
+
+    Providers can optionally implement additional interfaces:
+
+    - `IVerificationProviderWithContext` to access runtime context (for example detached payload bytes).
+    - `IVerificationProviderWithTrustPolicy` to contribute a `TrustPolicy` (policies from active providers are AND-ed).
+
 ### Priority Guidelines
 
-| Priority Range | Stage | Example Providers |
-|---------------|-------|-------------------|
-| 0-9 | Key Material Resolution | Certificate extraction |
-| 10-19 | Key Material Trust | Chain validation, custom trust |
-| 20-29 | Signature | Signature verification |
-| 30+ | Post-Signature | Business rules, policy |
+`Priority` controls ordering when multiple providers contribute components. Within validation, the orchestrator runs components by interface type:
+
+- Key material resolution: `ISigningKeyResolver`
+- Trust assertions: `ISigningKeyAssertionProvider` (evaluated by the active `TrustPolicy`)
+- Post-signature checks: `IPostSignatureValidator`
+
+Suggested ranges:
+
+| Priority Range | Typical components | Example |
+|---:|---|---|
+| 0-9 | `ISigningKeyResolver` | X.509 key resolution (`x5t`/`x5chain`) |
+| 10-29 | `ISigningKeyAssertionProvider` | Chain/issuer/CN/EKU assertions |
+| 30+ | `IPostSignatureValidator` | Business rules, policy checks |
 
 ### Implementation Example
 
 ```csharp
-public class CustomTrustVerificationProvider : IVerificationProvider
+using System.CommandLine;
+using System.CommandLine.Parsing;
+using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Trust;
+using CoseSignTool.Abstractions;
+
+public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPolicy
 {
     public string ProviderName => "CustomTrust";
     public string Description => "Custom organizational trust validation";
-    public int Priority => 15; // Trust stage
+    public int Priority => 15; // Trust assertions
 
     // Store options for later access
     private Option<string[]?> ApprovedOrgsOption = null!;
@@ -313,20 +336,34 @@ public class CustomTrustVerificationProvider : IVerificationProvider
             || parseResult.GetValueForOption(RequireEvOption);
     }
 
-    public IEnumerable<IValidator> CreateValidators(ParseResult parseResult)
+    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
     {
-        var approvedOrgs = parseResult.GetValueForOption(ApprovedOrgsOption);
-        var requireEv = parseResult.GetValueForOption(RequireEvOption);
-        
-        if (approvedOrgs != null && approvedOrgs.Length > 0)
+        // Providers must contribute a signing key resolver if they want the
+        // CLI to verify signatures (for X.509, use CertificateSigningKeyResolver).
+        yield return new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any);
+
+        // Add assertion providers based on options.
+        if (parseResult.GetValueForOption(ApprovedOrgsOption) is { Length: > 0 } approvedOrgs)
         {
-            yield return new OrganizationValidator(approvedOrgs);
+            // Example: treat "approved orgs" as allowed issuers.
+            foreach (var issuer in approvedOrgs)
+            {
+                yield return new CertificateIssuerAssertionProvider(issuerName: issuer);
+            }
         }
-        
-        if (requireEv)
+
+        if (parseResult.GetValueForOption(RequireEvOption))
         {
-            yield return new ExtendedValidationValidator();
+            // Example EKU check (replace with your org's EKU requirements).
+            yield return new CertificateKeyUsageAssertionProvider("1.3.6.1.5.5.7.3.3");
         }
+    }
+
+    public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+    {
+        // In the CLI, if no provider supplies a trust policy, verification fails
+        // ("deny all"). Supply a policy appropriate to your assertions.
+        return X509TrustPolicies.RequireTrustedChain();
     }
 
     public IDictionary<string, object?> GetVerificationMetadata(

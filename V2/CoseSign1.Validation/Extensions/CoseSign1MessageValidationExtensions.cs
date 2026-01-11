@@ -3,7 +3,9 @@
 
 namespace System.Security.Cryptography.Cose;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -17,7 +19,7 @@ using Microsoft.Extensions.Logging;
 ///     .ValidateCertificate(cert => cert.ValidateChain())
 ///     .Build();
 /// 
-/// var message = CoseSign1Message.DecodeSign1(signatureBytes);
+/// var message = CoseMessage.DecodeSign1(signatureBytes);
 /// var result = message.Validate(validator);
 /// 
 /// if (result.Overall.IsValid)
@@ -30,7 +32,7 @@ using Microsoft.Extensions.Logging;
 /// <code>
 /// var result = message.Validate(builder => builder
 ///     .ValidateCertificate(cert => cert.ValidateChain())
-///     .OverrideDefaultTrustPolicy(TrustPolicy.Require&lt;ChainTrustedAssertion&gt;()));
+///     .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain()));
 /// </code>
 /// 
 /// Auto-discovery validation (uses default components from referenced packages):
@@ -58,7 +60,7 @@ public static class CoseSign1MessageValidationExtensions
     /// // Validate multiple messages
     /// foreach (var signatureBytes in signatures)
     /// {
-    ///     var message = CoseSign1Message.DecodeSign1(signatureBytes);
+    ///     var message = CoseMessage.DecodeSign1(signatureBytes);
     ///     var result = message.Validate(validator);
     ///     // Process result...
     /// }
@@ -68,15 +70,8 @@ public static class CoseSign1MessageValidationExtensions
         this CoseSign1Message message,
         ICoseSign1Validator validator)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (validator == null)
-        {
-            throw new ArgumentNullException(nameof(validator));
-        }
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(validator);
 
         return validator.Validate(message);
     }
@@ -85,10 +80,13 @@ public static class CoseSign1MessageValidationExtensions
     /// Validates the COSE Sign1 message using a custom validation pipeline.
     /// </summary>
     /// <param name="message">The COSE Sign1 message to validate.</param>
-    /// <param name="configure">A delegate to configure the validation builder. Must add at least one signing key resolver.</param>
+    /// <param name="configure">
+    /// Optional delegate to configure the validation builder.
+    /// If <see langword="null"/>, default components are auto-discovered from referenced extension packages.
+    /// </param>
     /// <param name="loggerFactory">Optional logger factory for creating loggers in validators.</param>
     /// <returns>A validation result containing results for each validation stage.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the configured builder does not include a signing key resolver.</exception>
     /// <remarks>
     /// This method builds a new validator for each call. For validating multiple messages with the same
@@ -101,7 +99,7 @@ public static class CoseSign1MessageValidationExtensions
     ///     .ValidateCertificate(cert => cert
     ///         .NotExpired()
     ///         .ValidateChain())
-    ///     .OverrideDefaultTrustPolicy(TrustPolicy.Require&lt;ChainTrustedAssertion&gt;()));
+    ///     .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain()));
     /// 
     /// if (result.Overall.IsValid)
     /// {
@@ -114,18 +112,20 @@ public static class CoseSign1MessageValidationExtensions
         Action<ICoseSign1ValidationBuilder>? configure = null,
         ILoggerFactory? loggerFactory = null)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(message);
 
         var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        configure(builder);
+        if (configure != null)
+        {
+            configure(builder);
+        }
+        else
+        {
+            foreach (var component in DefaultComponentDiscovery.GetDefaultComponents(loggerFactory))
+            {
+                builder.AddComponent(component);
+            }
+        }
         var validator = builder.Build();
 
         return validator.Validate(message);
@@ -148,15 +148,8 @@ public static class CoseSign1MessageValidationExtensions
         ICoseSign1Validator validator,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (validator == null)
-        {
-            throw new ArgumentNullException(nameof(validator));
-        }
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(validator);
 
         return validator.ValidateAsync(message, cancellationToken);
     }
@@ -165,11 +158,14 @@ public static class CoseSign1MessageValidationExtensions
     /// Asynchronously validates the COSE Sign1 message using a custom validation pipeline.
     /// </summary>
     /// <param name="message">The COSE Sign1 message to validate.</param>
-    /// <param name="configure">A delegate to configure the validation builder. Must add at least one signing key resolver.</param>
+    /// <param name="configure">
+    /// Optional delegate to configure the validation builder.
+    /// If <see langword="null"/>, default components are auto-discovered from referenced extension packages.
+    /// </param>
     /// <param name="loggerFactory">Optional logger factory for creating loggers in validators.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task containing the validation result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the configured builder does not include a signing key resolver.</exception>
     /// <remarks>
     /// <para>
@@ -188,18 +184,20 @@ public static class CoseSign1MessageValidationExtensions
         ILoggerFactory? loggerFactory = null,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(message);
 
         var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        configure(builder);
+        if (configure != null)
+        {
+            configure(builder);
+        }
+        else
+        {
+            foreach (var component in DefaultComponentDiscovery.GetDefaultComponents(loggerFactory))
+            {
+                builder.AddComponent(component);
+            }
+        }
         var validator = builder.Build();
 
         return validator.ValidateAsync(message, cancellationToken);

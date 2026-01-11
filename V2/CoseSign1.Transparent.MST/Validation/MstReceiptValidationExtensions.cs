@@ -9,7 +9,7 @@ using CoseSign1.Validation.Interfaces;
 
 /// <summary>
 /// Builder for configuring MST receipt validation.
-/// Intended to be used via <c>Cose.Sign1Message().AddMstReceiptAssertionProvider(b =&gt; ...)</c>.
+/// Intended to be used via <c>new CoseSign1ValidationBuilder().AddMstReceiptAssertionProvider(b =&gt; ...)</c>.
 /// </summary>
 public interface IMstReceiptAssertionProviderBuilder
 {

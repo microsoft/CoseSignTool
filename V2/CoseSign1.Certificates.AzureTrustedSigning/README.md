@@ -28,7 +28,8 @@ Integrates with Microsoft Azure Trusted Signing service for cloud-based, HSM-bac
 ```csharp
 using Azure.Developer.TrustedSigning.CryptoProvider;
 using CoseSign1.Certificates.AzureTrustedSigning;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 // Create Azure signing context
 var signContext = new AzSignContext(
@@ -39,10 +40,10 @@ var signContext = new AzSignContext(
 // Create signing service
 using var signingService = new AzureTrustedSigningService(signContext);
 
-// Create factory and sign
-using var factory = new DirectSignatureFactory(signingService);
+// Create factory and sign (preferred router)
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
     payload: myPayload,
     contentType: "application/json");
 ```
@@ -200,6 +201,8 @@ Azure Trusted Signing with CWT claims for SCITT:
 
 ```csharp
 using CoseSign1.Headers;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 var claims = new CwtClaims
 {
@@ -211,9 +214,17 @@ var contributor = new CwtClaimsHeaderContributor(
     claims,
     autoGenerateIssuer: true);  // DID:x509 from Azure cert
 
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: new[] { contributor });
+using var factory = new CoseSign1MessageFactory(signingService);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = [contributor],
+};
+
+byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
+    payload: payload,
+    contentType: "application/json",
+    options: options);
 ```
 
 ## Supported Algorithms

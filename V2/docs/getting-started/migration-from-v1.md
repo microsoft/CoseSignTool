@@ -56,7 +56,7 @@ using CoseSign1.Certificates;
 **V2:**
 ```csharp
 using CoseSign1.Certificates;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 using CoseSign1.Validation;
 using CoseSign1.Certificates.Extensions;
 ```
@@ -84,9 +84,9 @@ var message = handler.Sign(
 using var cert = new X509Certificate2("cert.pfx", "password");
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] message = factory.CreateCoseSign1MessageBytes(
+byte[] message = factory.CreateDirectCoseSign1MessageBytes(
     payload,
     contentType: "application/json"
 );
@@ -113,7 +113,7 @@ var options = new DirectSignatureOptions
 };
 
 // Chain is included automatically by CertificateSigningService
-byte[] message = factory.CreateCoseSign1MessageBytes(
+byte[] message = factory.CreateDirectCoseSign1MessageBytes(
     payload,
     contentType: "application/json",
     options: options
@@ -140,7 +140,7 @@ if (result.Success)
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Extensions;
 
-var message = CoseSign1Message.DecodeSign1(signedMessage);
+var message = CoseMessage.DecodeSign1(signedMessage);
 bool isValid = message.VerifySignature();
 
 if (isValid)
@@ -165,18 +165,20 @@ var result = handler.Validate(signedMessage, options);
 
 **V2:**
 ```csharp
+using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
 using CoseSign1.Certificates.Validation;
 
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert
-        .AllowUnprotectedHeaders(true)
         .NotExpired()
         .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
     .Build();
 
-var message = CoseSign1Message.DecodeSign1(signedMessage);
-var results = validator.Validate(message);
+var message = CoseMessage.DecodeSign1(signedMessage);
+var results = message.Validate(validator);
 
 if (results.Signature.IsValid && results.Trust.IsValid)
 {
@@ -315,9 +317,9 @@ var config = new AzureTrustedSigningConfiguration
 
 var credential = new DefaultAzureCredential();
 using var signingService = new AzureTrustedSigningService(config, credential);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] message = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+byte[] message = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
 ```
 
 ### 8. Transparency Receipts
@@ -398,11 +400,11 @@ var chain = TestCertificateUtils.CreateTestChain(
 // Create once, reuse multiple times
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign multiple messages
-byte[] message1 = factory.CreateCoseSign1MessageBytes(payload1, "application/json");
-byte[] message2 = factory.CreateCoseSign1MessageBytes(payload2, "application/xml");
+byte[] message1 = factory.CreateDirectCoseSign1MessageBytes(payload1, "application/json");
+byte[] message2 = factory.CreateDirectCoseSign1MessageBytes(payload2, "application/xml");
 ```
 
 ### Pattern: Validation Builder
@@ -410,16 +412,17 @@ byte[] message2 = factory.CreateCoseSign1MessageBytes(payload2, "application/xml
 **Best Practice:**
 ```csharp
 // Build once, validate multiple messages
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .WithOptions(o => o.CertificateHeaderLocation = System.Security.Cryptography.Cose.CoseHeaderLocation.Any)
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert
-        .AllowUnprotectedHeaders()
         .NotExpired()
         .HasCommonName("TrustedSigner"))
     .Build();
 
 // Validate multiple messages
-var result1 = validator.Validate(message1);
-var result2 = validator.Validate(message2);
+var result1 = CoseMessage.DecodeSign1(message1).Validate(validator);
+var result2 = CoseMessage.DecodeSign1(message2).Validate(validator);
 ```
 
 ### Pattern: Custom Header Contribution

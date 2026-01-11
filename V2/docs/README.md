@@ -10,6 +10,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 ## Architecture
 
 - [Overview](architecture/overview.md) - Package structure, design principles, data flows
+- [Sequence Diagrams](architecture/sequence-diagrams.md) - Runtime call ordering (signing, validation, discovery, CLI plugins)
 - [Validation Framework](architecture/validation-framework.md) - Staged validation pipeline
 - [Core Concepts](architecture/core-concepts.md) - Trust, stages, signature types, policies
 - [Signing Services](architecture/signing-services.md) - Local and remote signing services
@@ -28,6 +29,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 - [Post-Quantum](guides/post-quantum.md) - PQC signing options and constraints
 - [Custom Headers](guides/custom-headers.md) - Add and validate custom headers
 - [Custom Validators](guides/custom-validators.md) - Extend validation stages
+- [Validation Extension Packages](guides/validation-extension-packages.md) - Author validation component packages (caching + auto-discovery)
 - [Logging and Diagnostics](guides/logging-diagnostics.md) - Verbosity, log files, structured output
 - [Security](guides/security.md) - Security guidance and recommended defaults
 
@@ -52,7 +54,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 
 | Package | Description |
 |---------|-------------|
-| [CoseSign1](components/cosesign1.md) | Core signing with CoseSign1MessageFactory |
+| [CoseSign1.Factories](components/cosesign1.factories.md) | Signature creation factories (direct + indirect) |
 | [CoseSign1.Abstractions](components/abstractions.md) | Shared interfaces |
 | [CoseSign1.Validation](components/validation.md) | Staged validation framework |
 | [CoseSign1.Certificates](components/certificates.md) | Certificate infrastructure |

@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
+using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -85,7 +86,9 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="directFactory"/> is <see langword="null"/>.</exception>
     public IndirectSignatureFactory(DirectSignatureFactory directFactory, ILogger<IndirectSignatureFactory>? logger = null)
     {
-        DirectFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
+        Guard.ThrowIfNull(directFactory);
+
+        DirectFactory = directFactory;
         Logger = logger ?? NullLogger<IndirectSignatureFactory>.Instance;
     }
 
@@ -130,16 +133,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options,
         SigningOptions? serviceOptions)
     {
-        if (payload == null)
-        {
-            throw new ArgumentNullException(nameof(payload));
-        }
-
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
-
+        Guard.ThrowIfNull(payload);
+        Guard.ThrowIfNull(contentType);
         ThrowIfDisposed();
 
         // Delegate to ReadOnlySpan overload
@@ -177,11 +172,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options,
         SigningOptions? serviceOptions)
     {
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
-
+        Guard.ThrowIfNull(contentType);
         ThrowIfDisposed();
 
         return HashAndSign(payload, contentType, options, serviceOptions);
@@ -197,11 +188,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         SigningOptions? serviceOptions = null)
     {
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
-
+        Guard.ThrowIfNull(contentType);
         ThrowIfDisposed();
 
         var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
@@ -307,11 +294,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payload == null)
-        {
-            throw new ArgumentNullException(nameof(payload));
-        }
-
+        Guard.ThrowIfNull(payload);
         ThrowIfDisposed();
 
         // Delegate to stream overload
@@ -354,11 +337,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payloadStream == null)
-        {
-            throw new ArgumentNullException(nameof(payloadStream));
-        }
-
+        Guard.ThrowIfNull(payloadStream);
+        Guard.ThrowIfNull(contentType);
         ThrowIfDisposed();
 
         // Delegate to implementation
@@ -375,16 +355,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payloadStream == null)
-        {
-            throw new ArgumentNullException(nameof(payloadStream));
-        }
-
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
-
+        Guard.ThrowIfNull(payloadStream);
+        Guard.ThrowIfNull(contentType);
         ThrowIfDisposed();
 
         var operationId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
@@ -407,40 +379,15 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         try
         {
-            // Compute hash of stream using MemoryOwner for pooled memory
+            // Compute hash of stream.
             // Note: This is the hash of the CONTENT. The signature itself may use a different
             // hash algorithm determined by the signing key in DirectSignatureFactory.
-            using var hashOwner = MemoryOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
-            var hashMemory = hashOwner.Memory;
-
-#if NETSTANDARD2_0
-            var hashBytes = await ComputeHashAsync(payloadStream, options.HashAlgorithm, cancellationToken).ConfigureAwait(false);
-            hashBytes.CopyTo(hashOwner.Span);
-#else
-            using var incrementalHash = IncrementalHash.CreateHash(options.HashAlgorithm);
-            
-            var buffer = ArrayPool<byte>.Shared.Rent(8192); // 8KB buffer for incremental hashing
-            try
-            {
-                int bytesRead;
-                while ((bytesRead = await payloadStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
-                {
-                    incrementalHash.AppendData(buffer, 0, bytesRead);
-                }
-                
-                var hash = incrementalHash.GetHashAndReset();
-                hash.CopyTo(hashOwner.Span);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-#endif
+            var hashBytes = await ComputeHashBytesAsync(payloadStream, options.HashAlgorithm, cancellationToken).ConfigureAwait(false);
 
             Logger.LogTrace(
                 LogEvents.SigningPayloadInfoEvent,
                 ClassStrings.LogHashComputed,
-                hashOwner.Length);
+                hashBytes.Length);
 
             // Create CoseHashEnvelope header contributor with protected headers
             var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
@@ -463,8 +410,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             };
 
             // Sign the hash directly (content type added by CoseHashEnvelopeHeaderContributor)
-            using var hashStream = new MemoryStream(hashOwner.Memory.ToArray(), writable: false);
-            var result = await DirectFactory.CreateCoseSign1MessageBytesAsync(hashStream, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+            var result = await DirectFactory.CreateCoseSign1MessageBytesAsync(hashBytes, contentType, directOptions, cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
             Logger.LogDebug(
@@ -529,14 +475,62 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
     /// <param name="options">Optional indirect signature options. If null, default options are used.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when hashing the payload fails.</exception>
     public virtual async Task<CoseSign1Message> CreateCoseSign1MessageAsync(
         byte[] payload,
         string contentType,
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        Guard.ThrowIfNull(payload);
+        Guard.ThrowIfNull(contentType);
+        ThrowIfDisposed();
+
+        options ??= new IndirectSignatureOptions();
+
+        // Compute hash of payload using the hash algorithm specified in options
+        byte[] hashBytes;
+        {
+            using var owner = SpanOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
+            var hashSpan = owner.Span;
+
+            if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
+            {
+                Logger.LogError(
+                    LogEvents.SigningFailedEvent,
+                    ClassStrings.LogHashComputeFailed,
+                    options.HashAlgorithm);
+                throw new InvalidOperationException(ClassStrings.ErrorFailedToComputeHash);
+            }
+
+            hashBytes = hashSpan.Slice(0, bytesWritten).ToArray();
+        }
+
+        // Create CoseHashEnvelope header contributor with protected headers
+        var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
+            options.HashAlgorithm,
+            contentType,
+            options.PayloadLocation);
+
+        // Chain with any additional header contributors
+        var headerContributors = options.AdditionalHeaderContributors?.Any() == true
+            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+            : new List<IHeaderContributor> { hashEnvelopeContributor };
+
+        // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
+        var directOptions = new DirectSignatureOptions
+        {
+            AdditionalHeaderContributors = headerContributors,
+            AdditionalContext = options.AdditionalContext,
+            AdditionalData = options.AdditionalData,
+            DisableTransparency = options.DisableTransparency,
+            FailOnTransparencyError = options.FailOnTransparencyError,
+            EmbedPayload = true  // Embed the hash
+        };
+
+        // Sign the hash directly and apply any configured transparency proofs
+        return await DirectFactory.CreateCoseSign1MessageAsync(hashBytes, contentType, directOptions, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -553,8 +547,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payload.ToArray(), contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        return await CreateCoseSign1MessageAsync(payload.ToArray(), contentType, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -571,8 +564,52 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
         IndirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(messageBytes);
+        return await HashAndSignMessageAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Core async implementation: hashes stream, signs the hash, and applies transparency proofs (if configured).
+    /// </summary>
+    private async Task<CoseSign1Message> HashAndSignMessageAsync(
+        Stream payloadStream,
+        string contentType,
+        IndirectSignatureOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.ThrowIfNull(payloadStream);
+        Guard.ThrowIfNull(contentType);
+        ThrowIfDisposed();
+
+        options ??= new IndirectSignatureOptions();
+
+        // Compute hash of stream.
+        // Note: This is the hash of the CONTENT. The signature itself may use a different
+        // hash algorithm determined by the signing key in DirectSignatureFactory.
+        var hashBytes = await ComputeHashBytesAsync(payloadStream, options.HashAlgorithm, cancellationToken).ConfigureAwait(false);
+
+        // Create CoseHashEnvelope header contributor with protected headers
+        var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
+            options.HashAlgorithm,
+            contentType,
+            options.PayloadLocation);
+
+        // Chain with any additional header contributors
+        var headerContributors = options.AdditionalHeaderContributors?.Any() == true
+            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+            : new List<IHeaderContributor> { hashEnvelopeContributor };
+
+        // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
+        var directOptions = new DirectSignatureOptions
+        {
+            AdditionalHeaderContributors = headerContributors,
+            AdditionalContext = options.AdditionalContext,
+            AdditionalData = options.AdditionalData,
+            DisableTransparency = options.DisableTransparency,
+            FailOnTransparencyError = options.FailOnTransparencyError,
+            EmbedPayload = true  // Embed the hash
+        };
+
+        return await DirectFactory.CreateCoseSign1MessageAsync(hashBytes, contentType, directOptions, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -589,11 +626,50 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
     private void ThrowIfDisposed()
     {
-        if (Disposed)
+        Guard.ThrowIfDisposed(Disposed, this);
+    }
+
+    private static Task<byte[]> ComputeHashBytesAsync(
+        Stream payloadStream,
+        HashAlgorithmName hashAlgorithm,
+        CancellationToken cancellationToken)
+    {
+        Guard.ThrowIfNull(payloadStream);
+
+#if NETSTANDARD2_0
+        return ComputeHashAsync(payloadStream, hashAlgorithm, cancellationToken);
+#else
+        return ComputeHashBytesAsyncNet(payloadStream, hashAlgorithm, cancellationToken);
+#endif
+    }
+
+#if !NETSTANDARD2_0
+    private static async Task<byte[]> ComputeHashBytesAsyncNet(
+        Stream payloadStream,
+        HashAlgorithmName hashAlgorithm,
+        CancellationToken cancellationToken)
+    {
+        using var incrementalHash = IncrementalHash.CreateHash(hashAlgorithm);
+
+        var buffer = ArrayPool<byte>.Shared.Rent(8192);
+        try
         {
-            throw new ObjectDisposedException(nameof(IndirectSignatureFactory));
+            int bytesRead;
+            while ((bytesRead = await payloadStream
+                       .ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
+                       .ConfigureAwait(false)) > 0)
+            {
+                incrementalHash.AppendData(buffer, 0, bytesRead);
+            }
+
+            return incrementalHash.GetHashAndReset();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
+#endif
 
     #region Helper Methods
 

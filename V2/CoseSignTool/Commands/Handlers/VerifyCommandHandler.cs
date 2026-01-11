@@ -349,7 +349,7 @@ public class VerifyCommandHandler
 
             // Build and execute the validator
             var coseValidator = builder.Build();
-            var validationResult = coseValidator.Validate(message);
+            var validationResult = message.Validate(coseValidator);
 
             if (!validationResult.Resolution.IsValid)
             {

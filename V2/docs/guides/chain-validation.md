@@ -123,8 +123,15 @@ var policy = new X509ChainPolicy
 By default, the system trust store is used:
 
 ```csharp
-// Uses Windows/macOS/Linux system trust store
-var validator = new CertificateChainValidator();
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
+// Uses Windows/macOS/Linux system trust store for chain building
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: false))
+    .Build();
 ```
 
 ### Custom Trust Roots
@@ -135,7 +142,10 @@ For custom PKI or specific trust requirements:
 var trustedRoots = new X509Certificate2Collection();
 trustedRoots.Add(new X509Certificate2("my-root-ca.cer"));
 
-var validator = new CertificateChainValidator(trustedRoots);
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
+    .Build();
 ```
 
 ### Pinned Certificates
@@ -148,16 +158,15 @@ Implement this as a custom validator that extracts the signing certificate and a
 ### Add to Validation Builder
 
 ```csharp
-var message = CoseSign1Message.DecodeSign1(signature);
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert
-        .ValidateChain(revocationMode: X509RevocationMode.Online))
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain(revocationMode: X509RevocationMode.Online))
     .Build();
 
 
-var results = validator.Validate(message);
+var results = message.Validate(validator);
 var signatureResult = results.Signature;
 var trustResult = results.Trust;
 ```
@@ -165,7 +174,7 @@ var trustResult = results.Trust;
 ### Validation Results
 
 ```csharp
-var trustResult = validator.Validate(message).Trust;
+var trustResult = message.Validate(validator).Trust;
 
 if (!trustResult.IsValid)
 {
@@ -269,8 +278,7 @@ policy.ExtraStore.AddRange(intermediates);
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
 if (message.TryGetCertificateChain(out var chain))
 {

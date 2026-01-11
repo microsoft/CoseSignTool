@@ -1,11 +1,11 @@
-# CoseSign1
+# CoseSign1.Factories
 
 Core COSE Sign1 message factories for creating direct and indirect signatures.
 
 ## Installation
 
 ```bash
-dotnet add package CoseSign1 --version 2.0.0-preview
+dotnet add package CoseSign1.Factories --version 2.0.0-preview
 ```
 
 ## Overview
@@ -14,6 +14,7 @@ This package provides concrete implementations for creating COSE Sign1 messages.
 
 ## Key Features
 
+- ✅ **CoseSign1MessageFactory** - Preferred router (selects direct vs indirect by option type)
 - ✅ **DirectSignatureFactory** - Create signatures with embedded or detached payloads
 - ✅ **IndirectSignatureFactory** - Create hash-based signatures for large payloads
 - ✅ **Header Contributors** - Built-in content type and hash envelope headers
@@ -23,35 +24,45 @@ This package provides concrete implementations for creating COSE Sign1 messages.
 
 ## Quick Start
 
-### Direct Signature (Embedded Payload)
+### Preferred: CoseSign1MessageFactory (Router)
 
 ```csharp
-using CoseSign1.Direct;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
+using System.Security.Cryptography;
 
 // Create signing service with certificate
 using var cert = new X509Certificate2("cert.pfx", "password");
 using var chainBuilder = new X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
 
-// Create factory
-using var factory = new DirectSignatureFactory(service);
+using var factory = new CoseSign1MessageFactory(service);
 
 // Sign payload
 byte[] payload = Encoding.UTF8.GetBytes("Document content");
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
-    payload, 
+byte[] direct = factory.CreateDirectCoseSign1MessageBytes(
+    payload,
     contentType: "text/plain");
 
+byte[] indirect = factory.CreateIndirectCoseSign1MessageBytes(
+    payload,
+    contentType: "application/octet-stream");
+
 // Save the signature
-File.WriteAllBytes("document.cose", signedMessage);
+File.WriteAllBytes("document.direct.cose", direct);
+File.WriteAllBytes("document.indirect.cose", indirect);
 ```
 
-### Direct Signature (Detached Payload)
+### DirectSignatureFactory (advanced)
 
 ```csharp
-// Create factory with detached payload option
+using CoseSign1.Factories.Direct;
+
+// Assumes 'service' and 'payload' are defined as above.
+using var factory = new DirectSignatureFactory(service);
 var options = new DirectSignatureOptions { EmbedPayload = false };
 
 byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
@@ -64,14 +75,15 @@ File.WriteAllBytes("document.bin", payload);
 File.WriteAllBytes("document.cose", signedMessage);
 ```
 
-### Indirect Signature (Hash-Based)
+### IndirectSignatureFactory (advanced)
 
 For large payloads, use indirect signatures which sign a hash of the content:
 
 ```csharp
-using CoseSign1.Indirect;
+using CoseSign1.Factories.Indirect;
 
 // Create indirect signature factory
+// Assumes 'service' is defined as above.
 using var factory = new IndirectSignatureFactory(service);
 
 // Sign large file (only hash is embedded in message)
@@ -84,7 +96,7 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 ### Specify Hash Algorithm
 
 ```csharp
-var options = new IndirectSigningOptions
+var options = new IndirectSignatureOptions
 {
     HashAlgorithm = HashAlgorithmName.SHA384
 };
@@ -99,14 +111,14 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 
 ```csharp
 // Async signing for remote signing services
-byte[] signedMessage = await factory.CreateCoseSign1MessageBytesAsync(
+byte[] signedMessage = await factory.CreateDirectCoseSign1MessageBytesAsync(
     payload,
     contentType: "application/json",
     cancellationToken: cancellationToken);
 
 // Stream-based signing for memory efficiency
 using var stream = File.OpenRead("large-file.bin");
-byte[] signedMessage = await factory.CreateCoseSign1MessageBytesAsync(
+byte[] signedMessage = await factory.CreateDirectCoseSign1MessageBytesAsync(
     stream,
     contentType: "application/octet-stream");
 ```
@@ -118,19 +130,19 @@ byte[] signedMessage = await factory.CreateCoseSign1MessageBytesAsync(
 Creates standard COSE Sign1 messages with payload embedded or detached:
 
 ```csharp
-public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSigningOptions>
+public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOptions>
 {
     // Constructor with signing service
     public DirectSignatureFactory(
-        ISigningService<CertificateSigningOptions> signingService,
-        IEnumerable<ITransparencyProvider>? transparencyProviders = null,
+        ISigningService<SigningOptions> signingService,
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
         ILogger<DirectSignatureFactory>? logger = null);
     
     // Create signed message
     byte[] CreateCoseSign1MessageBytes(
         byte[] payload,
         string contentType,
-        DirectSigningOptions? options = default);
+        DirectSignatureOptions? options = default);
 }
 ```
 
@@ -139,40 +151,40 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSigningOpti
 Creates hash-based signatures (COSE Hash Envelope):
 
 ```csharp
-public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSigningOptions>
+public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatureOptions>
 {
     // Constructor with signing service
     public IndirectSignatureFactory(
-        ISigningService<CertificateSigningOptions> signingService,
-        IEnumerable<ITransparencyProvider>? transparencyProviders = null,
+        ISigningService<SigningOptions> signingService,
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
         ILogger<IndirectSignatureFactory>? logger = null);
     
     // Create signed message with hash
     byte[] CreateCoseSign1MessageBytes(
         byte[] payload,
         string contentType,
-        IndirectSigningOptions? options = default);
+        IndirectSignatureOptions? options = default);
 }
 ```
 
-### DirectSigningOptions
+### DirectSignatureOptions
 
 Options for direct signatures:
 
 ```csharp
-public class DirectSigningOptions : SigningOptions
+public class DirectSignatureOptions : SigningOptions
 {
     // Whether to embed payload in message (default: true)
     public bool EmbedPayload { get; set; } = true;
 }
 ```
 
-### IndirectSigningOptions
+### IndirectSignatureOptions
 
 Options for indirect signatures:
 
 ```csharp
-public class IndirectSigningOptions : SigningOptions
+public class IndirectSignatureOptions : SigningOptions
 {
     // Hash algorithm (default: SHA256)
     public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
@@ -210,18 +222,21 @@ Adds hash envelope headers for indirect signatures:
 using CoseSign1.Headers;
 
 // Add custom headers via contributors
-var factory = new DirectSignatureFactory(
-    service,
-    headerContributors: new IHeaderContributor[]
+using var factory = new DirectSignatureFactory(service);
+
+var options = new DirectSignatureOptions
+{
+    AdditionalHeaderContributors = new IHeaderContributor[]
     {
         new CwtClaimsHeaderContributor(new CwtClaims
         {
             Issuer = "https://example.com",
-            Subject = "document-123"
-        })
-    });
+            Subject = "document-123",
+        }),
+    },
+};
 
-var message = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+var message = factory.CreateCoseSign1MessageBytes(payload, "application/json", options);
 ```
 
 ### With Transparency Providers

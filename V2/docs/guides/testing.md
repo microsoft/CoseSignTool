@@ -17,7 +17,7 @@ using CoseSign1.Tests.Common;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Validation;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 using System.Text;
@@ -35,18 +35,19 @@ public class SigningTests
         // Use for signing
         using var chainBuilder = new X509ChainBuilder();
         using var service = CertificateSigningService.Create(cert, chainBuilder);
-        using var factory = new DirectSignatureFactory(service);
+        using var factory = new CoseSign1MessageFactory(service);
         
         var payload = Encoding.UTF8.GetBytes("test payload");
-        var signature = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
+        var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
 
         // Verify
-        var message = CoseSign1Message.DecodeSign1(signature);
-        var validator = Cose.Sign1Message()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
-        var result = validator.Validate(message);
+        var result = message.Validate(validator);
         Assert.That(result.Overall.IsValid, Is.True);
     }
 }
@@ -74,12 +75,14 @@ using var root = chain[2];
 ```csharp
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Trust;
 using NUnit.Framework;
 
 [TestFixture]
 public class CustomValidatorTests
 {
-    private IValidator _validator = null!;
+    private IPostSignatureValidator _validator = null!;
 
     [SetUp]
     public void SetUp()
@@ -88,30 +91,52 @@ public class CustomValidatorTests
     }
 
     [Test]
-    public async Task ValidateAsync_WithValidMessage_ReturnsSuccess()
+    public async Task ValidateAsync_WithValidContext_ReturnsSuccess()
     {
         // Arrange
-        var message = CreateValidTestMessage();
+        var context = CreateValidPostSignatureContext();
 
         // Act
-        var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
+        var result = await _validator.ValidateAsync(context);
 
         // Assert
         Assert.That(result.IsValid, Is.True);
     }
 
     [Test]
-    public async Task ValidateAsync_WithInvalidMessage_ReturnsFailure()
+    public async Task ValidateAsync_WithInvalidContext_ReturnsFailure()
     {
         // Arrange
-        var message = CreateInvalidTestMessage();
+        var context = CreateInvalidPostSignatureContext();
 
         // Act
-        var result = await _validator.ValidateAsync(message, ValidationStage.PostSignature);
+        var result = await _validator.ValidateAsync(context);
 
         // Assert
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Failures.First().ErrorCode, Is.EqualTo("CUSTOM_ERROR"));
+    }
+
+    private static IPostSignatureValidationContext CreateValidPostSignatureContext()
+    {
+        var message = /* CreateValidTestMessage() */ throw new NotImplementedException();
+        return new PostSignatureValidationContext(
+            message,
+            trustAssertions: Array.Empty<ISigningKeyAssertion>(),
+            trustDecision: TrustDecision.Trusted(),
+            signatureMetadata: new Dictionary<string, object>(),
+            options: new CoseSign1ValidationOptions());
+    }
+
+    private static IPostSignatureValidationContext CreateInvalidPostSignatureContext()
+    {
+        var message = /* CreateInvalidTestMessage() */ throw new NotImplementedException();
+        return new PostSignatureValidationContext(
+            message,
+            trustAssertions: Array.Empty<ISigningKeyAssertion>(),
+            trustDecision: TrustDecision.Trusted(),
+            signatureMetadata: new Dictionary<string, object>(),
+            options: new CoseSign1ValidationOptions());
     }
 }
 ```
@@ -156,18 +181,19 @@ public class SigningServiceTests
         using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
         using var chainBuilder = new X509ChainBuilder();
         using var service = CertificateSigningService.Create(cert, chainBuilder);
-        using var factory = new DirectSignatureFactory(service);
+        using var factory = new CoseSign1MessageFactory(service);
 
         byte[] payload = new byte[] { 1, 2, 3, 4, 5 };
-        byte[] signatureBytes = factory.CreateCoseSign1MessageBytes(payload, "application/octet-stream");
+        byte[] signatureBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "application/octet-stream");
 
-        var message = CoseSign1Message.DecodeSign1(signatureBytes);
-        var validator = Cose.Sign1Message()
+        var message = CoseMessage.DecodeSign1(signatureBytes);
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
 
-        Assert.That(validator.Validate(message).Overall.IsValid, Is.True);
+        Assert.That(message.Validate(validator).Overall.IsValid, Is.True);
     }
 }
 ```
@@ -187,7 +213,7 @@ public class SignVerifyIntegrationTests
         using var cert = LocalCertificateFactory.CreateEcdsaCertificate(keySize: 256);
         using var chainBuilder = new X509ChainBuilder();
         using var signingService = CertificateSigningService.Create(cert, chainBuilder);
-        using var factory = new DirectSignatureFactory(signingService);
+        using var factory = new CoseSign1MessageFactory(signingService);
         
         var payload = Encoding.UTF8.GetBytes("""
             {
@@ -197,18 +223,19 @@ public class SignVerifyIntegrationTests
             """);
         
         // Act - Sign
-        var signature = factory.CreateCoseSign1MessageBytes(
+        var signature = factory.CreateDirectCoseSign1MessageBytes(
             payload, 
             "application/json");
         
         // Act - Verify
-        var message = CoseSign1Message.DecodeSign1(signature);
-        var validator = Cose.Sign1Message()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
 
-        var result = validator.Validate(message);
+        var result = message.Validate(validator);
         
         // Assert
         Assert.That(result.Overall.IsValid, Is.True);
@@ -235,13 +262,14 @@ public class SignVerifyIntegrationTests
             "application/octet-stream");
 
         // Act - Verify signature over the hash envelope (payload is not required for signature verification)
-        var message = CoseSign1Message.DecodeSign1(signature);
-        var validator = Cose.Sign1Message()
+        var message = CoseMessage.DecodeSign1(signature);
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => cert.NotExpired())
             .AllowAllTrust("test")
             .Build();
 
-        var result = validator.Validate(message);
+        var result = message.Validate(validator);
         
         // Assert
         Assert.That(result.Overall.IsValid, Is.True);
@@ -267,20 +295,20 @@ public void Verify_WithFullChain_Succeeds()
     using var service = CertificateSigningService.Create(
         leaf,
         new[] { leaf, intermediate, root });
-    using var factory = new DirectSignatureFactory(service);
+    using var factory = new CoseSign1MessageFactory(service);
     
-    var signature = factory.CreateCoseSign1MessageBytes(payload, "application/octet-stream");
+    var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/octet-stream");
     
     // Verify with custom trust root
-    var message = CoseSign1Message.DecodeSign1(signature);
+    var message = CoseMessage.DecodeSign1(signature);
     var trustedRoots = new X509Certificate2Collection { root };
 
-    var validator = Cose.Sign1Message()
-        .ValidateCertificate(cert => cert
-            .ValidateChain(trustedRoots))
+    var validator = new CoseSign1ValidationBuilder()
+        .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+        .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
         .Build();
 
-    var result = validator.Validate(message);
+    var result = message.Validate(validator);
     Assert.That(result.Signature.IsValid, Is.True);
     Assert.That(result.Trust.IsValid, Is.True);
 }
@@ -339,11 +367,26 @@ public class CliIntegrationTests
 
 ## Mock Objects
 
-When testing validation composition, you can register lightweight validators directly on the builder:
+When testing validation composition, you can register lightweight components directly on the builder.
+The simplest option is an always-pass post-signature validator:
 
 ```csharp
-var validator = Cose.Sign1Message()
-    .AddValidator(_ => ValidationResult.Success("AlwaysPass"))
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
+
+public sealed class AlwaysPassPostSignatureValidator : IPostSignatureValidator
+{
+    public string ComponentName => "AlwaysPass";
+    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
+    public ValidationResult Validate(IPostSignatureValidationContext context) => ValidationResult.Success(ComponentName);
+    public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+        => Task.FromResult(Validate(context));
+}
+
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+    .AddComponent(new AlwaysPassPostSignatureValidator())
+    .AllowAllTrust("test")
     .Build();
 ```
 

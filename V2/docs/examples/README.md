@@ -7,10 +7,10 @@ This section provides code examples for common CoseSignTool V2 scenarios.
 ### Sign a JSON File
 
 ```csharp
-using CoseSign1;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 // Load certificate
 var cert = new X509Certificate2("signing-cert.pfx", password);
@@ -19,10 +19,10 @@ var cert = new X509Certificate2("signing-cert.pfx", password);
 using var chainBuilder = new X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
 
-// Create factory and sign
-using var factory = new DirectSignatureFactory(service);
+// Create factory and sign (preferred router)
+using var factory = new CoseSign1MessageFactory(service);
 var payload = File.ReadAllBytes("document.json");
-var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
 
 // Save signature
 File.WriteAllBytes("document.json.cose", signature);
@@ -37,17 +37,18 @@ using System.Security.Cryptography.Cose;
 
 // Load signature
 var signature = File.ReadAllBytes("document.json.cose");
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
-// Build validator - uses default trust policy from certificate validators
-var validator = Cose.Sign1Message()
+// Build validator - assertion providers supply default trust requirements.
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert
         .NotExpired()
         .ValidateChain(allowUntrusted: false))
-    .Build();  // Default policy: x509.chain.trusted
+    .Build();
 
-// Verify - returns staged results
-var result = validator.Validate(message);
+// Verify - returns detailed results
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -55,7 +56,7 @@ if (result.Overall.IsValid)
 }
 else
 {
-    // Check which stage failed
+    // Check which part failed
     if (!result.Trust.IsValid)
     {
         Console.WriteLine($"Trust failed: {result.Trust.Failures[0].Message}");
@@ -82,15 +83,15 @@ var options = new AzureTrustedSigningOptions
 };
 
 var service = new AzureTrustedSigningService(options);
-var factory = new DirectSignatureFactory(service);
+var factory = new CoseSign1MessageFactory(service);
 
-var signature = await factory.CreateCoseSign1MessageBytesAsync(payload, "application/json");
+var signature = await factory.CreateDirectCoseSign1MessageBytesAsync(payload, "application/json");
 ```
 
 ### Create Indirect Signature for Large File
 
 ```csharp
-using CoseSign1.Indirect;
+using CoseSign1.Factories.Indirect;
 
 var factory = new IndirectSignatureFactory(signingService);
 
@@ -114,15 +115,15 @@ public class BuildInfoHeaderContributor : IHeaderContributor
 
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        headers.Add(new CoseHeaderLabel("build-id"), _buildId);
-        headers.Add(new CoseHeaderLabel("build-time"), DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        headers.Add(new CoseHeaderLabel("build-id"), CoseHeaderValue.FromString(_buildId));
+        headers.Add(new CoseHeaderLabel("build-time"), CoseHeaderValue.FromInt64(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
     }
 
     public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context) { }
 }
 
 // Usage
-var factory = new DirectSignatureFactory(service);
+var factory = new CoseSign1MessageFactory(service);
 
 var options = new DirectSignatureOptions
 {
@@ -135,6 +136,10 @@ var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json",
 ### Detached Signature
 
 ```csharp
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+
 // Create detached signature (payload not embedded)
 var signature = factory.CreateCoseSign1MessageBytes(
     payload,
@@ -142,7 +147,11 @@ var signature = factory.CreateCoseSign1MessageBytes(
     new DirectSignatureOptions { EmbedPayload = false });
 
 // Verify with detached payload
-var result = validator.Validate(signature, detachedPayload: payload);
+var message = CoseMessage.DecodeSign1(signature);
+var result = message.Validate(builder => builder
+    .WithOptions(o => o.WithDetachedPayload(payload))
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+    .ValidateCertificate(cert => cert.ValidateChain()));
 ```
 
 ### Verify Azure Key Vault Signature
@@ -150,17 +159,16 @@ var result = validator.Validate(signature, detachedPayload: payload);
 ```csharp
 using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
-using Azure.Identity;
 
-// Build validator with fluent AKV validation API
-var validator = Cose.Sign1Message()
+// Adds AKV trust assertions (kid pattern checks).
+// You must also supply an ISigningKeyResolver to verify the cryptographic signature
+// for key-only signatures (not provided by this package).
+var validator = new CoseSign1ValidationBuilder()
     .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKey()                    // Require AKV key-only signature
-        .AllowOnlineVerify()                  // Allow network calls if needed
-        .WithCredential(new DefaultAzureCredential()))
+        .RequireAzureKeyVaultOrigin())
     .Build();
 
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 ```
 
 ### Validate Azure Key Vault Origin (Trust Policy)
@@ -172,15 +180,15 @@ using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation;
 
 // Validate that the kid matches allowed vault patterns
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin()         // Enable trust validation
+        .RequireAzureKeyVaultOrigin()
         .FromAllowedVaults(
             "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
             "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
     .Build();
 
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -200,6 +208,7 @@ if (result.Overall.IsValid)
 
 ```csharp
 using Azure.Security.CodeTransparency;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Transparent.MST.Validation;
 using CoseSign1.Validation;
 
@@ -207,14 +216,15 @@ var client = new CodeTransparencyClient(
     new Uri("https://dataplane.codetransparency.azure.net"));
 
 // Build validator with fluent MST validation API
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
     .ValidateMst(mst => mst
         .RequireReceiptPresence()             // Check receipt exists
         .VerifyReceipt(client))               // Validate the receipt
-    .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
+    .OverrideDefaultTrustPolicy(CoseSign1.Transparent.MST.Validation.MstTrustPolicies.RequireReceiptPresentAndTrusted())
     .Build();
 
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 
 if (result.Overall.IsValid)
 {
@@ -226,19 +236,20 @@ if (result.Overall.IsValid)
 
 ```csharp
 // Validate certificate chain AND MST transparency receipt
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert
         .NotExpired()
         .ValidateChain())
     .ValidateMst(mst => mst
         .RequireReceiptPresence()
         .VerifyReceipt(client))
-    .OverrideDefaultTrustPolicy(TrustPolicy.And(
-        TrustPolicy.Claim("x509.chain.trusted"),
-        TrustPolicy.Claim("mst.receipt.trusted")))
+    .OverrideDefaultTrustPolicy(CoseSign1.Validation.Trust.TrustPolicy.And(
+        CoseSign1.Certificates.Validation.X509TrustPolicies.RequireTrustedChain(),
+        CoseSign1.Transparent.MST.Validation.MstTrustPolicies.RequireReceiptPresentAndTrusted()))
     .Build();
 
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 ```
 
 ### Combined Validation (AKV Trust + MST)
@@ -246,52 +257,39 @@ var result = validator.Validate(message);
 ```csharp
 // Validate AKV key origin AND MST transparency receipt
 // Useful for supply chain scenarios with key-only signatures
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    // Required: add an ISigningKeyResolver appropriate to your signature shape.
+    // For X.509-backed signatures use CertificateSigningKeyResolver; for key-only you must supply your own.
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
     .ValidateAzureKeyVault(akv => akv
         .RequireAzureKeyVaultOrigin()
-        .FromAllowedVaults("https://release-*.vault.azure.net/keys/*")
-        .AllowOnlineVerify()
-        .WithCredential(new DefaultAzureCredential()))
+        .FromAllowedVaults("https://release-*.vault.azure.net/keys/*"))
     .ValidateMst(mst => mst
         .RequireReceiptPresence()
         .VerifyReceipt(mstClient))
     .Build();
 
-// Trust policies from all validators are automatically aggregated
-var result = validator.Validate(message);
+var result = message.Validate(validator);
 ```
 
 ### Trust Policy Aggregation
 
-When using multiple validators that implement `IProvidesDefaultTrustPolicy`, their default trust policies are automatically combined using `TrustPolicy.And()`. This means all trust requirements must be satisfied.
+In V2, trust is evaluated by a `TrustPolicy` against the set of typed assertions emitted by your `ISigningKeyAssertionProvider` components.
+
+If you don't override the policy, `CoseSign1ValidationBuilder` defaults to `TrustPolicy.FromAssertionDefaults()`, which effectively ANDs the default trust policies for the assertions that are present.
 
 ```csharp
-// Example: All three validators contribute default trust policies
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert.ValidateChain())      // Adds: x509.chain.trusted
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
+    .ValidateCertificate(cert => cert.ValidateChain())
     .ValidateAzureKeyVault(akv => akv
         .RequireAzureKeyVaultOrigin()
-        .FromAllowedVaults("https://prod.vault.azure.net/keys/*"))  // Adds: akv.key.detected AND akv.kid.allowed
-    .ValidateMst(mst => mst.RequireReceiptPresence())       // Adds: mst.receipt.present
+        .FromAllowedVaults("https://prod.vault.azure.net/keys/*"))
+    .ValidateMst(mst => mst.RequireReceiptPresence())
     .Build();
-
-// Effective trust policy is:
-// TrustPolicy.And(
-//     Claim("x509.chain.trusted"),
-//     Claim("akv.key.detected"),
-//     Claim("akv.kid.allowed"),
-//     Claim("mst.receipt.present"))
 ```
 
-### Available Trust Claims
-
-| Source | Claim | Description |
-|--------|-------|-------------|
-| Certificate | `x509.chain.trusted` | Certificate chain validated successfully |
-| AKV | `akv.key.detected` | kid looks like an Azure Key Vault key URI |
-| AKV | `akv.kid.allowed` | kid matches one of the allowed patterns |
-| MST | `mst.receipt.present` | MST receipt exists in signature |
-| MST | `mst.receipt.trusted` | MST receipt verified successfully |
+For more details (including how to build explicit policies with `TrustPolicy.Require<T>`), see the Trust Policy guide.
 
 ## CLI Examples
 

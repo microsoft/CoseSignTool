@@ -23,7 +23,7 @@ CoseSignTool V2 is distributed as multiple NuGet packages for maximum modularity
 | Package | Description | When to Use |
 |---------|-------------|-------------|
 | `CoseSign1.Abstractions` | Core interfaces and abstractions | Always (transitive dependency) |
-| `CoseSign1` | Direct and indirect signature factories | Basic signing operations |
+| `CoseSign1.Factories` | Direct and indirect signature factories | Basic signing operations |
 | `CoseSign1.Certificates` | Certificate-based signing | Certificate signing (most common) |
 | `CoseSign1.Validation` | Validation framework | Message validation |
 | `CoseSign1.Headers` | Header management, CWT claims | SCITT compliance, custom headers |
@@ -60,6 +60,7 @@ CoseSignTool V2 is distributed as multiple NuGet packages for maximum modularity
 dotnet tool install -g CoseSignTool --version 2.0.0-preview
 
 # Most common scenario: certificate-based signing and validation
+dotnet add package CoseSign1.Factories --version 2.0.0-preview
 dotnet add package CoseSign1.Certificates --version 2.0.0-preview
 dotnet add package CoseSign1.Validation --version 2.0.0-preview
 
@@ -151,7 +152,7 @@ Create a simple test file to verify installation:
 ```csharp
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
 using System.Security.Cryptography.X509Certificates;
 
 Console.WriteLine("CoseSignTool V2 is installed!");
@@ -160,7 +161,7 @@ Console.WriteLine("CoseSignTool V2 is installed!");
 using var cert = new X509Certificate2(/* your cert */);
 using var chainBuilder = new X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(service);
+using var factory = new CoseSign1MessageFactory(service);
 
 Console.WriteLine("All packages loaded successfully!");
 ```
@@ -179,7 +180,8 @@ global using System.Security.Cryptography.Cose;
 global using System.Security.Cryptography.X509Certificates;
 global using CoseSign1.Certificates;
 global using CoseSign1.Certificates.Extensions;
-global using CoseSign1.Direct;
+global using CoseSign1.Factories;
+global using CoseSign1.Factories.Direct;
 global using CoseSign1.Validation;
 ```
 

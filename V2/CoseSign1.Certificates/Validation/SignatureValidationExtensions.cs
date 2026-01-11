@@ -3,6 +3,9 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using System.Security.Cryptography.Cose;
+using CoseSign1.Validation.Interfaces;
+
 /// <summary>
 /// Extension methods for adding certificate validation to the builder.
 /// </summary>
@@ -18,12 +21,13 @@ public static class SignatureValidationExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> or <paramref name="configure"/> is null.</exception>
     /// <example>
     /// <code>
-    /// var validator = Cose.Sign1Message()
+    /// var validator = new CoseSign1ValidationBuilder()
+    ///     .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
     ///     .ValidateCertificate(cert => cert
     ///         .NotExpired()
     ///         .HasCommonName("TrustedSigner")
     ///         .ValidateChain())
-    ///     .OverrideDefaultTrustPolicy(TrustPolicy.Claim("x509.chain.trusted"))
+    ///     .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain())
     ///     .Build();
     /// </code>
     /// </example>
@@ -31,15 +35,12 @@ public static class SignatureValidationExtensions
         this ICoseSign1ValidationBuilder builder,
         Action<ICertificateValidationBuilder> configure)
     {
-        if (builder is null)
-        {
-            throw new ArgumentNullException(nameof(builder));
-        }
+        Guard.ThrowIfNull(builder);
+        Guard.ThrowIfNull(configure);
 
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        // Certificate-based validation implies certificate-based key resolution.
+        // Add a default resolver so callers don't have to remember to do it.
+        builder.AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any));
 
         var certBuilder = new CertificateValidationBuilder(builder.LoggerFactory);
         configure(certBuilder);

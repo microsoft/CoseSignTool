@@ -71,7 +71,7 @@ There is no dedicated "PQC availability" API. In practice, attempt to create/use
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Local;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 
 // Create an ephemeral ML-DSA certificate (Windows-only)
 using var cert = new EphemeralCertificateFactory().CreateCertificate(o => o
@@ -81,9 +81,9 @@ using var cert = new EphemeralCertificateFactory().CreateCertificate(o => o
 
 using var chainBuilder = new X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
-using var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json");
+var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
 ```
 
 ### CLI Usage
@@ -113,7 +113,7 @@ If you need both classical + post-quantum assurances today, the simplest approac
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
 // Automatically verifies RSA, ECDSA, and (on supported platforms) ML-DSA certificates.
 bool isValid = message.VerifySignature();

@@ -1,14 +1,14 @@
-# CoseSign1 Package
+# CoseSign1.Factories Package
 
-**NuGet**: `CoseSign1`  \
+**NuGet**: `CoseSign1.Factories`  \
 **Purpose**: Concrete factories for creating COSE_Sign1 messages (direct and indirect)  \
 **Dependencies**: `CoseSign1.Abstractions`
 
 ## Overview
 
-`CoseSign1` provides:
+`CoseSign1.Factories` provides:
 
-- A unified `CoseSign1MessageFactory` that routes to direct vs indirect signing based on the runtime type of the provided `SigningOptions`.
+- A unified `CoseSign1MessageFactory` router that selects **direct vs indirect signing** based on the runtime type of the provided `SigningOptions`.
 - The underlying `DirectSignatureFactory` and `IndirectSignatureFactory` implementations.
 
 - **Direct signatures**: sign the payload bytes (optionally embedded, optionally detached).
@@ -16,25 +16,30 @@
 
 Both factories are built around `ISigningService<SigningOptions>` (from `CoseSign1.Abstractions`), which supplies a `CoseSigner` and any required header contributors for the chosen signing backend.
 
-If you want a single entry point in code, use `CoseSign1MessageFactory` and pass either `DirectSignatureOptions` or `IndirectSignatureOptions` for each call. Passing `null` (or the base `SigningOptions` type) is invalid and will throw.
+**Preferred entry point**: use `CoseSign1MessageFactory` and call the explicit overload that matches your intent:
+
+- `CreateDirectCoseSign1MessageBytes*` for direct signatures (payload signed)
+- `CreateIndirectCoseSign1MessageBytes*` for indirect signatures (hash envelope)
+
+The generic `CreateCoseSign1MessageBytes*` overloads still exist for scenarios where you need to route dynamically based on a `SigningOptions` instance.
 
 ## Key Types
 
-### CoseSign1MessageFactory
+## CoseSign1MessageFactory (preferred)
 
-`CoseSign1MessageFactory` is a convenience router that implements `ICoseSign1MessageFactory<SigningOptions>`.
+`CoseSign1MessageFactory` is a router that implements `ICoseSign1MessageFactory<SigningOptions>`.
 
-- It delegates to `DirectSignatureFactory` when `options` is `DirectSignatureOptions`.
-- It delegates to `IndirectSignatureFactory` when `options` is `IndirectSignatureOptions`.
+- Delegates to `DirectSignatureFactory` when `options` is `DirectSignatureOptions`.
+- Delegates to `IndirectSignatureFactory` when `options` is `IndirectSignatureOptions`.
 
 **Basic usage (single factory, choose per call):**
 
 ```csharp
 using System.Text;
-using CoseSign1;
 using CoseSign1.Abstractions;
-using CoseSign1.Direct;
-using CoseSign1.Indirect;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
 
 ISigningService<SigningOptions> signingService = /* e.g. CertificateSigningService, Azure Key Vault, ... */;
 
@@ -43,31 +48,24 @@ using var factory = new CoseSign1MessageFactory(signingService);
 byte[] payload = Encoding.UTF8.GetBytes("hello");
 
 // Direct signature
-byte[] direct = factory.CreateCoseSign1MessageBytes(payload, "text/plain", new DirectSignatureOptions());
+byte[] direct = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
 
 // Indirect signature (hash envelope)
-byte[] indirect = factory.CreateCoseSign1MessageBytes(payload, "text/plain", new IndirectSignatureOptions());
+byte[] indirect = factory.CreateIndirectCoseSign1MessageBytes(payload, "text/plain");
 ```
 
-### DirectSignatureFactory
+## DirectSignatureFactory
 
 `DirectSignatureFactory` creates COSE_Sign1 messages over the payload bytes.
 
 - Implements: `ICoseSign1MessageFactory<DirectSignatureOptions>`
-- Constructor:
-
-```csharp
-public DirectSignatureFactory(
-    ISigningService<SigningOptions> signingService,
-    IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
-    ILogger<DirectSignatureFactory>? logger = null);
-```
 
 **Basic usage (bytes-in, bytes-out):**
 
 ```csharp
+using System.Text;
 using CoseSign1.Abstractions;
-using CoseSign1.Direct;
+using CoseSign1.Factories.Direct;
 
 ISigningService<SigningOptions> signingService = /* e.g. CertificateSigningService, Azure Key Vault, ... */;
 
@@ -86,7 +84,7 @@ using System.Security.Cryptography.Cose;
 
 var message = factory.CreateCoseSign1Message(payload, "text/plain");
 // or decode bytes later:
-var decoded = CoseSign1Message.DecodeSign1(coseBytes);
+var decoded = CoseMessage.DecodeSign1(coseBytes);
 ```
 
 **Detached signatures (payload not embedded):**
@@ -103,29 +101,17 @@ File.WriteAllBytes("payload.bin", payload);
 File.WriteAllBytes("payload.cose", signatureOnly);
 ```
 
-### IndirectSignatureFactory
+## IndirectSignatureFactory
 
 `IndirectSignatureFactory` hashes the payload and signs the hash. The resulting COSE_Sign1 message includes headers describing the hash envelope.
 
 - Implements: `ICoseSign1MessageFactory<IndirectSignatureOptions>`
-- Constructors:
-
-```csharp
-public IndirectSignatureFactory(
-    ISigningService<SigningOptions> signingService,
-    IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
-    ILogger<IndirectSignatureFactory>? logger = null,
-    ILoggerFactory? loggerFactory = null);
-
-public IndirectSignatureFactory(
-    DirectSignatureFactory directFactory,
-    ILogger<IndirectSignatureFactory>? logger = null);
-```
 
 **Basic usage:**
 
 ```csharp
-using CoseSign1.Indirect;
+using System.Security.Cryptography;
+using CoseSign1.Factories.Indirect;
 
 using var factory = new IndirectSignatureFactory(signingService);
 
@@ -150,7 +136,7 @@ Both `DirectSignatureOptions` and `IndirectSignatureOptions` inherit from `Signi
 
 ## Resource Ownership
 
-- Both factories implement `IDisposable`.
+- All factories implement `IDisposable`.
 - Disposing a factory disposes the underlying signing service it was constructed with.
 
 ## See Also

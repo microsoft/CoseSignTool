@@ -39,20 +39,21 @@ var service = new AzureTrustedSigningService(options);
 
 ## ISigningService Interface
 
-All signing services implement the core `ISigningService<TOptions>` interface:
+All signing services implement the core `ISigningService<TSigningOptions>` interface.
+
+In V2, signing services **emit a configured `CoseSigner`** (key + headers) which the factories use to produce COSE Sign1 bytes/messages.
 
 ```csharp
-public interface ISigningService<TOptions> : IDisposable
-    where TOptions : SigningOptions
+public interface ISigningService<out TSigningOptions> : IDisposable
+    where TSigningOptions : SigningOptions
 {
-    CoseAlgorithm Algorithm { get; }
-    
-    byte[] Sign(ReadOnlySpan<byte> data, TOptions? options = default);
-    
-    Task<byte[]> SignAsync(
-        ReadOnlyMemory<byte> data, 
-        TOptions? options = default,
-        CancellationToken cancellationToken = default);
+    CoseSigner GetCoseSigner(SigningContext context);
+
+    TSigningOptions CreateSigningOptions();
+
+    bool IsRemote { get; }
+
+    SigningServiceMetadata ServiceMetadata { get; }
 }
 ```
 
@@ -79,23 +80,22 @@ To create a custom signing service:
 ```csharp
 public class CustomSigningService : ICertificateSigningService
 {
-    public CoseAlgorithm Algorithm => CoseAlgorithm.ES256;
-    
     public X509Certificate2 SigningCertificate { get; }
     public X509Certificate2Collection? CertificateChain { get; }
-    
-    public byte[] Sign(ReadOnlySpan<byte> data, SigningOptions? options = default)
+
+    public CoseSigner GetCoseSigner(SigningContext context)
     {
-        // Custom signing logic
+        // 1) Select the key material (SigningCertificate private key, HSM handle, remote key reference, ...)
+        // 2) Apply required + additional header contributors (context.AdditionalHeaderContributors)
+        // 3) Return a CoseSigner configured for the operation
+        throw new NotImplementedException();
     }
-    
-    public Task<byte[]> SignAsync(
-        ReadOnlyMemory<byte> data,
-        SigningOptions? options = default,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(Sign(data.Span, options));
-    }
+
+    public SigningOptions CreateSigningOptions() => new SigningOptions();
+
+    public bool IsRemote => false;
+
+    public SigningServiceMetadata ServiceMetadata => new SigningServiceMetadata("CustomSigningService");
     
     public void Dispose()
     {

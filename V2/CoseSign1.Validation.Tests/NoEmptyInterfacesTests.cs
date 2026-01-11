@@ -32,7 +32,7 @@ public sealed class NoEmptyInterfacesTests
         {
             var sb = new StringBuilder();
             sb.AppendLine("Empty interface declarations are not allowed in V2.");
-            sb.AppendLine("Replace marker interfaces with explicit APIs (e.g., stage-aware IValidator + ValidationStage).");
+            sb.AppendLine("Replace marker interfaces with explicit APIs (e.g., IValidationComponent + specific stage interfaces).");
             sb.AppendLine();
             sb.AppendLine("Offenders:");
             foreach (var offender in offenders)

@@ -152,6 +152,8 @@ if (receipt != null)
 
 ```csharp
 using CoseSign1.Headers;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 public async Task<CoseSign1Message> CreateScittStatementAsync(
     byte[] payload,
@@ -166,11 +168,19 @@ public async Task<CoseSign1Message> CreateScittStatementAsync(
     };
     
     var contributor = new CwtClaimsHeaderContributor(claims);
-    var factory = new DirectSignatureFactory(
-        signingService,
-        headerContributors: new[] { contributor });
-    
-    var message = await factory.CreateAsync(payload);
+
+    using var factory = new CoseSign1MessageFactory(signingService);
+
+    var options = new DirectSignatureOptions
+    {
+        EmbedPayload = true,
+        AdditionalHeaderContributors = [contributor],
+    };
+
+    var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
+        payload,
+        contentType: "application/octet-stream",
+        options);
     
     // Submit to transparency log
     var receipt = await _transparencyService.SubmitAsync(message);
@@ -186,25 +196,28 @@ public async Task<CoseSign1Message> CreateScittStatementAsync(
 
 ```csharp
 using Azure.Security.CodeTransparency;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Transparent.MST.Validation;
-using CoseSign1.Transparent.MST.Verification;
 using CoseSign1.Validation;
-using CoseSign1.Verification;
-
-// MST validators participate in the KeyMaterialTrust stage.
-// They emit trust assertions into ValidationResult.Metadata so a TrustPolicy can be evaluated.
+using CoseSign1.Validation.Trust;
+using System.Security.Cryptography.Cose;
 
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
 
-IValidator receiptValidator = new MstReceiptValidator(client);
-ValidationResult trustValidation = receiptValidator.Validate(message, ValidationStage.KeyMaterialTrust);
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
+    .ValidateMst(mst => mst
+        .RequireReceiptPresence()
+        .VerifyReceipt(client))
+    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
+    .Build();
 
-// Example trust policy: require receipt presence AND receipt to be trusted.
-TrustPolicy policy = MstTrustPolicies.RequireReceiptPresentAndTrusted();
+var result = message.Validate(validator);
 
-// For end-to-end verification (trust policy evaluated before signature), use CoseSign1Verifier.
-// The signature validators are application-specific; you can plug in X.509 or other strategies.
-// var verification = CoseSign1Verifier.Verify(message, null, new[] { receiptValidator }, policy, signatureValidators, null);
+if (!result.Overall.IsValid)
+{
+    // Inspect staged results: result.Trust, result.Signature, etc.
+}
 ```
 
 ## Inclusion Proof Verification
@@ -249,66 +262,18 @@ public class InclusionProofVerifier
 
 ## ASP.NET Core Integration
 
-```csharp
-// Startup
-services.AddSingleton<ITransparencyService>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var serviceUrl = config["Transparency:ServiceUrl"];
-    return new MstTransparencyService(serviceUrl);
-});
-
-// Controller
-public class TransparencyController : ControllerBase
-{
-    private readonly ITransparencyService _transparencyService;
-    
-    [HttpPost("submit")]
-    public async Task<IActionResult> Submit([FromBody] byte[] encodedMessage)
-    {
-        var message = CoseSign1Message.Decode(encodedMessage);
-        var receipt = await _transparencyService.SubmitAsync(message);
-        
-        return Ok(new
-        {
-            entryId = receipt.EntryId,
-            logIndex = receipt.LogIndex,
-            timestamp = receipt.Timestamp
-        });
-    }
-    
-    [HttpPost("verify")]
-    public async Task<IActionResult> Verify([FromBody] TransparencyReceipt receipt)
-    {
-        var isValid = await _transparencyService.VerifyReceiptAsync(receipt);
-        return Ok(new { valid = isValid });
-    }
-}
-```
-
-## Caching Receipts
+Register MST components via DI:
 
 ```csharp
-public class CachingTransparencyService : ITransparencyService
-{
-    private readonly ITransparencyService _innerService;
-    private readonly IMemoryCache _cache;
-    
-    public async Task<TransparencyReceipt> GetReceiptAsync(string entryId)
-    {
-        var cacheKey = $"receipt_{entryId}";
-        
-        if (_cache.TryGetValue<TransparencyReceipt>(cacheKey, out var cached))
-        {
-            return cached!;
-        }
-        
-        var receipt = await _innerService.GetReceiptAsync(entryId);
-        _cache.Set(cacheKey, receipt, TimeSpan.FromHours(24));
-        
-        return receipt;
-    }
-}
+using Azure.Security.CodeTransparency;
+using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Transparent.MST;
+
+services.AddSingleton(sp =>
+    new CodeTransparencyClient(new Uri(configuration["Mst:Endpoint"]!)));
+
+services.AddSingleton<ITransparencyProvider>(sp =>
+    new MstTransparencyProvider(sp.GetRequiredService<CodeTransparencyClient>()));
 ```
 
 ## Extension Methods
@@ -338,7 +303,7 @@ message.RemoveTransparencyReceipt();
 
 ## Related Packages
 
-- **CoseSign1** - Message creation
+- **CoseSign1.Factories** - Message creation
 - **CoseSign1.Headers** - CWT claims for SCITT
 - **CoseSign1.Validation** - Validation framework
 - **CoseSign1.Certificates** - Certificate-based signing

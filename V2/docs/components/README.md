@@ -18,14 +18,15 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 ---
 
-### [CoseSign1](cosesign1.md)
-**Core implementation** package for creating COSE Sign1 messages.
+### [CoseSign1.Factories](cosesign1.factories.md)
+**Message creation** package for creating COSE Sign1 messages.
 
 **Key Features**:
+- `CoseSign1MessageFactory` - Preferred router (selects direct vs indirect by option type)
 - `DirectSignatureFactory` - Embedded payload signatures
 - `IndirectSignatureFactory` - Hash-based signatures
 - Detached signature support
-- Message encoding/decoding utilities
+- Uses .NET COSE decode APIs (`CoseMessage.DecodeSign1`)
 
 **Use When**: Creating any COSE Sign1 signatures.
 
@@ -60,13 +61,13 @@ This section provides comprehensive documentation for each NuGet package in the 
 ---
 
 ### [CoseSign1.Validation](validation.md)
-**Comprehensive validation framework** with composable validators.
+**Comprehensive validation framework** with composable components.
 
 **Key Features**:
-- `CompositeValidator` - Combine multiple validators
-- `Cose.Sign1Message()` - Fluent builder entry point for staged validation
-- Signature, chain, EKU, SAN validators
-- Validation reporting
+- `CoseSign1Message.Validate(...)` / `ValidateAsync(...)` - Primary validation entry points (supports auto-discovery)
+- `CoseSign1ValidationBuilder` - Build reusable `ICoseSign1Validator` instances
+- Component model (`IValidationComponent`) staged by interface (`ISigningKeyResolver`, `ISigningKeyAssertionProvider`, `IPostSignatureValidator`)
+- Staged validation results (`CoseSign1ValidationResult`)
 
 **Use When**: Validating COSE Sign1 messages, implementing custom validation logic.
 
@@ -219,7 +220,7 @@ CoseSign1.Abstractions (implement ISigningService)
 
 #### **Build custom validators**
 ```
-CoseSign1.Validation (use `Cose.Sign1Message()` and/or implement `IValidator`)
+CoseSign1.Validation (implement `IValidationComponent` and validate via `message.Validate(...)` / `CoseSign1ValidationBuilder`)
 ```
 
 #### **Use CLI for local certificate signing**

@@ -22,6 +22,16 @@ public class CoseSign1MessageExtensionsTests
     {
         using var key = ECDsa.Create();
         protectedHeaders ??= new CoseHeaderMap();
+        unprotectedHeaders ??= new CoseHeaderMap();
+
+        // .NET requires the COSE Algorithm (alg) header to be protected if present.
+        // If a test accidentally supplies it in unprotected headers, move it.
+        if (unprotectedHeaders.TryGetValue(CoseHeaderLabel.Algorithm, out CoseHeaderValue algHeaderValue))
+        {
+            unprotectedHeaders.Remove(CoseHeaderLabel.Algorithm);
+            protectedHeaders[CoseHeaderLabel.Algorithm] = algHeaderValue;
+        }
+
         var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
         byte[] signedBytes = CoseSign1Message.SignDetached(TestPayload, signer, ReadOnlySpan<byte>.Empty);
         return CoseMessage.DecodeSign1(signedBytes);
@@ -560,7 +570,11 @@ public class CoseSign1MessageExtensionsTests
     {
         var message = CreateMessageWithHeaders(new CoseHeaderMap());
 
-        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out int value);
+        // CoseSigner may ensure Algorithm is present in protected headers.
+        // Use a custom header label that we never set to validate the missing-header path.
+        var missingHeader = new CoseHeaderLabel(999);
+
+        bool result = message.TryGetHeader(missingHeader, out int value);
 
         Assert.That(result, Is.False);
         Assert.That(value, Is.EqualTo(default(int)));
@@ -585,13 +599,14 @@ public class CoseSign1MessageExtensionsTests
     [Test]
     public void TryGetHeader_Int_WithUnprotectedHeader_AndAnyLocation_ReturnsValue()
     {
+        var customLabel = new CoseHeaderLabel(999);
         var unprotectedHeaders = new CoseHeaderMap
         {
-            { CoseHeaderLabel.Algorithm, CoseHeaderValue.FromInt32(-7) }
+            { customLabel, CoseHeaderValue.FromInt32(-7) }
         };
         var message = CreateMessageWithHeaders(null, unprotectedHeaders);
 
-        bool result = message.TryGetHeader(CoseHeaderLabel.Algorithm, out int value, CoseHeaderLocation.Any);
+        bool result = message.TryGetHeader(customLabel, out int value, CoseHeaderLocation.Any);
 
         Assert.That(result, Is.True);
         Assert.That(value, Is.EqualTo(-7));

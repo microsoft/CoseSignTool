@@ -277,7 +277,9 @@ CoseSignTool V2 libraries accept `ILoggerFactory` for integration with your logg
 
 ```csharp
 using Microsoft.Extensions.Logging;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
 
 // Create your logger factory
 var loggerFactory = LoggerFactory.Create(builder =>
@@ -289,8 +291,9 @@ var loggerFactory = LoggerFactory.Create(builder =>
 });
 
 // Pass to validation builder
-var validator = Cose.Sign1Message(loggerFactory)
-    .ValidateCertificate(cert => cert.ValidateChain())
+var validator = new CoseSign1ValidationBuilder(loggerFactory)
+  .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+  .ValidateCertificate(cert => cert.ValidateChain())
     .OverrideDefaultTrustPolicy(policy)
     .Build();
 ```
@@ -303,8 +306,9 @@ services.AddSingleton<ICoseSign1Validator>(sp =>
 {
     var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
     
-    return Cose.Sign1Message(loggerFactory)
-        .ValidateCertificate(cert => cert.ValidateChain())
+  return new CoseSign1ValidationBuilder(loggerFactory)
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain())
         .OverrideDefaultTrustPolicy(policy)
         .Build();
 });
@@ -466,8 +470,11 @@ Use `[LoggerMessage]` when:
 
 ```csharp
 using Microsoft.Extensions.Logging;
+using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Results;
 
-public sealed partial class MyValidator : IValidator
+public sealed partial class MyValidator : IPostSignatureValidator
 {
     private readonly ILogger<MyValidator> Logger;
 
@@ -475,6 +482,10 @@ public sealed partial class MyValidator : IValidator
     {
         Logger = logger ?? NullLogger<MyValidator>.Instance;
     }
+
+  public string ComponentName => nameof(MyValidator);
+
+  public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
 
     #region LoggerMessage methods
 
@@ -498,21 +509,29 @@ public sealed partial class MyValidator : IValidator
 
     #endregion
 
-    public ValidationResult Validate(CoseSign1Message input, ValidationStage stage)
+    public ValidationResult Validate(IPostSignatureValidationContext context)
     {
-        LogValidationStarted(thumbprint);
+      var thumbprint = "(unknown)";
+      LogValidationStarted(thumbprint);
         
         // ... validation logic ...
         
         if (success)
         {
             LogValidationSucceeded(stopwatch.ElapsedMilliseconds);
+        return ValidationResult.Success(ComponentName);
         }
         else
         {
             LogValidationFailed(failure.ErrorCode, failure.Message);
+        return ValidationResult.Failure(ComponentName, failure);
         }
     }
+
+    public Task<ValidationResult> ValidateAsync(
+      IPostSignatureValidationContext context,
+      CancellationToken cancellationToken = default)
+      => Task.FromResult(Validate(context));
 }
 ```
 
@@ -525,14 +544,7 @@ public sealed partial class MyValidator : IValidator
 
 ### EventId Ranges by Component
 
-| Component | EventId Range |
-|-----------|---------------|
-| CoseSign1Validator | 100-199 |
-| CompositeValidator | 1000-1099 |
-| AnySignatureValidator | 2000-2099 |
-| CertificateChainValidator | 3000-3099 |
-| CertificateChainFactory | 4000-4099 |
-| PluginLoader | 5000-5099 |
+Establish stable EventId ranges per component (or per project) and keep them consistent over time so logs are easy to filter and correlate.
 
 ### Avoid These Anti-Patterns
 

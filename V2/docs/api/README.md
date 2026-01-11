@@ -15,9 +15,9 @@ Core interfaces and types for COSE signing operations.
 | `SigningOptions` | Base per-operation options (headers, AAD, transparency toggles) |
 | `CoseSign1.Abstractions.Transparency.ITransparencyProvider` | Transparency provider abstraction |
 
-### CoseSign1
+### CoseSign1.Factories
 
-Direct signature implementation.
+Signature creation factories (direct + indirect).
 
 | Type | Description |
 |------|-------------|
@@ -26,7 +26,7 @@ Direct signature implementation.
 | `CoseSign1MessageFactory` | Routes to the correct factory based on options |
 | `System.Security.Cryptography.Cose.CoseSign1Message` | COSE_Sign1 message type used across V2 |
 
-Indirect signing is implemented in the `CoseSign1` package under the `CoseSign1.Indirect` namespace.
+Indirect signing is implemented in the `CoseSign1.Factories` package under the `CoseSign1.Factories.Indirect` namespace.
 
 ## Certificate Packages
 
@@ -76,11 +76,11 @@ Header contribution and management.
 
 | Type | Description |
 |------|-------------|
-| `Cose.Sign1Message()` | Entry point for building staged validators |
+| `CoseSign1ValidationBuilder` | Builds a reusable `ICoseSign1Validator` from validation components |
+| `CoseSign1Message.Validate(...)` | Validates a decoded `CoseSign1Message` via a validator or inline builder configuration |
 | `ICoseSign1Validator` | Validates a `CoseSign1Message` and returns staged results |
 | `CoseSign1ValidationResult` | Staged results: Resolution, Trust, Signature, PostSignaturePolicy, Overall |
 | `ValidationResult` | Per-stage result (Success/Failure/NotApplicable + metadata) |
-| `ValidationStage` | Stage identifiers used by orchestration/validators |
 
 ## COSE Algorithm Identifiers
 
@@ -106,32 +106,34 @@ When working directly with .NET COSE signing/verification APIs, use `System.Secu
 ```csharp
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 // 1. Create signing service
 using var chainBuilder = new X509ChainBuilder();
 using var service = CertificateSigningService.Create(certificate, chainBuilder);
 
 // 2. Create factory
-var factory = new DirectSignatureFactory(service);
+using var factory = new CoseSign1MessageFactory(service);
 
 // 3. Sign
-byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType);
+byte[] signature = factory.CreateDirectCoseSign1MessageBytes(payload, contentType);
 ```
 
 ### Validating a Signature
 
 ```csharp
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
 // 1. Decode COSE
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
 // 2. Build validator
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert
-        .ValidateChain())
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver())
+    .ValidateCertificate(cert => cert.ValidateChain())
     .Build();
 
 // 3. Validate

@@ -39,7 +39,7 @@ public interface IMstValidatorBuilder
     /// <summary>
     /// Adds a trust validator that checks for the presence of an MST receipt.
     /// Does not verify receipt validity, only presence.
-    /// Emits <c>mst.receipt.present</c> trust claim.
+    /// Emits a <see cref="MstReceiptPresentAssertion"/> assertion.
     /// </summary>
     /// <returns>The same builder instance.</returns>
     IMstValidatorBuilder RequireReceiptPresence();
@@ -67,11 +67,11 @@ public static class MstValidationExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
     /// <example>
     /// <code>
-    /// var validator = Cose.Sign1Message()
+    /// var validator = new CoseSign1ValidationBuilder()
     ///     .ValidateMst(mst => mst
     ///         .RequireReceiptPresence()
     ///         .VerifyReceipt(client))
-    ///     .OverrideDefaultTrustPolicy(TrustPolicy.Claim("mst.receipt.trusted"))
+    ///     .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
     ///     .Build();
     /// </code>
     /// </example>

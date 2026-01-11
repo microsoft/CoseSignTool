@@ -16,15 +16,7 @@ using CoseSign1.Certificates.Extensions;
 /// </summary>
 public class CoseSign1MessageExtensionsTests
 {
-    /// <summary>
-    /// Setup method
-    /// </summary>
-    [SetUp]
-    public void Setup()
-    {
-    }
-    
-    private static CoseSign1MessageFactory CoseSign1MessageFactory = new CoseSign1MessageFactory();
+    private static readonly CoseSign1MessageFactory CoseSign1MessageFactory = new();
     // Helper: Create a valid COSE_Sign1 message with embedded certificate and content
     private static CoseSign1Message CreateValidCoseSign1Message(byte[] content, X509Certificate2 cert, out byte[] coseBytes, bool detached = false)
     {
@@ -52,7 +44,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyEmbeddedWithCertificate_ValidMessage_ReturnsTrue()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 1, 2, 3, 4 };
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _);
 
@@ -98,7 +90,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ByteArray_Valid_ReturnsTrue()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 10, 20, 30 };
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act
@@ -127,7 +119,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ByteArray_NullContent_ReturnsFalse()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 1, 2 };
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act & Assert
@@ -141,7 +133,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ReadOnlySpan_Valid_ReturnsTrue()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 42, 43, 44 };
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act
@@ -157,7 +149,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_ReadOnlySpan_EmptyContent_ReturnsFalse()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] contentCreate = new byte[] { 99, 100, 101 };
         byte[] contentVerify = Array.Empty<byte>();
         CoseSign1Message msg = CreateValidCoseSign1Message(contentCreate, cert, out _, detached: true); // Detached
@@ -174,7 +166,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_Valid_ReturnsTrue()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 99, 100, 101 };
         using MemoryStream stream = new MemoryStream(content);
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
@@ -204,7 +196,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyDetachedWithCertificate_Stream_NullStream_ReturnsFalse()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 99, 100, 101 };
         CoseSign1Message msg = CreateValidCoseSign1Message(content, cert, out _, detached: true); // Detached
         // Act & Assert
@@ -218,7 +210,7 @@ public class CoseSign1MessageExtensionsTests
     public void VerifyEmbeddedWithCertificate_DetachedMessage_ReturnsFalse()
     {
         // Arrange
-        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        using var cert = TestCertificateUtils.CreateCertificate();
         byte[] content = new byte[] { 1, 2, 3, 4 };
         byte[] coseBytes;
         // Create a detached message: pass null as content and detached=true

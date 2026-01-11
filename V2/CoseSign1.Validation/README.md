@@ -25,7 +25,7 @@ using System.Security.Cryptography.Cose;
 
 // Decode COSE message
 byte[] signedBytes = File.ReadAllBytes("document.cose");
-var message = CoseSign1Message.DecodeSign1(signedBytes);
+var message = CoseMessage.DecodeSign1(signedBytes);
 
 // Shorthand: Validate with inline configuration
 var result = message.Validate(builder => builder
@@ -35,7 +35,7 @@ var result = message.Validate(builder => builder
         .ValidateChain()));
 
 // Or build a reusable validator
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
     .ValidateCertificate(cert => cert
         .NotExpired()
         .ValidateChain())
@@ -73,11 +73,11 @@ var result = message.Validate(validator);
 
 ### Fluent Builder
 
-The `Cose` static class provides the fluent entry point for building reusable validators:
+Use `CoseSign1ValidationBuilder` to build reusable validators:
 
 ```csharp
-var validator = Cose.Sign1Message(loggerFactory)
-    .AddValidator(myValidator)
+var validator = new CoseSign1ValidationBuilder(loggerFactory)
+    .AddComponent(myComponent)
     .OverrideDefaultTrustPolicy(policy)
     .Build();
 ```
@@ -95,28 +95,30 @@ var validator = Cose.Sign1Message(loggerFactory)
 
 ## Trust Policies
 
-Declarative boolean expressions over trust claims:
+Declarative boolean expressions over typed signing-key assertions.
+Assertions are facts emitted by validation components (e.g., "chain was trusted", "kid looked like AKV").
+Policies decide which facts matter.
 
 ```csharp
-// Simple claim
-var policy = TrustPolicy.Claim("x509.chain.trusted");
+// Simple requirement: an assertion type must be present
+var policy = TrustPolicy.RequirePresent<MyAssertion>("MyAssertion must be present");
 
-// Combined
+// Combined: multiple requirements must be satisfied
 var policy = TrustPolicy.And(
-    TrustPolicy.Claim("x509.chain.trusted"),
-    TrustPolicy.Claim("cert.notexpired")
+    TrustPolicy.RequirePresent<MyAssertion>("MyAssertion must be present"),
+    TrustPolicy.Require<MyOtherAssertion>(a => a.IsTrusted, "MyOtherAssertion must be trusted")
 );
 
 // Alternative paths
 var policy = TrustPolicy.Or(
-    TrustPolicy.Claim("issuer.internal"),
-    TrustPolicy.Claim("issuer.partner")
+    TrustPolicy.Require<MyEnvironmentAssertion>(a => a.Name == "internal", "Must be internal"),
+    TrustPolicy.Require<MyEnvironmentAssertion>(a => a.Name == "partner", "Must be partner")
 );
 
 // Conditional
 var policy = TrustPolicy.Implies(
-    TrustPolicy.Claim("env.production"),
-    TrustPolicy.Claim("cert.production")
+    TrustPolicy.Require<MyEnvironmentAssertion>(a => a.Name == "production", "Must be production"),
+    TrustPolicy.RequirePresent<MyProductionReadyAssertion>("Production-ready assertion is required in production")
 );
 ```
 

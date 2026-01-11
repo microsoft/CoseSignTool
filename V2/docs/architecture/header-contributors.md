@@ -13,11 +13,10 @@ All header contributors implement this interface:
 ```csharp
 public interface IHeaderContributor
 {
-    void ContributeHeaders(
-        CoseHeaderMap protectedHeaders,
-        CoseHeaderMap unprotectedHeaders,
-        ReadOnlySpan<byte> payload,
-        string? contentType);
+    HeaderMergeStrategy MergeStrategy { get; }
+
+    void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context);
+    void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context);
 }
 ```
 
@@ -25,14 +24,15 @@ public interface IHeaderContributor
 
 ### CertificateHeaderContributor
 
-Adds certificate chain to unprotected headers:
+Adds X.509 certificate headers for certificate-based signing keys:
 
 ```csharp
-var contributor = new CertificateHeaderContributor(certChain);
+var contributor = new CertificateHeaderContributor();
 ```
 
 Headers added:
-- `x5chain` (33): Certificate chain in unprotected headers
+- `x5t` (34): Certificate thumbprint in protected headers
+- `x5chain` (33): Certificate chain (leaf-first) in protected headers
 
 ### CwtClaimsHeaderContributor
 
@@ -50,19 +50,23 @@ var contributor = new CwtClaimsHeaderContributor(claims);
 ```
 
 Headers added:
-- `cwt_claims` (15): CWT claims map in protected headers
+- `cwt_claims` (15): CWT claims map (protected by default; placement is configurable)
 
 ### CoseHashEnvelopeHeaderContributor
 
 Adds hash envelope headers for indirect signatures:
 
 ```csharp
-var contributor = new CoseHashEnvelopeHeaderContributor(HashAlgorithmName.SHA256);
+var contributor = new CoseHashEnvelopeHeaderContributor(
+    HashAlgorithmName.SHA256,
+    contentType: "application/octet-stream");
 ```
 
 Headers added:
-- Content type set to `application/cose_hash_envelope+cbor`
-- Hash algorithm indicator
+- Removes `content_type` (3) per RFC 9054 hash-envelope requirements
+- Adds `payload_hash_alg` (258)
+- Adds `preimage_content_type` (259)
+- Optionally adds `payload_location` (260)
 
 ## Creating Custom Contributors
 
@@ -75,22 +79,17 @@ public class CustomHeaderContributor : IHeaderContributor
     {
         _customValue = customValue;
     }
-    
-    public void ContributeHeaders(
-        CoseHeaderMap protectedHeaders,
-        CoseHeaderMap unprotectedHeaders,
-        ReadOnlySpan<byte> payload,
-        string? contentType)
+
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        // Add to protected headers (signed)
-        protectedHeaders.Add(
-            new CoseHeaderLabel("custom-header"),
-            CoseHeaderValue.FromString(_customValue));
-        
-        // Or add to unprotected headers (not signed)
-        unprotectedHeaders.Add(
-            new CoseHeaderLabel("metadata"),
-            CoseHeaderValue.FromString("additional-info"));
+        headers.Add(new CoseHeaderLabel("custom-header"), CoseHeaderValue.FromString(_customValue));
+    }
+
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        headers.Add(new CoseHeaderLabel("metadata"), CoseHeaderValue.FromString("additional-info"));
     }
 }
 ```
@@ -100,14 +99,23 @@ public class CustomHeaderContributor : IHeaderContributor
 ```csharp
 var contributors = new IHeaderContributor[]
 {
-    new CertificateHeaderContributor(chain),
+    new CertificateHeaderContributor(),
     new CwtClaimsHeaderContributor(claims),
     new CustomHeaderContributor("my-value")
 };
 
-var factory = new DirectSignatureFactory(
-    signingService,
-    headerContributors: contributors);
+using var factory = new CoseSign1MessageFactory(signingService);
+
+var options = new DirectSignatureOptions
+{
+    EmbedPayload = true,
+    AdditionalHeaderContributors = contributors,
+};
+
+var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
+    payload,
+    contentType: "application/octet-stream",
+    options);
 ```
 
 ## Protected vs Unprotected Headers
@@ -126,7 +134,6 @@ var factory = new DirectSignatureFactory(
 - Critical application headers
 
 **Use unprotected headers for:**
-- Certificate chains
 - Transparency receipts
 - Non-critical metadata
 - Headers that may be updated

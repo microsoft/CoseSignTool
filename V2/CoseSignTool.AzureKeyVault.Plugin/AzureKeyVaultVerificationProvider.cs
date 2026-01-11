@@ -17,8 +17,8 @@ using CoseSignTool.Abstractions;
 /// </summary>
 /// <remarks>
 /// This provider validates that the kid header matches allowed Azure Key Vault patterns.
-/// Actual signature verification requires a signing key resolver capable of extracting
-/// or fetching the public key from the COSE_Key header or Key Vault service.
+/// For offline cryptographic verification, it also contributes a signing key resolver
+/// that can extract an embedded COSE_Key public key header.
 /// </remarks>
 public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWithContext
 {
@@ -104,8 +104,12 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
         bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
         var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
 
-        // Only add the assertion provider if there are patterns to match against
-        if (allowedVaults != null && allowedVaults.Length > 0)
+        // Always add the offline COSE_Key signing key resolver when activated.
+        // It will only apply when the message contains an embedded COSE_Key header.
+        yield return new AzureKeyVaultCoseKeySigningKeyResolver();
+
+        // Add AKV trust assertions when the user opted into AKV validation.
+        if (requireAzKey || (allowedVaults != null && allowedVaults.Length > 0))
         {
             yield return new AzureKeyVaultAssertionProvider(
                 allowedPatterns: allowedVaults,

@@ -31,8 +31,8 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
             |                                 |
             v                                 v
 +---------------------------+     +---------------------------+
-|        CoseSign1          |     |   CoseSign1.Validation    |
-|    (Signing Library)      |     | (Validation Framework)    |
+|     CoseSign1.Factories   |     |   CoseSign1.Validation    |
+|   (Signing Factories)     |     | (Validation Framework)    |
 +---------------------------+     +---------------------------+
             |                                 |
             v                                 v
@@ -46,9 +46,9 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `CoseSign1` | Message creation | `CoseSign1MessageFactory`, `DirectSignatureFactory`, `IndirectSignatureFactory` |
+| `CoseSign1.Factories` | Message creation | `CoseSign1MessageFactory`, `DirectSignatureFactory`, `IndirectSignatureFactory` |
 | `CoseSign1.Abstractions` | Shared contracts | `ISigningService`, `SigningOptions` |
-| `CoseSign1.Validation` | Staged validation | `Cose`, `IValidator`, `TrustPolicy` |
+| `CoseSign1.Validation` | Staged validation | `CoseSign1ValidationBuilder`, `CoseSign1Validator`, `ICoseSign1Validator`, `TrustPolicy` |
 | `CoseSign1.Certificates` | Certificate infrastructure | `ICertificateSource`, `ICertificateChainBuilder`, `CertificateSigningService` |
 
 ### Certificate Provider Packages
@@ -144,11 +144,10 @@ The `CoseSign1MessageFactory` is the **preferred entry point** for signing opera
 ```csharp
 var factory = new CoseSign1MessageFactory(signingService);
 
-// Routes to appropriate factory based on options type
-byte[] signature = await factory.CreateCoseSign1MessageAsync(
+// Preferred: call the explicit method for your intent
+var message = await factory.CreateDirectCoseSign1MessageAsync(
     payload,
-    contentType: "application/octet-stream",
-    options: new DirectSignatureOptions { EmbedPayload = true });
+    contentType: "application/octet-stream");
 ```
 
 ### Factory Selection
@@ -201,41 +200,42 @@ public interface ISigningService<TOptions> where TOptions : SigningOptions
 
 ### Entry Point
 
-`Cose.Sign1Message()` is the fluent entry point for building validators:
+V2 validation is built around **stage-aware components** and a single orchestrator (`CoseSign1Validator`).
+
+Build a reusable validator with `CoseSign1ValidationBuilder`:
 
 ```csharp
-var validator = Cose.Sign1Message(loggerFactory)
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .ValidateChain())
-    .OverrideDefaultTrustPolicy(policy)
+using CoseSign1.Validation;
+using CoseSign1.Certificates.Validation;
+
+var validator = new CoseSign1ValidationBuilder(loggerFactory)
+    .ValidateCertificate(cert => cert.ValidateChain())
     .Build();
+
+var result = message.Validate(validator);
 ```
+
+For one-off validation, you can configure inline:
+
+```csharp
+var result = message.Validate(builder => builder
+    .ValidateCertificate(cert => cert.ValidateChain())
+    .OverrideDefaultTrustPolicy(TrustPolicy.Require("x509.chain.trusted")));
+```
+
+If you reference extension packages that register default components, `message.Validate()` uses **auto-discovery**.
+
+See [Sequence Diagrams](sequence-diagrams.md) for the concrete call ordering.
 
 ### Trust Policy Configuration
 
-The builder resolves trust policy in this order:
+Trust decisions are made by evaluating a `TrustPolicy` against the assertions produced by
+`ISigningKeyAssertionProvider` components.
 
-1. **Explicit Override**: `OverrideDefaultTrustPolicy(policy)` replaces all defaults
-2. **Aggregated Defaults**: Validators implementing `IProvidesDefaultTrustPolicy` contribute policies combined with `TrustPolicy.And()`
-3. **Fallback**: `DenyAll` if no trust validators, `AllowAll` if trust validators exist but don't provide policies
+- If you call `OverrideDefaultTrustPolicy(...)`, that policy is used.
+- Otherwise, the builder defaults to `TrustPolicy.FromAssertionDefaults()`.
 
-```csharp
-// Using validator defaults (certificate validators provide x509.chain.trusted)
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .Build();
-
-// Explicit policy - replaces all validator defaults
-var policy = TrustPolicy.And(
-    TrustPolicy.Claim("x509.chain.trusted"),
-    TrustPolicy.Claim("cert.eku.codesigning")
-);
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .OverrideDefaultTrustPolicy(policy)  // Single call with combined policy
-    .Build();
-```
+See [Trust Policy Guide](../guides/trust-policy.md) for policy authoring.
 
 ### Validation Stages
 
@@ -254,62 +254,17 @@ V2 enforces a **secure-by-default** stage order:
 2. **Fail fast**: Reject untrusted signatures without expensive crypto
 3. **Clear semantics**: Trust establishes whether to verify, not whether verification succeeds
 
-### Validator Interface
 
-```csharp
-public interface IValidator
-{
-    IReadOnlyCollection<ValidationStage> Stages { get; }
-    
-    ValidationResult Validate(CoseSign1Message input, ValidationStage stage);
-    
-    Task<ValidationResult> ValidateAsync(
-        CoseSign1Message input,
-        ValidationStage stage,
-        CancellationToken cancellationToken = default);
-}
-```
+### Component Model
 
-### Validation Result Model
+Validation logic is composed from:
 
-```csharp
-public sealed class ValidationResult
-{
-    public ValidationResultKind Kind { get; }  // Success, Failure, NotApplicable
-    public ValidationStage? Stage { get; }
-    public string ValidatorName { get; }
-    public IReadOnlyList<ValidationFailure> Failures { get; }
-    public IReadOnlyDictionary<string, object> Metadata { get; }
-}
+- `ISigningKeyResolver` (stage 1)
+- `ISigningKeyAssertionProvider` (stage 2)
+- Signature verification (stage 3, performed by the orchestrator using the resolved key)
+- `IPostSignatureValidator` (stage 4)
 
-public sealed class ValidationFailure
-{
-    public string ErrorCode { get; }
-    public string Message { get; }
-    public Exception? Exception { get; }
-}
-```
-
-### Trust Policy System
-
-Trust is evaluated declaratively via `TrustPolicy`:
-
-```csharp
-// Require trusted chain AND valid EKU
-var policy = TrustPolicy.And(
-    TrustPolicy.Claim("x509.chain.trusted"),
-    TrustPolicy.Claim("cert.eku.codesigning")
-);
-
-// Validators emit claims
-var validator = new CertificateChainValidator();
-// Emits: x509.chain.trusted = true/false
-
-// Policy evaluated against collected claims
-policy.IsSatisfied(claims); // true or false
-```
-
-See [Trust Policy Guide](../guides/trust-policy.md) for comprehensive documentation.
+See [Validation Framework](validation-framework.md) for the full API surface.
 
 ---
 
@@ -403,7 +358,9 @@ All components accept `ILoggerFactory` for observability:
 var service = CertificateSigningService.Create(cert, chain, loggerFactory.CreateLogger<CertificateSigningService>());
 
 // Validation
-var validator = Cose.Sign1Message(loggerFactory)
+var validator = new CoseSign1.Validation.CoseSign1ValidationBuilder(loggerFactory)
+    .AddComponent(new CoseSign1.Certificates.Validation.CertificateSigningKeyResolver(
+        certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
     .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: true))
     .AllowAllTrust("logging example")
     .Build();
@@ -425,7 +382,7 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
 | Signing Services | `ISigningService<TOptions>` | Custom signing backends |
 | Certificate Sources | `ICertificateSource` | Custom certificate retrieval |
 | Chain Builders | `ICertificateChainBuilder` | Custom chain building |
-| Validators | `IValidator` | Custom validation logic |
+| Validation components | `IValidationComponent` | Custom validation logic |
 | Transparency | `ITransparencyProvider` | Custom transparency services |
 | CLI Plugins | `IPlugin` | Custom CLI commands |
 | Signing Commands | `ISigningCommandProvider` | Custom signing commands |
@@ -465,7 +422,7 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
 
 ```
 1. Decode COSE message
-   +-- CoseSign1Message.DecodeSign1(bytes)
+    +-- CoseMessage.DecodeSign1(bytes)
          |
          v
 2. Validate message (builds pipeline internally)
@@ -502,12 +459,12 @@ using Microsoft.Extensions.Logging;
 
 ILoggerFactory? loggerFactory = null;
 
-var message = CoseSign1Message.DecodeSign1(signatureBytes);
+var message = CoseMessage.DecodeSign1(signatureBytes);
 var result = message.Validate(builder =>
 {
-    // Configure your staged validation pipeline here.
-    // Example validators/policies are documented in the validation and trust-policy guides.
+    // Configure your validation components here.
+    // Examples are documented in the validation and trust-policy guides.
 }, loggerFactory);
 ```
 
-If you will validate many messages with the same configuration, prefer building an `ICoseSign1Validator` once via `Cose.Sign1Message(loggerFactory).Build()` and reusing it.
+If you will validate many messages with the same configuration, prefer building an `ICoseSign1Validator` once via `new CoseSign1ValidationBuilder(loggerFactory).Build()` and reusing it.

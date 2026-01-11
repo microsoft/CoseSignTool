@@ -89,14 +89,14 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
-var validator = Cose.Sign1Message()
-    .ValidateCertificate(cert => cert
-        .ValidateChain())
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain())
     .Build();
 
-var results = validator.Validate(message);
+var results = message.Validate(validator);
 
 if (!results.Signature.IsValid || !results.Trust.IsValid)
 {
@@ -109,7 +109,8 @@ if (!results.Signature.IsValid || !results.Trust.IsValid)
 Always validate the full certificate chain (online revocation checking is the default):
 
 ```csharp
-var validator = Cose.Sign1Message()
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
     .ValidateCertificate(cert => cert
         .ValidateChain(allowUntrusted: false, revocationMode: X509RevocationMode.Online))
     .Build();
@@ -125,7 +126,10 @@ var trustedRoots = new X509Certificate2Collection
     new X509Certificate2("trusted-root.cer")
 };
 
-var validator = new CertificateChainValidator(trustedRoots);
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
+    .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
+    .Build();
 ```
 
 ## Algorithm Security
@@ -237,8 +241,8 @@ public void Verify_WithTamperedSignature_Fails()
     var signature = CreateValidSignature();
     var tamperedSignature = TamperWithSignature(signature);
 
-    var message = CoseSign1Message.DecodeSign1(tamperedSignature);
-    var result = validator.Validate(message);
+    var message = CoseMessage.DecodeSign1(tamperedSignature);
+    var result = message.Validate(validator);
 
     Assert.That(result.Overall.IsValid, Is.False);
 }

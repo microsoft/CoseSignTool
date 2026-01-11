@@ -265,8 +265,10 @@ public class DocumentSigner
     
     public byte[] Sign(byte[] document)
     {
-        var factory = new DirectSignatureFactory(_signingService);
-        return factory.CreateCoseSign1MessageBytes(document, "application/pdf");
+        using var factory = new CoseSign1MessageFactory(_signingService);
+        return factory.CreateDirectCoseSign1MessageBytes(
+            document,
+            contentType: "application/pdf");
     }
 }
 ```
@@ -289,7 +291,7 @@ public async Task Sign_WithMockedService_ReturnsSignature()
     
     // Act
     var result = factory.CreateCoseSign1MessageBytes(
-        new byte[] { 1, 2, 3 }, 
+        new byte[] { 1, 2, 3 },
         "application/octet-stream");
     
     // Assert
@@ -299,7 +301,7 @@ public async Task Sign_WithMockedService_ReturnsSignature()
 
 ## See Also
 
-- [CoseSign1](../CoseSign1/README.md) - Factory implementations
+- [CoseSign1.Factories](../CoseSign1.Factories/README.md) - Factory implementations
 - [CoseSign1.Certificates](../CoseSign1.Certificates/README.md) - Certificate-based signing
 - [CoseSign1.Validation](../CoseSign1.Validation/README.md) - Validation framework
 - [Architecture Overview](../docs/architecture/overview.md) - System architecture

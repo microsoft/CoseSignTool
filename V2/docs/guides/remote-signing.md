@@ -147,13 +147,13 @@ public class MyRemoteSigningService : ISigningService
 var signingService = new AzureTrustedSigningService(options);
 
 // Create signature factory with remote service
-var factory = new DirectSignatureFactory(signingService);
+var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign payload
-byte[] signature = await factory.CreateCoseSign1MessageBytesAsync(
-    payload, 
+byte[] signature = await factory.CreateDirectCoseSign1MessageBytesAsync(
+    payload,
     "application/json",
-    cancellationToken);
+    cancellationToken: cancellationToken);
 ```
 
 ## Authentication
@@ -217,7 +217,7 @@ For high-volume signing, consider batching:
 ```csharp
 var tasks = payloads.Select(async payload =>
 {
-    return await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
+    return await factory.CreateDirectCoseSign1MessageBytesAsync(payload, contentType);
 });
 
 var signatures = await Task.WhenAll(tasks);

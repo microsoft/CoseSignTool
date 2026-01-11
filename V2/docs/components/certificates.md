@@ -10,7 +10,7 @@ This package standardizes certificate-backed signing around a single `Certificat
 
 - Chain builder implementations (`ICertificateChainBuilder`)
 - Local and remote certificate sources
-- Validation helpers/validators for signatures and certificate policy
+- Validation helpers for X.509-backed COSE Sign1 messages (signing key resolution + certificate assertions)
 - Extensions for extracting certificate information from a `CoseSign1Message`
 
 ## Signing
@@ -43,14 +43,19 @@ CertificateSigningService.Create(RemoteCertificateSource source);
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
 using var cert = new X509Certificate2("cert.pfx", "password");
 using var chainBuilder = new X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
-using var factory = new DirectSignatureFactory(signingService);
-byte[] coseBytes = factory.CreateCoseSign1MessageBytes(Encoding.UTF8.GetBytes("hello"), "text/plain");
+// Preferred: route via CoseSign1MessageFactory
+using var factory = new CoseSign1MessageFactory(signingService);
+byte[] coseBytes = factory.CreateDirectCoseSign1MessageBytes(
+  Encoding.UTF8.GetBytes("hello"),
+  "text/plain",
+  new DirectSignatureOptions());
 ```
 
 ### CertificateSigningOptions (SCITT)
@@ -92,25 +97,84 @@ The package includes certificate sources that implement `ICertificateSource`:
 
 ## Validation
 
-This package includes certificate-focused validators for `CoseSign1Message`.
+This package contributes certificate-focused *validation components* to the V2 validation pipeline:
 
-### Signature validation
+- `CertificateSigningKeyResolver` (`ISigningKeyResolver`) extracts and parses X.509 key material from `x5t` + `x5chain` headers.
+- Certificate assertion providers (`ISigningKeyAssertionProvider`) emit typed assertions such as:
+  - `X509ChainTrustedAssertion`
+  - `X509ValidityAssertion`
+  - `X509IssuerAssertion`
+  - `X509CommonNameAssertion`
+  - `X509KeyUsageAssertion`
 
-`CertificateSignatureValidator` verifies the COSE signature using the certificate found via `x5t` + `x5chain` headers.
+Signature verification itself is performed by the core validator once a signing key is resolved and the trust policy is satisfied.
 
-- Implements `IValidator` and participates in the `ValidationStage.Signature` stage
-- Typically implemented as an `IConditionalValidator` so it can be skipped when X.509 headers are not present
-- Handles embedded vs detached signatures:
-  - Embedded: uses `message.Content`
-  - Detached: requires a payload passed to the constructor
+### Quick signature check (no trust)
 
-### Other certificate validators
+If you only want to check the cryptographic signature (and you understand this does **not** establish trust), use:
 
-- `CertificateChainValidator`
-- `CertificateExpirationValidator`
-- `CertificateKeyUsageValidator`
-- `CertificateCommonNameValidator`
-- `CertificatePredicateValidator`
+```csharp
+using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Extensions;
+
+CoseSign1Message message = CoseMessage.DecodeSign1(coseSign1Bytes);
+bool ok = message.VerifySignature();
+```
+
+### Full validation (recommended)
+
+Use `message.Validate(...)` / `ValidateAsync(...)` from `CoseSign1.Validation`.
+
+**Auto-discovery:** if you reference `CoseSign1.Certificates`, its default components are discovered automatically (via an assembly-level default component provider).
+
+```csharp
+using System.Security.Cryptography.Cose;
+using CoseSign1.Validation;
+
+CoseSign1Message message = CoseMessage.DecodeSign1(coseSign1Bytes);
+var result = message.Validate();
+
+if (!result.Overall.IsValid)
+{
+    // See result.Resolution / result.Trust / result.Signature / result.PostSignaturePolicy for details.
+}
+```
+
+**Custom certificate requirements:** build a validator (or inline-configure one) and add certificate assertion providers.
+
+```csharp
+using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation;
+
+var validator = new CoseSign1ValidationBuilder()
+    // Required for certificate-backed validation
+    .AddComponent(new CertificateSigningKeyResolver())
+
+    // Add X.509 assertion providers
+    .ValidateCertificate(cert => cert
+        .NotExpired()
+        .HasCommonName("My Trusted Signer")
+        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")
+        .ValidateChain())
+    .Build();
+
+CoseSign1Message message = CoseMessage.DecodeSign1(coseSign1Bytes);
+var result = message.Validate(validator);
+```
+
+### Detached payloads
+
+If the COSE_Sign1 has a detached payload, provide it via `CoseSign1ValidationOptions`:
+
+```csharp
+using CoseSign1.Validation;
+
+var validator = new CoseSign1ValidationBuilder()
+    .AddComponent(new CertificateSigningKeyResolver())
+    .WithOptions(o => o.WithDetachedPayload(detachedPayloadBytes))
+    .Build();
+```
 
 ## Extensions
 
@@ -122,7 +186,7 @@ This package includes certificate-focused validators for `CoseSign1Message`.
 
 ## See Also
 
-- [CoseSign1 Package](cosesign1.md)
+- [CoseSign1.Factories Package](cosesign1.factories.md)
 - [Validation Package](validation.md)
 - [Chain Validation Guide](../guides/chain-validation.md)
 - [Remote Signing Guide](../guides/remote-signing.md)

@@ -47,9 +47,10 @@ using System.Security.Cryptography.Cose;
 using System.Text;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
-using CoseSign1.Direct;
+using CoseSign1.Factories;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
+using CoseSign1.Certificates.Validation;
 using NUnit.Framework;
 
 [TestFixture]
@@ -60,18 +61,19 @@ public class SigningTests
     {
         using var cert = LocalCertificateFactory.CreateEcdsaCertificate();
         var signingService = CertificateSigningService.Create(cert, new X509ChainBuilder());
-        using var factory = new DirectSignatureFactory(signingService);
+        using var factory = new CoseSign1MessageFactory(signingService);
 
         var payload = Encoding.UTF8.GetBytes("hello");
-        var coseBytes = factory.CreateCoseSign1MessageBytes(payload, "text/plain");
-        var message = CoseSign1Message.DecodeSign1(coseBytes);
+        var coseBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+        var message = CoseMessage.DecodeSign1(coseBytes);
 
-        var validator = Cose.Sign1Message()
+        var validator = new CoseSign1ValidationBuilder()
+            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
             .ValidateCertificate(cert => { })
             .AllowAllTrust("test")
             .Build();
 
-        var result = validator.Validate(message);
+        var result = message.Validate(validator);
         Assert.That(result.Overall.IsValid, Is.True);
     }
 }

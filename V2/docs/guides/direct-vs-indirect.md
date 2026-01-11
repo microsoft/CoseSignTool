@@ -43,15 +43,15 @@ CoseSignTool V2 supports two signing modes:
 ### Example
 
 ```csharp
-using CoseSign1.Direct;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 
-var factory = new DirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
 // Embedded payload
-byte[] embeddedSignature = factory.CreateCoseSign1MessageBytes(
+byte[] embeddedSignature = factory.CreateDirectCoseSign1MessageBytes(
     payload,
-    "application/json",
-    new DirectSignatureOptions { EmbedPayload = true });
+    "application/json");
 
 // Detached payload (payload not embedded in signature)
 byte[] detachedSignature = factory.CreateCoseSign1MessageBytes(
@@ -122,21 +122,20 @@ Indirect signatures use a "hash envelope" payload:
 ### Example
 
 ```csharp
-using CoseSign1.Indirect;
+using CoseSign1.Factories;
+using CoseSign1.Factories.Indirect;
 
-var factory = new IndirectSignatureFactory(signingService);
+using var factory = new CoseSign1MessageFactory(signingService);
 
-// Create indirect signature
-byte[] signature = factory.CreateIndirectSignatureBytes(
+// Create indirect signature (in-memory payload)
+byte[] signature = factory.CreateIndirectCoseSign1MessageBytes(
     payload,
-    HashAlgorithmName.SHA256,
     "application/json");
 
 // Or from stream (memory efficient)
 using var stream = File.OpenRead("large-file.bin");
-byte[] signature = await factory.CreateIndirectSignatureBytesAsync(
+byte[] streamSignature = await factory.CreateIndirectCoseSign1MessageBytesAsync(
     stream,
-    HashAlgorithmName.SHA256,
     "application/octet-stream");
 ```
 
@@ -175,7 +174,7 @@ CoseSignTool sign-pfx large-file.bin ^
 using CoseSign1.Certificates.Extensions;
 using System.Security.Cryptography.Cose;
 
-var message = CoseSign1Message.DecodeSign1(signature);
+var message = CoseMessage.DecodeSign1(signature);
 
 // Embedded - payload in signature, fully self-contained
 bool isValid = message.VerifySignature();

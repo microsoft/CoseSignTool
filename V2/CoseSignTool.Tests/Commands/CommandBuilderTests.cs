@@ -149,6 +149,19 @@ public class CommandBuilderTests
     }
 
     [Test]
+    public void BuildRootCommand_VerifyCommandDoesNotHaveExperimentalCounterSignatureOptions()
+    {
+        var builder = TestConsole.CreateCommandBuilder();
+
+        var rootCommand = builder.BuildRootCommand();
+        var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+
+        Assert.That(verifyCommand.Options.Any(o => o.Name == "experimental-countersignatures"), Is.False);
+        Assert.That(verifyCommand.Options.Any(o => o.Name == "trust-root"), Is.False);
+        Assert.That(verifyCommand.Options.Any(o => o.Name == "emit-audit"), Is.False);
+    }
+
+    [Test]
     public void BuildRootCommand_InspectCommandHasFileArgumentSupportingStdin()
     {
         // Arrange

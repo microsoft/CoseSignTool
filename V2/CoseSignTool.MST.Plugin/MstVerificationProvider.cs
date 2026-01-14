@@ -5,21 +5,18 @@ namespace CoseSignTool.MST.Plugin;
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using System.ClientModel.Primitives;
-using System.Security.Cryptography.Cose;
-using System.Text;
 using System.Text.Json;
-using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.MST.Validation;
-using CoseSign1.Validation.Interfaces;
-using CoseSign1.Validation.Results;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
 using CoseSignTool.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Verification provider for Microsoft Signing Transparency (MST) receipt validation.
 /// Validates that signatures contain valid SCITT receipts from the MST service.
 /// </summary>
-public class MstVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+public class MstVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
 {
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -51,6 +48,9 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
         public const string No = "No";
 
         public const string JsonPropertyKeys = "keys";
+
+        public const string ReceiptMustBePresentFailure = "MST receipt must be present";
+        public const string ReceiptMustBeVerifiedFailure = "MST receipt must be cryptographically verified";
     }
 
     /// <inheritdoc/>
@@ -121,94 +121,68 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+    public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
     {
-        var validators = new List<IValidationComponent>();
+        ArgumentNullException.ThrowIfNull(validationBuilder);
+        ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(context);
 
-        bool requireReceipt = IsReceiptRequired(parseResult) || HasMstEndpoint(parseResult);
         bool verifyReceipt = IsVerifyReceipt(parseResult);
+        string? endpoint = GetMstEndpoint(parseResult);
+
         var trustMode = GetTrustMode(parseResult);
 
-        // If the user cares about receipts (presence and/or trust), ensure we emit receipt-present assertions.
-        if (requireReceipt)
+        bool hasOfflineKeys = trustMode == MstTrustMode.Offline
+            && verifyReceipt
+            && (HasValidOfflineTrustFile(parseResult) || HasValidOfflineTrustedKeys(parseResult));
+
+        validationBuilder.EnableMstTrust(trust =>
         {
-            validators.Add(new MstReceiptPresenceAssertionProvider());
-        }
+            // Configure trust pack options to match prior behavior.
+            trust.Options.VerifyReceipts = verifyReceipt;
 
-        // Add receipt verification validator when requested.
-        if (verifyReceipt)
-        {
-            if (trustMode == MstTrustMode.Online)
+            if (!string.IsNullOrWhiteSpace(endpoint) && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
             {
-                // Online: query endpoint for signing keys and validate receipt(s) using returned key(s).
-                // This requires an endpoint.
-                if (!HasMstEndpoint(parseResult))
-                {
-                    // No validator: trust policy will fail if receipt trust is required.
-                    return validators;
-                }
-
-                string endpoint = GetMstEndpoint(parseResult)!;
-                var client = new CodeTransparencyClient(new Uri(endpoint));
-                validators.Add(new MstReceiptOnlineAssertionProvider(client, issuerHost: new Uri(endpoint).Host));
+                trust.Options.Endpoint = endpointUri;
             }
-            else
+
+            if (trustMode == MstTrustMode.Offline)
             {
-                // Offline: do not query the endpoint for keys. Use a manually provided trust list.
-                // Requires an endpoint (issuer) selection so the trust policy can be explicit.
-                if (!HasMstEndpoint(parseResult))
-                {
-                    return validators;
-                }
-
-                string endpoint = GetMstEndpoint(parseResult)!;
-                var issuerHost = new Uri(endpoint).Host;
-
-                var offlineKeys = LoadOfflineKeys(parseResult);
-                if (offlineKeys == null)
-                {
-                    return validators;
-                }
-
-                var verificationOptions = new CodeTransparencyVerificationOptions
-                {
-                    OfflineKeys = offlineKeys,
-                    OfflineKeysBehavior = OfflineKeysBehavior.NoFallbackToNetwork,
-                    AuthorizedDomains = new[] { issuerHost }
-                };
-
-                var client = new CodeTransparencyClient(new Uri(endpoint));
-                validators.Add(new MstReceiptAssertionProvider(client, verificationOptions));
+                trust.OfflineOnly();
             }
-        }
 
-        // NOTE: Receipt presence is expressed as a trust claim by MstReceiptAssertionProvider.
-        // If the CLI requires a receipt, it should express that requirement via the TrustPolicy.
-
-        return validators;
+            trust.Options.HasOfflineKeys = hasOfflineKeys;
+        });
     }
 
     /// <inheritdoc/>
-    public CoseSign1.Validation.Trust.TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+    public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
     {
         ThrowIfNull(parseResult);
 
         bool requireReceipt = IsReceiptRequired(parseResult) || HasMstEndpoint(parseResult);
         bool verifyReceipt = IsVerifyReceipt(parseResult);
 
-        // If the MST provider is active at all, we at least require receipt presence.
-        // If receipt verification is enabled, require the receipt to be trusted.
-        if (requireReceipt && verifyReceipt)
+        if (!requireReceipt)
         {
-            return MstTrustPolicies.RequireReceiptPresentAndTrusted();
+            return null;
         }
 
-        if (requireReceipt)
+        return TrustPlanPolicy.Message(m =>
         {
-            return MstTrustPolicies.RequireReceiptPresent();
-        }
+            m.RequireFact<MstReceiptPresentFact>(
+                f => f.IsPresent,
+                ClassStrings.ReceiptMustBePresentFailure);
 
-        return null;
+            if (verifyReceipt)
+            {
+                m.RequireFact<MstReceiptTrustedFact>(
+                    f => f.IsTrusted,
+                    ClassStrings.ReceiptMustBeVerifiedFailure);
+            }
+
+            return m;
+        });
     }
 
     private static void ThrowIfNull(ParseResult parseResult)
@@ -222,8 +196,8 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
     /// <inheritdoc/>
     public IDictionary<string, object?> GetVerificationMetadata(
         ParseResult parseResult,
-        CoseSign1Message message,
-        ValidationResult validationResult)
+        System.Security.Cryptography.Cose.CoseSign1Message message,
+        CoseSign1.Validation.Results.ValidationResult validationResult)
     {
         var metadata = new Dictionary<string, object?>
         {
@@ -282,40 +256,33 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
         return entries != null && entries.Length > 0;
     }
 
-    private static string NormalizeIssuer(string endpointOrHost)
+    private bool HasValidOfflineTrustFile(ParseResult parseResult)
     {
-        if (Uri.TryCreate(endpointOrHost, UriKind.Absolute, out var uri))
+        var file = parseResult.GetValueForOption(OfflineTrustFileOption);
+        if (file == null || !file.Exists)
         {
-            return uri.Host;
+            return false;
         }
 
-        // If it's not a valid absolute URI, treat it as a hostname.
-        return endpointOrHost.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(file.FullName));
+            return doc.RootElement.ValueKind == JsonValueKind.Object;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    private CodeTransparencyOfflineKeys? LoadOfflineKeys(ParseResult parseResult)
+    private bool HasValidOfflineTrustedKeys(ParseResult parseResult)
     {
-        // Priority: trust file overrides per-key entries.
-        var trustFile = parseResult.GetValueForOption(OfflineTrustFileOption);
-        if (trustFile != null)
-        {
-            if (!trustFile.Exists)
-            {
-                return null;
-            }
-
-            var json = File.ReadAllText(trustFile.FullName, Encoding.UTF8);
-            return CodeTransparencyOfflineKeys.FromBinaryData(BinaryData.FromString(json));
-        }
-
         var entries = parseResult.GetValueForOption(OfflineTrustedKeyOption);
         if (entries == null || entries.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        // Group keys by issuer host.
-        var keysByIssuer = new Dictionary<string, List<JsonElement>>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in entries)
         {
             if (string.IsNullOrWhiteSpace(entry))
@@ -329,8 +296,9 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
                 continue;
             }
 
-            var issuer = NormalizeIssuer(entry.Substring(0, idx));
-            var path = entry.Substring(idx + 1);
+            var issuer = entry.Substring(0, idx).Trim();
+            var path = entry.Substring(idx + 1).Trim();
+
             if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(path))
             {
                 continue;
@@ -341,72 +309,29 @@ public class MstVerificationProvider : IVerificationProvider, IVerificationProvi
                 continue;
             }
 
-            var keyJson = File.ReadAllText(path, Encoding.UTF8);
-            using var doc = JsonDocument.Parse(keyJson);
-
-            // Accept either a JWKS ({"keys": [...]}) or a single JWK ({"kty":...}).
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            try
             {
-                continue;
-            }
-
-            if (doc.RootElement.TryGetProperty(ClassStrings.JsonPropertyKeys, out var keysElement) && keysElement.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var key in keysElement.EnumerateArray())
+                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                if (doc.RootElement.ValueKind != JsonValueKind.Object)
                 {
-                    if (key.ValueKind == JsonValueKind.Object)
-                    {
-                        if (!keysByIssuer.TryGetValue(issuer, out var list))
-                        {
-                            list = new List<JsonElement>();
-                            keysByIssuer[issuer] = list;
-                        }
-
-                        list.Add(key.Clone());
-                    }
-                }
-            }
-            else
-            {
-                if (!keysByIssuer.TryGetValue(issuer, out var list))
-                {
-                    list = new List<JsonElement>();
-                    keysByIssuer[issuer] = list;
+                    continue;
                 }
 
-                list.Add(doc.RootElement.Clone());
+                // Accept either a JWK (object) or a JWKS ({"keys": [...]})
+                if (doc.RootElement.TryGetProperty(ClassStrings.JsonPropertyKeys, out var keys) && keys.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                return true;
+            }
+            catch
+            {
+                // Ignore invalid files
             }
         }
 
-        if (keysByIssuer.Count == 0)
-        {
-            return null;
-        }
-
-        var offlineKeys = new CodeTransparencyOfflineKeys();
-        foreach (var kvp in keysByIssuer)
-        {
-            var issuer = kvp.Key;
-            var keyObjects = kvp.Value;
-
-            // Re-encode as JWKS and let the SDK model deserializer do the rest.
-            var jwksJson = JsonSerializer.Serialize(new
-            {
-                keys = keyObjects
-            });
-
-            // JwksDocument is an Azure SDK model that is not generally compatible with
-            // System.Text.Json deserialization. Use the SDK's reader/writer instead.
-            var jwks = ModelReaderWriter.Read<JwksDocument>(BinaryData.FromString(jwksJson));
-            if (jwks == null)
-            {
-                continue;
-            }
-
-            offlineKeys.Add(issuer, jwks);
-        }
-
-        return offlineKeys;
+        return false;
     }
 
     #endregion

@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Interfaces;
 
 using System.Security.Cryptography.Cose;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Trust.Plan;
 
 /// <summary>
 /// Validates COSE Sign1 messages using a configured staged validation policy.
@@ -13,23 +14,9 @@ using CoseSign1.Validation;
 public interface ICoseSign1Validator
 {
     /// <summary>
-    /// Gets the trust policy evaluated against trust assertions.
+    /// Gets the compiled trust plan evaluated during the trust stage.
     /// </summary>
-    TrustPolicy TrustPolicy { get; }
-
-    /// <summary>
-    /// Gets all validation components.
-    /// </summary>
-    /// <remarks>
-    /// Components are filtered by type internally:
-    /// <list type="bullet">
-    /// <item><description><see cref="ISigningKeyResolver"/> for key resolution</description></item>
-    /// <item><description><see cref="ISigningKeyAssertionProvider"/> for trust assertions</description></item>
-    /// <item><description><see cref="IPostSignatureValidator"/> for post-signature policy</description></item>
-    /// </list>
-    /// Signature verification is performed directly using the resolved signing key.
-    /// </remarks>
-    IReadOnlyList<IValidationComponent> Components { get; }
+    CompiledTrustPlan TrustPlan { get; }
 
     /// <summary>
     /// Validates the specified COSE Sign1 message.

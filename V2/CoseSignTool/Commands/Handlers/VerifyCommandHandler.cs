@@ -12,9 +12,11 @@ using CoseSign1.Factories.Indirect;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Output;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -123,6 +125,8 @@ public class VerifyCommandHandler
             // Get bound values from the parse result
             var parseResult = context.ParseResult;
             var commandResult = parseResult.CommandResult;
+
+            // Counter-signature support is intentionally not exposed in the CLI right now.
 
             // Find the signature argument
             string? signaturePath = null;
@@ -256,11 +260,12 @@ public class VerifyCommandHandler
                 [VerificationContext.KeyConsole] = Console
             };
             var verificationContext = new VerificationContext(detachedPayload: payloadBytes, options: contextOptions);
-
-            var providerValidators = new List<IValidationComponent>();
             var activatedProviders = new List<string>();
 
-            var providerTrustPolicies = new List<TrustPolicy>();
+            var providerTrustPlanPolicies = new List<TrustPlanPolicy>();
+
+            var services = new ServiceCollection();
+            var validationBuilder = services.ConfigureCoseValidation();
 
             foreach (var provider in VerificationProviders)
             {
@@ -271,74 +276,70 @@ public class VerifyCommandHandler
 
                 activatedProviders.Add(provider.ProviderName);
 
-                // Priority order: IVerificationProviderWithContext > IVerificationProvider
-                IEnumerable<IValidationComponent> validators;
-                if (provider is IVerificationProviderWithContext withContext)
-                {
-                    validators = withContext.CreateValidators(parseResult, verificationContext);
-                }
-                else
-                {
-                    validators = provider.CreateValidators(parseResult);
-                }
+                provider.ConfigureValidation(validationBuilder, parseResult, verificationContext);
 
-                providerValidators.AddRange(validators);
-
-                if (provider is IVerificationProviderWithTrustPolicy withTrustPolicy)
+                if (provider is IVerificationProviderWithTrustPlanPolicy withTrustPolicy)
                 {
-                    var policy = withTrustPolicy.CreateTrustPolicy(parseResult, verificationContext);
+                    var policy = withTrustPolicy.CreateTrustPlanPolicy(parseResult, verificationContext);
                     if (policy != null)
                     {
-                        providerTrustPolicies.Add(policy);
+                        providerTrustPlanPolicies.Add(policy);
                     }
                 }
             }
 
-            // Build a validator using the fluent CoseSign1ValidationBuilder pattern.
-            // This demonstrates the V2 API that programmatic callers should use.
-            // Providers are responsible for supplying signing key resolvers to enable
-            // signature verification (e.g., CertificateSigningKeyResolver for X.509).
-            var builder = new CoseSign1ValidationBuilder(LoggerFactory);
+            using var serviceProvider = services.BuildServiceProvider();
 
-            // Add validators from activated providers
-            foreach (var validator in providerValidators)
-            {
-                builder.AddComponent(validator);
-            }
-
-            // Configure detached payload if provided
+            // Always establish trust via CompiledTrustPlan rules.
+            // Providers supply key resolution and trust packs via DI.
+            var validationOptions = new CoseSign1ValidationOptions();
             if (payloadBytes != null)
             {
-                builder.WithOptions(opts => opts.WithDetachedPayload(payloadBytes));
+                validationOptions.WithDetachedPayload(payloadBytes);
             }
 
-            // Configure trust policy
+            // "Signature-only" means we intentionally skip post-signature policy.
+            validationOptions.SkipPostSignatureValidation = signatureOnly;
+
+            var trustEvaluationOptions = new TrustEvaluationOptions();
             if (signatureOnly)
             {
-                // Signature-only mode is intended to validate cryptographic correctness only.
-                // It should not fail due to trust policy requirements.
-                builder.AllowAllTrust(ClassStrings.TrustPolicyReasonSignatureOnlyMode);
-                // Skip content/payload verification in signature-only mode
-                builder.WithoutContentVerification();
+                // Signature-only mode validates cryptographic correctness only.
+                trustEvaluationOptions.BypassTrust = true;
             }
-            else if (providerTrustPolicies.Count == 0)
+
+            CompiledTrustPlan trustPlan;
+
+            if (providerTrustPlanPolicies.Count > 1)
             {
-                builder.DenyAllTrust(ClassStrings.TrustPolicyReasonNoTrustPolicyProvided);
+                Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
+            }
+
+            if (providerTrustPlanPolicies.Count == 0)
+            {
+                // Secure-by-default: Core message facts deny trust unless a pack enables trust.
+                trustPlan = CompiledTrustPlan.CompileDefaults(serviceProvider);
             }
             else
             {
-                if (providerTrustPolicies.Count > 1)
-                {
-                    Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
-                }
+                var combined = providerTrustPlanPolicies.Count == 1
+                    ? providerTrustPlanPolicies[0]
+                    : providerTrustPlanPolicies.Aggregate((a, b) => a.And(b));
 
-                // Combine all provider trust policies into a single AND policy
-                var combinedPolicy = providerTrustPolicies.Count == 1
-                    ? providerTrustPolicies[0]
-                    : TrustPolicy.And(providerTrustPolicies.ToArray());
-
-                builder.OverrideDefaultTrustPolicy(combinedPolicy);
+                trustPlan = combined.Compile(serviceProvider);
             }
+
+            var signingKeyResolvers = serviceProvider.GetServices<ISigningKeyResolver>();
+            var postSignatureValidators = serviceProvider.GetServices<IPostSignatureValidator>();
+
+            var logger2 = LoggerFactory?.CreateLogger<CoseSign1Validator>();
+            ICoseSign1Validator coseValidator = new CoseSign1Validator(
+                signingKeyResolvers,
+                postSignatureValidators,
+                trustPlan,
+                validationOptions,
+                trustEvaluationOptions,
+                logger: logger2);
 
             if (activatedProviders.Count > 0)
             {
@@ -347,8 +348,6 @@ public class VerifyCommandHandler
                     string.Join(ClassStrings.ListSeparatorCommaSpace, activatedProviders));
             }
 
-            // Build and execute the validator
-            var coseValidator = builder.Build();
             var validationResult = message.Validate(coseValidator);
 
             if (!validationResult.Resolution.IsValid)
@@ -400,19 +399,6 @@ public class VerifyCommandHandler
             }
 
             var overall = validationResult.Overall;
-
-            // For indirect signatures, optionally verify payload matches the signed hash
-            if (isIndirectSignature && payloadBytes != null && !signatureOnly)
-            {
-                if (!VerifyIndirectPayloadHash(message, payloadBytes))
-                {
-                    Formatter.WriteError(ClassStrings.ErrorPayloadHashMismatch);
-                    Formatter.EndSection();
-                    Formatter.Flush();
-                    return Task.FromResult((int)ExitCode.VerificationFailed);
-                }
-                Formatter.WriteSuccess(ClassStrings.SuccessPayloadVerified);
-            }
 
             // Success
             if (signatureOnly)
@@ -511,54 +497,50 @@ public class VerifyCommandHandler
         return message.ProtectedHeaders.ContainsKey(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg);
     }
 
-    /// <summary>
-    /// Verifies that the provided payload matches the hash stored in an indirect signature.
-    /// Reads the hash algorithm from PayloadHashAlg header and compares computed hash against embedded hash.
-    /// </summary>
     private static bool VerifyIndirectPayloadHash(CoseSign1Message message, byte[] payload)
     {
-        if (!message.Content.HasValue)
+        if (!message.Content.HasValue || message.Content.Value.Length == 0)
         {
             return false;
         }
 
-        // Get the hash algorithm from the PayloadHashAlg header
-        if (!message.ProtectedHeaders.TryGetValue(
-            CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg,
-            out var hashAlgValue))
+        if (!message.ProtectedHeaders.TryGetValue(CoseHashEnvelopeHeaderContributor.HeaderLabels.PayloadHashAlg, out var payloadHashAlgValue))
         {
             return false;
         }
 
-        // Read the COSE algorithm ID
-        var reader = new CborReader(hashAlgValue.EncodedValue);
-        var algId = reader.ReadInt32();
-
-        // Determine the hash algorithm from COSE algorithm ID
-        HashAlgorithm? hasher = algId switch
+        int coseAlgId;
+        try
         {
-            -16 => SHA256.Create(),  // SHA-256
-            -43 => SHA384.Create(),  // SHA-384
-            -44 => SHA512.Create(),  // SHA-512
-            _ => null
-        };
-
-        if (hasher == null)
+            var reader = new CborReader(payloadHashAlgValue.EncodedValue);
+            coseAlgId = reader.ReadInt32();
+        }
+        catch
         {
             return false;
         }
 
-        using (hasher)
+        byte[] expectedHash;
+
+        switch (coseAlgId)
         {
-            // Compute hash of the payload
-            var computedHash = hasher.ComputeHash(payload);
-
-            // The embedded content is the hash value
-            var embeddedHash = message.Content.Value.ToArray();
-
-            // Compare the hashes
-            return computedHash.SequenceEqual(embeddedHash);
+            case -16: // SHA-256
+                expectedHash = SHA256.HashData(payload);
+                break;
+            case -43: // SHA-384
+                expectedHash = SHA384.HashData(payload);
+                break;
+            case -44: // SHA-512
+                expectedHash = SHA512.HashData(payload);
+                break;
+            default:
+                return false;
         }
+
+        var embeddedHash = message.Content.Value.Span;
+
+        return embeddedHash.Length == expectedHash.Length &&
+            CryptographicOperations.FixedTimeEquals(embeddedHash, expectedHash);
     }
 
 }

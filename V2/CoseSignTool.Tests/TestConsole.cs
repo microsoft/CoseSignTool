@@ -19,6 +19,8 @@ public sealed class TestConsole : IConsole
     private readonly MemoryStream _stdin;
     private readonly StringWriter _stdout;
     private readonly StringWriter _stderr;
+    private readonly MemoryStream _stdoutStream;
+    private readonly MemoryStream _stderrStream;
     private bool _disposed;
 
     /// <summary>
@@ -37,6 +39,8 @@ public sealed class TestConsole : IConsole
         _stdin = new MemoryStream(stdinContent);
         _stdout = new StringWriter();
         _stderr = new StringWriter();
+        _stdoutStream = new MemoryStream();
+        _stderrStream = new MemoryStream();
     }
 
     /// <inheritdoc />
@@ -49,10 +53,20 @@ public sealed class TestConsole : IConsole
     public TextWriter StandardError => _stderr;
 
     /// <inheritdoc />
-    public Func<Stream> StandardOutputStreamProvider => () => new MemoryStream();
+    public Func<Stream> StandardOutputStreamProvider => () => _stdoutStream;
 
     /// <inheritdoc />
-    public Func<Stream> StandardErrorStreamProvider => () => new MemoryStream();
+    public Func<Stream> StandardErrorStreamProvider => () => _stderrStream;
+
+    /// <summary>
+    /// Gets the captured binary stdout stream.
+    /// </summary>
+    public MemoryStream StdoutStream => _stdoutStream;
+
+    /// <summary>
+    /// Gets the captured binary stderr stream.
+    /// </summary>
+    public MemoryStream StderrStream => _stderrStream;
 
     /// <inheritdoc />
     public bool IsInputRedirected => true;
@@ -99,6 +113,8 @@ public sealed class TestConsole : IConsole
             _stdin.Dispose();
             _stdout.Dispose();
             _stderr.Dispose();
+            _stdoutStream.Dispose();
+            _stderrStream.Dispose();
             _disposed = true;
         }
     }

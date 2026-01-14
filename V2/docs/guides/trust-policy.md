@@ -1,194 +1,96 @@
-# Trust Policy Deep Dive
+# Trust Plan Deep Dive
 
-This guide describes the V2 trust policy system.
+This guide describes the V2 trust model used by `CoseSign1.Validation`.
 
-In V2, trust is evaluated by running a `TrustPolicy` against a set of strongly-typed `ISigningKeyAssertion`s produced during validation.
+V2 trust is evaluated using the **Facts + Rules** model:
 
-## Overview
+- **Facts** are produced on-demand by registered `ITrustPack` implementations.
+- **Rules** are evaluated by a compiled plan (`CompiledTrustPlan`).
+- Optional *additional requirements* can be expressed as a `TrustPlanPolicy`.
 
-V2 trust uses an **assertion-based** model:
+## Key concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Assertion** (`ISigningKeyAssertion`) | A neutral fact about the signing key or message (e.g., “X.509 chain is trusted”) |
-| **Assertion provider** (`ISigningKeyAssertionProvider`) | Extracts assertions during the trust stage |
-| **Policy** (`TrustPolicy`) | Declarative logic that evaluates assertions and returns a `TrustDecision` |
-| **Decision** (`TrustDecision`) | Trusted/Denied + human-readable reasons |
+| **Trust pack** (`ITrustPack`) | Produces facts and contributes secure-by-default plan fragments |
+| **Compiled plan** (`CompiledTrustPlan`) | Root rule + available fact producers; evaluated during the trust stage |
+| **Policy fragment** (`TrustPlanPolicy`) | Fluent authoring surface for additional requirements; compiles to a plan |
 
 Important properties of this model:
 
-- Assertions do **not** grant trust by themselves.
-- Trust originates from the **policy**.
-- Trust is evaluated after signing key resolution and before signature verification.
+- Trust is **data-driven** (facts are lazy) and **declarative** (rules).
+- Trust evaluation runs **after signature verification** (so untrusted signers do not become a signature oracle).
+- Extension packages drive trust by registering `ITrustPack` and (optionally) exposing configuration via DI builder extensions.
 
-## Default Trust Behavior
+## Default trust behavior
 
-`CoseSign1ValidationBuilder` uses `TrustPolicy.FromAssertionDefaults()` unless overridden.
+Trust packs can contribute default plan fragments, but the overall system is still **deny-by-default** unless something explicitly provides a trust source. In many cases (including the CLI), the active configuration determines which trust sources exist.
 
-`TrustPolicy.FromAssertionDefaults()` evaluates each assertion using its own `ISigningKeyAssertion.DefaultTrustPolicy` and combines them with `TrustPolicy.And(...)`.
-
-You can override the behavior using:
-
-- `OverrideDefaultTrustPolicy(TrustPolicy policy)`
-- `AllowAllTrust(string? reason = null)`
-- `DenyAllTrust(string? reason = null)`
-
-## Common Usage
-
-### Require a trusted X.509 chain
+If your app relies on defaults, use:
 
 ```csharp
+using var sp = services.BuildServiceProvider();
+CompiledTrustPlan plan = CompiledTrustPlan.CompileDefaults(sp);
+```
+
+If you need explicit requirements, prefer compiling an explicit `TrustPlanPolicy` (next section).
+
+## Common usage
+
+### Certificate trust (system roots)
+
+`CoseSign1.Certificates` provides a trust pack that evaluates X.509 chain trust and exposes it as facts.
+You can require those facts with a `TrustPlanPolicy`.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Certificates.Trust;
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust;
+
+var services = new ServiceCollection();
+services.AddLogging();
+
+// 1) Components (key material resolution)
+services.AddSingleton<IValidationComponent>(_ => new CertificateSigningKeyResolver());
+
+// 2) Trust facts (chain trust evaluation)
+var certTrust = new CertificateTrustBuilder()
+    .UseSystemTrust()
+    // For apps, prefer pinning identities; this keeps the sample short.
+    .AllowAnyCertificateIdentity()
+    .WithRevocationMode(X509RevocationMode.Online);
+
+services.AddSingleton<ITrustPack>(_ => new CoseSign1.Certificates.Trust.Facts.Producers.X509CertificateTrustPack(certTrust.Options));
+
+// 3) Trust policy (require chain to be trusted)
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
+    f => f.IsTrusted,
+    "X.509 certificate chain must be trusted"));
+
+using var sp = services.BuildServiceProvider();
+var trustPlan = policy.Compile(sp);
+var components = sp.GetServices<IValidationComponent>().ToArray();
+var validator = new CoseSign1Validator(components, trustPlan);
+
 var message = CoseMessage.DecodeSign1(signatureBytes);
-
-var result = message.Validate(builder => builder
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain()));
-
-if (!result.Overall.IsValid)
-{
-    foreach (var failure in result.Trust.Failures)
-    {
-        Console.WriteLine($"{failure.ErrorCode}: {failure.Message}");
-    }
-}
+var result = message.Validate(validator);
 ```
 
-### Require MST receipt presence and trust
+### Adding additional requirements (advanced)
 
-```csharp
-var result = message.Validate(builder => builder
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .AddMstReceiptAssertionProvider(mst => mst.UseClient(client))
-    .OverrideDefaultTrustPolicy(TrustPolicy.And(
-        X509TrustPolicies.RequireTrustedChain(),
-        MstTrustPolicies.RequireReceiptPresentAndTrusted())));
-```
+If you need an explicit, deployment-specific requirement that is not covered by a pack’s options, author a `TrustPlanPolicy`.
 
-## Policy Primitives
-
-All policy evaluation happens via:
-
-```csharp
-TrustDecision decision = policy.Evaluate(assertions);
-```
-
-### `TrustPolicy.DenyAll(reason)`
-
-Always denies trust.
-
-```csharp
-var policy = TrustPolicy.DenyAll("No signers are trusted in this environment");
-```
-
-### `TrustPolicy.AllowAll(reason)`
-
-Always allows trust (use sparingly).
-
-```csharp
-var policy = TrustPolicy.AllowAll("Testing only");
-```
-
-### `TrustPolicy.Require<TAssertion>(predicate, failureReason)`
-
-Requires at least one assertion of type `TAssertion` that satisfies the predicate.
-
-```csharp
-var policy = TrustPolicy.Require<X509ChainTrustedAssertion>(
-    a => a.IsTrusted,
-    "X.509 chain must be trusted");
-```
-
-### `TrustPolicy.RequirePresent<TAssertion>(failureReason)`
-
-Requires that an assertion of type `TAssertion` is present (any value).
-
-```csharp
-var policy = TrustPolicy.RequirePresent<MstReceiptPresentAssertion>(
-    "MST receipt must be present");
-```
-
-### `TrustPolicy.UseDefault(assertionSample)`
-
-Uses an assertion type’s `DefaultTrustPolicy`.
-
-```csharp
-var policy = TrustPolicy.UseDefault(new X509ChainTrustedAssertion(isTrusted: true));
-```
-
-### `TrustPolicy.And(...)` / `TrustPolicy.Or(...)` / `TrustPolicy.Not(...)` / `TrustPolicy.Implies(...)`
-
-Compose policies using boolean logic:
-
-```csharp
-var policy = TrustPolicy.And(
-    X509TrustPolicies.RequireTrustedChain(),
-    TrustPolicy.Require<X509ValidityAssertion>(a => a.IsValid, "Certificate must be valid"));
-```
-
-### `TrustPolicy.FromAssertionDefaults()`
-
-Evaluates each assertion using its own default policy and combines them.
-
-This is the builder’s default trust behavior.
-
-## Creating Custom Assertions
-
-If you have an environment-specific trust signal, model it as an assertion + policy.
-
-### 1) Define an assertion type
-
-```csharp
-public sealed record OrgApprovedAssertion(bool IsApproved) : ISigningKeyAssertion
-{
-    private static readonly TrustPolicy DefaultPolicy = TrustPolicy.Require<OrgApprovedAssertion>(
-        a => a.IsApproved,
-        "Signer must be approved by the organization");
-
-    public string Domain => "org";
-    public string Description => IsApproved ? "Signer is org-approved" : "Signer is not org-approved";
-    public TrustPolicy DefaultTrustPolicy => DefaultPolicy;
-    public ISigningKey? SigningKey { get; init; }
-}
-```
-
-### 2) Emit the assertion from an assertion provider
-
-```csharp
-public sealed class OrgApprovedAssertionProvider : ISigningKeyAssertionProvider
-{
-    public string ComponentName => nameof(OrgApprovedAssertionProvider);
-
-    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
-
-    public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(
-        ISigningKey signingKey,
-        CoseSign1Message message,
-        CoseSign1ValidationOptions? options = null)
-        => new ISigningKeyAssertion[] { new OrgApprovedAssertion(IsApproved: true) { SigningKey = signingKey } };
-
-    public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
-        ISigningKey signingKey,
-        CoseSign1Message message,
-        CoseSign1ValidationOptions? options = null,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(ExtractAssertions(signingKey, message, options));
-}
-```
-
-### 3) Use it in validation
-
-```csharp
-var result = message.Validate(builder => builder
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .AddComponent(new OrgApprovedAssertionProvider())
-    .OverrideDefaultTrustPolicy(TrustPolicy.And(
-        X509TrustPolicies.RequireTrustedChain(),
-        TrustPolicy.Require<OrgApprovedAssertion>(a => a.IsApproved, "Signer must be org-approved"))));
-```
+In the CLI, plugin providers contribute `TrustPlanPolicy` fragments which are AND-ed together.
+In a library integration, prefer configuring packs (options) where possible; author explicit policies when you need a hard requirement.
 
 ## Troubleshooting
 
-If trust fails, the trust stage reports `TRUST_POLICY_NOT_SATISFIED` failures with reasons:
+If trust fails, `result.Trust` contains the denial reasons from the plan evaluation:
 
 ```csharp
 if (!result.Trust.IsValid)

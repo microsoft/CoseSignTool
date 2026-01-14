@@ -32,12 +32,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// after signing.
 /// </para>
 /// </remarks>
-public sealed partial class IndirectSignatureValidator : ValidationComponentBase, IPostSignatureValidator
+public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
 {
     [ExcludeFromCodeCoverage]
-    internal static new class ClassStrings
+    internal static class ClassStrings
     {
-        public const string ComponentName = "IndirectSignatureValidator";
+        public const string ValidatorName = "IndirectSignatureValidator";
 
         // Regex pattern for extracting algorithm from content-type
         public const string HashMimeTypePattern = @"\+hash-(?<algorithm>[\w_]+)";
@@ -106,19 +106,6 @@ public sealed partial class IndirectSignatureValidator : ValidationComponentBase
     }
 
     /// <inheritdoc/>
-    public override string ComponentName => ClassStrings.ComponentName;
-
-    /// <inheritdoc/>
-    /// <remarks>
-    /// This validator is only applicable to indirect signatures (messages with PayloadHashAlg header
-    /// or content-type containing +cose-hash-v or +hash-* extension).
-    /// </remarks>
-    protected override bool ComputeApplicability(CoseSign1Message message, CoseSign1ValidationOptions? options = null)
-    {
-        return message.IsIndirectSignature();
-    }
-
-    /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is null.</exception>
     public ValidationResult Validate(IPostSignatureValidationContext context)
     {
@@ -136,7 +123,7 @@ public sealed partial class IndirectSignatureValidator : ValidationComponentBase
         if (signatureFormat == SignatureFormat.Direct)
         {
             LogNotIndirectSignature();
-            return ValidationResult.NotApplicable(ComponentName, ClassStrings.NotApplicableReason);
+            return ValidationResult.NotApplicable(ClassStrings.ValidatorName, ClassStrings.NotApplicableReason);
         }
 
         LogIndirectSignatureDetected(signatureFormat.ToString());
@@ -146,7 +133,7 @@ public sealed partial class IndirectSignatureValidator : ValidationComponentBase
         {
             LogPayloadMissing();
             return ValidationResult.Failure(
-                ComponentName,
+                ClassStrings.ValidatorName,
                 ClassStrings.ErrorPayloadMissing,
                 ClassStrings.ErrorCodePayloadMissing);
         }
@@ -170,13 +157,13 @@ public sealed partial class IndirectSignatureValidator : ValidationComponentBase
         {
             LogPayloadHashMismatch(signatureFormat.ToString());
             return ValidationResult.Failure(
-                ComponentName,
+                ClassStrings.ValidatorName,
                 ClassStrings.ErrorPayloadMismatch,
                 ClassStrings.ErrorCodePayloadMismatch);
         }
 
         LogPayloadHashValidated(signatureFormat.ToString());
-        return ValidationResult.Success(ComponentName, new Dictionary<string, object>
+        return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
             [ClassStrings.MetadataKeySignatureType] = signatureFormat.ToString(),
             [ClassStrings.MetadataKeyPayloadHashValidated] = true

@@ -24,13 +24,10 @@ using CoseSign1.Validation.Interfaces;
 /// For offline verification, prefer <see cref="AzureKeyVaultCoseKeySigningKeyResolver"/>.
 /// </para>
 /// </remarks>
-public sealed class AzureKeyVaultOnlineSigningKeyResolver : AkvValidationComponentBase, ISigningKeyResolver
+public sealed class AzureKeyVaultOnlineSigningKeyResolver : ISigningKeyResolver
 {
-    /// <inheritdoc/>
-    public override string ComponentName => ClassStrings.ResolverName;
-
     [ExcludeFromCodeCoverage]
-    internal static new class ClassStrings
+    internal static class ClassStrings
     {
         public static readonly string ResolverName = nameof(AzureKeyVaultOnlineSigningKeyResolver);
 
@@ -65,9 +62,6 @@ public sealed class AzureKeyVaultOnlineSigningKeyResolver : AkvValidationCompone
     }
 
     /// <inheritdoc/>
-    protected override bool RequireAzureKeyVaultKid => true;
-
-    /// <inheritdoc/>
     public SigningKeyResolutionResult Resolve(CoseSign1Message message)
     {
         return ResolveAsync(message, CancellationToken.None).GetAwaiter().GetResult();
@@ -83,7 +77,7 @@ public sealed class AzureKeyVaultOnlineSigningKeyResolver : AkvValidationCompone
             return SigningKeyResolutionResult.Failure(ClassStrings.ErrorMessageNullInput, ClassStrings.ErrorCodeNullInput);
         }
 
-        if (!TryGetKid(message, out var kid) || string.IsNullOrWhiteSpace(kid) || !Uri.TryCreate(kid, UriKind.Absolute, out var kidUri))
+        if (!AkvKidUtilities.TryGetKid(message, out var kid) || string.IsNullOrWhiteSpace(kid) || !Uri.TryCreate(kid, UriKind.Absolute, out var kidUri))
         {
             return SigningKeyResolutionResult.Failure(ClassStrings.ErrorMessageMissingOrInvalidKid, ClassStrings.ErrorCodeMissingOrInvalidKid);
         }
@@ -130,7 +124,7 @@ public sealed class AzureKeyVaultOnlineSigningKeyResolver : AkvValidationCompone
         keyVersion = null;
 
         // Expect: https://{vault}.vault.azure.net/keys/{name}/{version?}
-        if (!kidUri.Host.EndsWith(AkvValidationComponentBase.ClassStrings.KeyVaultHostSuffix, StringComparison.OrdinalIgnoreCase))
+        if (!kidUri.Host.EndsWith(AkvKidUtilities.ClassStrings.KeyVaultHostSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

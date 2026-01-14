@@ -122,6 +122,53 @@ var policy = TrustPolicy.Implies(
 );
 ```
 
+## Trust model rework (in progress)
+
+This repo is evolving toward the TrustPlan / Facts + Rules model described in [V2/proposal.md](../proposal.md).
+As a first step, the package now includes core contracts for stable subject identities and multi-valued facts:
+
+- `TrustSubjectId` and `TrustIds` (stable SHA-256 based IDs)
+- `TrustSubject` and `TrustSubjectKind`
+- `TrustFactSet<TFact>` and `TrustFactMissing`
+- `TrustEvaluationOptions` (includes `BypassTrust`)
+
+The existing `TrustPolicy` model remains the default trust stage. However, the staged validator now also supports TrustPlan evaluation when a compiled `TrustPlan` is supplied.
+
+Use TrustPlan validation (auto-discovery + plan):
+
+```csharp
+var trustPlan = TrustPlan.CompileDefaults(serviceProvider);
+var result = message.Validate(trustPlan);
+```
+
+Bypass trust evaluation (still performs cryptographic signature verification):
+
+```csharp
+var trustPlan = TrustPlan.CompileDefaults(serviceProvider);
+var result = message.Validate(
+    trustPlan,
+    trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
+```
+
+Additional contracts now exist for fact production:
+
+- `TrustFactEngine` (per-validation memoization)
+- `IMultiTrustFactProducer` and `TrustFactContext`
+- Producer-owned cross-validation caching via `TrustFactContext.MemoryCache` and `TrustFactCacheKey`
+- Budget-related missing reasons via `TrustFactMissingCodes`
+
+Step 5 adds the initial rules + plan layer:
+
+- `TrustRule` and `TrustRules` (boolean combinators + quantifiers)
+- `OnEmptyBehavior`
+- `TrustPlan` and `TrustPlan.CompileDefaults(IServiceProvider)`
+- `ITrustPlanDefaultsProvider` and `TrustPlanDefaults` (constraints/sources/vetoes)
+
+Step 6 adds an auditable evaluation result:
+
+- `TrustDecisionAudit` (schema versioned) + related audit record types
+- `TrustPlan.EvaluateWithAudit(...)` and `TrustPlan.EvaluateWithAuditAsync(...)`
+
 ## Creating Custom Validators
 
 ```csharp
@@ -169,3 +216,4 @@ public class CustomValidator : IValidator
 
 - [Validation Framework](../docs/architecture/validation-framework.md)
 - [Trust Policy Guide](../docs/guides/trust-policy.md)
+- [Trust contracts (work in progress)](../docs/architecture/trust-contracts.md)

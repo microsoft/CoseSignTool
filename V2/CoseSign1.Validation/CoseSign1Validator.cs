@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// </para>
 /// <list type="number">
 /// <item><description>Key Resolution via <see cref="ISigningKeyResolver"/></description></item>
-/// <item><description>Trust via <see cref="ISigningKeyAssertionProvider"/> + <see cref="TrustPolicy"/></description></item>
+/// <item><description>Trust via <see cref="Trust.Plan.CompiledTrustPlan"/></description></item>
 /// <item><description>Signature Verification using <see cref="ISigningKey.GetCoseKey"/></description></item>
 /// <item><description>Post-Signature via <see cref="IPostSignatureValidator"/></description></item>
 /// </list>
@@ -51,8 +51,8 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         public const string MetadataKeySeparator = ".";
 
-        public const string ErrorCodeTrustPolicyNotSatisfied = "TRUST_POLICY_NOT_SATISFIED";
-        public const string ErrorMessageTrustPolicyNotSatisfied = "Trust policy was not satisfied";
+        public const string ErrorCodeTrustPlanNotSatisfied = "TRUST_PLAN_NOT_SATISFIED";
+        public const string ErrorMessageTrustPlanNotSatisfied = "Trust plan was not satisfied";
 
         public const string ErrorCodeNoSigningKeyResolved = "NO_SIGNING_KEY_RESOLVED";
         public const string ErrorMessageNoSigningKeyResolved = "No signing key could be resolved from the message";
@@ -69,11 +69,12 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         public const string MetadataKeySelectedValidator = "SelectedValidator";
 
         public const string ErrorNoComponents = "No validation components were provided";
+
     }
 
     // High-performance logging via source generation
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting staged validation. Components: {ComponentCount}, Resolvers: {ResolverCount}, AssertionProviders: {ProviderCount}, PostValidators: {PostCount}")]
-    private partial void LogValidationStarted(int componentCount, int resolverCount, int providerCount, int postCount);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting staged validation. Resolvers: {ResolverCount}, PostValidators: {PostCount}")]
+    private partial void LogValidationStarted(int resolverCount, int postCount);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Validation stage completed: {StageName}. Success: {Success}, ElapsedMs: {ElapsedMs}")]
     private partial void LogStageCompleted(string stageName, bool success, long elapsedMs);
@@ -87,17 +88,14 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     [LoggerMessage(Level = LogLevel.Debug, Message = "Validation stage skipped: {StageName}. Reason: {Reason}")]
     private partial void LogStageSkipped(string stageName, string reason);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Evaluating trust policy. AssertionCount: {AssertionCount}")]
-    private partial void LogTrustPolicyStarted(int assertionCount);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Evaluating trust plan")]
+    private partial void LogTrustPlanStarted();
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Trust policy satisfied")]
-    private partial void LogTrustPolicySatisfied();
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Trust satisfied")]
+    private partial void LogTrustSatisfied();
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Trust policy not satisfied. ReasonCount: {ReasonCount}")]
-    private partial void LogTrustPolicyNotSatisfied(int reasonCount);
-
-    [LoggerMessage(Level = LogLevel.Trace, Message = "Trust assertion: {Domain} - {Description}")]
-    private partial void LogTrustAssertionRecorded(string domain, string description);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Trust not satisfied. ReasonCount: {ReasonCount}")]
+    private partial void LogTrustNotSatisfied(int reasonCount);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Staged validation completed. Success: {Success}, TotalElapsedMs: {ElapsedMs}")]
     private partial void LogValidationCompleted(bool success, long elapsedMs);
@@ -118,75 +116,50 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     private partial void LogSignatureVerificationFailed(string reason);
 
     private readonly CoseSign1ValidationOptions Options;
+    private readonly TrustEvaluationOptions TrustEvaluationOptions;
+    private readonly Trust.Plan.CompiledTrustPlan _trustPlan;
+    private readonly IReadOnlyList<ISigningKeyResolver> SigningKeyResolvers;
+    private readonly IReadOnlyList<IPostSignatureValidator> PostSignatureValidators;
     private readonly ILogger<CoseSign1Validator> Logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseSign1Validator"/> class.
     /// </summary>
-    /// <param name="components">Validation components. Components are filtered by type internally.</param>
-    /// <param name="trustPolicy">The trust policy evaluated against trust assertions.</param>
+    /// <param name="signingKeyResolvers">Signing key resolvers for the key-resolution stage.</param>
+    /// <param name="postSignatureValidators">Post-signature validators to run after trust and signature verification.</param>
+    /// <param name="trustPlan">The compiled trust plan evaluated during the trust stage.</param>
     /// <param name="options">Validation options including detached payload, associated data, and signature-only mode.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="components"/> or <paramref name="trustPolicy"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when no components are provided.</exception>
+    /// <param name="trustEvaluationOptions">Options controlling trust evaluation behavior (including bypass).</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingKeyResolvers"/> or <paramref name="trustPlan"/> is null.</exception>
     public CoseSign1Validator(
-        IReadOnlyList<IValidationComponent> components,
-        TrustPolicy trustPolicy,
+        IEnumerable<ISigningKeyResolver> signingKeyResolvers,
+        IEnumerable<IPostSignatureValidator>? postSignatureValidators,
+        Trust.Plan.CompiledTrustPlan trustPlan,
         CoseSign1ValidationOptions? options = null,
+        TrustEvaluationOptions? trustEvaluationOptions = null,
         ILogger<CoseSign1Validator>? logger = null)
     {
-        Components = components ?? throw new ArgumentNullException(nameof(components));
-        TrustPolicy = trustPolicy ?? throw new ArgumentNullException(nameof(trustPolicy));
+        if (signingKeyResolvers == null)
+        {
+            throw new ArgumentNullException(nameof(signingKeyResolvers));
+        }
+
+        SigningKeyResolvers = signingKeyResolvers as IReadOnlyList<ISigningKeyResolver>
+            ?? signingKeyResolvers.ToArray();
+
+        PostSignatureValidators = postSignatureValidators == null
+            ? Array.Empty<IPostSignatureValidator>()
+            : (postSignatureValidators as IReadOnlyList<IPostSignatureValidator> ?? postSignatureValidators.ToArray());
+
+        _trustPlan = trustPlan ?? throw new ArgumentNullException(nameof(trustPlan));
         Options = options ?? new CoseSign1ValidationOptions();
         Logger = logger ?? NullLogger<CoseSign1Validator>.Instance;
-
-        if (Components.Count == 0)
-        {
-            throw new InvalidOperationException(ClassStrings.ErrorNoComponents);
-        }
+        TrustEvaluationOptions = trustEvaluationOptions ?? new TrustEvaluationOptions();
     }
 
     /// <inheritdoc />
-    public TrustPolicy TrustPolicy { get; }
-
-    /// <inheritdoc />
-    public IReadOnlyList<IValidationComponent> Components { get; }
-
-    /// <summary>
-    /// Filters components by applicability to the message and categorizes them by interface type in a single pass.
-    /// </summary>
-    private (List<ISigningKeyResolver> Resolvers, List<ISigningKeyAssertionProvider> AssertionProviders, List<IPostSignatureValidator> PostValidators) 
-        FilterApplicableComponents(CoseSign1Message message)
-    {
-        var resolvers = new List<ISigningKeyResolver>();
-        var assertionProviders = new List<ISigningKeyAssertionProvider>();
-        var postValidators = new List<IPostSignatureValidator>();
-
-        foreach (var component in Components)
-        {
-            if (!component.IsApplicableTo(message))
-            {
-                continue;
-            }
-
-            if (component is ISigningKeyResolver resolver)
-            {
-                resolvers.Add(resolver);
-            }
-
-            if (component is ISigningKeyAssertionProvider provider)
-            {
-                assertionProviders.Add(provider);
-            }
-
-            if (component is IPostSignatureValidator validator)
-            {
-                postValidators.Add(validator);
-            }
-        }
-
-        return (resolvers, assertionProviders, postValidators);
-    }
+    public Trust.Plan.CompiledTrustPlan TrustPlan => _trustPlan;
 
     /// <inheritdoc />
     public CoseSign1ValidationResult Validate(CoseSign1Message message)
@@ -232,37 +205,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         return result;
     }
 
-    /// <summary>
-    /// Validates a COSE Sign1 message using staged validation.
-    /// </summary>
-    /// <param name="message">The message to validate.</param>
-    /// <param name="components">Validation components.</param>
-    /// <param name="trustPolicy">The trust policy evaluated against trust assertions.</param>
-    /// <returns>A staged validation result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
-    public static CoseSign1ValidationResult Validate(
-        CoseSign1Message message,
-        IReadOnlyList<IValidationComponent> components,
-        TrustPolicy trustPolicy)
-    {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
 
-        if (components == null)
-        {
-            throw new ArgumentNullException(nameof(components));
-        }
-
-        if (trustPolicy == null)
-        {
-            throw new ArgumentNullException(nameof(trustPolicy));
-        }
-
-        var validator = new CoseSign1Validator(components, trustPolicy);
-        return validator.Validate(message);
-    }
 
     private CoseSign1ValidationResult ValidateInternal(CoseSign1Message message)
     {
@@ -288,13 +231,13 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
             throw new ArgumentNullException(nameof(message));
         }
 
-        // Single-pass filter: applicable components categorized by interface type
-        var (resolvers, assertionProviders, postValidators) = FilterApplicableComponents(message);
+        // Ensures the logger field is treated as used even when log methods are source-generated.
+        _ = Logger.IsEnabled(LogLevel.Trace);
 
-        LogValidationStarted(Components.Count, resolvers.Count, assertionProviders.Count, postValidators.Count);
+        LogValidationStarted(SigningKeyResolvers.Count, PostSignatureValidators.Count);
 
         // Stage 1: Key Material Resolution
-        var (resolutionResult, signingKey) = await RunResolutionStageCoreAsync(message, resolvers, async, cancellationToken).ConfigureAwait(false);
+        var (resolutionResult, signingKey) = await RunResolutionStageCoreAsync(message, SigningKeyResolvers, async, cancellationToken).ConfigureAwait(false);
 
         if (!resolutionResult.IsValid)
         {
@@ -308,12 +251,13 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                 overall: resolutionResult);
         }
 
-        // Stage 2: Key Material Trust
-        var (trustResult, assertionSet, trustDecision) = await RunTrustStageCoreAsync(message, signingKey, assertionProviders, async, cancellationToken).ConfigureAwait(false);
+        // Stage 2: Key Material Trust (establish signing key trust before signature verification)
+        var (trustResult, trustDecision) = await RunTrustStageCoreAsync(message, async, cancellationToken).ConfigureAwait(false);
 
         if (!trustResult.IsValid)
         {
             LogStageSkipped(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted);
+            LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted);
 
             return new CoseSign1ValidationResult(
                 resolutionResult,
@@ -331,15 +275,22 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
             LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSignatureValidationFailed);
 
             return new CoseSign1ValidationResult(
-                resolutionResult,
-                trustResult,
-                signatureResult,
+                resolution: resolutionResult,
+                trust: trustResult,
+                signature: signatureResult,
                 postSignaturePolicy: ValidationResult.NotApplicable(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSignatureValidationFailed),
                 overall: signatureResult);
         }
 
         // Stage 4: Post-Signature Policy
-        var postSignatureResult = await RunPostSignatureStageCoreAsync(message, signingKey, assertionSet, trustDecision, signatureResult.Metadata, postValidators, async, cancellationToken).ConfigureAwait(false);
+        var postSignatureResult = await RunPostSignatureStageCoreAsync(
+            message,
+            signingKey,
+            trustDecision,
+            signatureResult.Metadata,
+            PostSignatureValidators,
+            async,
+            cancellationToken).ConfigureAwait(false);
 
         if (!postSignatureResult.IsValid)
         {
@@ -370,7 +321,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
     private async ValueTask<(ValidationResult Result, ISigningKey? SigningKey)> RunResolutionStageCoreAsync(
         CoseSign1Message message,
-        List<ISigningKeyResolver> resolvers,
+        IReadOnlyList<ISigningKeyResolver> resolvers,
         bool async,
         CancellationToken cancellationToken)
     {
@@ -440,79 +391,107 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialResolution), resolvedKey);
     }
 
-    private async ValueTask<(ValidationResult Result, IReadOnlyList<ISigningKeyAssertion> Assertions, TrustDecision Decision)> RunTrustStageCoreAsync(
+    private async ValueTask<(ValidationResult Result, TrustDecision Decision)> RunTrustStageCoreAsync(
         CoseSign1Message message,
-        ISigningKey? signingKey,
-        List<ISigningKeyAssertionProvider> assertionProviders,
         bool async,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
 
-        // Collect assertions from all providers
-        var allAssertions = new List<ISigningKeyAssertion>();
+        LogTrustPlanStarted();
 
-        if (signingKey != null)
+        if (TrustEvaluationOptions.BypassTrust)
         {
-            foreach (var provider in assertionProviders)
+            stopwatch.Stop();
+            LogTrustSatisfied();
+            LogStageCompleted(ClassStrings.StageNameKeyMaterialTrust, true, stopwatch.ElapsedMilliseconds);
+
+            var bypassDecision = TrustDecision.Trusted(nameof(TrustEvaluationOptions.BypassTrust));
+
+            var bypassMetadata = new Dictionary<string, object>
             {
-                IEnumerable<ISigningKeyAssertion> assertions;
+                [nameof(TrustEvaluationOptions.BypassTrust)] = true,
+                [nameof(TrustDecision)] = bypassDecision
+            };
 
-                if (async)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    assertions = await provider.ExtractAssertionsAsync(signingKey, message, Options, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    assertions = provider.ExtractAssertions(signingKey, message, Options);
-                }
-
-                allAssertions.AddRange(assertions);
-
-                foreach (var assertion in assertions)
-                {
-                    LogTrustAssertionRecorded(assertion.Domain, assertion.Description);
-                }
-            }
+            return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust, bypassMetadata), bypassDecision);
         }
 
-        LogTrustPolicyStarted(allAssertions.Count);
+        TrustDecision trustDecision;
+        TrustDecisionAudit? audit = null;
 
-        // Evaluate trust policy
-        var trustDecision = TrustPolicy.Evaluate(allAssertions);
+        var subject = TrustSubject.Message(message);
+        var messageId = subject.Id;
+
+        if (async)
+        {
+            var eval = await _trustPlan.EvaluateWithAuditAsync(messageId, message, subject, TrustEvaluationOptions, memoryCache: null, cancellationToken).ConfigureAwait(false);
+            trustDecision = eval.Decision;
+            audit = eval.Audit;
+        }
+        else
+        {
+            var eval = _trustPlan.EvaluateWithAudit(messageId, message, subject, TrustEvaluationOptions, memoryCache: null, cancellationToken);
+            trustDecision = eval.Decision;
+            audit = eval.Audit;
+        }
 
         stopwatch.Stop();
 
         if (!trustDecision.IsTrusted)
         {
-            LogTrustPolicyNotSatisfied(trustDecision.Reasons.Count);
+            LogTrustNotSatisfied(trustDecision.Reasons.Count);
 
             var failures = trustDecision.Reasons.Count == 0
                 ? new[]
                 {
                     new ValidationFailure
                     {
-                        ErrorCode = ClassStrings.ErrorCodeTrustPolicyNotSatisfied,
-                        Message = ClassStrings.ErrorMessageTrustPolicyNotSatisfied
+                        ErrorCode = ClassStrings.ErrorCodeTrustPlanNotSatisfied,
+                        Message = ClassStrings.ErrorMessageTrustPlanNotSatisfied
                     }
                 }
                 : trustDecision.Reasons.Select(r => new ValidationFailure
                 {
-                    ErrorCode = ClassStrings.ErrorCodeTrustPolicyNotSatisfied,
+                    ErrorCode = ClassStrings.ErrorCodeTrustPlanNotSatisfied,
                     Message = r
                 }).ToArray();
 
-            return (
-                ValidationResult.Failure(ClassStrings.StageNameKeyMaterialTrust, failures),
-                allAssertions,
-                trustDecision);
+            var failureMetadata = new Dictionary<string, object>
+            {
+                [nameof(TrustDecision)] = trustDecision
+            };
+
+            if (audit != null)
+            {
+                failureMetadata[nameof(TrustDecisionAudit)] = audit;
+            }
+
+            var failureResult = new ValidationResult
+            {
+                Kind = ValidationResultKind.Failure,
+                ValidatorName = ClassStrings.StageNameKeyMaterialTrust,
+                Failures = failures,
+                Metadata = failureMetadata
+            };
+
+            return (failureResult, trustDecision);
         }
 
-        LogTrustPolicySatisfied();
+        LogTrustSatisfied();
         LogStageCompleted(ClassStrings.StageNameKeyMaterialTrust, true, stopwatch.ElapsedMilliseconds);
 
-        return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust), allAssertions, trustDecision);
+        if (audit != null)
+        {
+            var metadata = new Dictionary<string, object>
+            {
+                [nameof(TrustDecision)] = trustDecision,
+                [nameof(TrustDecisionAudit)] = audit
+            };
+            return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust, metadata), trustDecision);
+        }
+
+        return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust), trustDecision);
     }
 
     /// <summary>
@@ -620,14 +599,21 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     private async ValueTask<ValidationResult> RunPostSignatureStageCoreAsync(
         CoseSign1Message message,
         ISigningKey? signingKey,
-        IReadOnlyList<ISigningKeyAssertion> assertions,
         TrustDecision trustDecision,
         IReadOnlyDictionary<string, object> signatureMetadata,
-        List<IPostSignatureValidator> postValidators,
+        IReadOnlyList<IPostSignatureValidator> postValidators,
         bool async,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
+
+        // Signature-only mode skips all post-signature policy checks.
+        if (Options.SkipPostSignatureValidation)
+        {
+            stopwatch.Stop();
+            LogStageCompletedNoComponents(ClassStrings.StageNamePostSignature, stopwatch.ElapsedMilliseconds);
+            return ValidationResult.Success(ClassStrings.StageNamePostSignature);
+        }
 
         if (postValidators.Count == 0)
         {
@@ -640,7 +626,6 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         var context = new PostSignatureValidationContext(
             message,
-            assertions,
             trustDecision,
             signatureMetadata,
             Options,

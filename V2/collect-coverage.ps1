@@ -10,13 +10,89 @@
 param(
     [string]$ProjectFilter = "",
     [switch]$SkipBuild = $false,
-    [switch]$SkipClean = $false
+    [switch]$SkipClean = $false,
+    [switch]$IncludeSubAssemblies = $false
 )
 
 # Ensure relative paths resolve from the V2 directory (script location)
 Set-Location $PSScriptRoot
 
-$projectDisplay = if ($ProjectFilter) { $ProjectFilter } else { "All Projects" }
+function Get-ScopeName {
+    param([string]$Filter)
+
+    if ([string]::IsNullOrWhiteSpace($Filter)) {
+        return "All Projects"
+    }
+
+    # Prefer leaf name if a relative/absolute path is provided.
+    $leaf = Split-Path -Path $Filter -Leaf
+    if (-not [string]::IsNullOrWhiteSpace($leaf)) {
+        return $leaf
+    }
+
+    return $Filter
+}
+
+function Resolve-AssemblyNameForFilter {
+    param([string]$Filter)
+
+    if ([string]::IsNullOrWhiteSpace($Filter)) {
+        return ""
+    }
+
+    $name = $Filter
+
+    # If a csproj was specified, derive from file name.
+    if ($name -like "*.csproj") {
+        $name = [System.IO.Path]::GetFileNameWithoutExtension($name)
+    }
+
+    # If a test project is specified, derive the product assembly name.
+    if ($name -like "*.Tests") {
+        $name = $name.Substring(0, $name.Length - ".Tests".Length)
+    }
+
+    return $name
+}
+
+function Resolve-TestProjects {
+    param([string]$Filter)
+
+    # Exact csproj path or file name.
+    if ($Filter -like "*.csproj") {
+        if (Test-Path $Filter) {
+            return @(Get-Item -Path $Filter)
+        }
+
+        # Try relative to repo root (script folder) if a relative path was provided.
+        $candidate = Join-Path $PSScriptRoot $Filter
+        if (Test-Path $candidate) {
+            return @(Get-Item -Path $candidate)
+        }
+
+        # Try exact file name match anywhere under V2.
+        $byName = @(Get-ChildItem -Path . -Recurse -File -Filter ([System.IO.Path]::GetFileName($Filter)))
+        return $byName
+    }
+
+    $allTests = @(Get-ChildItem -Path . -Recurse -File -Filter "*.Tests.csproj")
+
+    # Prefer an exact match: <Filter>.Tests or <Filter> (if user passed the full test project name).
+    $candidates = @($Filter)
+    if ($Filter -notlike "*.Tests") {
+        $candidates += "$Filter.Tests"
+    }
+
+    $exact = @($allTests | Where-Object { $candidates -contains $_.BaseName })
+    if ($exact.Count -gt 0) {
+        return $exact
+    }
+
+    # Back-compat fallback: directory-name contains filter.
+    return @($allTests | Where-Object { $_.Directory.Name -like "*$Filter*" })
+}
+
+$projectDisplay = Get-ScopeName $ProjectFilter
 
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  V2 Code Coverage Collection" -ForegroundColor Cyan
@@ -27,8 +103,9 @@ Write-Host ""
 
 # Determine results directory - use subfolder when filtering by project
 if ($ProjectFilter) {
-    $resultsDir = "TestResults\$ProjectFilter"
-    $reportDir = "coverage-report\$ProjectFilter"
+    $scopeFolder = Get-ScopeName $ProjectFilter
+    $resultsDir = "TestResults\$scopeFolder"
+    $reportDir = "coverage-report\$scopeFolder"
 } else {
     $resultsDir = "TestResults"
     $reportDir = "coverage-report"
@@ -106,8 +183,7 @@ try {
     if (-not $SkipBuild) {
         if ($ProjectFilter) {
             # Find and build only the test project(s) for this filter (builds dependencies automatically)
-            $testProjects = Get-ChildItem -Path . -Filter "*.Tests.csproj" -Recurse | 
-                Where-Object { $_.Directory.Name -like "*$ProjectFilter*" }
+            $testProjects = Resolve-TestProjects $ProjectFilter
             
             if ($testProjects.Count -eq 0) {
                 Write-Host "No test projects found matching filter: $ProjectFilter" -ForegroundColor Red
@@ -116,7 +192,7 @@ try {
             
             Write-Host "Building test project(s) for $ProjectFilter..." -ForegroundColor Yellow
             foreach ($proj in $testProjects) {
-                Write-Host "  Building $($proj.Directory.Name)..." -ForegroundColor Gray
+                Write-Host "  Building $($proj.BaseName)..." -ForegroundColor Gray
                 dotnet build $proj.FullName --no-incremental
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "Build failed for $($proj.Name)!" -ForegroundColor Red
@@ -152,17 +228,16 @@ New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 
 if ($ProjectFilter) {
     # Find test projects matching the filter (may already be found during build)
-    $testProjects = Get-ChildItem -Path . -Filter "*.Tests.csproj" -Recurse | 
-        Where-Object { $_.Directory.Name -like "*$ProjectFilter*" }
+    $testProjects = Resolve-TestProjects $ProjectFilter
     
     if ($testProjects.Count -eq 0) {
         Write-Host "No test projects found matching filter: $ProjectFilter" -ForegroundColor Red
         exit 1
     }
     
-    Write-Host "Running tests for: $($testProjects.Directory.Name -join ', ')" -ForegroundColor Yellow
+    Write-Host "Running tests for: $($testProjects.BaseName -join ', ')" -ForegroundColor Yellow
     foreach ($proj in $testProjects) {
-        Write-Host "  Testing $($proj.Directory.Name)..." -ForegroundColor Gray
+        Write-Host "  Testing $($proj.BaseName)..." -ForegroundColor Gray
         dotnet test $proj.FullName --no-build --settings coverage.runsettings --collect:"XPlat Code Coverage" --results-directory $resultsDir
     }
 } else {
@@ -201,8 +276,16 @@ New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 
 # Generate HTML and text summary reports
 # Classes requiring external services/dependencies use [ExcludeFromCodeCoverage] attribute
-# When filtering by project, only include that project's assemblies in the report
-$assemblyFilter = if ($ProjectFilter) { "+$ProjectFilter;+$ProjectFilter.*" } else { "" }
+# When filtering by project, include only that project's assembly by default.
+# Use -IncludeSubAssemblies to include sibling assemblies with the same prefix.
+$assemblyName = Resolve-AssemblyNameForFilter $ProjectFilter
+$assemblyFilter = ""
+if ($assemblyName) {
+    $assemblyFilter = "+$assemblyName"
+    if ($IncludeSubAssemblies) {
+        $assemblyFilter += ";+$assemblyName.*"
+    }
+}
 
 $reportGenArgs = @(
     "-reports:$resultsDir/**/coverage.cobertura.xml",

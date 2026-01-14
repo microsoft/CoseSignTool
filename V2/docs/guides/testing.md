@@ -463,6 +463,13 @@ dotnet test --filter "Category!=Slow"
 dotnet test --collect:"XPlat Code Coverage"
 ```
 
+For the same coverage process enforced by CI (including the 95% line-coverage gate), use:
+
+```powershell
+cd V2
+powershell -ExecutionPolicy Bypass -File .\collect-coverage.ps1
+```
+
 ### Coverage Reports
 
 ```bash
@@ -471,10 +478,8 @@ reportgenerator -reports:coverage.cobertura.xml -targetdir:coverage-report
 
 ### Coverage Targets
 
-Aim for:
-- **80%+** overall coverage
-- **90%+** for security-critical code (validators, signing)
-- **100%** for public API surface
+V2 uses an enforced coverage gate:
+- **95%+** line coverage overall (see [Test Coverage](../development/coverage.md))
 
 ## See Also
 

@@ -6,21 +6,22 @@ namespace CoseSignTool.AzureKeyVault.Plugin;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.AzureKeyVault.Validation;
-using CoseSign1.Validation.Interfaces;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Trust;
 using CoseSignTool.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Verification provider for Azure Key Vault key-only signatures.
-/// Provides trust assertion based on Key Vault kid URI patterns.
+/// Provides TrustPlan-based trust evaluation based on Key Vault kid URI patterns.
 /// </summary>
 /// <remarks>
-/// This provider validates that the kid header matches allowed Azure Key Vault patterns.
 /// For offline cryptographic verification, it also contributes a signing key resolver
 /// that can extract an embedded COSE_Key public key header.
 /// </remarks>
-public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWithContext
+public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWithTrustPlanPolicy
 {
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -45,6 +46,9 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
         public const string No = "No";
         public const string None = "None";
         public const string ListSeparator = ", ";
+
+        public const string TrustReasonKidMustBeAkv = "kid must be an Azure Key Vault key URI";
+        public const string TrustReasonKidMustMatchAllowedPatterns = "kid must match one of the allowed Azure Key Vault patterns";
     }
 
     /// <inheritdoc/>
@@ -88,33 +92,54 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+    public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
     {
-        return CreateValidatorsCore(parseResult);
+        ArgumentNullException.ThrowIfNull(validationBuilder);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(context);
+
+        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
+        var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
+
+        // CLI provider is offline by default. Online key-fetching requires additional DI configuration
+        // (Key Vault client factory) and should be explicitly enabled elsewhere.
+        validationBuilder.EnableAzureKeyVaultTrust(akv =>
+        {
+            akv.OfflineOnly();
+
+            if (requireAzKey)
+            {
+                akv.RequireAzureKeyVaultKid();
+            }
+
+            if (allowedVaults != null && allowedVaults.Length > 0)
+            {
+                akv.AllowKidPatterns(allowedVaults);
+            }
+        });
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult, VerificationContext context)
-    {
-        return CreateValidatorsCore(parseResult);
-    }
-
-    private IEnumerable<IValidationComponent> CreateValidatorsCore(ParseResult parseResult)
+    public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
     {
         bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
         var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
 
-        // Always add the offline COSE_Key signing key resolver when activated.
-        // It will only apply when the message contains an embedded COSE_Key header.
-        yield return new AzureKeyVaultCoseKeySigningKeyResolver();
-
-        // Add AKV trust assertions when the user opted into AKV validation.
-        if (requireAzKey || (allowedVaults != null && allowedVaults.Length > 0))
+        if (allowedVaults != null && allowedVaults.Length > 0)
         {
-            yield return new AzureKeyVaultAssertionProvider(
-                allowedPatterns: allowedVaults,
-                requireAzureKeyVaultKey: requireAzKey);
+            return TrustPlanPolicy.Message(m => m.RequireFact<AzureKeyVaultKidAllowedFact>(
+                f => f.IsAllowed,
+                ClassStrings.TrustReasonKidMustMatchAllowedPatterns));
         }
+
+        if (requireAzKey)
+        {
+            return TrustPlanPolicy.Message(m => m.RequireFact<AzureKeyVaultKidDetectedFact>(
+                f => f.IsAzureKeyVaultKey,
+                ClassStrings.TrustReasonKidMustBeAkv));
+        }
+
+        return TrustPlanPolicy.Message(_ => _);
     }
 
     /// <inheritdoc/>

@@ -31,10 +31,37 @@ Output:
 - `V2/coverage.cobertura.xml`
 - `V2/coverage-report/index.html`
 
+### Project-Scoped Coverage (Per-Project)
+
+When iterating on a single library, use `-ProjectFilter` to run only the matching test projects and generate a scoped report.
+
+```powershell
+cd V2
+
+# Example: focus on a single library (fastest feedback loop)
+powershell -ExecutionPolicy Bypass -File .\collect-coverage.ps1 -ProjectFilter "CoseSign1.Validation"
+
+# You can also point directly at a test project or csproj path
+powershell -ExecutionPolicy Bypass -File .\collect-coverage.ps1 -ProjectFilter "CoseSign1.Validation.Tests"
+powershell -ExecutionPolicy Bypass -File .\collect-coverage.ps1 -ProjectFilter ".\CoseSign1.Validation.Tests\CoseSign1.Validation.Tests.csproj"
+```
+
+Output:
+- `V2/coverage-report/<scope>/index.html`
+- `V2/coverage-report/<scope>/Summary.txt`
+
 The script exits non-zero if:
 - the build fails,
 - line coverage is below 95%, or
 - tests fail (even if the coverage percentage is met).
+
+### Per-File Drilldown ("Important Files")
+
+To validate coverage for a specific file/class:
+- Run the scoped report for the owning assembly with `-ProjectFilter`.
+- Open `V2/coverage-report/<scope>/index.html` and drill down to the file.
+
+This is the most reliable way to see whether a particular file’s uncovered branches are the reason an assembly is below target.
 
 ### Prerequisites
 

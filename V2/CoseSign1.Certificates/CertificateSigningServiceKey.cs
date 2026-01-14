@@ -16,10 +16,6 @@ using System.Diagnostics.CodeAnalysis;
 /// <see cref="ISigningKeyProvider"/> for signing operations, supporting both local
 /// and remote signing scenarios.
 /// </para>
-/// <para>
-/// For validation scenarios that only need key material without service context,
-/// use the simpler <see cref="Validation.X509CertificateSigningKey"/> class instead.
-/// </para>
 /// </remarks>
 public class CertificateSigningServiceKey : ICertificateSigningKey
 {

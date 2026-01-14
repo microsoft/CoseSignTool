@@ -6,7 +6,7 @@ namespace CoseSignTool.Abstractions;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Results;
 
 /// <summary>
@@ -48,12 +48,14 @@ public interface IVerificationProvider
     bool IsActivated(ParseResult parseResult);
 
     /// <summary>
-    /// Creates validators based on the provided options.
-    /// Returns validators to add to the verification pipeline.
+    /// Configures validation services for this provider.
+    /// Providers should register staged validation services (e.g., signing key resolvers, trust packs)
+    /// into the supplied validation builder.
     /// </summary>
+    /// <param name="validationBuilder">The validation builder used to register trust packs and services.</param>
     /// <param name="parseResult">The parsed command-line result.</param>
-    /// <returns>One or more validators to add to the pipeline.</returns>
-    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
+    /// <param name="context">The verification context.</param>
+    void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context);
 
     /// <summary>
     /// Gets metadata about the verification result (for display purposes).

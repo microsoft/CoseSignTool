@@ -10,106 +10,111 @@ using System.Security;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Security;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Verification provider for X.509 certificate-based signature validation.
-/// Supports system trust, custom trust roots, and certificate identity validation.
+///
+/// IMPORTANT: This provider is TrustPlan-only. It does not add legacy assertion providers.
+/// Trust requirements (chain trust, subject/issuer matching, etc.) are enforced via
+/// TrustPlanPolicy + trust fact producers (see X509VerificationProvider.TrustPolicy.cs).
 /// </summary>
-public partial class X509VerificationProvider : IVerificationProvider, IVerificationProviderWithContext
+public partial class X509VerificationProvider : IVerificationProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        // Provider metadata
-        public static readonly string ProviderNameValue = "X509";
-        public static readonly string DescriptionValue = "X.509 certificate trust and identity validation";
+        public const string ProviderName = "X509";
+        public const string ProviderDescription = "X.509 certificate-based signature validation";
 
-        // Option names
-        public static readonly string OptionNameTrustRoots = "--trust-roots";
-        public static readonly string OptionAliasTrustRoots = "-r";
-        public static readonly string OptionNameTrustPfx = "--trust-pfx";
-        public static readonly string OptionNameTrustPfxPasswordFile = "--trust-pfx-password-file";
-        public static readonly string OptionNameTrustPfxPasswordEnv = "--trust-pfx-password-env";
-        public static readonly string OptionNameTrustSystemRoots = "--trust-system-roots";
-        public static readonly string OptionNameAllowUntrusted = "--allow-untrusted";
-        public static readonly string OptionNameSubjectName = "--subject-name";
-        public static readonly string OptionAliasSubjectName = "-s";
-        public static readonly string OptionNameIssuerName = "--issuer-name";
-        public static readonly string OptionAliasIssuerName = "-i";
-        public static readonly string OptionNameRevocationMode = "--revocation-mode";
+        public const string OptionNameTrustRoots = "--trust-roots";
+        public const string OptionAliasTrustRoots = "--roots";
+        public const string DescriptionTrustRoots = "One or more PEM/DER certificate files to treat as trust roots";
 
-        // Option descriptions
-        public static readonly string DescriptionTrustRoots = "Path to trusted root certificate(s) in PEM or DER format. Repeat for multiple.";
-        public static readonly string DescriptionTrustPfx = "Path to PFX/PKCS#12 file containing trusted root certificate(s).";
-        public static readonly string DescriptionTrustPfxPasswordFile = string.Concat(
-            "Path to a file containing the PFX password (more secure than command-line). ",
-            "Alternatively, set COSESIGNTOOL_TRUST_PFX_PASSWORD environment variable.");
-        public static readonly string DescriptionTrustPfxPasswordEnv = 
-            "Name of environment variable containing the PFX password (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)";
-        public static readonly string DescriptionTrustSystemRoots = "Trust system certificate store roots (default: true)";
-        public static readonly string DescriptionAllowUntrusted = "Allow self-signed or untrusted root certificates";
-        public static readonly string DescriptionSubjectName = "Required subject name (CN) in the signing certificate";
-        public static readonly string DescriptionIssuerName = "Required issuer name (CN) in the signing certificate";
-        public static readonly string DescriptionRevocationMode = "Certificate revocation check mode: online, offline, or none";
+        public const string OptionNameTrustPfx = "--trust-pfx";
+        public const string DescriptionTrustPfx = "PFX/PKCS#12 file containing one or more trust roots";
 
-        // Revocation mode values
-        public static readonly string RevocationModeOnline = "online";
-        public static readonly string RevocationModeOffline = "offline";
-        public static readonly string RevocationModeNone = "none";
+        public const string OptionNameTrustPfxPasswordFile = "--trust-pfx-password-file";
+        public const string DescriptionTrustPfxPasswordFile = "Path to a file containing the PFX password (more secure than command-line). Alternatively, set COSESIGNTOOL_TRUST_PFX_PASSWORD environment variable.";
 
-        // File extensions
-        public static readonly string ExtensionPfx = ".pfx";
-        public static readonly string ExtensionP12 = ".p12";
+        public const string OptionNameTrustPfxPasswordEnv = "--trust-pfx-password-env";
+        public const string DescriptionTrustPfxPasswordEnv = "Name of environment variable containing the PFX password (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)";
 
-        // Environment variable default
-        public static readonly string DefaultTrustPfxPasswordEnvVar = "COSESIGNTOOL_TRUST_PFX_PASSWORD";
+        public const string DefaultTrustPfxPasswordEnvVar = "COSESIGNTOOL_TRUST_PFX_PASSWORD";
 
-        // Info messages - logger templates (no format specifier for structured logging)
-        public static readonly string InfoUsingEnvPassword = "Using trust PFX password from environment variable: {EnvVarName}";
-        public static readonly string InfoReadingPasswordFile = "Reading trust PFX password from file: {PasswordFile}";
+        public const string OptionNameTrustSystemRoots = "--trust-system-roots";
+        public const string DescriptionTrustSystemRoots = "Use system trust roots for chain validation (default: true)";
 
-        // Metadata keys and values
-        public static readonly string MetaKeyTrustMode = "Trust Mode";
-        public static readonly string MetaKeyRequiredSubject = "Required Subject";
-        public static readonly string MetaKeyRequiredIssuer = "Required Issuer";
-        public static readonly string MetaKeyRevocationCheck = "Revocation Check";
-        public static readonly string MetaValueCustomRoots = "Custom Roots";
-        public static readonly string MetaValueUntrustedAllowed = "Untrusted Allowed";
-        public static readonly string MetaValueSystemTrust = "System Trust";
+        public const string OptionNameAllowUntrusted = "--allow-untrusted";
+        public const string DescriptionAllowUntrusted = "Allow untrusted roots (skip chain trust requirement)";
 
-        public static readonly string ErrorFailedLoadPfxTrustStore = "Failed to load PFX trust store: {0}";
+        public const string OptionNameSubjectName = "--subject-name";
+        public const string OptionAliasSubjectName = "--cn";
+        public const string DescriptionSubjectName = "Require the signing certificate subject CN to match this value";
+
+        public const string OptionNameIssuerName = "--issuer-name";
+        public const string OptionAliasIssuerName = "--issuer";
+        public const string DescriptionIssuerName = "Require the signing certificate issuer CN to match this value";
+
+        public const string OptionNameRevocationMode = "--revocation-mode";
+        public const string DescriptionRevocationMode = "Certificate revocation checking: online, offline, or none";
+
+        public const string RevocationModeOnline = "online";
+        public const string RevocationModeOffline = "offline";
+        public const string RevocationModeNone = "none";
+
+        public const string InfoReadingPasswordFile = "Reading PFX password from file: {Path}";
+        public const string InfoUsingEnvPassword = "Using PFX password from environment variable: {Name}";
+
+        public const string MetaKeyTrustMode = "Trust Mode";
+        public const string MetaKeyRequiredSubject = "Required Subject CN";
+        public const string MetaKeyRequiredIssuer = "Required Issuer CN";
+        public const string MetaKeyRevocationCheck = "Revocation Check";
+
+        public const string MetaValueSystemTrust = "System Trust";
+        public const string MetaValueCustomRoots = "Custom Roots";
+        public const string MetaValueUntrustedAllowed = "Allow Untrusted";
+
+        public const string X509ChainMustBeTrusted = "X.509 chain must be trusted";
+        public const string X509SubjectCommonNameMustMatch = "Certificate subject common name must match";
+        public const string X509IssuerCommonNameMustMatch = "Certificate issuer common name must match";
+
+        public const string X509SubjectCommonNameMustMatchFormat = "Certificate subject common name must match: {0}";
+        public const string X509IssuerCommonNameMustMatchFormat = "Certificate issuer common name must match: {0}";
+
+        public const string DistinguishedNameCnPrefix = "CN=";
     }
 
     /// <inheritdoc/>
-    public string ProviderName => ClassStrings.ProviderNameValue;
+    public string ProviderName => ClassStrings.ProviderName;
 
     /// <inheritdoc/>
-    public string Description => ClassStrings.DescriptionValue;
+    public string Description => ClassStrings.ProviderDescription;
 
     /// <inheritdoc/>
-    public int Priority => 10; // After signature validation (0)
+    public int Priority => 10;
 
-    // Options stored as fields so we can read values from ParseResult
-    private Option<FileInfo[]?> TrustRootsOption = null!;
-    private Option<FileInfo?> TrustPfxOption = null!;
-    private Option<FileInfo?> TrustPfxPasswordFileOption = null!;
-    private Option<string?> TrustPfxPasswordEnvOption = null!;
-    private Option<bool> TrustSystemRootsOption = null!;
-    private Option<bool> AllowUntrustedOption = null!;
-    private Option<string?> SubjectNameOption = null!;
-    private Option<string?> IssuerNameOption = null!;
-    private Option<string> RevocationModeOption = null!;
+    // Options stored as fields so other partials (TrustPolicy) can read them if needed.
+    internal Option<FileInfo[]?> TrustRootsOption = null!;
+    internal Option<FileInfo?> TrustPfxOption = null!;
+    internal Option<FileInfo?> TrustPfxPasswordFileOption = null!;
+    internal Option<string?> TrustPfxPasswordEnvOption = null!;
+    internal Option<bool> TrustSystemRootsOption = null!;
+    internal Option<bool> AllowUntrustedOption = null!;
+    internal Option<string?> SubjectNameOption = null!;
+    internal Option<string?> IssuerNameOption = null!;
+    internal Option<string> RevocationModeOption = null!;
 
     /// <inheritdoc/>
     public void AddVerificationOptions(Command command)
     {
-        // Trust options - PEM/DER certificates
         TrustRootsOption = new Option<FileInfo[]?>(
             name: ClassStrings.OptionNameTrustRoots,
             description: ClassStrings.DescriptionTrustRoots)
@@ -119,7 +124,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         TrustRootsOption.AddAlias(ClassStrings.OptionAliasTrustRoots);
         command.AddOption(TrustRootsOption);
 
-        // Trust options - PFX with secure password handling
         TrustPfxOption = new Option<FileInfo?>(
             name: ClassStrings.OptionNameTrustPfx,
             description: ClassStrings.DescriptionTrustPfx);
@@ -146,7 +150,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             description: ClassStrings.DescriptionAllowUntrusted);
         command.AddOption(AllowUntrustedOption);
 
-        // Identity validation
         SubjectNameOption = new Option<string?>(
             name: ClassStrings.OptionNameSubjectName,
             description: ClassStrings.DescriptionSubjectName);
@@ -159,100 +162,59 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         IssuerNameOption.AddAlias(ClassStrings.OptionAliasIssuerName);
         command.AddOption(IssuerNameOption);
 
-        // Revocation checking
         RevocationModeOption = new Option<string>(
             name: ClassStrings.OptionNameRevocationMode,
             getDefaultValue: () => ClassStrings.RevocationModeOnline,
             description: ClassStrings.DescriptionRevocationMode);
-        RevocationModeOption.FromAmong(ClassStrings.RevocationModeOnline, ClassStrings.RevocationModeOffline, ClassStrings.RevocationModeNone);
+        RevocationModeOption.FromAmong(
+            ClassStrings.RevocationModeOnline,
+            ClassStrings.RevocationModeOffline,
+            ClassStrings.RevocationModeNone);
         command.AddOption(RevocationModeOption);
     }
 
     /// <inheritdoc/>
     public bool IsActivated(ParseResult parseResult)
     {
-        // X509 provider is activated if any X509-specific option is set
-        // or if we should do chain validation (not allowing untrusted)
-        return HasCustomTrustRoots(parseResult)
-            || HasTrustPfx(parseResult)
-            || HasSubjectNameRequirement(parseResult)
-            || HasIssuerNameRequirement(parseResult)
-            || IsAllowUntrusted(parseResult)
-            || !IsAllowUntrusted(parseResult); // Chain validation is on unless explicitly disabled
+        _ = parseResult;
+        return true;
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult) =>
-        CreateValidators(parseResult, context: null);
-
-    /// <inheritdoc/>
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult, VerificationContext? context)
+    public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
     {
-        // Get logger from context options if available
-        var loggerFactory = context?.LoggerFactory;
-        var logger = loggerFactory?.CreateLogger<X509VerificationProvider>() ?? NullLogger<X509VerificationProvider>.Instance;
-        var chainValidatorLogger = loggerFactory?.CreateLogger<CertificateChainAssertionProvider>();
-        var keyMaterialLogger = loggerFactory?.CreateLogger<CertificateSigningKeyResolver>();
-        var cnValidatorLogger = loggerFactory?.CreateLogger<CertificateCommonNameAssertionProvider>();
-        var issuerValidatorLogger = loggerFactory?.CreateLogger<CertificateIssuerAssertionProvider>();
+        ArgumentNullException.ThrowIfNull(validationBuilder);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(context);
 
-        var validators = new List<IValidationComponent>();
-
-        // Stage 1 (Key Material Resolution): validate we can extract and parse x5t/x5chain.
-        // This provides clear failures when key material is missing or malformed and allows
-        // orchestration layers to run resolution before trust and signature verification.
-        // Note: Signature verification (Stage 3) is now handled by the orchestrator using
-        // ISigningKey.GetCoseKey() from the resolved signing key.
-        validators.Add(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any, logger: keyMaterialLogger));
-
-        // Parse revocation mode
+        // Trust is enforced via TrustPlanPolicy + facts; we enable the certificate trust pack here.
         var revocationMode = ParseRevocationMode(parseResult);
+        var customRoots = HasCustomTrustRoots(parseResult)
+            ? LoadCustomRoots(parseResult, NullLogger<X509VerificationProvider>.Instance)
+            : null;
 
-        // Add chain validation if we have trust requirements
-        if (HasCustomTrustRoots(parseResult))
+        validationBuilder.EnableCertificateTrust(certTrust =>
         {
-            var customRoots = LoadCustomRoots(parseResult, logger);
-            if (customRoots.Count > 0)
+            certTrust
+                .WithRevocationMode(revocationMode)
+                // Preserve historical CLI behavior: allow any identity unless the user pins via flags.
+                .AllowAnyCertificateIdentity();
+
+            if (customRoots != null && customRoots.Count > 0)
             {
-                validators.Add(new CertificateChainAssertionProvider(
-                    customRoots,
-                    trustUserRoots: true,
-                    revocationMode: revocationMode,
-                    logger: chainValidatorLogger));
+                certTrust.UseCustomRootTrust(customRoots);
             }
-        }
-        else if (IsTrustSystemRoots(parseResult))
-        {
-            validators.Add(new CertificateChainAssertionProvider(
-                allowUntrusted: IsAllowUntrusted(parseResult),
-                revocationMode: revocationMode,
-                logger: chainValidatorLogger));
-        }
-        else if (IsAllowUntrusted(parseResult))
-        {
-            // Skip chain validation when explicitly allowing untrusted
-            // but still add a minimal validator that accepts any chain
-            validators.Add(new CertificateChainAssertionProvider(
-                allowUntrusted: true,
-                revocationMode: X509RevocationMode.NoCheck,
-                logger: chainValidatorLogger));
-        }
+            else if (IsTrustSystemRoots(parseResult))
+            {
+                certTrust.UseSystemTrust();
+            }
+        });
 
-        // Add subject name validation
-        if (HasSubjectNameRequirement(parseResult))
-        {
-            string subjectName = GetSubjectName(parseResult)!;
-            validators.Add(new CertificateCommonNameAssertionProvider(subjectName, logger: cnValidatorLogger));
-        }
-
-        // Add issuer name validation
-        if (HasIssuerNameRequirement(parseResult))
-        {
-            string issuerName = GetIssuerName(parseResult)!;
-            validators.Add(new CertificateIssuerAssertionProvider(issuerName, logger: issuerValidatorLogger));
-        }
-
-        return validators;
+        // Preserve historical CLI behavior: allow key material in unprotected headers.
+        var loggerFactory = context.LoggerFactory ?? NullLoggerFactory.Instance;
+        var logger = loggerFactory.CreateLogger<CertificateSigningKeyResolver>();
+        validationBuilder.Services.AddSingleton<ISigningKeyResolver>(
+            _ => new CertificateSigningKeyResolver(CoseHeaderLocation.Any, logger));
     }
 
     /// <inheritdoc/>
@@ -261,46 +223,56 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         CoseSign1Message message,
         ValidationResult validationResult)
     {
+        _ = message;
+        _ = validationResult;
+
         var metadata = new Dictionary<string, object?>
         {
             [ClassStrings.MetaKeyTrustMode] = HasCustomTrustRoots(parseResult) ? ClassStrings.MetaValueCustomRoots :
-                             IsAllowUntrusted(parseResult) ? ClassStrings.MetaValueUntrustedAllowed :
-                             ClassStrings.MetaValueSystemTrust
+                IsAllowUntrusted(parseResult) ? ClassStrings.MetaValueUntrustedAllowed :
+                ClassStrings.MetaValueSystemTrust
         };
 
-        if (HasSubjectNameRequirement(parseResult))
+        var subject = GetSubjectName(parseResult);
+        if (!string.IsNullOrEmpty(subject))
         {
-            metadata[ClassStrings.MetaKeyRequiredSubject] = GetSubjectName(parseResult);
+            metadata[ClassStrings.MetaKeyRequiredSubject] = subject;
         }
 
-        if (HasIssuerNameRequirement(parseResult))
+        var issuer = GetIssuerName(parseResult);
+        if (!string.IsNullOrEmpty(issuer))
         {
-            metadata[ClassStrings.MetaKeyRequiredIssuer] = GetIssuerName(parseResult);
+            metadata[ClassStrings.MetaKeyRequiredIssuer] = issuer;
         }
 
-        var revocationMode = ParseRevocationMode(parseResult);
-        metadata[ClassStrings.MetaKeyRevocationCheck] = revocationMode.ToString();
+        metadata[ClassStrings.MetaKeyRevocationCheck] = ParseRevocationMode(parseResult).ToString();
 
         return metadata;
     }
 
-    #region Helper Methods
+    #region Helpers used by TrustPolicy partial
 
-    private bool HasCustomTrustRoots(ParseResult parseResult)
+    internal bool HasCustomTrustRoots(ParseResult parseResult)
     {
         var roots = parseResult.GetValueForOption(TrustRootsOption);
         return (roots != null && roots.Length > 0) || HasTrustPfx(parseResult);
     }
 
-    private bool HasTrustPfx(ParseResult parseResult)
+    internal bool HasTrustPfx(ParseResult parseResult)
     {
         var pfx = parseResult.GetValueForOption(TrustPfxOption);
         return pfx?.Exists == true;
     }
 
-    private SecureString? GetTrustPfxPassword(ParseResult parseResult, ILogger logger)
+    internal SecureString? GetTrustPfxPassword(ParseResult parseResult, ILogger? logger = null)
     {
-        // Check password file first
+        logger ??= NullLogger.Instance;
+
+        if (!HasTrustPfx(parseResult))
+        {
+            return null;
+        }
+
         var passwordFile = parseResult.GetValueForOption(TrustPfxPasswordFileOption);
         if (passwordFile?.Exists == true)
         {
@@ -308,7 +280,6 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
         }
 
-        // Check custom env var option, fallback to default env var
         var customEnvVar = parseResult.GetValueForOption(TrustPfxPasswordEnvOption);
         var envVarName = string.IsNullOrEmpty(customEnvVar) ? ClassStrings.DefaultTrustPfxPasswordEnvVar : customEnvVar;
         var envPassword = Environment.GetEnvironmentVariable(envVarName);
@@ -318,69 +289,39 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
             return SecurePasswordProvider.ConvertToSecureString(envPassword);
         }
 
-        // Return null - PFX may be unprotected
         return null;
     }
 
-    private bool IsTrustSystemRoots(ParseResult parseResult)
-    {
-        return parseResult.GetValueForOption(TrustSystemRootsOption);
-    }
+    internal bool IsTrustSystemRoots(ParseResult parseResult) =>
+        parseResult.GetValueForOption(TrustSystemRootsOption);
 
-    private bool IsAllowUntrusted(ParseResult parseResult)
-    {
-        return parseResult.GetValueForOption(AllowUntrustedOption);
-    }
+    internal bool IsAllowUntrusted(ParseResult parseResult) =>
+        parseResult.GetValueForOption(AllowUntrustedOption);
 
-    private bool HasSubjectNameRequirement(ParseResult parseResult)
-    {
-        var name = parseResult.GetValueForOption(SubjectNameOption);
-        return !string.IsNullOrEmpty(name);
-    }
+    internal string? GetSubjectName(ParseResult parseResult) =>
+        parseResult.GetValueForOption(SubjectNameOption);
 
-    private bool HasIssuerNameRequirement(ParseResult parseResult)
-    {
-        var name = parseResult.GetValueForOption(IssuerNameOption);
-        return !string.IsNullOrEmpty(name);
-    }
+    internal string? GetIssuerName(ParseResult parseResult) =>
+        parseResult.GetValueForOption(IssuerNameOption);
 
-    private string? GetSubjectName(ParseResult parseResult)
-    {
-        return parseResult.GetValueForOption(SubjectNameOption);
-    }
-
-    private string? GetIssuerName(ParseResult parseResult)
-    {
-        return parseResult.GetValueForOption(IssuerNameOption);
-    }
-
-    private X509RevocationMode ParseRevocationMode(ParseResult parseResult)
+    internal X509RevocationMode ParseRevocationMode(ParseResult parseResult)
     {
         var mode = parseResult.GetValueForOption(RevocationModeOption) ?? ClassStrings.RevocationModeOnline;
-        var modeLower = mode.ToLowerInvariant();
-        if (modeLower == ClassStrings.RevocationModeOnline)
+        return mode.ToLowerInvariant() switch
         {
-            return X509RevocationMode.Online;
-        }
-        else if (modeLower == ClassStrings.RevocationModeOffline)
-        {
-            return X509RevocationMode.Offline;
-        }
-        else if (modeLower == ClassStrings.RevocationModeNone)
-        {
-            return X509RevocationMode.NoCheck;
-        }
-        else
-        {
-            return X509RevocationMode.Online;
-        }
+            ClassStrings.RevocationModeOnline => X509RevocationMode.Online,
+            ClassStrings.RevocationModeOffline => X509RevocationMode.Offline,
+            ClassStrings.RevocationModeNone => X509RevocationMode.NoCheck,
+            _ => X509RevocationMode.Online
+        };
     }
 
-    private X509Certificate2Collection LoadCustomRoots(ParseResult parseResult, ILogger logger)
+    internal X509Certificate2Collection LoadCustomRoots(ParseResult parseResult, ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
+
         var collection = new X509Certificate2Collection();
 
-        // Load individual certificate files
         var roots = parseResult.GetValueForOption(TrustRootsOption);
         if (roots != null)
         {
@@ -394,40 +335,27 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
                     }
                     catch
                     {
-                        // Skip invalid certificates
                     }
                 }
             }
         }
 
-        // Load certificates from PFX file
         var pfxFile = parseResult.GetValueForOption(TrustPfxOption);
         if (pfxFile?.Exists == true)
         {
             try
             {
                 var password = GetTrustPfxPassword(parseResult, logger);
-                X509Certificate2Collection pfxCollection;
+                var passwordPlain = password != null ? SecurePasswordProvider.ConvertToPlainString(password) : null;
 
-                // Load from PFX using the new X509CertificateLoader API
-                if (password != null)
-                {
-                    pfxCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(
-                        pfxFile.FullName,
-                        SecurePasswordProvider.ConvertToPlainString(password),
-                        X509KeyStorageFlags.DefaultKeySet);
-                }
-                else
-                {
-                    pfxCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(
-                        pfxFile.FullName,
-                        password: null,
-                        X509KeyStorageFlags.DefaultKeySet);
-                }
+                var pfxCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(
+                    pfxFile.FullName,
+                    password: passwordPlain,
+                    X509KeyStorageFlags.DefaultKeySet);
 
                 collection.AddRange(pfxCollection);
             }
-            catch (Exception)
+            catch
             {
             }
         }
@@ -436,4 +364,24 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
     }
 
     #endregion
+
+    internal static string? ExtractCommonName(string distinguishedName)
+    {
+        if (string.IsNullOrWhiteSpace(distinguishedName))
+        {
+            return null;
+        }
+
+        var parts = distinguishedName.Split(',');
+        foreach (var part in parts)
+        {
+            var trimmedPart = part.Trim();
+            if (trimmedPart.StartsWith(ClassStrings.DistinguishedNameCnPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmedPart.Substring(ClassStrings.DistinguishedNameCnPrefix.Length).Trim();
+            }
+        }
+
+        return null;
+    }
 }

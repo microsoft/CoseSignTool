@@ -237,7 +237,7 @@ Your provider should **not** add these options.
 
 ## Creating a Verification Provider
 
-Verification providers contribute validation *components* (and optionally a trust policy) to the `verify` command.
+Verification providers contribute validation *components* and (optionally) trust-plan requirements to the `verify` command.
 
 ### IVerificationProvider Interface
 
@@ -270,28 +270,22 @@ public interface IVerificationProvider
 }
 ```
 
-    ### Optional interfaces
+### Optional interfaces
 
-    Providers can optionally implement additional interfaces:
+Providers can optionally implement additional interfaces:
 
-    - `IVerificationProviderWithContext` to access runtime context (for example detached payload bytes).
-    - `IVerificationProviderWithTrustPolicy` to contribute a `TrustPolicy` (policies from active providers are AND-ed).
+- `IVerificationProviderWithContext` to access runtime context (for example detached payload bytes).
+- `IVerificationProviderWithTrustPlanPolicy` to contribute a `TrustPlanPolicy` fragment and `ITrustPack` instances (policies from active providers are AND-ed).
 
 ### Priority Guidelines
 
-`Priority` controls ordering when multiple providers contribute components. Within validation, the orchestrator runs components by interface type:
+`Priority` controls ordering when multiple providers contribute components and trust requirements.
+Within validation, the orchestrator runs components by stage:
 
-- Key material resolution: `ISigningKeyResolver`
-- Trust assertions: `ISigningKeyAssertionProvider` (evaluated by the active `TrustPolicy`)
-- Post-signature checks: `IPostSignatureValidator`
-
-Suggested ranges:
-
-| Priority Range | Typical components | Example |
-|---:|---|---|
-| 0-9 | `ISigningKeyResolver` | X.509 key resolution (`x5t`/`x5chain`) |
-| 10-29 | `ISigningKeyAssertionProvider` | Chain/issuer/CN/EKU assertions |
-| 30+ | `IPostSignatureValidator` | Business rules, policy checks |
+1. Key material resolution (`ISigningKeyResolver`)
+2. Signature verification (crypto)
+3. Trust evaluation (`CompiledTrustPlan`)
+4. Post-signature checks (`IPostSignatureValidator`)
 
 ### Implementation Example
 
@@ -303,17 +297,18 @@ using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Validation.Trust.Facts;
 using CoseSignTool.Abstractions;
 
-public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPolicy
+public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPlanPolicy
 {
     public string ProviderName => "CustomTrust";
     public string Description => "Custom organizational trust validation";
-    public int Priority => 15; // Trust assertions
+    public int Priority => 15; // Trust requirements
 
     // Store options for later access
     private Option<string[]?> ApprovedOrgsOption = null!;
-    private Option<bool> RequireEvOption = null!;
 
     public void AddVerificationOptions(Command command)
     {
@@ -321,19 +316,12 @@ public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPol
             "--approved-orgs",
             "List of approved organization names");
         command.AddOption(ApprovedOrgsOption);
-        
-        RequireEvOption = new Option<bool>(
-            "--require-ev",
-            () => false,
-            "Require Extended Validation certificate");
-        command.AddOption(RequireEvOption);
     }
 
     public bool IsActivated(ParseResult parseResult)
     {
         // Activate if any custom options are specified
-        return parseResult.GetValueForOption(ApprovedOrgsOption) != null
-            || parseResult.GetValueForOption(RequireEvOption);
+        return parseResult.GetValueForOption(ApprovedOrgsOption) != null;
     }
 
     public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
@@ -341,29 +329,33 @@ public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPol
         // Providers must contribute a signing key resolver if they want the
         // CLI to verify signatures (for X.509, use CertificateSigningKeyResolver).
         yield return new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any);
-
-        // Add assertion providers based on options.
-        if (parseResult.GetValueForOption(ApprovedOrgsOption) is { Length: > 0 } approvedOrgs)
-        {
-            // Example: treat "approved orgs" as allowed issuers.
-            foreach (var issuer in approvedOrgs)
-            {
-                yield return new CertificateIssuerAssertionProvider(issuerName: issuer);
-            }
-        }
-
-        if (parseResult.GetValueForOption(RequireEvOption))
-        {
-            // Example EKU check (replace with your org's EKU requirements).
-            yield return new CertificateKeyUsageAssertionProvider("1.3.6.1.5.5.7.3.3");
-        }
     }
 
-    public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+    public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
     {
-        // In the CLI, if no provider supplies a trust policy, verification fails
-        // ("deny all"). Supply a policy appropriate to your assertions.
-        return X509TrustPolicies.RequireTrustedChain();
+        // Contribute additional requirements as a TrustPlanPolicy fragment.
+        // Example: if orgs are specified, require that at least one produced fact
+        // indicates the signer belongs to an allowed org.
+        //
+        // (Concrete fact types and packs are deployment-specific.)
+        if (parseResult.GetValueForOption(ApprovedOrgsOption) is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        return TrustPlanPolicy.PrimarySigningKey(key =>
+            key.RequireFact<DetachedPayloadPresentFact>(
+                _ => true,
+                "Custom trust policy enabled (replace with a real signing-key fact + predicate)"));
+    }
+
+    public IEnumerable<ITrustPack> CreateTrustPacks(ParseResult parseResult, VerificationContext context)
+    {
+        // Provide one or more ITrustPack instances that can produce the facts
+        // required by CreateTrustPlanPolicy.
+        //
+        // Return an empty list if this provider does not participate in trust.
+        return Array.Empty<ITrustPack>();
     }
 
     public IDictionary<string, object?> GetVerificationMetadata(

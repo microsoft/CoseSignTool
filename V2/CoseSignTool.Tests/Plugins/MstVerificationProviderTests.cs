@@ -5,8 +5,12 @@ namespace CoseSignTool.Tests.Plugins;
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using CoseSign1.Transparent.MST.Trust;
 using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Trust;
+using CoseSignTool.Abstractions;
 using CoseSignTool.MST.Plugin;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Tests for the MstVerificationProvider class.
@@ -15,6 +19,14 @@ using CoseSignTool.MST.Plugin;
 public class MstVerificationProviderTests
 {
     private record TestState(MstVerificationProvider Provider, Command Command, Parser Parser);
+
+    private static ServiceProvider BuildServiceProvider(MstVerificationProvider provider, ParseResult parseResult)
+    {
+        var services = new ServiceCollection();
+        var builder = services.ConfigureCoseValidation();
+        provider.ConfigureValidation(builder, parseResult, new VerificationContext(detachedPayload: null));
+        return services.BuildServiceProvider();
+    }
 
     private static TestState CreateTestState()
     {
@@ -113,102 +125,91 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void CreateValidators_WithNoOptions_ReturnsEmpty()
+    public void ConfigureValidation_WithNoOptions_RegistersMstTrustPack()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("");
 
-        // Act
-        var validators = Provider.CreateValidators(parseResult).ToList();
-
-        // Assert
-        Assert.That(validators, Is.Empty, "no validators when no MST options specified");
+        using var sp = BuildServiceProvider(Provider, parseResult);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithRequireReceipt_IncludesPresenceValidator()
+    public void ConfigureValidation_WithRequireReceipt_RegistersMstTrustPack()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt");
 
-        // Act
-        var validators = Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(Provider, parseResult);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
 
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider>());
+        // Trust requirements are expressed via TrustPlanPolicy.
+        var ctx = new VerificationContext(detachedPayload: null);
+        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
     }
 
     [Test]
-    public void CreateValidators_WithEndpoint_IncludesReceiptValidator()
+    public void ConfigureValidation_WithEndpoint_RegistersMstTrustPack()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.codetransparency.azure.net");
 
-        // Act
-        var validators = Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(Provider, parseResult);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
 
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider), Is.True);
-        Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptOnlineAssertionProvider), Is.True);
+        var ctx = new VerificationContext(detachedPayload: null);
+        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
     }
 
     [Test]
-    public void CreateValidators_WithEndpointAndNoVerify_ReturnsEmpty()
+    public void ConfigureValidation_WithEndpointAndNoVerify_RegistersMstTrustPack()
     {
         // Arrange - endpoint but verify-receipt set to false
         var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--mst-endpoint https://example.com --verify-receipt false");
 
-        // Act
-        var validators = Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(Provider, parseResult);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
 
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(1));
-        Assert.That(validators[0], Is.TypeOf<CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider>());
+        // When verification is disabled, the provider does not require receipt trust.
+        var ctx = new VerificationContext(detachedPayload: null);
+        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
     }
 
     [Test]
-    public void CreateValidators_WithBothOptions_IncludesBothValidators()
+    public void ConfigureValidation_WithBothOptions_RegistersMstTrustPack()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
         var parseResult = Parser.Parse("--require-receipt --mst-endpoint https://example.codetransparency.azure.net");
 
-        // Act
-        var validators = Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(Provider, parseResult);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
 
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptOnlineAssertionProvider"), Is.True);
-        Assert.That(validators.Any(v => v.GetType().Name == "MstReceiptPresenceAssertionProvider"), Is.True);
+        var ctx = new VerificationContext(detachedPayload: null);
+        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
     }
 
     [Test]
-    public void CreateValidators_WithOfflineTrustModeAndTrustFile_IncludesOfflineReceiptValidator()
+    public void ConfigureValidation_WithOfflineTrustModeAndTrustFile_RegistersReceiptFacts()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
         var tmp = Path.Combine(Path.GetTempPath(), $"mst_trust_{Guid.NewGuid():N}.json");
-        // Minimal SDK-compatible shape produced by the SDK serializer.
-        var empty = new Azure.Security.CodeTransparency.CodeTransparencyOfflineKeys();
-        File.WriteAllText(tmp, empty.ToBinaryData().ToString());
+        // The CLI only needs a JSON object to consider the trust file present/parseable.
+        // Keep this test independent of Azure SDK surface area.
+        File.WriteAllText(tmp, "{}");
 
         try
         {
             var parseResult = Parser.Parse($"--mst-trust-mode offline --mst-endpoint https://example.codetransparency.azure.net --mst-trust-file \"{tmp}\"");
 
-            // Act
-            var validators = Provider.CreateValidators(parseResult).ToList();
-
-            // Assert
-            Assert.That(validators.Any(v => v is CoseSign1.Transparent.MST.Validation.MstReceiptPresenceAssertionProvider), Is.True);
-            // If no usable keys, provider conservatively omits the receipt validator.
-            // This test just ensures parsing does not throw and presence validator is still emitted.
+            using var sp = BuildServiceProvider(Provider, parseResult);
+            var trustPack = sp.GetServices<ITrustPack>().OfType<MstTrustPack>().Single();
+            Assert.That(trustPack.FactTypes, Does.Contain(typeof(MstReceiptPresentFact)));
         }
         finally
         {

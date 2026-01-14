@@ -398,6 +398,133 @@ public class CoseInspectionServiceTests
     }
 
     [Test]
+    public void BuildProtectedHeaders_WithMalformedX5Chain_FallsBackToStructuralLength()
+    {
+        var formatter = new CapturingOutputFormatter();
+        var service = new CoseInspectionService(formatter);
+
+        var coseBytes = CreateRawSign1WithProtectedMap(w =>
+        {
+            // Include x5chain (33) but with invalid certificate bytes so TryGetCertificateChain fails.
+            // BuildProtectedHeaders should fall back to structural parsing and report the array length.
+            w.WriteStartMap(4);
+
+            // x5chain (33): array with 2 invalid cert entries
+            w.WriteInt32(33);
+            w.WriteStartArray(2);
+            w.WriteByteString(new byte[] { 0x01 });
+            w.WriteByteString(new byte[] { 0x02 });
+            w.WriteEndArray();
+
+            // payload-hash-alg (258): -16 => SHA-256
+            w.WriteInt32(258);
+            w.WriteInt32(-16);
+
+            // preimage-content-type (259)
+            w.WriteInt32(259);
+            w.WriteTextString("text/plain");
+
+            // payload-location (260)
+            w.WriteInt32(260);
+            w.WriteTextString("inline");
+
+            w.WriteEndMap();
+        });
+
+        var message = CoseSign1Message.DecodeSign1(coseBytes);
+
+        var method = typeof(CoseInspectionService).GetMethod(
+            "BuildProtectedHeaders",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(method, Is.Not.Null);
+
+        var info = (ProtectedHeadersInfo)method!.Invoke(service, [message])!;
+
+        Assert.That(info.CertificateChainLength, Is.EqualTo(2));
+        Assert.That(info.PayloadHashAlgorithm, Is.Not.Null);
+        Assert.That(info.PayloadHashAlgorithm!.Name, Does.Contain("SHA-256"));
+        Assert.That(info.PreimageContentType, Is.EqualTo("text/plain"));
+        Assert.That(info.PayloadLocation, Is.EqualTo("inline"));
+    }
+
+    [Test]
+    public void PrivateHelpers_GetX5ChainRawCertificates_ArrayStopsOnUnsupportedElementType()
+    {
+        var coseBytes = CreateRawSign1WithProtectedMap(w =>
+        {
+            w.WriteStartMap(1);
+            w.WriteInt32(33);
+            w.WriteStartArray(2);
+            w.WriteByteString(new byte[] { 0x01, 0x02, 0x03 });
+            w.WriteInt32(123); // unsupported element type => stop parsing
+            w.WriteEndArray();
+            w.WriteEndMap();
+        });
+
+        var message = CoseSign1Message.DecodeSign1(coseBytes);
+
+        var method = typeof(CoseInspectionService).GetMethod(
+            "GetX5ChainRawCertificates",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.That(method, Is.Not.Null);
+
+        var raw = (List<byte[]>)method!.Invoke(null, [message])!;
+
+        Assert.That(raw, Has.Count.EqualTo(1));
+        Assert.That(raw[0], Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+    }
+
+    [Test]
+    public void PrivateHelpers_GetX5ChainRawCertificates_SingleByteString_ReturnsOne()
+    {
+        var coseBytes = CreateRawSign1WithProtectedMap(w =>
+        {
+            w.WriteStartMap(1);
+            w.WriteInt32(33);
+            w.WriteByteString(new byte[] { 0x0A, 0x0B });
+            w.WriteEndMap();
+        });
+
+        var message = CoseSign1Message.DecodeSign1(coseBytes);
+
+        var method = typeof(CoseInspectionService).GetMethod(
+            "GetX5ChainRawCertificates",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.That(method, Is.Not.Null);
+
+        var raw = (List<byte[]>)method!.Invoke(null, [message])!;
+
+        Assert.That(raw, Has.Count.EqualTo(1));
+        Assert.That(raw[0], Is.EqualTo(new byte[] { 0x0A, 0x0B }));
+    }
+
+    [Test]
+    public async Task InspectAsync_WithEmptyEmbeddedPayload_Succeeds()
+    {
+        var formatter = new CapturingOutputFormatter();
+        var service = new CoseInspectionService(formatter);
+
+        var coseBytes = CreateSign1Embedded(Array.Empty<byte>());
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, coseBytes);
+
+            var exitCode = await service.InspectAsync(tempFile);
+
+            Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
     public void DisplayProtectedHeaders_WithUnparsableAlgorithm_WritesUnableToParse()
     {
         // Arrange
@@ -684,6 +811,88 @@ public class CoseInspectionServiceTests
             var result = (CoseInspectionResult)formatter.StructuredData!;
             Assert.That(result.ProtectedHeaders, Is.Not.Null);
             Assert.That(result.ProtectedHeaders!.CertificateChainLength, Is.EqualTo(1));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithUnknownX5tAlgorithm_UsesTolerantFallbackParsing()
+    {
+        var formatter = new CapturingOutputFormatter();
+        var service = new CoseInspectionService(formatter);
+
+        // Use an unknown hash algorithm id to encourage the shared helper to reject it,
+        // so the inspection service falls back to tolerant CBOR parsing.
+        byte[] thumbprintBytes = [0xAA, 0xBB, 0xCC, 0xDD];
+        var protectedHeaders = new CoseHeaderMap
+        {
+            [new CoseHeaderLabel(34)] = CreateX5T(999, thumbprintBytes),
+        };
+
+        var coseBytes = CreateSign1Embedded(Encoding.UTF8.GetBytes("payload"), protectedHeaders);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, coseBytes);
+
+            var resultCode = await service.InspectAsync(tempFile);
+
+            Assert.That(resultCode, Is.EqualTo((int)ExitCode.Success));
+            var result = (CoseInspectionResult)formatter.StructuredData!;
+
+            Assert.That(result.ProtectedHeaders, Is.Not.Null);
+            Assert.That(result.ProtectedHeaders!.CertificateThumbprint, Is.Not.Null);
+            Assert.That(result.ProtectedHeaders.CertificateThumbprint!.Value, Is.EqualTo(Convert.ToHexString(thumbprintBytes)));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InspectAsync_WithPartiallyInvalidX5Chain_UsesStructuralFallbackAndLoadsValidCertificates()
+    {
+        var formatter = new CapturingOutputFormatter();
+        var service = new CoseInspectionService(formatter);
+
+        using var leafCert = LocalCertificateFactory.CreateRsaCertificate("CoseInspectLeafPartial", 2048);
+        var leafBytes = leafCert.Export(X509ContentType.Cert);
+
+        // Include one valid and one invalid entry. This commonly causes the shared helper to fail,
+        // which should drive the inspection service down the tolerant fallback path.
+        var protectedHeaders = new CoseHeaderMap
+        {
+            [new CoseHeaderLabel(33)] = CreateX5ChainArray(leafBytes, [0x01, 0x02, 0x03])
+        };
+
+        var coseBytes = CreateSign1Embedded(Encoding.UTF8.GetBytes("payload"), protectedHeaders);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, coseBytes);
+
+            var resultCode = await service.InspectAsync(tempFile);
+
+            Assert.That(resultCode, Is.EqualTo((int)ExitCode.Success));
+            var result = (CoseInspectionResult)formatter.StructuredData!;
+
+            Assert.That(result.ProtectedHeaders, Is.Not.Null);
+            Assert.That(result.ProtectedHeaders!.CertificateChainLength, Is.EqualTo(2));
+
+            Assert.That(result.Certificates, Is.Not.Null);
+            Assert.That(result.Certificates!, Has.Count.EqualTo(1));
         }
         finally
         {

@@ -15,7 +15,7 @@ using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Tests.Common;
 using CoseSign1.Factories.Indirect;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Trust;
@@ -23,6 +23,7 @@ using CoseSignTool.Local.Plugin;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Handlers;
 using CoseSignTool.Output;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Tests for the VerifyCommandHandler class.
@@ -673,7 +674,6 @@ public class VerifyCommandHandlerTests
         command.AddArgument(new Argument<string?>("signature"));
         command.AddOption(new Option<FileInfo?>("--payload", "-p"));
         command.AddOption(new Option<bool>("--signature-only"));
-
         // Let each provider register its options - this initializes the provider's Option fields
         foreach (var provider in providers)
         {
@@ -681,6 +681,73 @@ public class VerifyCommandHandlerTests
         }
 
         return command;
+    }
+
+    private sealed class FixedKeyVerificationProvider : IVerificationProvider
+    {
+        private readonly ECDsa _key;
+
+        public FixedKeyVerificationProvider(ECDsa key)
+        {
+            _key = key;
+        }
+
+        public string ProviderName => "FixedKey";
+
+        public string Description => "Fixed signing key provider";
+
+        public int Priority => 0;
+
+        public void AddVerificationOptions(Command command)
+        {
+        }
+
+        public bool IsActivated(ParseResult parseResult) => true;
+
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
+        {
+            validationBuilder.Services.AddSingleton<ISigningKeyResolver>(_ => new FixedSigningKeyResolver(_key));
+        }
+
+        public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult result)
+            => new Dictionary<string, object?>();
+    }
+
+    private sealed class FixedSigningKeyResolver : ISigningKeyResolver
+    {
+        private readonly ECDsa _key;
+
+        public FixedSigningKeyResolver(ECDsa key)
+        {
+            _key = key;
+        }
+
+        public SigningKeyResolutionResult Resolve(CoseSign1Message message)
+        {
+            return SigningKeyResolutionResult.Success(new FixedSigningKey(_key));
+        }
+
+        public Task<SigningKeyResolutionResult> ResolveAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Resolve(message));
+        }
+    }
+
+    private sealed class FixedSigningKey : ISigningKey
+    {
+        private readonly ECDsa _key;
+
+        public FixedSigningKey(ECDsa key)
+        {
+            _key = key;
+        }
+
+        public CoseKey GetCoseKey() => new CoseKey(_key, HashAlgorithmName.SHA256);
+
+        public void Dispose()
+        {
+            // Key lifetime is owned by the test.
+        }
     }
 
     /// <summary>
@@ -912,7 +979,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class AlwaysOnVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private sealed class AlwaysOnVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         public string ProviderName => "TestProvider";
         public string Description => "Test provider";
@@ -924,15 +991,15 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            yield return new MockSigningKeyResolver();
+            validationBuilder.Services.AddSingleton<ISigningKeyResolver, MockSigningKeyResolver>();
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
             // Allow all trust so tests can exercise non-trust behavior paths.
-            return TrustPolicy.Or();
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
@@ -1651,7 +1718,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class AllowAllTrustProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private sealed class AllowAllTrustProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         private readonly string _name;
 
@@ -1672,15 +1739,14 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            // Don't add key resolver - rely on X509VerificationProvider when combined
-            yield break;
+            // Don't add key resolver - rely on X509VerificationProvider when combined.
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
-            return TrustPolicy.AllowAll("Test provider");
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
@@ -1689,7 +1755,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class PostSignatureFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private sealed class PostSignatureFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         public string ProviderName => "PostSigFail";
 
@@ -1703,15 +1769,14 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            // Return a failing post-signature validator
-            yield return new MockFailingPostSignatureValidator();
+            validationBuilder.Services.AddSingleton<IPostSignatureValidator, MockFailingPostSignatureValidator>();
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
-            return TrustPolicy.AllowAll("Test");
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
@@ -1885,7 +1950,7 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class ResolutionFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private sealed class ResolutionFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         public string ProviderName => "ResolutionFail";
 
@@ -1899,15 +1964,15 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            // Return a failing key resolver
-            yield return new MockSigningKeyResolver(shouldSucceed: false, errorMessage: "Key material resolution failed");
+            validationBuilder.Services.AddSingleton<ISigningKeyResolver>(_ =>
+                new MockSigningKeyResolver(shouldSucceed: false, errorMessage: "Key material resolution failed"));
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
-            return TrustPolicy.AllowAll("Test");
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
@@ -1921,7 +1986,7 @@ public class VerifyCommandHandlerTests
     /// <summary>
     /// Mock verification provider for testing provider integration.
     /// </summary>
-    private class MockVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private class MockVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         private readonly bool IsActivatedValue;
         private readonly bool ValidationPasses;
@@ -1962,30 +2027,31 @@ public class VerifyCommandHandlerTests
             return IsActivatedValue;
         }
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
             CreateValidatorsCalled = true;
+
+            // Always provide the pack so the trust plan can evaluate deterministically.
+            validationBuilder.Services.AddSingleton<ITrustPack>(_ => new MockTrustPack(isValid: ValidationPasses));
+
             if (IncludeKeyResolver)
             {
-                yield return new MockSigningKeyResolver();
-            }
-            if (!ValidationPasses)
-            {
-                yield return new MockFailingAssertionProvider();
+                validationBuilder.Services.AddSingleton<ISigningKeyResolver, MockSigningKeyResolver>();
             }
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
-            // When validation should fail, require the mock assertion to be valid (which it won't be)
             if (!ValidationPasses)
             {
-                return TrustPolicy.Require<MockFailedAssertion>(
-                    a => a.IsValid,
-                    "MOCK_ERROR: Mock validation must pass");
+                return TrustPlanPolicy.Message(m =>
+                    m.RequireFact<MockTrustFact>(
+                        f => f.IsValid,
+                        "MOCK_ERROR: Mock validation must pass"));
             }
+
             // Otherwise permit trust so the test can focus on provider integration behavior.
-            return TrustPolicy.Or();
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -2001,7 +2067,46 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class NullMetadataVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPolicy
+    private sealed record MockTrustFact(bool IsValid) : CoseSign1.Validation.Trust.Facts.IMessageFact
+    {
+        public CoseSign1.Validation.Trust.Facts.TrustFactScope Scope => CoseSign1.Validation.Trust.Facts.TrustFactScope.Message;
+    }
+
+    private sealed class MockTrustPack : ITrustPack
+    {
+        private readonly bool IsValid;
+
+        public MockTrustPack(bool isValid)
+        {
+            IsValid = isValid;
+        }
+
+        public IReadOnlyCollection<Type> FactTypes => new[] { typeof(MockTrustFact) };
+
+        public CoseSign1.Validation.Trust.Plan.TrustPlanDefaults GetDefaults()
+        {
+            return new CoseSign1.Validation.Trust.Plan.TrustPlanDefaults(
+                constraints: CoseSign1.Validation.Trust.Rules.TrustRules.AllowAll(),
+                trustSources: new[] { CoseSign1.Validation.Trust.Rules.TrustRules.DenyAll("MockTrustPack defaults are not used by the CLI") },
+                vetoes: CoseSign1.Validation.Trust.Rules.TrustRules.DenyAll("No mock vetoes"));
+        }
+
+        public ValueTask<CoseSign1.Validation.Trust.Engine.ITrustFactSet> ProduceAsync(
+            CoseSign1.Validation.Trust.Engine.TrustFactContext context,
+            Type factType,
+            CancellationToken cancellationToken)
+        {
+            if (factType != typeof(MockTrustFact))
+            {
+                throw new NotSupportedException($"Unsupported fact type: {factType}");
+            }
+
+            return new ValueTask<CoseSign1.Validation.Trust.Engine.ITrustFactSet>(
+                CoseSign1.Validation.Trust.Engine.TrustFactSet<MockTrustFact>.Available(new MockTrustFact(IsValid)));
+        }
+    }
+
+    private sealed class NullMetadataVerificationProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
     {
         public string ProviderName => "NullMetadataProvider";
 
@@ -2016,15 +2121,14 @@ public class VerifyCommandHandlerTests
 
         public bool IsActivated(ParseResult parseResult) => true;
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            // Don't add a key resolver - let X509 provider handle key resolution when combined
-            yield break;
+            // Don't add a key resolver - let X509 provider handle key resolution when combined.
         }
 
-        public TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context)
+        public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
         {
-            return TrustPolicy.Or();
+            return TrustPlanPolicy.Message(_ => _);
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -2057,9 +2161,8 @@ public class VerifyCommandHandlerTests
             throw new InvalidOperationException("boom");
         }
 
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
         {
-            return Array.Empty<IValidationComponent>();
         }
 
         public IDictionary<string, object?> GetVerificationMetadata(
@@ -2102,10 +2205,6 @@ public class VerifyCommandHandlerTests
             _errorMessage = errorMessage ?? "Key resolution failed";
         }
 
-        public string ComponentName => "MockSigningKeyResolver";
-
-        public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
-
         public SigningKeyResolutionResult Resolve(CoseSign1Message message)
         {
             if (_shouldSucceed)
@@ -2122,67 +2221,14 @@ public class VerifyCommandHandlerTests
     }
 
     /// <summary>
-    /// Mock assertion provider that always fails.
-    /// </summary>
-    private sealed class MockFailingAssertionProvider : ISigningKeyAssertionProvider
-    {
-        public string ComponentName => "MockFailingAssertion";
-
-        public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
-
-        public IReadOnlyList<ISigningKeyAssertion> ExtractAssertions(ISigningKey signingKey, CoseSign1Message message, CoseSign1ValidationOptions? options = null)
-        {
-            return new ISigningKeyAssertion[]
-            {
-                new MockFailedAssertion("Mock provider validation failed")
-            };
-        }
-
-        public Task<IReadOnlyList<ISigningKeyAssertion>> ExtractAssertionsAsync(
-            ISigningKey signingKey,
-            CoseSign1Message message,
-            CoseSign1ValidationOptions? options = null,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(ExtractAssertions(signingKey, message, options));
-        }
-    }
-
-    /// <summary>
-    /// Mock assertion for test purposes that always represents a failure.
-    /// </summary>
-    private sealed record MockFailedAssertion : ISigningKeyAssertion
-    {
-        private static readonly CoseSign1.Validation.Trust.TrustPolicy DefaultPolicy =
-            CoseSign1.Validation.Trust.TrustPolicy.Require<MockFailedAssertion>(
-                a => a.IsValid,
-                "Mock assertion must be valid");
-
-        public string Domain => "mock";
-        public string Description { get; }
-        public bool IsValid => false;
-        public CoseSign1.Validation.Trust.TrustPolicy DefaultTrustPolicy => DefaultPolicy;
-        public ISigningKey? SigningKey { get; init; }
-
-        public MockFailedAssertion(string description)
-        {
-            Description = description;
-        }
-    }
-
-    /// <summary>
     /// Mock post-signature validator that always fails.
     /// </summary>
     private sealed class MockFailingPostSignatureValidator : IPostSignatureValidator
     {
-        public string ComponentName => "MockFailingPostSignature";
-
-        public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => message != null;
-
         public ValidationResult Validate(IPostSignatureValidationContext context)
         {
             return ValidationResult.Failure(
-                ComponentName,
+                "MockFailingPostSignature",
                 "Post-signature validation failed",
                 "POST_SIGNATURE_FAILED");
         }

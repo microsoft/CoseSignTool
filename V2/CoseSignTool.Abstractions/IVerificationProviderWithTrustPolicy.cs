@@ -7,17 +7,23 @@ using System.CommandLine.Parsing;
 using CoseSign1.Validation.Trust;
 
 /// <summary>
-/// Optional extension interface for verification providers that can contribute a <see cref="TrustPolicy"/>
-/// based on command-line options.
+/// Optional extension interface for verification providers that can contribute trust-plan fragments and
+/// trust packs based on command-line options.
 /// </summary>
-public interface IVerificationProviderWithTrustPolicy : IVerificationProvider
+/// <remarks>
+/// This interface is the preferred mechanism for driving trust decisions in the CLI.
+/// Providers should contribute a <see cref="TrustPlanPolicy"/> fragment describing any requirements
+/// they impose. Trust packs and other services should be registered via
+/// <see cref="IVerificationProvider.ConfigureValidation"/>.
+/// </remarks>
+public interface IVerificationProviderWithTrustPlanPolicy : IVerificationProvider
 {
     /// <summary>
-    /// Creates an optional trust policy based on the parsed options.
+    /// Creates an optional trust plan policy fragment based on the parsed options.
     /// The returned policy (if any) will be AND-ed with policies from other active providers.
     /// </summary>
     /// <param name="parseResult">The parsed command-line result.</param>
     /// <param name="context">The verification context.</param>
-    /// <returns>The trust policy, or <see langword="null"/> if none is provided.</returns>
-    TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context);
+    /// <returns>The trust plan policy fragment, or <see langword="null"/> if none is provided.</returns>
+    TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context);
 }

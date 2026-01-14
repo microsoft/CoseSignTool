@@ -28,11 +28,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// by matching <c>x5t</c> to a certificate in <c>x5chain</c>.
 /// </para>
 /// </remarks>
-public sealed partial class CertificateSigningKeyResolver : CertificateValidationComponentBase, ISigningKeyResolver
+public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
 {
-    /// <inheritdoc/>
-    public override string ComponentName => ClassStrings.ValidatorName;
-
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {

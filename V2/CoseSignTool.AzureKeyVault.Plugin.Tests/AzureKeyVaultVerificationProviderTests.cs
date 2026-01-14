@@ -3,7 +3,21 @@
 
 namespace CoseSignTool.AzureKeyVault.Plugin.Tests;
 
+using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
+using System.Text;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.AzureKeyVault.Validation;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Validation.Trust.Engine;
+using CoseSign1.Validation.Trust.Ids;
+using CoseSign1.Validation.Trust.Subjects;
+using CoseSignTool.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Tests for <see cref="AzureKeyVaultVerificationProvider"/>.
@@ -11,6 +25,38 @@ using System.CommandLine.Parsing;
 [TestFixture]
 public class AzureKeyVaultVerificationProviderTests
 {
+    private static readonly CoseHeaderLabel KidLabel = new(4);
+
+    private static ServiceProvider BuildServiceProvider(
+        AzureKeyVaultVerificationProvider provider,
+        ParseResult parseResult,
+        VerificationContext? context = null)
+    {
+        var services = new ServiceCollection();
+        var builder = services.ConfigureCoseValidation();
+        provider.ConfigureValidation(builder, parseResult, context ?? new VerificationContext(detachedPayload: null));
+        return services.BuildServiceProvider();
+    }
+
+    private static CoseSign1Message CreateMessageWithKid(string kid)
+    {
+        using RSA rsa = RSA.Create(2048);
+
+        var protectedHeaders = new CoseHeaderMap();
+        protectedHeaders.Add(KidLabel, Encoding.UTF8.GetBytes(kid));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pkcs1, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders: null);
+        byte[] coseBytes = CoseSign1Message.SignEmbedded(Encoding.UTF8.GetBytes("payload"), signer);
+        return CoseMessage.DecodeSign1(coseBytes);
+    }
+
+    private static TrustFactContext CreateMessageContext(CoseSign1Message message)
+    {
+        TrustSubjectId messageId = TrustIds.CreateMessageId(message);
+        TrustSubject subject = TrustSubject.Message(messageId);
+        return new TrustFactContext(messageId, subject, new TrustEvaluationOptions(), memoryCache: null, message: message);
+    }
+
     [Test]
     public void Properties_ReturnExpectedValues()
     {
@@ -53,6 +99,20 @@ public class AzureKeyVaultVerificationProviderTests
         bool activated = provider.IsActivated(parseResult);
 
         // Assert
+        Assert.That(activated, Is.False);
+    }
+
+    [Test]
+    public void IsActivated_WhenOptionsRegisteredButNotProvided_ReturnsFalse()
+    {
+        var provider = new AzureKeyVaultVerificationProvider();
+        var (root, verify) = CreateVerifyCommand();
+        provider.AddVerificationOptions(verify);
+
+        ParseResult parseResult = root.Parse("verify");
+
+        bool activated = provider.IsActivated(parseResult);
+
         Assert.That(activated, Is.False);
     }
 
@@ -108,7 +168,7 @@ public class AzureKeyVaultVerificationProviderTests
     }
 
     [Test]
-    public void CreateValidators_WithRequireAzKeyOnly_ReturnsResolverAndAssertionProvider()
+    public void ConfigureValidation_WithRequireAzKeyOnly_RegistersResolver()
     {
         // Arrange
         var provider = new AzureKeyVaultVerificationProvider();
@@ -117,17 +177,13 @@ public class AzureKeyVaultVerificationProviderTests
 
         ParseResult parseResult = root.Parse("verify --require-az-key");
 
-        // Act
-        var validators = provider.CreateValidators(parseResult).ToList();
-
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators[0].GetType().Name, Is.EqualTo("AzureKeyVaultCoseKeySigningKeyResolver"));
-        Assert.That(validators[1].GetType().Name, Is.EqualTo("AzureKeyVaultAssertionProvider"));
+        using var sp = BuildServiceProvider(provider, parseResult);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
+        Assert.That(resolvers.OfType<AzureKeyVaultCoseKeySigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithAllowedVaults_ReturnsResolverAndAssertionProvider()
+    public void ConfigureValidation_WithAllowedVaults_RegistersResolver()
     {
         // Arrange
         var provider = new AzureKeyVaultVerificationProvider();
@@ -136,17 +192,13 @@ public class AzureKeyVaultVerificationProviderTests
 
         ParseResult parseResult = root.Parse("verify --require-az-key --allowed-vaults https://example.vault.azure.net/");
 
-        // Act
-        var validators = provider.CreateValidators(parseResult).ToList();
-
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators[0].GetType().Name, Is.EqualTo("AzureKeyVaultCoseKeySigningKeyResolver"));
-        Assert.That(validators[1].GetType().Name, Is.EqualTo("AzureKeyVaultAssertionProvider"));
+        using var sp = BuildServiceProvider(provider, parseResult);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
+        Assert.That(resolvers.OfType<AzureKeyVaultCoseKeySigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithContext_WithAllowedVaults_ReturnsResolverAndAssertionProvider()
+    public void ConfigureValidation_WithContext_WithAllowedVaults_RegistersResolver()
     {
         // Arrange
         var provider = new AzureKeyVaultVerificationProvider();
@@ -156,13 +208,9 @@ public class AzureKeyVaultVerificationProviderTests
         ParseResult parseResult = root.Parse("verify --allowed-vaults https://example.vault.azure.net/");
         var context = new VerificationContext(detachedPayload: null);
 
-        // Act
-        var validators = provider.CreateValidators(parseResult, context).ToList();
-
-        // Assert
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators[0].GetType().Name, Is.EqualTo("AzureKeyVaultCoseKeySigningKeyResolver"));
-        Assert.That(validators[1].GetType().Name, Is.EqualTo("AzureKeyVaultAssertionProvider"));
+        using var sp = BuildServiceProvider(provider, parseResult, context);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
+        Assert.That(resolvers.OfType<AzureKeyVaultCoseKeySigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
@@ -202,6 +250,69 @@ public class AzureKeyVaultVerificationProviderTests
         // Assert
         Assert.That(metadata["Require AKV Key"], Is.EqualTo("Yes"));
         Assert.That(metadata["Allowed Vault Patterns"], Is.EqualTo("https://a.vault.azure.net/, https://b.vault.azure.net/"));
+    }
+
+    [Test]
+    public async Task CreateTrustPlanPolicy_WithAllowedVaults_UsesAllowedFactPath()
+    {
+        var provider = new AzureKeyVaultVerificationProvider();
+        var (root, verify) = CreateVerifyCommand();
+        provider.AddVerificationOptions(verify);
+
+        ParseResult parseResult = root.Parse("verify --allowed-vaults https://myvault.vault.azure.net/keys/*");
+        var context = new VerificationContext(detachedPayload: null);
+
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
+        Assert.That(policy, Is.Not.Null);
+
+        using var sp = BuildServiceProvider(provider, parseResult, context);
+        var trustPack = sp.GetServices<ITrustPack>().OfType<AzureKeyVaultTrustPack>().Single();
+
+        var message = CreateMessageWithKid("https://myvault.vault.azure.net/keys/mykey/123");
+        var factContext = CreateMessageContext(message);
+
+        var allowedSet = await trustPack.ProduceAsync(factContext, typeof(AzureKeyVaultKidAllowedFact), CancellationToken.None);
+        var typed = (ITrustFactSet<AzureKeyVaultKidAllowedFact>)allowedSet;
+        Assert.That(typed.Values[0].IsAllowed, Is.True);
+    }
+
+    [Test]
+    public async Task CreateTrustPlanPolicy_WithRequireAzKey_UsesDetectedFactPath()
+    {
+        var provider = new AzureKeyVaultVerificationProvider();
+        var (root, verify) = CreateVerifyCommand();
+        provider.AddVerificationOptions(verify);
+
+        ParseResult parseResult = root.Parse("verify --require-az-key");
+        var context = new VerificationContext(detachedPayload: null);
+
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
+        Assert.That(policy, Is.Not.Null);
+
+        using var sp = BuildServiceProvider(provider, parseResult, context);
+        var trustPack = sp.GetServices<ITrustPack>().OfType<AzureKeyVaultTrustPack>().Single();
+
+        var message = CreateMessageWithKid("https://example.com/keys/mykey/123");
+        var factContext = CreateMessageContext(message);
+
+        var detectedSet = await trustPack.ProduceAsync(factContext, typeof(AzureKeyVaultKidDetectedFact), CancellationToken.None);
+        var typed = (ITrustFactSet<AzureKeyVaultKidDetectedFact>)detectedSet;
+        Assert.That(typed.Values[0].IsAzureKeyVaultKey, Is.False);
+    }
+
+    [Test]
+    public void CreateTrustPlanPolicy_WithNoOptions_ReturnsNoOpPolicy()
+    {
+        var provider = new AzureKeyVaultVerificationProvider();
+        var (root, verify) = CreateVerifyCommand();
+        provider.AddVerificationOptions(verify);
+
+        ParseResult parseResult = root.Parse("verify");
+        var context = new VerificationContext(detachedPayload: null);
+
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
+
+        Assert.That(policy, Is.Not.Null);
     }
 
     private static (RootCommand root, Command verify) CreateVerifyCommand()

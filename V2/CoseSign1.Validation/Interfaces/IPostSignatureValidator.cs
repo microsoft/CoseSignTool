@@ -34,12 +34,7 @@ public interface IPostSignatureValidationContext
     ISigningKey? ResolvedSigningKey { get; }
 
     /// <summary>
-    /// Gets all trust assertions collected during the trust stage (from stage 2: Key Material Trust).
-    /// </summary>
-    IReadOnlyList<ISigningKeyAssertion> TrustAssertions { get; }
-
-    /// <summary>
-    /// Gets the trust decision from evaluating TrustPolicy against assertions (from stage 2).
+    /// Gets the trust decision from evaluating the compiled trust plan (from trust stage).
     /// </summary>
     TrustDecision TrustDecision { get; }
 
@@ -71,7 +66,6 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
     /// Initializes a new instance of the <see cref="PostSignatureValidationContext"/> class.
     /// </summary>
     /// <param name="message">The COSE Sign1 message being validated.</param>
-    /// <param name="trustAssertions">Trust assertions from the trust stage.</param>
     /// <param name="trustDecision">Trust decision from evaluating policy.</param>
     /// <param name="signatureMetadata">Metadata from signature verification.</param>
     /// <param name="options">The validation options for this operation.</param>
@@ -79,14 +73,12 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
     /// <exception cref="ArgumentNullException">Thrown when required parameters are null.</exception>
     public PostSignatureValidationContext(
         CoseSign1Message message,
-        IReadOnlyList<ISigningKeyAssertion> trustAssertions,
         TrustDecision trustDecision,
         IReadOnlyDictionary<string, object> signatureMetadata,
         CoseSign1ValidationOptions options,
         ISigningKey? resolvedSigningKey = null)
     {
         Message = message ?? throw new ArgumentNullException(nameof(message));
-        TrustAssertions = trustAssertions ?? throw new ArgumentNullException(nameof(trustAssertions));
         TrustDecision = trustDecision;
         SignatureMetadata = signatureMetadata ?? throw new ArgumentNullException(nameof(signatureMetadata));
         Options = options ?? throw new ArgumentNullException(nameof(options));
@@ -98,9 +90,6 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
 
     /// <inheritdoc />
     public ISigningKey? ResolvedSigningKey { get; }
-
-    /// <inheritdoc />
-    public IReadOnlyList<ISigningKeyAssertion> TrustAssertions { get; }
 
     /// <inheritdoc />
     public TrustDecision TrustDecision { get; }
@@ -122,7 +111,7 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
 /// </para>
 /// <list type="bullet">
 /// <item><description>The resolved signing key identity</description></item>
-/// <item><description>Trust assertions (e.g., different rules for internal vs external signers)</description></item>
+/// <item><description>Trust decision (e.g., different rules for internal vs external signers)</description></item>
 /// <item><description>Signature metadata (e.g., algorithm used)</description></item>
 /// </list>
 /// <para>
@@ -131,7 +120,7 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
 /// Post-signature validators do NOT create the context—they receive it.
 /// </para>
 /// </remarks>
-public interface IPostSignatureValidator : IValidationComponent
+public interface IPostSignatureValidator
 {
     /// <summary>
     /// Validates the message using context from all prior validation stages.

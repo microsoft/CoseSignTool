@@ -142,6 +142,50 @@ public class AzureKeyVaultCoseKeySigningKeyResolverTests
     }
 
     [Test]
+    public void Resolve_WithRsaCoseKeyHeader_PS384_Succeeds()
+    {
+        using var rsa = RSA.Create(2048);
+
+        var coseKeyEncoded = EncodeRsaCoseKey(rsa.ExportParameters(false), coseAlgorithm: -38, keyId: null);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.SigningKey, Is.Not.Null);
+    }
+
+    [Test]
+    public void Resolve_WithRsaCoseKeyHeader_PS512_Succeeds()
+    {
+        using var rsa = RSA.Create(2048);
+
+        var coseKeyEncoded = EncodeRsaCoseKey(rsa.ExportParameters(false), coseAlgorithm: -39, keyId: null);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.SigningKey, Is.Not.Null);
+    }
+
+    [Test]
     public void Resolve_WithEmbeddedEc2CoseKeyHeader_ResolvesAndVerifiesSignature()
     {
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP384);
@@ -172,6 +216,52 @@ public class AzureKeyVaultCoseKeySigningKeyResolverTests
     }
 
     [Test]
+    public void Resolve_WithEc2CoseKeyHeader_ES256_P256_Succeeds()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var ecParams = ecdsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeEc2CoseKeyWithCurve(ecParams, coseAlgorithm: -7, coseCurve: CoseKeyHeaderContributor.CoseEllipticCurves.P256);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(ecdsa, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.SigningKey, Is.Not.Null);
+    }
+
+    [Test]
+    public void Resolve_WithEc2CoseKeyHeader_ES512_P521_Succeeds()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP521);
+        var ecParams = ecdsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeEc2CoseKeyWithCurve(ecParams, coseAlgorithm: -36, coseCurve: CoseKeyHeaderContributor.CoseEllipticCurves.P521);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(ecdsa, HashAlgorithmName.SHA512, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.SigningKey, Is.Not.Null);
+    }
+
+    [Test]
     public void Resolve_WithUnsupportedCurveInEc2CoseKeyHeader_ReturnsFailure()
     {
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP384);
@@ -195,11 +285,49 @@ public class AzureKeyVaultCoseKeySigningKeyResolverTests
     }
 
     [Test]
-    public void IsApplicableTo_WithCoseKeyHeader_ReturnsTrue()
+    public void ResolveAsync_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+
+        using var rsa = RSA.Create(2048);
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.That(async () => await resolver.ResolveAsync(message, cts.Token), Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [Test]
+    public void Resolve_WithProtectedCoseKeyHeader_Succeeds()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var valid = EncodeRsaCoseKey(rsaParams, coseAlgorithm: -37, keyId: null);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        protectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(valid));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+    }
+
+    [Test]
+    public void Resolve_ReturnedSigningKey_IsIdempotentlyDisposable_AndThrowsWhenUsedAfterDispose()
     {
         using var rsa = RSA.Create(2048);
 
-        var coseKeyEncoded = EncodeRsaCoseKey(rsa.ExportParameters(false), coseAlgorithm: -37, keyId: null);
+        var coseKeyEncoded = EncodeRsaCoseKey(rsa.ExportParameters(false), coseAlgorithm: -37, keyId: "kid");
 
         CoseHeaderMap protectedHeaders = new();
         CoseHeaderMap unprotectedHeaders = new();
@@ -210,7 +338,129 @@ public class AzureKeyVaultCoseKeySigningKeyResolverTests
         var message = CoseSign1Message.DecodeSign1(bytes);
 
         var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
-        Assert.That(resolver.IsApplicableTo(message), Is.True);
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.SigningKey, Is.Not.Null);
+
+        var signingKey = result.SigningKey!;
+        signingKey.Dispose();
+        Assert.That(() => signingKey.Dispose(), Throws.Nothing);
+        Assert.That(() => signingKey.GetCoseKey(), Throws.InstanceOf<ObjectDisposedException>());
+    }
+
+    [Test]
+    public void Resolve_WithRsaKidAsUnexpectedType_SkipsKidAndStillResolves()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeRsaCoseKeyWithKidAsInt(rsaParams, coseAlgorithm: -37, kidInt: 123);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.KeyId, Is.Null);
+    }
+
+    [Test]
+    public void Resolve_WithUnknownLabel_IgnoresItAndStillResolves()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeRsaCoseKeyWithUnknownLabel(rsaParams, coseAlgorithm: -37);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.True);
+    }
+
+    [Test]
+    public void Resolve_WithRsaModulusWrongCborType_ReturnsInvalid()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeRsaCoseKeyWithWrongTypes(rsaParams, coseAlgorithm: -37);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.ErrorCode, Is.EqualTo("COSE_KEY_INVALID"));
+    }
+
+    [Test]
+    public void Resolve_WithMissingKeyTypeOrAlgorithm_ReturnsInvalid()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var missingAlg = EncodeRsaCoseKeyMissingAlgorithm(rsaParams);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(missingAlg));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.ErrorCode, Is.EqualTo("COSE_KEY_INVALID"));
+    }
+
+    [Test]
+    public void Resolve_WithRsaMissingExponent_ReturnsInvalid()
+    {
+        using var rsa = RSA.Create(2048);
+        var rsaParams = rsa.ExportParameters(false);
+
+        var coseKeyEncoded = EncodeRsaCoseKeyMissingExponent(rsaParams, coseAlgorithm: -37);
+
+        CoseHeaderMap protectedHeaders = new();
+        CoseHeaderMap unprotectedHeaders = new();
+        unprotectedHeaders.Add(CoseKeyHeaderContributor.CoseKeyHeaderLabel, CoseHeaderValue.FromEncodedValue(coseKeyEncoded));
+
+        var signer = new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var bytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        var message = CoseSign1Message.DecodeSign1(bytes);
+
+        var resolver = new AzureKeyVaultCoseKeySigningKeyResolver();
+        var result = resolver.Resolve(message);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.ErrorCode, Is.EqualTo("COSE_KEY_INVALID"));
     }
 
     private static byte[] EncodeRsaCoseKey(RSAParameters rsaParams, int coseAlgorithm, string? keyId)
@@ -307,6 +557,117 @@ public class AzureKeyVaultCoseKeySigningKeyResolverTests
         writer.WriteInt32(keyType);
         writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.Algorithm);
         writer.WriteInt32(coseAlgorithm);
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
+
+    private static byte[] EncodeRsaCoseKeyWithKidAsInt(RSAParameters rsaParams, int coseAlgorithm, int kidInt)
+    {
+        var writer = new CborWriter();
+
+        writer.WriteStartMap(5);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyType);
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyTypes.RSA);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyId);
+        writer.WriteInt32(kidInt);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.Algorithm);
+        writer.WriteInt32(coseAlgorithm);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.N);
+        writer.WriteByteString(rsaParams.Modulus!);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.E);
+        writer.WriteByteString(rsaParams.Exponent!);
+
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
+
+    private static byte[] EncodeRsaCoseKeyWithUnknownLabel(RSAParameters rsaParams, int coseAlgorithm)
+    {
+        var writer = new CborWriter();
+
+        writer.WriteStartMap(5);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyType);
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyTypes.RSA);
+
+        // Unknown label should be ignored.
+        writer.WriteInt32(999);
+        writer.WriteTextString("ignored");
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.Algorithm);
+        writer.WriteInt32(coseAlgorithm);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.N);
+        writer.WriteByteString(rsaParams.Modulus!);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.E);
+        writer.WriteByteString(rsaParams.Exponent!);
+
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
+
+    private static byte[] EncodeRsaCoseKeyWithWrongTypes(RSAParameters rsaParams, int coseAlgorithm)
+    {
+        var writer = new CborWriter();
+
+        // Intentionally use wrong CBOR types for -1 (n) and -2 (e) to exercise SkipValue branches.
+        writer.WriteStartMap(4);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyType);
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyTypes.RSA);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.Algorithm);
+        writer.WriteInt32(coseAlgorithm);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.N);
+        writer.WriteTextString("not-bytes");
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.E);
+        writer.WriteInt32(65537);
+
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
+
+    private static byte[] EncodeRsaCoseKeyMissingAlgorithm(RSAParameters rsaParams)
+    {
+        var writer = new CborWriter();
+        writer.WriteStartMap(3);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyType);
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyTypes.RSA);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.N);
+        writer.WriteByteString(rsaParams.Modulus!);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.E);
+        writer.WriteByteString(rsaParams.Exponent!);
+
+        writer.WriteEndMap();
+        return writer.Encode();
+    }
+
+    private static byte[] EncodeRsaCoseKeyMissingExponent(RSAParameters rsaParams, int coseAlgorithm)
+    {
+        var writer = new CborWriter();
+
+        writer.WriteStartMap(3);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.KeyType);
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyTypes.RSA);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.CoseKeyLabels.Algorithm);
+        writer.WriteInt32(coseAlgorithm);
+
+        writer.WriteInt32(CoseKeyHeaderContributor.RSALabels.N);
+        writer.WriteByteString(rsaParams.Modulus!);
+
         writer.WriteEndMap();
         return writer.Encode();
     }

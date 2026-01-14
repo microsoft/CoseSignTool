@@ -8,8 +8,8 @@ namespace CoseSign1.Validation.Trust;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A <see cref="TrustDecision"/> indicates whether a signing key is trusted based on the
-/// evaluation of a <see cref="TrustPolicy"/> against a collection of <see cref="Interfaces.ISigningKeyAssertion"/>.
+/// A <see cref="TrustDecision"/> indicates whether a trust rule set (e.g., a compiled trust plan)
+/// establishes trust for a subject.
 /// </para>
 /// <para>
 /// When trust is denied, the <see cref="Reasons"/> property contains human-readable explanations

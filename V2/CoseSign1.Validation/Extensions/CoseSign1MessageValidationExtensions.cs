@@ -5,9 +5,7 @@ namespace System.Security.Cryptography.Cose;
 
 using CoseSign1.Abstractions;
 using CoseSign1.Validation;
-using CoseSign1.Validation.Extensions;
 using CoseSign1.Validation.Interfaces;
-using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Extension methods for validating <see cref="CoseSign1Message"/> instances.
@@ -15,10 +13,6 @@ using Microsoft.Extensions.Logging;
 /// <example>
 /// Validation with a pre-built validator:
 /// <code>
-/// var validator = new CoseSign1ValidationBuilder()
-///     .ValidateCertificate(cert => cert.ValidateChain())
-///     .Build();
-/// 
 /// var message = CoseMessage.DecodeSign1(signatureBytes);
 /// var result = message.Validate(validator);
 /// 
@@ -26,19 +20,6 @@ using Microsoft.Extensions.Logging;
 /// {
 ///     Console.WriteLine("Signature is valid!");
 /// }
-/// </code>
-/// 
-/// Inline validation with configuration:
-/// <code>
-/// var result = message.Validate(builder => builder
-///     .ValidateCertificate(cert => cert.ValidateChain())
-///     .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain()));
-/// </code>
-/// 
-/// Auto-discovery validation (uses default components from referenced packages):
-/// <code>
-/// // Automatically discovers and uses default components from CoseSign1.Certificates, etc.
-/// var result = message.Validate();
 /// </code>
 /// </example>
 public static class CoseSign1MessageValidationExtensions
@@ -50,83 +31,12 @@ public static class CoseSign1MessageValidationExtensions
     /// <param name="validator">The validator to use for validation.</param>
     /// <returns>A validation result containing results for each validation stage.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> or <paramref name="validator"/> is null.</exception>
-    /// <example>
-    /// <code>
-    /// // Build a reusable validator
-    /// var validator = new CoseSign1ValidationBuilder()
-    ///     .ValidateCertificate(cert => cert.ValidateChain())
-    ///     .Build();
-    /// 
-    /// // Validate multiple messages
-    /// foreach (var signatureBytes in signatures)
-    /// {
-    ///     var message = CoseMessage.DecodeSign1(signatureBytes);
-    ///     var result = message.Validate(validator);
-    ///     // Process result...
-    /// }
-    /// </code>
-    /// </example>
     public static CoseSign1ValidationResult Validate(
         this CoseSign1Message message,
         ICoseSign1Validator validator)
     {
         Guard.ThrowIfNull(message);
         Guard.ThrowIfNull(validator);
-
-        return validator.Validate(message);
-    }
-
-    /// <summary>
-    /// Validates the COSE Sign1 message using a custom validation pipeline.
-    /// </summary>
-    /// <param name="message">The COSE Sign1 message to validate.</param>
-    /// <param name="configure">
-    /// Optional delegate to configure the validation builder.
-    /// If <see langword="null"/>, default components are auto-discovered from referenced extension packages.
-    /// </param>
-    /// <param name="loggerFactory">Optional logger factory for creating loggers in validators.</param>
-    /// <returns>A validation result containing results for each validation stage.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the configured builder does not include a signing key resolver.</exception>
-    /// <remarks>
-    /// This method builds a new validator for each call. For validating multiple messages with the same
-    /// configuration, build a validator once with <see cref="CoseSign1ValidationBuilder"/> and reuse it
-    /// via <see cref="Validate(CoseSign1Message, ICoseSign1Validator)"/>.
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// var result = message.Validate(builder => builder
-    ///     .ValidateCertificate(cert => cert
-    ///         .NotExpired()
-    ///         .ValidateChain())
-    ///     .OverrideDefaultTrustPolicy(X509TrustPolicies.RequireTrustedChain()));
-    /// 
-    /// if (result.Overall.IsValid)
-    /// {
-    ///     Console.WriteLine("Valid signature from trusted certificate chain!");
-    /// }
-    /// </code>
-    /// </example>
-    public static CoseSign1ValidationResult Validate(
-        this CoseSign1Message message,
-        Action<ICoseSign1ValidationBuilder>? configure = null,
-        ILoggerFactory? loggerFactory = null)
-    {
-        Guard.ThrowIfNull(message);
-
-        var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        if (configure != null)
-        {
-            configure(builder);
-        }
-        else
-        {
-            foreach (var component in DefaultComponentDiscovery.GetDefaultComponents(loggerFactory))
-            {
-                builder.AddComponent(component);
-            }
-        }
-        var validator = builder.Build();
 
         return validator.Validate(message);
     }
@@ -154,52 +64,4 @@ public static class CoseSign1MessageValidationExtensions
         return validator.ValidateAsync(message, cancellationToken);
     }
 
-    /// <summary>
-    /// Asynchronously validates the COSE Sign1 message using a custom validation pipeline.
-    /// </summary>
-    /// <param name="message">The COSE Sign1 message to validate.</param>
-    /// <param name="configure">
-    /// Optional delegate to configure the validation builder.
-    /// If <see langword="null"/>, default components are auto-discovered from referenced extension packages.
-    /// </param>
-    /// <param name="loggerFactory">Optional logger factory for creating loggers in validators.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task containing the validation result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the configured builder does not include a signing key resolver.</exception>
-    /// <remarks>
-    /// <para>
-    /// Use this overload when validation components may require network I/O
-    /// (e.g., OCSP checks, CRL fetching, external trust services).
-    /// </para>
-    /// <para>
-    /// This method builds a new validator for each call. For validating multiple messages with the same
-    /// configuration, build a validator once with <see cref="CoseSign1ValidationBuilder"/> and reuse it
-    /// via <see cref="ValidateAsync(CoseSign1Message, ICoseSign1Validator, CancellationToken)"/>.
-    /// </para>
-    /// </remarks>
-    public static Task<CoseSign1ValidationResult> ValidateAsync(
-        this CoseSign1Message message,
-        Action<ICoseSign1ValidationBuilder>? configure = null,
-        ILoggerFactory? loggerFactory = null,
-        CancellationToken cancellationToken = default)
-    {
-        Guard.ThrowIfNull(message);
-
-        var builder = new CoseSign1ValidationBuilder(loggerFactory);
-        if (configure != null)
-        {
-            configure(builder);
-        }
-        else
-        {
-            foreach (var component in DefaultComponentDiscovery.GetDefaultComponents(loggerFactory))
-            {
-                builder.AddComponent(component);
-            }
-        }
-        var validator = builder.Build();
-
-        return validator.ValidateAsync(message, cancellationToken);
-    }
 }

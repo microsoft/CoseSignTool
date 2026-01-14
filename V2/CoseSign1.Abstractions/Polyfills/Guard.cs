@@ -35,126 +35,6 @@
 //    - On netstandard2.0, we provide equivalent functionality
 //
 // ============================================================================
-
-#if !NET6_0_OR_GREATER
-
-namespace System.Runtime.CompilerServices
-{
-    /// <summary>
-    /// Allows capturing of the expression passed to a method parameter.
-    /// This attribute is used by the compiler to support CallerArgumentExpression.
-    /// </summary>
-    /// <remarks>
-    /// This is a polyfill for netstandard2.0. On .NET 6+, this attribute is built-in.
-    /// </remarks>
-    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    internal sealed class CallerArgumentExpressionAttribute : Attribute
-    {
-        /// <summary>
-        /// Initializes a new instance of <see cref="CallerArgumentExpressionAttribute"/>.
-        /// </summary>
-        /// <param name="parameterName">The name of the parameter whose expression should be captured.</param>
-        public CallerArgumentExpressionAttribute(string parameterName)
-        {
-            ParameterName = parameterName;
-        }
-
-        /// <summary>
-        /// Gets the name of the parameter whose expression should be captured.
-        /// </summary>
-        public string ParameterName { get; }
-    }
-}
-
-namespace System.Diagnostics.CodeAnalysis
-{
-    /// <summary>
-    /// Specifies that an output is not null even if the corresponding type allows it.
-    /// </summary>
-    /// <remarks>
-    /// This is a polyfill for netstandard2.0. On .NET Core 3.0+, this attribute is built-in.
-    /// </remarks>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.ReturnValue, AllowMultiple = true)]
-    internal sealed class NotNullAttribute : Attribute
-    {
-    }
-
-    /// <summary>
-    /// Specifies that the method will not return if the associated Boolean parameter is passed the specified value.
-    /// </summary>
-    /// <remarks>
-    /// This is a polyfill for netstandard2.0. On .NET Core 3.0+, this attribute is built-in.
-    /// </remarks>
-    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false)]
-    internal sealed class DoesNotReturnIfAttribute : Attribute
-    {
-        /// <summary>
-        /// Initializes a new instance of <see cref="DoesNotReturnIfAttribute"/>.
-        /// </summary>
-        /// <param name="parameterValue">The condition parameter value that causes the method not to return.</param>
-        public DoesNotReturnIfAttribute(bool parameterValue)
-        {
-            ParameterValue = parameterValue;
-        }
-
-        /// <summary>
-        /// Gets the condition parameter value that causes the method not to return.
-        /// </summary>
-        public bool ParameterValue { get; }
-    }
-}
-
-namespace System.Runtime.CompilerServices
-{
-    /// <summary>
-    /// Specifies that a type has required members or that a member is required.
-    /// This is a polyfill for netstandard2.0. On .NET 7+, this attribute is built-in.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
-    internal sealed class RequiredMemberAttribute : Attribute
-    {
-    }
-
-    /// <summary>
-    /// Indicates that compiler support for a particular feature is required for the location where this attribute is applied.
-    /// This is a polyfill for netstandard2.0. On .NET 7+, this attribute is built-in.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.All, AllowMultiple = true, Inherited = false)]
-    internal sealed class CompilerFeatureRequiredAttribute : Attribute
-    {
-        /// <summary>
-        /// The name of the compiler feature.
-        /// </summary>
-        public const string RefStructs = nameof(RefStructs);
-
-        /// <summary>
-        /// The name of the required members feature.
-        /// </summary>
-        public const string RequiredMembers = nameof(RequiredMembers);
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="CompilerFeatureRequiredAttribute"/>.
-        /// </summary>
-        /// <param name="featureName">The name of the required compiler feature.</param>
-        public CompilerFeatureRequiredAttribute(string featureName)
-        {
-            FeatureName = featureName;
-        }
-
-        /// <summary>
-        /// Gets the name of the compiler feature.
-        /// </summary>
-        public string FeatureName { get; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the compiler can choose to allow access to the location where this attribute is applied if it does not understand <see cref="FeatureName"/>.
-        /// </summary>
-        public bool IsOptional { get; init; }
-    }
-}
-
-#endif
-
 namespace CoseSign1.Abstractions
 {
     using System;
@@ -345,3 +225,122 @@ namespace CoseSign1.Abstractions
         }
     }
 }
+
+#if !NET6_0_OR_GREATER
+
+namespace System.Runtime.CompilerServices
+{
+    /// <summary>
+    /// Allows capturing of the expression passed to a method parameter.
+    /// This attribute is used by the compiler to support CallerArgumentExpression.
+    /// </summary>
+    /// <remarks>
+    /// This is a polyfill for netstandard2.0. On .NET 6+, this attribute is built-in.
+    /// </remarks>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    internal sealed class CallerArgumentExpressionAttribute : Attribute
+    {
+        /// <summary>
+        /// Initializes a new instance of <see cref="CallerArgumentExpressionAttribute"/>.
+        /// </summary>
+        /// <param name="parameterName">The name of the parameter whose expression should be captured.</param>
+        public CallerArgumentExpressionAttribute(string parameterName)
+        {
+            ParameterName = parameterName;
+        }
+
+        /// <summary>
+        /// Gets the name of the parameter whose expression should be captured.
+        /// </summary>
+        public string ParameterName { get; }
+    }
+}
+
+namespace System.Diagnostics.CodeAnalysis
+{
+    /// <summary>
+    /// Specifies that an output is not null even if the corresponding type allows it.
+    /// </summary>
+    /// <remarks>
+    /// This is a polyfill for netstandard2.0. On .NET Core 3.0+, this attribute is built-in.
+    /// </remarks>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.ReturnValue, AllowMultiple = true)]
+    internal sealed class NotNullAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Specifies that the method will not return if the associated Boolean parameter is passed the specified value.
+    /// </summary>
+    /// <remarks>
+    /// This is a polyfill for netstandard2.0. On .NET Core 3.0+, this attribute is built-in.
+    /// </remarks>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false)]
+    internal sealed class DoesNotReturnIfAttribute : Attribute
+    {
+        /// <summary>
+        /// Initializes a new instance of <see cref="DoesNotReturnIfAttribute"/>.
+        /// </summary>
+        /// <param name="parameterValue">The condition parameter value that causes the method not to return.</param>
+        public DoesNotReturnIfAttribute(bool parameterValue)
+        {
+            ParameterValue = parameterValue;
+        }
+
+        /// <summary>
+        /// Gets the condition parameter value that causes the method not to return.
+        /// </summary>
+        public bool ParameterValue { get; }
+    }
+}
+
+namespace System.Runtime.CompilerServices
+{
+    /// <summary>
+    /// Specifies that a type has required members or that a member is required.
+    /// This is a polyfill for netstandard2.0. On .NET 7+, this attribute is built-in.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+    internal sealed class RequiredMemberAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Indicates that compiler support for a particular feature is required for the location where this attribute is applied.
+    /// This is a polyfill for netstandard2.0. On .NET 7+, this attribute is built-in.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.All, AllowMultiple = true, Inherited = false)]
+    internal sealed class CompilerFeatureRequiredAttribute : Attribute
+    {
+        /// <summary>
+        /// The name of the compiler feature.
+        /// </summary>
+        public const string RefStructs = nameof(RefStructs);
+
+        /// <summary>
+        /// The name of the required members feature.
+        /// </summary>
+        public const string RequiredMembers = nameof(RequiredMembers);
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="CompilerFeatureRequiredAttribute"/>.
+        /// </summary>
+        /// <param name="featureName">The name of the required compiler feature.</param>
+        public CompilerFeatureRequiredAttribute(string featureName)
+        {
+            FeatureName = featureName;
+        }
+
+        /// <summary>
+        /// Gets the name of the compiler feature.
+        /// </summary>
+        public string FeatureName { get; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the compiler can choose to allow access to the location where this attribute is applied if it does not understand <see cref="FeatureName"/>.
+        /// </summary>
+        public bool IsOptional { get; init; }
+    }
+}
+
+#endif

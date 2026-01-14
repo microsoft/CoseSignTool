@@ -28,7 +28,7 @@ public class IndirectSignatureValidatorTests
     {
         var validator = new IndirectSignatureValidator();
 
-        Assert.That(validator.ComponentName, Is.EqualTo("IndirectSignatureValidator"));
+        Assert.That(validator, Is.Not.Null);
     }
 
     [Test]
@@ -37,68 +37,12 @@ public class IndirectSignatureValidatorTests
         var mockLogger = new Mock<ILogger<IndirectSignatureValidator>>();
         var validator = new IndirectSignatureValidator(mockLogger.Object);
 
-        Assert.That(validator.ComponentName, Is.EqualTo("IndirectSignatureValidator"));
+        Assert.That(validator, Is.Not.Null);
     }
 
     #endregion
 
-    #region ComputeApplicability Tests (via IsApplicableTo)
 
-    [Test]
-    public void IsApplicableTo_DirectSignature_ReturnsFalse()
-    {
-        var validator = new IndirectSignatureValidator();
-        var message = CreateDirectSignatureMessage();
-
-        var result = validator.IsApplicableTo(message);
-
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public void IsApplicableTo_CoseHashEnvelopeSignature_ReturnsTrue()
-    {
-        var validator = new IndirectSignatureValidator();
-        var message = CreateCoseHashEnvelopeMessage(TestPayload);
-
-        var result = validator.IsApplicableTo(message);
-
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void IsApplicableTo_CoseHashVSignature_ReturnsTrue()
-    {
-        var validator = new IndirectSignatureValidator();
-        var message = CreateCoseHashVMessage(TestPayload);
-
-        var result = validator.IsApplicableTo(message);
-
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void IsApplicableTo_HashLegacySignature_ReturnsTrue()
-    {
-        var validator = new IndirectSignatureValidator();
-        var message = CreateHashLegacyMessage(TestPayload);
-
-        var result = validator.IsApplicableTo(message);
-
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void IsApplicableTo_NullMessage_ReturnsFalse()
-    {
-        var validator = new IndirectSignatureValidator();
-
-        var result = validator.IsApplicableTo(null);
-
-        Assert.That(result, Is.False);
-    }
-
-    #endregion
 
     #region Validate Tests - Direct Signature
 

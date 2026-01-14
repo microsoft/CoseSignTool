@@ -16,13 +16,17 @@ dotnet_naming_rule.camel_case_for_private_internal_fields.style = pascal_case_st
 # StyleCop analyzers default to `warning`, and V2 treats warnings as errors.
 # We only want documentation completeness enforcement here, not formatting/naming/etc.
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.DocumentationRules.severity = none
-dotnet_analyzer_diagnostic.category-StyleCop.CSharp.ReadabilityRules.severity = none
+# Keep ReadabilityRules non-blocking, but allow specific rules (e.g. SA1649) to be elevated.
+dotnet_analyzer_diagnostic.category-StyleCop.CSharp.ReadabilityRules.severity = silent
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.OrderingRules.severity = none
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.LayoutRules.severity = none
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.SpacingRules.severity = none
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.NamingRules.severity = none
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.MaintainabilityRules.severity = none
 dotnet_analyzer_diagnostic.category-StyleCop.CSharp.SpecialRules.severity = none
+
+# File name must match the first type name (enforced for V2).
+dotnet_diagnostic.SA1649.severity = error
 
 # Enforce docs completeness.
 dotnet_diagnostic.SA1611.severity = error

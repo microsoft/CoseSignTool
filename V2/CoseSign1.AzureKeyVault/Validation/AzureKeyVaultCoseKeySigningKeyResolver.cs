@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
-using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
 
 /// <summary>
@@ -24,13 +23,10 @@ using CoseSign1.Validation.Interfaces;
 /// This resolver does not perform any network calls.
 /// </para>
 /// </remarks>
-public sealed class AzureKeyVaultCoseKeySigningKeyResolver : AkvValidationComponentBase, ISigningKeyResolver
+public sealed class AzureKeyVaultCoseKeySigningKeyResolver : ISigningKeyResolver
 {
-    /// <inheritdoc/>
-    public override string ComponentName => ClassStrings.ResolverName;
-
     [ExcludeFromCodeCoverage]
-    internal static new class ClassStrings
+    internal static class ClassStrings
     {
         public static readonly string ResolverName = nameof(AzureKeyVaultCoseKeySigningKeyResolver);
 
@@ -43,18 +39,6 @@ public sealed class AzureKeyVaultCoseKeySigningKeyResolver : AkvValidationCompon
         public const string ErrorMessageMissingCoseKey = "Message does not contain an embedded COSE_Key header";
         public const string ErrorMessageInvalidCoseKey = "Embedded COSE_Key header was not a valid COSE_Key structure";
         public const string ErrorMessageUnsupportedCoseKey = "Embedded COSE_Key uses an unsupported key type or algorithm";
-    }
-
-    /// <inheritdoc/>
-    protected override bool ComputeApplicability(CoseSign1Message message, CoseSign1ValidationOptions? options = null)
-    {
-        if (message == null)
-        {
-            return false;
-        }
-
-        return message.ProtectedHeaders.ContainsKey(CoseKeyHeaderContributor.CoseKeyHeaderLabel)
-            || message.UnprotectedHeaders.ContainsKey(CoseKeyHeaderContributor.CoseKeyHeaderLabel);
     }
 
     /// <inheritdoc/>

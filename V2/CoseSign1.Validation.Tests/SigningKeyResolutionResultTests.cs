@@ -5,7 +5,7 @@ namespace CoseSign1.Validation.Tests;
 
 using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
-using CoseSign1.Validation.Trust;
+using CoseSign1.Validation;
 using Moq;
 
 /// <summary>
@@ -133,14 +133,12 @@ public class PostSignatureValidationContextTests
     public void Constructor_ValidParameters_CreatesContext()
     {
         var mockMessage = CreateMockMessage();
-        var assertions = new List<ISigningKeyAssertion>();
         var trustDecision = TrustDecision.Trusted();
         var metadata = new Dictionary<string, object>();
         var options = new CoseSign1ValidationOptions();
 
         var context = new PostSignatureValidationContext(
             mockMessage,
-            assertions,
             trustDecision,
             metadata,
             options);
@@ -148,7 +146,6 @@ public class PostSignatureValidationContextTests
         Assert.Multiple(() =>
         {
             Assert.That(context.Message, Is.SameAs(mockMessage));
-            Assert.That(context.TrustAssertions, Is.SameAs(assertions));
             Assert.That(context.TrustDecision, Is.SameAs(trustDecision));
             Assert.That(context.SignatureMetadata, Is.SameAs(metadata));
             Assert.That(context.Options, Is.SameAs(options));
@@ -165,7 +162,6 @@ public class PostSignatureValidationContextTests
 
         var context = new PostSignatureValidationContext(
             mockMessage,
-            Array.Empty<ISigningKeyAssertion>(),
             TrustDecision.Trusted(),
             new Dictionary<string, object>(),
             options,
@@ -179,20 +175,6 @@ public class PostSignatureValidationContextTests
     {
         Assert.Throws<ArgumentNullException>(() => new PostSignatureValidationContext(
             null!,
-            Array.Empty<ISigningKeyAssertion>(),
-            TrustDecision.Trusted(),
-            new Dictionary<string, object>(),
-            new CoseSign1ValidationOptions()));
-    }
-
-    [Test]
-    public void Constructor_NullAssertions_ThrowsArgumentNullException()
-    {
-        var mockMessage = CreateMockMessage();
-
-        Assert.Throws<ArgumentNullException>(() => new PostSignatureValidationContext(
-            mockMessage,
-            null!,
             TrustDecision.Trusted(),
             new Dictionary<string, object>(),
             new CoseSign1ValidationOptions()));
@@ -205,7 +187,6 @@ public class PostSignatureValidationContextTests
 
         Assert.Throws<ArgumentNullException>(() => new PostSignatureValidationContext(
             mockMessage,
-            Array.Empty<ISigningKeyAssertion>(),
             TrustDecision.Trusted(),
             null!,
             new CoseSign1ValidationOptions()));
@@ -218,33 +199,9 @@ public class PostSignatureValidationContextTests
 
         Assert.Throws<ArgumentNullException>(() => new PostSignatureValidationContext(
             mockMessage,
-            Array.Empty<ISigningKeyAssertion>(),
             TrustDecision.Trusted(),
             new Dictionary<string, object>(),
             null!));
-    }
-
-    [Test]
-    public void TrustAssertions_ReturnsProvidedAssertions()
-    {
-        var mockAssertion = new Mock<ISigningKeyAssertion>();
-        mockAssertion.Setup(a => a.Domain).Returns("test");
-        var assertions = new List<ISigningKeyAssertion> { mockAssertion.Object };
-        var mockMessage = CreateMockMessage();
-        var options = new CoseSign1ValidationOptions();
-
-        var context = new PostSignatureValidationContext(
-            mockMessage,
-            assertions,
-            TrustDecision.Trusted(),
-            new Dictionary<string, object>(),
-            options);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(context.TrustAssertions, Has.Count.EqualTo(1));
-            Assert.That(context.TrustAssertions[0].Domain, Is.EqualTo("test"));
-        });
     }
 
     [Test]
@@ -260,7 +217,6 @@ public class PostSignatureValidationContextTests
 
         var context = new PostSignatureValidationContext(
             mockMessage,
-            Array.Empty<ISigningKeyAssertion>(),
             TrustDecision.Trusted(),
             metadata,
             options);
@@ -284,7 +240,6 @@ public class PostSignatureValidationContextTests
 
         var context = new PostSignatureValidationContext(
             mockMessage,
-            Array.Empty<ISigningKeyAssertion>(),
             TrustDecision.Trusted(),
             new Dictionary<string, object>(),
             options);

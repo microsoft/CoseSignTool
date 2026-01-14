@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.Tests;
 
 using CoseSign1.Validation.Interfaces;
-using CoseSign1.Validation.Trust;
 using Moq;
 
 /// <summary>

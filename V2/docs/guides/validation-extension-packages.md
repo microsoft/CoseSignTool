@@ -1,142 +1,64 @@
 # Authoring Validation Extension Packages
 
-This guide is for authors who want to ship a NuGet package that adds new validation behavior to the V2 validation pipeline (similar to the built-in extension packages in this repo: Certificates, Azure Key Vault, and MST transparency).
+This guide is for authors who want to ship a NuGet package that plugs into the **V2 staged validation model** (similar to the built-in extension packages in this repo: Certificates, Azure Key Vault, and MST transparency).
 
 If you only need app-specific rules in your own code, see [Creating Custom Validators](custom-validators.md).
 
 ## What to build (the V2 model)
 
-V2 validation is composed from a list of **validation components** (`IValidationComponent`). The validator orchestrator pre-filters components by calling `IsApplicableTo(...)`, and then invokes stage-specific interfaces implemented by the component (for example signing-key resolution, trust assertion extraction, post-signature checks).
+V2 validation is **staged** and composed through dependency injection. Extension packages contribute one or more of:
 
-Your extension package typically provides:
+- `ISigningKeyResolver` — resolves an `ISigningKey` used to verify the COSE signature.
+- `ICounterSignatureResolver` — discovers counter-signatures (if your trust model needs them).
+- `IPostSignatureValidator` — runs after signature verification and trust evaluation.
+- `ITrustPack` — contributes default trust-plan fragments and related services.
 
-- One or more components implementing `IValidationComponent` and one or more stage interfaces.
-- A package-specific base class (recommended) that inherits from `ValidationComponentBase`.
-- A default component provider for auto-discovery (optional but recommended).
-- Fluent builder extensions (recommended) so callers can configure your components without referencing concrete types.
+Packages are expected to expose a single opt-in extension method of the form `Enable*Trust(...)` (for example `EnableCertificateTrust`, `EnableAzureKeyVaultTrust`, `EnableMstTrust`).
 
-## Inherit from `ValidationComponentBase` (to get applicability caching)
+## Registration pattern: `ConfigureCoseValidation` + `Enable*Trust`
 
-`CoseSign1.Validation.Abstractions.ValidationComponentBase` provides a default `IsApplicableTo(...)` implementation with configurable caching. To benefit from the caching behavior:
-
-- Derive your components from `ValidationComponentBase` (directly or indirectly).
-- Override `ComputeApplicability(...)` (not `IsApplicableTo(...)`).
-
-This is the recommended pattern used by the extension packages in this repo.
-
-### Why this matters
-
-`IsApplicableTo(...)` can be called repeatedly during validation composition and execution. Keeping it **fast** and letting the base class cache the result avoids recomputing header checks for every stage.
-
-### Best practices for `ComputeApplicability(...)`
-
-- Keep it **cheap and deterministic** (header presence, content type checks, etc.).
-- Do **not** perform network I/O, chain-building, or cryptographic verification here.
-- Prefer applicability checks that depend only on the message (+ explicit validation options).
-  - The base class cache key is type + message identity + a small subset of options.
-  - If applicability depends on per-instance configuration, either refactor so it doesn’t (preferred), or disable caching for that component.
-
-### Disabling caching (only if you must)
-
-If you have a component whose applicability truly depends on mutable state or per-instance configuration, pass `ValidationComponentOptions.NoCache` to the base constructor:
+The core package provides a DI “gate” so trust-pack extensions don’t pollute `IServiceCollection` IntelliSense:
 
 ```csharp
-public sealed class MyComponent : ValidationComponentBase
+using Microsoft.Extensions.DependencyInjection;
+using CoseSign1.Validation.DependencyInjection;
+
+var services = new ServiceCollection();
+var builder = services.ConfigureCoseValidation();
+
+// Your package should expose an extension like this:
+builder.EnableFooTrust(foo =>
 {
-    public MyComponent() : base(ValidationComponentOptions.NoCache) { }
-
-    public override string ComponentName => nameof(MyComponent);
-}
+    // optional configuration
+});
 ```
 
-## Recommended: provide an extension-specific base class
-
-Follow the pattern used by:
-
-- Certificates: `CertificateValidationComponentBase` (requires `x5chain` based on `CertificateHeaderLocation`)
-- Azure Key Vault: `AkvValidationComponentBase` (requires a `kid` header; optionally AKV-shaped)
-- MST: `MstValidationComponentBase` (optionally requires an MST receipt)
-
-This keeps applicability logic consistent across all components in your package and centralizes helper utilities.
-
-A minimal pattern:
+Inside your `EnableFooTrust` implementation, register services (typically singletons):
 
 ```csharp
-public abstract class FooValidationComponentBase : ValidationComponentBase
-{
-    protected FooValidationComponentBase(ValidationComponentOptions? options = null) : base(options) { }
-
-    protected override bool ComputeApplicability(CoseSign1Message message, CoseSign1ValidationOptions? options = null)
-        => HasFooHeader(message);
-
-    protected static bool HasFooHeader(CoseSign1Message message) => /* cheap header check */;
-}
+services.AddSingleton<ISigningKeyResolver, FooSigningKeyResolver>();
+services.AddSingleton<IPostSignatureValidator, FooPostSignatureValidator>();
+services.AddSingleton<ITrustPack, FooTrustPack>();
 ```
 
-## Recommended: support default component auto-discovery
+## Applicability and performance
 
-If you want your components to be picked up automatically when a caller uses the “default validation” path (for example `message.Validate(...)` without manually composing a pipeline), implement `IDefaultValidationComponentProvider` and add the assembly-level attribute.
+V2 no longer uses a component list with `IsApplicableTo(...)` pre-filtering or reflection-based discovery.
 
-1) Add an assembly attribute (commonly in `DefaultComponentRegistration.cs`):
-
-```csharp
-using CoseSign1.Validation.Abstractions;
-
-[assembly: DefaultValidationComponentProvider(typeof(FooDefaultComponentProvider))]
-```
-
-2) Implement the provider:
-
-```csharp
-public sealed class FooDefaultComponentProvider : IDefaultValidationComponentProvider
-{
-    public int Priority => 250;
-
-    public IEnumerable<IValidationComponent> GetDefaultComponents(ILoggerFactory? loggerFactory)
-    {
-        yield return new FooAssertionProvider(/* ... */);
-    }
-}
-```
-
-Notes:
-
-- Use `Priority` to place your components relative to others (see the tier guidance on `IDefaultValidationComponentProvider`).
-- Prefer **detection / fact emission** as defaults (safe, low-risk). Require explicit configuration for expensive validation or networked checks.
-
-## Recommended: add fluent builder extensions
-
-Extension packages in this repo expose configuration through `ICoseSign1ValidationBuilder` extension methods:
-
-- `ValidateCertificate(...)`
-- `ValidateAzureKeyVault(...)`
-- `ValidateMst(...)`
-
-This gives a consistent call-site experience and allows you to evolve internal component structure without breaking users.
-
-Guidelines:
-
-- Prefer `ValidateX(...)` naming for consistency.
-- Throw on null `builder` / `configure`.
-- Only add components if the configuration actually requested them (see the AKV builder pattern).
+If your logic only applies when specific headers are present, keep the check inside your resolver/validator and return a `ValidationResult.NotApplicable(...)` (or a “no result” from a resolver) cheaply.
 
 ## Testing patterns
 
 Recommended tests for extension packages:
 
-- Default provider tests: ensure `GetDefaultComponents(...)` returns the expected component set.
-- Builder extension tests: verify the extension method adds the expected components to `ICoseSign1ValidationBuilder`.
-- Applicability tests: validate that your base class correctly opts-in/out based on headers/options (these are cheap unit tests and help keep caching assumptions safe).
+- `Enable*Trust` tests: ensure expected services are registered in the container.
+- Trust pack tests: ensure your `ITrustPack` contributes the expected trust-plan fragments.
+- End-to-end tests: sign a test message and validate it with a service provider configured with your trust pack.
 
 ## See also
 
 - [Validation Framework](../architecture/validation-framework.md)
-- [CoseSign1.Validation component docs](../components/validation.md)
 - [Creating Custom Validators](custom-validators.md)
-
-## Reference implementations in this repo
-
-These are the concrete patterns this guide is describing.
 
 ### Core base + caching
 

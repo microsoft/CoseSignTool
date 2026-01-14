@@ -61,6 +61,16 @@ public sealed class CoseSign1ValidationOptions
     public CoseHeaderLocation CertificateHeaderLocation { get; set; } = CoseHeaderLocation.Protected;
 
     /// <summary>
+    /// Gets or sets a value indicating whether post-signature validation should be skipped.
+    /// </summary>
+    /// <remarks>
+    /// This is primarily used for signature-only verification flows where the caller wants to validate
+    /// cryptographic correctness (and optionally trust) but intentionally avoids post-signature policy checks
+    /// such as indirect payload hash validation.
+    /// </remarks>
+    public bool SkipPostSignatureValidation { get; set; }
+
+    /// <summary>
     /// Creates a new instance of <see cref="CoseSign1ValidationOptions"/> with default values.
     /// </summary>
     public CoseSign1ValidationOptions()
@@ -78,7 +88,8 @@ public sealed class CoseSign1ValidationOptions
             DetachedPayload = DetachedPayload,
             AssociatedData = AssociatedData,
             CancellationToken = CancellationToken,
-            CertificateHeaderLocation = CertificateHeaderLocation
+            CertificateHeaderLocation = CertificateHeaderLocation,
+            SkipPostSignatureValidation = SkipPostSignatureValidation
         };
     }
 }

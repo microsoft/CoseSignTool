@@ -5,11 +5,18 @@ namespace CoseSignTool.MST.Plugin.Tests;
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Formats.Cbor;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
 using System.Text;
 using System.Text.Json;
-using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Engine;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Validation.Trust.Subjects;
 using CoseSignTool.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Tests for <see cref="MstVerificationProvider" />.
@@ -18,16 +25,16 @@ using CoseSignTool.Abstractions;
 public class MstVerificationProviderTests
 {
     [Test]
-    public void CreateTrustPolicy_WithNullParseResult_ThrowsArgumentNullException()
+    public void CreateTrustPlanPolicy_WithNullParseResult_ThrowsArgumentNullException()
     {
         var provider = new MstVerificationProvider();
         var context = new VerificationContext(detachedPayload: null);
 
-        Assert.Throws<ArgumentNullException>(() => provider.CreateTrustPolicy(null!, context));
+        Assert.Throws<ArgumentNullException>(() => provider.CreateTrustPlanPolicy(null!, context));
     }
 
     [Test]
-    public void CreateTrustPolicy_WhenRequireReceiptAndVerifyReceipt_ReturnsRequireReceiptPresentAndTrusted()
+    public void CreateTrustPlanPolicy_WhenRequireReceiptAndVerifyReceipt_ReturnsNonNull()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
@@ -38,13 +45,13 @@ public class MstVerificationProviderTests
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
-        var policy = provider.CreateTrustPolicy(parseResult, context);
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
 
         Assert.That(policy, Is.Not.Null);
     }
 
     [Test]
-    public void CreateTrustPolicy_WhenRequireReceiptButNotVerifyReceipt_ReturnsRequireReceiptPresent()
+    public void CreateTrustPlanPolicy_WhenRequireReceiptButNotVerifyReceipt_ReturnsNonNull()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
@@ -55,13 +62,13 @@ public class MstVerificationProviderTests
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
-        var policy = provider.CreateTrustPolicy(parseResult, context);
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
 
         Assert.That(policy, Is.Not.Null);
     }
 
     [Test]
-    public void CreateTrustPolicy_WhenNotRequiringReceipt_ReturnsNull()
+    public void CreateTrustPlanPolicy_WhenNotRequiringReceipt_ReturnsNull()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
@@ -71,13 +78,13 @@ public class MstVerificationProviderTests
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
-        var policy = provider.CreateTrustPolicy(parseResult, context);
+        var policy = provider.CreateTrustPlanPolicy(parseResult, context);
 
         Assert.That(policy, Is.Null);
     }
 
     [Test]
-    public void CreateValidators_OfflineTrustFileDoesNotExist_ReturnsPresenceOnly()
+    public async Task CreateTrustPacks_OfflineTrustFileDoesNotExist_TrustedFactIsMissingOfflineKeys()
     {
         var provider = new MstVerificationProvider();
 
@@ -94,14 +101,25 @@ public class MstVerificationProviderTests
             "true"
         ]);
 
-        var validators = provider.CreateValidators(parseResult).ToList();
+        var context = new VerificationContext(detachedPayload: null);
 
-        Assert.That(validators.OfType<MstReceiptPresenceAssertionProvider>().Count(), Is.EqualTo(1));
-        Assert.That(validators.OfType<MstReceiptAssertionProvider>().Any(), Is.False);
+        var services = new ServiceCollection();
+        var builder = services.ConfigureCoseValidation();
+        provider.ConfigureValidation(builder, parseResult, context);
+
+        using var sp = services.BuildServiceProvider();
+        var pack = sp.GetServices<ITrustPack>().Single(p => p is MstTrustPack);
+
+        var message = CreateMessageWithEmptyReceiptHeader();
+        var subject = TrustSubject.Message(message);
+        var factContext = new TrustFactContext(subject.Id, subject, new TrustEvaluationOptions(), memoryCache: null, message);
+
+        var facts = await pack.ProduceAsync(factContext, typeof(MstReceiptTrustedFact), CancellationToken.None);
+        Assert.That(facts.IsMissing, Is.True);
     }
 
     [Test]
-    public void CreateValidators_OfflineTrustKeysWithMixedEntries_ReturnsPresenceAndOfflineReceiptValidator()
+    public async Task CreateTrustPacks_OfflineTrustKeysWithMixedEntries_TrustedFactIsNotMissingOfflineKeys()
     {
         var provider = new MstVerificationProvider();
 
@@ -152,10 +170,21 @@ public class MstVerificationProviderTests
                 $"mst.example.com={WriteTempFile(tempDir.FullName, "bad-keys.json", "{\"keys\":123}")}",
             ]);
 
-            var validators = provider.CreateValidators(parseResult).ToList();
+            var context = new VerificationContext(detachedPayload: null);
 
-            Assert.That(validators.OfType<MstReceiptPresenceAssertionProvider>().Count(), Is.EqualTo(1));
-            Assert.That(validators.OfType<MstReceiptAssertionProvider>().Count(), Is.EqualTo(1));
+            var services = new ServiceCollection();
+            var builder = services.ConfigureCoseValidation();
+            provider.ConfigureValidation(builder, parseResult, context);
+
+            using var sp = services.BuildServiceProvider();
+            var pack = sp.GetServices<ITrustPack>().Single(p => p is MstTrustPack);
+
+            var message = CreateMessageWithEmptyReceiptHeader();
+            var subject = TrustSubject.Message(message);
+            var factContext = new TrustFactContext(subject.Id, subject, new TrustEvaluationOptions(), memoryCache: null, message);
+
+            var facts = await pack.ProduceAsync(factContext, typeof(MstReceiptTrustedFact), CancellationToken.None);
+            Assert.That(facts.IsMissing, Is.False);
         }
         finally
         {
@@ -225,5 +254,30 @@ public class MstVerificationProviderTests
         var path = Path.Combine(dir, fileName);
         File.WriteAllText(path, contents, Encoding.UTF8);
         return path;
+    }
+
+    private static CoseSign1Message CreateMessageWithEmptyReceiptHeader()
+    {
+        using var key = ECDsa.Create();
+        var payload = "payload"u8.ToArray();
+
+        var protectedHeaders = new CoseHeaderMap();
+        var unprotectedHeaders = new CoseHeaderMap();
+        unprotectedHeaders[new CoseHeaderLabel(394)] = CborValue(writer =>
+        {
+            writer.WriteStartArray(0);
+            writer.WriteEndArray();
+        });
+
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders);
+        var encoded = CoseSign1Message.SignEmbedded(payload, signer);
+        return CoseSign1Message.DecodeSign1(encoded);
+    }
+
+    private static CoseHeaderValue CborValue(Action<CborWriter> write)
+    {
+        var writer = new CborWriter();
+        write(writer);
+        return CoseHeaderValue.FromEncodedValue(writer.Encode());
     }
 }

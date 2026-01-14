@@ -6,7 +6,7 @@ namespace CoseSignTool.Tests.Plugins;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Results;
 using CoseSignTool.Abstractions;
 
@@ -208,7 +208,9 @@ public class PluginExtensionsTests
         public int Priority => 50;
         public void AddVerificationOptions(Command command) { }
         public bool IsActivated(ParseResult parseResult) => true;
-        public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult) => [];
+        public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
+        {
+        }
         public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult) => new Dictionary<string, object?>();
     }
 

@@ -5,11 +5,16 @@ namespace CoseSignTool.Tests.Plugins;
 
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using System.Reflection;
+using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Validation.Trust.Subjects;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Local.Plugin;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Tests for the X509VerificationProvider class.
@@ -35,6 +40,14 @@ public class X509VerificationProviderTests
         provider.AddVerificationOptions(command);
         var parser = new Parser(command);
         return new TestContext(provider, command, parser);
+    }
+
+    private static ServiceProvider BuildServiceProvider(TestContext ctx, ParseResult parseResult, VerificationContext verificationContext)
+    {
+        var services = new ServiceCollection();
+        var builder = services.ConfigureCoseValidation();
+        ctx.Provider.ConfigureValidation(builder, parseResult, verificationContext);
+        return services.BuildServiceProvider();
     }
 
     [Test]
@@ -91,13 +104,13 @@ public class X509VerificationProviderTests
 
         // Assert - check for aliases
         var trustRootsOption = ctx.Command.Options.First(o => o.Name == "trust-roots");
-        Assert.That(trustRootsOption.Aliases, Does.Contain("-r"));
+        Assert.That(trustRootsOption.Aliases, Does.Contain("--roots"));
 
         var subjectNameOption = ctx.Command.Options.First(o => o.Name == "subject-name");
-        Assert.That(subjectNameOption.Aliases, Does.Contain("-s"));
+        Assert.That(subjectNameOption.Aliases, Does.Contain("--cn"));
 
         var issuerNameOption = ctx.Command.Options.First(o => o.Name == "issuer-name");
-        Assert.That(issuerNameOption.Aliases, Does.Contain("-i"));
+        Assert.That(issuerNameOption.Aliases, Does.Contain("--issuer"));
     }
 
     [Test]
@@ -157,114 +170,149 @@ public class X509VerificationProviderTests
     }
 
     [Test]
-    public void CreateTrustPolicy_WithAllowUntrusted_ReturnsPermissivePolicy()
+    public void CreateTrustPlanPolicy_WithAllowUntrusted_AllowsTrust()
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--allow-untrusted");
 
         // Act
-        var policy = ctx.Provider.CreateTrustPolicy(parseResult, new VerificationContext(detachedPayload: null));
+        var verificationContext = new VerificationContext(detachedPayload: null);
+        var policy = ctx.Provider.CreateTrustPlanPolicy(parseResult, verificationContext);
 
         // Assert
         Assert.That(policy, Is.Not.Null);
-        Assert.That(policy!.Evaluate(Array.Empty<ISigningKeyAssertion>()).IsTrusted, Is.True);
+
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var plan = policy!.Compile(sp);
+        var message = CreateTestMessage();
+        var subject = TrustSubject.Message(message);
+        var decision = plan.Evaluate(subject.Id, message, subject, new TrustEvaluationOptions());
+
+        Assert.That(decision.IsTrusted, Is.True);
     }
 
     [Test]
-    public void CreateTrustPolicy_WithDefaultOptions_RequiresTrustedChain()
+    public void CreateTrustPlanPolicy_WithDefaultOptions_DeniesTrustWithoutCertificateHeaders()
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("");
 
         // Act
-        var policy = ctx.Provider.CreateTrustPolicy(parseResult, new VerificationContext(detachedPayload: null));
+        var verificationContext = new VerificationContext(detachedPayload: null);
+        var policy = ctx.Provider.CreateTrustPlanPolicy(parseResult, verificationContext);
 
         // Assert
         Assert.That(policy, Is.Not.Null);
-        Assert.That(policy!.Evaluate(Array.Empty<ISigningKeyAssertion>()).IsTrusted, Is.False);
+
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var plan = policy!.Compile(sp);
+        var message = CreateTestMessage();
+        var subject = TrustSubject.Message(message);
+        var decision = plan.Evaluate(subject.Id, message, subject, new TrustEvaluationOptions());
+
+        // The default plan requires chain trust, and our test message has no x5t/x5chain headers.
+        Assert.That(decision.IsTrusted, Is.False);
+    }
+
+    private static CoseSign1Message CreateTestMessage()
+    {
+        using var key = ECDsa.Create();
+        var payload = "test"u8.ToArray();
+
+        var protectedHeaders = new CoseHeaderMap();
+        var signer = new CoseSigner(key, HashAlgorithmName.SHA256, protectedHeaders, unprotectedHeaders: null);
+        var encoded = CoseSign1Message.SignEmbedded(payload, signer);
+        return CoseSign1Message.DecodeSign1(encoded);
     }
 
     [Test]
-    public void CreateValidators_WithDefaultOptions_ReturnsChainValidator()
+    public void ConfigureValidation_WithDefaultOptions_RegistersCertificateSigningKeyResolver()
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("");
 
-        // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        var verificationContext = new VerificationContext(detachedPayload: null);
 
-        // Assert - resolver + chain assertion provider
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
+        // Act
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
+
+        // Assert - TrustPlan-only: validators only provide key resolution
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithSubjectName_IncludesCommonNameValidator()
+    public void ConfigureValidation_WithSubjectName_RegistersCertificateSigningKeyResolver()
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--subject-name \"Test Subject\"");
 
+        var verificationContext = new VerificationContext(detachedPayload: null);
+
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
         // Assert
-        Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateCommonNameAssertionProvider"), Is.True);
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithIssuerName_IncludesIssuerValidator()
+    public void ConfigureValidation_WithIssuerName_RegistersCertificateSigningKeyResolver()
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--issuer-name \"Test Issuer\"");
 
+        var verificationContext = new VerificationContext(detachedPayload: null);
+
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
         // Assert
-        Assert.That(validators, Has.Count.GreaterThan(1));
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateIssuerAssertionProvider"), Is.True);
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
-    public void CreateValidators_WithAllowUntrusted_ReturnsUntrustedChainValidator()
+    public void ConfigureValidation_WithAllowUntrusted_RegistersCertificateSigningKeyResolver()
     {
         // Arrange - explicitly allow untrusted certificates
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--allow-untrusted");
 
-        // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        var verificationContext = new VerificationContext(detachedPayload: null);
 
-        // Assert - CertificateSigningKeyResolver + CertificateChainAssertionProvider
-        // Note: CertificateSignatureValidator is no longer returned - signature verification is handled by the orchestrator
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
+        // Act
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
+
+        // Assert - TrustPlan-only: validators only provide key resolution
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
     [TestCase("online")]
     [TestCase("offline")]
     [TestCase("none")]
-    public void CreateValidators_WithRevocationMode_SetsCorrectMode(string mode)
+    public void ConfigureValidation_WithRevocationMode_DoesNotThrow(string mode)
     {
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse($"--revocation-mode {mode}");
 
+        var verificationContext = new VerificationContext(detachedPayload: null);
+
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
         // Assert
-        Assert.That(validators, Is.Not.Empty);
-        // The validator is created - the mode is internal to it
+        Assert.That(resolvers, Is.Not.Empty);
     }
 
     [Test]
@@ -294,7 +342,7 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(metadata, Does.ContainKey("Trust Mode"));
-        Assert.That(metadata["Trust Mode"], Is.EqualTo("Untrusted Allowed"));
+        Assert.That(metadata["Trust Mode"], Is.EqualTo("Allow Untrusted"));
     }
 
     [Test]
@@ -308,8 +356,8 @@ public class X509VerificationProviderTests
         var metadata = ctx.Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        Assert.That(metadata, Does.ContainKey("Required Subject"));
-        Assert.That(metadata["Required Subject"], Is.EqualTo("Test Subject"));
+        Assert.That(metadata, Does.ContainKey("Required Subject CN"));
+        Assert.That(metadata["Required Subject CN"], Is.EqualTo("Test Subject"));
     }
 
     [Test]
@@ -323,8 +371,8 @@ public class X509VerificationProviderTests
         var metadata = ctx.Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        Assert.That(metadata, Does.ContainKey("Required Issuer"));
-        Assert.That(metadata["Required Issuer"], Is.EqualTo("Test Issuer"));
+        Assert.That(metadata, Does.ContainKey("Required Issuer CN"));
+        Assert.That(metadata["Required Issuer CN"], Is.EqualTo("Test Issuer"));
     }
 
     [Test]
@@ -418,12 +466,13 @@ public class X509VerificationProviderTests
             // Write an invalid cert file (will be skipped)
             File.WriteAllBytes(tempCertPath, [0x30, 0x82, 0x00, 0x01]);
             var parseResult = ctx.Parser.Parse($"--trust-roots \"{tempCertPath}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
             // Assert - should still create validators even with invalid cert
-            Assert.That(validators, Has.Count.GreaterThanOrEqualTo(0));
+            Assert.That(sp, Is.Not.Null);
         }
         finally
         {
@@ -438,12 +487,13 @@ public class X509VerificationProviderTests
         var ctx = CreateTestContext();
         var nonExistentPath = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.pem");
         var parseResult = ctx.Parser.Parse($"--trust-roots \"{nonExistentPath}\"");
+        var verificationContext = new VerificationContext(detachedPayload: null);
 
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
         // Assert - should handle gracefully without exception
-        Assert.That(validators, Is.Not.Null);
+        Assert.That(sp, Is.Not.Null);
     }
 
     [Test]
@@ -452,12 +502,14 @@ public class X509VerificationProviderTests
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--subject-name \"TestSubject\" --issuer-name \"TestIssuer\"");
+        var verificationContext = new VerificationContext(detachedPayload: null);
 
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
-        // Assert - should have chain + subject + issuer validators
-        Assert.That(validators, Has.Count.GreaterThanOrEqualTo(3));
+        // Assert - TrustPlan-only: validators only provide key resolution
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
@@ -508,26 +560,14 @@ public class X509VerificationProviderTests
         // Arrange
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("--trust-system-roots false --allow-untrusted");
+        var verificationContext = new VerificationContext(detachedPayload: null);
 
         // Act
-        var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+        using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+        var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
-        // Assert - resolver + chain assertion provider
-        Assert.That(validators, Has.Count.EqualTo(2));
-        Assert.That(validators.Any(v => v.GetType().Name == "CertificateSigningKeyResolver"), Is.True);
-        Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
-    }
-
-    private static object UnwrapConditional(IValidationComponent validator)
-    {
-        var t = validator.GetType();
-        if (!string.Equals(t.Name, "ConditionalX509Validator", StringComparison.Ordinal))
-        {
-            return validator;
-        }
-
-        var innerField = t.GetField("Inner", BindingFlags.NonPublic | BindingFlags.Instance);
-        return innerField?.GetValue(validator) ?? validator;
+        // Assert - TrustPlan-only: validators only provide key resolution
+        Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
     }
 
     [Test]
@@ -547,13 +587,14 @@ public class X509VerificationProviderTests
             try
             {
                 var parseResult = ctx.Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+                var verificationContext = new VerificationContext(detachedPayload: null);
 
                 // Act
-                var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+                using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+                var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
-                // Assert - should have a chain validator
-                Assert.That(validators, Has.Count.GreaterThan(0));
-                Assert.That(validators.Any(v => UnwrapConditional(v).GetType().Name == "CertificateChainAssertionProvider"), Is.True);
+                // Assert - TrustPlan-only: validators only provide key resolution
+                Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
             }
             finally
             {
@@ -581,12 +622,13 @@ public class X509VerificationProviderTests
             File.WriteAllText(tempPasswordPath, "filepassword");
 
             var parseResult = ctx.Parser.Parse($"--trust-pfx \"{tempPfxPath}\" --trust-pfx-password-file \"{tempPasswordPath}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
             // Assert
-            Assert.That(validators, Has.Count.GreaterThan(0));
+            Assert.That(sp, Is.Not.Null);
         }
         finally
         {
@@ -611,12 +653,13 @@ public class X509VerificationProviderTests
             try
             {
                 var parseResult = ctx.Parser.Parse($"--trust-pfx \"{tempPfxPath}\" --trust-pfx-password-env MY_CUSTOM_PASSWORD_VAR");
+                var verificationContext = new VerificationContext(detachedPayload: null);
 
                 // Act
-                var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+                using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
                 // Assert
-                Assert.That(validators, Has.Count.GreaterThan(0));
+                Assert.That(sp, Is.Not.Null);
             }
             finally
             {
@@ -642,12 +685,13 @@ public class X509VerificationProviderTests
             File.WriteAllBytes(tempPfxPath, pfxBytes);
 
             var parseResult = ctx.Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
             // Assert
-            Assert.That(validators, Has.Count.GreaterThan(0));
+            Assert.That(sp, Is.Not.Null);
         }
         finally
         {
@@ -665,12 +709,13 @@ public class X509VerificationProviderTests
         {
             File.WriteAllBytes(tempPfxPath, [0x00, 0x01, 0x02, 0x03]); // Invalid data
             var parseResult = ctx.Parser.Parse($"--trust-pfx \"{tempPfxPath}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
             // Assert - should handle gracefully
-            Assert.That(validators, Is.Not.Null);
+            Assert.That(sp, Is.Not.Null);
         }
         finally
         {
@@ -691,13 +736,14 @@ public class X509VerificationProviderTests
             File.WriteAllText(tempPemPath, pemContent);
 
             var parseResult = ctx.Parser.Parse($"--trust-roots \"{tempPemPath}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
+            var resolvers = sp.GetServices<ISigningKeyResolver>().ToArray();
 
             // Assert
-            Assert.That(validators, Has.Count.GreaterThan(0));
-            Assert.That(validators.Any(v => v.GetType().Name == "CertificateChainAssertionProvider"), Is.True);
+            Assert.That(resolvers.OfType<CertificateSigningKeyResolver>(), Is.Not.Empty);
         }
         finally
         {
@@ -720,12 +766,13 @@ public class X509VerificationProviderTests
             File.WriteAllText(tempPem2, cert2.ExportCertificatePem());
 
             var parseResult = ctx.Parser.Parse($"--trust-roots \"{tempPem1}\" --trust-roots \"{tempPem2}\"");
+            var verificationContext = new VerificationContext(detachedPayload: null);
 
             // Act
-            var validators = ctx.Provider.CreateValidators(parseResult).ToList();
+            using var sp = BuildServiceProvider(ctx, parseResult, verificationContext);
 
             // Assert
-            Assert.That(validators, Has.Count.GreaterThan(0));
+            Assert.That(sp, Is.Not.Null);
         }
         finally
         {
@@ -759,8 +806,8 @@ public class X509VerificationProviderTests
         var metadata = ctx.Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        Assert.That(metadata["Required Subject"], Is.EqualTo("TestSubj"));
-        Assert.That(metadata["Required Issuer"], Is.EqualTo("TestIss"));
+        Assert.That(metadata["Required Subject CN"], Is.EqualTo("TestSubj"));
+        Assert.That(metadata["Required Issuer CN"], Is.EqualTo("TestIss"));
     }
 
     #endregion

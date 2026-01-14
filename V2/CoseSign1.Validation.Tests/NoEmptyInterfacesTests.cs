@@ -13,9 +13,7 @@ using System.Text;
 /// V2 should not use empty interfaces ("marker interfaces").
 ///
 /// Empty interfaces are brittle because they encode semantics in type identity rather than in an explicit API.
-/// In V2, staged validation is represented via <see cref="CoseSign1.Validation.Interfaces.IValidationComponent"/>
-/// (component types), <see cref="CoseSign1.Validation.Interfaces.ISigningKeyResolver"/>,
-/// <see cref="CoseSign1.Validation.Interfaces.ISigningKeyAssertionProvider"/>,
+/// In V2, staged validation is represented via <see cref="CoseSign1.Validation.Interfaces.ISigningKeyResolver"/>,
 /// and <see cref="CoseSign1.Validation.Interfaces.IPostSignatureValidator"/>,
 /// which provide explicit contracts for each validation stage.
 /// </remarks>
@@ -32,7 +30,7 @@ public sealed class NoEmptyInterfacesTests
         {
             var sb = new StringBuilder();
             sb.AppendLine("Empty interface declarations are not allowed in V2.");
-            sb.AppendLine("Replace marker interfaces with explicit APIs (e.g., IValidationComponent + specific stage interfaces).");
+            sb.AppendLine("Replace marker interfaces with explicit APIs (e.g., stage interfaces like ISigningKeyResolver).");
             sb.AppendLine();
             sb.AppendLine("Offenders:");
             foreach (var offender in offenders)
@@ -92,6 +90,12 @@ public sealed class NoEmptyInterfacesTests
                     break;
                 }
 
+                // Extract the interface declaration header (between the 'interface' keyword and '{') so we can
+                // exempt ITrustFact-derived marker interfaces.
+                var header = stripped.Substring(
+                    interfaceKeywordIndex,
+                    openBraceIndex - interfaceKeywordIndex);
+
                 int closeBraceIndex = FindMatchingBraceIndex(stripped, openBraceIndex);
                 if (closeBraceIndex < 0)
                 {
@@ -101,7 +105,14 @@ public sealed class NoEmptyInterfacesTests
                 var body = stripped.Substring(openBraceIndex + 1, closeBraceIndex - openBraceIndex - 1);
                 if (string.IsNullOrWhiteSpace(body))
                 {
-                    offenders.Add(Path.GetRelativePath(v2Root, filePath));
+                    // Allow marker interfaces only when they derive from ITrustFact.
+                    // This preserves the guardrail against arbitrary empty interfaces while allowing
+                    // fact scoping interfaces like IMessageFact / ISigningKeyFact / ICounterSignatureFact
+                    // to be true markers.
+                    if (!HeaderDerivesFromITrustFact(header))
+                    {
+                        offenders.Add(Path.GetRelativePath(v2Root, filePath));
+                    }
                 }
 
                 index = closeBraceIndex + 1;
@@ -109,6 +120,26 @@ public sealed class NoEmptyInterfacesTests
         }
 
         return offenders;
+    }
+
+    private static bool HeaderDerivesFromITrustFact(string interfaceHeader)
+    {
+        if (string.IsNullOrWhiteSpace(interfaceHeader))
+        {
+            return false;
+        }
+
+        // We only consider interfaces that have an explicit base list, e.g.:
+        //   interface IFoo : ITrustFact
+        // We intentionally keep this conservative; it is a guardrail, not a compiler.
+        int colonIndex = interfaceHeader.IndexOf(':');
+        if (colonIndex < 0)
+        {
+            return false;
+        }
+
+        var baseList = interfaceHeader.Substring(colonIndex + 1);
+        return IndexOfKeyword(baseList, "ITrustFact", startIndex: 0) >= 0;
     }
 
     private static bool IsGeneratedOrBuildOutput(string filePath)

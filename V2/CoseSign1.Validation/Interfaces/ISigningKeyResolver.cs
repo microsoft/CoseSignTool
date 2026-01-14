@@ -24,7 +24,7 @@ using CoseSign1.Abstractions;
 /// </list>
 /// </para>
 /// </remarks>
-public interface ISigningKeyResolver : IValidationComponent
+public interface ISigningKeyResolver
 {
     /// <summary>
     /// Resolves signing key material from the message.

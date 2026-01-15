@@ -166,16 +166,40 @@ var result = handler.Validate(signedMessage, options);
 **V2:**
 ```csharp
 using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Validation;
-using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
-var validator = new CoseSign1ValidationBuilder()
-    .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3"))
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+    .RequireFact<X509SigningCertificateIdentityFact>(
+        f => f.NotAfterUtc > DateTime.UtcNow,
+        "Certificate must not be expired")
+    .RequireFact<X509SigningCertificateEkuFact>(
+        f => f.OidValue == "1.3.6.1.5.5.7.3.3",
+        "Required EKU is missing"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var options = new CoseSign1ValidationOptions
+{
+    CertificateHeaderLocation = CoseHeaderLocation.Any,
+};
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create(options: options);
 
 var message = CoseMessage.DecodeSign1(signedMessage);
 var results = message.Validate(validator);
@@ -411,14 +435,27 @@ byte[] message2 = factory.CreateDirectCoseSign1MessageBytes(payload2, "applicati
 
 **Best Practice:**
 ```csharp
-// Build once, validate multiple messages
-var validator = new CoseSign1ValidationBuilder()
-    .WithOptions(o => o.CertificateHeaderLocation = System.Security.Cryptography.Cose.CoseHeaderLocation.Any)
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasCommonName("TrustedSigner"))
-    .Build();
+// Configure once, validate multiple messages
+var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+var trustPolicy = CoseSign1.Validation.Trust.TrustPlanPolicy.PrimarySigningKey(k => k
+    .RequireFact<CoseSign1.Certificates.Trust.Facts.X509SigningCertificateIdentityFact>(
+        f => f.Subject.Contains("CN=TrustedSigner", StringComparison.OrdinalIgnoreCase),
+        "Signing certificate subject must match the required identity"));
+
+services.AddSingleton<CoseSign1.Validation.Trust.CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<CoseSign1.Validation.DependencyInjection.ICoseSign1ValidatorFactory>()
+    .Create(options: new CoseSign1.Validation.CoseSign1ValidationOptions { CertificateHeaderLocation = System.Security.Cryptography.Cose.CoseHeaderLocation.Any });
 
 // Validate multiple messages
 var result1 = CoseMessage.DecodeSign1(message1).Validate(validator);

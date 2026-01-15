@@ -133,10 +133,12 @@ When multiple tests need similar setup, use private static factory methods:
 
 ```csharp
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Factories;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
@@ -149,31 +151,29 @@ public sealed class ValidatorTests
     {
         // Arrange
         using var testContext = CreateTestContext();
-        var validator = new CoseSign1ValidationBuilder()
-            .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: true))
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+
+        // Enable X.509 signing key resolution (x5chain/x5t).
+        validation.EnableCertificateTrust(certTrust => certTrust
+            .UseSystemTrust()
+            );
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        // In unit tests it's common to bypass trust and focus on signature correctness.
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(
+                options: new CoseSign1ValidationOptions { CertificateHeaderLocation = CoseHeaderLocation.Any },
+                trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
         // Act
         var result = testContext.Message.Validate(validator);
 
         // Assert
         Assert.That(result.Overall.IsValid, Is.True);
-    }
-
-    [Test]
-    public void IsApplicableTo_WithNullMessage_DoesNotThrow()
-    {
-        // Arrange
-        var resolver = new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any);
-
-        // Act
-        var applicable = resolver.IsApplicableTo(null);
-
-        // Assert
-        Assert.That(applicable, Is.False);
     }
 
     // Private helper that returns a disposable context
@@ -307,14 +307,6 @@ byte[] large = new byte[1024 * 1024];
 // Mock a post-signature validator component
 var mockValidator = new Mock<IPostSignatureValidator>();
 mockValidator
-    .SetupGet(v => v.ComponentName)
-    .Returns("MockValidator");
-
-mockValidator
-    .Setup(v => v.IsApplicableTo(It.IsAny<CoseSign1Message>(), It.IsAny<CoseSign1ValidationOptions>()))
-    .Returns(true);
-
-mockValidator
     .Setup(v => v.ValidateAsync(It.IsAny<IPostSignatureValidationContext>(), It.IsAny<CancellationToken>()))
     .ReturnsAsync(ValidationResult.Success("MockValidator"));
 ```
@@ -376,11 +368,20 @@ public class SignVerifyIntegrationTests
         
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => { })
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+        validation.EnableCertificateTrust(certTrust => certTrust
+            .UseSystemTrust()
+            );
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(
+                options: new CoseSign1ValidationOptions { CertificateHeaderLocation = CoseHeaderLocation.Any },
+                trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
         var result = message.Validate(validator);
         
         Assert.That(result.Overall.IsValid, Is.True);

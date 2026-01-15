@@ -48,7 +48,7 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
 |---------|---------|-----------|
 | `CoseSign1.Factories` | Message creation | `CoseSign1MessageFactory`, `DirectSignatureFactory`, `IndirectSignatureFactory` |
 | `CoseSign1.Abstractions` | Shared contracts | `ISigningService`, `SigningOptions` |
-| `CoseSign1.Validation` | Staged validation | `CoseSign1ValidationBuilder`, `CoseSign1Validator`, `ICoseSign1Validator`, `TrustPolicy` |
+| `CoseSign1.Validation` | Staged validation | `CoseSign1Validator`, `ICoseSign1Validator`, `ICoseSign1ValidatorFactory`, `CompiledTrustPlan`, `TrustPlanPolicy` |
 | `CoseSign1.Certificates` | Certificate infrastructure | `ICertificateSource`, `ICertificateChainBuilder`, `CertificateSigningService` |
 
 ### Certificate Provider Packages
@@ -200,42 +200,39 @@ public interface ISigningService<TOptions> where TOptions : SigningOptions
 
 ### Entry Point
 
-V2 validation is built around **stage-aware components** and a single orchestrator (`CoseSign1Validator`).
+V2 validation is built around **staged services** and a single orchestrator (`CoseSign1Validator`).
 
-Build a reusable validator with `CoseSign1ValidationBuilder`:
+Most callers configure validation via DI and then create a validator via `ICoseSign1ValidatorFactory`:
 
 ```csharp
-using CoseSign1.Validation;
-using CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.DependencyInjection;
+using CoseSign1.Validation.DependencyInjection;
 
-var validator = new CoseSign1ValidationBuilder(loggerFactory)
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+// Enable one or more trust packs (these register key resolvers + trust facts/defaults).
+validation.EnableCertificateTrust();
+validation.EnableMstTrust();
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 var result = message.Validate(validator);
 ```
-
-For one-off validation, you can configure inline:
-
-```csharp
-var result = message.Validate(builder => builder
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .OverrideDefaultTrustPolicy(TrustPolicy.Require("x509.chain.trusted")));
-```
-
-If you reference extension packages that register default components, `message.Validate()` uses **auto-discovery**.
 
 See [Sequence Diagrams](sequence-diagrams.md) for the concrete call ordering.
 
 ### Trust Policy Configuration
 
-Trust decisions are made by evaluating a `TrustPolicy` against the assertions produced by
-`ISigningKeyAssertionProvider` components.
+Trust decisions are made by evaluating a compiled trust plan (`CompiledTrustPlan`) over facts produced by enabled trust packs (`ITrustPack`).
 
-- If you call `OverrideDefaultTrustPolicy(...)`, that policy is used.
-- Otherwise, the builder defaults to `TrustPolicy.FromAssertionDefaults()`.
+If you need explicit, deployment-specific requirements, author a `TrustPlanPolicy` and either:
 
-See [Trust Policy Guide](../guides/trust-policy.md) for policy authoring.
+- register a `CompiledTrustPlan` in DI (unkeyed), or
+- create a keyed plan and pass `trustPlanKey` to `ICoseSign1ValidatorFactory.Create(...)`.
+
+See [Trust Plan Deep Dive](../guides/trust-policy.md) for policy authoring.
 
 ### Validation Stages
 
@@ -243,10 +240,10 @@ V2 enforces a **secure-by-default** stage order:
 
 | Stage | Purpose | Runs When |
 |-------|---------|-----------|
-| **KeyMaterialResolution** | Extract signing key from headers | Always |
-| **KeyMaterialTrust** | Evaluate trust policy | Always |
+| **Key Material Resolution** | Extract signing key from headers | Always |
+| **Signing Key Trust** | Evaluate the trust plan (`CompiledTrustPlan`) | Only if key resolution succeeds |
 | **Signature** | Cryptographic verification | Only if trust passes |
-| **PostSignature** | Additional business rules | Only if signature passes |
+| **Post-Signature Validation** | Additional business rules (`IPostSignatureValidator`) | Only if signature passes (and post-signature validation is not skipped) |
 
 ### Why Trust Before Signature?
 
@@ -260,7 +257,7 @@ V2 enforces a **secure-by-default** stage order:
 Validation logic is composed from:
 
 - `ISigningKeyResolver` (stage 1)
-- `ISigningKeyAssertionProvider` (stage 2)
+- `CompiledTrustPlan` (stage 2)
 - Signature verification (stage 3, performed by the orchestrator using the resolved key)
 - `IPostSignatureValidator` (stage 4)
 
@@ -358,12 +355,20 @@ All components accept `ILoggerFactory` for observability:
 var service = CertificateSigningService.Create(cert, chain, loggerFactory.CreateLogger<CertificateSigningService>());
 
 // Validation
-var validator = new CoseSign1.Validation.CoseSign1ValidationBuilder(loggerFactory)
-    .AddComponent(new CoseSign1.Certificates.Validation.CertificateSigningKeyResolver(
-        certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: true))
-    .AllowAllTrust("logging example")
-    .Build();
+var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+services.AddSingleton(loggerFactory);
+
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<CoseSign1.Validation.DependencyInjection.ICoseSign1ValidatorFactory>()
+    .Create(logger: loggerFactory.CreateLogger<CoseSign1.Validation.CoseSign1Validator>());
 ```
 
 ### Per-Provider Levels
@@ -382,7 +387,9 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
 | Signing Services | `ISigningService<TOptions>` | Custom signing backends |
 | Certificate Sources | `ICertificateSource` | Custom certificate retrieval |
 | Chain Builders | `ICertificateChainBuilder` | Custom chain building |
-| Validation components | `IValidationComponent` | Custom validation logic |
+| Signing key resolvers | `ISigningKeyResolver` | Custom key material resolution |
+| Trust packs | `ITrustPack` | Produce trust facts + defaults |
+| Post-signature validation | `IPostSignatureValidator` | Custom post-signature policy |
 | Transparency | `ITransparencyProvider` | Custom transparency services |
 | CLI Plugins | `IPlugin` | Custom CLI commands |
 | Signing Commands | `ISigningCommandProvider` | Custom signing commands |
@@ -425,8 +432,9 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
     +-- CoseMessage.DecodeSign1(bytes)
          |
          v
-2. Validate message (builds pipeline internally)
-    +-- message.Validate(builder => { ... }, loggerFactory?)
+2. Configure validation via DI and create a validator
+    +-- services.ConfigureCoseValidation().Enable*Trust(...)
+    +-- sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create(...)
          |
          v
 3. Execute staged validation
@@ -434,9 +442,8 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
    |     +-- Extract certificates from headers
    |
    +-- Stage 2: Key Material Trust
-   |     +-- Run trust validators
-   |     +-- Collect trust assertions
-   |     +-- Evaluate trust policy
+    |     +-- Produce facts from trust packs
+    |     +-- Evaluate compiled trust plan
    |     +-- SHORT-CIRCUIT if policy fails
    |
    +-- Stage 3: Signature Verification
@@ -451,20 +458,4 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
    +-- Overall result
 ```
 
-In code, the most concise form is the validation extension method:
-
-```csharp
-using System.Security.Cryptography.Cose;
-using Microsoft.Extensions.Logging;
-
-ILoggerFactory? loggerFactory = null;
-
-var message = CoseMessage.DecodeSign1(signatureBytes);
-var result = message.Validate(builder =>
-{
-    // Configure your validation components here.
-    // Examples are documented in the validation and trust-policy guides.
-}, loggerFactory);
-```
-
-If you will validate many messages with the same configuration, prefer building an `ICoseSign1Validator` once via `new CoseSign1ValidationBuilder(loggerFactory).Build()` and reusing it.
+If you will validate many messages with the same configuration, prefer creating an `ICoseSign1Validator` once per DI scope via `ICoseSign1ValidatorFactory.Create(...)` and reusing it for multiple messages.

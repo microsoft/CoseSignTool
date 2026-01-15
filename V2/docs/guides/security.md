@@ -85,16 +85,33 @@ Benefits:
 Never trust a signature without verification:
 
 ```csharp
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 var message = CoseMessage.DecodeSign1(signature);
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+// Prefer protected headers for key material.
+services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
+
+// Enable certificate trust and require the chain to be trusted.
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
+    f => f.IsTrusted,
+    "X.509 certificate chain must be trusted"));
+services.AddSingleton<CompiledTrustPlan>(sp => policy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 var results = message.Validate(validator);
 
@@ -109,11 +126,22 @@ if (!results.Signature.IsValid || !results.Trust.IsValid)
 Always validate the full certificate chain (online revocation checking is the default):
 
 ```csharp
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert
-        .ValidateChain(allowUntrusted: false, revocationMode: X509RevocationMode.Online))
-    .Build();
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography.X509Certificates;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    .WithRevocationMode(X509RevocationMode.Online));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 ```
 
 ### Trust Roots
@@ -121,15 +149,25 @@ var validator = new CoseSign1ValidationBuilder()
 Control which certificate authorities are trusted:
 
 ```csharp
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Certificates.Validation;
+using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography.X509Certificates;
+
 var trustedRoots = new X509Certificate2Collection
 {
     new X509Certificate2("trusted-root.cer")
 };
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
+validation.EnableCertificateTrust(cert => cert.UseCustomRootTrust(trustedRoots));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 ```
 
 ## Algorithm Security

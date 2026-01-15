@@ -123,15 +123,24 @@ var policy = new X509ChainPolicy
 By default, the system trust store is used:
 
 ```csharp
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
 // Uses Windows/macOS/Linux system trust store for chain building
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain(allowUntrusted: false))
-    .Build();
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 ```
 
 ### Custom Trust Roots
@@ -142,10 +151,19 @@ For custom PKI or specific trust requirements:
 var trustedRoots = new X509Certificate2Collection();
 trustedRoots.Add(new X509Certificate2("my-root-ca.cer"));
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert
+    .UseCustomRootTrust(trustedRoots)
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 ```
 
 ### Pinned Certificates
@@ -160,10 +178,20 @@ Implement this as a custom validator that extracts the signing certificate and a
 ```csharp
 var message = CoseMessage.DecodeSign1(signature);
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain(revocationMode: X509RevocationMode.Online))
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    .WithRevocationMode(X509RevocationMode.Online)
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 
 var results = message.Validate(validator);

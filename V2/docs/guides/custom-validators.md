@@ -1,103 +1,95 @@
-# Custom Validators Guide
+# Custom Validators
 
-This guide explains how to add custom validation logic to the CoseSignTool V2 validation pipeline.
+This guide explains how to add custom validation logic to the **V2 staged validation pipeline**.
 
-If you are authoring a reusable NuGet package that plugs into validation (and you want applicability caching + default component auto-discovery), see [Authoring Validation Extension Packages](validation-extension-packages.md).
+## Where custom logic belongs
 
-## Overview
+V2 validation is orchestrated by `CoseSign1Validator` and runs stages in this order:
 
-V2 validation is **component-based**. You provide one or more `IValidationComponent`s and the orchestrator runs them in a fixed order:
-If you are authoring a reusable NuGet package that plugs into validation, see [Authoring Validation Extension Packages](validation-extension-packages.md).
 1. Key material resolution (`ISigningKeyResolver`)
-2. Trust assertions + trust policy (`ISigningKeyAssertionProvider` + `TrustPolicy`)
-3. Signature verification (crypto using the resolved key)
-V2 validation is **staged**. You register services for specific stages and the orchestrator runs them in a fixed order:
+2. Signing key trust (`CompiledTrustPlan`)
+3. Signature verification
+4. Post-signature validation (`IPostSignatureValidator`)
 
-Most custom business rules belong in a post-signature validator.
-2. Signature verification (crypto using the resolved key)
-3. Trust evaluation (compiled trust plan)
-4. Post-signature checks (`IPostSignatureValidator`)
-Use `IPostSignatureValidator` when your check depends on verified signature + resolved identity + trust decision.
+Most app-specific rules should be implemented as `IPostSignatureValidator`.
 
-For applicability caching, inherit from `ValidationComponentBase`.
+Use a custom `ISigningKeyResolver` only when you need a new way to locate/construct signing keys (e.g., a new header type or external key store).
+
+## Example: post-signature validator (content type allow-list)
+
+This validator rejects messages whose logical content type (direct or indirect) is not in an allow-list:
 
 ```csharp
+using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions.Extensions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
+
+public sealed class ContentTypeAllowListValidator : IPostSignatureValidator
+{
     private readonly HashSet<string> _allowed;
 
-    public ContentTypeValidator(IEnumerable<string> allowedContentTypes)
-public sealed class ContentTypeValidator : IPostSignatureValidator
+    public ContentTypeAllowListValidator(IEnumerable<string> allowedContentTypes)
+    {
         _allowed = new HashSet<string>(allowedContentTypes, StringComparer.OrdinalIgnoreCase);
     }
 
-    public string ComponentName => nameof(ContentTypeValidator);
-
-    public override bool IsApplicableTo(System.Security.Cryptography.Cose.CoseSign1Message? message, CoseSign1ValidationOptions? options = null)
-        => message != null;
-            return ValidationResult.Failure(ComponentName, "Missing content type header", errorCode: "MISSING_CONTENT_TYPE");
+    public ValidationResult Validate(IPostSignatureValidationContext context)
+    {
+        if (!context.Message.TryGetContentType(out var contentType) || string.IsNullOrWhiteSpace(contentType))
+        {
+            return ValidationResult.Failure(
+                validatorName: nameof(ContentTypeAllowListValidator),
+                message: "Missing content type header",
+                errorCode: "MISSING_CONTENT_TYPE");
         }
-
-        const string Name = nameof(ContentTypeValidator);
 
         if (!_allowed.Contains(contentType))
         {
-            return ValidationResult.Failure(Name, new ValidationFailure("Missing content type header", errorCode: "MISSING_CONTENT_TYPE"));
+            return ValidationResult.Failure(
+                validatorName: nameof(ContentTypeAllowListValidator),
+                message: $"Content type '{contentType}' is not allowed",
+                errorCode: "CONTENT_TYPE_NOT_ALLOWED");
         }
 
-        return ValidationResult.Success(ComponentName);
+        return ValidationResult.Success(nameof(ContentTypeAllowListValidator));
     }
-            return ValidationResult.Failure(Name, new ValidationFailure($"Content type '{contentType}' is not allowed", errorCode: "CONTENT_TYPE_NOT_ALLOWED"));
-    public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
+
+    public Task<ValidationResult> ValidateAsync(
+        IPostSignatureValidationContext context,
+        CancellationToken cancellationToken = default)
         => Task.FromResult(Validate(context));
-        return ValidationResult.Success(Name);
+}
 ```
 
-## Registering components
+## Registering your validator (DI)
 
-### Inline (single call)
+Register your post-signature validator in DI and enable the trust packs you want:
 
-## Registering validators
-var result = message.Validate(builder => builder
-### With dependency injection
-    .AddComponent(new ContentTypeValidator(new[] { "application/json" })));
-```
-using CoseSign1.Validation;
+```csharp
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
-using CoseSign1.Validation.Trust.Plan;
 using Microsoft.Extensions.DependencyInjection;
 
-var result = message.Validate(builder =>
-var builder = services.ConfigureCoseValidation();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
 
-// Enable one or more trust packs that contribute signing-key resolvers and trust policy.
-builder.EnableCertificateTrust();
+validation.EnableCertificateTrust();
+validation.EnableMstTrust();
 
-// Add your custom post-signature validator.
 services.AddSingleton<IPostSignatureValidator>(
-    _ => new ContentTypeValidator(new[] { "application/json" }));
+    _ => new ContentTypeAllowListValidator(new[] { "application/json" }));
 
-using var serviceProvider = services.BuildServiceProvider();
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
+```
 
-var trustPlan = CompiledTrustPlan.CompileDefaults(serviceProvider);
-var validator = new CoseSign1Validator(
-    serviceProvider.GetServices<ISigningKeyResolver>(),
-    serviceProvider.GetServices<IPostSignatureValidator>(),
-    trustPlan);
-{
-    builder.ValidateCertificate(cert => cert.ValidateChain());
+## Async validators
 
-    foreach (var component in serviceProvider.GetServices<IValidationComponent>())
-
-Ordering is primarily driven by the orchestrator stages. Within a given stage, components run in the order they were added to the builder.
-
-## Async validation
-If your component needs network I/O (OCSP/CRL, external policy service, etc.), implement the `ValidateAsync(...)` method and use `message.ValidateAsync(...)`.
+If your validator needs network I/O (policy service call, online revocation check, etc.), implement `ValidateAsync(...)` and use `message.ValidateAsync(...)` in your app.
 
 ## See also
 
-- [Architecture: Validation Framework](../architecture/validation-framework.md)
-- [Trust Policy Guide](trust-policy.md)
-- [Authoring Validation Extension Packages](validation-extension-packages.md)
+- [Validation Framework](../architecture/validation-framework.md)
+- [Trust Plan Deep Dive](trust-policy.md)
+- [Validation Extension Packages](validation-extension-packages.md)

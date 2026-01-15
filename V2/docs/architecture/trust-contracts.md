@@ -1,51 +1,54 @@
-# Trust contracts (work in progress)
+# Trust Contracts
 
-This document tracks the incremental rollout of the TrustPlan / Facts + Rules trust model described in [V2/proposal.md](../../proposal.md).
+This document describes the trust “contracts” used by the V2 **Facts + Rules** trust model.
 
 ## Current state
 
-The default trust evaluation in `CoseSign1.Validation` is still the assertion-based `TrustPolicy` model.
+The staged validator (`CoseSign1Validator`) uses the Facts + Rules model as its active trust mechanism:
 
-## Contracts added (Step 3)
+- Trust evaluation runs as **stage 2** (“Signing Key Trust”) and is evaluated using `CompiledTrustPlan`.
+- `TrustEvaluationOptions.BypassTrust` is honored.
+- Trust evaluation can produce a deterministic `TrustDecisionAudit` and attaches it to stage metadata.
 
-These types are the foundation for the upcoming trust engine:
+See:
+
+- [Trust Plan Deep Dive](../guides/trust-policy.md)
+- [Audit and Replay](../guides/audit-and-replay.md)
+
+## Core identifiers
+
+These types establish stable identities for trust evaluation:
 
 - `TrustSubjectId`: a stable, content-addressed identifier (SHA-256) for a trust subject.
 - `TrustIds`:
-  - `MessageId` = SHA-256 of the entire encoded COSE_Sign1 bytes (including unprotected header).
-  - `CounterSignatureId` = SHA-256 of the raw counter-signature structure bytes.
-- `TrustSubject` / `TrustSubjectKind`: describes the entity being reasoned about (message, counter-signature, signing keys, etc.).
-- `TrustFactSet<TFact>` / `TrustFactMissing`: models multi-valued facts with explicit missing-reason handling (no exception-driven control flow).
-- `TrustEvaluationOptions`: budgets/limits and `BypassTrust` (bypass is implemented when the staged validator is wired to TrustPlan).
+  - `MessageId`: SHA-256 of the entire encoded COSE_Sign1 bytes (including unprotected header).
+  - `CounterSignatureId`: SHA-256 of the raw counter-signature structure bytes.
+- `TrustSubject` / `TrustSubjectKind`: the entity being reasoned about (message, signing key, counter-signature, etc.).
 
-## What comes next
+## Facts
 
-- Wire `CoseSign1Validator` trust stage to use `TrustPlan` (and honor `BypassTrust`).
-- Introduce an auditable decision trace model (`TrustDecisionAudit`).
+Facts are produced lazily, on-demand during rule evaluation.
 
-## Fact production (Step 4)
+- `TrustFactSet<TFact>` / `TrustFactMissing`: multi-valued facts with explicit missing-reason handling.
+- `IMultiTrustFactProducer`: a producer that can provide one or more fact types.
+- `TrustFactEngine`: orchestrates fact production with per-validation memoization.
 
-The package now includes a minimal, test-covered fact production layer:
+Budgets/timeouts and bypass behavior are modeled via `TrustEvaluationOptions`.
 
-- `TrustFactEngine`: per-validation memoization keyed by `(SubjectId, FactType)`.
-- `IMultiTrustFactProducer`: producers advertise one or more fact types and are invoked by requested fact type.
-- Producer-owned cross-validation caching is supported via `TrustFactContext.MemoryCache` and `TrustFactCacheKey` keyed by `{MessageId, SubjectId, FactType}`.
-- Budgets/timeouts are modeled via `TrustEvaluationOptions` and result in explicit missing reasons (`TrustFactMissingCodes`).
+## Rules and plan
 
-## Rules + plan (Step 5)
+Rules are combined into a compiled plan:
 
-The package now includes an initial rule layer and plan compilation surface:
+- `TrustRule`: base type for rule evaluation.
+- `TrustRules`: combinators and quantifiers (e.g., `And/Or/Not/Implies`, `AnyFact<TFact>(...)`).
+- `CompiledTrustPlan`: root rule + available fact producers; the object evaluated by the validator trust stage.
 
-- `TrustRule`: base type for rules.
-- `TrustRules`: factory helpers for boolean combinators and quantifiers:
-  - `And/Or/Not/Implies`
-  - `AnyFact<TFact>(...)` with separate messages for missing vs predicate failure
-- `OnEmptyBehavior`: controls how quantifiers behave when a fact set is available but empty.
-- `TrustPlan`: a compiled plan consisting of a root rule plus an associated set of `IMultiTrustFactProducer` instances.
-- `TrustPlan.CompileDefaults(IServiceProvider)`: builds a plan from DI using:
-  - `ITrustPlanDefaultsProvider` (returns three fragments: constraints, sources, vetoes)
-  - `IEnumerable<IMultiTrustFactProducer>` (fact producers available to the plan)
+Trust packs (`ITrustPack`) contribute secure-by-default plan fragments (constraints, trust sources, vetoes).
 
-Status:
-- These types are implemented and test-covered.
-- They are not yet wired into the staged validator; the active trust stage remains `TrustPolicy` until the integration step lands.
+## Audit
+
+Trust evaluation can generate a deterministic audit record:
+
+- `TrustDecisionAudit`: schema version + message ID + subject + decision + rule-evaluation trace + fact observations.
+
+The staged validator attaches `TrustDecisionAudit` to the trust stage metadata under the key `nameof(TrustDecisionAudit)`.

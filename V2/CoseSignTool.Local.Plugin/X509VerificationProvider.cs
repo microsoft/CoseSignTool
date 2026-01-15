@@ -196,9 +196,7 @@ public partial class X509VerificationProvider : IVerificationProvider
         validationBuilder.EnableCertificateTrust(certTrust =>
         {
             certTrust
-                .WithRevocationMode(revocationMode)
-                // Preserve historical CLI behavior: allow any identity unless the user pins via flags.
-                .AllowAnyCertificateIdentity();
+                .WithRevocationMode(revocationMode);
 
             if (customRoots != null && customRoots.Count > 0)
             {

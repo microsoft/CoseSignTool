@@ -29,7 +29,7 @@ public class CertificateTrustBuilderTests
     public void AllowThumbprint_Null_ThrowsArgumentNullException()
     {
         var builder = new CertificateTrustBuilder();
-        Assert.Throws<ArgumentNullException>(() => builder.AllowThumbprint(null!));
+        Assert.Throws<ArgumentNullException>(() => builder.EnableCertificateIdentityPinning(p => p.AllowThumbprint(null!)));
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class CertificateTrustBuilderTests
     [Test]
     public void IsIdentityAllowed_MatchesThumbprintIgnoringCaseAndSpaces()
     {
-        var builder = new CertificateTrustBuilder().AllowThumbprint("aa bb");
+        var builder = new CertificateTrustBuilder().EnableCertificateIdentityPinning(p => p.AllowThumbprint("aa bb"));
 
         Assert.That(builder.Options.IsIdentityAllowed("AABB", "sub", "iss"), Is.True);
         Assert.That(builder.Options.IsIdentityAllowed("a a b b", "sub", "iss"), Is.True);
@@ -86,9 +86,11 @@ public class CertificateTrustBuilderTests
     [Test]
     public void IsIdentityAllowed_MatchesSubjectIssuerPatterns()
     {
-        var builder = new CertificateTrustBuilder()
-            .AllowSubjectIssuerPattern("CN=Leaf", issuer: null, matchKind: CertificateIdentityMatchKind.Exact)
-            .AllowSubjectIssuerPattern("CN=Test", issuer: "CN=Root", matchKind: CertificateIdentityMatchKind.Contains);
+        var builder = new CertificateTrustBuilder().EnableCertificateIdentityPinning(p =>
+        {
+            p.AllowSubjectIssuerPattern("CN=Leaf", issuer: null, matchKind: CertificateIdentityMatchKind.Exact)
+                .AllowSubjectIssuerPattern("CN=Test", issuer: "CN=Root", matchKind: CertificateIdentityMatchKind.Contains);
+        });
 
         Assert.That(builder.Options.IsIdentityAllowed("tp", "CN=Leaf", "CN=Any"), Is.True);
         Assert.That(builder.Options.IsIdentityAllowed("tp", "CN=Test Leaf", "CN=Root CA"), Is.True);

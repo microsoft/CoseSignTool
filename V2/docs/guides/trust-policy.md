@@ -19,8 +19,8 @@ V2 trust is evaluated using the **Facts + Rules** model:
 Important properties of this model:
 
 - Trust is **data-driven** (facts are lazy) and **declarative** (rules).
-- Trust evaluation runs **after signature verification** (so untrusted signers do not become a signature oracle).
-- Extension packages drive trust by registering `ITrustPack` and (optionally) exposing configuration via DI builder extensions.
+- Trust evaluation runs **before signature verification** in the staged validator. If trust fails, the signature stage is marked `NotApplicable`.
+- Extension packages drive trust by registering `ITrustPack` and exposing opt-in configuration via `ICoseValidationBuilder` extensions.
 
 ## Default trust behavior
 
@@ -45,37 +45,27 @@ You can require those facts with a `TrustPlanPolicy`.
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
-using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Validation;
-using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
 
 var services = new ServiceCollection();
 services.AddLogging();
 
-// 1) Components (key material resolution)
-services.AddSingleton<IValidationComponent>(_ => new CertificateSigningKeyResolver());
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust();
 
-// 2) Trust facts (chain trust evaluation)
-var certTrust = new CertificateTrustBuilder()
-    .UseSystemTrust()
-    // For apps, prefer pinning identities; this keeps the sample short.
-    .AllowAnyCertificateIdentity()
-    .WithRevocationMode(X509RevocationMode.Online);
-
-services.AddSingleton<ITrustPack>(_ => new CoseSign1.Certificates.Trust.Facts.Producers.X509CertificateTrustPack(certTrust.Options));
-
-// 3) Trust policy (require chain to be trusted)
+// Add explicit requirements (require chain to be trusted)
 var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
     f => f.IsTrusted,
     "X.509 certificate chain must be trusted"));
 
+services.AddSingleton<CompiledTrustPlan>(sp => policy.Compile(sp));
+
 using var sp = services.BuildServiceProvider();
-var trustPlan = policy.Compile(sp);
-var components = sp.GetServices<IValidationComponent>().ToArray();
-var validator = new CoseSign1Validator(components, trustPlan);
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 var message = CoseMessage.DecodeSign1(signatureBytes);
 var result = message.Validate(validator);
@@ -101,3 +91,7 @@ if (!result.Trust.IsValid)
     }
 }
 ```
+
+## See also
+
+- [Audit and Replay](audit-and-replay.md)

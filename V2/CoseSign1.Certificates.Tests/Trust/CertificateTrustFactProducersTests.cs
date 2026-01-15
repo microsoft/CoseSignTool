@@ -207,7 +207,7 @@ public class CertificateTrustFactProducersTests
 
         var trustBuilder = new CertificateTrustBuilder()
             .UseEmbeddedChainOnly()
-            .AllowThumbprint("  " + signingCertificate.GetCertHashString() + "  ");
+            .EnableCertificateIdentityPinning(p => p.AllowThumbprint("  " + signingCertificate.GetCertHashString() + "  "));
 
         IMultiTrustFactProducer producer = new X509CertificateTrustPack(trustBuilder.Options);
         var result = await producer.ProduceAsync(context, typeof(X509SigningCertificateIdentityAllowedFact), CancellationToken.None);
@@ -254,8 +254,7 @@ public class CertificateTrustFactProducersTests
 
         var roots = new X509Certificate2Collection { root };
         var trustBuilder = new CertificateTrustBuilder()
-            .UseCustomRootTrust(roots)
-            .AllowAnyCertificateIdentity();
+            .UseCustomRootTrust(roots);
 
         IMultiTrustFactProducer producer = new X509CertificateTrustPack(trustBuilder.Options);
 

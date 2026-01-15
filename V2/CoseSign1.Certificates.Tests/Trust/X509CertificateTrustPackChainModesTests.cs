@@ -186,7 +186,7 @@ public sealed class X509CertificateTrustPackChainModesTests
 
         var trustBuilder = new CertificateTrustBuilder()
             .UseCustomRootTrust(new X509Certificate2Collection { root })
-            .AllowThumbprint("00")
+            .EnableCertificateIdentityPinning(p => p.AllowThumbprint("00"))
             .WithRevocationMode(X509RevocationMode.NoCheck);
 
         var trustPack = new X509CertificateTrustPack(trustBuilder.Options);

@@ -379,11 +379,13 @@ using CoseSign1.Validation.Results;
 
 public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
 {
+    private const string ValidatorName = nameof(CwtClaimsPostSignatureValidator);
+
     private readonly string[]? _allowedIssuers;
     private readonly bool _requireSubject;
     private readonly bool _checkExpiration;
 
-    public CwtClaimsValidator(
+    public CwtClaimsPostSignatureValidator(
         string[]? allowedIssuers = null,
         bool requireSubject = false,
         bool checkExpiration = true)
@@ -393,14 +395,6 @@ public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
         _checkExpiration = checkExpiration;
     }
 
-    public string ComponentName => nameof(CwtClaimsPostSignatureValidator);
-
-    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null)
-    {
-        // Run for any message; this validator enforces that CWT claims exist.
-        return message != null;
-    }
-
     public ValidationResult Validate(IPostSignatureValidationContext context)
     {
         var message = context.Message;
@@ -408,7 +402,7 @@ public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
         if (!message.ProtectedHeaders.TryGetCwtClaims(out var claims) || claims == null)
         {
             return ValidationResult.Failure(
-                ComponentName,
+                ValidatorName,
                 message: "CWT claims are required",
                 errorCode: "CWT_CLAIMS_MISSING");
         }
@@ -464,8 +458,8 @@ public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
         }
         
         return failures.Count == 0
-            ? ValidationResult.Success(ComponentName)
-            : ValidationResult.Failure(ComponentName, failures.ToArray());
+            ? ValidationResult.Success(ValidatorName)
+            : ValidationResult.Failure(ValidatorName, failures.ToArray());
     }
 
     public Task<ValidationResult> ValidateAsync(
@@ -475,14 +469,25 @@ public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
 }
 
 // Usage
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CoseSign1.Certificates.Validation.CertificateSigningKeyResolver(
-        certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Protected))
-    .AddComponent(new CwtClaimsPostSignatureValidator(
+var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+services.AddSingleton<CoseSign1.Validation.Interfaces.IPostSignatureValidator>(
+    new CwtClaimsPostSignatureValidator(
         allowedIssuers: ["https://contoso.com", "https://build.contoso.com"],
         requireSubject: true,
-        checkExpiration: true))
-    .Build();
+        checkExpiration: true));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<CoseSign1.Validation.DependencyInjection.ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 ```

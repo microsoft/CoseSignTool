@@ -76,11 +76,14 @@ Header contribution and management.
 
 | Type | Description |
 |------|-------------|
-| `CoseSign1ValidationBuilder` | Builds a reusable `ICoseSign1Validator` from validation components |
-| `CoseSign1Message.Validate(...)` | Validates a decoded `CoseSign1Message` via a validator or inline builder configuration |
+| `ICoseSign1ValidatorFactory` | Creates fully-wired `ICoseSign1Validator` instances from DI |
+| `CoseSign1Message.Validate(...)` | Validates a decoded `CoseSign1Message` via a validator |
 | `ICoseSign1Validator` | Validates a `CoseSign1Message` and returns staged results |
 | `CoseSign1ValidationResult` | Staged results: Resolution, Trust, Signature, PostSignaturePolicy, Overall |
 | `ValidationResult` | Per-stage result (Success/Failure/NotApplicable + metadata) |
+| `CompiledTrustPlan` | Compiled trust plan evaluated over facts produced by `ITrustPack` |
+| `TrustPlanPolicy` | Fluent policy authoring surface (Facts + Rules) |
+| `TrustDecisionAudit` | Deterministic trust decision audit record attached to results |
 
 ## COSE Algorithm Identifiers
 
@@ -123,23 +126,34 @@ byte[] signature = factory.CreateDirectCoseSign1MessageBytes(payload, contentTyp
 ### Validating a Signature
 
 ```csharp
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 // 1. Decode COSE
 var message = CoseMessage.DecodeSign1(signature);
 
-// 2. Build validator
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver())
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .Build();
+// 2. Configure DI validation + enable trust packs
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
 
-// 3. Validate
+// Adds x5chain/x5t resolution + certificate trust facts/defaults.
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+// 3. Create a reusable validator
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
+
+// 4. Validate
 var result = message.Validate(validator);
 
-// 4. Check result
+// 5. Check result
 if (result.Overall.IsValid)
 {
     // Signature is valid

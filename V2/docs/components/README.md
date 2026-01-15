@@ -64,9 +64,10 @@ This section provides comprehensive documentation for each NuGet package in the 
 **Comprehensive validation framework** with composable components.
 
 **Key Features**:
-- `CoseSign1Message.Validate(...)` / `ValidateAsync(...)` - Primary validation entry points (supports auto-discovery)
-- `CoseSign1ValidationBuilder` - Build reusable `ICoseSign1Validator` instances
-- Component model (`IValidationComponent`) staged by interface (`ISigningKeyResolver`, `ISigningKeyAssertionProvider`, `IPostSignatureValidator`)
+- `CoseSign1Message.Validate(...)` / `ValidateAsync(...)` - Primary validation entry points (accepts `ICoseSign1Validator`)
+- `ICoseSign1ValidatorFactory` - Create fully-wired validators from DI
+- Trust packs (`ITrustPack`) that produce facts and contribute default trust-plan fragments
+- Staged services (`ISigningKeyResolver`, `IPostSignatureValidator`) composed by DI
 - Staged validation results (`CoseSign1ValidationResult`)
 
 **Use When**: Validating COSE Sign1 messages, implementing custom validation logic.
@@ -220,7 +221,7 @@ CoseSign1.Abstractions (implement ISigningService)
 
 #### **Build custom validators**
 ```
-CoseSign1.Validation (implement `IValidationComponent` and validate via `message.Validate(...)` / `CoseSign1ValidationBuilder`)
+CoseSign1.Validation (implement `IPostSignatureValidator` and register it in DI)
 ```
 
 #### **Use CLI for local certificate signing**

@@ -23,13 +23,14 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 - [Detached Signatures](guides/detached-signatures.md) - Detached payload workflows
 - [SCITT Compliance](guides/scitt-compliance.md) - SCITT-friendly signing and verification
 - [Trust Policy](guides/trust-policy.md) - Declarative trust policies deep-dive
+- [Audit and Replay](guides/audit-and-replay.md) - Trust decision audits and replay guidance
 - [Chain Validation](guides/chain-validation.md) - Chain-building and trust roots
 - [Certificate Sources](guides/certificate-sources.md) - PFX/PEM/Store and remote sources
 - [Remote Signing](guides/remote-signing.md) - Azure Trusted Signing and other remote services
 - [Post-Quantum](guides/post-quantum.md) - PQC signing options and constraints
 - [Custom Headers](guides/custom-headers.md) - Add and validate custom headers
 - [Custom Validators](guides/custom-validators.md) - Extend validation stages
-- [Validation Extension Packages](guides/validation-extension-packages.md) - Author validation component packages (caching + auto-discovery)
+- [Validation Extension Packages](guides/validation-extension-packages.md) - Author trust-pack and staged validation extensions
 - [Logging and Diagnostics](guides/logging-diagnostics.md) - Verbosity, log files, structured output
 - [Security](guides/security.md) - Security guidance and recommended defaults
 

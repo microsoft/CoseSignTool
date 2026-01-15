@@ -31,21 +31,29 @@ File.WriteAllBytes("document.json.cose", signature);
 ### Verify a Signature
 
 ```csharp
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 // Load signature
 var signature = File.ReadAllBytes("document.json.cose");
 var message = CoseMessage.DecodeSign1(signature);
 
-// Build validator - assertion providers supply default trust requirements.
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .ValidateChain(allowUntrusted: false))
-    .Build();
+// Configure validation via DI.
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+// Adds x5chain/x5t key resolution + certificate trust defaults.
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 // Verify - returns detailed results
 var result = message.Validate(validator);
@@ -136,8 +144,9 @@ var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json",
 ### Detached Signature
 
 ```csharp
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 // Create detached signature (payload not embedded)
@@ -148,25 +157,55 @@ var signature = factory.CreateCoseSign1MessageBytes(
 
 // Verify with detached payload
 var message = CoseMessage.DecodeSign1(signature);
-var result = message.Validate(builder => builder
-    .WithOptions(o => o.WithDetachedPayload(payload))
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert.ValidateChain()));
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var options = new CoseSign1ValidationOptions().WithDetachedPayload(new MemoryStream(payload));
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create(options: options);
+
+var result = message.Validate(validator);
 ```
 
 ### Verify Azure Key Vault Signature
 
 ```csharp
-using CoseSign1.AzureKeyVault.Validation;
-using CoseSign1.Validation;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
-// Adds AKV trust assertions (kid pattern checks).
-// You must also supply an ISigningKeyResolver to verify the cryptographic signature
-// for key-only signatures (not provided by this package).
-var validator = new CoseSign1ValidationBuilder()
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+// Registers AKV signing-key resolvers (offline COSE_Key and optional online) + fact producers.
+validation.EnableAzureKeyVaultTrust(akv => akv
+    .RequireAzureKeyVaultKid()
+    .AllowKidPatterns(new[] { "https://production-vault.vault.azure.net/keys/*" })
+    .OfflineOnly());
+
+// AKV trust-pack defaults do not enforce requirements by default.
+// Register an explicit trust plan policy for your deployment.
+var trustPolicy = TrustPlanPolicy.Message(m => m
+    .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 ```
@@ -176,17 +215,34 @@ var result = message.Validate(validator);
 When verifying key-only signatures, you may want to ensure the signing key comes from an approved set of Key Vaults. This is particularly useful for supply chain security.
 
 ```csharp
-using CoseSign1.AzureKeyVault.Validation;
-using CoseSign1.Validation;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
-// Validate that the kid matches allowed vault patterns
-var validator = new CoseSign1ValidationBuilder()
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin()
-        .FromAllowedVaults(
-            "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
-            "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableAzureKeyVaultTrust(akv => akv
+    .RequireAzureKeyVaultKid()
+    .AllowKidPatterns(new[]
+    {
+        "https://production-vault.vault.azure.net/keys/*",
+        "https://signing-*.vault.azure.net/keys/release-*",
+    })
+    .OfflineOnly());
+
+var trustPolicy = TrustPlanPolicy.Message(m => m
+    .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 
@@ -208,21 +264,36 @@ if (result.Overall.IsValid)
 
 ```csharp
 using Azure.Security.CodeTransparency;
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Transparent.MST.Validation;
-using CoseSign1.Validation;
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
 var client = new CodeTransparencyClient(
     new Uri("https://dataplane.codetransparency.azure.net"));
 
-// Build validator with fluent MST validation API
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateMst(mst => mst
-        .RequireReceiptPresence()             // Check receipt exists
-        .VerifyReceipt(client))               // Validate the receipt
-    .OverrideDefaultTrustPolicy(CoseSign1.Transparent.MST.Validation.MstTrustPolicies.RequireReceiptPresentAndTrusted())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+// Require both a trusted certificate chain and a verified MST receipt.
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
+    .And(TrustPlanPolicy.Message(m => m
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 
@@ -235,19 +306,32 @@ if (result.Overall.IsValid)
 ### Combined Validation (Certificate + MST)
 
 ```csharp
-// Validate certificate chain AND MST transparency receipt
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .ValidateChain())
-    .ValidateMst(mst => mst
-        .RequireReceiptPresence()
-        .VerifyReceipt(client))
-    .OverrideDefaultTrustPolicy(CoseSign1.Validation.Trust.TrustPolicy.And(
-        CoseSign1.Certificates.Validation.X509TrustPolicies.RequireTrustedChain(),
-        CoseSign1.Transparent.MST.Validation.MstTrustPolicies.RequireReceiptPresentAndTrusted()))
-    .Build();
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
+    .And(TrustPlanPolicy.Message(m => m
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 ```
@@ -255,41 +339,78 @@ var result = message.Validate(validator);
 ### Combined Validation (AKV Trust + MST)
 
 ```csharp
-// Validate AKV key origin AND MST transparency receipt
-// Useful for supply chain scenarios with key-only signatures
-var validator = new CoseSign1ValidationBuilder()
-    // Required: add an ISigningKeyResolver appropriate to your signature shape.
-    // For X.509-backed signatures use CertificateSigningKeyResolver; for key-only you must supply your own.
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin()
-        .FromAllowedVaults("https://release-*.vault.azure.net/keys/*"))
-    .ValidateMst(mst => mst
-        .RequireReceiptPresence()
-        .VerifyReceipt(mstClient))
-    .Build();
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableAzureKeyVaultTrust(akv => akv
+    .RequireAzureKeyVaultKid()
+    .AllowKidPatterns(new[] { "https://release-*.vault.azure.net/keys/*" })
+    .OfflineOnly());
+
+validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+var trustPolicy = TrustPlanPolicy.Message(m => m
+        .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern")
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 ```
 
 ### Trust Policy Aggregation
 
-In V2, trust is evaluated by a `TrustPolicy` against the set of typed assertions emitted by your `ISigningKeyAssertionProvider` components.
+In V2, trust is evaluated by a compiled trust plan (`CompiledTrustPlan`) over facts produced by enabled trust packs (`ITrustPack`).
 
-If you don't override the policy, `CoseSign1ValidationBuilder` defaults to `TrustPolicy.FromAssertionDefaults()`, which effectively ANDs the default trust policies for the assertions that are present.
+Some packs provide secure defaults (for example, certificate trust defaults require a trusted chain); others only produce facts and require you to supply an explicit `TrustPlanPolicy` (for example, Azure Key Vault).
 
 ```csharp
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .ValidateAzureKeyVault(akv => akv
-        .RequireAzureKeyVaultOrigin()
-        .FromAllowedVaults("https://prod.vault.azure.net/keys/*"))
-    .ValidateMst(mst => mst.RequireReceiptPresence())
-    .Build();
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableAzureKeyVaultTrust(akv => akv.AllowKidPatterns(new[] { "https://prod.vault.azure.net/keys/*" }).OfflineOnly());
+validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
+    .And(TrustPlanPolicy.Message(m => m
+        .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern")
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 ```
 
-For more details (including how to build explicit policies with `TrustPolicy.Require<T>`), see the Trust Policy guide.
+For more details, see the Trust Policy guide.
 
 ## CLI Examples
 

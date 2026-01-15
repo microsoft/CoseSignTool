@@ -123,9 +123,9 @@ This allows you to run quietly while maintaining full diagnostic capabilities.
 2026-01-08 14:30:45.125 [Debug] CoseSignTool: CoseSignTool V2.0.0 (SHA256: abc123...)
 2026-01-08 14:30:45.130 [Debug] PluginLoader: Loading plugins from: C:\tools\plugins
 2026-01-08 14:30:45.145 [Information] Verify: Verifying signature: document.cose
-2026-01-08 14:30:45.200 [Debug] Validation: Stage KeyMaterialResolution: Success
-2026-01-08 14:30:45.210 [Debug] Validation: Stage KeyMaterialTrust: Success
-2026-01-08 14:30:45.220 [Debug] Validation: Stage Signature: Success
+2026-01-08 14:30:45.200 [Debug] Validation: Validation stage completed: Key Material Resolution. Success: True, ElapsedMs: 2
+2026-01-08 14:30:45.210 [Debug] Validation: Validation stage completed: Signing Key Trust. Success: True, ElapsedMs: 4
+2026-01-08 14:30:45.220 [Debug] Validation: Validation stage completed: Signature. Success: True, ElapsedMs: 1
 2026-01-08 14:30:45.225 [Information] Verify: Verification succeeded
 ```
 
@@ -143,7 +143,7 @@ This allows you to run quietly while maintaining full diagnostic capabilities.
     "timestamp": "2026-01-08T14:30:45.200Z",
     "level": "Debug",
     "category": "Validation",
-    "message": "Stage KeyMaterialResolution: Success"
+    "message": "Validation stage completed: Key Material Resolution. Success: True, ElapsedMs: 2"
   }
 ]
 ```
@@ -162,7 +162,7 @@ This allows you to run quietly while maintaining full diagnostic capabilities.
     <Timestamp>2026-01-08T14:30:45.200Z</Timestamp>
     <Level>Debug</Level>
     <Category>Validation</Category>
-    <Message>Stage KeyMaterialResolution: Success</Message>
+    <Message>Validation stage completed: Key Material Resolution. Success: True, ElapsedMs: 2</Message>
   </LogEntry>
 </Logs>
 ```
@@ -192,57 +192,31 @@ cosesigntool verify document.cose --output-format quiet
 ### JSON Output Example
 
 ```json
-{
-  "command": "verify",
-  "success": true,
-  "signature": {
-    "algorithm": "ES256",
-    "contentType": "application/octet-stream"
-  },
-  "certificate": {
-    "subject": "CN=Signer",
-    "issuer": "CN=CA",
-    "thumbprint": "ABC123...",
-    "notBefore": "2025-01-01T00:00:00Z",
-    "notAfter": "2026-01-01T00:00:00Z"
-  },
-  "validation": {
-    "stages": {
-      "keyMaterialResolution": { "success": true },
-      "keyMaterialTrust": { "success": true },
-      "signature": { "success": true },
-      "postSignature": { "success": true }
-    },
-    "overall": { "success": true }
-  }
-}
+[
+  { "type": "section_start", "title": "Verification Operation" },
+  { "type": "keyvalue", "key": "Signature", "value": "document.cose" },
+  { "type": "keyvalue", "key": "Signature Only", "value": "No" },
+  { "type": "success", "message": "Signature verified successfully" },
+  { "type": "section_end" }
+]
 ```
 
 ### XML Output Example
 
 ```xml
-<Result>
-  <Command>verify</Command>
-  <Success>true</Success>
-  <Signature>
-    <Algorithm>ES256</Algorithm>
-    <ContentType>application/octet-stream</ContentType>
-  </Signature>
-  <Certificate>
-    <Subject>CN=Signer</Subject>
-    <Issuer>CN=CA</Issuer>
-    <Thumbprint>ABC123...</Thumbprint>
-    <NotBefore>2025-01-01T00:00:00Z</NotBefore>
-    <NotAfter>2026-01-01T00:00:00Z</NotAfter>
-  </Certificate>
-  <Validation>
-    <KeyMaterialResolution Success="true" />
-    <KeyMaterialTrust Success="true" />
-    <Signature Success="true" />
-    <PostSignature Success="true" />
-    <Overall Success="true" />
-  </Validation>
-</Result>
+<CoseSignToolOutput>
+  <SectionStart title="Verification Operation" />
+  <KeyValue>
+    <Key>Signature</Key>
+    <Value>document.cose</Value>
+  </KeyValue>
+  <KeyValue>
+    <Key>Signature Only</Key>
+    <Value>No</Value>
+  </KeyValue>
+  <Success>Signature verified successfully</Success>
+  <SectionEnd />
+</CoseSignToolOutput>
 ```
 
 ---
@@ -277,8 +251,10 @@ CoseSignTool V2 libraries accept `ILoggerFactory` for integration with your logg
 
 ```csharp
 using Microsoft.Extensions.Logging;
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Trust.Audit;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 // Create your logger factory
@@ -290,28 +266,31 @@ var loggerFactory = LoggerFactory.Create(builder =>
         .SetMinimumLevel(LogLevel.Debug);
 });
 
-// Pass to validation builder
-var validator = new CoseSign1ValidationBuilder(loggerFactory)
-  .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-  .ValidateCertificate(cert => cert.ValidateChain())
-    .OverrideDefaultTrustPolicy(policy)
-    .Build();
+var services = new ServiceCollection();
+services.AddSingleton(loggerFactory);
+
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create(logger: loggerFactory.CreateLogger<CoseSign1Validator>());
 ```
+
+If you need a deterministic record of trust evaluation (what facts were requested and how rules evaluated), see [Audit and Replay](audit-and-replay.md). That guide shows how to extract `TrustDecisionAudit` from `result.Trust.Metadata`.
 
 ### ASP.NET Core Integration
 
 ```csharp
 // In Startup.cs or Program.cs
-services.AddSingleton<ICoseSign1Validator>(sp =>
-{
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    
-  return new CoseSign1ValidationBuilder(loggerFactory)
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: System.Security.Cryptography.Cose.CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain())
-        .OverrideDefaultTrustPolicy(policy)
-        .Build();
-});
+services.ConfigureCoseValidation()
+  .EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+services.AddScoped<ICoseSign1Validator>(sp =>
+  sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
 ```
 
 ### Logging Categories
@@ -482,10 +461,6 @@ public sealed partial class MyValidator : IPostSignatureValidator
     {
         Logger = logger ?? NullLogger<MyValidator>.Instance;
     }
-
-  public string ComponentName => nameof(MyValidator);
-
-  public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
 
     #region LoggerMessage methods
 

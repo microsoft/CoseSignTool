@@ -23,7 +23,7 @@ public sealed class CertificateTrustBuilder
             "No certificate trust source configured. Call UseSystemTrust(), UseCustomRootTrust(...), or UseEmbeddedChainOnly().";
 
         public const string ErrorNoIdentityConstraintsConfigured =
-            "No certificate identity allow-list configured. Configure thumbprints or subject/issuer patterns, or call AllowAnyCertificateIdentity().";
+            "No certificate identity allow-list configured. Configure thumbprints or subject/issuer patterns, or do not enable identity pinning.";
     }
 
     /// <summary>
@@ -137,59 +137,6 @@ public sealed class CertificateTrustBuilder
     public CertificateTrustBuilder WithVerificationFlags(X509VerificationFlags flags)
     {
         Options.VerificationFlags = flags;
-        return this;
-    }
-
-    /// <summary>
-    /// Allows any signing certificate identity (disables identity pinning).
-    /// </summary>
-    /// <returns>The same builder instance.</returns>
-    public CertificateTrustBuilder AllowAnyCertificateIdentity()
-    {
-        Options.IdentityPinningEnabled = false;
-        Options.AllowedThumbprints.Clear();
-        Options.AllowedSubjectIssuerPatterns.Clear();
-        return this;
-    }
-
-    /// <summary>
-    /// Adds an allowed signing certificate thumbprint (hex string).
-    /// </summary>
-    /// <param name="thumbprint">The thumbprint to allow.</param>
-    /// <returns>The same builder instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="thumbprint"/> is null.</exception>
-    public CertificateTrustBuilder AllowThumbprint(string thumbprint)
-    {
-        if (thumbprint == null)
-        {
-            throw new ArgumentNullException(nameof(thumbprint));
-        }
-
-        Options.IdentityPinningEnabled = true;
-        Options.AllowedThumbprints.Add(thumbprint);
-        return this;
-    }
-
-    /// <summary>
-    /// Adds an allowed subject/issuer pattern.
-    /// </summary>
-    /// <param name="subject">The subject string to match.</param>
-    /// <param name="issuer">Optional issuer string to match.</param>
-    /// <param name="matchKind">The match mode.</param>
-    /// <returns>The same builder instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="subject"/> is null.</exception>
-    public CertificateTrustBuilder AllowSubjectIssuerPattern(
-        string subject,
-        string? issuer = null,
-        CertificateIdentityMatchKind matchKind = CertificateIdentityMatchKind.Exact)
-    {
-        if (subject == null)
-        {
-            throw new ArgumentNullException(nameof(subject));
-        }
-
-        Options.IdentityPinningEnabled = true;
-        Options.AllowedSubjectIssuerPatterns.Add(new CertificateIdentityPattern(subject, issuer, matchKind));
         return this;
     }
 

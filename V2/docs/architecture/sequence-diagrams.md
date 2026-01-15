@@ -110,14 +110,12 @@ sequenceDiagram
     participant Msg as CoseSign1Message
     participant V as CoseSign1Validator
     participant R as ISigningKeyResolver (0..n)
-    participant A as ISigningKeyAssertionProvider (0..n)
+    participant Plan as CompiledTrustPlan
     participant Cose as System.Security.Cryptography.Cose
     participant P as IPostSignatureValidator (0..n)
 
     App->>Msg: Validate(validator)
     Msg->>V: Validate(message)
-
-    V->>V: Filter components via IsApplicableTo(message)
 
     Note over V: Stage 1 — Key Material Resolution
     loop Resolvers (first success wins)
@@ -130,16 +128,13 @@ sequenceDiagram
         Msg-->>App: CoseSign1ValidationResult (later stages NotApplicable)
     else Signing key resolved
         Note over V: Stage 2 — Signing Key Trust
-        loop Assertion providers
-            V->>A: ExtractAssertions / ExtractAssertionsAsync
-            A-->>V: ISigningKeyAssertion[]
-        end
-        V->>V: TrustPolicy.Evaluate(assertions)
+        V->>Plan: EvaluateWithAudit*(messageId, message, subject, options)
+        Plan-->>V: TrustDecision (+ TrustDecisionAudit)
 
-        alt Trust policy NOT satisfied
+        alt Trust plan NOT satisfied
             V-->>Msg: Trust Failure
             Msg-->>App: CoseSign1ValidationResult (signature/post NotApplicable)
-        else Trust policy satisfied
+        else Trust plan satisfied
             Note over V: Stage 3 — Signature Verification
             V->>Cose: message.VerifyEmbedded(...) OR VerifyDetached(...)
             Cose-->>V: bool
@@ -162,52 +157,29 @@ sequenceDiagram
 
 ---
 
-## Validation (Default Component Discovery)
+## Validation (DI Composition)
 
-When you call `message.Validate()` with no configuration delegate, the validation extensions:
-- scan loaded assemblies for `[assembly: DefaultValidationComponentProvider(typeof(...))]`,
-- instantiate and order providers by `Priority`,
-- and aggregate default components.
+V2 validation is configured via DI. You opt into trust packs (and related staged services) via `ConfigureCoseValidation()` and `Enable*Trust(...)`, then create an `ICoseSign1Validator` using `ICoseSign1ValidatorFactory`.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant App as Consumer/App
+    participant SC as ServiceCollection
+    participant VB as ICoseValidationBuilder
+    participant SP as IServiceProvider
+    participant F as ICoseSign1ValidatorFactory
     participant Msg as CoseSign1Message
-    participant Ext as CoseSign1MessageValidationExtensions
-    participant Disc as DefaultComponentDiscovery
-    participant AD as AppDomain
-    participant Asm as Assembly (0..n)
-    participant Prov as IDefaultValidationComponentProvider (0..n)
-    participant B as CoseSign1ValidationBuilder
-    participant V as CoseSign1Validator
 
-    App->>Msg: Validate()
-    Msg->>Ext: Validate(configure: null)
-
-    Ext->>Disc: GetDefaultComponents(loggerFactory)
-    Disc->>AD: GetAssemblies()
-    loop Each assembly
-        Disc->>Asm: Read DefaultValidationComponentProviderAttribute
-        Asm-->>Disc: Provider type(s)
-    end
-    Disc->>Prov: new ProviderType()
-    Disc->>Disc: Sort providers by Priority (ascending)
-    loop Each provider
-        Disc->>Prov: GetDefaultComponents(loggerFactory)
-        Prov-->>Disc: IValidationComponent[]
-    end
-
-    Ext->>B: new CoseSign1ValidationBuilder(loggerFactory)
-    loop Each component
-        Ext->>B: AddComponent(component)
-    end
-    Ext->>B: Build()
-    B-->>Ext: ICoseSign1Validator
-
-    Ext->>V: Validate(message)
-    V-->>Ext: CoseSign1ValidationResult
-    Ext-->>App: CoseSign1ValidationResult
+    App->>SC: new ServiceCollection()
+    App->>SC: ConfigureCoseValidation()
+    SC-->>VB: ICoseValidationBuilder
+    App->>VB: Enable*Trust(...)
+    App->>SP: BuildServiceProvider()
+    App->>F: Resolve ICoseSign1ValidatorFactory
+    F-->>App: Create(...)
+    App->>Msg: Validate(validator)
+    Msg-->>App: CoseSign1ValidationResult
 ```
 
 ---
@@ -228,7 +200,8 @@ sequenceDiagram
     participant VP as IVerificationProvider (0..n)
     participant VC as VerifyCommandHandler
     participant Msg as CoseSign1Message
-    participant B as CoseSign1ValidationBuilder
+    participant VB as ICoseValidationBuilder
+    participant F as ICoseSign1ValidatorFactory
 
     Main->>CB: BuildRootCommand(additionalPluginDirs)
     CB->>PL: LoadPluginsAsync(pluginsDir, additionalDirs)
@@ -249,14 +222,11 @@ sequenceDiagram
 
     Note over VC: Later, when `verify` runs...
     VC->>VP: IsActivated(parseResult)
-    VC->>VP: CreateValidators(parseResult[, context])
-    VP-->>VC: IValidationComponent[]
-
-    VC->>B: new CoseSign1ValidationBuilder(loggerFactory)
-    VC->>B: AddComponent(components...)
-    VC->>B: Configure trust policy + detached payload
-    VC->>B: Build()
-
+    VC->>VB: ConfigureCoseValidation()
+    VC->>VP: ConfigureValidation(validationBuilder, parseResult, context)
+    VP-->>VC: (register trust packs + staged services)
+    VC->>F: Resolve ICoseSign1ValidatorFactory
+    F-->>VC: Create(...)
     VC->>Msg: Validate(validator)
     Msg-->>VC: CoseSign1ValidationResult
 ```

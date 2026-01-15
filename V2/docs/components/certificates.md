@@ -10,7 +10,7 @@ This package standardizes certificate-backed signing around a single `Certificat
 
 - Chain builder implementations (`ICertificateChainBuilder`)
 - Local and remote certificate sources
-- Validation helpers for X.509-backed COSE Sign1 messages (signing key resolution + certificate assertions)
+- Validation helpers for X.509-backed COSE Sign1 messages (signing key resolution + X.509 trust facts)
 - Extensions for extracting certificate information from a `CoseSign1Message`
 
 ## Signing
@@ -100,12 +100,10 @@ The package includes certificate sources that implement `ICertificateSource`:
 This package contributes certificate-focused *validation components* to the V2 validation pipeline:
 
 - `CertificateSigningKeyResolver` (`ISigningKeyResolver`) extracts and parses X.509 key material from `x5t` + `x5chain` headers.
-- Certificate assertion providers (`ISigningKeyAssertionProvider`) emit typed assertions such as:
-  - `X509ChainTrustedAssertion`
-  - `X509ValidityAssertion`
-  - `X509IssuerAssertion`
-  - `X509CommonNameAssertion`
-  - `X509KeyUsageAssertion`
+- The certificate trust pack produces typed X.509 trust facts that can be required by a `TrustPlanPolicy`, such as:
+  - `X509ChainTrustedFact`
+  - `X509SigningCertificateIdentityFact`
+  - `X509SigningCertificateEkuFact`
 
 Signature verification itself is performed by the core validator once a signing key is resolved and the trust policy is satisfied.
 
@@ -125,39 +123,73 @@ bool ok = message.VerifySignature();
 
 Use `message.Validate(...)` / `ValidateAsync(...)` from `CoseSign1.Validation`.
 
-**Auto-discovery:** if you reference `CoseSign1.Certificates`, its default components are discovered automatically (via an assembly-level default component provider).
-
 ```csharp
 using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+  .UseSystemTrust()
+  );
+
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+  .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+  .GetRequiredService<ICoseSign1ValidatorFactory>()
+  .Create();
 
 CoseSign1Message message = CoseMessage.DecodeSign1(coseSign1Bytes);
-var result = message.Validate();
-
-if (!result.Overall.IsValid)
-{
-    // See result.Resolution / result.Trust / result.Signature / result.PostSignaturePolicy for details.
-}
+var result = message.Validate(validator);
 ```
 
-**Custom certificate requirements:** build a validator (or inline-configure one) and add certificate assertion providers.
+**Custom certificate requirements:** author a `TrustPlanPolicy` over certificate trust facts.
 
 ```csharp
 using System.Security.Cryptography.Cose;
-using CoseSign1.Certificates.Validation;
+using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
-var validator = new CoseSign1ValidationBuilder()
-    // Required for certificate-backed validation
-    .AddComponent(new CertificateSigningKeyResolver())
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
 
-    // Add X.509 assertion providers
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasCommonName("My Trusted Signer")
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3")
-        .ValidateChain())
-    .Build();
+validation.EnableCertificateTrust(certTrust => certTrust
+  .UseSystemTrust()
+  );
+
+var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
+  .RequireFact<X509SigningCertificateIdentityFact>(
+    f => f.Subject.Contains("CN=My Trusted Signer", System.StringComparison.OrdinalIgnoreCase),
+    "Signing certificate identity must match")
+  .RequireFact<X509SigningCertificateEkuFact>(
+    f => f.OidValue == "1.3.6.1.5.5.7.3.3",
+    "Required EKU is missing")
+  .RequireFact<X509ChainTrustedFact>(
+    f => f.IsTrusted,
+    "Signing certificate chain must be trusted"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+  .GetRequiredService<ICoseSign1ValidatorFactory>()
+  .Create();
 
 CoseSign1Message message = CoseMessage.DecodeSign1(coseSign1Bytes);
 var result = message.Validate(validator);
@@ -169,11 +201,28 @@ If the COSE_Sign1 has a detached payload, provide it via `CoseSign1ValidationOpt
 
 ```csharp
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver())
-    .WithOptions(o => o.WithDetachedPayload(detachedPayloadBytes))
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+  .UseSystemTrust()
+  );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var options = new CoseSign1ValidationOptions()
+  .WithDetachedPayload(detachedPayloadBytes);
+
+var validator = scope.ServiceProvider
+  .GetRequiredService<ICoseSign1ValidatorFactory>()
+  .Create(
+    options: options,
+    trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 ```
 
 ## Extensions

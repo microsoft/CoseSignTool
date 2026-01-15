@@ -128,8 +128,11 @@ public interface IVerificationProvider
     /// <summary>Determines if this provider is activated.</summary>
     bool IsActivated(ParseResult parseResult);
 
-    /// <summary>Creates validation components based on options.</summary>
-    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
+    /// <summary>
+    /// Configures staged validation services for this provider.
+    /// Providers should register trust packs, signing key resolvers, and post-signature validators into the supplied builder.
+    /// </summary>
+    void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context);
 
     /// <summary>Gets metadata about the verification result.</summary>
     IDictionary<string, object?> GetVerificationMetadata(
@@ -139,14 +142,15 @@ public interface IVerificationProvider
 }
 ```
 
-### IVerificationProviderWithTrustPolicy
+### IVerificationProviderWithTrustPlanPolicy
 
-Verification providers can optionally contribute a trust policy (used by the staged verifier to decide whether the signing key material is trusted):
+Verification providers can optionally contribute an additional trust-plan policy fragment.
+Policies from active providers are AND-ed together.
 
 ```csharp
-public interface IVerificationProviderWithTrustPolicy : IVerificationProvider
+public interface IVerificationProviderWithTrustPlanPolicy : IVerificationProvider
 {
-    TrustPolicy? CreateTrustPolicy(ParseResult parseResult, VerificationContext context);
+    TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context);
 }
 ```
 

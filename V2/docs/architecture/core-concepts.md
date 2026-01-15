@@ -42,12 +42,22 @@ Build functionality through composition rather than configuration strings:
 // ❌ V1: String-based configuration
 CoseHandler.SetValidation("RequireEku:1.3.6.1.4.1.311.10.3.13");
 
-// ✅ V2: Composable validators
-var validator = new CoseSign1ValidationBuilder()
-    .ValidateCertificate(cert => cert
-        .AllowUnprotectedHeaders()
-        .HasEnhancedKeyUsage("1.3.6.1.4.1.311.10.3.13"))
-    .Build();
+// ✅ V2: Composable trust requirements (facts + rules)
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509SigningCertificateEkuFact>(
+    f => f.OidValue == "1.3.6.1.4.1.311.10.3.13",
+    "Signing certificate must include EKU 1.3.6.1.4.1.311.10.3.13"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => policy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 ```
 
 ### 3. Dependency Injection First
@@ -62,11 +72,11 @@ builder.Services
         using var cb = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
         return CertificateSigningService.Create(certificate, cb);
     })
-    .AddSingleton<ICoseSign1Validator>(sp =>
-        new CoseSign1ValidationBuilder()
-            .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
-            .AllowAllTrust("DI registration")
-            .Build());
+    .ConfigureCoseValidation()
+    .EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+builder.Services.AddScoped<ICoseSign1Validator>(sp =>
+    sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
 
 // Inject and use
 public class DocumentSigner(ISigningService<SigningOptions> signingService)
@@ -121,12 +131,12 @@ public interface ICoseSign1Validator
 Different services have different lifetimes:
 
 ```csharp
-// Singleton: stateless validators/builders
-services.AddSingleton<ICoseSign1Validator>(sp =>
-    new CoseSign1ValidationBuilder()
-        .ValidateCertificate(cert => cert.AllowUnprotectedHeaders())
-        .AllowAllTrust("service registration")
-        .Build());
+// Scoped: build the validator from the current DI scope
+services.ConfigureCoseValidation()
+    .EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+services.AddScoped<ICoseSign1Validator>(sp =>
+    sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
 
 // Scoped/Transient: your app decides based on lifecycle of credentials/certs
 services.AddScoped<ISigningService<CertificateSigningOptions>>(sp =>
@@ -221,14 +231,12 @@ byte[] signature = factory.CreateCoseSign1MessageBytes(payload, contentType, opt
 
 Builders construct complex objects step-by-step.
 
-### Validator Builder
+### TrustPlanPolicy Builder
 
 ```csharp
-var validator = new CoseSign1ValidationBuilder()
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .ValidateChain())
-    .Build();
+// Build an explicit trust requirement (facts + rules)
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key
+    .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "X.509 chain must be trusted"));
 ```
 
 ### Certificate Chain Builder
@@ -262,11 +270,15 @@ V2 favors composition over class hierarchies.
 ### Validator Composition
 
 ```csharp
-// Compose a validation pipeline by adding components
-var validator = new CoseSign1ValidationBuilder()
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .AddComponent(new CustomBusinessValidator())
-    .Build();
+// Compose validation via DI: trust packs + post-signature validators
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+services.AddSingleton<IPostSignatureValidator, CustomBusinessValidator>();
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 var result = message.Validate(validator);
 var signatureResult = result.Signature;
@@ -425,22 +437,17 @@ using var service = CertificateSigningService.Create(cert, chainBuilder); // thr
 ```csharp
 public sealed class MyPostSignatureValidator : IPostSignatureValidator
 {
-    public string ComponentName => nameof(MyPostSignatureValidator);
-
-    // Lightweight applicability check (no I/O)
-    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
-
     public ValidationResult Validate(IPostSignatureValidationContext context)
     {
         if (!VerifyBusinessRules(context.Message))
         {
             return ValidationResult.Failure(
-                validatorName: ComponentName,
+                validatorName: nameof(MyPostSignatureValidator),
                 message: "Post-signature policy check failed",
                 errorCode: "PostSignaturePolicyFailed");
         }
 
-        return ValidationResult.Success(ComponentName);
+        return ValidationResult.Success(nameof(MyPostSignatureValidator));
     }
 
     public Task<ValidationResult> ValidateAsync(

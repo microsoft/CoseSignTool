@@ -121,25 +121,43 @@ When verifying with MST:
 Add MST validation to the V2 validation pipeline:
 
 ```csharp
-using Azure.Security.CodeTransparency;
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Transparent.MST;
-using CoseSign1.Transparent.MST.Validation;
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Transparent.MST.Trust;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
-var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+var mstEndpoint = new Uri("https://dataplane.codetransparency.azure.net");
 
-// Build validator with MST validation
-var validator = new CoseSign1ValidationBuilder()
-    // Typical COSE_Sign1 receipts are attached to X.509-backed signatures.
-    // Add an X.509 signing key resolver so the core validator can verify the signature.
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateMst(mst => mst
-        .RequireReceiptPresence()
-        .VerifyReceipt(client))             // Offline receipt validation
-    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+// MST receipts are typically attached to X.509-backed signatures.
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+// Enable MST receipt verification (online).
+validation.EnableMstTrust(mst => mst.VerifyReceipts(mstEndpoint));
+
+// Require an MST receipt, and require that receipt verification succeeds.
+var trustPolicy = TrustPlanPolicy.Message(m => m
+    .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt is required")
+    .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be trusted"))
+.And(
+    TrustPlanPolicy.PrimarySigningKey(k => k
+        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted")));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 CoseSign1Message message = /* ... */;
 var result = message.Validate(validator);
@@ -155,12 +173,27 @@ if (result.Overall.IsValid)
 For online verification that fetches current signing keys from the service:
 
 ```csharp
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateMst(mst => mst
-        .VerifyReceiptOnline(client, "dataplane.codetransparency.azure.net"))
-    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(certTrust => certTrust
+    .UseSystemTrust()
+    );
+
+validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+var trustPolicy = TrustPlanPolicy.Message(m => m
+    .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt is required")
+    .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be trusted"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 ```
 
 ## Security Considerations

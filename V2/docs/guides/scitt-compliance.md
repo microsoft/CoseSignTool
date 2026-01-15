@@ -128,16 +128,25 @@ Receipts can be embedded in the signature's unprotected headers:
 ### Verify Signed Statement
 
 ```csharp
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 var message = CoseMessage.DecodeSign1(statement);
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Protected))
-    .ValidateCertificate(cert => cert.ValidateChain())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableCertificateTrust(cert => cert
+    .UseSystemTrust()
+    );
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var results = message.Validate(validator);
 var signatureResult = results.Signature;
@@ -167,7 +176,7 @@ if (!receiptResult.IsValid)
 
 ```csharp
 // There isn't a single "SCITT validator" type.
-// Compose the checks you need (cert chain, claims, receipts, etc.) using the validation builder.
+// Compose the checks you need (cert chain, claims, receipts, etc.) using trust packs + TrustPlanPolicy.
 ```
 
 ## CLI Usage

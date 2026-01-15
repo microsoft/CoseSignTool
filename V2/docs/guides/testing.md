@@ -16,9 +16,10 @@ Use ephemeral (temporary self-signed) certificates for testing:
 using CoseSign1.Tests.Common;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Factories;
-using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 using System.Text;
 using NUnit.Framework;
@@ -42,11 +43,18 @@ public class SigningTests
 
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => cert.NotExpired())
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+
+        // Registers the certificate signing-key resolver used to verify X.509-backed signatures.
+        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
         var result = message.Validate(validator);
         Assert.That(result.Overall.IsValid, Is.True);
     }
@@ -145,6 +153,9 @@ public class CustomValidatorTests
 
 ```csharp
 using NUnit.Framework;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 
 [TestFixture]
 public class CustomHeaderContributorTests
@@ -187,11 +198,16 @@ public class SigningServiceTests
         byte[] signatureBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "application/octet-stream");
 
         var message = CoseMessage.DecodeSign1(signatureBytes);
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => cert.NotExpired())
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
         Assert.That(message.Validate(validator).Overall.IsValid, Is.True);
     }
@@ -229,11 +245,16 @@ public class SignVerifyIntegrationTests
         
         // Act - Verify
         var message = CoseMessage.DecodeSign1(signature);
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => cert.NotExpired())
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
         var result = message.Validate(validator);
         
@@ -263,11 +284,16 @@ public class SignVerifyIntegrationTests
 
         // Act - Verify signature over the hash envelope (payload is not required for signature verification)
         var message = CoseMessage.DecodeSign1(signature);
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => cert.NotExpired())
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
         var result = message.Validate(validator);
         
@@ -303,10 +329,18 @@ public void Verify_WithFullChain_Succeeds()
     var message = CoseMessage.DecodeSign1(signature);
     var trustedRoots = new X509Certificate2Collection { root };
 
-    var validator = new CoseSign1ValidationBuilder()
-        .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-        .ValidateCertificate(cert => cert.ValidateChain(trustedRoots))
-        .Build();
+    var services = new ServiceCollection();
+    var validation = services.ConfigureCoseValidation();
+    validation.EnableCertificateTrust(certTrust => certTrust
+        .UseCustomRootTrust(trustedRoots)
+        );
+
+    using var sp = services.BuildServiceProvider();
+    using var scope = sp.CreateScope();
+
+    var validator = scope.ServiceProvider
+        .GetRequiredService<ICoseSign1ValidatorFactory>()
+        .Create();
 
     var result = message.Validate(validator);
     Assert.That(result.Signature.IsValid, Is.True);
@@ -367,7 +401,7 @@ public class CliIntegrationTests
 
 ## Mock Objects
 
-When testing validation composition, you can register lightweight components directly on the builder.
+When testing validation composition, you can register lightweight post-signature validators in DI.
 The simplest option is an always-pass post-signature validator:
 
 ```csharp
@@ -376,18 +410,26 @@ using CoseSign1.Validation.Results;
 
 public sealed class AlwaysPassPostSignatureValidator : IPostSignatureValidator
 {
-    public string ComponentName => "AlwaysPass";
-    public bool IsApplicableTo(CoseSign1Message? message, CoseSign1ValidationOptions? options = null) => true;
-    public ValidationResult Validate(IPostSignatureValidationContext context) => ValidationResult.Success(ComponentName);
+    public ValidationResult Validate(IPostSignatureValidationContext context) => ValidationResult.Success("AlwaysPass");
     public Task<ValidationResult> ValidateAsync(IPostSignatureValidationContext context, CancellationToken cancellationToken = default)
         => Task.FromResult(Validate(context));
 }
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .AddComponent(new AlwaysPassPostSignatureValidator())
-    .AllowAllTrust("test")
-    .Build();
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+services.AddSingleton<IPostSignatureValidator, AlwaysPassPostSignatureValidator>();
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create(trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 ```
 
 ## Test Data

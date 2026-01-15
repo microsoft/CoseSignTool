@@ -237,7 +237,7 @@ Your provider should **not** add these options.
 
 ## Creating a Verification Provider
 
-Verification providers contribute validation *components* and (optionally) trust-plan requirements to the `verify` command.
+Verification providers contribute staged validation services and (optionally) trust-plan requirements to the `verify` command.
 
 ### IVerificationProvider Interface
 
@@ -259,8 +259,11 @@ public interface IVerificationProvider
     /// <summary>Check if provider should activate based on parsed options.</summary>
     bool IsActivated(ParseResult parseResult);
     
-    /// <summary>Create validators when activated.</summary>
-    IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult);
+    /// <summary>
+    /// Configures staged validation services for this provider.
+    /// Providers should register trust packs, signing key resolvers, and post-signature validators into the supplied builder.
+    /// </summary>
+    void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context);
     
     /// <summary>Get metadata for display after verification.</summary>
     IDictionary<string, object?> GetVerificationMetadata(
@@ -274,8 +277,9 @@ public interface IVerificationProvider
 
 Providers can optionally implement additional interfaces:
 
-- `IVerificationProviderWithContext` to access runtime context (for example detached payload bytes).
-- `IVerificationProviderWithTrustPlanPolicy` to contribute a `TrustPlanPolicy` fragment and `ITrustPack` instances (policies from active providers are AND-ed).
+- `IVerificationProviderWithTrustPlanPolicy` to contribute a `TrustPlanPolicy` fragment (policies from active providers are AND-ed).
+
+Trust packs and other services should be registered via `ConfigureValidation(...)`.
 
 ### Priority Guidelines
 
@@ -283,8 +287,8 @@ Providers can optionally implement additional interfaces:
 Within validation, the orchestrator runs components by stage:
 
 1. Key material resolution (`ISigningKeyResolver`)
-2. Signature verification (crypto)
-3. Trust evaluation (`CompiledTrustPlan`)
+2. Trust evaluation (`CompiledTrustPlan`)
+3. Signature verification (crypto)
 4. Post-signature checks (`IPostSignatureValidator`)
 
 ### Implementation Example
@@ -293,12 +297,11 @@ Within validation, the orchestrator runs components by stage:
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Validation.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Trust;
-using CoseSign1.Validation.Trust.Plan;
-using CoseSign1.Validation.Trust.Facts;
+using CoseSign1.Validation.DependencyInjection;
 using CoseSignTool.Abstractions;
 
 public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPlanPolicy
@@ -308,54 +311,45 @@ public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPla
     public int Priority => 15; // Trust requirements
 
     // Store options for later access
-    private Option<string[]?> ApprovedOrgsOption = null!;
+    private Option<bool> RequireTrustedChainOption = null!;
 
     public void AddVerificationOptions(Command command)
     {
-        ApprovedOrgsOption = new Option<string[]?>(
-            "--approved-orgs",
-            "List of approved organization names");
-        command.AddOption(ApprovedOrgsOption);
+        RequireTrustedChainOption = new Option<bool>(
+            "--require-trusted-chain",
+            getDefaultValue: () => false,
+            description: "Require the signing certificate chain to be trusted");
+        command.AddOption(RequireTrustedChainOption);
     }
 
     public bool IsActivated(ParseResult parseResult)
     {
-        // Activate if any custom options are specified
-        return parseResult.GetValueForOption(ApprovedOrgsOption) != null;
+        return parseResult.GetValueForOption(RequireTrustedChainOption);
     }
 
-    public IEnumerable<IValidationComponent> CreateValidators(ParseResult parseResult)
+    public void ConfigureValidation(ICoseValidationBuilder validationBuilder, ParseResult parseResult, VerificationContext context)
     {
-        // Providers must contribute a signing key resolver if they want the
-        // CLI to verify signatures (for X.509, use CertificateSigningKeyResolver).
-        yield return new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any);
+        // Register staged services and trust packs into the shared builder.
+        // In this example we enable certificate trust (x5chain/x5t resolution + certificate trust facts).
+        if (IsActivated(parseResult))
+        {
+            validationBuilder.EnableCertificateTrust(cert => cert.UseSystemTrust());
+        }
     }
 
     public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
     {
         // Contribute additional requirements as a TrustPlanPolicy fragment.
-        // Example: if orgs are specified, require that at least one produced fact
-        // indicates the signer belongs to an allowed org.
-        //
-        // (Concrete fact types and packs are deployment-specific.)
-        if (parseResult.GetValueForOption(ApprovedOrgsOption) is not { Length: > 0 })
+        // This fragment is AND-ed with fragments from other active providers.
+        if (!IsActivated(parseResult))
         {
             return null;
         }
 
         return TrustPlanPolicy.PrimarySigningKey(key =>
-            key.RequireFact<DetachedPayloadPresentFact>(
-                _ => true,
-                "Custom trust policy enabled (replace with a real signing-key fact + predicate)"));
-    }
-
-    public IEnumerable<ITrustPack> CreateTrustPacks(ParseResult parseResult, VerificationContext context)
-    {
-        // Provide one or more ITrustPack instances that can produce the facts
-        // required by CreateTrustPlanPolicy.
-        //
-        // Return an empty list if this provider does not participate in trust.
-        return Array.Empty<ITrustPack>();
+            key.RequireFact<X509ChainTrustedFact>(
+                f => f.IsTrusted,
+                "X.509 certificate chain must be trusted"));
     }
 
     public IDictionary<string, object?> GetVerificationMetadata(
@@ -366,7 +360,7 @@ public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPla
         return new Dictionary<string, object?>
         {
             ["Custom Trust Checked"] = IsActivated(parseResult),
-            ["Approved Organizations"] = parseResult.GetValueForOption(ApprovedOrgsOption)
+            ["Require Trusted Chain"] = parseResult.GetValueForOption(RequireTrustedChainOption)
         };
     }
 }

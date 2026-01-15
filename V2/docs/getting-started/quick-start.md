@@ -76,21 +76,23 @@ File.WriteAllBytes("signed.cose", signedMessage);
 ### 2. Verify a Signature
 
 ```csharp
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
 // Load the signed message
 byte[] signedMessage = File.ReadAllBytes("signed.cose");
 var message = CoseMessage.DecodeSign1(signedMessage);
 
-// Build a validator with fluent certificate validation
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .ValidateChain(allowUntrusted: true)) // Allow self-signed for dev
-    .Build();
+// Configure staged validation via DI.
+// For development only: UseEmbeddedChainOnly() trusts the embedded chain without requiring a known root.
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(cert => cert.UseEmbeddedChainOnly());
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 // Verify - returns staged results
 var result = message.Validate(validator);
@@ -128,23 +130,27 @@ byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
 ### 4. Validate with Custom Rules
 
 ```csharp
-using CoseSign1.Certificates.Validation;
 using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using CoseSign1.Validation.Trust.Plan;
+using CoseSign1.Certificates.Trust.Facts;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
-// Build a validation pipeline with certificate requirements
-// Assertion providers supply default trust policies; by default the validator uses
-// TrustPolicy.FromAssertionDefaults(), which enforces the default policies for the
-// assertions your providers emit.
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .WithOptions(o => o.CertificateHeaderLocation = CoseHeaderLocation.Any)
-    .ValidateCertificate(cert => cert
-        .NotExpired()
-        .HasCommonName("MyTrustedSigner")
-        .HasEnhancedKeyUsage("1.3.6.1.5.5.7.3.3") // Code signing EKU
-        .ValidateChain())
-    .Build();
+// Configure validation (trust packs + explicit trust requirements)
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+
+// Add an explicit trust requirement: require the X.509 chain to be trusted.
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
+    f => f.IsTrusted,
+    "X.509 certificate chain must be trusted"));
+services.AddSingleton<CompiledTrustPlan>(sp => policy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 
 // Validate returns comprehensive staged results
 var result = message.Validate(validator);

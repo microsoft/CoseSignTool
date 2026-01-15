@@ -580,7 +580,7 @@ public class X509CertificateTrustPackProducerTests
         var context = new TrustFactContext(messageId, TrustSubject.PrimarySigningKey(messageId), new TrustEvaluationOptions(), memoryCache: null, message: message);
 
         var options = new CertificateTrustBuilder()
-            .AllowThumbprint("DEADBEEF")
+            .EnableCertificateIdentityPinning(p => p.AllowThumbprint("DEADBEEF"))
             .WithRevocationMode(X509RevocationMode.NoCheck)
             .Options;
 

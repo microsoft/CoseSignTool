@@ -46,11 +46,14 @@ PlatformHelper.SkipIfMLDsaNotSupported();
 using System.Security.Cryptography.Cose;
 using System.Text;
 using CoseSign1.Certificates;
+using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Factories;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
-using CoseSign1.Certificates.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
 [TestFixture]
@@ -67,11 +70,20 @@ public class SigningTests
         var coseBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
         var message = CoseMessage.DecodeSign1(coseBytes);
 
-        var validator = new CoseSign1ValidationBuilder()
-            .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-            .ValidateCertificate(cert => { })
-            .AllowAllTrust("test")
-            .Build();
+        var services = new ServiceCollection();
+        var validation = services.ConfigureCoseValidation();
+        validation.EnableCertificateTrust(certTrust => certTrust
+            .UseSystemTrust()
+            );
+
+        using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
+
+        var validator = scope.ServiceProvider
+            .GetRequiredService<ICoseSign1ValidatorFactory>()
+            .Create(
+                options: new CoseSign1ValidationOptions { CertificateHeaderLocation = CoseHeaderLocation.Any },
+                trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
         var result = message.Validate(validator);
         Assert.That(result.Overall.IsValid, Is.True);

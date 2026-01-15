@@ -1,109 +1,81 @@
 # Authoring Validation Extension Packages
 
-This guide is for authors who want to ship a NuGet package that plugs into the **V2 staged validation model** (similar to the built-in extension packages in this repo: Certificates, Azure Key Vault, and MST transparency).
+This guide is for authors who want to ship a NuGet package that plugs into the **V2 staged validation model**.
 
-If you only need app-specific rules in your own code, see [Creating Custom Validators](custom-validators.md).
+If you only need app-specific rules in your own code, see [Custom Validators](custom-validators.md).
 
-## What to build (the V2 model)
+## What an extension package contributes
 
-V2 validation is **staged** and composed through dependency injection. Extension packages contribute one or more of:
+V2 validation is composed via DI. Extension packages typically contribute one or more of:
 
-- `ISigningKeyResolver` — resolves an `ISigningKey` used to verify the COSE signature.
-- `ICounterSignatureResolver` — discovers counter-signatures (if your trust model needs them).
-- `IPostSignatureValidator` — runs after signature verification and trust evaluation.
-- `ITrustPack` — contributes default trust-plan fragments and related services.
+- `ISigningKeyResolver`: resolves an `ISigningKey` (key material resolution stage).
+- `IPostSignatureValidator`: business rules that run after trust + signature verification.
+- `ITrustPack`: contributes both fact production and secure-by-default trust-plan fragments.
 
-Packages are expected to expose a single opt-in extension method of the form `Enable*Trust(...)` (for example `EnableCertificateTrust`, `EnableAzureKeyVaultTrust`, `EnableMstTrust`).
+In V2, a trust pack is the preferred unit of reuse:
 
-## Registration pattern: `ConfigureCoseValidation` + `Enable*Trust`
+- It implements `ITrustPack : IMultiTrustFactProducer` (so it can produce facts).
+- It exposes its default trust contribution via `ITrustPack.GetDefaults()`.
 
-The core package provides a DI “gate” so trust-pack extensions don’t pollute `IServiceCollection` IntelliSense:
+## Opt-in API surface (`Enable*Trust`)
+
+Packages should expose a single opt-in extension method on `ICoseValidationBuilder`, typically named `Enable*Trust(...)`.
+
+Examples in this repo:
+
+- `EnableCertificateTrust`
+- `EnableAzureKeyVaultTrust`
+- `EnableMstTrust`
+
+Consumers use the “gate” created by `ConfigureCoseValidation()`:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using CoseSign1.Validation.DependencyInjection;
 
 var services = new ServiceCollection();
-var builder = services.ConfigureCoseValidation();
+var validation = services.ConfigureCoseValidation();
 
-// Your package should expose an extension like this:
-builder.EnableFooTrust(foo =>
+validation.EnableFooTrust(foo =>
 {
     // optional configuration
 });
 ```
 
-Inside your `EnableFooTrust` implementation, register services (typically singletons):
+## Inside `EnableFooTrust(...)`
+
+Your extension method should register any staged services and your trust pack (usually as singletons):
 
 ```csharp
 services.AddSingleton<ISigningKeyResolver, FooSigningKeyResolver>();
 services.AddSingleton<IPostSignatureValidator, FooPostSignatureValidator>();
+
+// The trust pack can also register any dependencies it needs (HTTP clients, options, etc.).
 services.AddSingleton<ITrustPack, FooTrustPack>();
 ```
 
-## Applicability and performance
+Design guidance:
 
-V2 no longer uses a component list with `IsApplicableTo(...)` pre-filtering or reflection-based discovery.
+- Keep registrations additive (multiple trust packs can be enabled together).
+- Make fact production lazy and bounded (use `TrustEvaluationOptions` budgets where applicable).
 
-If your logic only applies when specific headers are present, keep the check inside your resolver/validator and return a `ValidationResult.NotApplicable(...)` (or a “no result” from a resolver) cheaply.
+## Adding explicit requirements (policy fragments)
+
+If your extension needs to impose requirements beyond its default fragments, prefer exposing that configuration as a `TrustPlanPolicy` fragment.
+
+- In the CLI plugin model, providers can implement `IVerificationProviderWithTrustPlanPolicy` and return a policy fragment that will be AND-ed with other active providers.
+- In library/app integrations, callers can author `TrustPlanPolicy` directly and register a `CompiledTrustPlan` (see [Validation Framework](../architecture/validation-framework.md)).
 
 ## Testing patterns
 
 Recommended tests for extension packages:
 
-- `Enable*Trust` tests: ensure expected services are registered in the container.
-- Trust pack tests: ensure your `ITrustPack` contributes the expected trust-plan fragments.
-- End-to-end tests: sign a test message and validate it with a service provider configured with your trust pack.
+- `Enable*Trust` tests: verify the expected services are registered.
+- Trust pack tests: verify defaults (`GetDefaults()`) and fact production behavior.
+- End-to-end tests: sign a test message, enable your trust pack, validate the message.
 
 ## See also
 
 - [Validation Framework](../architecture/validation-framework.md)
-- [Creating Custom Validators](custom-validators.md)
-
-### Core base + caching
-
-- `ValidationComponentBase` (caching + `ComputeApplicability` hook):
-    - ../../CoseSign1.Validation/Abstractions/ValidationComponentBase.cs
-- `ValidationComponentOptions` (`CachingStrategy`, defaults, `NoCache`):
-    - ../../CoseSign1.Validation/Abstractions/ValidationComponentOptions.cs
-
-### Extension-specific base classes
-
-- Certificates:
-    - `CertificateValidationComponentBase`: ../../CoseSign1.Certificates/Validation/CertificateValidationComponentBase.cs
-- Azure Key Vault:
-    - `AkvValidationComponentBase`: ../../CoseSign1.AzureKeyVault/Validation/AkvValidationComponentBase.cs
-- MST:
-    - `MstValidationComponentBase`: ../../CoseSign1.Transparent.MST/Validation/MstValidationComponentBase.cs
-
-### Default component auto-discovery
-
-- Contract + attribute:
-    - `IDefaultValidationComponentProvider`: ../../CoseSign1.Validation/Abstractions/IDefaultValidationComponentProvider.cs
-    - Assembly attribute usage:
-        - Certificates: ../../CoseSign1.Certificates/DefaultComponentRegistration.cs
-        - Azure Key Vault: ../../CoseSign1.AzureKeyVault/DefaultComponentRegistration.cs
-        - MST: ../../CoseSign1.Transparent.MST/DefaultComponentRegistration.cs
-
-- Default providers:
-    - Certificates: ../../CoseSign1.Certificates/Validation/CertificateDefaultComponentProvider.cs
-    - Azure Key Vault: ../../CoseSign1.AzureKeyVault/Validation/AkvDefaultComponentProvider.cs
-    - MST: ../../CoseSign1.Transparent.MST/Validation/MstDefaultComponentProvider.cs
-
-### Fluent builder extensions (`ValidateX(...)`)
-
-- Certificates: ../../CoseSign1.Certificates/Validation/SignatureValidationExtensions.cs
-- Azure Key Vault: ../../CoseSign1.AzureKeyVault/Validation/AzureKeyVaultValidationExtensions.cs
-- MST: ../../CoseSign1.Transparent.MST/Validation/MstValidationExtensions.cs
-
-### Tests that lock in the patterns
-
-- Default provider tests:
-    - Certificates: ../../CoseSign1.Certificates.Tests/Validation/CertificateDefaultComponentProviderTests.cs
-    - Azure Key Vault: ../../CoseSign1.AzureKeyVault.Tests/Validation/AkvDefaultComponentProviderTests.cs
-    - MST: ../../CoseSign1.Transparent.MST.Tests/Validation/MstDefaultComponentProviderTests.cs
-
-- Builder extension tests:
-    - Certificates: ../../CoseSign1.Certificates.Tests/Validation/SignatureValidationExtensionsTests.cs
-    - Azure Key Vault: ../../CoseSign1.AzureKeyVault.Tests/Validation/AzureKeyVaultValidationExtensionsTests.cs
-    - MST: ../../CoseSign1.Transparent.MST.Tests/Validation/MstValidationExtensionsTests.cs
+- [Trust Plan Deep Dive](trust-policy.md)
+- [Audit and Replay](audit-and-replay.md)

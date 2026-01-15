@@ -46,23 +46,41 @@ CoseSignTool sign-akv-key <payload> \
 The plugin contributes:
 
 - An **offline signing key resolver** that can verify key-only signatures when the message contains an embedded `COSE_Key` public key header.
-- A **trust assertion provider** for evaluating `kid` (Azure Key Vault key URI) patterns.
+- An Azure Key Vault **trust pack** that produces `kid`-related trust facts for policy evaluation.
 
 By default, verification is **offline**.
 
 ### Programmatic Verification
 
-Use the V2 validation builder to add Azure Key Vault assertions:
+Enable the Azure Key Vault trust pack and register an explicit trust policy:
 
 ```csharp
-using CoseSign1.AzureKeyVault.Validation;
-using CoseSign1.Validation;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.Cose;
 
-var validator = new CoseSign1ValidationBuilder()
-  .ValidateAzureKeyVault(akv => akv
-    .RequireAzureKeyVaultOrigin())
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableAzureKeyVaultTrust(akv => akv
+  .RequireAzureKeyVaultKid()
+  .AllowKidPatterns(new[] { "https://production-vault.vault.azure.net/keys/*" })
+  .OfflineOnly());
+
+// AKV trust-pack defaults are not enforced automatically.
+var trustPolicy = TrustPlanPolicy.Message(m => m
+  .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+  .GetRequiredService<ICoseSign1ValidatorFactory>()
+  .Create();
 
 CoseSign1Message message = CoseMessage.DecodeSign1(coseBytes);
 var result = message.Validate(validator);
@@ -73,16 +91,34 @@ var result = message.Validate(validator);
 When using key-only signatures, you can configure trust validation to ensure the signing key comes from an approved set of Key Vaults. This is particularly useful when you need to enforce that signatures originate only from specific, authorized Key Vault instances.
 
 ```csharp
-using CoseSign1.AzureKeyVault.Validation;
-using CoseSign1.Validation;
+using CoseSign1.AzureKeyVault.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
 
-// Validate that the kid matches allowed vault patterns
-var validator = new CoseSign1ValidationBuilder()
-  .ValidateAzureKeyVault(akv => akv
-    .FromAllowedVaults(
-      "https://production-vault.vault.azure.net/keys/*",    // Any key in this vault
-      "https://signing-*.vault.azure.net/keys/release-*"))  // Wildcards supported
-    .Build();
+var services = new ServiceCollection();
+var validation = services.ConfigureCoseValidation();
+
+validation.EnableAzureKeyVaultTrust(akv => akv
+    .RequireAzureKeyVaultKid()
+    .AllowKidPatterns(new[]
+    {
+        "https://production-vault.vault.azure.net/keys/*",
+        "https://signing-*.vault.azure.net/keys/release-*",
+    })
+    .OfflineOnly());
+
+var trustPolicy = TrustPlanPolicy.Message(m => m
+    .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern"));
+
+services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+using var scope = sp.CreateScope();
+
+var validator = scope.ServiceProvider
+    .GetRequiredService<ICoseSign1ValidatorFactory>()
+    .Create();
 
 var result = message.Validate(validator);
 ```
@@ -97,14 +133,14 @@ The `FromAllowedVaults` method accepts patterns in three formats:
 | Wildcard | `https://*.vault.azure.net/keys/*` | `*` matches any characters |
 | Regex | `regex:https://.*\.vault\.azure\.net/keys/signing-.*` | Full regex (prefix with `regex:`) |
 
-#### Assertions
+#### Facts
 
-The AKV assertion provider emits typed assertions:
+The Azure Key Vault trust pack can produce these facts:
 
-- `AkvKeyDetectedAssertion` (whether the message `kid` looks like an AKV key URI)
-- `AkvKidAllowedAssertion` (whether the `kid` matches one of the allowed patterns)
+- `AzureKeyVaultKidDetectedFact` (whether the message `kid` looks like an AKV key URI)
+- `AzureKeyVaultKidAllowedFact` (whether the `kid` matches one of the allowed patterns)
 
-By default, each assertion supplies a `DefaultTrustPolicy`, so `TrustPolicy.FromAssertionDefaults()` will require them.
+Azure Key Vault defaults are not enforced automatically; supply a `TrustPlanPolicy` that requires the facts you care about.
 
 ### CLI Options
 

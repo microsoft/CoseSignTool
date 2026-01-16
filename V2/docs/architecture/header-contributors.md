@@ -112,7 +112,7 @@ var options = new DirectSignatureOptions
     AdditionalHeaderContributors = contributors,
 };
 
-var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
+var message = await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream",
     options);

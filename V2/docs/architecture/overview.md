@@ -142,10 +142,12 @@ CoseSignTool V2 is a complete architectural redesign providing modular, extensib
 The `CoseSign1MessageFactory` is the **preferred entry point** for signing operations:
 
 ```csharp
+using CoseSign1.Factories.Direct;
+
 var factory = new CoseSign1MessageFactory(signingService);
 
-// Preferred: call the explicit method for your intent
-var message = await factory.CreateDirectCoseSign1MessageAsync(
+// Preferred: route via the options type for your intent
+var message = await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream");
 ```

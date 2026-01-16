@@ -183,7 +183,7 @@ public sealed class ValidatorTests
         var chainBuilder = new X509ChainBuilder();
         var signingService = CertificateSigningService.Create(cert, chainBuilder);
         using var factory = new CoseSign1MessageFactory(signingService);
-        var messageBytes = factory.CreateDirectCoseSign1MessageBytes(
+        var messageBytes = factory.CreateCoseSign1MessageBytes<CoseSign1.Factories.Direct.DirectSignatureOptions>(
             new byte[] { 1, 2, 3 }, "application/test");
         var message = CoseMessage.DecodeSign1(messageBytes);
         
@@ -348,6 +348,7 @@ using CoseSign1.Factories;
 using CoseSign1.Tests.Common;
 using CoseSign1.Validation;
 using NUnit.Framework;
+using CoseSign1.Factories.Direct;
 using System.Security.Cryptography.Cose;
 using System.Text;
 
@@ -364,7 +365,7 @@ public class SignVerifyIntegrationTests
         using var service = CertificateSigningService.Create(cert, new X509ChainBuilder());
         using var factory = new CoseSign1MessageFactory(service);
         var payload = Encoding.UTF8.GetBytes("test payload");
-        var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+        var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "text/plain");
         
         // Verify
         var message = CoseMessage.DecodeSign1(signature);

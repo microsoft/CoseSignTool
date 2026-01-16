@@ -8,7 +8,7 @@
 
 `CoseSign1.Factories` provides:
 
-- A unified `CoseSign1MessageFactory` router that selects **direct vs indirect signing** based on the runtime type of the provided `SigningOptions`.
+- A unified `CoseSign1MessageFactory` router that selects **direct vs indirect signing** based on the requested options type.
 - The underlying `DirectSignatureFactory` and `IndirectSignatureFactory` implementations.
 
 - **Direct signatures**: sign the payload bytes (optionally embedded, optionally detached).
@@ -18,23 +18,99 @@ Both factories are built around `ISigningService<SigningOptions>` (from `CoseSig
 
 **Preferred entry point**: use `CoseSign1MessageFactory` and call the explicit overload that matches your intent:
 
-- `CreateDirectCoseSign1MessageBytes*` for direct signatures (payload signed)
-- `CreateIndirectCoseSign1MessageBytes*` for indirect signatures (hash envelope)
+- Use `CreateCoseSign1MessageBytes<DirectSignatureOptions>(...)` / `CreateCoseSign1Message<DirectSignatureOptions>(...)` for direct signatures.
+- Use `CreateCoseSign1MessageBytes<IndirectSignatureOptions>(...)` / `CreateCoseSign1Message<IndirectSignatureOptions>(...)` for indirect signatures.
+- If you pass an options instance, `TOptions` can be inferred (so you don’t have to write the generic argument explicitly).
 
-The generic `CreateCoseSign1MessageBytes*` overloads still exist for scenarios where you need to route dynamically based on a `SigningOptions` instance.
+## Extensibility (DI + Generic Routing)
+
+V2 supports an extensibility model where additional packages can contribute new signing styles by implementing and registering:
+
+- `ICoseSign1MessageFactory<TOptions>` for a custom options type `TOptions : SigningOptions`
+
+Once registered in DI, the router can route calls to the correct factory.
+
+### Taking full control of message creation
+
+If you want to replace **all aspects** of COSE_Sign1 construction (not only key/digest behavior), implement `ICoseSign1MessageFactory<TOptions>` and register it for the options type you want to own.
+
+See [Factory Extension Packages](../guides/factory-extension-packages.md).
+
+### Recommended call pattern
+
+Prefer the generic router API when you want extensibility beyond direct/indirect:
+
+- `CreateCoseSign1MessageBytes<TOptions>(...)`
+- `CreateCoseSign1Message<TOptions>(...)`
+
+This avoids relying on runtime type checks and keeps `ReadOnlySpan<byte>` overloads efficient.
+
+### Registering the default router and factories
+
+`CoseSign1.Factories` ships a DI helper:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+
+// You still register the signing service (certs, AKV, etc.)
+services.AddSingleton<ISigningService<SigningOptions>>(/* ... */);
+
+// Registers DirectSignatureFactory, IndirectSignatureFactory, and CoseSign1MessageFactory router
+services.AddCoseSign1Factories();
+```
+
+Resolve either:
+
+- `ICoseSign1MessageFactoryRouter`.
+
+### Example: future "Confidential Signing Service" factory package
+
+A future package (for example `CoseSign1.Factories.CSS`) can add a new options type and factory:
+
+```csharp
+public sealed class ConfidentialSigningOptions : SigningOptions
+{
+    public bool SendDigestOnly { get; set; }
+}
+
+public sealed class ConfidentialSigningFactory : ICoseSign1MessageFactory<ConfidentialSigningOptions>
+{
+    // Call remote service, return already-transparent CoseSign1Message, etc.
+}
+```
+
+And register it:
+
+```csharp
+services.AddTransient<ICoseSign1MessageFactory<ConfidentialSigningOptions>, ConfidentialSigningFactory>();
+```
+
+Then consumers can route cleanly:
+
+```csharp
+var router = serviceProvider.GetRequiredService<ICoseSign1MessageFactoryRouter>();
+
+byte[] cose = router.CreateCoseSign1MessageBytes<ConfidentialSigningOptions>(
+    payload,
+    contentType: "application/octet-stream",
+    options: new ConfidentialSigningOptions { SendDigestOnly = true });
+```
 
 ## Key Types
 
 ## CoseSign1MessageFactory (preferred)
 
-`CoseSign1MessageFactory` is a router that implements `ICoseSign1MessageFactory<SigningOptions>`.
+`CoseSign1MessageFactory` is a router that implements `ICoseSign1MessageFactoryRouter`.
 
-- Delegates to `DirectSignatureFactory` when `options` is `DirectSignatureOptions`.
-- Delegates to `IndirectSignatureFactory` when `options` is `IndirectSignatureOptions`.
+- Delegates to the registered `ICoseSign1MessageFactory<TOptions>` implementation for the selected `TOptions`.
+- Supports additional factories contributed by other packages via DI.
 
 **Basic usage (single factory, choose per call):**
 
 ```csharp
+using System.Security.Cryptography;
 using System.Text;
 using CoseSign1.Abstractions;
 using CoseSign1.Factories;
@@ -48,10 +124,16 @@ using var factory = new CoseSign1MessageFactory(signingService);
 byte[] payload = Encoding.UTF8.GetBytes("hello");
 
 // Direct signature
-byte[] direct = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+byte[] direct = factory.CreateCoseSign1MessageBytes(
+    payload,
+    "text/plain",
+    new DirectSignatureOptions { EmbedPayload = true });
 
 // Indirect signature (hash envelope)
-byte[] indirect = factory.CreateIndirectCoseSign1MessageBytes(payload, "text/plain");
+byte[] indirect = factory.CreateCoseSign1MessageBytes(
+    payload,
+    "text/plain",
+    new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
 ```
 
 ## DirectSignatureFactory

@@ -24,6 +24,7 @@ dotnet add package CoseSign1.Certificates.AzureTrustedSigning --version 2.0.0-pr
 ```csharp
 using CoseSign1.Certificates.AzureTrustedSigning;
 using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 using Azure.Identity;
 
 // Configure Azure Trusted Signing
@@ -40,7 +41,7 @@ var service = new AzureTrustedSigningService(options);
 
 // Use with signature factory
 var factory = new CoseSign1MessageFactory(service);
-byte[] signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
+byte[] signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/json");
 ```
 
 ## Configuration

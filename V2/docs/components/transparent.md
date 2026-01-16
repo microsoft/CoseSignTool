@@ -57,7 +57,9 @@ See [MST Documentation](mst.md) for details.
 ### Add a Proof
 
 ```csharp
-var signed = factory.CreateCoseSign1Message(payload, contentType: "application/octet-stream");
+using CoseSign1.Factories.Direct;
+
+var signed = factory.CreateCoseSign1Message<DirectSignatureOptions>(payload, contentType: "application/octet-stream");
 var withProof = await provider.AddTransparencyProofAsync(signed);
 ```
 

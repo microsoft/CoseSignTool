@@ -3,41 +3,33 @@
 
 namespace CoseSign1.Factories;
 
-using System.Security.Cryptography;
+using System.Collections.Concurrent;
+using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Factories.Indirect;
 
 /// <summary>
-/// Routes COSE Sign1 creation to the appropriate implementation based on the runtime type of <see cref="SigningOptions"/>.
-/// Pass <see cref="DirectSignatureOptions"/> to produce a direct signature, or <see cref="IndirectSignatureOptions"/> to produce
-/// an indirect signature (hash envelope). Options must not be <see langword="null"/>.
+/// Routes COSE Sign1 creation to the appropriate implementation based on the requested signing options type.
 /// </summary>
-public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory<SigningOptions>
+public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactoryRouter
 {
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public const string ErrorFormatUnsupportedSigningOptionsType =
-            "Unsupported signing options type: {0}. Use {1} or {2}.";
+        public const string ErrorNoGenericFactoryRegisteredFormat =
+            "No ICoseSign1MessageFactory<{0}> is registered.";
     }
 
-    private readonly DirectSignatureFactory _directFactory;
-    private readonly IndirectSignatureFactory _indirectFactory;
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly ConcurrentDictionary<Type, object> _localFactories = new();
+    private readonly IReadOnlyList<ITransparencyProvider>? _transparencyProviders;
+    private readonly bool _ownsFactories;
+    private readonly IDisposable? _ownedDisposable;
     private bool Disposed;
 
     /// <inheritdoc />
-    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => _directFactory.TransparencyProviders;
-
-    /// <summary>
-    /// Gets the underlying direct signature factory.
-    /// </summary>
-    public DirectSignatureFactory DirectFactory => _directFactory;
-
-    /// <summary>
-    /// Gets the underlying indirect signature factory.
-    /// </summary>
-    public IndirectSignatureFactory IndirectFactory => _indirectFactory;
+    public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => _transparencyProviders;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoseSign1MessageFactory"/> class.
@@ -58,418 +50,171 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory<SigningOp
 
         var directLogger = loggerFactory?.CreateLogger<DirectSignatureFactory>();
         var directFactory = new DirectSignatureFactory(signingService, transparencyProviders, directLogger);
-        _directFactory = directFactory;
 
         var indirectLogger = loggerFactory?.CreateLogger<IndirectSignatureFactory>();
-        _indirectFactory = new IndirectSignatureFactory(directFactory, indirectLogger);
+        var indirectFactory = new IndirectSignatureFactory(directFactory, indirectLogger);
+
+        _serviceProvider = null;
+        _transparencyProviders = transparencyProviders;
+        _localFactories.TryAdd(typeof(DirectSignatureOptions), directFactory);
+        _localFactories.TryAdd(typeof(IndirectSignatureOptions), indirectFactory);
+        _ownsFactories = true;
+        _ownedDisposable = indirectFactory;
     }
 
     /// <summary>
-    /// Creates COSE_Sign1 message bytes using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
+    /// Initializes a new instance of the <see cref="CoseSign1MessageFactory"/> class using dependency injection.
     /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <returns>The encoded COSE_Sign1 message bytes.</returns>
-    public byte[] CreateDirectCoseSign1MessageBytes(byte[] payload, string contentType)
-        => CreateCoseSign1MessageBytes(payload, contentType, new DirectSignatureOptions { EmbedPayload = true });
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <returns>The encoded COSE_Sign1 message bytes.</returns>
-    public byte[] CreateDirectCoseSign1MessageBytes(ReadOnlySpan<byte> payload, string contentType)
-        => CreateCoseSign1MessageBytes(payload, contentType, new DirectSignatureOptions { EmbedPayload = true });
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateDirectCoseSign1MessageBytesAsync(
-        byte[] payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payload, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateDirectCoseSign1MessageBytesAsync(
-        ReadOnlyMemory<byte> payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payload, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payloadStream">The payload stream to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateDirectCoseSign1MessageBytesAsync(
-        Stream payloadStream,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payloadStream, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <returns>The decoded COSE_Sign1 message.</returns>
-    public CoseSign1Message CreateDirectCoseSign1Message(byte[] payload, string contentType)
-        => CreateCoseSign1Message(payload, contentType, new DirectSignatureOptions { EmbedPayload = true });
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <returns>The decoded COSE_Sign1 message.</returns>
-    public CoseSign1Message CreateDirectCoseSign1Message(ReadOnlySpan<byte> payload, string contentType)
-        => CreateCoseSign1Message(payload, contentType, new DirectSignatureOptions { EmbedPayload = true });
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateDirectCoseSign1MessageAsync(
-        byte[] payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payload, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateDirectCoseSign1MessageAsync(
-        ReadOnlyMemory<byte> payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payload, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using a direct signature.
-    /// Uses the default direct signature behavior (embedded payload).
-    /// </summary>
-    /// <param name="payloadStream">The payload stream to sign.</param>
-    /// <param name="contentType">The content type of the payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateDirectCoseSign1MessageAsync(
-        Stream payloadStream,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payloadStream, contentType, new DirectSignatureOptions { EmbedPayload = true }, cancellationToken);
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <returns>The encoded COSE_Sign1 message bytes.</returns>
-    public byte[] CreateIndirectCoseSign1MessageBytes(byte[] payload, string contentType)
-        => CreateCoseSign1MessageBytes(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <returns>The encoded COSE_Sign1 message bytes.</returns>
-    public byte[] CreateIndirectCoseSign1MessageBytes(ReadOnlySpan<byte> payload, string contentType)
-        => CreateCoseSign1MessageBytes(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateIndirectCoseSign1MessageBytesAsync(
-        byte[] payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateIndirectCoseSign1MessageBytesAsync(
-        ReadOnlyMemory<byte> payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    /// <summary>
-    /// Creates COSE_Sign1 message bytes using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payloadStream">The payload stream to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the encoded COSE_Sign1 message bytes.</returns>
-    public Task<byte[]> CreateIndirectCoseSign1MessageBytesAsync(
-        Stream payloadStream,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageBytesAsync(payloadStream, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <returns>The decoded COSE_Sign1 message.</returns>
-    public CoseSign1Message CreateIndirectCoseSign1Message(byte[] payload, string contentType)
-        => CreateCoseSign1Message(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <returns>The decoded COSE_Sign1 message.</returns>
-    public CoseSign1Message CreateIndirectCoseSign1Message(ReadOnlySpan<byte> payload, string contentType)
-        => CreateCoseSign1Message(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateIndirectCoseSign1MessageAsync(
-        byte[] payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payload">The payload bytes to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateIndirectCoseSign1MessageAsync(
-        ReadOnlyMemory<byte> payload,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payload, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    /// <summary>
-    /// Creates a COSE_Sign1 message using an indirect signature (hash envelope).
-    /// Uses the default indirect signature behavior (SHA-256).
-    /// </summary>
-    /// <param name="payloadStream">The payload stream to sign.</param>
-    /// <param name="contentType">The content type of the preimage payload (for example, <c>application/json</c>).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task that resolves to the decoded COSE_Sign1 message.</returns>
-    public Task<CoseSign1Message> CreateIndirectCoseSign1MessageAsync(
-        Stream payloadStream,
-        string contentType,
-        CancellationToken cancellationToken = default)
-        => CreateCoseSign1MessageAsync(payloadStream, contentType, new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 }, cancellationToken);
-
-    private static bool UseDirectFactory(SigningOptions? options)
+    /// <param name="serviceProvider">Service provider used to resolve registered <see cref="ICoseSign1MessageFactory{TOptions}"/> implementations.</param>
+    /// <param name="loggerFactory">Optional logger factory for creating loggers for internal factories.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="serviceProvider"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// This constructor enables extensibility via package inclusion: packages can register additional
+    /// <see cref="ICoseSign1MessageFactory{TOptions}"/> implementations and this router will select them.
+    /// </remarks>
+    public CoseSign1MessageFactory(
+        IServiceProvider serviceProvider,
+        ILoggerFactory? loggerFactory = null)
     {
-        if (options is null)
+        if (serviceProvider is null)
         {
-            throw new ArgumentNullException(nameof(options));
+            throw new ArgumentNullException(nameof(serviceProvider));
         }
 
-        if (options is DirectSignatureOptions)
+        _ = loggerFactory;
+
+        _serviceProvider = serviceProvider;
+        _transparencyProviders = null;
+        _ownsFactories = false;
+        _ownedDisposable = null;
+    }
+
+    private ICoseSign1MessageFactory<TOptions> ResolveFactory<TOptions>()
+        where TOptions : SigningOptions
+    {
+        if (_serviceProvider is not null)
         {
-            return true;
+            var factory = (ICoseSign1MessageFactory<TOptions>?)_serviceProvider.GetService(typeof(ICoseSign1MessageFactory<TOptions>));
+            if (factory is null)
+            {
+                throw new InvalidOperationException(
+                    string.Format(ClassStrings.ErrorNoGenericFactoryRegisteredFormat, typeof(TOptions).FullName));
+            }
+
+            return factory;
         }
 
-        if (options is IndirectSignatureOptions)
+        if (_localFactories.TryGetValue(typeof(TOptions), out var local) && local is ICoseSign1MessageFactory<TOptions> typed)
         {
-            return false;
+            return typed;
         }
 
-        throw new ArgumentException(
-            string.Format(
-                ClassStrings.ErrorFormatUnsupportedSigningOptionsType,
-                options.GetType().FullName,
-                nameof(DirectSignatureOptions),
-                nameof(IndirectSignatureOptions)),
-            nameof(options));
+        throw new InvalidOperationException(
+            string.Format(ClassStrings.ErrorNoGenericFactoryRegisteredFormat, typeof(TOptions).FullName));
     }
 
     /// <inheritdoc />
-    public byte[] CreateCoseSign1MessageBytes(byte[] payload, string contentType, SigningOptions? options = default)
+    public byte[] CreateCoseSign1MessageBytes<TOptions>(byte[] payload, string contentType, TOptions? options = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageBytes(payload, contentType, (DirectSignatureOptions?)options)
-            : _indirectFactory.CreateCoseSign1MessageBytes(payload, contentType, (IndirectSignatureOptions?)options);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageBytes(payload, contentType, options);
     }
 
     /// <inheritdoc />
-    public byte[] CreateCoseSign1MessageBytes(ReadOnlySpan<byte> payload, string contentType, SigningOptions? options = default)
+    public byte[] CreateCoseSign1MessageBytes<TOptions>(ReadOnlySpan<byte> payload, string contentType, TOptions? options = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageBytes(payload, contentType, (DirectSignatureOptions?)options)
-            : _indirectFactory.CreateCoseSign1MessageBytes(payload, contentType, (IndirectSignatureOptions?)options);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageBytes(payload, contentType, options);
     }
 
     /// <inheritdoc />
-    public Task<byte[]> CreateCoseSign1MessageBytesAsync(
+    public Task<byte[]> CreateCoseSign1MessageBytesAsync<TOptions>(
         byte[] payload,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageBytesAsync(payload, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageBytesAsync(payload, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<byte[]> CreateCoseSign1MessageBytesAsync(
+    public Task<byte[]> CreateCoseSign1MessageBytesAsync<TOptions>(
         ReadOnlyMemory<byte> payload,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageBytesAsync(payload, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageBytesAsync(payload, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<byte[]> CreateCoseSign1MessageBytesAsync(
+    public Task<byte[]> CreateCoseSign1MessageBytesAsync<TOptions>(
         Stream payloadStream,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageBytesAsync(payloadStream, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageBytesAsync(payloadStream, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public CoseSign1Message CreateCoseSign1Message(byte[] payload, string contentType, SigningOptions? options = default)
+    public CoseSign1Message CreateCoseSign1Message<TOptions>(byte[] payload, string contentType, TOptions? options = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1Message(payload, contentType, (DirectSignatureOptions?)options)
-            : _indirectFactory.CreateCoseSign1Message(payload, contentType, (IndirectSignatureOptions?)options);
+        return ResolveFactory<TOptions>().CreateCoseSign1Message(payload, contentType, options);
     }
 
     /// <inheritdoc />
-    public CoseSign1Message CreateCoseSign1Message(ReadOnlySpan<byte> payload, string contentType, SigningOptions? options = default)
+    public CoseSign1Message CreateCoseSign1Message<TOptions>(ReadOnlySpan<byte> payload, string contentType, TOptions? options = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1Message(payload, contentType, (DirectSignatureOptions?)options)
-            : _indirectFactory.CreateCoseSign1Message(payload, contentType, (IndirectSignatureOptions?)options);
+        return ResolveFactory<TOptions>().CreateCoseSign1Message(payload, contentType, options);
     }
 
     /// <inheritdoc />
-    public Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+    public Task<CoseSign1Message> CreateCoseSign1MessageAsync<TOptions>(
         byte[] payload,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageAsync(payload, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageAsync(payload, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageAsync(payload, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+    public Task<CoseSign1Message> CreateCoseSign1MessageAsync<TOptions>(
         ReadOnlyMemory<byte> payload,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageAsync(payload, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageAsync(payload, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageAsync(payload, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<CoseSign1Message> CreateCoseSign1MessageAsync(
+    public Task<CoseSign1Message> CreateCoseSign1MessageAsync<TOptions>(
         Stream payloadStream,
         string contentType,
-        SigningOptions? options = default,
+        TOptions? options = default,
         CancellationToken cancellationToken = default)
+        where TOptions : SigningOptions
     {
         ThrowIfDisposed();
-
-        var useDirectFactory = UseDirectFactory(options);
-        return useDirectFactory
-            ? _directFactory.CreateCoseSign1MessageAsync(payloadStream, contentType, (DirectSignatureOptions?)options, cancellationToken)
-            : _indirectFactory.CreateCoseSign1MessageAsync(payloadStream, contentType, (IndirectSignatureOptions?)options, cancellationToken);
+        return ResolveFactory<TOptions>().CreateCoseSign1MessageAsync(payloadStream, contentType, options, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -480,7 +225,11 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory<SigningOp
             return;
         }
 
-        _indirectFactory.Dispose();
+        if (_ownsFactories)
+        {
+            _ownedDisposable?.Dispose();
+        }
+
         Disposed = true;
     }
 

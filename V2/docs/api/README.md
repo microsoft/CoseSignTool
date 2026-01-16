@@ -120,7 +120,7 @@ using var service = CertificateSigningService.Create(certificate, chainBuilder);
 using var factory = new CoseSign1MessageFactory(service);
 
 // 3. Sign
-byte[] signature = factory.CreateDirectCoseSign1MessageBytes(payload, contentType);
+byte[] signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, contentType);
 ```
 
 ### Validating a Signature

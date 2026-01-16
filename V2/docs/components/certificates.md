@@ -52,7 +52,7 @@ using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 
 // Preferred: route via CoseSign1MessageFactory
 using var factory = new CoseSign1MessageFactory(signingService);
-byte[] coseBytes = factory.CreateDirectCoseSign1MessageBytes(
+byte[] coseBytes = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
   Encoding.UTF8.GetBytes("hello"),
   "text/plain",
   new DirectSignatureOptions());

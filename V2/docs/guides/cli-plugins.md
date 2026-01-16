@@ -12,6 +12,10 @@ Plugins implement `CoseSignTool.Abstractions.IPlugin` and can contribute functio
 - **Verification providers** (extra verification behaviors and/or options surfaced by `verify`) via `IVerificationProvider`
 - **Transparency providers** (e.g., MST) via `ITransparencyProviderContributor`
 
+Plugins can also add completely custom CLI commands via `IPlugin.RegisterCommands(...)`. This is the right approach when you want to own the **entire COSE message creation** path (not only supply an `ISigningService`). In those commands, you can reuse the same signing abstractions as library consumers by implementing `ICoseSign1MessageFactory<TOptions>` and routing through `ICoseSign1MessageFactoryRouter`.
+
+See [Factory Extension Packages](factory-extension-packages.md).
+
 In V2, **all signing commands are provided by plugins**. The core CLI provides the built-in `verify` and `inspect` commands.
 
 ## Built-in plugins

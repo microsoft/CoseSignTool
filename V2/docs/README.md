@@ -31,6 +31,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 - [Custom Headers](guides/custom-headers.md) - Add and validate custom headers
 - [Custom Validators](guides/custom-validators.md) - Extend validation stages
 - [Validation Extension Packages](guides/validation-extension-packages.md) - Author trust-pack and staged validation extensions
+- [Factory Extension Packages](guides/factory-extension-packages.md) - Replace or extend COSE_Sign1 message creation
 - [Logging and Diagnostics](guides/logging-diagnostics.md) - Verbosity, log files, structured output
 - [Security](guides/security.md) - Security guidance and recommended defaults
 

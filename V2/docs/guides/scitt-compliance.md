@@ -44,13 +44,14 @@ SCITT requires specific COSE headers:
 
 ```csharp
 using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 using var factory = new CoseSign1MessageFactory(signingService);
 
 // Content type for SCITT statements
 var contentType = "application/vnd.scitt.claim+cbor";
 
 // Create SCITT-compatible signature
-var signature = factory.CreateDirectCoseSign1MessageBytes(payload, contentType);
+var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, contentType);
 ```
 
 ### CWT Claims for SCITT
@@ -104,9 +105,10 @@ public class ScittFeedHeaderContributor : IHeaderContributor
 ```csharp
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
+using CoseSign1.Factories.Direct;
 
 // Create signed statement
-var statement = factory.CreateCoseSign1Message(payload, contentType);
+var statement = factory.CreateCoseSign1Message<DirectSignatureOptions>(payload, contentType);
 
 // Add an MST receipt to the statement
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));

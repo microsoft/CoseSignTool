@@ -127,7 +127,7 @@ var options = new DirectSignatureOptions
 };
 
 var factory = new CoseSign1MessageFactory(signingService);
-var signatureBytes = factory.CreateDirectCoseSign1MessageBytes(
+var signatureBytes = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream",
     options: options);

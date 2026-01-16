@@ -126,7 +126,7 @@ var options = new DirectSignatureOptions
 };
 
 var factory = new CoseSign1MessageFactory(signingService);
-var messageBytes = await factory.CreateDirectCoseSign1MessageBytesAsync(
+var messageBytes = await factory.CreateCoseSign1MessageBytesAsync<DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream",
     options: options);
@@ -275,7 +275,7 @@ public class ScittStatementFactory
             AdditionalHeaderContributors = [contributor]
         };
 
-        return await factory.DirectFactory.CreateCoseSign1MessageAsync(
+        return await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
             payload,
             contentType: "application/octet-stream",
             options: options);
@@ -358,7 +358,7 @@ public class MultiIssuerAttestationService
                 AdditionalHeaderContributors = [contributor]
             };
 
-            var attestation = await factory.DirectFactory.CreateCoseSign1MessageAsync(
+            var attestation = await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
                 payload,
                 contentType: "application/octet-stream",
                 options: options);
@@ -650,7 +650,7 @@ public class AttestationController : ControllerBase
             AdditionalHeaderContributors = [contributor]
         };
 
-        var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
+        var message = await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
             request.Payload,
             contentType: "application/octet-stream",
             options: options);
@@ -694,7 +694,7 @@ public class SupplyChainAttestationService
             AdditionalHeaderContributors = [contributor]
         };
 
-        return await factory.DirectFactory.CreateCoseSign1MessageAsync(
+        return await factory.CreateCoseSign1MessageAsync<DirectSignatureOptions>(
             artifact,
             contentType: "application/octet-stream",
             options: options);

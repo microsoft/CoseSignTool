@@ -83,7 +83,7 @@ using var chainBuilder = new X509ChainBuilder();
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new CoseSign1MessageFactory(signingService);
 
-var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
+var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/json");
 ```
 
 ### CLI Usage

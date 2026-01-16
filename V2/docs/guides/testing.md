@@ -17,6 +17,7 @@ using CoseSign1.Tests.Common;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Factories;
+using CoseSign1.Factories.Direct;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Trust.Plan;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +40,7 @@ public class SigningTests
         using var factory = new CoseSign1MessageFactory(service);
         
         var payload = Encoding.UTF8.GetBytes("test payload");
-        var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+        var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "text/plain");
 
         // Verify
         var message = CoseMessage.DecodeSign1(signature);
@@ -195,7 +196,7 @@ public class SigningServiceTests
         using var factory = new CoseSign1MessageFactory(service);
 
         byte[] payload = new byte[] { 1, 2, 3, 4, 5 };
-        byte[] signatureBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "application/octet-stream");
+        byte[] signatureBytes = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/octet-stream");
 
         var message = CoseMessage.DecodeSign1(signatureBytes);
         var services = new ServiceCollection();
@@ -239,7 +240,7 @@ public class SignVerifyIntegrationTests
             """);
         
         // Act - Sign
-        var signature = factory.CreateDirectCoseSign1MessageBytes(
+        var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
             payload, 
             "application/json");
         
@@ -323,7 +324,7 @@ public void Verify_WithFullChain_Succeeds()
         new[] { leaf, intermediate, root });
     using var factory = new CoseSign1MessageFactory(service);
     
-    var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/octet-stream");
+    var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/octet-stream");
     
     // Verify with custom trust root
     var message = CoseMessage.DecodeSign1(signature);

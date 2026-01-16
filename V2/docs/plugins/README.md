@@ -235,6 +235,51 @@ Your provider should **not** add these options.
 
 ---
 
+## Advanced: Owning COSE message creation end-to-end
+
+`ISigningCommandProvider` is designed to be a narrow plugin boundary: it returns an `ISigningService<SigningOptions>`, and the main executable owns I/O + the built-in signature strategies (`direct`/`indirect`).
+
+If you want to go beyond extending key material / digest signing and instead take over **all aspects** of producing the final COSE output (bytes or `CoseSign1Message`), implement and register a custom `ICoseSign1MessageFactory<TOptions>` and route to it via `ICoseSign1MessageFactoryRouter`.
+
+Because the built-in `sign-*` commands are assembled by the host, the way to do this from a CLI plugin is to register your own command via `IPlugin.RegisterCommands(...)`.
+
+Example sketch:
+
+```csharp
+using System.CommandLine;
+using CoseSign1.Abstractions;
+using CoseSign1.Factories;
+using Microsoft.Extensions.DependencyInjection;
+
+public void RegisterCommands(Command rootCommand)
+{
+    var cmd = new Command("sign-custom-cose", "Sign using a custom COSE factory");
+
+    cmd.SetHandler(async () =>
+    {
+        var services = new ServiceCollection();
+
+        // Register whatever your factory needs (HTTP clients, options, etc.)
+        services.AddTransient<ICoseSign1MessageFactory<MySigningOptions>, MySigningFactory>();
+
+        // Register the router so you can call the generic CreateCoseSign1Message* APIs.
+        services.AddTransient<ICoseSign1MessageFactoryRouter, CoseSign1MessageFactory>();
+
+        using var provider = services.BuildServiceProvider();
+        var router = provider.GetRequiredService<ICoseSign1MessageFactoryRouter>();
+
+        // router.CreateCoseSign1MessageBytes<MySigningOptions>(...)
+        // Write output wherever your command decides.
+    });
+
+    rootCommand.AddCommand(cmd);
+}
+```
+
+See [Factory Extension Packages](../guides/factory-extension-packages.md) for the full pattern (options type, factory implementation, DI registration, and override strategies).
+
+---
+
 ## Creating a Verification Provider
 
 Verification providers contribute staged validation services and (optionally) trust-plan requirements to the `verify` command.

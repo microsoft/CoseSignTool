@@ -67,7 +67,7 @@ public class SigningTests
         using var factory = new CoseSign1MessageFactory(signingService);
 
         var payload = Encoding.UTF8.GetBytes("hello");
-        var coseBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+        var coseBytes = factory.CreateCoseSign1MessageBytes<CoseSign1.Factories.Direct.DirectSignatureOptions>(payload, "text/plain");
         var message = CoseMessage.DecodeSign1(coseBytes);
 
         var services = new ServiceCollection();

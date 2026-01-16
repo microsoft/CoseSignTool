@@ -22,7 +22,7 @@ using var service = CertificateSigningService.Create(cert, chainBuilder);
 // Create factory and sign (preferred router)
 using var factory = new CoseSign1MessageFactory(service);
 var payload = File.ReadAllBytes("document.json");
-var signature = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
+var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/json");
 
 // Save signature
 File.WriteAllBytes("document.json.cose", signature);
@@ -81,6 +81,7 @@ else
 ```csharp
 using CoseSign1.Certificates.AzureTrustedSigning;
 using Azure.Identity;
+using CoseSign1.Factories.Direct;
 
 var options = new AzureTrustedSigningOptions
 {
@@ -93,7 +94,7 @@ var options = new AzureTrustedSigningOptions
 var service = new AzureTrustedSigningService(options);
 var factory = new CoseSign1MessageFactory(service);
 
-var signature = await factory.CreateDirectCoseSign1MessageBytesAsync(payload, "application/json");
+var signature = await factory.CreateCoseSign1MessageBytesAsync<DirectSignatureOptions>(payload, "application/json");
 ```
 
 ### Create Indirect Signature for Large File

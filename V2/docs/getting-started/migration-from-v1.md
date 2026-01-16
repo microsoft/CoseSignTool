@@ -86,7 +86,7 @@ using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuild
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] message = factory.CreateDirectCoseSign1MessageBytes(
+byte[] message = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     contentType: "application/json"
 );
@@ -113,7 +113,7 @@ var options = new DirectSignatureOptions
 };
 
 // Chain is included automatically by CertificateSigningService
-byte[] message = factory.CreateDirectCoseSign1MessageBytes(
+byte[] message = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     contentType: "application/json",
     options: options
@@ -343,7 +343,7 @@ var credential = new DefaultAzureCredential();
 using var signingService = new AzureTrustedSigningService(config, credential);
 using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] message = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
+byte[] message = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/json");
 ```
 
 ### 8. Transparency Receipts
@@ -358,9 +358,10 @@ byte[] message = factory.CreateDirectCoseSign1MessageBytes(payload, "application
 ```csharp
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
+using CoseSign1.Factories.Direct;
 
 // Create signature
-var signedMessage = factory.CreateCoseSign1Message(payload, "application/json");
+var signedMessage = factory.CreateCoseSign1Message<DirectSignatureOptions>(payload, "application/json");
 
 // Add MST receipt
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
@@ -427,8 +428,8 @@ using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign multiple messages
-byte[] message1 = factory.CreateDirectCoseSign1MessageBytes(payload1, "application/json");
-byte[] message2 = factory.CreateDirectCoseSign1MessageBytes(payload2, "application/xml");
+byte[] message1 = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload1, "application/json");
+byte[] message2 = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload2, "application/xml");
 ```
 
 ### Pattern: Validation Builder

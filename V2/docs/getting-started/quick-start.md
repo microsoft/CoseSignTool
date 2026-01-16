@@ -47,6 +47,7 @@ cosesigntool inspect signed.cose
 
 ```csharp
 using CoseSign1.Certificates;
+using CoseSign1.Factories.Direct;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Factories;
 using CoseSign1.Factories.Direct;
@@ -64,7 +65,7 @@ using var factory = new CoseSign1MessageFactory(signingService);
 
 // Sign your payload
 byte[] payload = "Hello, COSE!"u8.ToArray();
-byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(
+byte[] signedMessage = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload, 
     contentType: "text/plain"
 );
@@ -120,7 +121,7 @@ var options = new CertificateSigningOptions
 };
 
 // Sign with SCITT-compliant CWT claims
-byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
+byte[] signedMessage = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     contentType: "application/json",
     options: options
@@ -196,7 +197,7 @@ var options = new DirectSignatureOptions
     EmbedPayload = false 
 };
 
-byte[] detachedSignature = factory.CreateDirectCoseSign1MessageBytes(
+byte[] detachedSignature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream",
     options: options
@@ -222,7 +223,7 @@ var atsConfig = new AzureTrustedSigningConfiguration
 using var signingService = new AzureTrustedSigningService(atsConfig, credential);
 using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(payload, "application/json");
+byte[] signedMessage = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payload, "application/json");
 ```
 
 ### Working with Transparency Receipts
@@ -230,9 +231,10 @@ byte[] signedMessage = factory.CreateDirectCoseSign1MessageBytes(payload, "appli
 ```csharp
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST;
+using CoseSign1.Factories.Direct;
 
 // Create a signed message
-var signedMessage = factory.CreateCoseSign1Message(payload, "application/json");
+var signedMessage = factory.CreateCoseSign1Message<DirectSignatureOptions>(payload, "application/json");
 
 // Add an MST receipt (transparency proof)
 var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));

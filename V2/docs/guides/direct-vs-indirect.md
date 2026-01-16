@@ -49,7 +49,7 @@ using CoseSign1.Factories.Direct;
 using var factory = new CoseSign1MessageFactory(signingService);
 
 // Embedded payload
-byte[] embeddedSignature = factory.CreateDirectCoseSign1MessageBytes(
+byte[] embeddedSignature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(
     payload,
     "application/json");
 
@@ -128,13 +128,13 @@ using CoseSign1.Factories.Indirect;
 using var factory = new CoseSign1MessageFactory(signingService);
 
 // Create indirect signature (in-memory payload)
-byte[] signature = factory.CreateIndirectCoseSign1MessageBytes(
+byte[] signature = factory.CreateCoseSign1MessageBytes<IndirectSignatureOptions>(
     payload,
     "application/json");
 
 // Or from stream (memory efficient)
 using var stream = File.OpenRead("large-file.bin");
-byte[] streamSignature = await factory.CreateIndirectCoseSign1MessageBytesAsync(
+byte[] streamSignature = await factory.CreateCoseSign1MessageBytesAsync<IndirectSignatureOptions>(
     stream,
     "application/octet-stream");
 ```

@@ -29,7 +29,7 @@ var signature = CoseHandler.Sign(payload);
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 var service = CertificateSigningService.Create(certificate, chainBuilder);
 using var factory = new CoseSign1MessageFactory(service);
-var message = await factory.CreateDirectCoseSign1MessageAsync(
+var message = await factory.CreateCoseSign1MessageAsync<CoseSign1.Factories.Direct.DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream");
 ```
@@ -83,7 +83,7 @@ public class DocumentSigner(ISigningService<SigningOptions> signingService)
 {
     public async Task<CoseSign1Message> SignAsync(byte[] document)
         => await new CoseSign1MessageFactory(signingService)
-            .DirectFactory.CreateCoseSign1MessageAsync(
+            .CreateCoseSign1MessageAsync<CoseSign1.Factories.Direct.DirectSignatureOptions>(
                 document,
                 contentType: "application/octet-stream");
 }
@@ -100,7 +100,7 @@ using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuild
 using var signingService = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new CoseSign1MessageFactory(signingService);
 
-byte[] signed = factory.CreateDirectCoseSign1MessageBytes(
+byte[] signed = factory.CreateCoseSign1MessageBytes<CoseSign1.Factories.Direct.DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream");
 ```
@@ -167,14 +167,14 @@ Factories create COSE Sign1 messages with different characteristics.
 ### Direct vs Indirect Signatures
 
 ```csharp
-// Preferred: call the explicit methods for your intent
+// Preferred: route via the options type for your intent
 using var factory = new CoseSign1MessageFactory(signingService);
 
-var directMessage = await factory.CreateDirectCoseSign1MessageAsync(
+var directMessage = await factory.CreateCoseSign1MessageAsync<CoseSign1.Factories.Direct.DirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream");
 
-var indirectMessage = await factory.CreateIndirectCoseSign1MessageAsync(
+var indirectMessage = await factory.CreateCoseSign1MessageAsync<CoseSign1.Factories.Indirect.IndirectSignatureOptions>(
     payload,
     contentType: "application/octet-stream");
 ```
@@ -389,7 +389,7 @@ public sealed class MySigningService : ISigningService<SigningOptions>
 using var chainBuilder = new CoseSign1.Certificates.ChainBuilders.X509ChainBuilder();
 using var service = CertificateSigningService.Create(cert, chainBuilder);
 using var factory = new CoseSign1MessageFactory(service);
-var message = await factory.CreateDirectCoseSign1MessageAsync(payload, contentType: "application/octet-stream");
+var message = await factory.CreateCoseSign1MessageAsync<CoseSign1.Factories.Direct.DirectSignatureOptions>(payload, contentType: "application/octet-stream");
 // service disposed here
 ```
 

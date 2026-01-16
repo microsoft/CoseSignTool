@@ -7,9 +7,12 @@ using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Text;
+using CoseSign1.Abstractions;
+using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Factories.Indirect;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 [TestFixture]
@@ -25,46 +28,7 @@ public class CoseSign1MessageFactoryTests
     }
 
     [Test]
-    public void CreateCoseSign1MessageBytes_WhenOptionsIsNull_ThrowsArgumentNullException()
-    {
-        var payload = Encoding.UTF8.GetBytes("hello");
-        var signer = CreateMockCoseSigner();
-        var mockSigningService = CreateMockSigningService();
-
-        SigningContext? capturedContext = null;
-        mockSigningService
-            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
-            .Callback<SigningContext>(ctx => capturedContext = ctx)
-            .Returns(signer);
-
-        using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
-
-        var ex = Assert.Throws<ArgumentNullException>(() =>
-            _ = factory.CreateCoseSign1MessageBytes(payload, "text/plain", options: null));
-
-        Assert.That(ex!.ParamName, Is.EqualTo("options"));
-        Assert.That(capturedContext, Is.Null);
-    }
-
-    [Test]
-    public void DirectFactory_And_IndirectFactory_ExposeUnderlyingFactories()
-    {
-        var signer = CreateMockCoseSigner();
-        var mockSigningService = CreateMockSigningService();
-        mockSigningService
-            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
-            .Returns(signer);
-
-        using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
-
-        Assert.That(factory.DirectFactory, Is.Not.Null);
-        Assert.That(factory.IndirectFactory, Is.Not.Null);
-        Assert.That(factory.DirectFactory, Is.TypeOf<DirectSignatureFactory>());
-        Assert.That(factory.IndirectFactory, Is.TypeOf<IndirectSignatureFactory>());
-    }
-
-    [Test]
-    public void CreateDirectCoseSign1MessageBytes_WhenOptionsNull_DefaultsToEmbedPayload()
+    public void CreateCoseSign1MessageBytes_WhenOptionsIsNull_UsesDirectDefaults()
     {
         var payload = Encoding.UTF8.GetBytes("hello");
         var signer = CreateMockCoseSigner();
@@ -76,7 +40,8 @@ public class CoseSign1MessageFactoryTests
 
         using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
 
-        var messageBytes = factory.CreateDirectCoseSign1MessageBytes(payload, "text/plain");
+        DirectSignatureOptions? options = null;
+        var messageBytes = factory.CreateCoseSign1MessageBytes(payload, "text/plain", options);
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         Assert.That(message.Content, Is.Not.Null);
@@ -84,7 +49,30 @@ public class CoseSign1MessageFactoryTests
     }
 
     [Test]
-    public void CreateIndirectCoseSign1MessageBytes_WhenOptionsNull_DefaultsToSha256HashEnvelope()
+    public void CreateCoseSign1MessageBytes_WithDirectSignatureOptions_EmbedsPayload()
+    {
+        var payload = Encoding.UTF8.GetBytes("hello");
+        var signer = CreateMockCoseSigner();
+        var mockSigningService = CreateMockSigningService();
+
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(signer);
+
+        using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
+
+        var messageBytes = factory.CreateCoseSign1MessageBytes(
+            payload,
+            "text/plain",
+            new DirectSignatureOptions { EmbedPayload = true });
+        var message = CoseMessage.DecodeSign1(messageBytes);
+
+        Assert.That(message.Content, Is.Not.Null);
+        Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(payload));
+    }
+
+    [Test]
+    public void CreateCoseSign1MessageBytes_WithIndirectSignatureOptions_ProducesSha256HashEnvelope()
     {
         var payload = Encoding.UTF8.GetBytes("hello");
         var signer = CreateMockCoseSigner();
@@ -99,7 +87,10 @@ public class CoseSign1MessageFactoryTests
 
         using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
 
-        var messageBytes = factory.CreateIndirectCoseSign1MessageBytes(payload, "text/plain");
+        var messageBytes = factory.CreateCoseSign1MessageBytes(
+            payload,
+            "text/plain",
+            new IndirectSignatureOptions { HashAlgorithm = HashAlgorithmName.SHA256 });
         var message = CoseMessage.DecodeSign1(messageBytes);
 
         // Indirect signatures embed the hash bytes (defaults to SHA-256)
@@ -179,7 +170,7 @@ public class CoseSign1MessageFactoryTests
     }
 
     [Test]
-    public void CreateCoseSign1MessageBytes_WhenOptionsIsBaseSigningOptions_ThrowsArgumentException()
+    public void CreateCoseSign1MessageBytes_WhenOptionsIsBaseSigningOptions_ThrowsInvalidOperationException()
     {
         var payload = Encoding.UTF8.GetBytes("hello");
         var signer = CreateMockCoseSigner();
@@ -191,10 +182,8 @@ public class CoseSign1MessageFactoryTests
 
         using var factory = new CoseSign1MessageFactory(mockSigningService.Object);
 
-        var ex = Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<InvalidOperationException>(() =>
             _ = factory.CreateCoseSign1MessageBytes(payload, "text/plain", new SigningOptions()));
-
-        Assert.That(ex!.ParamName, Is.EqualTo("options"));
     }
 
     [Test]
@@ -257,6 +246,72 @@ public class CoseSign1MessageFactoryTests
         var cose = await factory.CreateCoseSign1MessageBytesAsync(payload, "text/plain", new DirectSignatureOptions());
 
         Assert.That(cose, Is.Not.Empty);
+    }
+
+    private sealed class CustomSigningOptions : SigningOptions
+    {
+    }
+
+    private sealed class CustomFactory : ICoseSign1MessageFactory<CustomSigningOptions>
+    {
+        private static readonly byte[] Marker = new byte[] { 0xC5, 0x5A };
+
+        public IReadOnlyList<ITransparencyProvider>? TransparencyProviders => null;
+
+        public byte[] CreateCoseSign1MessageBytes(byte[] payload, string contentType, CustomSigningOptions? options = default)
+            => Marker;
+
+        public byte[] CreateCoseSign1MessageBytes(ReadOnlySpan<byte> payload, string contentType, CustomSigningOptions? options = default)
+            => Marker;
+
+        public Task<byte[]> CreateCoseSign1MessageBytesAsync(byte[] payload, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => Task.FromResult(Marker);
+
+        public Task<byte[]> CreateCoseSign1MessageBytesAsync(ReadOnlyMemory<byte> payload, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => Task.FromResult(Marker);
+
+        public Task<byte[]> CreateCoseSign1MessageBytesAsync(Stream payloadStream, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => Task.FromResult(Marker);
+
+        public CoseSign1Message CreateCoseSign1Message(byte[] payload, string contentType, CustomSigningOptions? options = default)
+            => throw new NotSupportedException();
+
+        public CoseSign1Message CreateCoseSign1Message(ReadOnlySpan<byte> payload, string contentType, CustomSigningOptions? options = default)
+            => throw new NotSupportedException();
+
+        public Task<CoseSign1Message> CreateCoseSign1MessageAsync(byte[] payload, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<CoseSign1Message> CreateCoseSign1MessageAsync(ReadOnlyMemory<byte> payload, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<CoseSign1Message> CreateCoseSign1MessageAsync(Stream payloadStream, string contentType, CustomSigningOptions? options = default, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public void Dispose()
+        {
+        }
+    }
+
+    [Test]
+    public void DI_Extensibility_CanRouteToCustomFactory_Generic()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTransient<ICoseSign1MessageFactory<CustomSigningOptions>, CustomFactory>();
+        services.AddTransient<ICoseSign1MessageFactoryRouter, CoseSign1MessageFactory>();
+
+        using var provider = services.BuildServiceProvider();
+
+        var router = provider.GetRequiredService<ICoseSign1MessageFactoryRouter>();
+
+        var payload = Encoding.UTF8.GetBytes("hello");
+
+        var genericBytes = router.CreateCoseSign1MessageBytes<CustomSigningOptions>(payload, "text/plain");
+        Assert.That(genericBytes, Is.EqualTo(new byte[] { 0xC5, 0x5A }));
+
+        var genericBytesSpan = router.CreateCoseSign1MessageBytes<CustomSigningOptions>(payload.AsSpan(), "text/plain");
+        Assert.That(genericBytesSpan, Is.EqualTo(new byte[] { 0xC5, 0x5A }));
     }
 
     [Test]

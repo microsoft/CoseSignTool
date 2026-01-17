@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>
@@ -21,8 +22,10 @@ public sealed class UnknownCounterSignatureBytesFact : ICounterSignatureFact
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="rawCounterSignatureBytes"/> is null.</exception>
     public UnknownCounterSignatureBytesFact(TrustSubjectId counterSignatureId, byte[] rawCounterSignatureBytes)
     {
+        Guard.ThrowIfNull(rawCounterSignatureBytes);
+
         CounterSignatureId = counterSignatureId;
-        RawCounterSignatureBytes = rawCounterSignatureBytes ?? throw new ArgumentNullException(nameof(rawCounterSignatureBytes));
+        RawCounterSignatureBytes = rawCounterSignatureBytes;
     }
 
     /// <summary>

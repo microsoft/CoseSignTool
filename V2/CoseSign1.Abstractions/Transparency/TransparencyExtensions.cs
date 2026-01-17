@@ -45,15 +45,8 @@ public static class TransparencyExtensions
         ITransparencyProvider provider,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (provider == null)
-        {
-            throw new ArgumentNullException(nameof(provider));
-        }
+        CoseSign1.Abstractions.Guard.ThrowIfNull(message);
+        CoseSign1.Abstractions.Guard.ThrowIfNull(provider);
 
         return provider.VerifyTransparencyProofAsync(message, cancellationToken);
     }
@@ -88,15 +81,8 @@ public static class TransparencyExtensions
         IReadOnlyList<ITransparencyProvider> providers,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        if (providers == null)
-        {
-            throw new ArgumentNullException(nameof(providers));
-        }
+        CoseSign1.Abstractions.Guard.ThrowIfNull(message);
+        CoseSign1.Abstractions.Guard.ThrowIfNull(providers);
 
         var results = new List<TransparencyValidationResult>(providers.Count);
 

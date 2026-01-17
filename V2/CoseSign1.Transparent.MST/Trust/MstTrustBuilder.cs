@@ -4,6 +4,7 @@
 namespace CoseSign1.Transparent.MST.Trust;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Builder for configuring MST trust-pack registrations.
@@ -30,10 +31,7 @@ public sealed class MstTrustBuilder
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="endpoint"/> is null.</exception>
     public MstTrustBuilder VerifyReceipts(Uri endpoint)
     {
-        if (endpoint == null)
-        {
-            throw new ArgumentNullException(nameof(endpoint));
-        }
+        Guard.ThrowIfNull(endpoint);
 
         Options.VerifyReceipts = true;
         Options.Endpoint = endpoint;

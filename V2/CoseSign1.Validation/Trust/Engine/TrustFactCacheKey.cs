@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Engine;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>
@@ -24,7 +25,8 @@ public readonly struct TrustFactCacheKey : IEquatable<TrustFactCacheKey>
     {
         MessageId = messageId;
         SubjectId = subjectId;
-        FactType = factType ?? throw new ArgumentNullException(nameof(factType));
+        Guard.ThrowIfNull(factType);
+        FactType = factType;
     }
 
     /// <summary>

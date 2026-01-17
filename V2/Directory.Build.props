@@ -23,6 +23,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+
   <!-- Test runner configuration (NUnit only) -->
   <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     <!-- Test projects are not part of the public shipping surface; avoid requiring XML docs here. -->

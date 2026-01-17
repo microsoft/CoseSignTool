@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Trust.Rules;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Audit;
 using CoseSign1.Validation.Trust.Subjects;
@@ -115,7 +116,8 @@ public static class TrustRules
 
         public DenyAllRule(string reason)
         {
-            Reason = reason ?? throw new ArgumentNullException(nameof(reason));
+            Guard.ThrowIfNull(reason);
+            Reason = reason;
         }
 
         public override ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -132,7 +134,8 @@ public static class TrustRules
 
         public AndRule(IReadOnlyList<TrustRule> rules)
         {
-            Rules = rules ?? throw new ArgumentNullException(nameof(rules));
+            Guard.ThrowIfNull(rules);
+            Rules = rules;
         }
 
         public override async ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -160,7 +163,8 @@ public static class TrustRules
 
         public OrRule(IReadOnlyList<TrustRule> rules)
         {
-            Rules = rules ?? throw new ArgumentNullException(nameof(rules));
+            Guard.ThrowIfNull(rules);
+            Rules = rules;
         }
 
         public override async ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -199,8 +203,11 @@ public static class TrustRules
 
         public NotRule(TrustRule inner, string reason)
         {
-            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            Reason = reason ?? throw new ArgumentNullException(nameof(reason));
+            Guard.ThrowIfNull(inner);
+            Guard.ThrowIfNull(reason);
+
+            Inner = inner;
+            Reason = reason;
         }
 
         public override async ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -220,8 +227,11 @@ public static class TrustRules
 
         public ImpliesRule(TrustRule antecedent, TrustRule consequent)
         {
-            Antecedent = antecedent ?? throw new ArgumentNullException(nameof(antecedent));
-            Consequent = consequent ?? throw new ArgumentNullException(nameof(consequent));
+            Guard.ThrowIfNull(antecedent);
+            Guard.ThrowIfNull(consequent);
+
+            Antecedent = antecedent;
+            Consequent = consequent;
         }
 
         public override async ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -257,8 +267,11 @@ public static class TrustRules
             TrustRule inner)
         {
             ExpectedSubjectKind = expectedSubjectKind;
-            DeriveSubject = deriveSubject ?? throw new ArgumentNullException(nameof(deriveSubject));
-            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            Guard.ThrowIfNull(deriveSubject);
+            Guard.ThrowIfNull(inner);
+
+            DeriveSubject = deriveSubject;
+            Inner = inner;
         }
 
         public override ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -294,9 +307,13 @@ public static class TrustRules
             OnEmptyBehavior onEmpty,
             string? onEmptyMessage)
         {
-            Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
-            MissingFactMessage = missingFactMessage ?? throw new ArgumentNullException(nameof(missingFactMessage));
-            PredicateFailedMessage = predicateFailedMessage ?? throw new ArgumentNullException(nameof(predicateFailedMessage));
+            Guard.ThrowIfNull(predicate);
+            Guard.ThrowIfNull(missingFactMessage);
+            Guard.ThrowIfNull(predicateFailedMessage);
+
+            Predicate = predicate;
+            MissingFactMessage = missingFactMessage;
+            PredicateFailedMessage = predicateFailedMessage;
             OnEmpty = onEmpty;
             OnEmptyMessage = onEmptyMessage;
         }

@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.ChainBuilders;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -91,8 +92,14 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> is null.</exception>
     public ExplicitCertificateChainBuilder(X509Certificate2 certificate, ILogger<ExplicitCertificateChainBuilder>? logger = null)
-        : this(new[] { certificate ?? throw new ArgumentNullException(nameof(certificate)) }, logger)
+        : this(CreateSingleCertificateChain(certificate), logger)
     {
+    }
+
+    private static IReadOnlyList<X509Certificate2> CreateSingleCertificateChain(X509Certificate2 certificate)
+    {
+        Guard.ThrowIfNull(certificate);
+        return new[] { certificate };
     }
 
     /// <summary>

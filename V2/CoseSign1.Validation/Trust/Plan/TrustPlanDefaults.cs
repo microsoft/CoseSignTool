@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Plan;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Rules;
 
 /// <summary>
@@ -19,9 +20,13 @@ public sealed class TrustPlanDefaults
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
     public TrustPlanDefaults(TrustRule constraints, IReadOnlyList<TrustRule> trustSources, TrustRule vetoes)
     {
-        Constraints = constraints ?? throw new ArgumentNullException(nameof(constraints));
-        TrustSources = trustSources ?? throw new ArgumentNullException(nameof(trustSources));
-        Vetoes = vetoes ?? throw new ArgumentNullException(nameof(vetoes));
+        Guard.ThrowIfNull(constraints);
+        Guard.ThrowIfNull(trustSources);
+        Guard.ThrowIfNull(vetoes);
+
+        Constraints = constraints;
+        TrustSources = trustSources;
+        Vetoes = vetoes;
     }
 
     /// <summary>

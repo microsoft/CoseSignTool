@@ -46,8 +46,11 @@ public class HeaderContributorContext
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingKey"/> is <see langword="null"/>.</exception>
     public HeaderContributorContext(SigningContext signingContext, ISigningKey signingKey)
     {
-        SigningContext = signingContext ?? throw new ArgumentNullException(nameof(signingContext));
-        SigningKey = signingKey ?? throw new ArgumentNullException(nameof(signingKey));
+        Guard.ThrowIfNull(signingContext);
+        Guard.ThrowIfNull(signingKey);
+
+        SigningContext = signingContext;
+        SigningKey = signingKey;
     }
 
     /// <summary>

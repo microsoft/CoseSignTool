@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Interfaces;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Resolves counter-signatures from a COSE Sign1 message.
@@ -71,10 +72,7 @@ public sealed class CounterSignatureResolutionResult
     /// <returns>A successful discovery result.</returns>
     public static CounterSignatureResolutionResult Success(ICounterSignature counterSignature)
     {
-        if (counterSignature == null)
-        {
-            throw new ArgumentNullException(nameof(counterSignature));
-        }
+        Guard.ThrowIfNull(counterSignature);
 
         return new CounterSignatureResolutionResult
         {

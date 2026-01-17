@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
 using Microsoft.Extensions.Caching.Memory;
@@ -117,6 +118,8 @@ public sealed class TrustFactEngine
         CancellationToken cancellationToken = default,
         IServiceProvider? services = null)
     {
+        Guard.ThrowIfNull(producers);
+
         MessageIdValue = messageId;
         Options = options ?? new TrustEvaluationOptions();
         MemoryCache = memoryCache;
@@ -125,7 +128,7 @@ public sealed class TrustFactEngine
         Services = services;
 
         var byType = new Dictionary<Type, List<IMultiTrustFactProducer>>();
-        foreach (var producer in producers ?? throw new ArgumentNullException(nameof(producers)))
+        foreach (var producer in producers)
         {
             if (producer == null)
             {
@@ -173,10 +176,7 @@ public sealed class TrustFactEngine
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="subject"/> is null.</exception>
     public ValueTask<ITrustFactSet<TFact>> GetFactsAsync<TFact>(TrustSubject subject)
     {
-        if (subject == null)
-        {
-            throw new ArgumentNullException(nameof(subject));
-        }
+        Guard.ThrowIfNull(subject);
 
         var factType = typeof(TFact);
         var key = new FactKey(subject.Id, factType);

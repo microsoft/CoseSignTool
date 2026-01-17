@@ -3,6 +3,8 @@
 
 namespace CoseSign1.AzureKeyVault.Trust;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Builder for configuring the Azure Key Vault trust pack.
 /// </summary>
@@ -28,10 +30,7 @@ public sealed class AzureKeyVaultTrustBuilder
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="patterns"/> is null.</exception>
     public AzureKeyVaultTrustBuilder AllowKidPatterns(IEnumerable<string> patterns)
     {
-        if (patterns == null)
-        {
-            throw new ArgumentNullException(nameof(patterns));
-        }
+        Guard.ThrowIfNull(patterns);
 
         Options.AllowedKidPatterns = patterns.ToArray();
         return this;

@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Trust.Engine;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
 using Microsoft.Extensions.Caching.Memory;
@@ -32,8 +33,11 @@ public sealed class TrustFactContext
         IServiceProvider? services = null)
     {
         MessageId = messageId;
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Options = options ?? throw new ArgumentNullException(nameof(options));
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(options);
+
+        Subject = subject;
+        Options = options;
         MemoryCache = memoryCache;
         Message = message;
         Services = services;
@@ -84,10 +88,7 @@ public sealed class TrustFactContext
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="factType"/> is null.</exception>
     public TrustFactCacheKey CreateCacheKey(Type factType)
     {
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
+        Guard.ThrowIfNull(factType);
 
         return new TrustFactCacheKey(MessageId, Subject.Id, factType);
     }

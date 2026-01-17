@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Plan;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Audit;
 
@@ -19,8 +20,11 @@ public sealed class TrustPlanEvaluationResult
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="decision"/> or <paramref name="audit"/> is null.</exception>
     public TrustPlanEvaluationResult(TrustDecision decision, TrustDecisionAudit audit)
     {
-        Decision = decision ?? throw new ArgumentNullException(nameof(decision));
-        Audit = audit ?? throw new ArgumentNullException(nameof(audit));
+        Guard.ThrowIfNull(decision);
+        Guard.ThrowIfNull(audit);
+
+        Decision = decision;
+        Audit = audit;
     }
 
     /// <summary>

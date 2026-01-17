@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -54,7 +55,8 @@ internal sealed class CoseSign1ValidatorFactory : ICoseSign1ValidatorFactory
 
     public CoseSign1ValidatorFactory(IServiceProvider services)
     {
-        Services = services ?? throw new ArgumentNullException(nameof(services));
+        Guard.ThrowIfNull(services);
+        Services = services;
     }
 
     public ICoseSign1Validator Create(

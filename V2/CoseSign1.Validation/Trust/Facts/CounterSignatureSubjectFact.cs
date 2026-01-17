@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>
@@ -21,7 +22,8 @@ public sealed class CounterSignatureSubjectFact : IMessageFact
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="subject"/> is null.</exception>
     public CounterSignatureSubjectFact(TrustSubject subject, bool isProtectedHeader)
     {
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
+        Guard.ThrowIfNull(subject);
+        Subject = subject;
         IsProtectedHeader = isProtectedHeader;
     }
 

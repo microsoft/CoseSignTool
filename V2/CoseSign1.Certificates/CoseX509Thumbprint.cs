@@ -5,6 +5,7 @@ namespace CoseSign1.Certificates;
 
 using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.
@@ -67,10 +68,7 @@ public class CoseX509Thumbprint
     /// <exception cref="ArgumentException">Thrown when <paramref name="hashAlgorithm"/> is not supported.</exception>
     public CoseX509Thumbprint(X509Certificate2 cert, HashAlgorithmName hashAlgorithm)
     {
-        if (cert == null)
-        {
-            throw new ArgumentNullException(nameof(cert));
-        }
+        Guard.ThrowIfNull(cert);
 
         if (!HashAlgorithmToCoseId.TryGetValue(hashAlgorithm, out int coseId))
         {
@@ -126,10 +124,7 @@ public class CoseX509Thumbprint
     /// <exception cref="CryptographicException">Thrown when <see cref="HashId"/> is not supported.</exception>
     public bool Match(X509Certificate2 certificate)
     {
-        if (certificate == null)
-        {
-            throw new ArgumentNullException(nameof(certificate));
-        }
+        Guard.ThrowIfNull(certificate);
 
         byte[] certHash = HashId switch
         {
@@ -157,10 +152,7 @@ public class CoseX509Thumbprint
     /// <exception cref="CoseX509FormatException">Thrown when the data stream does not meet x5t format requirements.</exception>
     public static CoseX509Thumbprint Deserialize(CborReader reader)
     {
-        if (reader == null)
-        {
-            throw new ArgumentNullException(nameof(reader));
-        }
+        Guard.ThrowIfNull(reader);
 
         if (reader.PeekState() != CborReaderState.StartArray)
         {
@@ -207,10 +199,7 @@ public class CoseX509Thumbprint
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="writer"/> is null.</exception>
     public byte[] Serialize(CborWriter writer)
     {
-        if (writer == null)
-        {
-            throw new ArgumentNullException(nameof(writer));
-        }
+        Guard.ThrowIfNull(writer);
 
         writer.Reset();
         writer.WriteStartArray(2);

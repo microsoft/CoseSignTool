@@ -3,6 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Validation;
 using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Trust.Facts.Producers;
@@ -26,10 +27,7 @@ public static class CertificateTrustValidationBuilderExtensions
         this ICoseValidationBuilder validationBuilder,
         Action<CertificateTrustBuilder>? configure = null)
     {
-        if (validationBuilder == null)
-        {
-            throw new ArgumentNullException(nameof(validationBuilder));
-        }
+        Guard.ThrowIfNull(validationBuilder);
 
         var services = validationBuilder.Services;
 

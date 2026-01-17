@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Validation.Trust.Engine;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Represents why a fact could not be produced.
 /// </summary>
@@ -17,8 +19,11 @@ public sealed class TrustFactMissing
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="code"/> or <paramref name="message"/> is null.</exception>
     public TrustFactMissing(string code, string message, Exception? exception = null)
     {
-        Code = code ?? throw new ArgumentNullException(nameof(code));
-        Message = message ?? throw new ArgumentNullException(nameof(message));
+        Guard.ThrowIfNull(code);
+        Guard.ThrowIfNull(message);
+
+        Code = code;
+        Message = message;
         Exception = exception;
     }
 

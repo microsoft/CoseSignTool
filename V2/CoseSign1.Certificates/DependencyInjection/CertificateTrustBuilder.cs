@@ -5,6 +5,7 @@ namespace CoseSign1.Certificates.Trust;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Builder for configuring certificate trust-pack registrations.
@@ -47,10 +48,7 @@ public sealed class CertificateTrustBuilder
     /// <exception cref="InvalidOperationException">Thrown when identity pinning is enabled but no strategies are configured.</exception>
     public CertificateTrustBuilder EnableCertificateIdentityPinning(Action<CertificateIdentityPinningBuilder> configure)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(configure);
 
         Options.IdentityPinningEnabled = true;
 
@@ -94,10 +92,7 @@ public sealed class CertificateTrustBuilder
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="customRoots"/> is null.</exception>
     public CertificateTrustBuilder UseCustomRootTrust(X509Certificate2Collection customRoots)
     {
-        if (customRoots == null)
-        {
-            throw new ArgumentNullException(nameof(customRoots));
-        }
+        Guard.ThrowIfNull(customRoots);
 
         foreach (var root in customRoots)
         {
@@ -176,10 +171,7 @@ public sealed class CertificateTrustBuilder
 
         internal void AddCustomRoot(X509Certificate2 certificate)
         {
-            if (certificate == null)
-            {
-                throw new ArgumentNullException(nameof(certificate));
-            }
+            Guard.ThrowIfNull(certificate);
 
             CustomTrustRoots.Add(certificate);
             EnsureTrustSource(CertificateTrustSourceKind.CustomRoot);

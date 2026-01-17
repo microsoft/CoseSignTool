@@ -68,7 +68,8 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
         string? payloadLocation = null)
     {
         HashAlgorithm = hashAlgorithm;
-        ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
+        Guard.ThrowIfNull(contentType);
+        ContentType = contentType;
         PayloadLocation = payloadLocation;
     }
 

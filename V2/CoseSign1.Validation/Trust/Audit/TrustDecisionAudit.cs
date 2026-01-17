@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Audit;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Subjects;
 
@@ -34,12 +35,17 @@ public sealed class TrustDecisionAudit
         IReadOnlyList<TrustDecisionAuditRuleEvaluation> ruleEvaluations,
         IReadOnlyList<TrustDecisionAuditFactObservation> facts)
     {
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(decision);
+        Guard.ThrowIfNull(ruleEvaluations);
+        Guard.ThrowIfNull(facts);
+
         SchemaVersion = schemaVersion;
         MessageId = messageId;
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Decision = decision ?? throw new ArgumentNullException(nameof(decision));
-        RuleEvaluations = ruleEvaluations ?? throw new ArgumentNullException(nameof(ruleEvaluations));
-        Facts = facts ?? throw new ArgumentNullException(nameof(facts));
+        Subject = subject;
+        Decision = decision;
+        RuleEvaluations = ruleEvaluations;
+        Facts = facts;
     }
 
     /// <summary>

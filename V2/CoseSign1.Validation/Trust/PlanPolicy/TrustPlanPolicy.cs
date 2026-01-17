@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 using CoseSign1.Validation.Trust.Rules;
 
@@ -34,7 +35,8 @@ public sealed class TrustPlanPolicy
 
     private TrustPlanPolicy(TrustRule root)
     {
-        Root = root ?? throw new ArgumentNullException(nameof(root));
+        Guard.ThrowIfNull(root);
+        Root = root;
     }
 
     /// <summary>
@@ -45,10 +47,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
     public static TrustPlanPolicy Message(Func<MessagePolicyBuilder, MessagePolicyBuilder> configure)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(configure);
 
         var builder = configure(new MessagePolicyBuilder());
         return new TrustPlanPolicy(builder.Build());
@@ -62,10 +61,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
     public static TrustPlanPolicy PrimarySigningKey(Func<SigningKeyPolicyBuilder, SigningKeyPolicyBuilder> configure)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(configure);
 
         var builder = configure(new SigningKeyPolicyBuilder());
         var rule = new EvaluateOnDerivedSubjectRule(
@@ -83,10 +79,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
     public static TrustPlanPolicy AnyCounterSignature(Func<CounterSignaturePolicyBuilder, CounterSignaturePolicyBuilder> configure)
     {
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(configure);
 
         var builder = configure(new CounterSignaturePolicyBuilder());
         var rule = new AnyCounterSignatureRule(builder.Build(), builder.OnEmptyBehavior);
@@ -103,15 +96,8 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="antecedent"/> or <paramref name="consequent"/> is null.</exception>
     public static TrustPlanPolicy Implies(TrustPlanPolicy antecedent, TrustPlanPolicy consequent)
     {
-        if (antecedent == null)
-        {
-            throw new ArgumentNullException(nameof(antecedent));
-        }
-
-        if (consequent == null)
-        {
-            throw new ArgumentNullException(nameof(consequent));
-        }
+        Guard.ThrowIfNull(antecedent);
+        Guard.ThrowIfNull(consequent);
 
         return new TrustPlanPolicy(TrustRules.Implies(antecedent.Root, consequent.Root));
     }
@@ -130,10 +116,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
     public TrustPlanPolicy Or(TrustPlanPolicy other)
     {
-        if (other == null)
-        {
-            throw new ArgumentNullException(nameof(other));
-        }
+        Guard.ThrowIfNull(other);
 
         return new TrustPlanPolicy(TrustRules.Or(Root, other.Root));
     }
@@ -146,10 +129,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
     public TrustPlanPolicy And(TrustPlanPolicy other)
     {
-        if (other == null)
-        {
-            throw new ArgumentNullException(nameof(other));
-        }
+        Guard.ThrowIfNull(other);
 
         return new TrustPlanPolicy(TrustRules.And(Root, other.Root));
     }
@@ -162,10 +142,7 @@ public sealed class TrustPlanPolicy
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
     public CompiledTrustPlan Compile(IServiceProvider services)
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        Guard.ThrowIfNull(services);
 
         var packs = (services.GetService(typeof(IEnumerable<ITrustPack>)) as IEnumerable<ITrustPack>)
             ?.ToArray() ?? Array.Empty<ITrustPack>();
@@ -261,10 +238,7 @@ public sealed class TrustPlanPolicy
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
         public CounterSignaturePolicyBuilder SigningKey(Func<SigningKeyPolicyBuilder, SigningKeyPolicyBuilder> configure)
         {
-            if (configure == null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
+            Guard.ThrowIfNull(configure);
 
             var builder = configure(new SigningKeyPolicyBuilder());
 
@@ -297,15 +271,8 @@ public sealed class TrustPlanPolicy
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="predicate"/> or <paramref name="message"/> is null.</exception>
         protected void RequireFactCore<TFact>(Func<TFact, bool> predicate, string message)
         {
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
+            Guard.ThrowIfNull(predicate);
+            Guard.ThrowIfNull(message);
 
             AddRule(
                 TrustRules.AnyFact(
@@ -328,7 +295,8 @@ public sealed class TrustPlanPolicy
 
         internal void AddRule(TrustRule rule)
         {
-            Rules.Add(rule ?? throw new ArgumentNullException(nameof(rule)));
+            Guard.ThrowIfNull(rule);
+            Rules.Add(rule);
         }
     }
 
@@ -344,8 +312,11 @@ public sealed class TrustPlanPolicy
             TrustRule inner)
         {
             ExpectedSubjectKind = expectedSubjectKind;
-            DeriveSubject = deriveSubject ?? throw new ArgumentNullException(nameof(deriveSubject));
-            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            Guard.ThrowIfNull(deriveSubject);
+            Guard.ThrowIfNull(inner);
+
+            DeriveSubject = deriveSubject;
+            Inner = inner;
         }
 
         public override ValueTask<TrustDecision> EvaluateAsync(TrustRuleContext context)
@@ -373,7 +344,8 @@ public sealed class TrustPlanPolicy
 
         public AnyCounterSignatureRule(TrustRule inner, OnEmptyBehavior onEmpty)
         {
-            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            Guard.ThrowIfNull(inner);
+            Inner = inner;
             OnEmpty = onEmpty;
         }
 

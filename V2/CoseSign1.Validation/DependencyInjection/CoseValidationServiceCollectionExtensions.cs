@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 namespace Microsoft.Extensions.DependencyInjection;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.PostSignature;
@@ -20,10 +21,7 @@ public static class CoseValidationServiceCollectionExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
     public static ICoseValidationBuilder ConfigureCoseValidation(this IServiceCollection services)
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        Guard.ThrowIfNull(services);
 
         // Core message facts are safe to register by default because fact producers are lazy:
         // they will not execute unless requested by an active policy rule.

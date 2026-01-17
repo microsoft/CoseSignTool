@@ -3,6 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Trust.Facts.Producers;
 
@@ -19,10 +20,7 @@ public static class MessageFactsValidationBuilderExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="validationBuilder"/> is null.</exception>
     public static ICoseValidationBuilder EnableMessageFacts(this ICoseValidationBuilder validationBuilder)
     {
-        if (validationBuilder == null)
-        {
-            throw new ArgumentNullException(nameof(validationBuilder));
-        }
+        Guard.ThrowIfNull(validationBuilder);
 
         var services = validationBuilder.Services;
 

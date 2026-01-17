@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Validation.Trust.Engine;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// A multi-valued fact set for a given subject.
 /// </summary>
@@ -14,7 +16,8 @@ public sealed class TrustFactSet<TFact> : ITrustFactSet<TFact>
 {
     private TrustFactSet(IReadOnlyList<TFact> values, TrustFactMissing? missing)
     {
-        Values = values ?? throw new ArgumentNullException(nameof(values));
+        Guard.ThrowIfNull(values);
+        Values = values;
         MissingReason = missing;
     }
 

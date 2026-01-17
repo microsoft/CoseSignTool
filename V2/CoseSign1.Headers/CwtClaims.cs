@@ -6,6 +6,7 @@ namespace CoseSign1.Headers;
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Represents CWT (CBOR Web Token) Claims extracted from or to be added to a COSE signature.
@@ -74,10 +75,7 @@ public sealed class CwtClaims
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
     public CwtClaims(CwtClaims other)
     {
-        if (other == null)
-        {
-            throw new ArgumentNullException(nameof(other));
-        }
+        Guard.ThrowIfNull(other);
 
         Issuer = other.Issuer;
         Subject = other.Subject;
@@ -98,10 +96,7 @@ public sealed class CwtClaims
     /// <exception cref="CborContentException">Thrown when the CBOR data is malformed.</exception>
     public static CwtClaims FromCborBytes(byte[] cborBytes)
     {
-        if (cborBytes == null)
-        {
-            throw new ArgumentNullException(nameof(cborBytes));
-        }
+        Guard.ThrowIfNull(cborBytes);
 
         var reader = new CborReader(cborBytes);
         reader.ReadStartMap();

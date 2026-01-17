@@ -128,10 +128,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         CoseHeaderLabel? customHeaderLabel = null,
         bool autoPopulateTimestamps = true)
     {
-        if (claims == null)
-        {
-            throw new ArgumentNullException(nameof(claims));
-        }
+        Guard.ThrowIfNull(claims);
 
         Claims = new CwtClaims(claims);
         HeaderPlacement = headerPlacement;
@@ -148,10 +145,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentException">Thrown when <paramref name="issuer"/> is null or whitespace.</exception>
     public CwtClaimsHeaderContributor SetIssuer(string issuer)
     {
-        if (string.IsNullOrWhiteSpace(issuer))
-        {
-            throw new ArgumentException(ClassStrings.ErrorIssuerCannotBeNullOrWhitespace, nameof(issuer));
-        }
+        Guard.ThrowIfNullOrWhiteSpace(issuer, ClassStrings.ErrorIssuerCannotBeNullOrWhitespace, nameof(issuer));
 
         Claims.Issuer = issuer;
         Trace.TraceInformation(ClassStrings.TraceSetIssuerFormat, issuer);
@@ -166,10 +160,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentException">Thrown when <paramref name="subject"/> is null or whitespace.</exception>
     public CwtClaimsHeaderContributor SetSubject(string subject)
     {
-        if (string.IsNullOrWhiteSpace(subject))
-        {
-            throw new ArgumentException(ClassStrings.ErrorSubjectCannotBeNullOrWhitespace, nameof(subject));
-        }
+        Guard.ThrowIfNullOrWhiteSpace(subject, ClassStrings.ErrorSubjectCannotBeNullOrWhitespace, nameof(subject));
 
         Claims.Subject = subject;
         Trace.TraceInformation(ClassStrings.TraceSetSubjectFormat, subject);
@@ -184,10 +175,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentException">Thrown when <paramref name="audience"/> is null or whitespace.</exception>
     public CwtClaimsHeaderContributor SetAudience(string audience)
     {
-        if (string.IsNullOrWhiteSpace(audience))
-        {
-            throw new ArgumentException(ClassStrings.ErrorAudienceCannotBeNullOrWhitespace, nameof(audience));
-        }
+        Guard.ThrowIfNullOrWhiteSpace(audience, ClassStrings.ErrorAudienceCannotBeNullOrWhitespace, nameof(audience));
 
         Claims.Audience = audience;
         Trace.TraceInformation(ClassStrings.TraceSetAudienceFormat, audience);
@@ -257,10 +245,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public CwtClaimsHeaderContributor SetCustomClaim(int label, object value)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
+        Guard.ThrowIfNull(value);
 
         Claims.CustomClaims[label] = value;
         Trace.TraceInformation(ClassStrings.TraceSetCustomClaimFormat, label, value.GetType().Name);
@@ -393,10 +378,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        if (headers == null)
-        {
-            throw new ArgumentNullException(nameof(headers));
-        }
+        Guard.ThrowIfNull(headers);
 
         // Skip if this placement doesn't include protected headers
         if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
@@ -412,10 +394,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
     public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        if (headers == null)
-        {
-            throw new ArgumentNullException(nameof(headers));
-        }
+        Guard.ThrowIfNull(headers);
 
         // Skip if this placement doesn't include unprotected headers
         if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)

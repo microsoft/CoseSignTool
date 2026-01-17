@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Trust.Plan;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Audit;
 using CoseSign1.Validation.Trust.Engine;
@@ -36,8 +37,11 @@ public sealed class CompiledTrustPlan
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="root"/> or <paramref name="producers"/> is null.</exception>
     public CompiledTrustPlan(TrustRule root, IReadOnlyList<IMultiTrustFactProducer> producers, IServiceProvider? services = null)
     {
-        Root = root ?? throw new ArgumentNullException(nameof(root));
-        Producers = producers ?? throw new ArgumentNullException(nameof(producers));
+        Guard.ThrowIfNull(root);
+        Guard.ThrowIfNull(producers);
+
+        Root = root;
+        Producers = producers;
         Services = services;
     }
 
@@ -50,10 +54,7 @@ public sealed class CompiledTrustPlan
     /// <exception cref="InvalidOperationException">Thrown when no defaults provider is registered.</exception>
     public static CompiledTrustPlan CompileDefaults(IServiceProvider services)
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        Guard.ThrowIfNull(services);
 
         // Trust packs contribute defaults via ITrustPack registrations.
         // We intentionally support multiple packs so that each extension package can contribute
@@ -78,10 +79,7 @@ public sealed class CompiledTrustPlan
 
     private static TrustPlanDefaults ComposeDefaults(IReadOnlyList<ITrustPack> packs)
     {
-        if (packs == null)
-        {
-            throw new ArgumentNullException(nameof(packs));
-        }
+        Guard.ThrowIfNull(packs);
 
         if (packs.Count == 1)
         {
@@ -188,10 +186,7 @@ public sealed class CompiledTrustPlan
         IMemoryCache? memoryCache = null,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         var factEngine = new TrustFactEngine(messageId, message, Producers, options, memoryCache, cancellationToken, services: Services);
         var context = new TrustRuleContext(factEngine, subject);
@@ -285,10 +280,7 @@ public sealed class CompiledTrustPlan
         IMemoryCache? memoryCache = null,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         var auditBuilder = new TrustDecisionAuditBuilder();
 

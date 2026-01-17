@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Local;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Signing key provider that uses X509Certificate2 private keys directly.
@@ -30,7 +31,8 @@ public class DirectSigningKeyProvider : ISigningKeyProvider
     /// <exception cref="ArgumentException">Thrown when <paramref name="certificate"/> does not have a private key.</exception>
     public DirectSigningKeyProvider(X509Certificate2 certificate)
     {
-        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Guard.ThrowIfNull(certificate);
+        Certificate = certificate;
 
         if (!certificate.HasPrivateKey)
         {

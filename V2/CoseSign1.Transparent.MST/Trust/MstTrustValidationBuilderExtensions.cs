@@ -4,6 +4,7 @@
 namespace Microsoft.Extensions.DependencyInjection;
 
 using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Trust;
 
@@ -23,10 +24,7 @@ public static class MstTrustValidationBuilderExtensions
         this ICoseValidationBuilder validationBuilder,
         Action<MstTrustBuilder>? configure = null)
     {
-        if (validationBuilder == null)
-        {
-            throw new ArgumentNullException(nameof(validationBuilder));
-        }
+        Guard.ThrowIfNull(validationBuilder);
 
         var services = validationBuilder.Services;
 

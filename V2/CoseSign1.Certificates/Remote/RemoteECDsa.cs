@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Remote;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// ECDsa implementation that delegates signing operations to a remote service.
@@ -18,7 +19,8 @@ internal sealed class RemoteECDsa : ECDsa
 
     public RemoteECDsa(RemoteCertificateSource certificateSource, ECParameters publicParameters)
     {
-        CertificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
+        Guard.ThrowIfNull(certificateSource);
+        CertificateSource = certificateSource;
         PublicParameters = publicParameters;
 
         // Determine key size from curve

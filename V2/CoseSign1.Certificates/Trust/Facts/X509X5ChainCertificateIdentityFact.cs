@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -23,10 +24,14 @@ public sealed class X509X5ChainCertificateIdentityFact : ISigningKeyFact
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateThumbprint"/>, <paramref name="subject"/>, or <paramref name="issuer"/> is null.</exception>
     public X509X5ChainCertificateIdentityFact(int index, string certificateThumbprint, string subject, string issuer)
     {
+        Guard.ThrowIfNull(certificateThumbprint);
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(issuer);
+
         Index = index;
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
+        CertificateThumbprint = certificateThumbprint;
+        Subject = subject;
+        Issuer = issuer;
     }
 
     /// <summary>

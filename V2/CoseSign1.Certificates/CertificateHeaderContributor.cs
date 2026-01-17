@@ -5,6 +5,7 @@ namespace CoseSign1.Certificates;
 
 using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 
 /// <summary>
@@ -61,15 +62,8 @@ public class CertificateHeaderContributor : IHeaderContributor
     /// <exception cref="InvalidOperationException">Thrown when the signing certificate is missing or does not match the provided chain.</exception>
     public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
     {
-        if (headers == null)
-        {
-            throw new ArgumentNullException(nameof(headers));
-        }
-
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        Guard.ThrowIfNull(headers);
+        Guard.ThrowIfNull(context);
 
         // Only process if the signing key is a certificate-based key
         if (context.SigningKey is not ICertificateSigningKey certKey)

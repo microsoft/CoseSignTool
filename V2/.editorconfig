@@ -28,8 +28,16 @@ dotnet_analyzer_diagnostic.category-StyleCop.CSharp.SpecialRules.severity = none
 # File name must match the first type name (enforced for V2).
 dotnet_diagnostic.SA1649.severity = error
 
+# File may only contain a single type (enforced for V2).
+dotnet_diagnostic.SA1402.severity = error
+
 # Enforce docs completeness.
 dotnet_diagnostic.SA1611.severity = error
 dotnet_diagnostic.SA1615.severity = error
 dotnet_diagnostic.SA1617.severity = error
 dotnet_diagnostic.CSTDOC001.severity = error
+
+# Enforce Guard.* usage for multi-targeted libraries.
+dotnet_diagnostic.CSTGUARD001.severity = error
+dotnet_diagnostic.CSTGUARD002.severity = error
+dotnet_diagnostic.CSTGUARD003.severity = error

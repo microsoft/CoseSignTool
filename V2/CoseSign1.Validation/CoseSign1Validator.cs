@@ -140,10 +140,8 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         TrustEvaluationOptions? trustEvaluationOptions = null,
         ILogger<CoseSign1Validator>? logger = null)
     {
-        if (signingKeyResolvers == null)
-        {
-            throw new ArgumentNullException(nameof(signingKeyResolvers));
-        }
+        Guard.ThrowIfNull(signingKeyResolvers);
+        Guard.ThrowIfNull(trustPlan);
 
         SigningKeyResolvers = signingKeyResolvers as IReadOnlyList<ISigningKeyResolver>
             ?? signingKeyResolvers.ToArray();
@@ -152,7 +150,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
             ? Array.Empty<IPostSignatureValidator>()
             : (postSignatureValidators as IReadOnlyList<IPostSignatureValidator> ?? postSignatureValidators.ToArray());
 
-        _trustPlan = trustPlan ?? throw new ArgumentNullException(nameof(trustPlan));
+        _trustPlan = trustPlan;
         Options = options ?? new CoseSign1ValidationOptions();
         Logger = logger ?? NullLogger<CoseSign1Validator>.Instance;
         TrustEvaluationOptions = trustEvaluationOptions ?? new TrustEvaluationOptions();
@@ -226,10 +224,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         bool async,
         CancellationToken cancellationToken)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         // Ensures the logger field is treated as used even when log methods are source-generated.
         _ = Logger.IsEnabled(LogLevel.Trace);

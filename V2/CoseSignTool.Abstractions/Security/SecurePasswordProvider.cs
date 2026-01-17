@@ -6,6 +6,7 @@ namespace CoseSignTool.Abstractions.Security;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using CoseSignTool.Abstractions.IO;
 
 /// <summary>
@@ -53,7 +54,8 @@ public class SecurePasswordProvider
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is <see langword="null"/>.</exception>
     public SecurePasswordProvider(IConsole console)
     {
-        Console = console ?? throw new ArgumentNullException(nameof(console));
+        Guard.ThrowIfNull(console);
+        Console = console;
     }
 
     /// <summary>

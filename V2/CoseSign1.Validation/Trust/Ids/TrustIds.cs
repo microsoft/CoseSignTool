@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Trust.Ids;
 
 using System.Security.Cryptography.Cose;
 using System.Text;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>
@@ -30,10 +31,7 @@ public static class TrustIds
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
     public static TrustSubjectId CreateMessageId(CoseSign1Message message)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         return CreateMessageId(message.Encode());
     }

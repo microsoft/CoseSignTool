@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Factory for creating <see cref="CoseKey"/> instances from X509 certificates.
@@ -28,10 +29,7 @@ public static class X509CertificateCoseKeyFactory
     /// <exception cref="NotSupportedException">Thrown when the certificate uses an unsupported key algorithm.</exception>
     public static CoseKey CreateFromPublicKey(X509Certificate2 certificate)
     {
-        if (certificate == null)
-        {
-            throw new ArgumentNullException(nameof(certificate));
-        }
+        Guard.ThrowIfNull(certificate);
 
         // Try RSA first (for verification we use public key)
         var rsa = certificate.GetRSAPublicKey();
@@ -73,10 +71,7 @@ public static class X509CertificateCoseKeyFactory
     /// <exception cref="NotSupportedException">Thrown when the certificate uses an unsupported key algorithm.</exception>
     public static CoseKey CreateFromPrivateKey(X509Certificate2 certificate)
     {
-        if (certificate == null)
-        {
-            throw new ArgumentNullException(nameof(certificate));
-        }
+        Guard.ThrowIfNull(certificate);
 
         if (!certificate.HasPrivateKey)
         {

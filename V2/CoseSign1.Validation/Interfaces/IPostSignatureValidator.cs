@@ -78,10 +78,14 @@ public sealed class PostSignatureValidationContext : IPostSignatureValidationCon
         CoseSign1ValidationOptions options,
         ISigningKey? resolvedSigningKey = null)
     {
-        Message = message ?? throw new ArgumentNullException(nameof(message));
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(signatureMetadata);
+        Guard.ThrowIfNull(options);
+
+        Message = message;
         TrustDecision = trustDecision;
-        SignatureMetadata = signatureMetadata ?? throw new ArgumentNullException(nameof(signatureMetadata));
-        Options = options ?? throw new ArgumentNullException(nameof(options));
+        SignatureMetadata = signatureMetadata;
+        Options = options;
         ResolvedSigningKey = resolvedSigningKey;
     }
 

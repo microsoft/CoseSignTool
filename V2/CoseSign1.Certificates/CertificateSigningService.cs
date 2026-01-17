@@ -271,10 +271,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
     {
         ThrowIfDisposed();
 
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        Guard.ThrowIfNull(context);
 
         Logger.LogDebug(
             LogEvents.SigningKeyAcquiredEvent,

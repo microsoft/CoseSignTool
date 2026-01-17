@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -41,7 +42,8 @@ public abstract class CertificateSourceBase : ICertificateSource
     /// <param name="logger">Optional logger for diagnostic output.</param>
     protected CertificateSourceBase(ICertificateChainBuilder chainBuilder, ILogger? logger = null)
     {
-        ChainBuilderField = chainBuilder ?? throw new ArgumentNullException(nameof(chainBuilder));
+        Guard.ThrowIfNull(chainBuilder);
+        ChainBuilderField = chainBuilder;
         Logger = logger ?? NullLogger.Instance;
     }
 

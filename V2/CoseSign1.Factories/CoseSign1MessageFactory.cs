@@ -43,10 +43,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactoryRouter
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
         ILoggerFactory? loggerFactory = null)
     {
-        if (signingService is null)
-        {
-            throw new ArgumentNullException(nameof(signingService));
-        }
+        Guard.ThrowIfNull(signingService);
 
         var directLogger = loggerFactory?.CreateLogger<DirectSignatureFactory>();
         var directFactory = new DirectSignatureFactory(signingService, transparencyProviders, directLogger);
@@ -76,10 +73,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactoryRouter
         IServiceProvider serviceProvider,
         ILoggerFactory? loggerFactory = null)
     {
-        if (serviceProvider is null)
-        {
-            throw new ArgumentNullException(nameof(serviceProvider));
-        }
+        Guard.ThrowIfNull(serviceProvider);
 
         _ = loggerFactory;
 

@@ -29,10 +29,7 @@ public static class CoseSign1FactoriesServiceCollectionExtensions
     /// </remarks>
     public static IServiceCollection AddCoseSign1Factories(this IServiceCollection services)
     {
-        if (services is null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        Guard.ThrowIfNull(services);
 
         services.TryAddTransient(sp =>
         {

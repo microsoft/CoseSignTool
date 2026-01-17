@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Certificate-based signing key implementation that provides full service context and metadata.
@@ -55,9 +56,13 @@ public class CertificateSigningServiceKey : ICertificateSigningKey
         ISigningKeyProvider signingKeyProvider,
         ISigningService<SigningOptions> signingService)
     {
-        CertificateSourceField = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        SigningKeyProviderField = signingKeyProvider ?? throw new ArgumentNullException(nameof(signingKeyProvider));
-        SigningServiceField = signingService ?? throw new ArgumentNullException(nameof(signingService));
+        Guard.ThrowIfNull(certificateSource);
+        Guard.ThrowIfNull(signingKeyProvider);
+        Guard.ThrowIfNull(signingService);
+
+        CertificateSourceField = certificateSource;
+        SigningKeyProviderField = signingKeyProvider;
+        SigningServiceField = signingService;
     }
 
     /// <inheritdoc/>

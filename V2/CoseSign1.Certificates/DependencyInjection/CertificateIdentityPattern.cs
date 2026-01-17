@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Trust;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Represents an allow-list pattern for certificate identity matching.
 /// </summary>
@@ -17,7 +19,8 @@ public sealed class CertificateIdentityPattern
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="subject"/> is null.</exception>
     public CertificateIdentityPattern(string subject, string? issuer, CertificateIdentityMatchKind matchKind)
     {
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
+        Guard.ThrowIfNull(subject);
+        Subject = subject;
         Issuer = issuer;
         MatchKind = matchKind;
     }

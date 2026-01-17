@@ -35,8 +35,11 @@ public class SigningContext
         IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
-        PayloadStreamField = payloadStream ?? throw new ArgumentNullException(nameof(payloadStream));
-        ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
+        Guard.ThrowIfNull(payloadStream);
+        Guard.ThrowIfNull(contentType);
+
+        PayloadStreamField = payloadStream;
+        ContentType = contentType;
         AdditionalHeaderContributors = additionalHeaderContributors;
         AdditionalContext = additionalContext;
         HasStream = true;
@@ -57,7 +60,8 @@ public class SigningContext
         IDictionary<string, object>? additionalContext = null)
     {
         PayloadBytesField = payloadBytes;
-        ContentType = contentType ?? throw new ArgumentNullException(nameof(contentType));
+        Guard.ThrowIfNull(contentType);
+        ContentType = contentType;
         AdditionalHeaderContributors = additionalHeaderContributors;
         AdditionalContext = additionalContext;
         HasStream = false;

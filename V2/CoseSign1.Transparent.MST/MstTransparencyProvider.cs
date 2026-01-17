@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure;
 using Azure.Security.CodeTransparency;
+using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST.Extensions;
 
@@ -133,8 +134,11 @@ public class MstTransparencyProvider : ITransparencyProvider
         Action<string>? logVerbose,
         Action<string>? logError)
     {
-        Client = client ?? throw new ArgumentNullException(nameof(client));
-        Verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
+        Guard.ThrowIfNull(client);
+        Guard.ThrowIfNull(verifier);
+
+        Client = client;
+        Verifier = verifier;
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
         LogVerbose = logVerbose;
@@ -153,10 +157,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingProofAdditionFormat, ProviderName));
 
@@ -215,10 +216,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        Guard.ThrowIfNull(message);
 
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingVerificationFormat, ProviderName));
 

@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Extensions;
 
 using System.Formats.Cbor;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Extensions for the <see cref="CborWriter"/> class.
@@ -18,15 +19,8 @@ public static class CborWriterExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="writer"/> or <paramref name="certs"/> is null.</exception>
     public static void EncodeCertList(this CborWriter writer, IEnumerable<X509Certificate2> certs)
     {
-        if (writer == null)
-        {
-            throw new ArgumentNullException(nameof(writer));
-        }
-
-        if (certs == null)
-        {
-            throw new ArgumentNullException(nameof(certs));
-        }
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(certs);
 
         writer.Reset();
 

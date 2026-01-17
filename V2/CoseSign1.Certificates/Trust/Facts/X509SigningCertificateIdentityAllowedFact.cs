@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -27,9 +28,13 @@ public sealed class X509SigningCertificateIdentityAllowedFact : ISigningKeyFact
         string issuer,
         bool isAllowed)
     {
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
+        Guard.ThrowIfNull(certificateThumbprint);
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(issuer);
+
+        CertificateThumbprint = certificateThumbprint;
+        Subject = subject;
+        Issuer = issuer;
         IsAllowed = isAllowed;
     }
 

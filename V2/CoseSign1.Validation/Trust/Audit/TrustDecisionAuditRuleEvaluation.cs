@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Validation.Trust.Audit;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// A single rule evaluation event.
 /// </summary>
@@ -22,9 +24,12 @@ public sealed class TrustDecisionAuditRuleEvaluation
         IReadOnlyList<string> reasons,
         string? detail = null)
     {
-        RuleKind = ruleKind ?? throw new ArgumentNullException(nameof(ruleKind));
+        Guard.ThrowIfNull(ruleKind);
+        Guard.ThrowIfNull(reasons);
+
+        RuleKind = ruleKind;
         IsTrusted = isTrusted;
-        Reasons = reasons ?? throw new ArgumentNullException(nameof(reasons));
+        Reasons = reasons;
         Detail = detail;
     }
 

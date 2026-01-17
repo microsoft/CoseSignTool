@@ -6,6 +6,7 @@ namespace CoseSign1.Validation.Trust.Subjects;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// A stable, content-addressed identifier for a trust subject.
@@ -29,10 +30,7 @@ public readonly struct TrustSubjectId : IEquatable<TrustSubjectId>
 
     private TrustSubjectId(byte[] sha256Bytes)
     {
-        if (sha256Bytes == null)
-        {
-            throw new ArgumentNullException(nameof(sha256Bytes));
-        }
+        Guard.ThrowIfNull(sha256Bytes);
 
         if (sha256Bytes.Length != Sha256DigestLength)
         {
@@ -113,15 +111,8 @@ public readonly struct TrustSubjectId : IEquatable<TrustSubjectId>
 
     private static bool FixedTimeEquals(byte[] left, byte[] right)
     {
-        if (left == null)
-        {
-            throw new ArgumentNullException(nameof(left));
-        }
-
-        if (right == null)
-        {
-            throw new ArgumentNullException(nameof(right));
-        }
+        Guard.ThrowIfNull(left);
+        Guard.ThrowIfNull(right);
 
         if (left.Length != right.Length)
         {

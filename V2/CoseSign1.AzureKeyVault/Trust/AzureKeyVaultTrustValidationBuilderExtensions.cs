@@ -3,6 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Trust;
 using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation.DependencyInjection;
@@ -25,10 +26,7 @@ public static class AzureKeyVaultTrustValidationBuilderExtensions
         this ICoseValidationBuilder validationBuilder,
         Action<AzureKeyVaultTrustBuilder>? configure = null)
     {
-        if (validationBuilder == null)
-        {
-            throw new ArgumentNullException(nameof(validationBuilder));
-        }
+        Guard.ThrowIfNull(validationBuilder);
 
         var services = validationBuilder.Services;
 

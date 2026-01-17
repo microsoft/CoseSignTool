@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Remote;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// ML-DSA implementation that delegates signing operations to a remote service.
@@ -41,8 +42,11 @@ internal sealed class RemoteMLDsa : MLDsa
             _ => MLDsaAlgorithm.MLDsa65
         })
     {
-        CertificateSource = certificateSource ?? throw new ArgumentNullException(nameof(certificateSource));
-        PublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
+        Guard.ThrowIfNull(certificateSource);
+        Guard.ThrowIfNull(publicKey);
+
+        CertificateSource = certificateSource;
+        PublicKey = publicKey;
     }
 
     #region Core Abstract Methods - Must implement for ML-DSA base class

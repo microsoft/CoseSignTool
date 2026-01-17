@@ -11,4 +11,14 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
+
+  <!--
+    Marker constant for analyzers:
+    Set for non-test projects that multi-target netstandard + a modern .NET TFM.
+    This is defined here (not in Directory.Build.props) so it doesn't get overwritten
+    by SDK defaults later in evaluation.
+  -->
+  <PropertyGroup Condition="'$(IsTestProject)' != 'true' AND '$(TargetFrameworks)' != '' AND $([System.String]::Copy('$(TargetFrameworks)').Contains('netstandard')) AND $([System.String]::Copy('$(TargetFrameworks)').Contains(';'))">
+    <DefineConstants>$(DefineConstants);COSESIGNTOOL_MULTITARGET_NETSTANDARD</DefineConstants>
+  </PropertyGroup>
 </Project>

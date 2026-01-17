@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Rules;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Audit;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Subjects;
@@ -20,8 +21,11 @@ public sealed class TrustRuleContext
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="facts"/> or <paramref name="subject"/> is null.</exception>
     public TrustRuleContext(TrustFactEngine facts, TrustSubject subject)
     {
-        Facts = facts ?? throw new ArgumentNullException(nameof(facts));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
+        Guard.ThrowIfNull(facts);
+        Guard.ThrowIfNull(subject);
+
+        Facts = facts;
+        Subject = subject;
         Audit = null;
     }
 
@@ -34,9 +38,13 @@ public sealed class TrustRuleContext
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="facts"/> or <paramref name="subject"/> is null.</exception>
     internal TrustRuleContext(TrustFactEngine facts, TrustSubject subject, TrustDecisionAuditBuilder audit)
     {
-        Facts = facts ?? throw new ArgumentNullException(nameof(facts));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Audit = audit ?? throw new ArgumentNullException(nameof(audit));
+        Guard.ThrowIfNull(facts);
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(audit);
+
+        Facts = facts;
+        Subject = subject;
+        Audit = audit;
     }
 
     /// <summary>

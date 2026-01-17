@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -31,10 +32,15 @@ public sealed class X509SigningCertificateIdentityFact : ISigningKeyFact
         DateTime notBefore,
         DateTime notAfter)
     {
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
-        SerialNumber = serialNumber ?? throw new ArgumentNullException(nameof(serialNumber));
+        Guard.ThrowIfNull(certificateThumbprint);
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(issuer);
+        Guard.ThrowIfNull(serialNumber);
+
+        CertificateThumbprint = certificateThumbprint;
+        Subject = subject;
+        Issuer = issuer;
+        SerialNumber = serialNumber;
         NotBeforeUtc = notBefore.ToUniversalTime();
         NotAfterUtc = notAfter.ToUniversalTime();
     }

@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Trust.Facts;
 
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -22,7 +23,8 @@ public sealed class X509SigningCertificateKeyUsageFact : ISigningKeyFact
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateThumbprint"/> is null.</exception>
     public X509SigningCertificateKeyUsageFact(string certificateThumbprint, X509KeyUsageFlags keyUsages)
     {
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
+        Guard.ThrowIfNull(certificateThumbprint);
+        CertificateThumbprint = certificateThumbprint;
         KeyUsages = keyUsages;
     }
 

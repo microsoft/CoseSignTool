@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST.Trust;
 
 using System.Diagnostics.CodeAnalysis;
 using Azure.Security.CodeTransparency;
+using CoseSign1.Abstractions;
 using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
@@ -55,7 +56,8 @@ public sealed class MstTrustPack : ITrustPack
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public MstTrustPack(MstTrustOptions options)
     {
-        Options = options ?? throw new ArgumentNullException(nameof(options));
+        Guard.ThrowIfNull(options);
+        Options = options;
     }
 
     /// <inheritdoc />
@@ -81,15 +83,8 @@ public sealed class MstTrustPack : ITrustPack
     /// <exception cref="NotSupportedException">Thrown when <paramref name="factType"/> is not supported by this trust pack.</exception>
     public async ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
+        Guard.ThrowIfNull(context);
+        Guard.ThrowIfNull(factType);
 
         if (factType == typeof(MstReceiptPresentFact))
         {

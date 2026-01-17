@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Trust.Audit;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Subjects;
@@ -35,30 +36,16 @@ internal sealed class TrustDecisionAuditBuilder
 
     public void RecordRule(string ruleKind, TrustDecision decision, string? detail = null)
     {
-        if (ruleKind == null)
-        {
-            throw new ArgumentNullException(nameof(ruleKind));
-        }
-
-        if (decision == null)
-        {
-            throw new ArgumentNullException(nameof(decision));
-        }
+        Guard.ThrowIfNull(ruleKind);
+        Guard.ThrowIfNull(decision);
 
         RuleEvaluations.Add(new TrustDecisionAuditRuleEvaluation(ruleKind, decision.IsTrusted, decision.Reasons, detail));
     }
 
     public void RecordFact(TrustSubjectId subjectId, Type factType, ITrustFactSet factSet)
     {
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
-
-        if (factSet == null)
-        {
-            throw new ArgumentNullException(nameof(factSet));
-        }
+        Guard.ThrowIfNull(factType);
+        Guard.ThrowIfNull(factSet);
 
         Facts.Add(
             new TrustDecisionAuditFactObservation(

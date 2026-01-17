@@ -12,6 +12,7 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Post-signature validator that verifies indirect signature payload hash matches.
@@ -109,10 +110,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is null.</exception>
     public ValidationResult Validate(IPostSignatureValidationContext context)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        Guard.ThrowIfNull(context);
 
         var message = context.Message;
         var options = context.Options;

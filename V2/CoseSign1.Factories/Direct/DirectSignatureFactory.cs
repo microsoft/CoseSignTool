@@ -6,6 +6,7 @@ namespace CoseSign1.Factories.Direct;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
+using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -78,7 +79,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
         ILogger<DirectSignatureFactory>? logger = null)
     {
-        SigningService = signingService ?? throw new ArgumentNullException(nameof(signingService));
+        Guard.ThrowIfNull(signingService);
+        SigningService = signingService;
         TransparencyProvidersField = transparencyProviders;
         Logger = logger ?? NullLogger<DirectSignatureFactory>.Instance;
     }
@@ -127,10 +129,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options,
         SigningOptions? serviceOptions)
     {
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
+        Guard.ThrowIfNull(contentType);
 
         ThrowIfDisposed();
 
@@ -250,15 +249,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options,
         SigningOptions? serviceOptions)
     {
-        if (payload == null)
-        {
-            throw new ArgumentNullException(nameof(payload));
-        }
-
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
+        Guard.ThrowIfNull(payload);
+        Guard.ThrowIfNull(contentType);
 
         ThrowIfDisposed();
 
@@ -302,15 +294,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         SigningOptions? serviceOptions,
         CancellationToken cancellationToken = default)
     {
-        if (payloadStream == null)
-        {
-            throw new ArgumentNullException(nameof(payloadStream));
-        }
-
-        if (contentType == null)
-        {
-            throw new ArgumentNullException(nameof(contentType));
-        }
+        Guard.ThrowIfNull(payloadStream);
+        Guard.ThrowIfNull(contentType);
 
         ThrowIfDisposed();
 
@@ -449,10 +434,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (payload == null)
-        {
-            throw new ArgumentNullException(nameof(payload));
-        }
+        Guard.ThrowIfNull(payload);
 
         ThrowIfDisposed();
 

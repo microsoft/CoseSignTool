@@ -3,13 +3,15 @@
 
 namespace CoseSign1.Validation.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 internal sealed class CoseValidationBuilder : ICoseValidationBuilder
 {
     public CoseValidationBuilder(IServiceCollection services)
     {
-        Services = services ?? throw new ArgumentNullException(nameof(services));
+        Guard.ThrowIfNull(services);
+        Services = services;
     }
 
     public IServiceCollection Services { get; }

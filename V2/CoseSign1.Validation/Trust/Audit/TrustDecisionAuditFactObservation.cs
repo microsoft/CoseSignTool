@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation.Trust.Audit;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Subjects;
 
@@ -28,7 +29,8 @@ public sealed class TrustDecisionAuditFactObservation
         TrustFactMissing? missingReason)
     {
         SubjectId = subjectId;
-        FactType = factType ?? throw new ArgumentNullException(nameof(factType));
+        Guard.ThrowIfNull(factType);
+        FactType = factType;
         IsMissing = isMissing;
         ValueCount = valueCount;
         MissingReason = missingReason;

@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Text;
 using System.Text.RegularExpressions;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Plan;
@@ -66,7 +67,8 @@ public sealed class AzureKeyVaultTrustPack : ITrustPack
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public AzureKeyVaultTrustPack(AzureKeyVaultTrustOptions options)
     {
-        Options = options ?? throw new ArgumentNullException(nameof(options));
+        Guard.ThrowIfNull(options);
+        Options = options;
 
         var compiled = new List<Regex>();
         foreach (var pattern in Options.AllowedKidPatterns ?? Array.Empty<string>())
@@ -117,15 +119,8 @@ public sealed class AzureKeyVaultTrustPack : ITrustPack
     /// <exception cref="NotSupportedException">Thrown when <paramref name="factType"/> is not supported by this trust pack.</exception>
     public ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
+        Guard.ThrowIfNull(context);
+        Guard.ThrowIfNull(factType);
 
         if (context.Message == null)
         {

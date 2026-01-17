@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Trust.Facts.Producers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 using Microsoft.Extensions.Caching.Memory;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust.Engine;
@@ -97,15 +98,8 @@ public sealed partial class CoreMessageFactsProducer : ITrustPack
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> or <paramref name="factType"/> is null.</exception>
     public ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
+        Guard.ThrowIfNull(context);
+        Guard.ThrowIfNull(factType);
 
         ILogger logger = ResolveLogger(context);
         LogProducing(logger, factType.FullName ?? factType.Name, context.Subject.Kind);

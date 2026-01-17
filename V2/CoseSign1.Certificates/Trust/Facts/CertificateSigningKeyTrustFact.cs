@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Trust.Facts;
 
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -34,9 +35,13 @@ public sealed class CertificateSigningKeyTrustFact : ISigningKeyFact
         X509ChainStatusFlags chainStatusFlags,
         string? chainStatusSummary)
     {
-        Thumbprint = thumbprint ?? throw new ArgumentNullException(nameof(thumbprint));
-        Subject = subject ?? throw new ArgumentNullException(nameof(subject));
-        Issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
+        Guard.ThrowIfNull(thumbprint);
+        Guard.ThrowIfNull(subject);
+        Guard.ThrowIfNull(issuer);
+
+        Thumbprint = thumbprint;
+        Subject = subject;
+        Issuer = issuer;
         ChainBuilt = chainBuilt;
         ChainTrusted = chainTrusted;
         ChainStatusFlags = chainStatusFlags;

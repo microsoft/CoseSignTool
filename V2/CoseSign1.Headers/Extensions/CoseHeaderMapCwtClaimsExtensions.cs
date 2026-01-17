@@ -5,6 +5,7 @@ namespace CoseSign1.Headers.Extensions;
 
 using System;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Extension methods for working with CWT Claims in COSE headers.
@@ -61,15 +62,8 @@ public static class CoseHeaderMapCwtClaimsExtensions
         CwtClaims claims,
         CoseHeaderLabel? headerLabel = null)
     {
-        if (headerMap == null)
-        {
-            throw new ArgumentNullException(nameof(headerMap));
-        }
-
-        if (claims == null)
-        {
-            throw new ArgumentNullException(nameof(claims));
-        }
+        Guard.ThrowIfNull(headerMap);
+        Guard.ThrowIfNull(claims);
 
         CoseHeaderLabel label = headerLabel ?? CWTClaimsHeaderLabels.CWTClaims;
         byte[] cborBytes = claims.ToCborBytes();

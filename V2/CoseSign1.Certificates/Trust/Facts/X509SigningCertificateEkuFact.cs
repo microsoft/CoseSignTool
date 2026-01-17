@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -21,8 +22,11 @@ public sealed class X509SigningCertificateEkuFact : ISigningKeyFact
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificateThumbprint"/> or <paramref name="oidValue"/> is null.</exception>
     public X509SigningCertificateEkuFact(string certificateThumbprint, string oidValue)
     {
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
-        OidValue = oidValue ?? throw new ArgumentNullException(nameof(oidValue));
+        Guard.ThrowIfNull(certificateThumbprint);
+        Guard.ThrowIfNull(oidValue);
+
+        CertificateThumbprint = certificateThumbprint;
+        OidValue = oidValue;
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ namespace CoseSign1.Certificates.Trust.Facts.Producers;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation.Trust;
@@ -72,7 +73,8 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public X509CertificateTrustPack(CertificateTrustBuilder.CertificateTrustOptions options)
     {
-        Options = options ?? throw new ArgumentNullException(nameof(options));
+        Guard.ThrowIfNull(options);
+        Options = options;
     }
 
     #region LoggerMessage methods
@@ -198,15 +200,8 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> or <paramref name="factType"/> is null.</exception>
     public ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (factType == null)
-        {
-            throw new ArgumentNullException(nameof(factType));
-        }
+        Guard.ThrowIfNull(context);
+        Guard.ThrowIfNull(factType);
 
         ILogger logger = ResolveLogger(context);
         LogProducing(logger, factType.FullName ?? factType.Name, context.Subject.Kind);
@@ -311,6 +306,8 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
             IReadOnlyList<X509ChainElementIdentityFact> ElementIdentities,
             bool IdentityAllowed)
         {
+            Guard.ThrowIfNull(ElementIdentities);
+
             this.SigningCertificateFound = SigningCertificateFound;
             this.Thumbprint = Thumbprint;
             this.Subject = Subject;
@@ -319,7 +316,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
             this.ChainTrusted = ChainTrusted;
             this.ChainStatusFlags = ChainStatusFlags;
             this.ChainStatusSummary = ChainStatusSummary;
-            this.ElementIdentities = ElementIdentities ?? throw new ArgumentNullException(nameof(ElementIdentities));
+            this.ElementIdentities = ElementIdentities;
             this.IdentityAllowed = IdentityAllowed;
         }
 

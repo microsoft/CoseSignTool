@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation;
 
+using CoseSign1.Abstractions;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
@@ -108,10 +109,7 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public static CoseSign1ValidationOptions WithDetachedPayload(this CoseSign1ValidationOptions options, Stream payload)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        Guard.ThrowIfNull(options);
 
         options.DetachedPayload = payload;
         return options;
@@ -126,15 +124,8 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="payload"/> is null.</exception>
     public static CoseSign1ValidationOptions WithDetachedPayload(this CoseSign1ValidationOptions options, byte[] payload)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-
-        if (payload == null)
-        {
-            throw new ArgumentNullException(nameof(payload));
-        }
+        Guard.ThrowIfNull(options);
+        Guard.ThrowIfNull(payload);
 
         options.DetachedPayload = new MemoryStream(payload, writable: false);
         return options;
@@ -149,10 +140,7 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public static CoseSign1ValidationOptions WithDetachedPayload(this CoseSign1ValidationOptions options, ReadOnlyMemory<byte> payload)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        Guard.ThrowIfNull(options);
 
         options.DetachedPayload = new MemoryStream(payload.ToArray(), writable: false);
         return options;
@@ -167,10 +155,7 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public static CoseSign1ValidationOptions WithAssociatedData(this CoseSign1ValidationOptions options, ReadOnlyMemory<byte> associatedData)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        Guard.ThrowIfNull(options);
 
         options.AssociatedData = associatedData;
         return options;
@@ -185,15 +170,8 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="associatedData"/> is null.</exception>
     public static CoseSign1ValidationOptions WithAssociatedData(this CoseSign1ValidationOptions options, byte[] associatedData)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-
-        if (associatedData == null)
-        {
-            throw new ArgumentNullException(nameof(associatedData));
-        }
+        Guard.ThrowIfNull(options);
+        Guard.ThrowIfNull(associatedData);
 
         options.AssociatedData = associatedData;
         return options;
@@ -208,10 +186,7 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public static CoseSign1ValidationOptions WithCancellationToken(this CoseSign1ValidationOptions options, CancellationToken cancellationToken)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        Guard.ThrowIfNull(options);
 
         options.CancellationToken = cancellationToken;
         return options;
@@ -226,15 +201,8 @@ public static class CoseSign1ValidationOptionsExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="configure"/> is null.</exception>
     public static CoseSign1ValidationOptions Configure(this CoseSign1ValidationOptions options, Action<CoseSign1ValidationOptions> configure)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-
-        if (configure == null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        Guard.ThrowIfNull(options);
+        Guard.ThrowIfNull(configure);
 
         configure(options);
         return options;

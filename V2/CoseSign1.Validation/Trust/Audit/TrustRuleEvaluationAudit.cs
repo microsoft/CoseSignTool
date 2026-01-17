@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Trust.Audit;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 [ExcludeFromCodeCoverage]
 internal sealed class TrustRuleEvaluationAudit
@@ -17,9 +18,12 @@ internal sealed class TrustRuleEvaluationAudit
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="ruleKind"/> or <paramref name="reasons"/> is null.</exception>
     public TrustRuleEvaluationAudit(string ruleKind, bool isTrusted, IReadOnlyList<string> reasons)
     {
-        RuleKind = ruleKind ?? throw new ArgumentNullException(nameof(ruleKind));
+        Guard.ThrowIfNull(ruleKind);
+        Guard.ThrowIfNull(reasons);
+
+        RuleKind = ruleKind;
         IsTrusted = isTrusted;
-        Reasons = reasons ?? throw new ArgumentNullException(nameof(reasons));
+        Reasons = reasons;
     }
 
     /// <summary>

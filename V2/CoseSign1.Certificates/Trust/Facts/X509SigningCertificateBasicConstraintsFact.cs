@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
@@ -27,7 +28,8 @@ public sealed class X509SigningCertificateBasicConstraintsFact : ISigningKeyFact
         bool hasPathLengthConstraint,
         int pathLengthConstraint)
     {
-        CertificateThumbprint = certificateThumbprint ?? throw new ArgumentNullException(nameof(certificateThumbprint));
+        Guard.ThrowIfNull(certificateThumbprint);
+        CertificateThumbprint = certificateThumbprint;
         CertificateAuthority = certificateAuthority;
         HasPathLengthConstraint = hasPathLengthConstraint;
         PathLengthConstraint = pathLengthConstraint;

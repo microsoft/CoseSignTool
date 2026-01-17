@@ -110,8 +110,11 @@ public sealed class KeyVaultCryptoClientWrapper : IDisposable
     /// </remarks>
     public KeyVaultCryptoClientWrapper(KeyVaultKey key, CryptographyClient cryptoClient)
     {
-        Key = key ?? throw new ArgumentNullException(nameof(key));
-        CryptoClient = cryptoClient ?? throw new ArgumentNullException(nameof(cryptoClient));
+        Guard.ThrowIfNull(key);
+        Guard.ThrowIfNull(cryptoClient);
+
+        Key = key;
+        CryptoClient = cryptoClient;
     }
 
     #region RSA Signing

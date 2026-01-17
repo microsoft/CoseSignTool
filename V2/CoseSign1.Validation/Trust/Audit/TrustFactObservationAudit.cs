@@ -4,6 +4,7 @@
 namespace CoseSign1.Validation.Trust.Audit;
 
 using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
 
 [ExcludeFromCodeCoverage]
 internal sealed class TrustFactObservationAudit
@@ -24,7 +25,9 @@ internal sealed class TrustFactObservationAudit
         string? missingMessage,
         int valueCount)
     {
-        FactType = factType ?? throw new ArgumentNullException(nameof(factType));
+        Guard.ThrowIfNull(factType);
+
+        FactType = factType;
         IsMissing = isMissing;
         MissingCode = missingCode;
         MissingMessage = missingMessage;

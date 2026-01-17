@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Local;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 
 /// <summary>
@@ -27,7 +28,8 @@ public class DirectCertificateSource : CertificateSourceBase
         ICertificateChainBuilder? chainBuilder = null)
         : base(certificateChain, chainBuilder)
     {
-        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Guard.ThrowIfNull(certificate);
+        Certificate = certificate;
     }
 
     /// <summary>
@@ -39,7 +41,8 @@ public class DirectCertificateSource : CertificateSourceBase
     public DirectCertificateSource(X509Certificate2 certificate, ICertificateChainBuilder chainBuilder)
         : base(chainBuilder)
     {
-        Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+        Guard.ThrowIfNull(certificate);
+        Certificate = certificate;
     }
 
     /// <inheritdoc/>

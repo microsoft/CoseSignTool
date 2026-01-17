@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// A minimal <see cref="ISigningKey"/> implementation wrapping an X509Certificate2 resolved from COSE message headers.
 /// This class is used by <see cref="CertificateSigningKeyResolver"/> to provide signing key
@@ -35,7 +37,8 @@ internal sealed class X509CertificateSigningKey : ISigningKey
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="signingCertificate"/> is null.</exception>
     public X509CertificateSigningKey(X509Certificate2 signingCertificate, X509Certificate2Collection? certificateChain = null)
     {
-        SigningCertificate = signingCertificate ?? throw new ArgumentNullException(nameof(signingCertificate));
+        Guard.ThrowIfNull(signingCertificate);
+        SigningCertificate = signingCertificate;
         CertificateChain = certificateChain;
     }
 

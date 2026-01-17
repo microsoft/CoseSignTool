@@ -28,7 +28,8 @@ public class SigningServiceMetadata
         string? description = null,
         IDictionary<string, object>? additionalData = null)
     {
-        ServiceName = serviceName ?? throw new ArgumentNullException(nameof(serviceName));
+        Guard.ThrowIfNull(serviceName);
+        ServiceName = serviceName;
         Description = description ?? string.Empty;
         AdditionalData = additionalData != null
             ? new ReadOnlyDictionary<string, object>(new Dictionary<string, object>(additionalData))

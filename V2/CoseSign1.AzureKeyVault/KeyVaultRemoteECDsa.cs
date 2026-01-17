@@ -5,6 +5,7 @@ namespace CoseSign1.AzureKeyVault;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
 
 /// <summary>
@@ -38,8 +39,11 @@ internal sealed class KeyVaultRemoteECDsa : ECDsa
     /// <param name="cryptoWrapper">The wrapper for Key Vault cryptographic operations.</param>
     public KeyVaultRemoteECDsa(ECDsa publicKey, KeyVaultCryptoClientWrapper cryptoWrapper)
     {
-        PublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
-        CryptoWrapper = cryptoWrapper ?? throw new ArgumentNullException(nameof(cryptoWrapper));
+        Guard.ThrowIfNull(publicKey);
+        Guard.ThrowIfNull(cryptoWrapper);
+
+        PublicKey = publicKey;
+        CryptoWrapper = cryptoWrapper;
     }
 
     /// <inheritdoc/>

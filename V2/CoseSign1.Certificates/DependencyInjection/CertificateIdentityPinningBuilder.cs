@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Certificates.Trust;
 
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Builder for configuring certificate identity pinning strategies.
 /// </summary>
@@ -12,7 +14,8 @@ public sealed class CertificateIdentityPinningBuilder
 
     internal CertificateIdentityPinningBuilder(CertificateTrustBuilder.CertificateTrustOptions options)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        Guard.ThrowIfNull(options);
+        _options = options;
     }
 
     /// <summary>
@@ -23,10 +26,7 @@ public sealed class CertificateIdentityPinningBuilder
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="thumbprint"/> is null.</exception>
     public CertificateIdentityPinningBuilder AllowThumbprint(string thumbprint)
     {
-        if (thumbprint == null)
-        {
-            throw new ArgumentNullException(nameof(thumbprint));
-        }
+        Guard.ThrowIfNull(thumbprint);
 
         _options.AllowedThumbprints.Add(thumbprint);
         return this;
@@ -45,10 +45,7 @@ public sealed class CertificateIdentityPinningBuilder
         string? issuer = null,
         CertificateIdentityMatchKind matchKind = CertificateIdentityMatchKind.Exact)
     {
-        if (subject == null)
-        {
-            throw new ArgumentNullException(nameof(subject));
-        }
+        Guard.ThrowIfNull(subject);
 
         _options.AllowedSubjectIssuerPatterns.Add(new CertificateIdentityPattern(subject, issuer, matchKind));
         return this;

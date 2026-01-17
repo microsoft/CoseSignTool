@@ -3,6 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,10 +21,7 @@ public static class CertificateChainBuilderServiceCollectionExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection AddCertificateChainBuilders(this IServiceCollection services)
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        Guard.ThrowIfNull(services);
 
         // Default chain builder used across local and remote certificate sources.
         services.TryAddTransient<X509ChainBuilder>();

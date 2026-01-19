@@ -215,6 +215,7 @@ pub struct X509PublicKeyAlgorithmFact {
 }
 
 impl FactProperties for X509SigningCertificateIdentityFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
@@ -231,6 +232,7 @@ impl FactProperties for X509SigningCertificateIdentityFact {
 }
 
 impl FactProperties for X509ChainElementIdentityFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "index" => Some(FactValue::Usize(self.index)),
@@ -245,6 +247,7 @@ impl FactProperties for X509ChainElementIdentityFact {
 }
 
 impl FactProperties for X509ChainElementValidityFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "index" => Some(FactValue::Usize(self.index)),
@@ -256,6 +259,7 @@ impl FactProperties for X509ChainElementValidityFact {
 }
 
 impl FactProperties for X509ChainTrustedFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "chain_built" => Some(FactValue::Bool(self.chain_built)),
@@ -272,6 +276,7 @@ impl FactProperties for X509ChainTrustedFact {
 }
 
 impl FactProperties for X509PublicKeyAlgorithmFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(

@@ -10,6 +10,10 @@ pub enum CoseHeaderLocation {
 }
 
 impl Default for CoseHeaderLocation {
+    /// Default COSE header location used by the trust engine.
+    ///
+    /// The default is `Protected` to mirror the common expectation that critical headers are
+    /// integrity-protected.
     fn default() -> Self {
         Self::Protected
     }

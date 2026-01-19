@@ -44,6 +44,7 @@ pub mod typed_fields {
 }
 
 impl FactProperties for AzureKeyVaultKidDetectedFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "is_azure_key_vault_key" => Some(FactValue::Bool(self.is_azure_key_vault_key)),
@@ -53,6 +54,7 @@ impl FactProperties for AzureKeyVaultKidDetectedFact {
 }
 
 impl FactProperties for AzureKeyVaultKidAllowedFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "is_allowed" => Some(FactValue::Bool(self.is_allowed)),

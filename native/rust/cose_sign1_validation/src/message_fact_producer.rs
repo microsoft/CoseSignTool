@@ -29,10 +29,17 @@ pub struct CoseSign1MessageFactProducer {
 }
 
 impl CoseSign1MessageFactProducer {
+    /// Create a producer with default settings.
+    ///
+    /// By default, no counter-signature resolvers are configured; counter-signature discovery is
+    /// therefore a no-op.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Attach counter-signature resolvers used to discover counter-signatures from message parts.
+    ///
+    /// These resolvers are only consulted when producing facts for the `Message` subject.
     pub fn with_counter_signature_resolvers(
         mut self,
         resolvers: Vec<Arc<dyn CounterSignatureResolver>>,
@@ -43,10 +50,17 @@ impl CoseSign1MessageFactProducer {
 }
 
 impl TrustFactProducer for CoseSign1MessageFactProducer {
+    /// A stable name used in diagnostics and audit trails.
     fn name(&self) -> &'static str {
         "cose_sign1_validation::CoseSign1MessageFactProducer"
     }
 
+    /// Produce message-derived facts for the current subject.
+    ///
+    /// This producer is intentionally conservative:
+    /// - It only produces facts for the `Message` subject kind.
+    /// - It prefers the parsed message already available in the engine context.
+    /// - When parsing fails, it marks appropriate facts as `Error`/`Missing` rather than panicking.
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         // V2 parity: core message facts only apply to the Message subject.
         if ctx.subject().kind != "Message" {
@@ -160,6 +174,7 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
         Ok(())
     }
 
+    /// Declare the set of facts this producer can produce.
     fn provides(&self) -> &'static [FactKey] {
         static PROVIDED: Lazy<[FactKey; 10]> = Lazy::new(|| {
             [
@@ -179,6 +194,10 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
     }
 }
 
+/// Decode and emit CWT-claims facts from the message headers.
+///
+/// The claim set is carried in COSE header parameter label `15` and is expected to be a CBOR map.
+/// For convenience, a subset of well-known claims are also exposed as typed fields (e.g. `iss`).
 fn produce_cwt_claims_facts(
     ctx: &TrustFactContext<'_>,
     pm: &cose_sign1_validation_trust::CoseSign1ParsedMessage,
@@ -310,6 +329,9 @@ fn produce_cwt_claims_facts(
     Ok(())
 }
 
+/// Decode a single CBOR text string from `bytes`.
+///
+/// Returns `None` if decoding fails or if the input contains trailing bytes.
 fn decode_cbor_text_one(bytes: &[u8]) -> Option<String> {
     let mut d = tinycbor::Decoder(bytes);
     let Ok(s) = <String as tinycbor::Decode>::decode(&mut d) else {
@@ -323,6 +345,9 @@ fn decode_cbor_text_one(bytes: &[u8]) -> Option<String> {
     }
 }
 
+/// Decode a single CBOR integer (major type 0/1) from `bytes`.
+///
+/// Returns `None` if decoding fails or if the input contains trailing bytes.
 fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
     let (n, used) = decode_cbor_i64(bytes)?;
     if used == bytes.len() {
@@ -332,6 +357,10 @@ fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
     }
 }
 
+/// Decode a CBOR integer (major type 0/1) and return the value plus bytes consumed.
+///
+/// This is a small, allocation-free helper used when parsing CBOR map keys/values that may be
+/// embedded in COSE headers.
 fn decode_cbor_i64(bytes: &[u8]) -> Option<(i64, usize)> {
     let first = *bytes.first()?;
     let major = first >> 5;
@@ -350,6 +379,9 @@ fn decode_cbor_i64(bytes: &[u8]) -> Option<(i64, usize)> {
     }
 }
 
+/// Decode the unsigned-integer argument for a CBOR additional information (AI) value.
+///
+/// Returns `(value, bytes_consumed_from_rest)`.
 fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
     match ai {
         0..=23 => Some((ai as u64, 0)),
@@ -374,6 +406,15 @@ fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
 }
 
 impl CoseSign1MessageFactProducer {
+    /// Produce counter-signature-derived subjects and unknown raw bytes facts.
+    ///
+    /// This uses the configured [`CounterSignatureResolver`]s to discover counter-signatures from
+    /// the message, then derives stable trust subjects:
+    /// - `CounterSignature` subjects are derived from the message subject and raw bytes.
+    /// - `CounterSignatureSigningKey` subjects are derived from each counter-signature subject.
+    ///
+    /// When resolvers are configured but all fail, the relevant fact keys are marked as `Missing`
+    /// with aggregated failure reasons (mirrors the V2 behavior).
     fn produce_counter_signature_facts(
         &self,
         ctx: &TrustFactContext<'_>,
@@ -456,6 +497,10 @@ impl CoseSign1MessageFactProducer {
     }
 }
 
+/// Resolve a user-friendly content type string from COSE headers.
+///
+/// This mirrors the V2 behavior and supports the `CoseHashEnvelope` marker semantics, where the
+/// preimage content type (label `259`) is preferred.
 fn resolve_content_type_from_parsed(
     pm: &cose_sign1_validation_trust::CoseSign1ParsedMessage,
 ) -> Option<String> {
@@ -511,6 +556,10 @@ fn resolve_content_type_from_parsed(
     Some(ct)
 }
 
+/// Read a header value as either a text string or UTF-8 bytes.
+///
+/// Some producers encode string-ish values as CBOR bstr containing UTF-8 bytes; this helper
+/// provides a tolerant accessor.
 fn get_text_or_utf8_bytes(
     map: &cose_sign1_validation_trust::CoseHeaderMap,
     label: i64,

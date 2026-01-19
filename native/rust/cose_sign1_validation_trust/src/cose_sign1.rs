@@ -14,6 +14,7 @@ pub enum CoseHeaderValue {
 }
 
 impl CoseHeaderValue {
+    /// Return the value as an integer, if it is stored as [`CoseHeaderValue::Int`].
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             Self::Int(v) => Some(*v),
@@ -21,6 +22,7 @@ impl CoseHeaderValue {
         }
     }
 
+    /// Return the value as a byte string, if it is stored as [`CoseHeaderValue::Bytes`].
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match self {
             Self::Bytes(b) => Some(b.as_ref()),
@@ -28,6 +30,7 @@ impl CoseHeaderValue {
         }
     }
 
+    /// Return the value as an array of byte strings, if it is stored as [`CoseHeaderValue::BytesArray`].
     pub fn as_bytes_array(&self) -> Option<&[Arc<[u8]>]> {
         match self {
             Self::BytesArray(v) => Some(v.as_slice()),
@@ -35,6 +38,7 @@ impl CoseHeaderValue {
         }
     }
 
+    /// Return the value as a UTF-8 string, if it is stored as [`CoseHeaderValue::Text`].
     pub fn as_text(&self) -> Option<&str> {
         match self {
             Self::Text(s) => Some(s.as_str()),
@@ -58,22 +62,34 @@ pub struct CoseHeaderMap {
 }
 
 impl CoseHeaderMap {
+    /// Look up a header value by numeric COSE label.
     pub fn get(&self, label: i64) -> Option<&CoseHeaderValue> {
         self.entries.get(&label)
     }
 
+    /// Convenience accessor for integer-valued header entries.
     pub fn get_i64(&self, label: i64) -> Option<i64> {
         self.get(label).and_then(|v| v.as_i64())
     }
 
+    /// Convenience accessor for `bstr` or `[bstr]`-valued header entries.
     pub fn get_bytes_one_or_many(&self, label: i64) -> Option<Vec<Arc<[u8]>>> {
         self.get(label).and_then(|v| v.as_bytes_one_or_many())
     }
 
+    /// Convenience accessor for text-valued header entries.
     pub fn get_text(&self, label: i64) -> Option<&str> {
         self.get(label).and_then(|v| v.as_text())
     }
 
+    /// Parse a CBOR-encoded map into a typed COSE header map.
+    ///
+    /// Values are decoded opportunistically:
+    /// - `bstr` → [`CoseHeaderValue::Bytes`]
+    /// - `tstr` → [`CoseHeaderValue::Text`]
+    /// - `[bstr]` → [`CoseHeaderValue::BytesArray`]
+    /// - integer → [`CoseHeaderValue::Int`]
+    /// - everything else is preserved as raw CBOR in [`CoseHeaderValue::Other`].
     pub fn from_cbor_map_bytes(map_bytes: &[u8]) -> Result<Self, String> {
         let mut d = tinycbor::Decoder(map_bytes);
         let mut map = d
@@ -130,11 +146,16 @@ pub struct CoseSign1ParsedMessage {
 }
 
 impl CoseSign1ParsedMessage {
+    /// Read the `alg` header value (COSE label `1`) from the protected headers.
     pub fn try_alg(&self) -> Option<i64> {
         // COSE header label 1 = alg
         self.protected_header.get_i64(1)
     }
 
+    /// Build a parsed message view from the four COSE_Sign1 structural parts.
+    ///
+    /// This method clones bytes into owned buffers so the resulting message is cheap to share and
+    /// cache inside the trust engine.
     pub fn from_parts(
         protected_header_bytes: &[u8],
         unprotected_header_bytes: &[u8],
@@ -164,6 +185,9 @@ impl CoseSign1ParsedMessage {
     }
 }
 
+/// Decode a CBOR byte string into owned bytes.
+///
+/// Returns `Ok(None)` if the input isn't a `bstr`.
 fn decode_bytes(value_bytes: &[u8]) -> Result<Option<Arc<[u8]>>, String> {
     let mut vd = tinycbor::Decoder(value_bytes);
     let Ok(it) = vd.bytes_iter() else {
@@ -179,6 +203,9 @@ fn decode_bytes(value_bytes: &[u8]) -> Result<Option<Arc<[u8]>>, String> {
     Ok(Some(Arc::from(out.into_boxed_slice())))
 }
 
+/// Decode a CBOR array of byte strings into owned byte-string elements.
+///
+/// Returns `Ok(None)` if the input isn't an array of `bstr`.
 fn decode_bytes_array(value_bytes: &[u8]) -> Result<Option<Vec<Arc<[u8]>>>, String> {
     let mut vd = tinycbor::Decoder(value_bytes);
     let Ok(mut arr) = vd.array_visitor() else {
@@ -197,6 +224,9 @@ fn decode_bytes_array(value_bytes: &[u8]) -> Result<Option<Vec<Arc<[u8]>>>, Stri
     Ok(Some(out))
 }
 
+/// Decode a CBOR text string.
+///
+/// Returns `Ok(None)` if the input isn't a `tstr`.
 fn decode_text(value_bytes: &[u8]) -> Result<Option<String>, String> {
     let mut vd = tinycbor::Decoder(value_bytes);
     let Ok(s) = <String as tinycbor::Decode>::decode(&mut vd) else {
@@ -205,6 +235,7 @@ fn decode_text(value_bytes: &[u8]) -> Result<Option<String>, String> {
     Ok(Some(s))
 }
 
+/// Decode a single CBOR integer (major type 0/1) from a fully-consumed buffer.
 fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
     let (n, used) = decode_cbor_i64(bytes)?;
     if used == bytes.len() {
@@ -214,6 +245,7 @@ fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
     }
 }
 
+/// Decode a CBOR integer (major type 0/1) and return `(value, bytes_consumed)`.
 fn decode_cbor_i64(bytes: &[u8]) -> Option<(i64, usize)> {
     let first = *bytes.first()?;
     let major = first >> 5;
@@ -232,6 +264,7 @@ fn decode_cbor_i64(bytes: &[u8]) -> Option<(i64, usize)> {
     }
 }
 
+/// Decode the unsigned-integer argument for a CBOR additional information (AI) value.
 fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
     match ai {
         0..=23 => Some((ai as u64, 0)),

@@ -14,6 +14,9 @@ pub struct Field<TFact, TValue> {
 }
 
 impl<TFact, TValue> Field<TFact, TValue> {
+    /// Create a new field handle for a named property.
+    ///
+    /// The name must match what the fact exposes via [`crate::fact_properties::FactProperties`].
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -21,6 +24,7 @@ impl<TFact, TValue> Field<TFact, TValue> {
         }
     }
 
+    /// Return the canonical property name.
     pub fn name(&self) -> &'static str {
         self.name
     }

@@ -43,6 +43,10 @@ pub struct MstTrustPack {
 }
 
 impl MstTrustPack {
+    /// Create an MST pack configured for offline-only verification.
+    ///
+    /// This disables network fetching and uses the provided JWKS JSON to resolve receipt signing
+    /// keys.
     pub fn offline_with_jwks(jwks_json: impl Into<String>) -> Self {
         Self {
             allow_network: false,
@@ -51,6 +55,10 @@ impl MstTrustPack {
         }
     }
 
+    /// Create an MST pack configured to allow online JWKS fetching.
+    ///
+    /// This is an operational switch only; issuer allowlisting should still be expressed via trust
+    /// policy.
     pub fn online() -> Self {
         Self {
             allow_network: true,
@@ -60,10 +68,15 @@ impl MstTrustPack {
 }
 
 impl TrustFactProducer for MstTrustPack {
+    /// Stable producer name used for diagnostics/audit.
     fn name(&self) -> &'static str {
         "cose_sign1_validation_transparent_mst::MstTrustPack"
     }
 
+    /// Produce MST-related facts for the current subject.
+    ///
+    /// - On `Message` subjects: projects each receipt into a derived `CounterSignature` subject.
+    /// - On `CounterSignature` subjects: verifies the receipt and emits MST facts.
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         // MST receipts are modeled as counter-signatures:
         // - On the Message subject, we *project* each receipt into a derived CounterSignature subject.
@@ -228,6 +241,7 @@ impl TrustFactProducer for MstTrustPack {
         }
     }
 
+    /// Return the set of fact keys this pack can produce.
     fn provides(&self) -> &'static [FactKey] {
         static PROVIDED: Lazy<[FactKey; 11]> = Lazy::new(|| {
             [
@@ -251,14 +265,19 @@ impl TrustFactProducer for MstTrustPack {
 }
 
 impl CoseSign1TrustPack for MstTrustPack {
+    /// Short display name for this trust pack.
     fn name(&self) -> &'static str {
         "MstTrustPack"
     }
 
+    /// Return a `TrustFactProducer` instance for this pack.
     fn fact_producer(&self) -> std::sync::Arc<dyn TrustFactProducer> {
         std::sync::Arc::new(self.clone())
     }
 
+    /// Return the default trust plan for MST-only validation.
+    ///
+    /// This plan requires that a counter-signature receipt is trusted.
     fn default_trust_plan(&self) -> Option<CompiledTrustPlan> {
         use crate::fluent_ext::MstReceiptTrustedWhereExt;
 
@@ -274,6 +293,10 @@ impl CoseSign1TrustPack for MstTrustPack {
         Some(bundled.plan().clone())
     }
 }
+
+/// Read all MST receipt blobs from the current message.
+///
+/// Prefers the parsed message view when available; falls back to decoding unprotected header bytes.
 fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<Vec<u8>>, TrustError> {
     if let Some(msg) = ctx.cose_sign1_message() {
         match msg.unprotected_header.get(MST_RECEIPT_HEADER_LABEL) {
@@ -299,6 +322,9 @@ fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<Vec<u8>>, TrustError>
     try_read_receipts(msg.unprotected_header.as_ref())
 }
 
+/// Parse the unprotected header map and extract receipt blobs under label 394.
+///
+/// The canonical encoding is an array of `bstr`. A single `bstr` value is treated as invalid.
 fn try_read_receipts(unprotected_map_bytes: &[u8]) -> Result<Vec<Vec<u8>>, TrustError> {
     let mut d = tinycbor::Decoder(unprotected_map_bytes);
     let mut map = d

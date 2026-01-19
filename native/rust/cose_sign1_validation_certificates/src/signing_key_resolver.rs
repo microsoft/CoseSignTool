@@ -35,6 +35,10 @@ const OID_MLDSA_87: &str = "2.16.840.1.101.3.4.3.19";
 pub struct X509CertificateSigningKeyResolver;
 
 impl SigningKeyResolver for X509CertificateSigningKeyResolver {
+    /// Resolve the signing key from an `x5chain` embedded in the COSE headers.
+    ///
+    /// This extracts the leaf certificate's SubjectPublicKeyInfo (SPKI) material and returns a
+    /// `SigningKey` capable of verifying supported algorithms (e.g. ES256, and optionally ML-DSA).
     fn resolve(
         &self,
         message: &CoseSign1<'_>,
@@ -92,10 +96,16 @@ struct X509CertificateSigningKey {
 }
 
 impl SigningKey for X509CertificateSigningKey {
+    /// Human-readable key type identifier for diagnostics.
     fn key_type(&self) -> &'static str {
         "X509CertificateSigningKey"
     }
 
+    /// Verify a COSE signature against this key.
+    ///
+    /// Notes:
+    /// - ES256 expects an EC P-256 key and uses ring's FIXED ECDSA verifier.
+    /// - ML-DSA verification is feature-gated behind `pqc-mldsa`.
     fn verify(
         &self,
         alg: i64,
@@ -176,6 +186,9 @@ impl SigningKey for X509CertificateSigningKey {
 }
 
 #[cfg(not(feature = "pqc-mldsa"))]
+/// Dispatch ML-DSA verification when the `pqc-mldsa` feature is disabled.
+///
+/// This always returns an error so callers get a clear diagnostic.
 fn verify_ml_dsa_dispatch(
     algorithm_oid: &str,
     public_key_bytes: &[u8],
@@ -188,6 +201,7 @@ fn verify_ml_dsa_dispatch(
 }
 
 #[cfg(feature = "pqc-mldsa")]
+/// Dispatch ML-DSA verification by matching the expected SPKI OID to a concrete parameter set.
 fn verify_ml_dsa_dispatch(
     algorithm_oid: &str,
     public_key_bytes: &[u8],
@@ -213,6 +227,7 @@ fn verify_ml_dsa_dispatch(
 }
 
 #[cfg(feature = "pqc-mldsa")]
+/// Verify an ML-DSA signature for a specific parameter set `P`.
 fn verify_ml_dsa<P: ml_dsa::MlDsaParams>(
     public_key_bytes: &[u8],
     msg: &[u8],
@@ -236,6 +251,7 @@ struct LeafPublicKeyMaterial {
     subject_public_key_bytes: Vec<u8>,
 }
 
+/// Parse the leaf certificate and extract SPKI algorithm OID and public key bytes.
 fn extract_leaf_public_key_material(cert_der: &[u8]) -> Result<LeafPublicKeyMaterial, String> {
     let (_rem, cert) = x509_parser::parse_x509_certificate(cert_der)
         .map_err(|e| format!("x509_parse_failed: {e}"))?;
@@ -311,6 +327,9 @@ fn parse_x5chain_from_message(
     message: &CoseSign1<'_>,
     loc: CoseHeaderLocation,
 ) -> Result<Vec<Vec<u8>>, String> {
+    /// Try to read `x5chain` from a CBOR map encoded as bytes.
+    ///
+    /// Returns `Ok(Some(certs))` if the header is present, `Ok(None)` if absent.
     fn try_read_x5chain(map_bytes: &[u8]) -> Result<Option<Vec<Vec<u8>>>, String> {
         let mut d = tinycbor::Decoder(map_bytes);
         let mut map = d
@@ -371,26 +390,33 @@ fn parse_x5chain_from_message(
     }
 }
 
+/// Return the current Unix timestamp in seconds.
+///
+/// If the system clock is before the Unix epoch, returns 0.
 fn now_unix_seconds() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_secs() as i64
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 impl CoseSign1TrustPack for X509CertificateTrustPack {
+    /// Short display name for this trust pack.
     fn name(&self) -> &'static str {
         "X509CertificateTrustPack"
     }
 
+    /// Return a `TrustFactProducer` instance for this pack.
     fn fact_producer(&self) -> Arc<dyn TrustFactProducer> {
         Arc::new(self.clone())
     }
 
+    /// Provide signing key resolvers contributed by this pack.
     fn signing_key_resolvers(&self) -> Vec<Arc<dyn SigningKeyResolver>> {
         vec![Arc::new(X509CertificateSigningKeyResolver)]
     }
 
+    /// Return the default trust plan for certificate-based validation.
     fn default_trust_plan(&self) -> Option<CompiledTrustPlan> {
         let now = now_unix_seconds();
 

@@ -43,10 +43,15 @@ pub struct X509CertificateTrustPack {
 }
 
 impl X509CertificateTrustPack {
+    /// Create a certificates trust pack with the given options.
     pub fn new(options: CertificateTrustOptions) -> Self {
         Self { options }
     }
 
+    /// Convenience constructor that treats embedded `x5chain` as trusted.
+    ///
+    /// This is intended for deterministic scenarios (tests, pinned-root deployments) where the
+    /// message is expected to carry its own trust anchor.
     pub fn trust_embedded_chain_as_trusted() -> Self {
         Self::new(CertificateTrustOptions {
             trust_embedded_chain_as_trusted: true,
@@ -54,6 +59,7 @@ impl X509CertificateTrustPack {
         })
     }
 
+    /// Normalize a thumbprint string for comparison (remove whitespace, uppercase).
     fn normalize_thumbprint(s: &str) -> String {
         s.chars()
             .filter(|c| !c.is_whitespace())
@@ -61,8 +67,18 @@ impl X509CertificateTrustPack {
             .collect()
     }
 
+    /// Parse the `x5chain` certificate chain from the current evaluation context.
+    ///
+    /// This supports:
+    /// - Primary message subjects (read from the message headers)
+    /// - Counter-signature signing key subjects (read from the derived counter-signature bytes)
+    ///
+    /// The returned vector is ordered as it appears in the `x5chain` header.
     fn parse_message_chain(ctx: &TrustFactContext<'_>) -> Result<Vec<Arc<Vec<u8>>>, TrustError> {
         // COSE header label 33 = x5chain
+        /// Attempt to read an `x5chain` value from a CBOR-encoded map.
+        ///
+        /// Supports either a single `bstr` or an array of `bstr` values.
         fn try_read_x5chain(map_bytes: &[u8]) -> Result<Vec<Arc<Vec<u8>>>, TrustError> {
             let mut d = tinycbor::Decoder(map_bytes);
             let mut map = d
@@ -101,10 +117,14 @@ impl X509CertificateTrustPack {
             Ok(Vec::new())
         }
 
+        /// Parse a `COSE_Signature` structure and return its protected/unprotected map bytes.
+        ///
+        /// This supports both direct CBOR arrays and a bstr-wrapped encoding.
         fn try_parse_cose_signature_headers(
             bytes: &[u8],
         ) -> Result<(Vec<u8>, Vec<u8>), TrustError> {
             // COSE_Signature = [protected: bstr, unprotected: map, signature: bstr]
+            /// Parse a COSE_Signature array.
             fn parse_array(input: &[u8]) -> Result<(Vec<u8>, Vec<u8>), TrustError> {
                 let mut d = tinycbor::Decoder(input);
                 let mut arr = d
@@ -229,6 +249,7 @@ impl X509CertificateTrustPack {
         Ok(all)
     }
 
+    /// Parse a single X.509 certificate from DER bytes and extract common identity fields.
     fn parse_x509(der: Arc<Vec<u8>>) -> Result<ParsedCert, TrustError> {
         let (_, cert) = X509Certificate::from_der(der.as_slice())
             .map_err(|e| TrustError::FactProduction(format!("x509 parse failed: {e:?}")))?;
@@ -256,6 +277,7 @@ impl X509CertificateTrustPack {
         })
     }
 
+    /// Return the signing (leaf) certificate for the current message, if present.
     fn signing_cert(ctx: &TrustFactContext<'_>) -> Result<Option<ParsedCert>, TrustError> {
         let chain = Self::parse_message_chain(ctx)?;
         let Some(first) = chain.first().cloned() else {
@@ -264,6 +286,7 @@ impl X509CertificateTrustPack {
         Ok(Some(Self::parse_x509(first)?))
     }
 
+    /// Return true if the current subject is a signing-key subject.
     fn subject_is_signing_key(ctx: &TrustFactContext<'_>) -> bool {
         matches!(
             ctx.subject().kind,
@@ -271,6 +294,7 @@ impl X509CertificateTrustPack {
         )
     }
 
+    /// Mark all signing-certificate related facts as Missing for the current subject.
     fn mark_missing_for_signing_cert_facts(ctx: &TrustFactContext<'_>, reason: &str) {
         ctx.mark_missing::<X509SigningCertificateIdentityFact>(reason);
         ctx.mark_missing::<X509SigningCertificateIdentityAllowedFact>(reason);
@@ -280,6 +304,7 @@ impl X509CertificateTrustPack {
         ctx.mark_missing::<X509PublicKeyAlgorithmFact>(reason);
     }
 
+    /// Mark all signing-certificate related fact keys as produced.
     fn mark_produced_for_signing_cert_facts(ctx: &TrustFactContext<'_>) {
         ctx.mark_produced(FactKey::of::<X509SigningCertificateIdentityFact>());
         ctx.mark_produced(FactKey::of::<X509SigningCertificateIdentityAllowedFact>());
@@ -289,6 +314,7 @@ impl X509CertificateTrustPack {
         ctx.mark_produced(FactKey::of::<X509PublicKeyAlgorithmFact>());
     }
 
+    /// Return whether the leaf thumbprint is allowed under identity pinning.
     fn is_allowed(&self, thumbprint: &str) -> bool {
         if !self.options.identity_pinning_enabled {
             return true;
@@ -300,6 +326,7 @@ impl X509CertificateTrustPack {
             .any(|t| Self::normalize_thumbprint(t) == needle)
     }
 
+    /// Return whether `oid` should be treated as a PQC algorithm OID.
     fn is_pqc_oid(&self, oid: &str) -> bool {
         self.options
             .pqc_algorithm_oids
@@ -307,6 +334,9 @@ impl X509CertificateTrustPack {
             .any(|o| o.trim() == oid)
     }
 
+    /// Produce facts derived from the signing (leaf) certificate.
+    ///
+    /// For non-signing-key subjects, this marks the facts as produced with Available(empty).
     fn produce_signing_certificate_facts(
         &self,
         ctx: &TrustFactContext<'_>,
@@ -468,6 +498,7 @@ impl X509CertificateTrustPack {
         Ok(())
     }
 
+    /// Produce identity/validity facts for every element in the `x5chain`.
     fn produce_chain_identity_facts(&self, ctx: &TrustFactContext<'_>) -> Result<(), TrustError> {
         if !Self::subject_is_signing_key(ctx) {
             ctx.mark_produced(FactKey::of::<X509X5ChainCertificateIdentityFact>());
@@ -524,6 +555,10 @@ impl X509CertificateTrustPack {
         Ok(())
     }
 
+    /// Produce deterministic chain-trust summary facts.
+    ///
+    /// This does *not* use OS-native trust evaluation; it only validates chain shape and
+    /// optionally treats a well-formed embedded chain as trusted.
     fn produce_chain_trust_facts(&self, ctx: &TrustFactContext<'_>) -> Result<(), TrustError> {
         if !Self::subject_is_signing_key(ctx) {
             ctx.mark_produced(FactKey::of::<X509ChainTrustedFact>());
@@ -571,7 +606,7 @@ impl X509CertificateTrustPack {
                     break;
                 }
             }
-            let root = parsed_chain.last().unwrap();
+            let root = &parsed_chain[parsed_chain.len() - 1];
             ok && root.subject == root.issuer
         };
 
@@ -609,10 +644,14 @@ impl X509CertificateTrustPack {
 }
 
 impl TrustFactProducer for X509CertificateTrustPack {
+    /// Stable producer name used for diagnostics/audit.
     fn name(&self) -> &'static str {
         "cose_sign1_validation_certificates::X509CertificateTrustPack"
     }
 
+    /// Produce the requested certificate-related fact(s).
+    ///
+    /// Related facts are group-produced to avoid redundant parsing.
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         let requested = ctx.requested_fact();
 
@@ -646,6 +685,7 @@ impl TrustFactProducer for X509CertificateTrustPack {
         Ok(())
     }
 
+    /// Return the set of fact keys this producer can emit.
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
         ONCE.get_or_init(|| {

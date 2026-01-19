@@ -135,6 +135,7 @@ pub mod typed_fields {
 }
 
 impl FactProperties for MstReceiptPresentFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "present" => Some(FactValue::Bool(self.present)),
@@ -144,6 +145,7 @@ impl FactProperties for MstReceiptPresentFact {
 }
 
 impl FactProperties for MstReceiptTrustedFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "trusted" => Some(FactValue::Bool(self.trusted)),
@@ -153,6 +155,7 @@ impl FactProperties for MstReceiptTrustedFact {
 }
 
 impl FactProperties for MstReceiptIssuerFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_issuer::ISSUER => {
@@ -164,6 +167,7 @@ impl FactProperties for MstReceiptIssuerFact {
 }
 
 impl FactProperties for MstReceiptKidFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_kid::KID => Some(FactValue::Str(Cow::Borrowed(self.kid.as_str()))),
@@ -173,6 +177,7 @@ impl FactProperties for MstReceiptKidFact {
 }
 
 impl FactProperties for MstReceiptStatementSha256Fact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_statement_sha256::SHA256_HEX => {
@@ -184,6 +189,7 @@ impl FactProperties for MstReceiptStatementSha256Fact {
 }
 
 impl FactProperties for MstReceiptStatementCoverageFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_statement_coverage::COVERAGE => {
@@ -195,6 +201,7 @@ impl FactProperties for MstReceiptStatementCoverageFact {
 }
 
 impl FactProperties for MstReceiptSignatureVerifiedFact {
+    /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_signature_verified::VERIFIED => {

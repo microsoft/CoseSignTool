@@ -10,6 +10,15 @@ use crate::rules::{all_of, any_of, not, TrustRuleRef};
 use crate::subject::TrustSubject;
 use std::collections::HashSet;
 
+/// A pre-validated trust plan.
+///
+/// A compiled plan is a rule graph plus an explicit list of required fact types.
+/// Evaluation semantics are:
+/// - Ensure all required facts are produced (or reported missing)
+/// - If `bypass_trust` is enabled, return trusted with a diagnostic reason
+/// - Otherwise: `constraints AND (OR trust_sources) AND NOT(OR vetoes)`
+///
+/// Important default: if `trust_sources` is empty, the plan denies by default.
 #[derive(Clone)]
 pub struct CompiledTrustPlan {
     required_facts: Vec<FactKey>,
@@ -19,10 +28,12 @@ pub struct CompiledTrustPlan {
 }
 
 impl CompiledTrustPlan {
+    /// Fact types that must be available for evaluation.
     pub fn required_facts(&self) -> &[FactKey] {
         self.required_facts.as_slice()
     }
 
+    /// Creates a new plan from its component rule sets.
     pub fn new(
         required_facts: Vec<FactKey>,
         constraints: Vec<TrustRuleRef>,
@@ -37,6 +48,7 @@ impl CompiledTrustPlan {
         }
     }
 
+    /// Evaluate the plan for a given subject.
     pub fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -118,6 +130,7 @@ impl CompiledTrustPlan {
         )
     }
 
+    /// Evaluate the plan while collecting an audit trail from the engine.
     pub fn evaluate_with_audit(
         &self,
         engine: &TrustFactEngine,

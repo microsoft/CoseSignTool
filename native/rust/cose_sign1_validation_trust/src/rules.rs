@@ -1,6 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Trust rule primitives and combinators.
+//!
+//! This module is the “boolean algebra” layer of the trust engine.
+//! Rules evaluate against facts produced by a [`TrustFactEngine`](crate::facts::TrustFactEngine)
+//! for a given [`TrustSubject`](crate::subject::TrustSubject), and return a [`TrustDecision`].
+//!
+//! Most callers should prefer the fluent builders in [`crate::fluent`], which assemble these
+//! combinators into a [`crate::plan::CompiledTrustPlan`].
+
 use crate::audit::{AuditEvent, TrustDecisionAuditBuilder};
 use crate::decision::TrustDecision;
 use crate::error::TrustError;
@@ -14,12 +23,20 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnEmptyBehavior {
+    /// Treat an empty subject set as success (the scoped rule is effectively optional).
     Allow,
+    /// Treat an empty subject set as failure.
     Deny,
 }
 
+/// A single trust predicate.
+///
+/// Rules should be deterministic and side-effect free.
 pub trait TrustRule: Send + Sync {
+    /// Stable rule name for diagnostics and audit logs.
     fn name(&self) -> &'static str;
+
+    /// Evaluate this rule for `subject`, using `engine` to access facts.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -34,10 +51,12 @@ struct AllowAllRule {
 }
 
 impl TrustRule for AllowAllRule {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Always returns trusted.
     fn evaluate(
         &self,
         _engine: &TrustFactEngine,
@@ -48,18 +67,25 @@ impl TrustRule for AllowAllRule {
 }
 
 /// A rule that always returns trusted.
+///
+/// Useful for experiments and tests; avoid using this in production trust plans.
 pub fn allow_all(name: &'static str) -> TrustRuleRef {
     Arc::new(AllowAllRule { name })
 }
 
+/// Returns trusted only if **all** rules are trusted.
 pub fn all_of(name: &'static str, rules: Vec<TrustRuleRef>) -> TrustRuleRef {
     Arc::new(AllOf { name, rules })
 }
 
+/// Returns trusted if **any** rule is trusted.
+///
+/// If `rules` is empty, the rule denies by default.
 pub fn any_of(name: &'static str, rules: Vec<TrustRuleRef>) -> TrustRuleRef {
     Arc::new(AnyOf { name, rules })
 }
 
+/// Logical negation.
 pub fn not(name: &'static str, rule: TrustRuleRef) -> TrustRuleRef {
     Arc::new(Not {
         name,
@@ -68,6 +94,7 @@ pub fn not(name: &'static str, rule: TrustRuleRef) -> TrustRuleRef {
     })
 }
 
+/// Logical negation with a custom deny reason.
 pub fn not_with_reason(
     name: &'static str,
     rule: TrustRuleRef,
@@ -82,10 +109,12 @@ struct AllOf {
 }
 
 impl TrustRule for AllOf {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Evaluate all inner rules and AND their results.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -116,10 +145,12 @@ struct AnyOf {
 }
 
 impl TrustRule for AnyOf {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Evaluate inner rules and OR their results.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -150,10 +181,12 @@ struct Not {
 }
 
 impl TrustRule for Not {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Invert the decision of the inner rule.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -174,6 +207,7 @@ pub struct FnRule<F> {
 }
 
 impl<F> FnRule<F> {
+    /// Create a named rule from a closure.
     pub fn new(name: &'static str, f: F) -> Self {
         Self { name, f }
     }
@@ -186,10 +220,12 @@ where
         + Sync
         + 'static,
 {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Evaluate the rule by invoking the stored closure.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -296,6 +332,7 @@ pub enum PropertyPredicate {
 }
 
 impl PropertyPredicate {
+    /// Returns `true` if this predicate matches the given fact value.
     fn matches(&self, actual: FactValue<'_>) -> bool {
         match self {
             PropertyPredicate::Eq(expected) => actual == expected.as_borrowed(),
@@ -344,37 +381,45 @@ pub struct FactSelector {
 }
 
 impl FactSelector {
+    /// Create a selector that targets the first available fact.
     pub fn first() -> Self {
         Self { filters: vec![] }
     }
 
+    /// Add an equality predicate against a named property.
     pub fn where_eq(mut self, property: &'static str, expected: FactValueOwned) -> Self {
         self.filters
             .push((property, PropertyPredicate::Eq(expected)));
         self
     }
 
+    /// Add a custom predicate against a named property.
     pub fn where_pred(mut self, property: &'static str, predicate: PropertyPredicate) -> Self {
         self.filters.push((property, predicate));
         self
     }
 
+    /// Convenience for a boolean equality predicate.
     pub fn where_bool(self, property: &'static str, expected: bool) -> Self {
         self.where_eq(property, FactValueOwned::Bool(expected))
     }
 
+    /// Convenience for a `usize` equality predicate.
     pub fn where_usize(self, property: &'static str, expected: usize) -> Self {
         self.where_eq(property, FactValueOwned::Usize(expected))
     }
 
+    /// Convenience for a `u32` equality predicate.
     pub fn where_u32(self, property: &'static str, expected: u32) -> Self {
         self.where_eq(property, FactValueOwned::U32(expected))
     }
 
+    /// Convenience for an `i64` equality predicate.
     pub fn where_i64(self, property: &'static str, expected: i64) -> Self {
         self.where_eq(property, FactValueOwned::I64(expected))
     }
 
+    /// Returns `true` if all selector predicates match the given fact.
     fn matches<T: FactProperties>(&self, fact: &T) -> bool {
         for (property, predicate) in &self.filters {
             let Some(actual) = fact.get_property(property) else {
@@ -394,6 +439,7 @@ pub enum MissingBehavior {
     Allow,
 }
 
+/// Select the first fact that matches the selector.
 fn select_fact<'a, T: FactProperties>(
     values: &'a [Arc<T>],
     selector: &FactSelector,
@@ -406,6 +452,8 @@ fn select_fact<'a, T: FactProperties>(
 
 /// Returns a rule that trusts when a selected fact of type `T` has `property == expected`.
 ///
+
+/// Returns a rule that trusts when a selected fact of type `T` has a boolean property equal to `expected`.
 /// This is fully declarative: callers name the fact type + the property.
 pub fn require_fact_property_eq<T, SubjectSelector>(
     name: &'static str,
@@ -595,6 +643,7 @@ where
     )
 }
 
+/// Returns a rule that trusts when a selected fact of type `T` has a non-empty string property.
 pub fn require_fact_str_non_empty<T, SubjectSelector>(
     name: &'static str,
     subject_selector: SubjectSelector,
@@ -706,16 +755,19 @@ where
 
 impl AuditedRule {
     #[allow(clippy::new_ret_no_self)]
+    /// Wrap a rule and emit an audit event each time it is evaluated.
     pub fn new(inner: TrustRuleRef, audit: Arc<Mutex<TrustDecisionAuditBuilder>>) -> TrustRuleRef {
         Arc::new(Self { inner, audit })
     }
 }
 
 impl TrustRule for AuditedRule {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.inner.name()
     }
 
+    /// Evaluate the inner rule and record the result into the audit log.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,

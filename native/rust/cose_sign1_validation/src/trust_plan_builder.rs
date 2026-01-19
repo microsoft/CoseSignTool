@@ -13,18 +13,21 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 impl trust_fluent::HasTrustSubject for CounterSignatureSubjectFact {
+    /// Returns the derived counter-signature subject carried by this fact.
     fn trust_subject(&self) -> &cose_sign1_validation_trust::subject::TrustSubject {
         &self.subject
     }
 }
 
 impl trust_fluent::HasTrustSubject for CounterSignatureSigningKeySubjectFact {
+    /// Returns the derived counter-signature signing key subject carried by this fact.
     fn trust_subject(&self) -> &cose_sign1_validation_trust::subject::TrustSubject {
         &self.subject
     }
 }
 
 impl trust_fluent::HasTrustSubject for PrimarySigningKeySubjectFact {
+    /// Returns the derived primary signing key subject carried by this fact.
     fn trust_subject(&self) -> &cose_sign1_validation_trust::subject::TrustSubject {
         &self.subject
     }
@@ -38,6 +41,7 @@ impl trust_fluent::HasTrustSubject for PrimarySigningKeySubjectFact {
 /// Note: message facts (e.g., content-type, detached-payload presence) are always available at
 /// runtime and during plan compilation checks. Callers should not need to provide a special
 /// "message trust pack".
+#[must_use]
 #[derive(Clone)]
 pub struct TrustPlanBuilder {
     inner: trust_fluent::TrustPlanBuilder,
@@ -45,6 +49,10 @@ pub struct TrustPlanBuilder {
 }
 
 impl TrustPlanBuilder {
+    /// Create a new builder bound to a specific set of trust packs.
+    ///
+    /// The pack list is used during `compile()` to validate that all required facts can be
+    /// produced at runtime.
     pub fn new(trust_packs: Vec<Arc<dyn CoseSign1TrustPack>>) -> Self {
         Self {
             inner: trust_fluent::TrustPlanBuilder::new(),
@@ -52,11 +60,13 @@ impl TrustPlanBuilder {
         }
     }
 
+    /// Set the next composition operator to AND.
     pub fn and(mut self) -> Self {
         self.inner = self.inner.and();
         self
     }
 
+    /// Set the next composition operator to OR.
     pub fn or(mut self) -> Self {
         self.inner = self.inner.or();
         self
@@ -69,6 +79,7 @@ impl TrustPlanBuilder {
         self
     }
 
+    /// Add rules scoped to the message subject.
     pub fn for_message(
         mut self,
         f: impl FnOnce(
@@ -79,6 +90,7 @@ impl TrustPlanBuilder {
         self
     }
 
+    /// Add rules scoped to the derived primary signing key subject.
     pub fn for_primary_signing_key(
         mut self,
         f: impl FnOnce(
@@ -125,9 +137,10 @@ impl TrustPlanBuilder {
         self
     }
 
-    /// Compile the plan.
+    /// Compile the plan and validate pack coverage.
     ///
-    /// This validates that the configured trust packs can satisfy all required fact types.
+    /// This ensures all required facts referenced by the plan are provided by the configured
+    /// trust packs (message facts are always available).
     pub fn compile(self) -> Result<CoseSign1CompiledTrustPlan, TrustPlanCompileError> {
         let plan = self.inner.compile();
         validate_plan_requires_only_available_fact_types(&plan, &self.trust_packs)?;
@@ -151,18 +164,22 @@ pub struct CoseSign1CompiledTrustPlan {
 }
 
 impl CoseSign1CompiledTrustPlan {
+    /// Access the compiled plan.
     pub fn plan(&self) -> &CompiledTrustPlan {
         &self.plan
     }
 
+    /// Access the trust packs required to evaluate the plan.
     pub fn trust_packs(&self) -> &[Arc<dyn CoseSign1TrustPack>] {
         self.trust_packs.as_slice()
     }
 
+    /// Split into the underlying compiled plan plus the packs needed to evaluate it.
     pub fn into_parts(self) -> (CompiledTrustPlan, Vec<Arc<dyn CoseSign1TrustPack>>) {
         (self.plan, self.trust_packs)
     }
 
+    /// Rehydrate a bundle from a plan and packs, validating that required fact types are provided.
     pub(crate) fn from_parts(
         plan: CompiledTrustPlan,
         trust_packs: Vec<Arc<dyn CoseSign1TrustPack>>,
@@ -172,12 +189,14 @@ impl CoseSign1CompiledTrustPlan {
     }
 }
 
+/// Errors produced when compiling a plan against a specific set of trust packs.
 #[derive(Debug, thiserror::Error)]
 pub enum TrustPlanCompileError {
     #[error("trust plan requires fact types not provided by configured trust packs: {missing}")]
     MissingRequiredTrustPacks { missing: String },
 }
 
+/// Ensure all fact types required by `plan` can be produced by message facts or configured packs.
 fn validate_plan_requires_only_available_fact_types(
     plan: &CompiledTrustPlan,
     trust_packs: &[Arc<dyn CoseSign1TrustPack>],

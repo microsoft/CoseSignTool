@@ -22,6 +22,10 @@ pub enum FactValueOwned {
 }
 
 impl FactValueOwned {
+    /// Convert this owned value into a borrowed view.
+    ///
+    /// This is used when comparing owned expected values against facts that expose borrowed
+    /// property values.
     pub fn as_borrowed(&self) -> FactValue<'_> {
         match self {
             FactValueOwned::Bool(v) => FactValue::Bool(*v),
@@ -38,5 +42,9 @@ impl FactValueOwned {
 /// This is the core hook that allows trust policies to be expressed declaratively (property + value)
 /// without requiring callers to write Rust closures.
 pub trait FactProperties {
+    /// Return a property value by name.
+    ///
+    /// Implementations should return `None` for unknown properties. Callers use this method to
+    /// evaluate declarative policies without requiring a custom Rust closure per fact type.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>>;
 }

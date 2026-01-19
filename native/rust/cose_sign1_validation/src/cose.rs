@@ -21,12 +21,19 @@ pub enum CoseDecodeError {
 }
 
 impl CoseDecodeError {
+    /// Helper to normalize CBOR/COSE decoding failures into `CoseDecodeError::Cbor`.
+    ///
+    /// This is used to avoid leaking the underlying error type across this crate boundary.
     fn cbor<E: std::fmt::Display>(e: E) -> Self {
         Self::Cbor(e.to_string())
     }
 }
 
 impl<'a> CoseSign1<'a> {
+    /// Decode a COSE_Sign1 message from CBOR.
+    ///
+    /// Accepts (and strips) an optional leading CBOR tag 18, which some encoders wrap around
+    /// the COSE_Sign1 structure.
     pub fn from_cbor(cbor: &'a [u8]) -> Result<Self, CoseDecodeError> {
         // Some encoders wrap COSE_Sign1 in the standard CBOR tag 18.
         // Accept (and strip) an initial tag(18) if present.
@@ -76,6 +83,12 @@ impl<'a> CoseSign1<'a> {
     }
 }
 
+/// If `input` begins with CBOR tag 18, returns a slice starting after the tag.
+///
+/// Returns:
+/// - `Ok(Some(rest))` if tag 18 is present and decoded successfully.
+/// - `Ok(None)` if no CBOR tag is present (caller should treat `input` as the message).
+/// - `Err(...)` if a tag is present but is not tag 18, or the tag encoding is invalid.
 fn decode_cose_sign1_tag_prefix(input: &[u8]) -> Result<Option<&[u8]>, String> {
     let first = match input.first() {
         Some(b) => *b,
@@ -100,6 +113,9 @@ fn decode_cose_sign1_tag_prefix(input: &[u8]) -> Result<Option<&[u8]>, String> {
     Ok(input.get(consumed..))
 }
 
+/// Decode the unsigned integer value for a CBOR additional-information (AI) field.
+///
+/// The returned tuple is `(value, bytes_consumed_from_rest)`.
 fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
     match ai {
         0..=23 => Some((ai as u64, 0)),

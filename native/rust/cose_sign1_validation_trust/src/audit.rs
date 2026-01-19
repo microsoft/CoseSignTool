@@ -23,6 +23,7 @@ pub struct TrustDecisionAudit {
 }
 
 impl TrustDecisionAudit {
+    /// Return the collected audit events in evaluation order.
     pub fn events(&self) -> &[AuditEvent] {
         &self.events
     }
@@ -34,10 +35,12 @@ pub struct TrustDecisionAuditBuilder {
 }
 
 impl TrustDecisionAuditBuilder {
+    /// Record a new audit event.
     pub fn push(&mut self, event: AuditEvent) {
         self.audit.events.push(event);
     }
 
+    /// Finish building and return an immutable audit record.
     pub fn build(self) -> TrustDecisionAudit {
         self.audit
     }

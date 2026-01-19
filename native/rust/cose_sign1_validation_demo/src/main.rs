@@ -22,16 +22,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tinycbor::{Encode, Encoder};
 use x509_parser::parse_x509_certificate;
 
+/// Returns a static usage/help string for the CLI.
 fn usage() -> &'static str {
     "cose_sign1_validation_demo\n\nUSAGE:\n  cose_sign1_validation_demo selftest\n  cose_sign1_validation_demo validate --cose <path> [--detached <path>] [--allow-thumbprint <sha1-hex>]\n\nCOMMANDS:\n  selftest\n    Generates an ephemeral ES256 key + self-signed cert, signs a COSE_Sign1 with\n    protected x5chain, and validates it using the real certificates trust pack\n    + a trust policy override that pins by signing cert thumbprint.\n\n  validate\n    Validates an existing COSE_Sign1 file. If --allow-thumbprint is provided,\n    trust is pinned to that signing certificate thumbprint.\n\nNOTES:\n  This demo currently treats embedded x5chain as trusted (deterministic, OS-agnostic).\n"
 }
 
+/// Detached payload provider backed by a file on disk.
 struct FileDetachedPayloadProvider {
     path: PathBuf,
     len: u64,
 }
 
 impl FileDetachedPayloadProvider {
+    /// Create a provider for `path`, precomputing a length hint from file metadata.
     fn new(path: PathBuf) -> anyhow::Result<Self> {
         let meta = std::fs::metadata(&path)
             .with_context(|| format!("failed to stat detached payload: {}", path.display()))?;
@@ -43,17 +46,20 @@ impl FileDetachedPayloadProvider {
 }
 
 impl DetachedPayloadProvider for FileDetachedPayloadProvider {
+    /// Open the file as a detached-payload reader.
     fn open(&self) -> Result<Box<dyn Read + Send>, String> {
         File::open(&self.path)
             .map(|f| Box::new(f) as Box<dyn Read + Send>)
             .map_err(|e| format!("failed_to_open_detached_payload: {e}"))
     }
 
+    /// Return the file length as a `len_hint` to enable streaming verification.
     fn len_hint(&self) -> Option<u64> {
         Some(self.len)
     }
 }
 
+/// Read the entire file at `path` into memory.
 fn read_all(path: &Path) -> anyhow::Result<Vec<u8>> {
     let mut f = File::open(path).with_context(|| format!("failed to open: {}", path.display()))?;
     let mut buf = Vec::new();
@@ -62,6 +68,7 @@ fn read_all(path: &Path) -> anyhow::Result<Vec<u8>> {
     Ok(buf)
 }
 
+/// Current Unix timestamp in seconds.
 fn now_unix_seconds() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -69,12 +76,14 @@ fn now_unix_seconds() -> i64 {
         .as_secs() as i64
 }
 
+/// Compute uppercase SHA-1 hex for a byte slice.
 fn sha1_hex_upper(bytes: &[u8]) -> String {
     let mut sha1 = sha1::Sha1::new();
     sha1.update(bytes);
     hex::encode_upper(sha1.finalize())
 }
 
+/// Convert a PKCS#8 private key (DER) into a PEM string.
 fn pkcs8_private_key_der_to_pem(pkcs8_der: &[u8]) -> String {
     let b64 = base64::engine::general_purpose::STANDARD.encode(pkcs8_der);
     let mut pem = String::from("-----BEGIN PRIVATE KEY-----\n");
@@ -86,6 +95,7 @@ fn pkcs8_private_key_der_to_pem(pkcs8_der: &[u8]) -> String {
     pem
 }
 
+/// Encode a minimal protected header map containing `alg` and an `x5chain` leaf cert.
 fn encode_protected_header_with_alg_and_x5chain(alg: i64, leaf_der: &[u8]) -> Vec<u8> {
     let mut hdr_buf = vec![0u8; 4096];
     let hdr_len = hdr_buf.len();
@@ -103,11 +113,16 @@ fn encode_protected_header_with_alg_and_x5chain(alg: i64, leaf_der: &[u8]) -> Ve
     hdr_buf
 }
 
+/// Encode the COSE `Sig_structure` used by the validator.
+///
+/// This mirrors the validator's streaming/buffered encoding by writing the prefix, then a CBOR
+/// `bstr` length header, then the raw payload bytes.
 fn encode_sig_structure(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8> {
     // Match the validator's exact Sig_structure encoding:
     // - encode first 3 items with tinycbor
     // - append the CBOR bstr header for payload length
     // - append raw payload bytes
+    /// Encode a CBOR major type 2 (byte string) length header.
     fn encode_cbor_bstr_len(len: u64) -> Vec<u8> {
         // Major type 2 (byte string).
         if len < 24 {
@@ -167,6 +182,7 @@ fn encode_sig_structure(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8
     buf
 }
 
+/// Extract the uncompressed SEC1 public key bytes (0x04 || X || Y) from a DER-encoded certificate.
 fn extract_uncompressed_public_key_bytes(cert_der: &[u8]) -> anyhow::Result<Vec<u8>> {
     let (_rem, cert) =
         parse_x509_certificate(cert_der).map_err(|e| anyhow!(format!("x509_parse_failed: {e}")))?;
@@ -188,6 +204,7 @@ fn extract_uncompressed_public_key_bytes(cert_der: &[u8]) -> anyhow::Result<Vec<
     Ok(bytes)
 }
 
+/// Build a trust plan that requires a trusted chain and pins trust to a signing cert thumbprint.
 fn build_thumbprint_pinned_trust_plan(
     pack: Arc<X509CertificateTrustPack>,
     allowed_thumbprint_sha1_hex: &str,
@@ -206,6 +223,7 @@ fn build_thumbprint_pinned_trust_plan(
         .expect("trust plan should compile")
 }
 
+/// Self-test command: generate an ephemeral key+cert, sign a COSE_Sign1, then validate it.
 fn run_selftest() -> anyhow::Result<()> {
     // Generate an ephemeral ES256 keypair using ring, then build a self-signed cert from it.
     // This keeps the cert public key guaranteed to match the signing key.
@@ -300,6 +318,7 @@ fn run_selftest() -> anyhow::Result<()> {
     }
 }
 
+/// CLI entrypoint.
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
 

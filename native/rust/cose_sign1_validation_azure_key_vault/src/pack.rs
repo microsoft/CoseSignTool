@@ -23,6 +23,11 @@ pub struct AzureKeyVaultTrustOptions {
 }
 
 impl Default for AzureKeyVaultTrustOptions {
+    /// Default AKV policy options.
+    ///
+    /// This is intended to be secure-by-default:
+    /// - only allow Microsoft-owned Key Vault namespaces by default
+    /// - require that the `kid` looks like an AKV key identifier
     fn default() -> Self {
         // Secure-by-default: only allow Microsoft-owned Key Vault namespaces.
         Self {
@@ -42,6 +47,11 @@ pub struct AzureKeyVaultTrustPack {
 }
 
 impl AzureKeyVaultTrustPack {
+    /// Create an AKV trust pack with precompiled allow-list patterns.
+    ///
+    /// Patterns support:
+    /// - wildcard `*` and `?` matching
+    /// - `regex:` prefix for raw regular expressions
     pub fn new(options: AzureKeyVaultTrustOptions) -> Self {
         let mut compiled = Vec::new();
 
@@ -82,6 +92,9 @@ impl AzureKeyVaultTrustPack {
         }
     }
 
+    /// Try to read the COSE `kid` header as UTF-8 text.
+    ///
+    /// Prefers protected headers but will also check unprotected headers if present.
     fn try_get_kid_utf8(ctx: &TrustFactContext<'_>) -> Option<String> {
         let msg = ctx.cose_sign1_message()?;
 
@@ -108,6 +121,12 @@ impl AzureKeyVaultTrustPack {
         None
     }
 
+    /// Heuristic check for an AKV key identifier URL.
+    ///
+    /// This validates:
+    /// - URL parses successfully
+    /// - host ends with `.vault.azure.net` or `.managedhsm.azure.net`
+    /// - path contains `/keys/`
     fn looks_like_azure_key_vault_key_id(kid: &str) -> bool {
         if kid.trim().is_empty() {
             return false;
@@ -124,14 +143,19 @@ impl AzureKeyVaultTrustPack {
 }
 
 impl CoseSign1TrustPack for AzureKeyVaultTrustPack {
+    /// Short display name for this trust pack.
     fn name(&self) -> &'static str {
         "AzureKeyVaultTrustPack"
     }
 
+    /// Return a `TrustFactProducer` instance for this pack.
     fn fact_producer(&self) -> std::sync::Arc<dyn TrustFactProducer> {
         std::sync::Arc::new(self.clone())
     }
 
+    /// Return the default AKV trust plan.
+    ///
+    /// This plan requires that the message `kid` looks like an AKV key id and is allowlisted.
     fn default_trust_plan(&self) -> Option<CompiledTrustPlan> {
         use crate::fluent_ext::{
             AzureKeyVaultKidAllowedWhereExt, AzureKeyVaultKidDetectedWhereExt,
@@ -154,10 +178,14 @@ impl CoseSign1TrustPack for AzureKeyVaultTrustPack {
 }
 
 impl TrustFactProducer for AzureKeyVaultTrustPack {
+    /// Stable producer name used for diagnostics/audit.
     fn name(&self) -> &'static str {
         "cose_sign1_validation_azure_key_vault::AzureKeyVaultTrustPack"
     }
 
+    /// Produce AKV-related facts.
+    ///
+    /// This pack only produces facts for the `Message` subject.
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         if ctx.subject().kind != "Message" {
             ctx.mark_produced(FactKey::of::<AzureKeyVaultKidDetectedFact>());
@@ -194,9 +222,7 @@ impl TrustFactProducer for AzureKeyVaultTrustPack {
             let matched = self
                 .compiled_patterns
                 .as_ref()
-                .unwrap()
-                .iter()
-                .any(|re| re.is_match(&kid));
+                .is_some_and(|patterns| patterns.iter().any(|re| re.is_match(&kid)));
             (
                 matched,
                 Some(if matched {
@@ -217,6 +243,7 @@ impl TrustFactProducer for AzureKeyVaultTrustPack {
         Ok(())
     }
 
+    /// Return the set of fact keys this producer can emit.
     fn provides(&self) -> &'static [FactKey] {
         static PROVIDED: Lazy<[FactKey; 2]> = Lazy::new(|| {
             [

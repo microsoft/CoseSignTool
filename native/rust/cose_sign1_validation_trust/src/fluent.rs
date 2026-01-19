@@ -1,6 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Fluent trust plan DSL.
+//!
+//! This module provides a closure-friendly way to assemble trust plans using scoped rules
+//! over a [`TrustSubject`](crate::subject::TrustSubject).
+//!
+//! Design notes:
+//! - Plans are built as disjunctive normal form (DNF): OR-of-ANDs.
+//! - Empty `any_of` denies by default, so an empty plan is “deny all”.
+//! - Scopes let packs evaluate the same predicate across derived subjects (e.g. counter-signatures).
+
 use crate::error::TrustError;
 use crate::facts::FactKey;
 use crate::facts::TrustFactEngine;
@@ -24,21 +34,24 @@ enum NextOp {
 }
 
 impl Default for NextOp {
+    /// Default operator used when composing rules.
     fn default() -> Self {
         Self::And
     }
 }
 
+/// Compile a DNF (OR-of-ANDs) rule representation into a single rule.
+///
+/// Each inner vector represents an AND-conjunction; the outer vector is OR-ed together.
 fn compile_dnf(name: &'static str, dnf: Vec<Vec<TrustRuleRef>>) -> TrustRuleRef {
     let mut and_terms: Vec<TrustRuleRef> = Vec::new();
     for conj in dnf.into_iter() {
         and_terms.push(crate::rules::all_of(name, conj));
     }
 
-    if and_terms.len() == 1 {
-        and_terms.pop().expect("one term")
-    } else {
-        any_of(name, and_terms)
+    match and_terms.len() {
+        1 => and_terms.into_iter().next().unwrap_or_else(|| any_of(name, Vec::new())),
+        _ => any_of(name, and_terms),
     }
 }
 
@@ -47,12 +60,16 @@ fn compile_dnf(name: &'static str, dnf: Vec<Vec<TrustRuleRef>>) -> TrustRuleRef 
 /// This enables scoped rules like "for each counter signature subject" without the trust crate
 /// needing to know about counter-signature types.
 pub trait HasTrustSubject: Send + Sync {
+    /// Returns the derived subject represented by this fact.
     fn trust_subject(&self) -> &TrustSubject;
 }
 
 /// Provides derived subjects for a scope.
 pub trait ScopeProvider: Clone + Send + Sync + 'static {
+    /// A stable name for the scope (used for diagnostics and audit logs).
     fn scope_name(&self) -> &'static str;
+
+    /// Enumerate all subjects in this scope for a given parent subject.
     fn subjects(
         &self,
         engine: &TrustFactEngine,
@@ -64,10 +81,12 @@ pub trait ScopeProvider: Clone + Send + Sync + 'static {
 pub struct MessageScope;
 
 impl ScopeProvider for MessageScope {
+    /// Scope name used in diagnostics.
     fn scope_name(&self) -> &'static str {
         "Message"
     }
 
+    /// The message scope contains exactly the current subject.
     fn subjects(
         &self,
         _engine: &TrustFactEngine,
@@ -81,10 +100,12 @@ impl ScopeProvider for MessageScope {
 pub struct PrimarySigningKeyScope;
 
 impl ScopeProvider for PrimarySigningKeyScope {
+    /// Scope name used in diagnostics.
     fn scope_name(&self) -> &'static str {
         "PrimarySigningKey"
     }
 
+    /// The primary signing key scope contains the derived key subject for the message.
     fn subjects(
         &self,
         _engine: &TrustFactEngine,
@@ -99,6 +120,7 @@ pub struct SubjectsFromFactsScope<TFact> {
 }
 
 impl<TFact> Clone for SubjectsFromFactsScope<TFact> {
+    /// Copy-clone for this zero-sized scope provider.
     fn clone(&self) -> Self {
         *self
     }
@@ -107,6 +129,7 @@ impl<TFact> Clone for SubjectsFromFactsScope<TFact> {
 impl<TFact> Copy for SubjectsFromFactsScope<TFact> {}
 
 impl<TFact> SubjectsFromFactsScope<TFact> {
+    /// Creates a scope provider that derives subjects from facts on the current subject.
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,
@@ -124,10 +147,12 @@ impl<TFact> ScopeProvider for SubjectsFromFactsScope<TFact>
 where
     TFact: Any + Send + Sync + HasTrustSubject + 'static,
 {
+    /// Scope name used in diagnostics.
     fn scope_name(&self) -> &'static str {
         std::any::type_name::<TFact>()
     }
 
+    /// Enumerates derived subjects by reading `TFact` facts and extracting each fact's subject.
     fn subjects(
         &self,
         engine: &TrustFactEngine,
@@ -155,10 +180,12 @@ impl<S> crate::rules::TrustRule for ScopedAnyOfSubjects<S>
 where
     S: ScopeProvider,
 {
+    /// Rule name used for diagnostics.
     fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Evaluates the inner rule against each derived subject and ORs the results.
     fn evaluate(
         &self,
         engine: &TrustFactEngine,
@@ -205,6 +232,7 @@ impl<S> ScopeRules<S>
 where
     S: ScopeProvider,
 {
+    /// Create a new scoped rule builder.
     fn new(scope: S) -> Self {
         Self {
             scope,
@@ -223,11 +251,13 @@ where
         self
     }
 
+    /// Set the next composition operator to AND.
     pub fn and(mut self) -> Self {
         self.next_op = NextOp::And;
         self
     }
 
+    /// Set the next composition operator to OR.
     pub fn or(mut self) -> Self {
         self.next_op = NextOp::Or;
         self
@@ -241,6 +271,7 @@ where
         self
     }
 
+    /// Add a rule to the current DNF expression using the current next-op.
     fn push_rule(&mut self, rule: TrustRuleRef) {
         match self.next_op {
             NextOp::And => {
@@ -257,6 +288,7 @@ where
         }
     }
 
+    /// Require that at least one fact of type `TFact` exists and matches the selector.
     pub fn require<TFact>(mut self, f: impl FnOnce(Where<TFact>) -> Where<TFact>) -> Self
     where
         TFact: crate::fact_properties::FactProperties + Send + Sync + 'static,
@@ -319,6 +351,7 @@ where
         self
     }
 
+    /// Convert this scoped builder into a single scoped rule plus required facts.
     fn into_scoped_parts(self) -> (TrustRuleRef, Vec<FactKey>) {
         let inner_rule = compile_dnf("scope", self.dnf);
         (
@@ -334,6 +367,7 @@ where
 }
 
 /// Trust plan builder supporting rich AND/OR composition across optional scopes.
+#[must_use]
 #[derive(Clone, Default)]
 pub struct TrustPlanBuilder {
     dnf: Vec<Vec<TrustRuleRef>>,
@@ -342,6 +376,7 @@ pub struct TrustPlanBuilder {
 }
 
 impl TrustPlanBuilder {
+    /// Create a new empty plan builder.
     pub fn new() -> Self {
         Self {
             dnf: vec![Vec::new()],
@@ -350,16 +385,19 @@ impl TrustPlanBuilder {
         }
     }
 
+    /// Set the next composition operator to AND.
     pub fn and(mut self) -> Self {
         self.next_op = NextOp::And;
         self
     }
 
+    /// Set the next composition operator to OR.
     pub fn or(mut self) -> Self {
         self.next_op = NextOp::Or;
         self
     }
 
+    /// Add a rule to the current DNF expression using the current next-op.
     fn push_rule(&mut self, rule: TrustRuleRef) {
         match self.next_op {
             NextOp::And => {
@@ -376,6 +414,7 @@ impl TrustPlanBuilder {
         }
     }
 
+    /// AND a nested group built by `f` into the current plan.
     pub fn and_group(mut self, f: impl FnOnce(TrustPlanBuilder) -> TrustPlanBuilder) -> Self {
         let (group_rule, group_required) = f(TrustPlanBuilder::new()).into_compiled_parts();
         self.push_rule(group_rule);
@@ -383,6 +422,7 @@ impl TrustPlanBuilder {
         self
     }
 
+    /// Add rules scoped to the message subject.
     pub fn for_message(
         mut self,
         f: impl FnOnce(ScopeRules<MessageScope>) -> ScopeRules<MessageScope>,
@@ -393,6 +433,7 @@ impl TrustPlanBuilder {
         self
     }
 
+    /// Add rules scoped to the primary signing key subject derived from the message.
     pub fn for_primary_signing_key(
         mut self,
         f: impl FnOnce(ScopeRules<PrimarySigningKeyScope>) -> ScopeRules<PrimarySigningKeyScope>,
@@ -426,6 +467,7 @@ impl TrustPlanBuilder {
         self
     }
 
+    /// Convert the builder into a single rule reference plus required facts.
     fn into_compiled_parts(self) -> (TrustRuleRef, Vec<FactKey>) {
         let TrustPlanBuilder {
             dnf,
@@ -435,6 +477,7 @@ impl TrustPlanBuilder {
         (compile_dnf("plan", dnf), required_facts)
     }
 
+    /// Compile the builder into an immutable, engine-ready plan.
     pub fn compile(self) -> CompiledTrustPlan {
         let (rule, required_facts) = self.into_compiled_parts();
         CompiledTrustPlan::new(required_facts, Vec::new(), vec![rule], Vec::new())
@@ -471,6 +514,7 @@ where
         self
     }
 
+    /// Unsigned size field must equal `expected`.
     pub fn usize_eq(mut self, field: Field<TFact, usize>, expected: usize) -> Self {
         self.selector = self.selector.where_pred(
             field.name(),
@@ -479,6 +523,7 @@ where
         self
     }
 
+    /// `u32` field must equal `expected`.
     pub fn u32_eq(mut self, field: Field<TFact, u32>, expected: u32) -> Self {
         self.selector = self.selector.where_pred(
             field.name(),
@@ -487,6 +532,7 @@ where
         self
     }
 
+    /// Numeric field must be greater-than-or-equal to `min`.
     pub fn i64_ge(mut self, field: Field<TFact, i64>, min: i64) -> Self {
         self.selector = self
             .selector
@@ -494,6 +540,7 @@ where
         self
     }
 
+    /// Numeric field must be less-than-or-equal to `max`.
     pub fn i64_le(mut self, field: Field<TFact, i64>, max: i64) -> Self {
         self.selector = self
             .selector
@@ -501,6 +548,7 @@ where
         self
     }
 
+    /// String field must equal `expected`.
     pub fn str_eq(mut self, field: Field<TFact, String>, expected: impl Into<String>) -> Self {
         self.selector = self.selector.where_pred(
             field.name(),
@@ -511,6 +559,8 @@ where
         self
     }
 
+
+    /// String field must be non-empty after trimming.
     pub fn str_non_empty(mut self, field: Field<TFact, String>) -> Self {
         self.selector = self
             .selector
@@ -518,6 +568,7 @@ where
         self
     }
 
+    /// String field must contain `needle`.
     pub fn str_contains(mut self, field: Field<TFact, String>, needle: impl Into<String>) -> Self {
         self.selector = self
             .selector
@@ -525,6 +576,7 @@ where
         self
     }
 
+    /// String field must match a regular expression pattern.
     pub fn str_matches_regex(
         mut self,
         field: Field<TFact, String>,

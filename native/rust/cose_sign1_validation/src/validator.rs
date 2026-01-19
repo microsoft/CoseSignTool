@@ -1,6 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! Core validator pipeline implementation.
+//!
+//! The validator runs a staged pipeline:
+//! 1) resolve signing key material from the COSE message
+//! 2) evaluate trust policy over the message (and derived subjects)
+//! 3) verify the cryptographic signature (embedded or detached payload)
+//! 4) run any post-signature validators contributed by trust packs
+//!
+//! Most callers should use `cose_sign1_validation::fluent` to build and run a validator.
+
 use crate::cose::CoseSign1;
 use crate::trust_packs::CoseSign1TrustPack;
 use crate::trust_plan_builder::CoseSign1CompiledTrustPlan;
@@ -19,47 +29,73 @@ use tinycbor::{Encode, Encoder};
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+/// Outcome classification for a single validation stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationResultKind {
+    /// Stage ran and succeeded.
     Success,
+    /// Stage ran and failed.
     Failure,
+    /// Stage did not run because it was not applicable (usually due to a prior stage).
     NotApplicable,
 }
 
 impl Default for ValidationResultKind {
+    /// Default stage outcome.
+    ///
+    /// Defaults to [`ValidationResultKind::NotApplicable`] to mirror the pipeline behavior where
+    /// later stages may not run depending on earlier outcomes.
     fn default() -> Self {
         Self::NotApplicable
     }
 }
 
+/// A single validation failure, optionally annotated with an error code and details.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValidationFailure {
+    /// Human-readable failure message.
     pub message: String,
+    /// Optional stable error code for programmatic handling.
     pub error_code: Option<String>,
+    /// Optional property/field name associated with the failure.
     pub property_name: Option<String>,
+    /// Optional attempted value (as string) associated with the failure.
     pub attempted_value: Option<String>,
+    /// Optional exception/debug details.
     pub exception: Option<String>,
 }
 
+/// Result for a single validation stage.
+///
+/// Stages may attach structured `metadata` to aid troubleshooting and auditing.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValidationResult {
+    /// Stage outcome.
     pub kind: ValidationResultKind,
+    /// Friendly stage name (e.g. "Signature").
     pub validator_name: String,
+    /// Failures when `kind == Failure`.
     pub failures: Vec<ValidationFailure>,
+    /// Arbitrary stage metadata.
     pub metadata: BTreeMap<String, String>,
 }
 
 impl ValidationResult {
     pub const METADATA_REASON_KEY: &'static str = "Reason";
 
+    /// Returns true when this stage succeeded.
     pub fn is_valid(&self) -> bool {
         matches!(self.kind, ValidationResultKind::Success)
     }
 
+    /// Returns true when this stage failed.
     pub fn is_failure(&self) -> bool {
         matches!(self.kind, ValidationResultKind::Failure)
     }
 
+    /// Create a successful stage result.
+    ///
+    /// If `metadata` is `None`, the metadata map is empty.
     pub fn success(
         validator_name: impl Into<String>,
         metadata: Option<BTreeMap<String, String>>,
@@ -72,6 +108,9 @@ impl ValidationResult {
         }
     }
 
+    /// Create a not-applicable stage result.
+    ///
+    /// If `reason` is `Some` and non-empty, it is stored under [`Self::METADATA_REASON_KEY`].
     pub fn not_applicable(validator_name: impl Into<String>, reason: Option<&str>) -> Self {
         let mut metadata = BTreeMap::new();
         if let Some(r) = reason {
@@ -87,6 +126,7 @@ impl ValidationResult {
         }
     }
 
+    /// Create a failed stage result.
     pub fn failure(validator_name: impl Into<String>, failures: Vec<ValidationFailure>) -> Self {
         Self {
             kind: ValidationResultKind::Failure,
@@ -96,6 +136,7 @@ impl ValidationResult {
         }
     }
 
+    /// Convenience helper for a single failure message.
     pub fn failure_message(
         validator_name: impl Into<String>,
         message: impl Into<String>,
@@ -112,6 +153,10 @@ impl ValidationResult {
     }
 }
 
+/// Full validator output, including each stage result and an overall roll-up.
+///
+/// The `overall` result mirrors the final outcome of the pipeline, and may include merged
+/// metadata from the component stages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoseSign1ValidationResult {
     pub resolution: ValidationResult,
@@ -121,12 +166,21 @@ pub struct CoseSign1ValidationResult {
     pub overall: ValidationResult,
 }
 
+/// Options controlling how COSE_Sign1 validation is performed.
+///
+/// Defaults are chosen to be safe; most callers should start with the fluent API and tweak only
+/// what they need (e.g. detached payload or trust evaluation options).
 #[derive(Debug, Clone, Default)]
 pub struct CoseSign1ValidationOptions {
+    /// Detached payload (when the COSE message has a `nil` payload).
     pub detached_payload: Option<DetachedPayload>,
+    /// Optional external AAD used in `Sig_structure`.
     pub associated_data: Option<Arc<[u8]>>,
+    /// Which header location to consult for certificate-related headers.
     pub certificate_header_location: CoseHeaderLocation,
+    /// If true, skip any post-signature validators contributed by trust packs.
     pub skip_post_signature_validation: bool,
+    /// Trust evaluation controls (timeouts, bypass for experiments, etc.).
     pub trust_evaluation_options: TrustEvaluationOptions,
 }
 
@@ -145,13 +199,18 @@ pub trait DetachedPayloadProvider: Send + Sync {
 }
 
 /// Detached payload input.
+///
+/// When validating a message with an embedded payload, this is ignored.
 #[derive(Clone)]
 pub enum DetachedPayload {
+    /// Detached bytes already in memory.
     Bytes(Arc<[u8]>),
+    /// Detached bytes provided by a reader factory.
     Provider(Arc<dyn DetachedPayloadProvider>),
 }
 
 impl std::fmt::Debug for DetachedPayload {
+    /// Print a compact debug representation without dumping payload contents.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DetachedPayload::Bytes(b) => f
@@ -164,12 +223,15 @@ impl std::fmt::Debug for DetachedPayload {
 }
 
 impl DetachedPayload {
+    /// Convenience constructor for the common bytes case.
     pub fn bytes(bytes: Arc<[u8]>) -> Self {
         Self::Bytes(bytes)
     }
 }
 
 /// Helper provider that opens a new reader via a closure.
+///
+/// Useful when the detached payload can be reopened cheaply (e.g. file path, blob fetch).
 pub struct DetachedPayloadFnProvider<F>
 where
     F: Fn() -> Result<Box<dyn Read + Send>, String> + Send + Sync + 'static,
@@ -182,6 +244,7 @@ impl<F> DetachedPayloadFnProvider<F>
 where
     F: Fn() -> Result<Box<dyn Read + Send>, String> + Send + Sync + 'static,
 {
+    /// Creates a provider from an `open()`-like closure.
     pub fn new(opener: F) -> Self {
         Self {
             opener,
@@ -189,6 +252,7 @@ where
         }
     }
 
+    /// Provides a length hint for optimization (e.g. choosing streaming verification).
     pub fn with_len_hint(mut self, len_hint: u64) -> Self {
         self.len_hint = Some(len_hint);
         self
@@ -199,28 +263,42 @@ impl<F> DetachedPayloadProvider for DetachedPayloadFnProvider<F>
 where
     F: Fn() -> Result<Box<dyn Read + Send>, String> + Send + Sync + 'static,
 {
+    /// Open a fresh reader by invoking the configured closure.
     fn open(&self) -> Result<Box<dyn Read + Send>, String> {
         (self.opener)()
     }
 
+    /// Returns the configured length hint, if any.
     fn len_hint(&self) -> Option<u64> {
         self.len_hint
     }
 }
 
+/// Result of attempting to resolve a signing key from a message.
+///
+/// Resolution is separate from trust: a key may be resolved but later rejected by the trust plan.
 #[derive(Clone, Default)]
 pub struct SigningKeyResolutionResult {
+    /// True when the resolver produced a usable signing key.
     pub is_success: bool,
+    /// The selected signing key (if successful).
     pub signing_key: Option<Arc<dyn SigningKey>>,
+    /// Optional additional candidate keys (for diagnostics / future selection).
     pub candidate_keys: Vec<Arc<dyn SigningKey>>,
+    /// Optional key identifier as raw bytes.
     pub key_id: Option<Arc<[u8]>>,
+    /// Optional certificate thumbprint / key thumbprint.
     pub thumbprint: Option<Arc<[u8]>>,
+    /// Human-readable diagnostics from resolution attempts.
     pub diagnostics: Vec<String>,
+    /// Optional stable error code.
     pub error_code: Option<String>,
+    /// Optional human-readable error message.
     pub error_message: Option<String>,
 }
 
 impl SigningKeyResolutionResult {
+    /// Successful resolution with a concrete signing key.
     pub fn success(signing_key: Arc<dyn SigningKey>) -> Self {
         Self {
             is_success: true,
@@ -229,6 +307,7 @@ impl SigningKeyResolutionResult {
         }
     }
 
+    /// Failed resolution with optional diagnostic fields.
     pub fn failure(error_code: Option<String>, error_message: Option<String>) -> Self {
         Self {
             is_success: false,
@@ -239,13 +318,20 @@ impl SigningKeyResolutionResult {
     }
 }
 
+/// Resolves a signing key from a COSE_Sign1 message.
+///
+/// Implementations are typically contributed by trust packs (e.g. X.509, transparent signing).
 pub trait SigningKeyResolver: Send + Sync {
+    /// Synchronously resolve a signing key.
     fn resolve(
         &self,
         message: &CoseSign1<'_>,
         options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult;
 
+    /// Asynchronously resolve a signing key.
+    ///
+    /// Default implementation delegates to the synchronous path.
     fn resolve_async<'a>(
         &'a self,
         message: &'a CoseSign1<'a>,
@@ -255,7 +341,12 @@ pub trait SigningKeyResolver: Send + Sync {
     }
 }
 
+/// A cryptographic verification key capable of verifying COSE signatures.
+///
+/// The validator calls `verify`/`verify_reader` depending on whether the payload is embedded or
+/// detached and large.
 pub trait SigningKey: Send + Sync {
+    /// Friendly key type string used for metadata (e.g. "X509-ES256").
     fn key_type(&self) -> &'static str;
 
     /// Verify the COSE signature for the given `Sig_structure` bytes.
@@ -279,8 +370,12 @@ pub trait SigningKey: Send + Sync {
     }
 }
 
-/// Mirrors V2 `ICounterSignature` at the abstraction layer.
+/// A resolved counter-signature associated with a COSE_Sign1 message.
+///
+/// Counter-signatures can be used as additional integrity/trust signals (e.g. to attest to
+/// envelope integrity when the primary signing key cannot be resolved).
 pub trait CounterSignature: Send + Sync {
+    /// Raw encoded counter-signature bytes.
     fn raw_counter_signature_bytes(&self) -> Arc<[u8]>;
 
     /// Whether the counter signature was found in the protected header.
@@ -291,16 +386,23 @@ pub trait CounterSignature: Send + Sync {
     fn signing_key(&self) -> Arc<dyn SigningKey>;
 }
 
+/// Result of attempting to discover and resolve counter-signatures.
 #[derive(Clone, Default)]
 pub struct CounterSignatureResolutionResult {
+    /// True when discovery succeeded.
     pub is_success: bool,
+    /// Resolved counter-signatures.
     pub counter_signatures: Vec<Arc<dyn CounterSignature>>,
+    /// Human-readable diagnostics.
     pub diagnostics: Vec<String>,
+    /// Optional stable error code.
     pub error_code: Option<String>,
+    /// Optional human-readable error message.
     pub error_message: Option<String>,
 }
 
 impl CounterSignatureResolutionResult {
+    /// Successful counter-signature discovery.
     pub fn success(counter_signatures: Vec<Arc<dyn CounterSignature>>) -> Self {
         Self {
             is_success: true,
@@ -309,6 +411,7 @@ impl CounterSignatureResolutionResult {
         }
     }
 
+    /// Failed counter-signature discovery.
     pub fn failure(error_code: Option<String>, error_message: Option<String>) -> Self {
         Self {
             is_success: false,
@@ -319,15 +422,22 @@ impl CounterSignatureResolutionResult {
     }
 }
 
-/// Mirrors V2 `ICounterSignatureResolver` semantics: resolver-driven discovery.
+/// Discovers counter-signatures from a parsed COSE message.
+///
+/// Implementations are typically contributed by trust packs.
 pub trait CounterSignatureResolver: Send + Sync {
+    /// Stable resolver name.
     fn name(&self) -> &'static str;
 
+    /// Discover counter-signatures from the message.
     fn resolve(
         &self,
         message: &cose_sign1_validation_trust::CoseSign1ParsedMessage,
     ) -> CounterSignatureResolutionResult;
 
+    /// Asynchronously discover counter-signatures from the message.
+    ///
+    /// Default implementation delegates to the synchronous path.
     fn resolve_async<'a>(
         &'a self,
         message: &'a cose_sign1_validation_trust::CoseSign1ParsedMessage,
@@ -336,9 +446,17 @@ pub trait CounterSignatureResolver: Send + Sync {
     }
 }
 
+/// Runs additional checks after a signature has been verified (or bypassed).
+///
+/// Post-signature validators may enforce policies that require a verified signature, trust
+/// decisions, or signature metadata.
 pub trait PostSignatureValidator: Send + Sync {
+    /// Validate synchronously.
     fn validate(&self, context: &PostSignatureValidationContext<'_>) -> ValidationResult;
 
+    /// Validate asynchronously.
+    ///
+    /// Default implementation delegates to the synchronous path.
     fn validate_async<'a>(
         &'a self,
         context: &'a PostSignatureValidationContext<'a>,
@@ -347,14 +465,23 @@ pub trait PostSignatureValidator: Send + Sync {
     }
 }
 
+/// Inputs to a post-signature validation step.
 pub struct PostSignatureValidationContext<'a> {
+    /// The decoded COSE_Sign1 message.
     pub message: &'a CoseSign1<'a>,
+    /// Final trust decision from the trust plan.
     pub trust_decision: &'a TrustDecision,
+    /// Metadata produced by the signature stage (e.g. selected validator, bypass details).
     pub signature_metadata: &'a BTreeMap<String, String>,
+    /// Validator options.
     pub options: &'a CoseSign1ValidationOptions,
+    /// Resolved signing key, when available.
     pub signing_key: Option<&'a Arc<dyn SigningKey>>,
 }
 
+/// Top-level validation errors (as opposed to per-stage failures).
+///
+/// Stage failures are represented by [`ValidationResult`] within [`CoseSign1ValidationResult`].
 #[derive(Debug, thiserror::Error)]
 pub enum CoseSign1ValidationError {
     #[error("COSE decode failed: {0}")]
@@ -365,6 +492,8 @@ pub enum CoseSign1ValidationError {
 }
 
 /// Staged validator matching V2 ordering/semantics.
+///
+/// This type is intentionally explicit about its stages and outputs to aid diagnostics.
 pub struct CoseSign1Validator {
     signing_key_resolvers: Vec<Arc<dyn SigningKeyResolver>>,
     post_signature_validators: Vec<Arc<dyn PostSignatureValidator>>,
@@ -384,12 +513,14 @@ pub enum CoseSign1ValidatorInit {
 }
 
 impl From<CoseSign1CompiledTrustPlan> for CoseSign1ValidatorInit {
+    /// Wrap a bundled compiled plan as a validator init input.
     fn from(value: CoseSign1CompiledTrustPlan) -> Self {
         Self::CompiledPlan(value)
     }
 }
 
 impl From<Vec<Arc<dyn CoseSign1TrustPack>>> for CoseSign1ValidatorInit {
+    /// Wrap trust packs as a validator init input.
     fn from(value: Vec<Arc<dyn CoseSign1TrustPack>>) -> Self {
         Self::TrustPacks(value)
     }
@@ -447,6 +578,10 @@ impl CoseSign1Validator {
 
     pub const METADATA_KEY_SELECTED_VALIDATOR: &'static str = "SelectedValidator";
 
+    /// Create a new validator from either a bundled plan or a set of trust packs.
+    ///
+    /// When initialized from packs, the validator OR-composes all `default_trust_plan()` values
+    /// into a single secure-by-default plan.
     pub fn new(init: impl Into<CoseSign1ValidatorInit>) -> Self {
         let init = init.into();
 
@@ -482,6 +617,7 @@ impl CoseSign1Validator {
         v
     }
 
+    /// Build the validator's producer/resolver/validator lists from a bundled plan.
     fn from_bundled_plan(trust_plan: CoseSign1CompiledTrustPlan) -> Self {
         let (plan, trust_packs) = trust_plan.into_parts();
 
@@ -516,6 +652,10 @@ impl CoseSign1Validator {
         self
     }
 
+    /// Validate a COSE_Sign1 message from raw CBOR bytes.
+    ///
+    /// This is the synchronous entrypoint that runs the full staged pipeline:
+    /// key resolution → trust evaluation → signature verification → post-signature validators.
     pub fn validate_bytes(
         &self,
         cose_sign1_bytes: Arc<[u8]>,
@@ -535,6 +675,9 @@ impl CoseSign1Validator {
         self.validate_internal(&message, bytes.clone(), Arc::new(parsed_message))
     }
 
+    /// Async variant of [`Self::validate_bytes`].
+    ///
+    /// This primarily exists to support async signing-key resolvers and post-signature validators.
     pub async fn validate_bytes_async(
         &self,
         cose_sign1_bytes: Arc<[u8]>,
@@ -555,6 +698,11 @@ impl CoseSign1Validator {
             .await
     }
 
+    /// Internal synchronous pipeline entrypoint.
+    ///
+    /// Callers provide both:
+    /// - the decoded [`CoseSign1`] view (borrows slices), and
+    /// - the owned raw bytes + parsed message parts used for trust fact production.
     fn validate_internal(
         &self,
         message: &CoseSign1<'_>,
@@ -690,8 +838,26 @@ impl CoseSign1Validator {
         }
 
         // Stage 3: Signature Verification
-        let signature_result =
-            self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key.as_ref().unwrap());
+        let Some(signing_key) = signing_key.as_ref() else {
+            let signature_result = ValidationResult::failure_message(
+                Self::STAGE_NAME_SIGNATURE,
+                Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED,
+                Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED),
+            );
+
+            return Ok(CoseSign1ValidationResult {
+                resolution: resolution_result,
+                trust: trust_result,
+                signature: signature_result.clone(),
+                post_signature_policy: ValidationResult::not_applicable(
+                    Self::STAGE_NAME_POST_SIGNATURE,
+                    Some(Self::NOT_APPLICABLE_REASON_SIGNATURE_VALIDATION_FAILED),
+                ),
+                overall: signature_result,
+            });
+        };
+
+        let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key);
         if !signature_result.is_valid() {
             return Ok(CoseSign1ValidationResult {
                 resolution: resolution_result,
@@ -708,7 +874,7 @@ impl CoseSign1Validator {
         // Stage 4: Post-Signature Policy
         let post_signature_result = self.run_post_signature_stage(
             message,
-            signing_key.as_ref(),
+            Some(signing_key),
             &trust_decision,
             &signature_stage_metadata,
         );
@@ -758,6 +924,9 @@ impl CoseSign1Validator {
         })
     }
 
+    /// Internal async pipeline entrypoint.
+    ///
+    /// Mirrors [`Self::validate_internal`], but uses async resolvers/validators.
     async fn validate_internal_async(
         &self,
         message: &CoseSign1<'_>,
@@ -889,8 +1058,26 @@ impl CoseSign1Validator {
         }
 
         // Stage 3: Signature Verification
-        let signature_result =
-            self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key.as_ref().unwrap());
+        let Some(signing_key) = signing_key.as_ref() else {
+            let signature_result = ValidationResult::failure_message(
+                Self::STAGE_NAME_SIGNATURE,
+                Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED,
+                Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED),
+            );
+
+            return Ok(CoseSign1ValidationResult {
+                resolution: resolution_result,
+                trust: trust_result,
+                signature: signature_result.clone(),
+                post_signature_policy: ValidationResult::not_applicable(
+                    Self::STAGE_NAME_POST_SIGNATURE,
+                    Some(Self::NOT_APPLICABLE_REASON_SIGNATURE_VALIDATION_FAILED),
+                ),
+                overall: signature_result,
+            });
+        };
+
+        let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key);
         if !signature_result.is_valid() {
             return Ok(CoseSign1ValidationResult {
                 resolution: resolution_result,
@@ -908,7 +1095,7 @@ impl CoseSign1Validator {
         let post_signature_result = self
             .run_post_signature_stage_async(
                 message,
-                signing_key.as_ref(),
+                Some(signing_key),
                 &trust_decision,
                 &signature_stage_metadata,
             )
@@ -959,6 +1146,10 @@ impl CoseSign1Validator {
         })
     }
 
+    /// Run stage 1: attempt to resolve a signing key for the message.
+    ///
+    /// Returns both the stage `ValidationResult` and an optional signing key.
+    /// A `Success` result implies a usable key was found.
     fn run_resolution_stage(
         &self,
         message: &CoseSign1<'_>,
@@ -1008,6 +1199,7 @@ impl CoseSign1Validator {
         )
     }
 
+    /// Async variant of [`Self::run_resolution_stage`].
     async fn run_resolution_stage_async(
         &self,
         message: &CoseSign1<'_>,
@@ -1052,6 +1244,11 @@ impl CoseSign1Validator {
         )
     }
 
+    /// Run stage 2: evaluate the compiled trust plan.
+    ///
+    /// This stage determines whether signature verification should proceed. It also optionally
+    /// emits signature-bypass metadata when resolution failed but counter-signatures can attest
+    /// envelope integrity.
     fn run_trust_stage(
         &self,
         _message: &CoseSign1<'_>,
@@ -1142,6 +1339,10 @@ impl CoseSign1Validator {
         ))
     }
 
+    /// Derive signature-stage metadata that indicates primary signature verification can be bypassed.
+    ///
+    /// This is used when signing-key resolution fails but one or more trusted counter-signatures
+    /// indicate that the Sig_structure is intact (envelope integrity attestation).
     fn signature_bypass_metadata_from_counter_signatures(
         engine: &TrustFactEngine,
         message_subject: &TrustSubject,
@@ -1188,6 +1389,11 @@ impl CoseSign1Validator {
         None
     }
 
+    /// Run stage 3: verify the COSE_Sign1 signature.
+    ///
+    /// This selects between:
+    /// - a streaming Sig_structure path for large detached payloads, and
+    /// - a buffered path that builds the full Sig_structure in memory.
     fn run_signature_stage(
         &self,
         message: &CoseSign1ParsedMessage,
@@ -1340,6 +1546,9 @@ impl CoseSign1Validator {
         }
     }
 
+    /// Run stage 4: post-signature validators.
+    ///
+    /// This is where policy-like checks happen after cryptographic verification succeeds.
     fn run_post_signature_stage(
         &self,
         message: &CoseSign1<'_>,
@@ -1378,6 +1587,7 @@ impl CoseSign1Validator {
         }
     }
 
+    /// Async variant of [`Self::run_post_signature_stage`].
     async fn run_post_signature_stage_async(
         &self,
         message: &CoseSign1<'_>,
@@ -1416,6 +1626,10 @@ impl CoseSign1Validator {
         }
     }
 
+    /// Read a detached payload fully into memory.
+    ///
+    /// This is used for small or unknown-size detached payloads. For large payloads with a
+    /// [`DetachedPayloadProvider::len_hint`], the validator prefers the streaming signature path.
     fn read_detached_payload_bytes(&self, payload: &DetachedPayload) -> Result<Arc<[u8]>, String> {
         match payload {
             DetachedPayload::Bytes(b) => {
@@ -1439,6 +1653,10 @@ impl CoseSign1Validator {
     }
 }
 
+/// Streaming reader for COSE `Sig_structure`.
+///
+/// This allows signature verification without allocating the full payload in memory by emitting
+/// a CBOR-encoded prefix followed by raw payload bytes.
 struct SigStructureReader {
     prefix: std::io::Cursor<Vec<u8>>,
     payload: Box<dyn Read + Send>,
@@ -1446,6 +1664,9 @@ struct SigStructureReader {
 }
 
 impl SigStructureReader {
+    /// Create a streaming Sig_structure reader for a detached payload.
+    ///
+    /// `payload_len` is the payload length used to encode the CBOR byte-string header.
     fn new_detached(
         protected: &[u8],
         external_aad: &[u8],
@@ -1463,6 +1684,10 @@ impl SigStructureReader {
 }
 
 impl Read for SigStructureReader {
+    /// Read bytes from the Sig_structure stream.
+    ///
+    /// The stream consists of a fixed prefix (CBOR array + label + headers + AAD + bstr length)
+    /// followed by the raw detached payload.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.done {
             return Ok(0);
@@ -1485,6 +1710,10 @@ impl Read for SigStructureReader {
     }
 }
 
+/// Build the CBOR-encoded Sig_structure prefix used by streaming verification.
+///
+/// The prefix encodes the first three array elements and the payload bstr length header.
+/// Callers append/stream the raw payload bytes afterwards.
 fn build_sig_structure_prefix(
     protected: &[u8],
     external_aad: &[u8],
@@ -1516,6 +1745,9 @@ fn build_sig_structure_prefix(
     Ok(buf)
 }
 
+/// Encode a CBOR major type 2 (byte string) length.
+///
+/// This returns only the header bytes (no payload), and supports definite lengths up to `u64`.
 fn encode_cbor_bstr_len(len: u64) -> Vec<u8> {
     // Major type 2 (byte string).
     if len < 24 {
@@ -1558,6 +1790,10 @@ fn encode_cbor_bstr_len(len: u64) -> Vec<u8> {
 
 pub type CoseSign1MessageValidator = CoseSign1Validator;
 
+/// Merge stage metadata into a combined metadata map.
+///
+/// The `prefix` namespaces keys for the stage (e.g. `Resolution:`) to prevent collisions when
+/// multiple stages emit the same logical key.
 fn merge_stage_metadata(
     combined: &mut BTreeMap<String, String>,
     prefix: &'static str,
@@ -1575,6 +1811,10 @@ fn merge_stage_metadata(
     }
 }
 
+/// Build a full, in-memory COSE Sig_structure.
+///
+/// This is the buffered counterpart to [`build_sig_structure_prefix`], used for embedded payloads
+/// or detached payloads that are small/unknown-size.
 fn build_sig_structure(
     protected: &[u8],
     external_aad: &[u8],

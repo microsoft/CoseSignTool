@@ -1,0 +1,18 @@
+[package]
+name = "cose_sign1_validation_azure_key_vault"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+
+[dependencies]
+cose_sign1_validation = { path = "../cose_sign1_validation" }
+cose_sign1_validation_trust = { path = "../cose_sign1_validation_trust" }
+regex = { workspace = true }
+once_cell = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+cose_sign1_validation_trust = { path = "../cose_sign1_validation_trust" }
+# for encoding test messages
+cose_sign1_validation = { path = "../cose_sign1_validation" }
+tinycbor = { workspace = true }

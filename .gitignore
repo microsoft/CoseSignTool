@@ -366,3 +366,17 @@ FodyWeavers.xsd
 
 # Visual Studio live unit testing configuration files.
 *.lutconfig
+
+# --- Rust (Cargo) ---
+# Cargo build artifacts (repo-wide; native/rust also has its own .gitignore)
+**/target/
+
+# Rustfmt / editor backups
+**/*.rs.bk
+
+# LLVM/coverage/profiling artifacts (can be emitted outside target)
+**/*.profraw
+**/*.profdata
+lcov.info
+tarpaulin-report.html
+

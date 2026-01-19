@@ -6,6 +6,7 @@ members = [
   "cose_sign1_validation_certificates",
   "cose_sign1_validation_transparent_mst",
   "cose_sign1_validation_azure_key_vault",
+  "cose_sign1_validation_test_utils",
   "cose_sign1_validation_demo",
 ]
 
@@ -29,6 +30,9 @@ base64 = "0.22"
 
 # X.509 parsing
 x509-parser = "0.16"
+
+# PQC signatures (FIPS 204 ML-DSA / Dilithium)
+ml-dsa = { version = "0.0.4", default-features = false, features = ["alloc", "pkcs8"] }
 
 # Prefer tinycbor (per requirements)
 tinycbor = { version = "0.10", features = ["alloc", "std"] }

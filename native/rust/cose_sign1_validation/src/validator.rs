@@ -486,8 +486,9 @@ impl CoseSign1Validator {
         let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> = Vec::new();
 
         // Always include message fact production for trust plans.
-        let mut trust_producers: Vec<Arc<dyn TrustFactProducer>> =
-            vec![Arc::new(crate::CoseSign1MessageFactProducer::new())];
+        let mut trust_producers: Vec<Arc<dyn TrustFactProducer>> = vec![Arc::new(
+            crate::message_fact_producer::CoseSign1MessageFactProducer::new(),
+        )];
 
         for pack in trust_packs {
             trust_producers.push(pack.fact_producer());

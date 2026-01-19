@@ -170,10 +170,13 @@ pub mod typed_fields {
             Field::new(crate::message_facts::fields::cwt_claims::SUB);
         pub const AUD: Field<CwtClaimsFact, String> =
             Field::new(crate::message_facts::fields::cwt_claims::AUD);
+        #[allow(dead_code)]
         pub const EXP: Field<CwtClaimsFact, i64> =
             Field::new(crate::message_facts::fields::cwt_claims::EXP);
+        #[allow(dead_code)]
         pub const NBF: Field<CwtClaimsFact, i64> =
             Field::new(crate::message_facts::fields::cwt_claims::NBF);
+        #[allow(dead_code)]
         pub const IAT: Field<CwtClaimsFact, i64> =
             Field::new(crate::message_facts::fields::cwt_claims::IAT);
     }
@@ -182,7 +185,7 @@ pub mod typed_fields {
 /// Fluent helper methods for common message-fact filters.
 ///
 /// Usage:
-/// `use cose_sign1_validation::message_facts::fluent_ext::*;`
+/// `use cose_sign1_validation::fluent::*;`
 pub mod fluent_ext {
     use super::{
         typed_fields as msg_typed, CborValueReader, ContentTypeFact, CwtClaimsFact,
@@ -438,12 +441,12 @@ impl FactProperties for CwtClaimsFact {
             _ => {
                 if let Some(rest) = name.strip_prefix(fields::cwt_claims::CLAIM_PREFIX) {
                     if let Ok(label) = rest.parse::<i64>() {
-                        return self.scalar_claims.get(&label).and_then(|v| match v {
+                        return self.scalar_claims.get(&label).map(|v| match v {
                             CwtClaimScalar::Str(s) => {
-                                Some(FactValue::Str(Cow::Borrowed(s.as_str())))
+                                FactValue::Str(Cow::Borrowed(s.as_str()))
                             }
-                            CwtClaimScalar::I64(n) => Some(FactValue::I64(*n)),
-                            CwtClaimScalar::Bool(b) => Some(FactValue::Bool(*b)),
+                            CwtClaimScalar::I64(n) => FactValue::I64(*n),
+                            CwtClaimScalar::Bool(b) => FactValue::Bool(*b),
                         });
                     }
                 }

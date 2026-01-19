@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1MessageFactProducer, CounterSignature, CounterSignatureResolutionResult,
-    CounterSignatureResolver,
-};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_certificates::facts::X509SigningCertificateIdentityFact;
 use cose_sign1_validation_certificates::pack::X509CertificateTrustPack;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
@@ -75,7 +72,7 @@ fn build_cose_signature_with_x5chain(cert_der: &[u8]) -> Vec<u8> {
 struct FixedCounterSignature {
     raw: Arc<[u8]>,
     protected: bool,
-    signing_key: Arc<dyn cose_sign1_validation::SigningKey>,
+    signing_key: Arc<dyn SigningKey>,
 }
 
 impl CounterSignature for FixedCounterSignature {
@@ -87,14 +84,14 @@ impl CounterSignature for FixedCounterSignature {
         self.protected
     }
 
-    fn signing_key(&self) -> Arc<dyn cose_sign1_validation::SigningKey> {
+    fn signing_key(&self) -> Arc<dyn SigningKey> {
         self.signing_key.clone()
     }
 }
 
 struct NoopSigningKey;
 
-impl cose_sign1_validation::SigningKey for NoopSigningKey {
+impl SigningKey for NoopSigningKey {
     fn key_type(&self) -> &'static str {
         "noop"
     }

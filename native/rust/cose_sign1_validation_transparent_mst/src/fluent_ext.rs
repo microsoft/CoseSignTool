@@ -6,7 +6,7 @@ use crate::facts::{
     MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact, MstReceiptStatementSha256Fact,
     MstReceiptTrustedFact,
 };
-use cose_sign1_validation::CounterSignatureSubjectFact;
+use cose_sign1_validation::fluent::CounterSignatureSubjectFact;
 use cose_sign1_validation_trust::fluent::{ScopeRules, SubjectsFromFactsScope, Where};
 
 pub trait MstReceiptPresentWhereExt {

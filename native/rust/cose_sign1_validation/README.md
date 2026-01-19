@@ -15,6 +15,14 @@ COSE_Sign1-focused staged validator.
   - counter-signature discovery (`CounterSignatureResolver` / `CounterSignature`)
   - post-signature validation (`PostSignatureValidator`)
 
+## Recommended API
+
+For new integrations, treat the fluent surface as the primary entrypoint:
+
+- `use cose_sign1_validation::fluent::*;`
+
+This keeps policy authoring and validation setup on the same, cohesive API.
+
 ## Examples
 
 Run:

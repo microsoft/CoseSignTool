@@ -2,8 +2,7 @@
 // Licensed under the MIT License.
 
 use crate::facts::*;
-use cose_sign1_validation::CoseSign1;
-use cose_sign1_validation::UnknownCounterSignatureBytesFact;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::error::TrustError;
 use cose_sign1_validation_trust::facts::TrustFactSet;
 use cose_sign1_validation_trust::facts::{FactKey, TrustFactContext, TrustFactProducer};

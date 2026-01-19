@@ -1,13 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1TrustPack, CoseSign1ValidationError, CoseSign1ValidationOptions, CoseSign1Validator,
-    CounterSignatureResolutionResult, CounterSignatureResolver, DetachedPayload,
-    DetachedPayloadFnProvider, PostSignatureValidationContext, PostSignatureValidator, SigningKey,
-    SigningKeyResolutionResult, SigningKeyResolver, SimpleTrustPack, ValidationFailure,
-    ValidationResult, ValidationResultKind,
-};
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_trust::{
     plan::CompiledTrustPlan,
     policy::TrustPolicyBuilder,
@@ -186,7 +181,7 @@ struct StaticKeyResolver {
 impl SigningKeyResolver for StaticKeyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult::success(self.key.clone())
@@ -198,7 +193,7 @@ struct DiagnosticsOnlyResolver;
 impl SigningKeyResolver for DiagnosticsOnlyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult {
@@ -214,7 +209,7 @@ struct SuccessButNoKeyResolver;
 impl SigningKeyResolver for SuccessButNoKeyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult {
@@ -366,7 +361,7 @@ impl SigningKey for CborLenAssertingKey {
 
 struct SimpleDetachedProvider;
 
-impl cose_sign1_validation::DetachedPayloadProvider for SimpleDetachedProvider {
+impl DetachedPayloadProvider for SimpleDetachedProvider {
     fn open(&self) -> Result<Box<dyn Read + Send>, String> {
         Ok(Box::new(Cursor::new(Vec::<u8>::new())))
     }
@@ -417,8 +412,7 @@ fn validator_public_types_have_expected_defaults_and_helpers() {
     assert!(s.contains("DetachedPayload::Bytes"));
     assert!(s.contains("len"));
 
-    let provider: Arc<dyn cose_sign1_validation::DetachedPayloadProvider> =
-        Arc::new(SimpleDetachedProvider);
+    let provider: Arc<dyn DetachedPayloadProvider> = Arc::new(SimpleDetachedProvider);
     let dp = DetachedPayload::Provider(provider.clone());
     let s = format!("{dp:?}");
     assert!(s.contains("DetachedPayload::Provider"));
@@ -429,7 +423,7 @@ fn validator_public_types_have_expected_defaults_and_helpers() {
     assert_eq!(Some("E".to_string()), fail.error_code);
     assert_eq!(Some("M".to_string()), fail.error_message);
 
-    let cs_fail = cose_sign1_validation::CounterSignatureResolutionResult::failure(
+    let cs_fail = CounterSignatureResolutionResult::failure(
         Some("E".to_string()),
         Some("M".to_string()),
     );

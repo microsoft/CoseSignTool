@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1TrustPack, CoseSign1ValidationOptions, CoseSign1Validator, DetachedPayload,
-    DetachedPayloadProvider, SigningKey, SigningKeyResolutionResult, SigningKeyResolver,
-    SimpleTrustPack, TrustPlanBuilder, ValidationResultKind,
-};
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::io::{Read, Result as IoResult};
 use std::sync::Arc;
 use tinycbor::{Encode, Encoder};
@@ -17,7 +14,7 @@ struct FixedSigningKeyResolver {
 impl SigningKeyResolver for FixedSigningKeyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult::success(self.key.clone())

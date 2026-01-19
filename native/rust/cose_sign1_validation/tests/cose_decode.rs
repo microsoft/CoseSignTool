@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::CoseSign1;
+use cose_sign1_validation::fluent::*;
 use tinycbor::{Encode, Encoder};
 
 fn build_minimal_sign1_array() -> Vec<u8> {
@@ -100,7 +100,7 @@ fn decode_rejects_arrays_with_missing_or_extra_items() {
     buf.truncate(used);
     assert!(matches!(
         CoseSign1::from_cbor(&buf).unwrap_err(),
-        cose_sign1_validation::cose::CoseDecodeError::NotSign1
+        CoseDecodeError::NotSign1
     ));
 
     // Extra item (array of 5)
@@ -117,15 +117,12 @@ fn decode_rejects_arrays_with_missing_or_extra_items() {
     buf.truncate(used);
     assert!(matches!(
         CoseSign1::from_cbor(&buf).unwrap_err(),
-        cose_sign1_validation::cose::CoseDecodeError::NotSign1
+        CoseDecodeError::NotSign1
     ));
 }
 
 #[test]
 fn decode_rejects_empty_input() {
     let err = CoseSign1::from_cbor(&[]).unwrap_err();
-    assert!(matches!(
-        err,
-        cose_sign1_validation::cose::CoseDecodeError::Cbor(_)
-    ));
+    assert!(matches!(err, CoseDecodeError::Cbor(_)));
 }

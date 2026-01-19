@@ -9,3 +9,13 @@ publish = false
 anyhow.workspace = true
 cose_sign1_validation = { path = "../cose_sign1_validation" }
 cose_sign1_validation_trust = { path = "../cose_sign1_validation_trust" }
+cose_sign1_validation_certificates = { path = "../cose_sign1_validation_certificates" }
+
+# Signing an ephemeral ES256 COSE_Sign1
+ring.workspace = true
+tinycbor.workspace = true
+sha1.workspace = true
+hex.workspace = true
+base64.workspace = true
+rcgen = "0.13"
+x509-parser.workspace = true

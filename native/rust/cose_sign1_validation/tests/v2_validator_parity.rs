@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1TrustPack, CoseSign1ValidationOptions, CoseSign1Validator,
-    PostSignatureValidationContext, PostSignatureValidator, SigningKey, SigningKeyResolutionResult,
-    SigningKeyResolver, SimpleTrustPack, ValidationResultKind,
-};
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_trust::facts::TrustFactEngine;
 use cose_sign1_validation_trust::policy::TrustPolicyBuilder;
 use cose_sign1_validation_trust::rules::FnRule;
@@ -45,7 +42,7 @@ struct FixedSigningKeyResolver {
 impl SigningKeyResolver for FixedSigningKeyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult {
@@ -76,10 +73,10 @@ impl PostSignatureValidator for CountingFailingPostSignatureValidator {
     fn validate(
         &self,
         _context: &PostSignatureValidationContext<'_>,
-    ) -> cose_sign1_validation::ValidationResult {
+    ) -> ValidationResult {
         self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
-        cose_sign1_validation::ValidationResult::failure_message("post", "nope", Some("E_POST"))
+        ValidationResult::failure_message("post", "nope", Some("E_POST"))
     }
 }
 

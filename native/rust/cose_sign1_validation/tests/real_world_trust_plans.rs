@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1, CoseSign1MessageFactProducer, CoseSign1TrustPack, CoseSign1Validator,
-    CwtClaimsFact, DetachedPayload, TrustPlanBuilder, TrustPlanCompileError, ValidationResultKind,
-};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_azure_key_vault::fluent_ext::AzureKeyVaultMessageScopeRulesExt;
 use cose_sign1_validation_azure_key_vault::pack::{
     AzureKeyVaultTrustOptions, AzureKeyVaultTrustPack, KID_HEADER_LABEL,
@@ -17,7 +14,7 @@ use cose_sign1_validation_certificates::pack::fluent_ext::{
     X509ChainElementValidityWhereExt,
     X509SigningCertificateIdentityWhereExt,
 };
-use cose_sign1_validation::message_facts::fluent_ext::MessageScopeRulesExt;
+use cose_sign1_validation::fluent::MessageScopeRulesExt;
 use cose_sign1_validation_certificates::pack::{CertificateTrustOptions, X509CertificateTrustPack};
 use cose_sign1_validation_transparent_mst::fluent_ext::MstCounterSignatureScopeRulesExt;
 use cose_sign1_validation_transparent_mst::pack::MstTrustPack;
@@ -142,7 +139,7 @@ fn leaf_and_issuer_subjects_from_embedded_x5chain(
     };
 
     let leaf_der = chain
-        .get(0)
+        .first()
         .expect("expected leaf cert at x5chain index 0")
         .as_slice();
     let issuer_der = chain
@@ -695,7 +692,7 @@ fn real_v1_policy_can_allow_expired_leaf_but_require_nonexpired_chain_certs() {
 
 #[test]
 fn real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer() {
-    use cose_sign1_validation::message_facts::fluent_ext::MessageScopeRulesExt;
+    use cose_sign1_validation::fluent::MessageScopeRulesExt;
 
     let cose_bytes = fs::read(v1_scitt_testdata_path("2ts-statement.scitt")).unwrap();
 
@@ -770,7 +767,7 @@ fn real_scitt_policy_handles_single_receipt_encoding_when_mst_trusted_from_issue
 
 #[test]
 fn real_scitt_message_can_dump_cwt_claim_facts_then_enforce_them_with_policy() {
-    use cose_sign1_validation::message_facts::fluent_ext::CwtClaimsWhereExt;
+    use cose_sign1_validation::fluent::CwtClaimsWhereExt;
 
     // Use a real SCITT statement that includes MST receipts.
     // We focus here on the *message* CWT claims (COSE header parameter label 15).

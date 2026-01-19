@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1MessageFactProducer, CoseSign1MessagePartsFact, CoseSign1TrustPack,
-    CoseSign1ValidationOptions, CoseSign1Validator, SigningKey, SigningKeyResolutionResult,
-    SigningKeyResolver, SimpleTrustPack, TrustPlanBuilder,
-};
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_transparent_mst::fluent_ext::MstCounterSignatureScopeRulesExt;
 use cose_sign1_validation_transparent_mst::pack::{MstTrustPack, MST_RECEIPT_HEADER_LABEL};
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
@@ -30,7 +27,7 @@ struct TestSigningKeyResolver;
 impl SigningKeyResolver for TestSigningKeyResolver {
     fn resolve(
         &self,
-        _message: &cose_sign1_validation::CoseSign1<'_>,
+        _message: &CoseSign1<'_>,
         _options: &CoseSign1ValidationOptions,
     ) -> SigningKeyResolutionResult {
         SigningKeyResolutionResult {

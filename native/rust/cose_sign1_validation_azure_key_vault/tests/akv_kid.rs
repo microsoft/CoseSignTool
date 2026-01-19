@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::CoseSign1;
+use cose_sign1_validation::fluent::CoseSign1;
 use cose_sign1_validation_azure_key_vault::facts::{
     AzureKeyVaultKidAllowedFact, AzureKeyVaultKidDetectedFact,
 };

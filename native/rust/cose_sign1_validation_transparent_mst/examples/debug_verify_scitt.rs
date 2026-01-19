@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::CoseSign1;
+use cose_sign1_validation::fluent::CoseSign1;
 use cose_sign1_validation_transparent_mst::pack::MstTrustPack;
 use cose_sign1_validation_transparent_mst::receipt_verify::{verify_mst_receipt, ReceiptVerifyInput};
 use std::fs;

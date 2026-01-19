@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::UnknownCounterSignatureBytesFact;
+use cose_sign1_validation::fluent::{CoseSign1, UnknownCounterSignatureBytesFact};
 use cose_sign1_validation_certificates::facts::{
     X509PublicKeyAlgorithmFact, X509SigningCertificateBasicConstraintsFact,
     X509SigningCertificateEkuFact, X509SigningCertificateIdentityAllowedFact,
@@ -533,7 +533,7 @@ fn unprotected_x5chain_is_read_when_header_location_any_and_parsed_message_provi
     let cert_der = generate_cert_der_with_extensions();
     let cose = build_cose_sign1_with_x5chain(&cert_der, false, true, false);
 
-    let msg = cose_sign1_validation::CoseSign1::from_cbor(&cose).unwrap();
+    let msg = CoseSign1::from_cbor(&cose).unwrap();
     let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
         msg.protected_header,
         msg.unprotected_header.as_ref(),

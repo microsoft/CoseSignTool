@@ -1,15 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    ContentTypeFact, CoseSign1, CoseSign1MessageBytesFact, CoseSign1MessageFactProducer,
-    CoseSign1MessagePartsFact, CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact,
-    CwtClaimsFact, DetachedPayloadPresentFact, PrimarySigningKeySubjectFact,
-    UnknownCounterSignatureBytesFact,
-};
-use cose_sign1_validation::message_facts::fluent_ext::MessageScopeRulesExt;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::evaluation_options::TrustEvaluationOptions;
-use cose_sign1_validation_trust::fluent::TrustPlanBuilder;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
 use std::sync::Arc;
@@ -355,7 +348,7 @@ fn cwt_claims_fact_preserves_raw_values_and_supports_custom_claim_rules() {
     assert!(fact.raw_claims_text.contains_key("custom"));
 
     // Now prove the fluent custom-claim APIs can parse the claim values via the opaque reader.
-    let plan = TrustPlanBuilder::new().for_message(|msg| {
+    let plan = TrustPlanBuilder::new(vec![]).for_message(|msg| {
         msg.require_cwt_claim(99, |r| {
             let mut d = tinycbor::Decoder(r.bytes());
             let Ok(mut arr) = d.array_visitor() else {
@@ -387,8 +380,9 @@ fn cwt_claims_fact_preserves_raw_values_and_supports_custom_claim_rules() {
         })
     });
 
-    let compiled = plan.compile();
+    let compiled = plan.compile().expect("plan compile failed");
     let decision = compiled
+        .plan()
         .evaluate(&engine, &subject, &TrustEvaluationOptions::default())
         .expect("plan evaluate failed");
 

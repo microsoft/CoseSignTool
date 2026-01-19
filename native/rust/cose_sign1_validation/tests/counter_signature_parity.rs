@@ -1,11 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CoseSign1MessageFactProducer, CounterSignature, CounterSignatureResolutionResult,
-    CounterSignatureResolver, CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact,
-    PrimarySigningKeySubjectFact, UnknownCounterSignatureBytesFact,
-};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
 use std::sync::Arc;
@@ -14,7 +10,7 @@ use tinycbor::{Encode, Encoder};
 struct TestCounterSignature {
     raw: Arc<[u8]>,
     protected: bool,
-    signing_key: Arc<dyn cose_sign1_validation::SigningKey>,
+    signing_key: Arc<dyn SigningKey>,
 }
 
 impl CounterSignature for TestCounterSignature {
@@ -26,14 +22,14 @@ impl CounterSignature for TestCounterSignature {
         self.protected
     }
 
-    fn signing_key(&self) -> Arc<dyn cose_sign1_validation::SigningKey> {
+    fn signing_key(&self) -> Arc<dyn SigningKey> {
         self.signing_key.clone()
     }
 }
 
 struct NoopSigningKey;
 
-impl cose_sign1_validation::SigningKey for NoopSigningKey {
+impl SigningKey for NoopSigningKey {
     fn key_type(&self) -> &'static str {
         "noop"
     }
@@ -117,7 +113,7 @@ fn build_cose_sign1_bytes() -> Vec<u8> {
 #[test]
 fn counter_signature_facts_are_empty_when_no_resolvers_registered() {
     let cose_bytes = build_cose_sign1_bytes();
-    let message = cose_sign1_validation::CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let message = CoseSign1::from_cbor(&cose_bytes).unwrap();
     let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
         message.protected_header,
         message.unprotected_header.as_ref(),
@@ -173,7 +169,7 @@ fn counter_signature_facts_are_empty_when_no_resolvers_registered() {
 #[test]
 fn counter_signature_facts_are_produced_from_resolvers() {
     let cose_bytes = build_cose_sign1_bytes();
-    let message = cose_sign1_validation::CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let message = CoseSign1::from_cbor(&cose_bytes).unwrap();
     let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
         message.protected_header,
         message.unprotected_header.as_ref(),
@@ -182,7 +178,7 @@ fn counter_signature_facts_are_produced_from_resolvers() {
     )
     .unwrap();
 
-    let signing_key: Arc<dyn cose_sign1_validation::SigningKey> = Arc::new(NoopSigningKey);
+    let signing_key: Arc<dyn SigningKey> = Arc::new(NoopSigningKey);
     let cs = Arc::new(TestCounterSignature {
         raw: Arc::from(b"counter-sig".as_slice()),
         protected: true,
@@ -257,7 +253,7 @@ fn counter_signature_facts_are_produced_from_resolvers() {
 #[test]
 fn counter_signature_unknown_bytes_fact_is_deduplicated_by_counter_signature_id() {
     let cose_bytes = build_cose_sign1_bytes();
-    let message = cose_sign1_validation::CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let message = CoseSign1::from_cbor(&cose_bytes).unwrap();
     let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
         message.protected_header,
         message.unprotected_header.as_ref(),
@@ -266,7 +262,7 @@ fn counter_signature_unknown_bytes_fact_is_deduplicated_by_counter_signature_id(
     )
     .unwrap();
 
-    let signing_key: Arc<dyn cose_sign1_validation::SigningKey> = Arc::new(NoopSigningKey);
+    let signing_key: Arc<dyn SigningKey> = Arc::new(NoopSigningKey);
     let raw: Arc<[u8]> = Arc::from(b"same".as_slice());
     let cs1: Arc<dyn CounterSignature> = Arc::new(TestCounterSignature {
         raw: raw.clone(),
@@ -312,7 +308,7 @@ fn counter_signature_unknown_bytes_fact_is_deduplicated_by_counter_signature_id(
 #[test]
 fn counter_signature_facts_are_missing_when_all_resolvers_fail_with_formatted_reasons() {
     let cose_bytes = build_cose_sign1_bytes();
-    let message = cose_sign1_validation::CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let message = CoseSign1::from_cbor(&cose_bytes).unwrap();
     let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
         message.protected_header,
         message.unprotected_header.as_ref(),

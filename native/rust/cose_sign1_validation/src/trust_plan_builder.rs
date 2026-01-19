@@ -178,7 +178,7 @@ fn validate_plan_requires_only_available_fact_types(
     let mut provided_type_ids = HashSet::new();
 
     // Message facts are always available at runtime.
-    for k in crate::CoseSign1MessageFactProducer::new().provides() {
+    for k in crate::message_fact_producer::CoseSign1MessageFactProducer::new().provides() {
         provided_type_ids.insert(k.type_id);
     }
 

@@ -23,3 +23,4 @@ x509-parser.workspace = true
 cose_sign1_validation_transparent_mst = { path = "../cose_sign1_validation_transparent_mst" }
 cose_sign1_validation_certificates = { path = "../cose_sign1_validation_certificates" }
 cose_sign1_validation_azure_key_vault = { path = "../cose_sign1_validation_azure_key_vault" }
+cose_sign1_validation_test_utils = { path = "../cose_sign1_validation_test_utils" }

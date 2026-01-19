@@ -1,0 +1,9 @@
+[package]
+name = "cose_sign1_validation_test_utils"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+cose_sign1_validation = { path = "../cose_sign1_validation" }
+cose_sign1_validation_trust = { path = "../cose_sign1_validation_trust" }

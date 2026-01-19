@@ -9,7 +9,7 @@ use std::time::Duration;
 use tinycbor::{Encode, Encoder};
 use url::Url;
 
-use cose_sign1_validation::CoseSign1;
+use cose_sign1_validation::fluent::CoseSign1;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ReceiptVerifyError {
@@ -244,7 +244,7 @@ fn reencode_statement_with_cleared_unprotected_headers(
     statement_bytes: &[u8],
 ) -> Result<Vec<u8>, ReceiptVerifyError> {
     let was_tagged = is_cose_sign1_tagged_18(statement_bytes)
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e))?;
+        .map_err(ReceiptVerifyError::StatementReencode)?;
 
     let msg = CoseSign1::from_cbor(statement_bytes)
         .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
@@ -575,11 +575,10 @@ fn validate_receipt_alg_against_jwk(jwk: &Jwk, alg: i64) -> Result<(), ReceiptVe
         return Err(ReceiptVerifyError::JwkUnsupported("missing_crv".to_string()));
     };
 
-    let ok = match (crv, alg) {
-        ("P-256", COSE_ALG_ES256) => true,
-        ("P-384", COSE_ALG_ES384) => true,
-        _ => false,
-    };
+    let ok = matches!(
+        (crv, alg),
+        ("P-256", COSE_ALG_ES256) | ("P-384", COSE_ALG_ES384)
+    );
 
     if !ok {
         return Err(ReceiptVerifyError::JwkUnsupported(format!(

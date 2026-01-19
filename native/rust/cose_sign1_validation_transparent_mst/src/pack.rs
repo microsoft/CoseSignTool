@@ -5,13 +5,7 @@ use crate::facts::{
     MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact, MstReceiptSignatureVerifiedFact,
     MstReceiptStatementCoverageFact, MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
-use cose_sign1_validation::CoseSign1;
-use cose_sign1_validation::{
-    CounterSignatureEnvelopeIntegrityFact,
-    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact,
-    UnknownCounterSignatureBytesFact,
-};
-use cose_sign1_validation::{CoseSign1TrustPack, TrustPlanBuilder};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::error::TrustError;
 use cose_sign1_validation_trust::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_trust::ids::sha256_of_bytes;

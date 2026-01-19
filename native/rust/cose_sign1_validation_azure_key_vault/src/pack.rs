@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 use crate::facts::{AzureKeyVaultKidAllowedFact, AzureKeyVaultKidDetectedFact};
-use cose_sign1_validation::{CoseSign1TrustPack, TrustPlanBuilder};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::error::TrustError;
 use cose_sign1_validation_trust::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_trust::plan::CompiledTrustPlan;

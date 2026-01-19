@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::{
-    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact, UnknownCounterSignatureBytesFact,
-};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_transparent_mst::facts::{MstReceiptPresentFact, MstReceiptTrustedFact};
 use cose_sign1_validation_transparent_mst::pack::{MstTrustPack, MST_RECEIPT_HEADER_LABEL};
 use cose_sign1_validation_trust::facts::{

@@ -11,15 +11,21 @@ From `native/rust/`:
 - `cargo run -p cose_sign1_validation_demo -- --help`
 
 ## Safety note
+This demo validates real signatures using the certificates trust pack.
 
-The demo supports an explicit **insecure** mode that accepts any signature. This is only for demonstrating the pipeline wiring.
-
-Use a real `SigningKey` implementation in production.
+To keep the demo deterministic and OS-agnostic, it treats embedded `x5chain` as trusted by default
+(see `CertificateTrustOptions.trust_embedded_chain_as_trusted`).
 
 ## Common commands
 
-- Validate a COSE_Sign1 file (insecure signature acceptance):
-  - `cargo run -p cose_sign1_validation_demo -- validate --insecure-accept-any-signature --cose path/to/message.cbor`
+- Run an end-to-end self test (generate ephemeral ES256 cert, sign, validate, pin thumbprint):
+  - `cargo run -p cose_sign1_validation_demo -- selftest`
+
+- Validate a COSE_Sign1 file:
+  - `cargo run -p cose_sign1_validation_demo -- validate --cose path/to/message.cbor`
 
 - Validate a detached payload message:
-  - `cargo run -p cose_sign1_validation_demo -- validate --insecure-accept-any-signature --cose path/to/message.cbor --detached path/to/payload.bin`
+  - `cargo run -p cose_sign1_validation_demo -- validate --cose path/to/message.cbor --detached path/to/payload.bin`
+
+- Pin trust to a specific signing certificate thumbprint (SHA1 hex):
+  - `cargo run -p cose_sign1_validation_demo -- validate --cose path/to/message.cbor --allow-thumbprint <SHA1_HEX>`

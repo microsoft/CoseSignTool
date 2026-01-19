@@ -98,7 +98,8 @@ fn validator_with(
 
     // Provide an explicit allow-all plan so these pipeline tests don't fail due to trust.
     trust_packs.push(Arc::new(
-        SimpleTrustPack::no_facts("allow_all_trust").with_default_trust_plan(allow_all_trust_plan()),
+        SimpleTrustPack::no_facts("allow_all_trust")
+            .with_default_trust_plan(allow_all_trust_plan()),
     ));
 
     CoseSign1Validator::new(trust_packs).with_options(configure)
@@ -230,7 +231,8 @@ fn signing_key_default_verify_reader_buffers_and_calls_verify() {
 #[test]
 fn validate_bytes_resolution_fails_when_no_resolvers() {
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(
-        SimpleTrustPack::no_facts("allow_all_trust").with_default_trust_plan(allow_all_trust_plan()),
+        SimpleTrustPack::no_facts("allow_all_trust")
+            .with_default_trust_plan(allow_all_trust_plan()),
     )];
 
     let v = CoseSign1Validator::new(trust_packs).with_options(|o| {
@@ -257,14 +259,10 @@ fn validate_bytes_signature_missing_payload_when_detached_and_no_payload_provide
     let key: Arc<dyn SigningKey> = Arc::new(AlwaysTrueKey);
     let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-    let v = validator_with(
-        Some(resolver),
-        vec![],
-        |o| {
-            o.detached_payload = None;
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(resolver), vec![], |o| {
+        o.detached_payload = None;
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let cose = build_cose_sign1_bytes(None, Some(-7));
     let result = v
@@ -287,16 +285,12 @@ fn validate_bytes_signature_errors_when_alg_missing() {
     let key: Arc<dyn SigningKey> = Arc::new(AlwaysTrueKey);
     let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-    let v = validator_with(
-        Some(resolver),
-        vec![],
-        |o| {
-            o.detached_payload = Some(DetachedPayload::bytes(Arc::from(
-                b"p".to_vec().into_boxed_slice(),
-            )));
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(resolver), vec![], |o| {
+        o.detached_payload = Some(DetachedPayload::bytes(Arc::from(
+            b"p".to_vec().into_boxed_slice(),
+        )));
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let cose = build_cose_sign1_bytes(None, None);
     let result = v
@@ -323,13 +317,9 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
         let key: Arc<dyn SigningKey> = Arc::new(AlwaysTrueKey);
         let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-        let v = validator_with(
-            Some(resolver),
-            vec![],
-            |o| {
-                o.trust_evaluation_options.bypass_trust = true;
-            },
-        );
+        let v = validator_with(Some(resolver), vec![], |o| {
+            o.trust_evaluation_options.bypass_trust = true;
+        });
         let result = v
             .validate_bytes(Arc::from(cose.clone().into_boxed_slice()))
             .unwrap();
@@ -342,13 +332,9 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
         let key: Arc<dyn SigningKey> = Arc::new(AlwaysFalseKey);
         let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-        let v = validator_with(
-            Some(resolver),
-            vec![],
-            |o| {
-                o.trust_evaluation_options.bypass_trust = true;
-            },
-        );
+        let v = validator_with(Some(resolver), vec![], |o| {
+            o.trust_evaluation_options.bypass_trust = true;
+        });
         let result = v
             .validate_bytes(Arc::from(cose.clone().into_boxed_slice()))
             .unwrap();
@@ -368,13 +354,9 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
         let key: Arc<dyn SigningKey> = Arc::new(ErrorKey);
         let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-        let v = validator_with(
-            Some(resolver),
-            vec![],
-            |o| {
-                o.trust_evaluation_options.bypass_trust = true;
-            },
-        );
+        let v = validator_with(Some(resolver), vec![], |o| {
+            o.trust_evaluation_options.bypass_trust = true;
+        });
         let result = v
             .validate_bytes(Arc::from(cose.clone().into_boxed_slice()))
             .unwrap();
@@ -409,14 +391,10 @@ fn validate_bytes_streaming_path_uses_verify_reader_for_large_detached_payload()
     let key: Arc<dyn SigningKey> = Arc::new(StreamingTrueKey);
     let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-    let v = validator_with(
-        Some(resolver),
-        vec![],
-        |o| {
-            o.detached_payload = Some(DetachedPayload::Provider(provider));
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(resolver), vec![], |o| {
+        o.detached_payload = Some(DetachedPayload::Provider(provider));
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let cose = build_cose_sign1_bytes(None, Some(-7));
     let result = v
@@ -451,14 +429,10 @@ fn validate_bytes_post_signature_skip_honors_option() {
         let key: Arc<dyn SigningKey> = Arc::new(AlwaysTrueKey);
         let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-        let v = validator_with(
-            Some(resolver),
-            vec![Arc::new(FailValidator)],
-            |o| {
-                o.skip_post_signature_validation = false;
-                o.trust_evaluation_options.bypass_trust = true;
-            },
-        );
+        let v = validator_with(Some(resolver), vec![Arc::new(FailValidator)], |o| {
+            o.skip_post_signature_validation = false;
+            o.trust_evaluation_options.bypass_trust = true;
+        });
 
         let result = v
             .validate_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -475,14 +449,10 @@ fn validate_bytes_post_signature_skip_honors_option() {
         let key: Arc<dyn SigningKey> = Arc::new(AlwaysTrueKey);
         let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
-        let v = validator_with(
-            Some(resolver),
-            vec![Arc::new(FailValidator)],
-            |o| {
-                o.skip_post_signature_validation = true;
-                o.trust_evaluation_options.bypass_trust = true;
-            },
-        );
+        let v = validator_with(Some(resolver), vec![Arc::new(FailValidator)], |o| {
+            o.skip_post_signature_validation = true;
+            o.trust_evaluation_options.bypass_trust = true;
+        });
 
         let result = v
             .validate_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -497,11 +467,7 @@ fn validate_bytes_trust_denied_by_default_when_not_bypassed() {
     let resolver: Arc<dyn SigningKeyResolver> = Arc::new(StaticKeyResolver { key });
 
     // Empty trust plan denies by default when bypass_trust=false.
-    let v = validator_with(
-        Some(resolver),
-        vec![],
-        |_o| {},
-    );
+    let v = validator_with(Some(resolver), vec![], |_o| {});
 
     let cose = build_cose_sign1_bytes(Some(b"payload"), Some(-7));
     let result = v

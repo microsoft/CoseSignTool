@@ -2,11 +2,12 @@
 // Licensed under the MIT License.
 
 use crate::message_facts::{
-    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact, PrimarySigningKeySubjectFact,
+    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact,
+    PrimarySigningKeySubjectFact,
 };
 use crate::trust_packs::CoseSign1TrustPack;
-use cose_sign1_validation_trust::fluent as trust_fluent;
 use cose_sign1_validation_trust::facts::{FactKey, TrustFactProducer};
+use cose_sign1_validation_trust::fluent as trust_fluent;
 use cose_sign1_validation_trust::plan::CompiledTrustPlan;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -70,8 +71,9 @@ impl TrustPlanBuilder {
 
     pub fn for_message(
         mut self,
-        f: impl FnOnce(trust_fluent::ScopeRules<trust_fluent::MessageScope>)
-            -> trust_fluent::ScopeRules<trust_fluent::MessageScope>,
+        f: impl FnOnce(
+            trust_fluent::ScopeRules<trust_fluent::MessageScope>,
+        ) -> trust_fluent::ScopeRules<trust_fluent::MessageScope>,
     ) -> Self {
         self.inner = self.inner.for_message(f);
         self
@@ -79,8 +81,9 @@ impl TrustPlanBuilder {
 
     pub fn for_primary_signing_key(
         mut self,
-        f: impl FnOnce(trust_fluent::ScopeRules<trust_fluent::PrimarySigningKeyScope>)
-            -> trust_fluent::ScopeRules<trust_fluent::PrimarySigningKeyScope>,
+        f: impl FnOnce(
+            trust_fluent::ScopeRules<trust_fluent::PrimarySigningKeyScope>,
+        ) -> trust_fluent::ScopeRules<trust_fluent::PrimarySigningKeyScope>,
     ) -> Self {
         self.inner = self.inner.for_primary_signing_key(f);
         self
@@ -92,8 +95,12 @@ impl TrustPlanBuilder {
     pub fn for_counter_signature(
         mut self,
         f: impl FnOnce(
-            trust_fluent::ScopeRules<trust_fluent::SubjectsFromFactsScope<CounterSignatureSubjectFact>>,
-        ) -> trust_fluent::ScopeRules<trust_fluent::SubjectsFromFactsScope<CounterSignatureSubjectFact>>,
+            trust_fluent::ScopeRules<
+                trust_fluent::SubjectsFromFactsScope<CounterSignatureSubjectFact>,
+            >,
+        ) -> trust_fluent::ScopeRules<
+            trust_fluent::SubjectsFromFactsScope<CounterSignatureSubjectFact>,
+        >,
     ) -> Self {
         self.inner = self
             .inner

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cose_sign1_validation::fluent::MessageScopeRulesExt;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_azure_key_vault::fluent_ext::AzureKeyVaultMessageScopeRulesExt;
 use cose_sign1_validation_azure_key_vault::pack::{
@@ -10,17 +11,15 @@ use cose_sign1_validation_certificates::facts::{
     X509ChainElementValidityFact, X509ChainTrustedFact, X509SigningCertificateIdentityFact,
 };
 use cose_sign1_validation_certificates::pack::fluent_ext::{
-    PrimarySigningKeyScopeRulesExt,
-    X509ChainElementValidityWhereExt,
+    PrimarySigningKeyScopeRulesExt, X509ChainElementValidityWhereExt,
     X509SigningCertificateIdentityWhereExt,
 };
-use cose_sign1_validation::fluent::MessageScopeRulesExt;
 use cose_sign1_validation_certificates::pack::{CertificateTrustOptions, X509CertificateTrustPack};
 use cose_sign1_validation_transparent_mst::fluent_ext::MstCounterSignatureScopeRulesExt;
 use cose_sign1_validation_transparent_mst::pack::MstTrustPack;
-use cose_sign1_validation_trust::CoseHeaderLocation;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
+use cose_sign1_validation_trust::CoseHeaderLocation;
 use cose_sign1_validation_trust::TrustEvaluationOptions;
 use std::collections::BTreeMap;
 use std::fs;
@@ -124,9 +123,7 @@ fn leaf_and_issuer_subjects_from_embedded_x5chain(
             .expect("x5chain parse failed")
             .expect("x5chain not found in protected header"),
         CoseHeaderLocation::Any => {
-            if let Some(v) =
-                try_read_x5chain(protected_map_bytes).expect("x5chain parse failed")
-            {
+            if let Some(v) = try_read_x5chain(protected_map_bytes).expect("x5chain parse failed") {
                 v
             } else if let Some(v) =
                 try_read_x5chain(unprotected_map_bytes).expect("x5chain parse failed")
@@ -192,7 +189,6 @@ fn encoder_write_raw(enc: &mut Encoder<&mut [u8]>, raw: &[u8]) -> Result<(), Str
     enc.0 = tail;
     Ok(())
 }
-
 
 fn insert_kid_into_unprotected_map(unprotected_map_bytes: &[u8], kid_utf8: &str) -> Vec<u8> {
     let mut d = tinycbor::Decoder(unprotected_map_bytes);
@@ -365,7 +361,11 @@ fn real_v1_policy_can_gate_on_certificate_facts() {
         .unwrap();
 
     assert!(result.resolution.is_valid());
-    assert!(result.trust.is_valid(), "trust invalid: {:#?}", result.trust);
+    assert!(
+        result.trust.is_valid(),
+        "trust invalid: {:#?}",
+        result.trust
+    );
     assert_ne!(ValidationResultKind::NotApplicable, result.signature.kind);
 }
 
@@ -395,8 +395,8 @@ fn real_v1_policy_can_prefer_mst_but_fall_back_to_certificate() {
             p.for_counter_signature(|cs| {
                 cs.require_mst_receipt_trusted_from_issuer("confidential-ledger.azure.com")
             })
-                .or()
-                .for_primary_signing_key(|key| key.require_x509_chain_trusted())
+            .or()
+            .for_primary_signing_key(|key| key.require_x509_chain_trusted())
         })
         .and()
         .for_primary_signing_key(|key| key.require_not_pqc_algorithm_or_missing())
@@ -412,7 +412,11 @@ fn real_v1_policy_can_prefer_mst_but_fall_back_to_certificate() {
         .unwrap();
 
     assert!(result.resolution.is_valid());
-    assert!(result.trust.is_valid(), "trust invalid: {:#?}", result.trust);
+    assert!(
+        result.trust.is_valid(),
+        "trust invalid: {:#?}",
+        result.trust
+    );
     assert_ne!(ValidationResultKind::NotApplicable, result.signature.kind);
 }
 
@@ -441,9 +445,21 @@ fn real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature() {
         .validate_bytes(Arc::from(cose_bytes.into_boxed_slice()))
         .unwrap();
 
-    assert!(result.overall.is_valid(), "overall invalid: {:#?}", result.overall);
-    assert!(result.trust.is_valid(), "trust invalid: {:#?}", result.trust);
-    assert!(result.signature.is_valid(), "signature invalid: {:#?}", result.signature);
+    assert!(
+        result.overall.is_valid(),
+        "overall invalid: {:#?}",
+        result.overall
+    );
+    assert!(
+        result.trust.is_valid(),
+        "trust invalid: {:#?}",
+        result.trust
+    );
+    assert!(
+        result.signature.is_valid(),
+        "signature invalid: {:#?}",
+        result.signature
+    );
 
     assert_eq!(
         Some("BypassedByCounterSignature"),
@@ -572,7 +588,11 @@ fn real_v1_policy_fluent_dsl_example_reads_like_the_csharp_api() {
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![cert_pack.clone()];
 
     let plan = TrustPlanBuilder::new(trust_packs)
-        .for_message(|msg| msg.require_content_type_non_empty().and().require_detached_payload_present())
+        .for_message(|msg| {
+            msg.require_content_type_non_empty()
+                .and()
+                .require_detached_payload_present()
+        })
         .and()
         .for_primary_signing_key(|key| {
             key.require_x509_chain_trusted()
@@ -660,16 +680,14 @@ fn real_v1_policy_can_allow_expired_leaf_but_require_nonexpired_chain_certs() {
     let plan = TrustPlanBuilder::new(trust_packs)
         .for_primary_signing_key(|key| {
             key.require::<X509SigningCertificateIdentityFact>(|f| f.cert_expired_at_or_before(now))
-            .and()
-            .require_optional::<X509ChainElementValidityFact>(|f| {
-                f.index_eq(1)
-                .cert_valid_at(now)
-            })
-            .and()
-            .require_optional::<X509ChainElementValidityFact>(|f| {
-                f.index_eq(2)
-                .cert_valid_at(now)
-            })
+                .and()
+                .require_optional::<X509ChainElementValidityFact>(|f| {
+                    f.index_eq(1).cert_valid_at(now)
+                })
+                .and()
+                .require_optional::<X509ChainElementValidityFact>(|f| {
+                    f.index_eq(2).cert_valid_at(now)
+                })
         })
         .compile()
         .expect("plan compile");
@@ -723,7 +741,11 @@ fn real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer(
         .unwrap();
 
     assert!(result.resolution.is_valid());
-    assert!(result.trust.is_valid(), "trust invalid: {:#?}", result.trust);
+    assert!(
+        result.trust.is_valid(),
+        "trust invalid: {:#?}",
+        result.trust
+    );
     assert_ne!(ValidationResultKind::NotApplicable, result.signature.kind);
 }
 
@@ -761,7 +783,11 @@ fn real_scitt_policy_handles_single_receipt_encoding_when_mst_trusted_from_issue
         .unwrap();
 
     assert!(result.resolution.is_valid());
-    assert!(result.trust.is_valid(), "trust invalid: {:#?}", result.trust);
+    assert!(
+        result.trust.is_valid(),
+        "trust invalid: {:#?}",
+        result.trust
+    );
     assert_ne!(ValidationResultKind::NotApplicable, result.signature.kind);
 }
 
@@ -795,8 +821,14 @@ fn real_scitt_message_can_dump_cwt_claim_facts_then_enforce_them_with_policy() {
     println!("nbf: {:?}", claims.nbf);
     println!("exp: {:?}", claims.exp);
     println!("scalar_claims: {:?}", claims.scalar_claims);
-    println!("raw_claims(keys): {:?}", claims.raw_claims.keys().collect::<Vec<_>>());
-    println!("raw_claims_text(keys): {:?}", claims.raw_claims_text.keys().collect::<Vec<_>>());
+    println!(
+        "raw_claims(keys): {:?}",
+        claims.raw_claims.keys().collect::<Vec<_>>()
+    );
+    println!(
+        "raw_claims_text(keys): {:?}",
+        claims.raw_claims_text.keys().collect::<Vec<_>>()
+    );
 
     // Now create a policy that requires the *same* extracted values.
     // (This demonstrates the plumbing: facts -> policy predicates -> trust decision.)
@@ -830,7 +862,8 @@ fn real_scitt_message_can_dump_cwt_claim_facts_then_enforce_them_with_policy() {
         // Require iat (numeric label 6) when present.
         // This uses the generic claim reader so policies can handle profile-specific encodings.
         if let Some(iat) = expected_iat {
-            msg.and().require_cwt_claim(6, move |r| r.decode::<i64>() == Some(iat))
+            msg.and()
+                .require_cwt_claim(6, move |r| r.decode::<i64>() == Some(iat))
         } else {
             msg
         }

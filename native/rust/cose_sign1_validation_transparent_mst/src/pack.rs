@@ -2,8 +2,9 @@
 // Licensed under the MIT License.
 
 use crate::facts::{
-    MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact, MstReceiptSignatureVerifiedFact,
-    MstReceiptStatementCoverageFact, MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
+    MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact,
+    MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact,
+    MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::error::TrustError;
@@ -92,7 +93,8 @@ impl TrustFactProducer for MstTrustPack {
                 let mut seen: HashSet<cose_sign1_validation_trust::ids::SubjectId> = HashSet::new();
 
                 for r in receipts {
-                    let cs_subject = TrustSubject::counter_signature(&message_subject, r.as_slice());
+                    let cs_subject =
+                        TrustSubject::counter_signature(&message_subject, r.as_slice());
                     let cs_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
 
                     ctx.observe(CounterSignatureSubjectFact {
@@ -185,7 +187,8 @@ impl TrustFactProducer for MstTrustPack {
                             sha256_hex: hex::encode(v.statement_sha256),
                         })?;
                         ctx.observe(MstReceiptStatementCoverageFact {
-                            coverage: "sha256(COSE_Sign1 bytes with unprotected headers cleared)".to_string(),
+                            coverage: "sha256(COSE_Sign1 bytes with unprotected headers cleared)"
+                                .to_string(),
                         })?;
                         ctx.observe(MstReceiptSignatureVerifiedFact { verified: true })?;
 

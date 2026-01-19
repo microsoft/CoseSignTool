@@ -133,7 +133,9 @@ impl CoseSign1TrustPack for AzureKeyVaultTrustPack {
     }
 
     fn default_trust_plan(&self) -> Option<CompiledTrustPlan> {
-        use crate::fluent_ext::{AzureKeyVaultKidAllowedWhereExt, AzureKeyVaultKidDetectedWhereExt};
+        use crate::fluent_ext::{
+            AzureKeyVaultKidAllowedWhereExt, AzureKeyVaultKidDetectedWhereExt,
+        };
 
         // Secure-by-default AKV policy:
         // - kid must look like an AKV key id

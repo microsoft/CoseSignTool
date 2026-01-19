@@ -29,13 +29,31 @@ From `native/rust/`:
 
 ## Quick start: validate a message
 
-The validator requires:
+The recommended integration style is **trust-pack driven**:
 
-- A `SigningKeyResolver` (how to resolve a key for the message)
-- A trust plan + fact producers (how to decide whether the signing key is trusted)
-- Optionally, post-signature validators
+- You pass one or more `CoseSign1TrustPack`s to the validator.
+- Packs can contribute signing key resolvers, fact producers, and default trust plans.
+- You can optionally provide an explicit trust plan when you need a custom policy.
 
-A minimal “smoke” setup (bypass trust, accept-any-signature key) is shown in:
+Two common ways to wire the validator:
+
+1) **Default behavior (packs provide resolvers + default plans)**
+
+  - `CoseSign1Validator::new(trust_packs)`
+
+2) **Custom policy (compile an explicit plan)**
+
+  - `TrustPlanBuilder::new(trust_packs)...compile()`
+  - `CoseSign1Validator::new(compiled_plan)`
+
+If you want to focus on cryptographic signature verification while prototyping a policy, you can
+temporarily bypass trust evaluation while keeping signature verification enabled via:
+
+- `CoseSign1ValidationOptions.trust_evaluation_options.bypass_trust = true`
+
+## Examples
+
+A minimal “smoke” setup (real signature verification using embedded X.509 `x5chain`, with trust bypassed) is shown in:
 
 - `cose_sign1_validation/examples/validate_smoke.rs`
 

@@ -25,9 +25,13 @@ Subject IDs follow V2 parity semantics and are stable across runs:
 
 Prefer the constructor helpers:
 
-- `TrustSubject::message(seed_bytes)`
+- `TrustSubject::message(encoded_cose_sign1_bytes)`
 - `TrustSubject::primary_signing_key(&message_subject)`
 - `TrustSubject::counter_signature(&message_subject, raw_countersignature_bytes)`
-- `TrustSubject::counter_signature_signing_key(&message_subject, raw_countersignature_bytes)`
+- `TrustSubject::counter_signature_signing_key(&counter_signature_subject)`
 
 These helpers ensure IDs match the stable V2-style derivation.
+
+If you need a custom root subject (not derived from a message), use:
+
+- `TrustSubject::root(kind, seed)`

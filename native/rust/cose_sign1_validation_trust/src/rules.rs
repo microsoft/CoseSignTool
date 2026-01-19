@@ -554,7 +554,9 @@ where
                 TrustFactSet::Missing { .. } | TrustFactSet::Error { .. } => {
                     return Ok(match missing {
                         MissingBehavior::Allow => TrustDecision::trusted(),
-                        MissingBehavior::Deny => TrustDecision::denied(vec![deny_reason.to_string()]),
+                        MissingBehavior::Deny => {
+                            TrustDecision::denied(vec![deny_reason.to_string()])
+                        }
                     })
                 }
             };

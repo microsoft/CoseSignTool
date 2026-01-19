@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::fluent::CoseSign1;
+use cose_sign1_validation::fluent::CoseSign1MessageFactProducer;
 use cose_sign1_validation_azure_key_vault::facts::{
     AzureKeyVaultKidAllowedFact, AzureKeyVaultKidDetectedFact,
 };
@@ -10,7 +10,6 @@ use cose_sign1_validation_azure_key_vault::pack::{
 };
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
-use cose_sign1_validation_trust::CoseSign1ParsedMessage;
 use std::sync::Arc;
 use tinycbor::{Encode, Encoder};
 
@@ -52,23 +51,17 @@ fn main() {
     let kid = "https://example.vault.azure.net/keys/mykey/123";
     let cose_bytes = build_cose_sign1_with_kid(kid);
 
-    // Build parsed message for the trust engine context.
-    let cose = CoseSign1::from_cbor(&cose_bytes).expect("cose decode failed");
-    let parsed = CoseSign1ParsedMessage::from_parts(
-        cose.protected_header,
-        cose.unprotected_header.as_ref(),
-        cose.payload,
-        cose.signature,
-    )
-    .expect("parsed message failed");
-
     let pack = Arc::new(AzureKeyVaultTrustPack::new(AzureKeyVaultTrustOptions {
         allowed_kid_patterns: vec!["https://*.vault.azure.net/keys/*".to_string()],
         require_azure_key_vault_kid: true,
     }));
 
-    let engine = TrustFactEngine::new(vec![pack]).with_cose_sign1_message(Arc::new(parsed));
-    let subject = TrustSubject::message(b"seed");
+    let producers: Vec<Arc<dyn cose_sign1_validation_trust::facts::TrustFactProducer>> =
+        vec![Arc::new(CoseSign1MessageFactProducer::new()), pack];
+
+    let engine = TrustFactEngine::new(producers)
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.clone().into_boxed_slice()));
+    let subject = TrustSubject::message(cose_bytes.as_slice());
 
     let detected = engine
         .get_fact_set::<AzureKeyVaultKidDetectedFact>(&subject)

@@ -2,69 +2,20 @@
 // Licensed under the MIT License.
 
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
-use std::io::Cursor;
-use std::sync::Arc;
-use tinycbor::{Encode, Encoder};
-
-struct AcceptAllSigningKey;
-
-impl SigningKey for AcceptAllSigningKey {
-    fn key_type(&self) -> &'static str {
-        "AcceptAllSigningKey"
-    }
-
-    fn verify(&self, _alg: i64, _sig_structure: &[u8], _signature: &[u8]) -> Result<bool, String> {
-        Ok(true)
-    }
-}
-
-struct ExampleSigningKeyResolver;
-
-impl SigningKeyResolver for ExampleSigningKeyResolver {
-    fn resolve(
-        &self,
-        _message: &CoseSign1<'_>,
-        _options: &CoseSign1ValidationOptions,
-    ) -> SigningKeyResolutionResult {
-        SigningKeyResolutionResult::success(Arc::new(AcceptAllSigningKey))
-    }
-}
-
-fn build_minimal_cose_sign1_with_detached_payload() -> Vec<u8> {
-    let mut buf = vec![0u8; 1024];
-    let buf_len = buf.len();
-    let mut enc = Encoder(buf.as_mut_slice());
-
-    enc.array(4).unwrap();
-
-    // protected header: bstr(CBOR map {1: -7}) (alg = ES256)
-    let mut hdr_buf = vec![0u8; 64];
-    let hdr_len = hdr_buf.len();
-    let mut hdr_enc = Encoder(hdr_buf.as_mut_slice());
-    hdr_enc.map(1).unwrap();
-    (1i64).encode(&mut hdr_enc).unwrap();
-    (-7i64).encode(&mut hdr_enc).unwrap();
-    let used_hdr = hdr_len - hdr_enc.0.len();
-    let protected_bytes = &hdr_buf[..used_hdr];
-    protected_bytes.encode(&mut enc).unwrap();
-
-    // unprotected header: empty map
-    enc.map(0).unwrap();
-
-    // payload: nil (detached)
-    Option::<&[u8]>::None.encode(&mut enc).unwrap();
-
-    // signature: arbitrary bstr
-    b"sig".as_slice().encode(&mut enc).unwrap();
-
-    let used = buf_len - enc.0.len();
-    buf.truncate(used);
-    buf
-}
 
 fn main() {
-    let payload: Arc<[u8]> = Arc::from(b"this is the detached payload".as_slice());
+    use std::io::Cursor;
+
+    let testdata_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata")
+        .join("v1");
+
+    let cose_bytes = std::fs::read(testdata_dir.join("UnitTestSignatureWithCRL.cose"))
+        .expect("read cose testdata");
+    let payload_bytes =
+        std::fs::read(testdata_dir.join("UnitTestPayload.json")).expect("read payload testdata");
+
+    let payload: std::sync::Arc<[u8]> = std::sync::Arc::from(payload_bytes.into_boxed_slice());
 
     // Provider opens a fresh reader each time.
     let provider = DetachedPayloadFnProvider::new({
@@ -73,25 +24,30 @@ fn main() {
     })
     .with_len_hint(payload.len() as u64);
 
-    let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(
-        SimpleTrustPack::no_facts("example_signing_key")
-            .with_signing_key_resolver(Arc::new(ExampleSigningKeyResolver)),
-    )];
+    let cert_pack = std::sync::Arc::new(
+        cose_sign1_validation_certificates::pack::X509CertificateTrustPack::new(
+            cose_sign1_validation_certificates::pack::CertificateTrustOptions {
+                trust_embedded_chain_as_trusted: true,
+                ..Default::default()
+            },
+        ),
+    );
+    let trust_packs: Vec<std::sync::Arc<dyn CoseSign1TrustPack>> = vec![cert_pack];
 
-    let bundled = TrustPlanBuilder::new(trust_packs)
-        .for_message(|m| m.allow_all())
-        .compile()
-        .unwrap();
-
-    let validator = CoseSign1Validator::new(bundled).with_options(|o| {
-        o.detached_payload = Some(DetachedPayload::Provider(Arc::new(provider)));
+    let validator = CoseSign1Validator::new(trust_packs).with_options(|o| {
+        o.detached_payload = Some(DetachedPayload::Provider(std::sync::Arc::new(provider)));
+        o.certificate_header_location = cose_sign1_validation_trust::CoseHeaderLocation::Any;
+        o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let cose = build_minimal_cose_sign1_with_detached_payload();
     let result = validator
-        .validate_bytes(Arc::from(cose.into_boxed_slice()))
+        .validate_bytes(std::sync::Arc::from(cose_bytes.into_boxed_slice()))
         .expect("validation failed");
 
-    assert!(result.overall.is_valid());
-    println!("OK: detached payload verified (example signing key accepted signature)");
+    assert!(
+        result.signature.is_valid(),
+        "signature invalid: {:#?}",
+        result.signature
+    );
+    println!("OK: detached payload verified (provider)");
 }

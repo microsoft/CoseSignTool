@@ -15,7 +15,7 @@ Provide detached payload via `CoseSign1ValidationOptions.detached_payload`.
 ## Trust stage unexpectedly denies
 
 - The default compiled plan denies if there are no trust sources configured.
-- If you are experimenting, set `TrustEvaluationOptions.bypass_trust = true`.
+- If you are experimenting, set `CoseSign1ValidationOptions.trust_evaluation_options.bypass_trust = true`.
 
 ## Streaming not used
 

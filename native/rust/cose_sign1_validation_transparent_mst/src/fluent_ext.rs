@@ -3,8 +3,8 @@
 
 use crate::facts::{
     typed_fields as mst_typed, MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact,
-    MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact, MstReceiptStatementSha256Fact,
-    MstReceiptTrustedFact,
+    MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact,
+    MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
 use cose_sign1_validation::fluent::CounterSignatureSubjectFact;
 use cose_sign1_validation_trust::fluent::{ScopeRules, SubjectsFromFactsScope, Where};

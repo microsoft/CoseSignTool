@@ -16,7 +16,15 @@ The trust engine is a small rule system:
 
 ## Policy builder
 
-Use `TrustPolicyBuilder` to construct a `TrustPolicy`, then `compile()`:
+For validator integrations, prefer the fluent trust-plan builder:
+
+- `cose_sign1_validation::fluent::TrustPlanBuilder`
+
+This keeps policy authoring aligned with pack wiring and the validator result model.
+
+At the lower level, the trust engine also exposes `TrustPolicyBuilder` (in `cose_sign1_validation_trust`) which can be useful for standalone trust-plan evaluation.
+
+Both approaches compile to a `CompiledTrustPlan` with the same semantics:
 
 - required facts (always ensure these are attempted)
 - constraints (must all be satisfied)

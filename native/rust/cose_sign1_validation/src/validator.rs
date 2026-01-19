@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 use crate::cose::CoseSign1;
-use crate::trust_plan_builder::CoseSign1CompiledTrustPlan;
 use crate::trust_packs::CoseSign1TrustPack;
+use crate::trust_plan_builder::CoseSign1CompiledTrustPlan;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactProducer};
 use cose_sign1_validation_trust::plan::CompiledTrustPlan;
 use cose_sign1_validation_trust::subject::TrustSubject;
@@ -473,7 +473,10 @@ impl CoseSign1Validator {
     /// Less-fluent construction for callers who prefer a single entrypoint.
     ///
     /// Prefer [`CoseSign1Validator::new`] + [`CoseSign1Validator::with_options`] in most cases.
-    pub fn advanced(init: impl Into<CoseSign1ValidatorInit>, options: CoseSign1ValidationOptions) -> Self {
+    pub fn advanced(
+        init: impl Into<CoseSign1ValidatorInit>,
+        options: CoseSign1ValidationOptions,
+    ) -> Self {
         let mut v = Self::new(init);
         v.options = options;
         v
@@ -608,11 +611,15 @@ impl CoseSign1Validator {
                 Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
                 Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
             );
-            let resolution_result =
-                ValidationResult::success(Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION, Some(resolution_metadata));
+            let resolution_result = ValidationResult::success(
+                Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
+                Some(resolution_metadata),
+            );
 
-            let signature_result =
-                ValidationResult::success(Self::STAGE_NAME_SIGNATURE, Some(signature_stage_metadata.clone()));
+            let signature_result = ValidationResult::success(
+                Self::STAGE_NAME_SIGNATURE,
+                Some(signature_stage_metadata.clone()),
+            );
 
             let post_signature_result = self.run_post_signature_stage(
                 message,
@@ -638,7 +645,11 @@ impl CoseSign1Validator {
                 Self::METADATA_PREFIX_RESOLUTION,
                 &resolution_result,
             );
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_TRUST,
+                &trust_result,
+            );
             merge_stage_metadata(
                 &mut combined_metadata,
                 Self::METADATA_PREFIX_SIGNATURE,
@@ -798,11 +809,15 @@ impl CoseSign1Validator {
                 Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
                 Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
             );
-            let resolution_result =
-                ValidationResult::success(Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION, Some(resolution_metadata));
+            let resolution_result = ValidationResult::success(
+                Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
+                Some(resolution_metadata),
+            );
 
-            let signature_result =
-                ValidationResult::success(Self::STAGE_NAME_SIGNATURE, Some(signature_stage_metadata.clone()));
+            let signature_result = ValidationResult::success(
+                Self::STAGE_NAME_SIGNATURE,
+                Some(signature_stage_metadata.clone()),
+            );
 
             let post_signature_result = self
                 .run_post_signature_stage_async(
@@ -829,7 +844,11 @@ impl CoseSign1Validator {
                 Self::METADATA_PREFIX_RESOLUTION,
                 &resolution_result,
             );
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_TRUST,
+                &trust_result,
+            );
             merge_stage_metadata(
                 &mut combined_metadata,
                 Self::METADATA_PREFIX_SIGNATURE,
@@ -1053,7 +1072,11 @@ impl CoseSign1Validator {
         // Packs that want the signing key can use `TrustSubject::derived`.
         let (decision, audit) = self
             .trust_plan
-            .evaluate_with_audit(&engine, &message_subject, &self.options.trust_evaluation_options)
+            .evaluate_with_audit(
+                &engine,
+                &message_subject,
+                &self.options.trust_evaluation_options,
+            )
             .map_err(|e| e.to_string())?;
 
         if !decision.is_trusted {
@@ -1124,17 +1147,18 @@ impl CoseSign1Validator {
         message_subject: &TrustSubject,
     ) -> Option<BTreeMap<String, String>> {
         let counter_signature_subjects = match engine
-            .get_facts::<crate::message_facts::CounterSignatureSubjectFact>(message_subject)
-        {
+            .get_facts::<crate::message_facts::CounterSignatureSubjectFact>(
+            message_subject,
+        ) {
             Ok(v) => v,
             Err(_) => return None,
         };
 
         for cs in counter_signature_subjects {
-            let integrity_facts = match engine.get_facts::<
-                crate::message_facts::CounterSignatureEnvelopeIntegrityFact,
-            >(&cs.subject)
-            {
+            let integrity_facts = match engine
+                .get_facts::<crate::message_facts::CounterSignatureEnvelopeIntegrityFact>(
+                &cs.subject,
+            ) {
                 Ok(v) => v,
                 Err(_) => continue,
             };
@@ -1151,7 +1175,10 @@ impl CoseSign1Validator {
                     .find_map(|f| f.details.as_deref())
                     .map(str::to_string)
                 {
-                    metadata.insert(Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.to_string(), details);
+                    metadata.insert(
+                        Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.to_string(),
+                        details,
+                    );
                 }
 
                 return Some(metadata);

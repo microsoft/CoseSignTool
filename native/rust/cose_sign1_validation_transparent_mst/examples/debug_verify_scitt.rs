@@ -3,7 +3,9 @@
 
 use cose_sign1_validation::fluent::CoseSign1;
 use cose_sign1_validation_transparent_mst::pack::MstTrustPack;
-use cose_sign1_validation_transparent_mst::receipt_verify::{verify_mst_receipt, ReceiptVerifyInput};
+use cose_sign1_validation_transparent_mst::receipt_verify::{
+    verify_mst_receipt, ReceiptVerifyInput,
+};
 use std::fs;
 use std::path::PathBuf;
 
@@ -33,9 +35,7 @@ fn read_receipts_from_unprotected_header(cose_bytes: &[u8]) -> Vec<Vec<u8>> {
     let msg = CoseSign1::from_cbor(cose_bytes).expect("valid COSE_Sign1");
 
     let mut d = tinycbor::Decoder(msg.unprotected_header.as_ref());
-    let mut map = d
-        .map_visitor()
-        .expect("unprotected header must be a map");
+    let mut map = d.map_visitor().expect("unprotected header must be a map");
 
     while let Some(entry) = map.visit::<i64, tinycbor::Any<'_>>() {
         let (k, v_any) = entry.expect("map entry decode failed");
@@ -74,22 +74,27 @@ fn main() {
         println!("receipts: {}", receipts.len());
 
         for (i, receipt_bytes) in receipts.iter().enumerate() {
-            let receipt = CoseSign1::from_cbor(receipt_bytes.as_slice()).expect("valid receipt COSE_Sign1");
-            let (int_keys, text_keys, has_x5chain) = inspect_mixed_key_header_map(receipt.protected_header);
+            let receipt =
+                CoseSign1::from_cbor(receipt_bytes.as_slice()).expect("valid receipt COSE_Sign1");
+            let (int_keys, text_keys, has_x5chain) =
+                inspect_mixed_key_header_map(receipt.protected_header);
             println!("receipt[{i}] protected int keys (subset): {int_keys:?}");
             println!("receipt[{i}] protected text keys (subset): {text_keys:?}");
             println!("receipt[{i}] has x5chain (label 33): {has_x5chain}");
 
             let out = verify_mst_receipt(ReceiptVerifyInput {
                 statement_bytes_with_receipts: cose_bytes.as_slice(),
-                        receipt_bytes: receipt_bytes.as_slice(),
+                receipt_bytes: receipt_bytes.as_slice(),
                 offline_jwks_json: pack.offline_jwks_json.as_deref(),
                 allow_network_fetch: pack.allow_network,
                 jwks_api_version: pack.jwks_api_version.as_deref(),
             });
 
             match out {
-                Ok(ok) => println!("receipt[{i}]: OK trusted={} details={:?}", ok.trusted, ok.details),
+                Ok(ok) => println!(
+                    "receipt[{i}]: OK trusted={} details={:?}",
+                    ok.trusted, ok.details
+                ),
                 Err(e) => println!("receipt[{i}]: ERR {e}"),
             }
         }
@@ -98,9 +103,7 @@ fn main() {
 
 fn inspect_mixed_key_header_map(map_bytes: &[u8]) -> (Vec<i64>, Vec<String>, bool) {
     let mut d = tinycbor::Decoder(map_bytes);
-    let mut map = d
-        .map_visitor()
-        .expect("protected header must be a map");
+    let mut map = d.map_visitor().expect("protected header must be a map");
 
     let mut int_keys = Vec::new();
     let mut text_keys = Vec::new();
@@ -175,7 +178,10 @@ fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
         }
         27 => {
             let b = rest.get(0..8)?;
-            Some((u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]), 8))
+            Some((
+                u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+                8,
+            ))
         }
         _ => None,
     }

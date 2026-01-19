@@ -4,8 +4,12 @@
 use anyhow::{anyhow, bail, Context as _};
 use base64::Engine as _;
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_certificates::facts::{X509ChainTrustedFact, X509SigningCertificateIdentityFact};
-use cose_sign1_validation_certificates::fluent_ext::{X509ChainTrustedWhereExt, X509SigningCertificateIdentityWhereExt};
+use cose_sign1_validation_certificates::facts::{
+    X509ChainTrustedFact, X509SigningCertificateIdentityFact,
+};
+use cose_sign1_validation_certificates::fluent_ext::{
+    X509ChainTrustedWhereExt, X509SigningCertificateIdentityWhereExt,
+};
 use cose_sign1_validation_certificates::pack::{CertificateTrustOptions, X509CertificateTrustPack};
 use ring::rand;
 use ring::signature;
@@ -146,7 +150,8 @@ fn encode_sig_structure(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8
 
     let external_aad: &[u8] = &[];
 
-    let mut buf = vec![0u8; protected_header_bytes.len() + external_aad.len() + payload.len() + 256];
+    let mut buf =
+        vec![0u8; protected_header_bytes.len() + external_aad.len() + payload.len() + 256];
     let buf_len = buf.len();
     let mut enc = Encoder(buf.as_mut_slice());
 
@@ -163,8 +168,8 @@ fn encode_sig_structure(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8
 }
 
 fn extract_uncompressed_public_key_bytes(cert_der: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let (_rem, cert) = parse_x509_certificate(cert_der)
-        .map_err(|e| anyhow!(format!("x509_parse_failed: {e}")))?;
+    let (_rem, cert) =
+        parse_x509_certificate(cert_der).map_err(|e| anyhow!(format!("x509_parse_failed: {e}")))?;
 
     let bytes = cert
         .tbs_certificate
@@ -205,11 +210,9 @@ fn run_selftest() -> anyhow::Result<()> {
     // Generate an ephemeral ES256 keypair using ring, then build a self-signed cert from it.
     // This keeps the cert public key guaranteed to match the signing key.
     let rng = rand::SystemRandom::new();
-    let key_pair_pkcs8 = signature::EcdsaKeyPair::generate_pkcs8(
-        &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
-        &rng,
-    )
-    .map_err(|_| anyhow!("ring key generation failed"))?;
+    let key_pair_pkcs8 =
+        signature::EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
+            .map_err(|_| anyhow!("ring key generation failed"))?;
 
     let signing_key = signature::EcdsaKeyPair::from_pkcs8(
         &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
@@ -219,8 +222,8 @@ fn run_selftest() -> anyhow::Result<()> {
     .map_err(|e| anyhow!(format!("ring key rejected: {e:?}")))?;
 
     let rcgen_pem = pkcs8_private_key_der_to_pem(key_pair_pkcs8.as_ref());
-    let rcgen_key_pair = rcgen::KeyPair::from_pem(rcgen_pem.as_str())
-        .context("rcgen KeyPair::from_pem")?;
+    let rcgen_key_pair =
+        rcgen::KeyPair::from_pem(rcgen_pem.as_str()).context("rcgen KeyPair::from_pem")?;
 
     let params = rcgen::CertificateParams::new(vec!["demo-ephemeral".to_string()])
         .context("rcgen params")?;

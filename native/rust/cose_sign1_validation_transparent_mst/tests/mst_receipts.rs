@@ -4,9 +4,7 @@
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_transparent_mst::facts::{MstReceiptPresentFact, MstReceiptTrustedFact};
 use cose_sign1_validation_transparent_mst::pack::{MstTrustPack, MST_RECEIPT_HEADER_LABEL};
-use cose_sign1_validation_trust::facts::{
-    TrustFactEngine, TrustFactProducer, TrustFactSet,
-};
+use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactProducer, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
 use std::sync::Arc;
 use tinycbor::{Encode, Encoder};
@@ -133,7 +131,9 @@ fn mst_receipt_present_true_when_header_exists() {
     let subject = TrustSubject::message(b"seed");
 
     // Receipts are projected as counter-signature subjects.
-    let cs = engine.get_fact_set::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     let cs = match cs {
         TrustFactSet::Available(v) => v,
         other => panic!("expected Available, got {other:?}"),
@@ -141,7 +141,9 @@ fn mst_receipt_present_true_when_header_exists() {
     assert_eq!(2, cs.len());
 
     for c in cs {
-        let facts = engine.get_facts::<MstReceiptPresentFact>(&c.subject).unwrap();
+        let facts = engine
+            .get_facts::<MstReceiptPresentFact>(&c.subject)
+            .unwrap();
         assert_eq!(1, facts.len());
         assert!(facts[0].present);
     }
@@ -181,7 +183,9 @@ fn mst_receipt_present_false_when_header_missing() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let facts = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let facts = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert!(facts.is_empty());
 }
 
@@ -198,7 +202,9 @@ fn mst_receipt_present_false_when_unprotected_has_other_key() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let facts = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let facts = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert!(facts.is_empty());
 }
 
@@ -216,7 +222,9 @@ fn mst_trusted_is_available_when_receipt_present_even_if_invalid() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let cs = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, cs.len());
     let cs_subject = &cs[0].subject;
 
@@ -251,12 +259,16 @@ fn mst_group_production_is_order_independent() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let cs = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, cs.len());
     let cs_subject = &cs[0].subject;
 
     // Request trusted first...
-    let trusted = engine.get_facts::<MstReceiptTrustedFact>(cs_subject).unwrap();
+    let trusted = engine
+        .get_facts::<MstReceiptTrustedFact>(cs_subject)
+        .unwrap();
     assert_eq!(1, trusted.len());
     assert!(!trusted[0].trusted);
     assert!(trusted[0]
@@ -266,7 +278,9 @@ fn mst_group_production_is_order_independent() {
         .contains("receipt_decode_failed"));
 
     // ...then present should already be available and correct.
-    let present = engine.get_facts::<MstReceiptPresentFact>(cs_subject).unwrap();
+    let present = engine
+        .get_facts::<MstReceiptPresentFact>(cs_subject)
+        .unwrap();
     assert_eq!(1, present.len());
     assert!(present[0].present);
 }
@@ -285,7 +299,9 @@ fn mst_trusted_is_available_when_offline_jwks_is_not_configured() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let cs = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, cs.len());
     let cs_subject = &cs[0].subject;
 
@@ -300,7 +316,6 @@ fn mst_trusted_is_available_when_offline_jwks_is_not_configured() {
         other => panic!("expected Available, got {other:?}"),
     }
 }
-
 
 #[test]
 fn mst_facts_are_noop_for_non_message_subjects() {
@@ -364,11 +379,15 @@ fn mst_trusted_reports_verification_error_when_offline_keys_present_but_receipt_
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let cs = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, cs.len());
     let cs_subject = &cs[0].subject;
 
-    let trusted = engine.get_facts::<MstReceiptTrustedFact>(cs_subject).unwrap();
+    let trusted = engine
+        .get_facts::<MstReceiptTrustedFact>(cs_subject)
+        .unwrap();
     assert_eq!(1, trusted.len());
     assert!(!trusted[0].trusted);
     assert!(trusted[0]
@@ -391,7 +410,9 @@ fn mst_trusted_reports_no_receipt_when_absent() {
         .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
 
     let subject = TrustSubject::message(b"seed");
-    let cs = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let cs = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert!(cs.is_empty());
 }
 

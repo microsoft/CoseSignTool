@@ -3,12 +3,15 @@
 The Rust validator mirrors the V2 “staged pipeline” model:
 
 1. **Key Material Resolution**
-   - Runs one or more `SigningKeyResolver`s.
+   - Runs one or more `SigningKeyResolver`s (typically contributed by trust packs).
    - Produces a single selected `SigningKey` (or fails).
 
 2. **Signing Key Trust**
    - Evaluates a `CompiledTrustPlan` against a `TrustSubject` graph rooted at the message.
-   - Fact producers (packs) can observe the message and emit facts for the plan to use.
+   - The compiled plan can be:
+     - provided explicitly by the caller, or
+     - derived from the configured trust packs' default plans.
+   - Fact producers (often from packs) can observe the message and emit facts for the plan to use.
 
 3. **Signature Verification**
    - Builds COSE `Sig_structure` and calls the selected `SigningKey`.
@@ -35,7 +38,7 @@ Each stage result can include:
 
 ## Bypass trust
 
-Trust evaluation can be bypassed via `TrustEvaluationOptions { bypass_trust: true, .. }`.
+Trust evaluation can be bypassed via `CoseSign1ValidationOptions.trust_evaluation_options.bypass_trust = true`.
 
 This keeps signature verification enabled (useful for scenarios where trust is handled elsewhere).
 

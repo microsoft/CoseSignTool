@@ -2,6 +2,12 @@
 
 The Rust port is designed to be “pack/resolver driven” like V2.
 
+Most integrations should start with the fluent API surface:
+
+- `use cose_sign1_validation::fluent::*;`
+
+For advanced integrations (custom signing keys/resolvers, custom post-signature validators), the same traits are available via the fluent surface, and additional lower-level pieces are available via `cose_sign1_validation::internal`.
+
 ## Signing key resolution
 
 Implement `SigningKeyResolver`:
@@ -49,7 +55,11 @@ Implement `cose_sign1_validation_trust::facts::TrustFactProducer`:
   - header location option
 - You can `observe(...)` facts for the current subject
 
-Packs can be composed by passing multiple producers to the validator.
+Packs can be composed by passing multiple packs/producers to the validator. In the fluent validator integration, packs can contribute:
+
+- signing key resolvers
+- fact producers
+- default trust plans
 
 ## Async entrypoints
 

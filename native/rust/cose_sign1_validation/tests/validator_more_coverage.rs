@@ -423,10 +423,8 @@ fn validator_public_types_have_expected_defaults_and_helpers() {
     assert_eq!(Some("E".to_string()), fail.error_code);
     assert_eq!(Some("M".to_string()), fail.error_message);
 
-    let cs_fail = CounterSignatureResolutionResult::failure(
-        Some("E".to_string()),
-        Some("M".to_string()),
-    );
+    let cs_fail =
+        CounterSignatureResolutionResult::failure(Some("E".to_string()), Some("M".to_string()));
     assert!(!cs_fail.is_success);
     assert_eq!(Some("E".to_string()), cs_fail.error_code);
     assert_eq!(Some("M".to_string()), cs_fail.error_message);

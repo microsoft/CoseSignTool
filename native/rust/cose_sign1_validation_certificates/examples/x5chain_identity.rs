@@ -51,7 +51,7 @@ fn main() {
 
     let cose = build_cose_sign1_with_x5chain(&der);
 
-    let message_subject = TrustSubject::message(b"seed");
+    let message_subject = TrustSubject::message(cose.as_slice());
     let signing_key_subject = TrustSubject::primary_signing_key(&message_subject);
 
     let pack = Arc::new(X509CertificateTrustPack::default());

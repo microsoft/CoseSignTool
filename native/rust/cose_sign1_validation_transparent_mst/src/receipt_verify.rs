@@ -107,13 +107,15 @@ pub struct ReceiptVerifyOutput {
     pub statement_sha256: [u8; 32],
 }
 
-pub fn verify_mst_receipt(input: ReceiptVerifyInput<'_>) -> Result<ReceiptVerifyOutput, ReceiptVerifyError> {
+pub fn verify_mst_receipt(
+    input: ReceiptVerifyInput<'_>,
+) -> Result<ReceiptVerifyOutput, ReceiptVerifyError> {
     let receipt = CoseSign1::from_cbor(input.receipt_bytes)
         .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
 
     // Parse receipt headers (int-keyed only; receipt protected header may include string keys).
-    let protected = IntKeyedMap::parse(receipt.protected_header)
-        .map_err(ReceiptVerifyError::ReceiptDecode)?;
+    let protected =
+        IntKeyedMap::parse(receipt.protected_header).map_err(ReceiptVerifyError::ReceiptDecode)?;
     let unprotected = IntKeyedMap::parse(receipt.unprotected_header.as_ref())
         .map_err(ReceiptVerifyError::ReceiptDecode)?;
 
@@ -158,7 +160,9 @@ pub fn verify_mst_receipt(input: ReceiptVerifyInput<'_>) -> Result<ReceiptVerify
     let spki = jwk_to_spki_der(&jwk)?;
 
     // VDP is unprotected header label 396.
-    let vdp_bytes = unprotected.get_raw(VDP_HEADER_LABEL).ok_or(ReceiptVerifyError::MissingVdp)?;
+    let vdp_bytes = unprotected
+        .get_raw(VDP_HEADER_LABEL)
+        .ok_or(ReceiptVerifyError::MissingVdp)?;
     let proof_blobs = read_proof_blobs(vdp_bytes.as_slice())?;
 
     // The .NET verifier computes claimsDigest = SHA256(signedStatementBytes)
@@ -182,10 +186,9 @@ pub fn verify_mst_receipt(input: ReceiptVerifyInput<'_>) -> Result<ReceiptVerify
         // Compute CCF accumulator (leaf hash) and fold proof path.
         let mut acc = ccf_accumulator_sha256(&proof, expected_data_hash)?;
         for (is_left, sibling) in proof.path.iter() {
-            let sibling: [u8; 32] = sibling
-                .as_slice()
-                .try_into()
-                .map_err(|_| ReceiptVerifyError::ReceiptDecode("unexpected_path_hash_len".to_string()))?;
+            let sibling: [u8; 32] = sibling.as_slice().try_into().map_err(|_| {
+                ReceiptVerifyError::ReceiptDecode("unexpected_path_hash_len".to_string())
+            })?;
 
             acc = if *is_left {
                 sha256_concat_slices(&sibling, &acc)
@@ -195,7 +198,10 @@ pub fn verify_mst_receipt(input: ReceiptVerifyInput<'_>) -> Result<ReceiptVerify
         }
 
         let sig_structure = build_sig_structure(receipt.protected_header, acc.as_slice());
-        if pk.verify(sig_structure.as_slice(), receipt.signature).is_ok() {
+        if pk
+            .verify(sig_structure.as_slice(), receipt.signature)
+            .is_ok()
+        {
             return Ok(ReceiptVerifyOutput {
                 trusted: true,
                 details: None,
@@ -231,7 +237,9 @@ fn build_sig_structure(protected_header_bytes: &[u8], detached_payload: &[u8]) -
     let mut enc = Encoder(buf.as_mut_slice());
     enc.array(4).expect("sig_structure array");
     "Signature1".encode(&mut enc).expect("context");
-    protected_header_bytes.encode(&mut enc).expect("body_protected");
+    protected_header_bytes
+        .encode(&mut enc)
+        .expect("body_protected");
     b"".as_slice().encode(&mut enc).expect("external_aad");
     detached_payload.encode(&mut enc).expect("payload");
 
@@ -243,8 +251,8 @@ fn build_sig_structure(protected_header_bytes: &[u8], detached_payload: &[u8]) -
 fn reencode_statement_with_cleared_unprotected_headers(
     statement_bytes: &[u8],
 ) -> Result<Vec<u8>, ReceiptVerifyError> {
-    let was_tagged = is_cose_sign1_tagged_18(statement_bytes)
-        .map_err(ReceiptVerifyError::StatementReencode)?;
+    let was_tagged =
+        is_cose_sign1_tagged_18(statement_bytes).map_err(ReceiptVerifyError::StatementReencode)?;
 
     let msg = CoseSign1::from_cbor(statement_bytes)
         .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
@@ -314,7 +322,8 @@ fn is_cose_sign1_tagged_18(input: &[u8]) -> Result<bool, String> {
 
     // Tag encoding.
     let ai = first & 0x1f;
-    let (tag, _used) = decode_cbor_uint_value(ai, &input[1..]).ok_or_else(|| "invalid CBOR tag encoding".to_string())?;
+    let (tag, _used) = decode_cbor_uint_value(ai, &input[1..])
+        .ok_or_else(|| "invalid CBOR tag encoding".to_string())?;
     Ok(tag == 18)
 }
 
@@ -358,7 +367,10 @@ fn decode_cbor_uint_value(ai: u8, rest: &[u8]) -> Option<(u64, usize)> {
         }
         27 => {
             let b = rest.get(0..8)?;
-            Some((u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]), 8))
+            Some((
+                u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+                8,
+            ))
         }
         _ => None,
     }
@@ -380,7 +392,9 @@ fn resolve_receipt_signing_key(
     }
 
     if !allow_network_fetch {
-        return Err(ReceiptVerifyError::JwksParse("MissingOfflineJwks".to_string()));
+        return Err(ReceiptVerifyError::JwksParse(
+            "MissingOfflineJwks".to_string(),
+        ));
     }
 
     let jwks_json = fetch_jwks_for_issuer(issuer, jwks_api_version)?;
@@ -399,7 +413,8 @@ fn fetch_jwks_for_issuer(
         format!("https://{issuer_host_or_url}")
     };
 
-    let mut url = Url::parse(base.as_str()).map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))?;
+    let mut url =
+        Url::parse(base.as_str()).map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))?;
     url.set_path("/jwks");
     url.set_query(None);
     if let Some(v) = jwks_api_version {
@@ -479,13 +494,17 @@ fn parse_leaf(leaf_bytes: &[u8]) -> Result<(Vec<u8>, String, Vec<u8>), ReceiptVe
 
     let internal_txn_hash = arr
         .visit::<&[u8]>()
-        .ok_or_else(|| ReceiptVerifyError::ReceiptDecode("leaf_missing_internal_txn_hash".to_string()))?
+        .ok_or_else(|| {
+            ReceiptVerifyError::ReceiptDecode("leaf_missing_internal_txn_hash".to_string())
+        })?
         .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?
         .to_vec();
 
     let internal_evidence = arr
         .visit::<String>()
-        .ok_or_else(|| ReceiptVerifyError::ReceiptDecode("leaf_missing_internal_evidence".to_string()))?
+        .ok_or_else(|| {
+            ReceiptVerifyError::ReceiptDecode("leaf_missing_internal_evidence".to_string())
+        })?
         .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
 
     let data_hash = arr
@@ -572,7 +591,9 @@ fn ring_verifier_for_cose_alg(
 
 fn validate_receipt_alg_against_jwk(jwk: &Jwk, alg: i64) -> Result<(), ReceiptVerifyError> {
     let Some(crv) = jwk.crv.as_deref() else {
-        return Err(ReceiptVerifyError::JwkUnsupported("missing_crv".to_string()));
+        return Err(ReceiptVerifyError::JwkUnsupported(
+            "missing_crv".to_string(),
+        ));
     };
 
     let ok = matches!(
@@ -659,7 +680,9 @@ fn jwk_to_spki_der(jwk: &Jwk) -> Result<Vec<u8>, ReceiptVerifyError> {
         .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_crv".to_string()))?;
 
     if crv != "P-384" && crv != "P-256" {
-        return Err(ReceiptVerifyError::JwkUnsupported(format!("unsupported_crv={crv}")));
+        return Err(ReceiptVerifyError::JwkUnsupported(format!(
+            "unsupported_crv={crv}"
+        )));
     }
 
     let x = jwk

@@ -10,7 +10,7 @@ The validator treats `payload = nil` as “detached content required”.
 
 `CoseSign1ValidationOptions` supports:
 
-- `DetachedPayload::Bytes(Arc<[u8]>)` for small payloads
+- `DetachedPayload::bytes(Arc<[u8]>)` for small payloads
 - `DetachedPayload::Provider(Arc<dyn DetachedPayloadProvider>)` for stream-like sources
 
 A provider must support opening a fresh `Read` each time the validator needs the payload.

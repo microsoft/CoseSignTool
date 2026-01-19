@@ -70,10 +70,7 @@ impl CountingFailingPostSignatureValidator {
 }
 
 impl PostSignatureValidator for CountingFailingPostSignatureValidator {
-    fn validate(
-        &self,
-        _context: &PostSignatureValidationContext<'_>,
-    ) -> ValidationResult {
+    fn validate(&self, _context: &PostSignatureValidationContext<'_>) -> ValidationResult {
         self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         ValidationResult::failure_message("post", "nope", Some("E_POST"))

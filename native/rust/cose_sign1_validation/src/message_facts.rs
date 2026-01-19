@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use std::sync::Arc;
 use cose_sign1_validation_trust::fact_properties::{FactProperties, FactValue};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// An opaque, borrow-based reader over a CBOR-encoded value.
 ///
@@ -442,9 +442,7 @@ impl FactProperties for CwtClaimsFact {
                 if let Some(rest) = name.strip_prefix(fields::cwt_claims::CLAIM_PREFIX) {
                     if let Ok(label) = rest.parse::<i64>() {
                         return self.scalar_claims.get(&label).map(|v| match v {
-                            CwtClaimScalar::Str(s) => {
-                                FactValue::Str(Cow::Borrowed(s.as_str()))
-                            }
+                            CwtClaimScalar::Str(s) => FactValue::Str(Cow::Borrowed(s.as_str())),
                             CwtClaimScalar::I64(n) => FactValue::I64(*n),
                             CwtClaimScalar::Bool(b) => FactValue::Bool(*b),
                         });

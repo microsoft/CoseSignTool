@@ -6,8 +6,10 @@
 //! This crate exists to keep the production `cose_sign1_validation` surface focused while still
 //! supporting concise test composition in this repo.
 
-use cose_sign1_validation::fluent::{CoseSign1TrustPack, PostSignatureValidator, SigningKeyResolver};
-use cose_sign1_validation_trust::facts::{FactKey, TrustFactProducer, TrustFactContext};
+use cose_sign1_validation::fluent::{
+    CoseSign1TrustPack, PostSignatureValidator, SigningKeyResolver,
+};
+use cose_sign1_validation_trust::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_trust::plan::CompiledTrustPlan;
 use std::sync::Arc;
 
@@ -21,7 +23,10 @@ impl TrustFactProducer for NoopTrustFactProducer {
         "noop"
     }
 
-    fn produce(&self, _ctx: &mut TrustFactContext<'_>) -> Result<(), cose_sign1_validation_trust::error::TrustError> {
+    fn produce(
+        &self,
+        _ctx: &mut TrustFactContext<'_>,
+    ) -> Result<(), cose_sign1_validation_trust::error::TrustError> {
         Ok(())
     }
 
@@ -61,7 +66,10 @@ impl SimpleTrustPack {
         self
     }
 
-    pub fn with_post_signature_validator(mut self, validator: Arc<dyn PostSignatureValidator>) -> Self {
+    pub fn with_post_signature_validator(
+        mut self,
+        validator: Arc<dyn PostSignatureValidator>,
+    ) -> Self {
         self.post_signature_validators.push(validator);
         self
     }

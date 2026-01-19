@@ -84,7 +84,11 @@ impl CompiledTrustPlan {
 
         all_of(
             "compiled_plan",
-            vec![constraints_rule, trust_sources_rule, not("not_vetoed", vetoes_rule)],
+            vec![
+                constraints_rule,
+                trust_sources_rule,
+                not("not_vetoed", vetoes_rule),
+            ],
         )
     }
 
@@ -106,7 +110,12 @@ impl CompiledTrustPlan {
             trust_sources.push(rule);
         }
 
-        Self::new(required.into_iter().collect(), Vec::new(), trust_sources, Vec::new())
+        Self::new(
+            required.into_iter().collect(),
+            Vec::new(),
+            trust_sources,
+            Vec::new(),
+        )
     }
 
     pub fn evaluate_with_audit(

@@ -53,8 +53,11 @@ pub trait HasTrustSubject: Send + Sync {
 /// Provides derived subjects for a scope.
 pub trait ScopeProvider: Clone + Send + Sync + 'static {
     fn scope_name(&self) -> &'static str;
-    fn subjects(&self, engine: &TrustFactEngine, subject: &TrustSubject)
-        -> Result<Vec<TrustSubject>, TrustError>;
+    fn subjects(
+        &self,
+        engine: &TrustFactEngine,
+        subject: &TrustSubject,
+    ) -> Result<Vec<TrustSubject>, TrustError>;
 }
 
 #[derive(Clone, Copy)]
@@ -320,10 +323,10 @@ where
         let inner_rule = compile_dnf("scope", self.dnf);
         (
             Arc::new(ScopedAnyOfSubjects {
-            name: "scope",
-            scope: self.scope,
-            on_empty: self.on_empty,
-            inner_rule,
+                name: "scope",
+                scope: self.scope,
+                on_empty: self.on_empty,
+                inner_rule,
             }),
             self.required_facts,
         )
@@ -380,7 +383,10 @@ impl TrustPlanBuilder {
         self
     }
 
-    pub fn for_message(mut self, f: impl FnOnce(ScopeRules<MessageScope>) -> ScopeRules<MessageScope>) -> Self {
+    pub fn for_message(
+        mut self,
+        f: impl FnOnce(ScopeRules<MessageScope>) -> ScopeRules<MessageScope>,
+    ) -> Self {
         let (rule, required) = f(ScopeRules::new(MessageScope)).into_scoped_parts();
         self.push_rule(rule);
         self.required_facts.extend(required);
@@ -403,7 +409,9 @@ impl TrustPlanBuilder {
     /// this method can then build a policy that evaluates against each derived counter-signature.
     pub fn for_subjects_from_facts<TFact>(
         mut self,
-        f: impl FnOnce(ScopeRules<SubjectsFromFactsScope<TFact>>) -> ScopeRules<SubjectsFromFactsScope<TFact>>,
+        f: impl FnOnce(
+            ScopeRules<SubjectsFromFactsScope<TFact>>,
+        ) -> ScopeRules<SubjectsFromFactsScope<TFact>>,
     ) -> Self
     where
         TFact: Any + Send + Sync + HasTrustSubject + 'static,
@@ -528,5 +536,4 @@ where
         );
         self
     }
-
 }

@@ -6,7 +6,7 @@ This folder documents the Rust workspace under `native/rust/`.
 
 - A staged COSE_Sign1 validation pipeline (resolution → trust → signature → post-signature)
 - A V2-style trust engine (facts + rule graph + audit + stable subject IDs)
-- Optional trust “packs” that can contribute facts (X.509 x5chain parsing, Transparent MST receipts, Azure Key Vault KID checks)
+- Optional trust “packs” that can contribute signing key resolvers, facts, and default trust plans (X.509 x5chain parsing, Transparent MST receipts, Azure Key Vault KID checks)
 - Detached payload support (bytes or provider) + streaming-friendly signature verification for large payloads
 
 ## Table of contents

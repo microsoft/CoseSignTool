@@ -14,6 +14,6 @@ mod cose;
 
 mod message_fact_producer;
 mod message_facts;
-mod trust_plan_builder;
 mod trust_packs;
+mod trust_plan_builder;
 mod validator;

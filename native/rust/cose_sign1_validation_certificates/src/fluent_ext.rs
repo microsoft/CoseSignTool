@@ -7,7 +7,9 @@ use crate::facts::{
 };
 use cose_sign1_validation_trust::facts::FactKey;
 use cose_sign1_validation_trust::fluent::{PrimarySigningKeyScope, ScopeRules, Where};
-use cose_sign1_validation_trust::rules::{not_with_reason, require_fact_bool, require_facts_match, FactSelector, MissingBehavior};
+use cose_sign1_validation_trust::rules::{
+    not_with_reason, require_fact_bool, require_facts_match, FactSelector, MissingBehavior,
+};
 
 pub trait X509SigningCertificateIdentityWhereExt {
     fn thumbprint_eq(self, thumbprint: impl Into<String>) -> Self;
@@ -48,11 +50,17 @@ impl X509SigningCertificateIdentityWhereExt for Where<X509SigningCertificateIden
     }
 
     fn subject_eq(self, subject: impl Into<String>) -> Self {
-        self.str_eq(x509_typed::x509_signing_certificate_identity::SUBJECT, subject)
+        self.str_eq(
+            x509_typed::x509_signing_certificate_identity::SUBJECT,
+            subject,
+        )
     }
 
     fn issuer_eq(self, issuer: impl Into<String>) -> Self {
-        self.str_eq(x509_typed::x509_signing_certificate_identity::ISSUER, issuer)
+        self.str_eq(
+            x509_typed::x509_signing_certificate_identity::ISSUER,
+            issuer,
+        )
     }
 
     fn serial_number_eq(self, serial_number: impl Into<String>) -> Self {
@@ -242,7 +250,10 @@ pub trait X509PublicKeyAlgorithmWhereExt {
 
 impl X509PublicKeyAlgorithmWhereExt for Where<X509PublicKeyAlgorithmFact> {
     fn thumbprint_eq(self, thumbprint: impl Into<String>) -> Self {
-        self.str_eq(x509_typed::x509_public_key_algorithm::CERTIFICATE_THUMBPRINT, thumbprint)
+        self.str_eq(
+            x509_typed::x509_public_key_algorithm::CERTIFICATE_THUMBPRINT,
+            thumbprint,
+        )
     }
 
     fn algorithm_oid_eq(self, oid: impl Into<String>) -> Self {
@@ -307,10 +318,8 @@ impl PrimarySigningKeyScopeRulesExt for ScopeRules<PrimarySigningKeyScope> {
         let subject_selector = |s: &cose_sign1_validation_trust::subject::TrustSubject| s.clone();
 
         let left_selector = FactSelector::first();
-        let right_selector = FactSelector::first().where_usize(
-            crate::facts::fields::x509_chain_element_identity::INDEX,
-            0,
-        );
+        let right_selector = FactSelector::first()
+            .where_usize(crate::facts::fields::x509_chain_element_identity::INDEX, 0);
 
         let rule = require_facts_match::<
             X509SigningCertificateIdentityFact,
@@ -348,10 +357,8 @@ impl PrimarySigningKeyScopeRulesExt for ScopeRules<PrimarySigningKeyScope> {
         let subject_selector = |s: &cose_sign1_validation_trust::subject::TrustSubject| s.clone();
 
         let left_selector = FactSelector::first();
-        let right_selector = FactSelector::first().where_usize(
-            crate::facts::fields::x509_chain_element_identity::INDEX,
-            1,
-        );
+        let right_selector = FactSelector::first()
+            .where_usize(crate::facts::fields::x509_chain_element_identity::INDEX, 1);
 
         let rule = require_facts_match::<
             X509SigningCertificateIdentityFact,

@@ -105,18 +105,21 @@ pub mod typed_fields {
             Field::new(crate::facts::fields::x509_signing_certificate_identity::SERIAL_NUMBER);
 
         pub const NOT_BEFORE_UNIX_SECONDS: Field<X509SigningCertificateIdentityFact, i64> =
-            Field::new(crate::facts::fields::x509_signing_certificate_identity::NOT_BEFORE_UNIX_SECONDS);
+            Field::new(
+                crate::facts::fields::x509_signing_certificate_identity::NOT_BEFORE_UNIX_SECONDS,
+            );
         pub const NOT_AFTER_UNIX_SECONDS: Field<X509SigningCertificateIdentityFact, i64> =
-            Field::new(crate::facts::fields::x509_signing_certificate_identity::NOT_AFTER_UNIX_SECONDS);
+            Field::new(
+                crate::facts::fields::x509_signing_certificate_identity::NOT_AFTER_UNIX_SECONDS,
+            );
     }
 
     pub mod x509_chain_element_validity {
         use super::*;
         pub const INDEX: Field<X509ChainElementValidityFact, usize> =
             Field::new(crate::facts::fields::x509_chain_element_validity::INDEX);
-        pub const NOT_BEFORE_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> = Field::new(
-            crate::facts::fields::x509_chain_element_validity::NOT_BEFORE_UNIX_SECONDS,
-        );
+        pub const NOT_BEFORE_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> =
+            Field::new(crate::facts::fields::x509_chain_element_validity::NOT_BEFORE_UNIX_SECONDS);
         pub const NOT_AFTER_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> =
             Field::new(crate::facts::fields::x509_chain_element_validity::NOT_AFTER_UNIX_SECONDS);
     }

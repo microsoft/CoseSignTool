@@ -3,9 +3,9 @@
 
 use crate::cose::CoseSign1;
 use crate::message_facts::{
-    ContentTypeFact, CoseSign1MessageBytesFact, CoseSign1MessagePartsFact, CwtClaimScalar,
-    CwtClaimsFact, CwtClaimsPresentFact, CounterSignatureSigningKeySubjectFact,
-    CounterSignatureSubjectFact, DetachedPayloadPresentFact, PrimarySigningKeySubjectFact,
+    ContentTypeFact, CoseSign1MessageBytesFact, CoseSign1MessagePartsFact,
+    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact, CwtClaimScalar,
+    CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact, PrimarySigningKeySubjectFact,
     UnknownCounterSignatureBytesFact,
 };
 use crate::validator::CounterSignatureResolver;
@@ -228,8 +228,9 @@ fn produce_cwt_claims_facts(
     let mut iat: Option<i64> = None;
 
     while let Some(entry) = map.visit::<tinycbor::Any<'_>, tinycbor::Any<'_>>() {
-        let (key_any, value_any) = entry
-            .map_err(|e| TrustError::FactProduction(format!("cwt_claim_entry_decode_failed: {e}")))?;
+        let (key_any, value_any) = entry.map_err(|e| {
+            TrustError::FactProduction(format!("cwt_claim_entry_decode_failed: {e}"))
+        })?;
 
         let key_bytes = key_any.as_ref();
         let value_bytes = value_any.as_ref();
@@ -277,7 +278,10 @@ fn produce_cwt_claims_facts(
 
         // Store a few well-known text-keyed claims as first-class fields.
         if let Some(k) = key_text.as_deref() {
-            raw_claims_text.insert(k.to_string(), Arc::from(value_bytes.to_vec().into_boxed_slice()));
+            raw_claims_text.insert(
+                k.to_string(),
+                Arc::from(value_bytes.to_vec().into_boxed_slice()),
+            );
 
             match (k, &value_str, value_i64) {
                 ("iss", Some(s), _) => iss = Some(s.clone()),

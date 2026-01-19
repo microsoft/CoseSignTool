@@ -19,11 +19,10 @@ use std::sync::Arc;
 // Core validation entrypoints
 pub use crate::validator::{
     CoseSign1ValidationError, CoseSign1ValidationOptions, CoseSign1ValidationResult,
-    CoseSign1Validator, ValidationFailure, ValidationResult, ValidationResultKind,
-    CounterSignature, CounterSignatureResolutionResult, CounterSignatureResolver,
-    DetachedPayload, DetachedPayloadFnProvider, DetachedPayloadProvider,
-    PostSignatureValidationContext, PostSignatureValidator,
-    SigningKey, SigningKeyResolutionResult, SigningKeyResolver,
+    CoseSign1Validator, CounterSignature, CounterSignatureResolutionResult,
+    CounterSignatureResolver, DetachedPayload, DetachedPayloadFnProvider, DetachedPayloadProvider,
+    PostSignatureValidationContext, PostSignatureValidator, SigningKey, SigningKeyResolutionResult,
+    SigningKeyResolver, ValidationFailure, ValidationResult, ValidationResultKind,
 };
 
 // Message representation
@@ -41,7 +40,9 @@ pub use crate::trust_plan_builder::{
 };
 
 // Trust DSL building blocks (needed for extension traits and advanced policies)
-pub use cose_sign1_validation_trust::fluent::{MessageScope, PrimarySigningKeyScope, ScopeRules, SubjectsFromFactsScope, Where};
+pub use cose_sign1_validation_trust::fluent::{
+    MessageScope, PrimarySigningKeyScope, ScopeRules, SubjectsFromFactsScope, Where,
+};
 
 // Built-in message-scope fluent extensions
 pub use crate::message_facts::fluent_ext::*;
@@ -49,9 +50,9 @@ pub use crate::message_facts::fluent_ext::*;
 // Common fact types used for scoping and advanced inspection.
 pub use crate::message_facts::{
     CborValueReader, ContentTypeFact, CoseSign1MessageBytesFact, CoseSign1MessagePartsFact,
-    CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact,
     CounterSignatureEnvelopeIntegrityFact, CounterSignatureSigningKeySubjectFact,
-    CounterSignatureSubjectFact, PrimarySigningKeySubjectFact, UnknownCounterSignatureBytesFact,
+    CounterSignatureSubjectFact, CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact,
+    PrimarySigningKeySubjectFact, UnknownCounterSignatureBytesFact,
 };
 
 /// Build a [`CoseSign1Validator`] from trust packs and a fluent policy closure.

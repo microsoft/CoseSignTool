@@ -85,8 +85,9 @@ pub mod fields {
 /// Typed fields for fluent trust-policy authoring.
 pub mod typed_fields {
     use super::{
-        MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact, MstReceiptSignatureVerifiedFact,
-        MstReceiptStatementCoverageFact, MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
+        MstReceiptIssuerFact, MstReceiptKidFact, MstReceiptPresentFact,
+        MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact,
+        MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
     };
     use cose_sign1_validation_trust::field::Field;
 
@@ -110,7 +111,8 @@ pub mod typed_fields {
 
     pub mod mst_receipt_kid {
         use super::*;
-        pub const KID: Field<MstReceiptKidFact, String> = Field::new(crate::facts::fields::mst_receipt_kid::KID);
+        pub const KID: Field<MstReceiptKidFact, String> =
+            Field::new(crate::facts::fields::mst_receipt_kid::KID);
     }
 
     pub mod mst_receipt_statement_sha256 {
@@ -195,7 +197,9 @@ impl FactProperties for MstReceiptStatementCoverageFact {
 impl FactProperties for MstReceiptSignatureVerifiedFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            fields::mst_receipt_signature_verified::VERIFIED => Some(FactValue::Bool(self.verified)),
+            fields::mst_receipt_signature_verified::VERIFIED => {
+                Some(FactValue::Bool(self.verified))
+            }
             _ => None,
         }
     }

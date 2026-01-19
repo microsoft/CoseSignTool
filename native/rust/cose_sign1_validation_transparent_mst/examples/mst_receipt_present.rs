@@ -50,6 +50,8 @@ fn main() {
     let receipts: [&[u8]; 1] = [b"receipt1".as_slice()];
     let cose = build_cose_sign1_with_unprotected_receipts(&receipts);
 
+    let subject = TrustSubject::message(cose.as_slice());
+
     let producers: Vec<Arc<dyn cose_sign1_validation_trust::facts::TrustFactProducer>> = vec![
         Arc::new(CoseSign1MessageFactProducer::new()),
         Arc::new(MstTrustPack {
@@ -61,7 +63,6 @@ fn main() {
 
     let engine =
         TrustFactEngine::new(producers).with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
-    let subject = TrustSubject::message(b"seed");
 
     let present = engine
         .get_fact_set::<MstReceiptPresentFact>(&subject)

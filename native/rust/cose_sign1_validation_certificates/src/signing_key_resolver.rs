@@ -96,7 +96,12 @@ impl SigningKey for X509CertificateSigningKey {
         "X509CertificateSigningKey"
     }
 
-    fn verify(&self, alg: i64, sig_structure: &[u8], signature_bytes: &[u8]) -> Result<bool, String> {
+    fn verify(
+        &self,
+        alg: i64,
+        sig_structure: &[u8],
+        signature_bytes: &[u8],
+    ) -> Result<bool, String> {
         match alg {
             // ES256 = -7
             -7 => {
@@ -125,7 +130,10 @@ impl SigningKey for X509CertificateSigningKey {
 
                 // COSE ES256 signatures are raw r||s and match ring's FIXED verifier.
                 if signature_bytes.len() != 64 {
-                    return Err(format!("unexpected_signature_len: {}", signature_bytes.len()));
+                    return Err(format!(
+                        "unexpected_signature_len: {}",
+                        signature_bytes.len()
+                    ));
                 }
 
                 let pk = signature::UnparsedPublicKey::new(
@@ -267,8 +275,14 @@ mod tests {
         let sig = kp.signing_key().sign(msg);
         let pk = kp.verifying_key().encode();
 
-        let ok = verify_ml_dsa_dispatch(OID_MLDSA_44, pk.as_ref(), msg, sig.encode().as_ref(), OID_MLDSA_44)
-            .expect("verify") ;
+        let ok = verify_ml_dsa_dispatch(
+            OID_MLDSA_44,
+            pk.as_ref(),
+            msg,
+            sig.encode().as_ref(),
+            OID_MLDSA_44,
+        )
+        .expect("verify");
         assert!(ok);
     }
 
@@ -281,8 +295,14 @@ mod tests {
         let sig = kp.signing_key().sign(msg);
         let pk = kp.verifying_key().encode();
 
-        let err = verify_ml_dsa_dispatch("1.2.3.4", pk.as_ref(), msg, sig.encode().as_ref(), OID_MLDSA_44)
-            .unwrap_err();
+        let err = verify_ml_dsa_dispatch(
+            "1.2.3.4",
+            pk.as_ref(),
+            msg,
+            sig.encode().as_ref(),
+            OID_MLDSA_44,
+        )
+        .unwrap_err();
         assert!(err.contains("unexpected public key algorithm OID"));
     }
 }
@@ -337,9 +357,8 @@ fn parse_x5chain_from_message(
     let unprotected_map_bytes = message.unprotected_header.as_ref();
 
     match loc {
-        CoseHeaderLocation::Protected => try_read_x5chain(protected_map_bytes)?.ok_or_else(|| {
-            "x5chain not found in protected header".to_string()
-        }),
+        CoseHeaderLocation::Protected => try_read_x5chain(protected_map_bytes)?
+            .ok_or_else(|| "x5chain not found in protected header".to_string()),
         CoseHeaderLocation::Any => {
             if let Some(v) = try_read_x5chain(protected_map_bytes)? {
                 return Ok(v);
@@ -351,8 +370,6 @@ fn parse_x5chain_from_message(
         }
     }
 }
-
-
 
 fn now_unix_seconds() -> i64 {
     SystemTime::now()
@@ -393,4 +410,3 @@ impl CoseSign1TrustPack for X509CertificateTrustPack {
         Some(bundled.plan().clone())
     }
 }
-

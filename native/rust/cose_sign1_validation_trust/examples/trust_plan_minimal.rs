@@ -68,7 +68,7 @@ fn main() {
     let plan = policy.compile();
 
     let engine = TrustFactEngine::new(vec![Arc::new(ExampleProducer)]);
-    let subject = TrustSubject::message(b"seed");
+    let subject = TrustSubject::root("Message", b"seed");
 
     let decision = plan
         .evaluate(&engine, &subject, &Default::default())

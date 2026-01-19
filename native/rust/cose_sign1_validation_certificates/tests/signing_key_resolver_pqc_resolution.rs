@@ -60,8 +60,7 @@ fn signing_key_resolver_can_resolve_non_p256_ec_keys_without_failing_resolution(
     assert!(
         res.is_success,
         "expected resolution success, got error_code={:?} error_message={:?}",
-        res.error_code,
-        res.error_message
+        res.error_code, res.error_message
     );
     assert!(res.signing_key.is_some());
 }

@@ -238,7 +238,7 @@ where
             scope,
             on_empty: OnEmptyBehavior::Deny,
             dnf: vec![Vec::new()],
-            next_op: NextOp::And,
+            next_op: NextOp::default(),
             required_facts: Vec::new(),
         }
     }

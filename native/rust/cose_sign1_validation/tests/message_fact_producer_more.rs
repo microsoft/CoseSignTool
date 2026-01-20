@@ -3,7 +3,7 @@
 
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_trust::evaluation_options::TrustEvaluationOptions;
-use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactSet};
+use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactProducer, TrustFactSet};
 use cose_sign1_validation_trust::subject::TrustSubject;
 use std::sync::Arc;
 use tinycbor::{Encode, Encoder};
@@ -162,6 +162,59 @@ fn encode_protected_header_with_cwt_claims() -> Vec<u8> {
     let (head, tail) = remaining.split_at_mut(claims_bytes.len());
     head.copy_from_slice(claims_bytes.as_slice());
     enc.0 = tail;
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn encode_protected_header_with_cwt_claims_bytes(claims_bytes: &[u8]) -> Vec<u8> {
+    const CWT_CLAIMS_LABEL: i64 = 15;
+
+    let mut buf = vec![0u8; 512];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    enc.map(1).unwrap();
+    CWT_CLAIMS_LABEL.encode(&mut enc).unwrap();
+
+    if enc.0.len() < claims_bytes.len() {
+        panic!("buffer too small for claims map");
+    }
+    let remaining = std::mem::take(&mut enc.0);
+    let (head, tail) = remaining.split_at_mut(claims_bytes.len());
+    head.copy_from_slice(claims_bytes);
+    enc.0 = tail;
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn encode_cwt_claims_map_bytes_with_large_and_negative_int_keys() -> Vec<u8> {
+    let mut buf = vec![0u8; 512];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    // Keys chosen to force CBOR integer additional-information encodings:
+    // 100 => AI=24, 1000 => AI=25, 70000 => AI=26, 1<<40 => AI=27.
+    // Also include a negative integer key to hit major type 1.
+    enc.map(5).unwrap();
+
+    100i64.encode(&mut enc).unwrap();
+    "v100".encode(&mut enc).unwrap();
+
+    1000i64.encode(&mut enc).unwrap();
+    1000i64.encode(&mut enc).unwrap();
+
+    70000i64.encode(&mut enc).unwrap();
+    true.encode(&mut enc).unwrap();
+
+    (1i64 << 40).encode(&mut enc).unwrap();
+    42i64.encode(&mut enc).unwrap();
+
+    (-1i64).encode(&mut enc).unwrap();
+    "neg".encode(&mut enc).unwrap();
 
     let used = buf_len - enc.0.len();
     buf.truncate(used);
@@ -512,4 +565,209 @@ fn content_type_accepts_utf8_bytes_from_unprotected_header() {
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
     assert_eq!("text/plain", ct[0].content_type);
+}
+
+#[test]
+fn message_fact_producer_exposes_a_stable_name_and_builder_is_chainable() {
+    let producer = CoseSign1MessageFactProducer::new().with_counter_signature_resolvers(vec![]);
+    assert_eq!(
+        "cose_sign1_validation::CoseSign1MessageFactProducer",
+        TrustFactProducer::name(&producer)
+    );
+}
+
+#[test]
+fn cwt_claims_fact_is_present_but_errors_when_claims_value_is_not_a_map() {
+    // CWT claims label 15 is present but set to a scalar (text) value.
+    let cose_bytes = build_cose_sign1_bytes(
+        &[(1, CborValue::I64(-7)), (15, CborValue::Text("not-a-map"))],
+        &[],
+        Some(b"payload"),
+    );
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()));
+
+    let subject = TrustSubject::message(b"seed");
+
+    let present = engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap();
+    let present = match present {
+        TrustFactSet::Available(v) => v.into_iter().next().expect("one present fact"),
+        other => panic!("expected Available, got {other:?}"),
+    };
+    assert!(present.present);
+
+    let claims = engine.get_fact_set::<CwtClaimsFact>(&subject).unwrap();
+    assert!(matches!(claims, TrustFactSet::Error { message } if message.contains("CwtClaimsValueNotMap")));
+}
+
+#[test]
+fn cwt_claims_fact_decodes_integer_keys_with_all_cbor_widths_and_negative_keys() {
+    let claims_bytes = encode_cwt_claims_map_bytes_with_large_and_negative_int_keys();
+    let protected_header_bytes = encode_protected_header_with_cwt_claims_bytes(claims_bytes.as_slice());
+    let cose_bytes = build_cose_sign1_bytes_with_protected_header_bytes(
+        protected_header_bytes.as_slice(),
+        Some(b"payload"),
+    );
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()));
+
+    let subject = TrustSubject::message(b"seed");
+
+    let claims = engine.get_fact_set::<CwtClaimsFact>(&subject).unwrap();
+    let fact = match claims {
+        TrustFactSet::Available(v) => v.into_iter().next().expect("expected one CwtClaimsFact"),
+        other => panic!("expected Available, got {other:?}"),
+    };
+
+    assert!(fact.raw_claims.contains_key(&100));
+    assert!(fact.raw_claims.contains_key(&1000));
+    assert!(fact.raw_claims.contains_key(&70000));
+    assert!(fact.raw_claims.contains_key(&(1i64 << 40)));
+    assert!(fact.raw_claims.contains_key(&-1));
+    assert!(fact.scalar_claims.contains_key(&70000));
+}
+
+#[test]
+fn content_type_is_absent_when_envelope_marker_present_but_no_preimage_is_provided() {
+    // When the envelope marker exists, the producer only reports the preimage content type.
+    // If preimage content type is missing, ContentTypeFact should be absent.
+    let cose_bytes = build_cose_sign1_bytes(
+        &[
+            (1, CborValue::I64(-7)),
+            (258, CborValue::I64(1)),
+            (3, CborValue::Text("application/json")),
+        ],
+        &[],
+        Some(b"payload"),
+    );
+
+    let msg = CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
+        msg.protected_header,
+        msg.unprotected_header.as_ref(),
+        msg.payload,
+        msg.signature,
+    )
+    .unwrap();
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()))
+        .with_cose_sign1_message(Arc::new(parsed));
+
+    let subject = TrustSubject::message(b"seed");
+    let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
+    match ct {
+        TrustFactSet::Available(v) => assert!(v.is_empty()),
+        other => panic!("expected Available(empty), got {other:?}"),
+    }
+}
+
+#[test]
+fn message_fact_producer_marks_all_facts_missing_when_bytes_are_not_in_context() {
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer]);
+
+    let subject = TrustSubject::message(b"seed");
+
+    let bytes = engine
+        .get_fact_set::<CoseSign1MessageBytesFact>(&subject)
+        .unwrap();
+    assert!(matches!(
+        bytes,
+        TrustFactSet::Missing { reason } if reason == "MissingMessage"
+    ));
+
+    let parts = engine
+        .get_fact_set::<CoseSign1MessagePartsFact>(&subject)
+        .unwrap();
+    assert!(matches!(
+        parts,
+        TrustFactSet::Missing { reason } if reason == "MissingMessage"
+    ));
+
+    let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
+    assert!(matches!(
+        ct,
+        TrustFactSet::Missing { reason } if reason == "MissingMessage"
+    ));
+}
+
+#[test]
+fn message_fact_producer_is_a_no_op_for_non_message_subjects() {
+    let cose_bytes = build_cose_sign1_bytes(&[(1, CborValue::I64(-7))], &[], Some(b"payload"));
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()));
+
+    let subject = TrustSubject::root("NotMessage", b"seed");
+
+    let parts = engine
+        .get_fact_set::<CoseSign1MessagePartsFact>(&subject)
+        .unwrap();
+    assert!(matches!(parts, TrustFactSet::Available(v) if v.is_empty()));
+
+    let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
+    assert!(matches!(ct, TrustFactSet::Available(v) if v.is_empty()));
+}
+
+#[test]
+fn message_fact_producer_prefers_engine_parsed_message_when_subject_matches_bytes() {
+    let cose_bytes = build_cose_sign1_bytes(
+        &[(1, CborValue::I64(-7)), (3, CborValue::Text("text/plain"))],
+        &[],
+        Some(b"payload"),
+    );
+
+    let msg = CoseSign1::from_cbor(&cose_bytes).unwrap();
+    let parsed = cose_sign1_validation_trust::CoseSign1ParsedMessage::from_parts(
+        msg.protected_header,
+        msg.unprotected_header.as_ref(),
+        msg.payload,
+        msg.signature,
+    )
+    .unwrap();
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.clone().into_boxed_slice()))
+        .with_cose_sign1_message(Arc::new(parsed));
+
+    let subject = TrustSubject::message(cose_bytes.as_slice());
+    let parts = engine
+        .get_fact_set::<CoseSign1MessagePartsFact>(&subject)
+        .unwrap();
+
+    match parts {
+        TrustFactSet::Available(v) => assert_eq!(1, v.len()),
+        other => panic!("expected Available, got {other:?}"),
+    }
+}
+
+#[test]
+fn message_fact_producer_can_fall_back_to_raw_cose_decode_when_no_parsed_message_provided() {
+    let cose_bytes = build_cose_sign1_bytes(
+        &[(1, CborValue::I64(-7)), (3, CborValue::Text("text/plain"))],
+        &[],
+        Some(b"payload"),
+    );
+
+    let producer = Arc::new(CoseSign1MessageFactProducer::new());
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.clone().into_boxed_slice()));
+
+    let subject = TrustSubject::message(cose_bytes.as_slice());
+    let parts = engine
+        .get_fact_set::<CoseSign1MessagePartsFact>(&subject)
+        .unwrap();
+
+    match parts {
+        TrustFactSet::Available(v) => assert_eq!(1, v.len()),
+        other => panic!("expected Available, got {other:?}"),
+    }
 }

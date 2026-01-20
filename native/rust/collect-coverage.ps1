@@ -61,10 +61,11 @@ function Invoke-Checked {
 # Exclude non-production code from coverage accounting:
 # - tests/ and examples/ directories
 # - build artifacts
-# - the demo executable crate (not production)
+# - the demo executable crate
+# - test-only helper crate
 # Note: cargo-llvm-cov expects a Rust-style regex over file paths. Use `\\` to match a single
 # Windows path separator in the regex, and keep the PowerShell string itself single-quoted.
-$ignoreFilenameRegex = '(^|\\|/)(tests|examples)(\\|/)|(^|\\|/)target(\\|/)|(^|\\|/)cose_sign1_validation_demo(\\|/)'
+$ignoreFilenameRegex = '(^|\\|/)(tests|examples)(\\|/)|(^|\\|/)target(\\|/)|(^|\\|/)cose_sign1_validation_(demo|test_utils)(\\|/)'
 
 Push-Location $here
 try {
@@ -86,6 +87,13 @@ try {
         Write-Host "Installing cargo-llvm-cov..." -ForegroundColor Yellow
         Invoke-Checked -Command "cargo install cargo-llvm-cov --locked" -Run {
             cargo install cargo-llvm-cov --locked
+        }
+    }
+
+    if (-not $NoClean) {
+        Write-Host "Cleaning cargo-llvm-cov artifacts..." -ForegroundColor Yellow
+        Invoke-Checked -Command "cargo llvm-cov clean" -Run {
+            cargo llvm-cov clean --workspace
         }
     }
 

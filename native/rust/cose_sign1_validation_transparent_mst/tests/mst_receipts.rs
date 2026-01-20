@@ -115,6 +115,54 @@ fn build_cose_sign1_with_unprotected_single_receipt_as_bstr(receipt: &[u8]) -> V
     buf
 }
 
+fn build_cose_sign1_with_unprotected_receipt_value(value_encoder: impl FnOnce(&mut Encoder<&mut [u8]>)) -> Vec<u8> {
+    let mut buf = vec![0u8; 2048];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    enc.array(4).unwrap();
+
+    // protected header bytes: encode empty map {} and wrap in bstr
+    let mut hdr_buf = vec![0u8; 64];
+    let hdr_len = hdr_buf.len();
+    let mut hdr_enc = Encoder(hdr_buf.as_mut_slice());
+    hdr_enc.map(0).unwrap();
+    let used_hdr = hdr_len - hdr_enc.0.len();
+    let protected_bytes = &hdr_buf[..used_hdr];
+    protected_bytes.encode(&mut enc).unwrap();
+
+    // unprotected header: map with MST receipt label
+    enc.map(1).unwrap();
+    MST_RECEIPT_HEADER_LABEL.encode(&mut enc).unwrap();
+    value_encoder(&mut enc);
+
+    // payload: null
+    Option::<&[u8]>::None.encode(&mut enc).unwrap();
+
+    // signature: b"sig"
+    b"sig".as_slice().encode(&mut enc).unwrap();
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn build_malformed_cose_sign1_with_unprotected_array() -> Vec<u8> {
+    let mut buf = vec![0u8; 256];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    // COSE_Sign1 should be an array(4); make it an array(3) to trigger decode errors.
+    enc.array(3).unwrap();
+    b"hdr".as_slice().encode(&mut enc).unwrap();
+    enc.array(0).unwrap();
+    b"sig".as_slice().encode(&mut enc).unwrap();
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
 #[test]
 fn mst_receipt_present_true_when_header_exists() {
     let receipts: [&[u8]; 2] = [b"r1".as_slice(), b"r2".as_slice()];
@@ -168,6 +216,69 @@ fn mst_receipt_present_errors_when_header_is_single_bstr() {
         .get_fact_set::<CounterSignatureSubjectFact>(&subject)
         .expect_err("expected fact production error");
     assert!(err.to_string().contains("invalid header"));
+}
+
+#[test]
+fn mst_receipt_present_errors_when_header_value_is_not_an_array() {
+    let cose = build_cose_sign1_with_unprotected_receipt_value(|enc| {
+        true.encode(enc).unwrap();
+    });
+
+    let producer = Arc::new(MstTrustPack {
+        allow_network: false,
+        offline_jwks_json: None,
+        jwks_api_version: None,
+    });
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
+
+    let subject = TrustSubject::message(b"seed");
+
+    let err = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .expect_err("expected invalid header error");
+    assert!(err.to_string().contains("invalid header"));
+}
+
+#[test]
+fn mst_receipt_present_errors_when_header_array_contains_non_bstr_items() {
+    let cose = build_cose_sign1_with_unprotected_receipt_value(|enc| {
+        enc.array(1).unwrap();
+        (123i64).encode(enc).unwrap();
+    });
+
+    let producer = Arc::new(MstTrustPack {
+        allow_network: false,
+        offline_jwks_json: None,
+        jwks_api_version: None,
+    });
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
+
+    let subject = TrustSubject::message(b"seed");
+
+    let _err = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .expect_err("expected fact production error");
+}
+
+#[test]
+fn mst_receipt_present_errors_when_cose_container_is_malformed() {
+    let cose = build_malformed_cose_sign1_with_unprotected_array();
+
+    let producer = Arc::new(MstTrustPack {
+        allow_network: false,
+        offline_jwks_json: None,
+        jwks_api_version: None,
+    });
+    let engine = TrustFactEngine::new(vec![producer])
+        .with_cose_sign1_bytes(Arc::from(cose.into_boxed_slice()));
+
+    let subject = TrustSubject::message(b"seed");
+
+    let _err = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .expect_err("expected decode failure");
 }
 
 #[test]

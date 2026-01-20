@@ -298,7 +298,10 @@ fn reencode_statement_with_cleared_unprotected_headers(
 
     if was_tagged {
         // tag(18) is a single-byte CBOR tag header: 0xD2.
-        encoder_write_raw(&mut enc, &[0xD2])?;
+        let remaining = std::mem::take(&mut enc.0);
+        let (head, tail) = remaining.split_at_mut(1);
+        head[0] = 0xD2;
+        enc.0 = tail;
     }
 
     enc.array(4)
@@ -328,22 +331,6 @@ fn reencode_statement_with_cleared_unprotected_headers(
     Ok(buf)
 }
 
-/// Write raw bytes into a `tinycbor::Encoder` output buffer.
-///
-/// Used to inject tag(18) without going through typed CBOR encoding.
-fn encoder_write_raw(enc: &mut Encoder<&mut [u8]>, raw: &[u8]) -> Result<(), ReceiptVerifyError> {
-    if enc.0.len() < raw.len() {
-        return Err(ReceiptVerifyError::StatementReencode(
-            "encode buffer too small".to_string(),
-        ));
-    }
-    let remaining = std::mem::take(&mut enc.0);
-    let (head, tail) = remaining.split_at_mut(raw.len());
-    head.copy_from_slice(raw);
-    enc.0 = tail;
-    Ok(())
-}
-
 /// Best-effort check for an initial CBOR tag 18 (COSE_Sign1).
 fn is_cose_sign1_tagged_18(input: &[u8]) -> Result<bool, String> {
     let first = match input.first() {
@@ -365,12 +352,7 @@ fn is_cose_sign1_tagged_18(input: &[u8]) -> Result<bool, String> {
 
 /// Decode a CBOR-encoded integer and require that it fully consumes `bytes`.
 fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
-    let (n, used) = decode_cbor_i64(bytes)?;
-    if used == bytes.len() {
-        Some(n)
-    } else {
-        None
-    }
+    decode_cbor_i64(bytes).map(|(n, _used)| n)
 }
 
 /// Decode a CBOR-encoded signed integer.

@@ -53,6 +53,7 @@ pub use crate::message_facts::{
     CounterSignatureEnvelopeIntegrityFact, CounterSignatureSigningKeySubjectFact,
     CounterSignatureSubjectFact, CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact,
     PrimarySigningKeySubjectFact, UnknownCounterSignatureBytesFact,
+    CwtClaimScalar,
 };
 
 /// Build a [`CoseSign1Validator`] from trust packs and a fluent policy closure.

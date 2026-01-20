@@ -189,7 +189,7 @@ impl SigningKey for X509CertificateSigningKey {
 /// Dispatch ML-DSA verification when the `pqc-mldsa` feature is disabled.
 ///
 /// This always returns an error so callers get a clear diagnostic.
-fn verify_ml_dsa_dispatch(
+pub fn verify_ml_dsa_dispatch(
     algorithm_oid: &str,
     public_key_bytes: &[u8],
     msg: &[u8],
@@ -202,7 +202,7 @@ fn verify_ml_dsa_dispatch(
 
 #[cfg(feature = "pqc-mldsa")]
 /// Dispatch ML-DSA verification by matching the expected SPKI OID to a concrete parameter set.
-fn verify_ml_dsa_dispatch(
+pub fn verify_ml_dsa_dispatch(
     algorithm_oid: &str,
     public_key_bytes: &[u8],
     msg: &[u8],
@@ -274,53 +274,6 @@ fn extract_leaf_public_key_material(cert_der: &[u8]) -> Result<LeafPublicKeyMate
         algorithm_oid,
         subject_public_key_bytes,
     })
-}
-
-#[cfg(all(test, feature = "pqc-mldsa"))]
-mod tests {
-    use super::*;
-    use ml_dsa::signature::Signer as _;
-    use ml_dsa::{KeyGen as _, MlDsa44};
-
-    #[test]
-    fn mldsa_44_verify_roundtrip_succeeds() {
-        let seed: ml_dsa::B32 = [42u8; 32].into();
-        let kp = MlDsa44::key_gen_internal(&seed);
-
-        let msg = b"sig_structure";
-        let sig = kp.signing_key().sign(msg);
-        let pk = kp.verifying_key().encode();
-
-        let ok = verify_ml_dsa_dispatch(
-            OID_MLDSA_44,
-            pk.as_ref(),
-            msg,
-            sig.encode().as_ref(),
-            OID_MLDSA_44,
-        )
-        .expect("verify");
-        assert!(ok);
-    }
-
-    #[test]
-    fn mldsa_44_oid_mismatch_is_reported() {
-        let seed: ml_dsa::B32 = [42u8; 32].into();
-        let kp = MlDsa44::key_gen_internal(&seed);
-
-        let msg = b"sig_structure";
-        let sig = kp.signing_key().sign(msg);
-        let pk = kp.verifying_key().encode();
-
-        let err = verify_ml_dsa_dispatch(
-            "1.2.3.4",
-            pk.as_ref(),
-            msg,
-            sig.encode().as_ref(),
-            OID_MLDSA_44,
-        )
-        .unwrap_err();
-        assert!(err.contains("unexpected public key algorithm OID"));
-    }
 }
 
 fn parse_x5chain_from_message(

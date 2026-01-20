@@ -4,11 +4,15 @@
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_trust::{
+    error::TrustError,
+    facts::{FactKey, TrustFactContext, TrustFactProducer},
     plan::CompiledTrustPlan,
     policy::TrustPolicyBuilder,
     rules::{FnRule, TrustRuleRef},
+    subject::TrustSubject,
     CoseSign1ParsedMessage, TrustDecision, TrustEvaluationOptions,
 };
+use once_cell::sync::Lazy;
 use std::future::Future;
 use std::io::{Cursor, Read};
 use std::pin::Pin;
@@ -130,6 +134,200 @@ fn validator_with_components(
     }
 
     CoseSign1Validator::advanced(trust_packs, merged_options)
+}
+
+fn validator_with_extra_trust_packs(
+    mut extra_trust_packs: Vec<Arc<dyn CoseSign1TrustPack>>,
+    signing_key_resolvers: Vec<Arc<dyn SigningKeyResolver>>,
+    post_signature_validators: Vec<Arc<dyn PostSignatureValidator>>,
+    trust_plan: CompiledTrustPlan,
+    options: Option<CoseSign1ValidationOptions>,
+    trust_evaluation_options: Option<TrustEvaluationOptions>,
+) -> CoseSign1Validator {
+    let mut trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = Vec::new();
+
+    trust_packs.append(&mut extra_trust_packs);
+
+    if !signing_key_resolvers.is_empty() {
+        let resolver_pack = signing_key_resolvers.into_iter().fold(
+            SimpleTrustPack::no_facts("test_signing_key_resolvers"),
+            |pack, resolver| pack.with_signing_key_resolver(resolver),
+        );
+        trust_packs.push(Arc::new(resolver_pack));
+    }
+
+    if !post_signature_validators.is_empty() {
+        let post_pack = post_signature_validators.into_iter().fold(
+            SimpleTrustPack::no_facts("test_post_signature_validators"),
+            |pack, validator| pack.with_post_signature_validator(validator),
+        );
+        trust_packs.push(Arc::new(post_pack));
+    }
+
+    trust_packs.push(Arc::new(
+        SimpleTrustPack::no_facts("test_trust_plan").with_default_trust_plan(trust_plan),
+    ));
+
+    let mut merged_options = options.unwrap_or_default();
+    if let Some(trust_evaluation_options) = trust_evaluation_options {
+        merged_options.trust_evaluation_options = trust_evaluation_options;
+    }
+
+    CoseSign1Validator::advanced(trust_packs, merged_options)
+}
+
+#[derive(Clone)]
+struct FakeBypassTrustPack {
+    sig_structure_intact: bool,
+    details: Option<String>,
+}
+
+impl FakeBypassTrustPack {
+    fn new(sig_structure_intact: bool) -> Self {
+        Self {
+            sig_structure_intact,
+            details: Some("fake-integrity".to_string()),
+        }
+    }
+
+    fn new_with_details(sig_structure_intact: bool, details: Option<String>) -> Self {
+        Self {
+            sig_structure_intact,
+            details,
+        }
+    }
+}
+
+impl CoseSign1TrustPack for FakeBypassTrustPack {
+    fn name(&self) -> &'static str {
+        "FakeBypassTrustPack"
+    }
+
+    fn fact_producer(&self) -> Arc<dyn TrustFactProducer> {
+        Arc::new(FakeBypassProducer {
+            sig_structure_intact: self.sig_structure_intact,
+            details: self.details.clone(),
+        })
+    }
+}
+
+#[derive(Clone)]
+struct FakeBypassProducer {
+    sig_structure_intact: bool,
+    details: Option<String>,
+}
+
+impl TrustFactProducer for FakeBypassProducer {
+    fn name(&self) -> &'static str {
+        "FakeBypassProducer"
+    }
+
+    fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
+        match ctx.subject().kind {
+            "Message" => {
+                let message_subject = match ctx.cose_sign1_bytes() {
+                    Some(bytes) => TrustSubject::message(bytes.as_ref()),
+                    None => TrustSubject::message(b"seed"),
+                };
+
+                // Project a single derived counter-signature subject.
+                let cs_subject = TrustSubject::counter_signature(&message_subject, b"fake-cs");
+                ctx.observe(CounterSignatureSubjectFact {
+                    subject: cs_subject,
+                    is_protected_header: false,
+                })?;
+
+                for k in self.provides() {
+                    ctx.mark_produced(*k);
+                }
+                Ok(())
+            }
+            "CounterSignature" => {
+                ctx.observe(CounterSignatureEnvelopeIntegrityFact {
+                    sig_structure_intact: self.sig_structure_intact,
+                    details: self.details.clone(),
+                })?;
+
+                for k in self.provides() {
+                    ctx.mark_produced(*k);
+                }
+                Ok(())
+            }
+            _ => {
+                for k in self.provides() {
+                    ctx.mark_produced(*k);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn provides(&self) -> &'static [FactKey] {
+        static PROVIDED: Lazy<[FactKey; 2]> = Lazy::new(|| {
+            [
+                FactKey::of::<CounterSignatureSubjectFact>(),
+                FactKey::of::<CounterSignatureEnvelopeIntegrityFact>(),
+            ]
+        });
+        &*PROVIDED
+    }
+}
+
+#[derive(Clone)]
+struct FakeBypassTrustPackNoIntegrity;
+
+impl CoseSign1TrustPack for FakeBypassTrustPackNoIntegrity {
+    fn name(&self) -> &'static str {
+        "FakeBypassTrustPackNoIntegrity"
+    }
+
+    fn fact_producer(&self) -> Arc<dyn TrustFactProducer> {
+        Arc::new(FakeBypassProducerNoIntegrity)
+    }
+}
+
+#[derive(Clone)]
+struct FakeBypassProducerNoIntegrity;
+
+impl TrustFactProducer for FakeBypassProducerNoIntegrity {
+    fn name(&self) -> &'static str {
+        "FakeBypassProducerNoIntegrity"
+    }
+
+    fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
+        if ctx.subject().kind == "Message" {
+            let message_subject = match ctx.cose_sign1_bytes() {
+                Some(bytes) => TrustSubject::message(bytes.as_ref()),
+                None => TrustSubject::message(b"seed"),
+            };
+
+            let cs_subject = TrustSubject::counter_signature(&message_subject, b"fake-cs");
+            ctx.observe(CounterSignatureSubjectFact {
+                subject: cs_subject,
+                is_protected_header: false,
+            })?;
+        }
+
+        for k in self.provides() {
+            ctx.mark_produced(*k);
+        }
+        Ok(())
+    }
+
+    fn provides(&self) -> &'static [FactKey] {
+        static PROVIDED: Lazy<[FactKey; 1]> =
+            Lazy::new(|| [FactKey::of::<CounterSignatureSubjectFact>()]);
+        &*PROVIDED
+    }
+}
+
+#[derive(Clone)]
+struct AlwaysFailPostSignature;
+
+impl PostSignatureValidator for AlwaysFailPostSignature {
+    fn validate(&self, _context: &PostSignatureValidationContext<'_>) -> ValidationResult {
+        ValidationResult::failure_message("AlwaysFailPostSignature", "post_signature_failed", None)
+    }
 }
 
 fn deny_trust_plan_empty_reasons() -> CompiledTrustPlan {
@@ -946,6 +1144,26 @@ fn validate_bytes_async_trust_denied_short_circuits_signature_and_post() {
 }
 
 #[test]
+fn validate_bytes_trust_denied_short_circuits_signature_and_post() {
+    let cose = build_cose_sign1_bytes(Some(b"payload"), &encode_protected_alg(-7));
+
+    let v = validator_with_components(
+        vec![Arc::new(StaticKeyResolver {
+            key: Arc::new(AlwaysTrueKey),
+        })],
+        vec![],
+        deny_trust_plan_with_reason(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions::default()),
+    );
+
+    let result = v.validate_bytes(Arc::from(cose.into_boxed_slice())).unwrap();
+    assert_eq!(ValidationResultKind::Failure, result.trust.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.post_signature_policy.kind);
+}
+
+#[test]
 fn validate_bytes_async_signature_failure_path_is_exercised() {
     let cose = build_cose_sign1_bytes(Some(b"payload"), &encode_protected_alg(-7));
 
@@ -1127,6 +1345,14 @@ fn signature_stage_streaming_path_exercises_sig_structure_reader_eof_done_branch
         .validate_bytes(Arc::from(cose.into_boxed_slice()))
         .unwrap();
     assert_eq!(ValidationResultKind::Success, result.signature.kind);
+    assert_eq!(
+        Some("EofProbeStreaming"),
+        result
+            .signature
+            .metadata
+            .get("SelectedValidator")
+            .map(String::as_str)
+    );
 }
 
 #[test]
@@ -1206,4 +1432,221 @@ fn streaming_sig_structure_prefix_covers_u64_bstr_len_encoding_without_allocatin
         .validate_bytes(Arc::from(cose.into_boxed_slice()))
         .unwrap();
     assert_eq!(ValidationResultKind::Success, result.signature.kind);
+}
+
+#[test]
+fn validate_bytes_resolution_failure_without_bypass_marks_stages_not_applicable() {
+    // No receipts -> signature bypass metadata cannot be derived.
+    let cose = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let v = validator_with_components(
+        vec![],
+        vec![],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = v
+        .validate_bytes(Arc::from(cose.into_boxed_slice()))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.trust.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.post_signature_policy.kind);
+    assert_eq!(ValidationResultKind::Failure, result.overall.kind);
+}
+
+#[test]
+fn validate_bytes_can_bypass_signature_and_surface_post_signature_failure() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(FakeBypassTrustPack::new(true));
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![Arc::new(AlwaysFailPostSignature)],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = v
+        .validate_bytes(Arc::from(statement_bytes.into_boxed_slice()))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Success, result.trust.kind);
+    assert_eq!(ValidationResultKind::Success, result.signature.kind);
+    assert_eq!(ValidationResultKind::Failure, result.post_signature_policy.kind);
+    assert_eq!(ValidationResultKind::Failure, result.overall.kind);
+
+    assert_eq!(
+        Some("BypassedByCounterSignature"),
+        result
+            .signature
+            .metadata
+            .get("SignatureVerificationMode")
+            .map(|s| s.as_str())
+    );
+}
+
+#[test]
+fn validate_bytes_can_bypass_signature_and_succeed_when_post_signature_is_empty() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(FakeBypassTrustPack::new(true));
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = v
+        .validate_bytes(Arc::from(statement_bytes.into_boxed_slice()))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Success, result.overall.kind);
+    assert_eq!(
+        Some("BypassedByCounterSignature"),
+        result
+            .signature
+            .metadata
+            .get("SignatureVerificationMode")
+            .map(|s| s.as_str())
+    );
+}
+
+#[test]
+fn validate_bytes_async_bypass_paths_are_exercised() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(FakeBypassTrustPack::new(true));
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![Arc::new(AlwaysFailPostSignature)],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = block_on(v.validate_bytes_async(Arc::from(statement_bytes.into_boxed_slice())))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Failure, result.overall.kind);
+    assert_eq!(
+        Some("BypassedByCounterSignature"),
+        result
+            .signature
+            .metadata
+            .get("SignatureVerificationMode")
+            .map(|s| s.as_str())
+    );
+}
+
+#[test]
+fn validate_bytes_async_can_bypass_signature_and_succeed_when_post_signature_is_empty() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(FakeBypassTrustPack::new(true));
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = block_on(v.validate_bytes_async(Arc::from(statement_bytes.into_boxed_slice())))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Success, result.overall.kind);
+    assert_eq!(
+        Some("BypassedByCounterSignature"),
+        result
+            .signature
+            .metadata
+            .get("SignatureVerificationMode")
+            .map(|s| s.as_str())
+    );
+}
+
+#[test]
+fn validate_bytes_does_not_include_bypass_details_when_integrity_fact_has_no_details() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> =
+        Arc::new(FakeBypassTrustPack::new_with_details(true, None));
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = v
+        .validate_bytes(Arc::from(statement_bytes.into_boxed_slice()))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Success, result.overall.kind);
+    assert_eq!(
+        Some("BypassedByCounterSignature"),
+        result
+            .signature
+            .metadata
+            .get("SignatureVerificationMode")
+            .map(|s| s.as_str())
+    );
+    assert!(!result.signature.metadata.contains_key("SignatureBypassDetails"));
+}
+
+#[test]
+fn validate_bytes_resolution_failure_with_counter_signature_subject_but_no_integrity_does_not_bypass() {
+    let statement_bytes = build_cose_sign1_bytes(Some(b"payload".as_slice()), &encode_protected_alg(-7));
+
+    let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(FakeBypassTrustPackNoIntegrity);
+    let v = validator_with_extra_trust_packs(
+        vec![pack],
+        vec![],
+        vec![],
+        allow_all_trust_plan(),
+        Some(CoseSign1ValidationOptions::default()),
+        Some(TrustEvaluationOptions {
+            bypass_trust: true,
+            ..Default::default()
+        }),
+    );
+
+    let result = v
+        .validate_bytes(Arc::from(statement_bytes.into_boxed_slice()))
+        .unwrap();
+
+    assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
+    assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
+    assert!(!result.signature.metadata.contains_key("SignatureVerificationMode"));
 }

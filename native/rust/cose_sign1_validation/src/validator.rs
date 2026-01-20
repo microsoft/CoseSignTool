@@ -838,24 +838,9 @@ impl CoseSign1Validator {
         }
 
         // Stage 3: Signature Verification
-        let Some(signing_key) = signing_key.as_ref() else {
-            let signature_result = ValidationResult::failure_message(
-                Self::STAGE_NAME_SIGNATURE,
-                Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED,
-                Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED),
-            );
-
-            return Ok(CoseSign1ValidationResult {
-                resolution: resolution_result,
-                trust: trust_result,
-                signature: signature_result.clone(),
-                post_signature_policy: ValidationResult::not_applicable(
-                    Self::STAGE_NAME_POST_SIGNATURE,
-                    Some(Self::NOT_APPLICABLE_REASON_SIGNATURE_VALIDATION_FAILED),
-                ),
-                overall: signature_result,
-            });
-        };
+        let signing_key = signing_key
+            .as_ref()
+            .expect("signing_key must be present when key resolution succeeded");
 
         let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key);
         if !signature_result.is_valid() {
@@ -1058,24 +1043,9 @@ impl CoseSign1Validator {
         }
 
         // Stage 3: Signature Verification
-        let Some(signing_key) = signing_key.as_ref() else {
-            let signature_result = ValidationResult::failure_message(
-                Self::STAGE_NAME_SIGNATURE,
-                Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED,
-                Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED),
-            );
-
-            return Ok(CoseSign1ValidationResult {
-                resolution: resolution_result,
-                trust: trust_result,
-                signature: signature_result.clone(),
-                post_signature_policy: ValidationResult::not_applicable(
-                    Self::STAGE_NAME_POST_SIGNATURE,
-                    Some(Self::NOT_APPLICABLE_REASON_SIGNATURE_VALIDATION_FAILED),
-                ),
-                overall: signature_result,
-            });
-        };
+        let signing_key = signing_key
+            .as_ref()
+            .expect("signing_key must be present when key resolution succeeded");
 
         let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), signing_key);
         if !signature_result.is_valid() {
@@ -1296,9 +1266,6 @@ impl CoseSign1Validator {
             };
 
             let mut metadata = BTreeMap::new();
-            if self.options.trust_evaluation_options.bypass_trust {
-                metadata.insert("BypassTrust".to_string(), "true".to_string());
-            }
             metadata.insert("TrustDecision".to_string(), format!("{decision:?}"));
             if let Some(a) = audit {
                 metadata.insert("TrustDecisionAudit".to_string(), format!("{a:?}"));

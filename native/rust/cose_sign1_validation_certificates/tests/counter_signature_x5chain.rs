@@ -10,6 +10,16 @@ use rcgen::{generate_simple_self_signed, CertifiedKey};
 use std::sync::Arc;
 use tinycbor::{Encode, Encoder};
 
+fn wrap_as_cbor_bstr(inner: &[u8]) -> Vec<u8> {
+    let mut buf = vec![0u8; 4096 + inner.len()];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+    inner.encode(&mut enc).unwrap();
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
 fn build_cose_sign1_minimal() -> Vec<u8> {
     let mut buf = vec![0u8; 1024];
     let buf_len = buf.len();
@@ -62,6 +72,35 @@ fn build_cose_signature_with_x5chain(cert_der: &[u8]) -> Vec<u8> {
     enc.array(3).unwrap();
     hdr_buf.as_slice().encode(&mut enc).unwrap();
     enc.map(0).unwrap();
+    b"sig".as_slice().encode(&mut enc).unwrap();
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn build_cose_signature_with_unprotected_x5chain(cert_der: &[u8]) -> Vec<u8> {
+    // protected header bytes: {} (no x5chain)
+    let mut hdr_buf = vec![0u8; 64];
+    let hdr_len = hdr_buf.len();
+    let mut hdr_enc = Encoder(hdr_buf.as_mut_slice());
+    hdr_enc.map(0).unwrap();
+    let used_hdr = hdr_len - hdr_enc.0.len();
+    hdr_buf.truncate(used_hdr);
+
+    // COSE_Signature = [ protected: bstr(map_bytes), unprotected: {33: [ cert_der ]}, signature: b"sig" ]
+    let mut buf = vec![0u8; 2048];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    enc.array(3).unwrap();
+    hdr_buf.as_slice().encode(&mut enc).unwrap();
+
+    enc.map(1).unwrap();
+    (33i64).encode(&mut enc).unwrap();
+    enc.array(1).unwrap();
+    cert_der.encode(&mut enc).unwrap();
+
     b"sig".as_slice().encode(&mut enc).unwrap();
 
     let used = buf_len - enc.0.len();
@@ -160,4 +199,74 @@ fn counter_signature_signing_key_can_produce_x5chain_identity() {
         }
         other => panic!("expected Available, got {other:?}"),
     }
+}
+
+#[test]
+fn counter_signature_signing_key_parses_bstr_wrapped_cose_signature() {
+    let CertifiedKey { cert, .. } =
+        generate_simple_self_signed(vec!["counter-wrapped.example".to_string()]).unwrap();
+    let cert_der = cert.der().as_ref().to_vec();
+
+    let cose = build_cose_sign1_minimal();
+    let counter_sig = build_cose_signature_with_x5chain(&cert_der);
+    let wrapped = wrap_as_cbor_bstr(counter_sig.as_slice());
+
+    let cs = Arc::new(FixedCounterSignature {
+        raw: Arc::from(wrapped.as_slice()),
+        protected: true,
+        signing_key: Arc::new(NoopSigningKey),
+    });
+
+    let message_producer = Arc::new(
+        CoseSign1MessageFactProducer::new()
+            .with_counter_signature_resolvers(vec![Arc::new(OneCounterSignatureResolver { cs })]),
+    );
+
+    let cert_pack = Arc::new(X509CertificateTrustPack::default());
+    let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
+        .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()));
+
+    let message_subject = TrustSubject::message(cose.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, wrapped.as_slice());
+    let cs_signing_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
+
+    let identity = engine
+        .get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject)
+        .unwrap();
+    assert!(matches!(identity, TrustFactSet::Available(_)));
+}
+
+#[test]
+fn counter_signature_signing_key_can_read_x5chain_from_unprotected_when_header_location_any() {
+    let CertifiedKey { cert, .. } =
+        generate_simple_self_signed(vec!["counter-unprotected.example".to_string()]).unwrap();
+    let cert_der = cert.der().as_ref().to_vec();
+
+    let cose = build_cose_sign1_minimal();
+    let counter_sig = build_cose_signature_with_unprotected_x5chain(&cert_der);
+
+    let cs = Arc::new(FixedCounterSignature {
+        raw: Arc::from(counter_sig.as_slice()),
+        protected: false,
+        signing_key: Arc::new(NoopSigningKey),
+    });
+
+    let message_producer = Arc::new(
+        CoseSign1MessageFactProducer::new()
+            .with_counter_signature_resolvers(vec![Arc::new(OneCounterSignatureResolver { cs })]),
+    );
+
+    let cert_pack = Arc::new(X509CertificateTrustPack::default());
+    let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
+        .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
+        .with_cose_header_location(cose_sign1_validation_trust::CoseHeaderLocation::Any);
+
+    let message_subject = TrustSubject::message(cose.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
+    let cs_signing_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
+
+    let identity = engine
+        .get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject)
+        .unwrap();
+    assert!(matches!(identity, TrustFactSet::Available(_)));
 }

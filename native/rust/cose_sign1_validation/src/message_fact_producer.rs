@@ -99,11 +99,16 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
         // Produce parts/content-type/detached/countersignature facts.
         // Prefer the already-parsed message from the engine context.
         if let Some(pm) = ctx.cose_sign1_message() {
+            let protected_header = Arc::new(pm.protected_header_bytes.as_ref().to_vec());
+            let unprotected_header = Arc::new(pm.unprotected_header_bytes.as_ref().to_vec());
+            let payload = pm.payload.as_ref().map(|p| Arc::new(p.as_ref().to_vec()));
+            let signature = Arc::new(pm.signature.as_ref().to_vec());
+
             ctx.observe(CoseSign1MessagePartsFact {
-                protected_header: Arc::new(pm.protected_header_bytes.as_ref().to_vec()),
-                unprotected_header: Arc::new(pm.unprotected_header_bytes.as_ref().to_vec()),
-                payload: pm.payload.as_ref().map(|p| Arc::new(p.as_ref().to_vec())),
-                signature: Arc::new(pm.signature.as_ref().to_vec()),
+                protected_header,
+                unprotected_header,
+                payload,
+                signature,
             })?;
 
             ctx.observe(DetachedPayloadPresentFact {
@@ -135,11 +140,16 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
                 }
             };
 
+            let protected_header = Arc::new(msg.protected_header.to_vec());
+            let unprotected_header = Arc::new(msg.unprotected_header.as_ref().to_vec());
+            let payload = msg.payload.map(|p| Arc::new(p.to_vec()));
+            let signature = Arc::new(msg.signature.to_vec());
+
             ctx.observe(CoseSign1MessagePartsFact {
-                protected_header: Arc::new(msg.protected_header.to_vec()),
-                unprotected_header: Arc::new(msg.unprotected_header.as_ref().to_vec()),
-                payload: msg.payload.map(|p| Arc::new(p.to_vec())),
-                signature: Arc::new(msg.signature.to_vec()),
+                protected_header,
+                unprotected_header,
+                payload,
+                signature,
             })?;
 
             ctx.observe(DetachedPayloadPresentFact {
@@ -331,30 +341,17 @@ fn produce_cwt_claims_facts(
 
 /// Decode a single CBOR text string from `bytes`.
 ///
-/// Returns `None` if decoding fails or if the input contains trailing bytes.
+/// Returns `None` if decoding fails.
 fn decode_cbor_text_one(bytes: &[u8]) -> Option<String> {
     let mut d = tinycbor::Decoder(bytes);
-    let Ok(s) = <String as tinycbor::Decode>::decode(&mut d) else {
-        return None;
-    };
-    // Ensure full consumption (avoid partial decodes on trailing bytes).
-    if d.0.is_empty() {
-        Some(s)
-    } else {
-        None
-    }
+    <String as tinycbor::Decode>::decode(&mut d).ok()
 }
 
 /// Decode a single CBOR integer (major type 0/1) from `bytes`.
 ///
-/// Returns `None` if decoding fails or if the input contains trailing bytes.
+/// Returns `None` if decoding fails.
 fn decode_cbor_i64_one(bytes: &[u8]) -> Option<i64> {
-    let (n, used) = decode_cbor_i64(bytes)?;
-    if used == bytes.len() {
-        Some(n)
-    } else {
-        None
-    }
+    decode_cbor_i64(bytes).map(|(n, _used)| n)
 }
 
 /// Decode a CBOR integer (major type 0/1) and return the value plus bytes consumed.

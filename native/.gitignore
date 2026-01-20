@@ -1,0 +1,21 @@
+# CMake build directories
+build/
+Build/
+out/
+
+# Rust build artifacts
+target/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.vcxproj.user
+
+# Test outputs
+Testing/
+
+# Coverage reports
+coverage/
+*.profraw
+*.profdata

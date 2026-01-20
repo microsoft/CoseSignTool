@@ -180,6 +180,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "cose_sign1_validation_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_validation",
+ "libc",
+ "once_cell",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "cose_sign1_validation_ffi_akv"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_validation_azure_key_vault",
+ "cose_sign1_validation_ffi",
+ "libc",
+]
+
+[[package]]
+name = "cose_sign1_validation_ffi_certificates"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_validation_certificates",
+ "cose_sign1_validation_ffi",
+ "libc",
+]
+
+[[package]]
+name = "cose_sign1_validation_ffi_mst"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_validation_ffi",
+ "cose_sign1_validation_transparent_mst",
+ "libc",
+]
+
+[[package]]
+name = "cose_sign1_validation_ffi_trust"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_validation_ffi",
+ "cose_sign1_validation_trust",
+ "libc",
+]
+
+[[package]]
 name = "cose_sign1_validation_test_utils"
 version = "0.1.0"
 dependencies = [

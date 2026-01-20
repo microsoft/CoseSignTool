@@ -1,0 +1,17 @@
+[package]
+name = "cose_sign1_validation_ffi_certificates"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+cose_sign1_validation_ffi = { path = "../cose_sign1_validation_ffi" }
+cose_sign1_validation_certificates = { path = "../cose_sign1_validation_certificates" }
+
+[dependencies.anyhow]
+workspace = true
+
+[dependencies.libc]
+version = "0.2"

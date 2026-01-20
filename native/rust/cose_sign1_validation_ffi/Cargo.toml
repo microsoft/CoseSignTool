@@ -1,0 +1,19 @@
+[package]
+name = "cose_sign1_validation_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+cose_sign1_validation = { path = "../cose_sign1_validation" }
+
+anyhow = { version = "1" }
+thiserror = { version = "2" }
+
+[dependencies.once_cell]
+version = "1"
+
+[dependencies.libc]
+version = "0.2"

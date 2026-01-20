@@ -6,6 +6,11 @@ members = [
   "cose_sign1_validation_certificates",
   "cose_sign1_validation_transparent_mst",
   "cose_sign1_validation_azure_key_vault",
+  "cose_sign1_validation_ffi",
+  "cose_sign1_validation_ffi_certificates",
+  "cose_sign1_validation_ffi_mst",
+  "cose_sign1_validation_ffi_akv",
+  "cose_sign1_validation_ffi_trust",
   "cose_sign1_validation_test_utils",
   "cose_sign1_validation_demo",
 ]

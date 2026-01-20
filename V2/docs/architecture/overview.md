@@ -214,8 +214,8 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Enable one or more trust packs (these register key resolvers + trust facts/defaults).
-validation.EnableCertificateTrust();
-validation.EnableMstTrust();
+validation.EnableCertificateSupport();
+validation.EnableMstSupport();
 
 using var sp = services.BuildServiceProvider();
 var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
@@ -361,7 +361,7 @@ var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
 services.AddSingleton(loggerFactory);
 
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 
@@ -435,7 +435,7 @@ See [Logging and Diagnostics Guide](../guides/logging-diagnostics.md).
          |
          v
 2. Configure validation via DI and create a validator
-    +-- services.ConfigureCoseValidation().Enable*Trust(...)
+    +-- services.ConfigureCoseValidation().Enable*Support(...)
     +-- sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create(...)
          |
          v

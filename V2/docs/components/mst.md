@@ -45,18 +45,15 @@ bool isValid = result.IsValid;
 With the MST plugin installed, additional options are available on the `verify` command:
 
 ```bash
-# Verify receipt against an MST endpoint
+# Enable MST receipt trust with an explicit ledger allow-list (online verification)
 CoseSignTool verify signed.cose \
-    --mst-endpoint https://dataplane.codetransparency.azure.net
+    --mst-trust \
+    --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
 
-# Require a receipt to be present (no network call)
+# Offline-only verification using pinned keys (no network fallback)
 CoseSignTool verify signed.cose \
-    --require-receipt
-
-# Require a receipt and verify it against an endpoint
-CoseSignTool verify signed.cose \
-    --require-receipt \
-    --mst-endpoint https://dataplane.codetransparency.azure.net
+    --mst-trust \
+    --mst-offline-keys esrp-cts-cp.confidential-ledger.azure.com.jwks.json
 ```
 
 ## Verification Options
@@ -64,6 +61,17 @@ CoseSignTool verify signed.cose \
 Advanced verification behavior can be configured via `CodeTransparencyVerificationOptions`.
 
 ## MST Receipts
+
+## Trust facts and policy scoping
+
+In V2, MST receipts are modeled as **counter-signature subjects** for the purpose of trust evaluation.
+This enables per-receipt trust decisions (a message can contain multiple receipts).
+
+As a result:
+
+- `MstReceiptPresentFact` and `MstReceiptTrustedFact` are **counter-signature-scoped** facts.
+- Policies that require receipts should use `TrustPlanPolicy.AnyCounterSignature(...)`.
+- The default `AnyCounterSignature` behavior is **deny on empty**, which is a natural way to express “a receipt is required”.
 
 ### Receipt Structure
 
@@ -135,20 +143,20 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // MST receipts are typically attached to X.509-backed signatures.
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 
 // Enable MST receipt verification (online).
-validation.EnableMstTrust(mst => mst.VerifyReceipts(mstEndpoint));
+validation.EnableMstSupport(mst => mst.VerifyReceipts(mstEndpoint));
 
-// Require an MST receipt, and require that receipt verification succeeds.
-var trustPolicy = TrustPlanPolicy.Message(m => m
-    .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt is required")
-    .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be trusted"))
-.And(
-    TrustPlanPolicy.PrimarySigningKey(k => k
-        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted")));
+// Require an MST receipt (and require that at least one receipt verifies).
+var trustPolicy = TrustPlanPolicy.AnyCounterSignature(cs => cs
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt is required")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be trusted"))
+    .And(
+        TrustPlanPolicy.PrimarySigningKey(k => k
+            .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted")));
 
 services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
 
@@ -176,13 +184,13 @@ For online verification that fetches current signing keys from the service:
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 
-validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
-var trustPolicy = TrustPlanPolicy.Message(m => m
+var trustPolicy = TrustPlanPolicy.AnyCounterSignature(cs => cs
     .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt is required")
     .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be trusted"));
 

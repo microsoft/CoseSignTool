@@ -472,7 +472,7 @@ public sealed class CwtClaimsPostSignatureValidator : IPostSignatureValidator
 var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 

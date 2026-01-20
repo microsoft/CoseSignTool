@@ -8,7 +8,7 @@ Plugins can contribute:
 
 | Extension Type | Interface | Purpose |
 |---------------|-----------|---------|
-| **Signing Commands** | `ISigningCommandProvider` | Add new `sign-*` commands |
+| **Signing Providers** | `ISigningCommandProvider` | Add signing providers surfaced under `sign <root> <provider>` (internal IDs like `x509-pfx`) |
 | **Verification Providers** | `IVerificationProvider` | Add custom validators to verify |
 | **Transparency Providers** | `ITransparencyProviderContributor` | Add transparency proof services |
 | **Custom Commands** | Direct registration | Add arbitrary CLI commands |
@@ -22,7 +22,7 @@ Plugins can contribute:
 Plugins are discovered at startup from the `plugins/` subdirectory:
 
 ```
-CoseSignTool.exe
+cosesigntool.exe
 plugins/
 +-- CoseSignTool.Local.Plugin/
 |   +-- CoseSignTool.Local.Plugin.dll    <-- Plugin assembly
@@ -45,7 +45,7 @@ plugins/
 Load plugins from additional locations:
 
 ```bash
-cosesigntool --additional-plugin-dir /custom/plugins verify document.cose
+cosesigntool --additional-plugin-dir /custom/plugins verify x509 document.cose
 ```
 
 ### Plugin Lifecycle
@@ -115,14 +115,15 @@ public sealed class PluginExtensions
 
 ## Creating a Signing Command Provider
 
-Signing command providers add new `sign-*` commands to the CLI.
+Signing command providers contribute signing providers used by `cosesigntool sign <root> <provider> ...`.
+The `CommandName` is an internal identifier (for example `x509-pfx`) and is not user-facing.
 
 ### ISigningCommandProvider Interface
 
 ```csharp
 public interface ISigningCommandProvider
 {
-    /// <summary>Command name (e.g., "sign-pfx", "sign-hsm").</summary>
+    /// <summary>Internal identifier (e.g., "x509-pfx", "x509-hsm"). Not user-facing.</summary>
     string CommandName { get; }
     
     /// <summary>Command description for help text.</summary>
@@ -148,7 +149,7 @@ public interface ISigningCommandProvider
 ```csharp
 public class HsmSigningCommandProvider : ISigningCommandProvider
 {
-    public string CommandName => "sign-hsm";
+    public string CommandName => "x509-hsm";
     public string CommandDescription => "Sign using Hardware Security Module";
     public string ExampleUsage => "--hsm-slot 0 --key-label signing-key";
 
@@ -378,7 +379,7 @@ public class CustomTrustVerificationProvider : IVerificationProviderWithTrustPla
         // In this example we enable certificate trust (x5chain/x5t resolution + certificate trust facts).
         if (IsActivated(parseResult))
         {
-            validationBuilder.EnableCertificateTrust(cert => cert.UseSystemTrust());
+            validationBuilder.EnableCertificateSupport(cert => cert.UseSystemTrust());
         }
     }
 
@@ -507,7 +508,7 @@ CoseSignTool V2 includes the following bundled plugins:
 
 | Plugin | Commands | Description |
 |--------|----------|-------------|
-| `CoseSignTool.Local.Plugin` | `sign-pfx`, `sign-pem`, `sign-certstore`, `sign-ephemeral` | Local certificate signing |
-| `CoseSignTool.AzureKeyVault.Plugin` | `sign-akv-cert` | Azure Key Vault signing |
-| `CoseSignTool.AzureTrustedSigning.Plugin` | `sign-azure` | Azure Trusted Signing |
-| `CoseSignTool.MST.Plugin` | (verification only) | MST transparency verification |
+| `CoseSignTool.Local.Plugin` | `sign x509 pfx`, `sign x509 pem`, `sign x509 certstore`, `sign x509 ephemeral` | Local certificate signing |
+| `CoseSignTool.AzureKeyVault.Plugin` | `sign x509 akv-cert`, `sign akv akv-key` | Azure Key Vault signing |
+| `CoseSignTool.AzureTrustedSigning.Plugin` | `sign x509 ats` | Azure Trusted Signing |
+| `CoseSignTool.MST.Plugin` | `verify mst` (and signing receipt attachment via transparency provider) | Microsoft Signing Transparency integration |

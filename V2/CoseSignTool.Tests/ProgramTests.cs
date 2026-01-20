@@ -84,7 +84,13 @@ public class ProgramTests
         var rootCommand = builder.BuildRootCommand();
 
         // Assert
-        Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "sign-ephemeral"));
+        var sign = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "sign");
+        Assert.That(sign, Is.Not.Null);
+
+        var x509 = sign!.Subcommands.FirstOrDefault(c => c.Name == "x509");
+        Assert.That(x509, Is.Not.Null);
+
+        Assert.That(x509!.Subcommands, Has.Some.Matches<Command>(c => c.Name == "ephemeral"));
     }
 
     [Test]
@@ -155,9 +161,9 @@ public class ProgramTests
     public void Main_WithSignEphemeralHelp_ShowsStdinUsage()
     {
         // Arrange
-        // Do not execute `sign-ephemeral` with stdin in tests, because it may emit binary COSE
+        // Do not execute signing with stdin in tests, because it may emit binary COSE
         // bytes to stdout, which can break some test loggers.
-        string[] args = ["sign-ephemeral", "--help"];
+        string[] args = ["sign", "x509", "ephemeral", "--help"];
 
         var console = new TestConsole();
 
@@ -166,15 +172,18 @@ public class ProgramTests
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
-        Assert.That(console.GetStdout(), Does.Contain("stdin"));
+        var output = console.GetStdout() + console.GetStderr();
+        Assert.That(output, Does.Contain("stdin"));
+        Assert.That(output, Does.Not.Contain("sign-ephemeral"));
     }
 
     [Test]
     public void Main_WithVerifyCommandNoArgument_TriesToReadFromStdin()
     {
-        // Arrange - verify command without arguments tries to read from stdin
-        // In test environment with no stdin data, behavior depends on console redirect state
-        string[] args = ["verify"];
+        // Arrange - verify command with no signature tries to read from stdin.
+        // With fix-forward CLI, verification root is required.
+        // In test environment with no stdin data, behavior depends on console redirect state.
+        string[] args = ["verify", "x509"];
 
         // Act
         var exitCode = Program.Run(args, new TestConsole());
@@ -182,12 +191,12 @@ public class ProgramTests
         // Assert - In test environment, stdin behavior varies
         // - FileNotFound (3): No data on stdin (detected empty)
         // - Success (0): Empty stdin handled gracefully
-        // - InvalidArguments (1): Program parsing reports no argument provided
+        // - 1: System.CommandLine parse errors can vary by environment
         Assert.That(exitCode == (int)ExitCode.FileNotFound ||
-                    exitCode == (int)ExitCode.Success ||
-                    exitCode == 1, // System.CommandLine may return 1 for various reasons
+                exitCode == (int)ExitCode.Success ||
+                exitCode == 1,
                     Is.True,
-                    $"Expected FileNotFound (3), Success (0), or 1, got {exitCode}");
+                $"Expected FileNotFound (3), Success (0), or 1, got {exitCode}");
     }
 
     [Test]
@@ -208,7 +217,7 @@ public class ProgramTests
     public void Main_WithSignEphemeralHelpFlag_ReturnsSuccess()
     {
         // Arrange
-        string[] args = ["sign-ephemeral", "--help"];
+        string[] args = ["sign", "x509", "ephemeral", "--help"];
         using var emptyStdin = new MemoryStream();
 
         // Act
@@ -230,6 +239,154 @@ public class ProgramTests
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+    }
+
+    [Test]
+    public void VerifyHelp_ShowsAvailableTrustRoots()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["verify", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("Commands:")
+            .Or.Contain("COMMANDS:"));
+        Assert.That(output, Does.Contain("x509"));
+        Assert.That(output, Does.Contain("mst"));
+        Assert.That(output, Does.Contain("akv"));
+    }
+
+    [Test]
+    public void VerifyHelp_ForMstRoot_ShowsMstOptions()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["verify", "mst", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("--mst-offline-keys"));
+        Assert.That(output, Does.Contain("--mst-trust-ledger-instance"));
+        // MST-specific options should be present; X.509 certificate options should not be present
+        Assert.That(output, Does.Not.Contain("--trust-roots"));
+        Assert.That(output, Does.Not.Contain("--allow-untrusted"));
+        Assert.That(output, Does.Not.Contain("--revocation-mode"));
+    }
+
+    [Test]
+    public void VerifyHelp_ForX509Root_ShowsX509OptionsOnly()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["verify", "x509", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("--trust-roots"));
+        Assert.That(output, Does.Not.Contain("--mst-offline-keys"));
+    }
+
+    [Test]
+    public void SignHelp_ShowsAvailableSigningRoots()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["sign", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("Commands:")
+            .Or.Contain("COMMANDS:"));
+        Assert.That(output, Does.Contain("x509"));
+        Assert.That(output, Does.Contain("akv"));
+    }
+
+    [Test]
+    public void SignHelp_WithX509Selected_ShowsX509Providers()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["sign", "x509", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("pfx"));
+        Assert.That(output, Does.Not.Contain("akv-key"));
+    }
+
+    [Test]
+    public void SignHelp_WithAkvSelected_ShowsAkvProvidersOnly()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["sign", "akv", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("akv-key"));
+        Assert.That(output, Does.Not.Contain("pfx"));
+    }
+
+    [Test]
+    public void SignHelp_WithProviderSelected_ShowsProviderHelp()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["sign", "x509", "ephemeral", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("Usage:"));
+        Assert.That(output, Does.Contain("sign x509 ephemeral"));
+        Assert.That(output, Does.Not.Contain("sign-ephemeral"));
+    }
+
+    [Test]
+    public void SignHelp_WithAkvProviderSelected_ShowsProviderHelp()
+    {
+        // Arrange
+        var console = new TestConsole();
+        string[] args = ["sign", "akv", "akv-key", "--help"];
+
+        // Act
+        var exitCode = Program.Run(args, console);
+        var output = console.GetStdout() + console.GetStderr();
+
+        // Assert
+        Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
+        Assert.That(output, Does.Contain("Usage:"));
+        Assert.That(output, Does.Contain("sign akv akv-key")
+            .Or.Contain("sign akv key"));
+        Assert.That(output, Does.Not.Contain("sign-akv-key"));
     }
 
     [Test]
@@ -332,7 +489,14 @@ public class ProgramTests
 
             // Assert
             Assert.That(rootCommand, Is.Not.Null);
-            Assert.That(rootCommand.Subcommands, Has.Some.Matches<Command>(c => c.Name == "sign-ephemeral"));
+
+            var sign = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "sign");
+            Assert.That(sign, Is.Not.Null);
+
+            var x509 = sign!.Subcommands.FirstOrDefault(c => c.Name == "x509");
+            Assert.That(x509, Is.Not.Null);
+
+            Assert.That(x509!.Subcommands, Has.Some.Matches<Command>(c => c.Name == "ephemeral"));
         }
         finally
         {

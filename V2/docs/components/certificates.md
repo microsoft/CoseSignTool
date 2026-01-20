@@ -134,7 +134,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
   .UseSystemTrust()
   );
 
@@ -167,7 +167,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
   .UseSystemTrust()
   );
 
@@ -208,7 +208,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
   .UseSystemTrust()
   );
 

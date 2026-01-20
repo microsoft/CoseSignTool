@@ -43,6 +43,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         public const string NotApplicableReasonSigningKeyNotTrusted = "Signing key not trusted";
         public const string NotApplicableReasonSignatureValidationFailed = "Signature validation failed";
         public const string NotApplicableReasonNoSigningKeyResolved = "No signing key was resolved";
+        public const string NotApplicableReasonSatisfiedByToBeSignedAttestation = "Satisfied by counter-signature ToBeSigned attestation";
 
         public const string MetadataPrefixResolution = "Resolution";
         public const string MetadataPrefixTrust = "Trust";
@@ -67,6 +68,9 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         public const string ErrorMessageSignatureMissingPayload = "Message has detached content but no payload was provided for verification";
 
         public const string MetadataKeySelectedValidator = "SelectedValidator";
+
+        public const string MetadataKeyToBeSignedAttestationProvider = "ToBeSignedAttestation.Provider";
+        public const string MetadataKeyToBeSignedAttestationDetails = "ToBeSignedAttestation.Details";
 
         public const string ErrorNoComponents = "No validation components were provided";
 
@@ -120,6 +124,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     private readonly Trust.Plan.CompiledTrustPlan _trustPlan;
     private readonly IReadOnlyList<ISigningKeyResolver> SigningKeyResolvers;
     private readonly IReadOnlyList<IPostSignatureValidator> PostSignatureValidators;
+    private readonly IReadOnlyList<IToBeSignedAttestor> ToBeSignedAttestors;
     private readonly ILogger<CoseSign1Validator> Logger;
 
     /// <summary>
@@ -127,6 +132,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     /// </summary>
     /// <param name="signingKeyResolvers">Signing key resolvers for the key-resolution stage.</param>
     /// <param name="postSignatureValidators">Post-signature validators to run after trust and signature verification.</param>
+    /// <param name="toBeSignedAttestors">Optional attestors that can assert the message ToBeSigned has already been validated.</param>
     /// <param name="trustPlan">The compiled trust plan evaluated during the trust stage.</param>
     /// <param name="options">Validation options including detached payload, associated data, and signature-only mode.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, logging is disabled.</param>
@@ -135,6 +141,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     public CoseSign1Validator(
         IEnumerable<ISigningKeyResolver> signingKeyResolvers,
         IEnumerable<IPostSignatureValidator>? postSignatureValidators,
+        IEnumerable<IToBeSignedAttestor>? toBeSignedAttestors,
         Trust.Plan.CompiledTrustPlan trustPlan,
         CoseSign1ValidationOptions? options = null,
         TrustEvaluationOptions? trustEvaluationOptions = null,
@@ -149,6 +156,10 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         PostSignatureValidators = postSignatureValidators == null
             ? Array.Empty<IPostSignatureValidator>()
             : (postSignatureValidators as IReadOnlyList<IPostSignatureValidator> ?? postSignatureValidators.ToArray());
+
+        ToBeSignedAttestors = toBeSignedAttestors == null
+            ? Array.Empty<IToBeSignedAttestor>()
+            : (toBeSignedAttestors as IReadOnlyList<IToBeSignedAttestor> ?? toBeSignedAttestors.ToArray());
 
         _trustPlan = trustPlan;
         Options = options ?? new CoseSign1ValidationOptions();
@@ -231,35 +242,70 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         LogValidationStarted(SigningKeyResolvers.Count, PostSignatureValidators.Count);
 
-        // Stage 1: Key Material Resolution
-        var (resolutionResult, signingKey) = await RunResolutionStageCoreAsync(message, SigningKeyResolvers, async, cancellationToken).ConfigureAwait(false);
-
-        if (!resolutionResult.IsValid)
-        {
-            LogStageSkipped(ClassStrings.StageNameKeyMaterialTrust, ClassStrings.NotApplicableReasonPriorStageFailed);
-
-            return new CoseSign1ValidationResult(
-                resolutionResult,
-                trust: ValidationResult.NotApplicable(ClassStrings.StageNameKeyMaterialTrust, ClassStrings.NotApplicableReasonPriorStageFailed),
-                signature: ValidationResult.NotApplicable(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonPriorStageFailed),
-                postSignaturePolicy: ValidationResult.NotApplicable(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonPriorStageFailed),
-                overall: resolutionResult);
-        }
-
-        // Stage 2: Key Material Trust (establish signing key trust before signature verification)
+        // Stage 1: Trust evaluation (policy) is performed first.
+        // This allows receipt/counter-signature-based trust models to succeed even when no primary signing key is resolvable.
         var (trustResult, trustDecision) = await RunTrustStageCoreAsync(message, async, cancellationToken).ConfigureAwait(false);
 
         if (!trustResult.IsValid)
         {
+            LogStageSkipped(ClassStrings.StageNameKeyMaterialResolution, ClassStrings.NotApplicableReasonPriorStageFailed);
             LogStageSkipped(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted);
             LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted);
 
             return new CoseSign1ValidationResult(
-                resolutionResult,
-                trustResult,
+                resolution: ValidationResult.NotApplicable(ClassStrings.StageNameKeyMaterialResolution, ClassStrings.NotApplicableReasonPriorStageFailed),
+                trust: trustResult,
                 signature: ValidationResult.NotApplicable(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted),
                 postSignaturePolicy: ValidationResult.NotApplicable(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSigningKeyNotTrusted),
                 overall: trustResult);
+        }
+
+        // Optional short-circuit: if a counter-signature attests it has validated the same Sig_structure / ToBeSigned,
+        // the primary signing key may not need to be resolved or validated.
+        if (Options.AllowToBeSignedAttestationToSkipPrimarySignature && ToBeSignedAttestors.Count > 0)
+        {
+            var attestation = await TryGetToBeSignedAttestationAsync(message, async, cancellationToken).ConfigureAwait(false);
+
+            if (attestation.HasValue && attestation.Value.IsAttested)
+            {
+                var attestationMetadata = new Dictionary<string, object>();
+                MergeStageMetadata(attestationMetadata, ClassStrings.MetadataPrefixTrust, trustResult);
+                var attestationProvider = attestation.Value.Provider;
+                if (attestationProvider is not null && !string.IsNullOrWhiteSpace(attestationProvider))
+                {
+                    attestationMetadata[ClassStrings.MetadataKeyToBeSignedAttestationProvider] = attestationProvider;
+                }
+                var attestationDetails = attestation.Value.Details;
+                if (attestationDetails is not null && !string.IsNullOrWhiteSpace(attestationDetails))
+                {
+                    attestationMetadata[ClassStrings.MetadataKeyToBeSignedAttestationDetails] = attestationDetails;
+                }
+
+                var attestationOverall = ValidationResult.Success(ClassStrings.ValidatorNameOverall, attestationMetadata);
+
+                return new CoseSign1ValidationResult(
+                    resolution: ValidationResult.NotApplicable(ClassStrings.StageNameKeyMaterialResolution, ClassStrings.NotApplicableReasonSatisfiedByToBeSignedAttestation),
+                    trust: trustResult,
+                    signature: ValidationResult.NotApplicable(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonSatisfiedByToBeSignedAttestation),
+                    postSignaturePolicy: ValidationResult.NotApplicable(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSatisfiedByToBeSignedAttestation),
+                    overall: attestationOverall);
+            }
+        }
+
+        // Stage 2: Key Material Resolution
+        var (resolutionResult, signingKey) = await RunResolutionStageCoreAsync(message, SigningKeyResolvers, async, cancellationToken).ConfigureAwait(false);
+
+        if (!resolutionResult.IsValid)
+        {
+            LogStageSkipped(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonPriorStageFailed);
+            LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonPriorStageFailed);
+
+            return new CoseSign1ValidationResult(
+                resolution: resolutionResult,
+                trust: trustResult,
+                signature: ValidationResult.NotApplicable(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonPriorStageFailed),
+                postSignaturePolicy: ValidationResult.NotApplicable(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonPriorStageFailed),
+                overall: resolutionResult);
         }
 
         // Stage 3: Signature Verification
@@ -312,6 +358,35 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
             signatureResult,
             postSignatureResult,
             overall);
+    }
+
+    private async ValueTask<ToBeSignedAttestationResult?> TryGetToBeSignedAttestationAsync(
+        CoseSign1Message message,
+        bool async,
+        CancellationToken cancellationToken)
+    {
+        foreach (var attestor in ToBeSignedAttestors)
+        {
+            if (async)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await attestor.AttestAsync(message, cancellationToken).ConfigureAwait(false);
+                if (result.IsAttested)
+                {
+                    return result;
+                }
+            }
+            else
+            {
+                var result = await attestor.AttestAsync(message, cancellationToken).ConfigureAwait(false);
+                if (result.IsAttested)
+                {
+                    return result;
+                }
+            }
+        }
+
+        return null;
     }
 
     private async ValueTask<(ValidationResult Result, ISigningKey? SigningKey)> RunResolutionStageCoreAsync(

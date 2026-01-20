@@ -45,7 +45,7 @@ public class MstTrustBuilderTests
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
-        _ = builder.EnableMstTrust(b => b.VerifyReceipts(new Uri("https://mst.example.test/")).OfflineOnly());
+        _ = builder.EnableMstSupport(b => b.VerifyReceipts(new Uri("https://mst.example.test/")).OfflineOnly());
 
         Assert.That(services.Any(sd => sd.ServiceType == typeof(MstTrustOptions)), Is.True);
         Assert.That(services.Any(sd => sd.ServiceType == typeof(ITrustPack) && sd.ImplementationType == typeof(MstTrustPack)), Is.True);

@@ -20,7 +20,7 @@ public class AzureKeyVaultKeyCommandProvider : ISigningCommandProvider
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public static readonly string CommandNameValue = "sign-akv-key";
+        public static readonly string CommandNameValue = "akv-key";
         public static readonly string CommandDescriptionValue = "Sign a payload using a key from Azure Key Vault (adds kid header per RFC 9052)";
         public static readonly string ExampleUsageValue = "--akv-vault https://my-vault.vault.azure.net --akv-key-name my-key";
 

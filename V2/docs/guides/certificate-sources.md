@@ -21,7 +21,7 @@ var cert = source.GetCertificate();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-pfx document.json --pfx cert.pfx
+cosesigntool sign x509 pfx document.json --pfx cert.pfx
 ```
 
 > **Note:** Set the password via the `COSESIGNTOOL_PFX_PASSWORD` environment variable for security.
@@ -40,7 +40,7 @@ var cert = source.GetCertificate();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-certstore document.json ^
+cosesigntool sign x509 certstore document.json ^
     --thumbprint ABC123... ^
     --store-name My ^
     --store-location CurrentUser
@@ -60,7 +60,7 @@ var cert = source.GetCertificate();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-pem document.json ^
+cosesigntool sign x509 pem document.json ^
     --cert-file certificate.pem ^
     --key-file private-key.pem
 ```
@@ -86,7 +86,7 @@ var cert = await source.GetCertificateAsync();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-azure document.json ^
+cosesigntool sign x509 ats document.json ^
     --ats-endpoint https://myaccount.codesigning.azure.net ^
     --ats-account-name myaccount ^
     --ats-cert-profile-name myprofile
@@ -103,7 +103,7 @@ var cert = source.GetCertificate();
 
 **CLI Usage:**
 ```bash
-CoseSignTool sign-ephemeral document.json
+cosesigntool sign x509 ephemeral document.json
 ```
 
 > **Warning:** Ephemeral certificates are for testing only. Do not use in production.

@@ -72,6 +72,16 @@ public sealed class CoseSign1ValidationOptions
     public bool SkipPostSignatureValidation { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether a verified ToBeSigned attestation may satisfy primary signature validation.
+    /// </summary>
+    /// <remarks>
+    /// When true (default), staged validation may skip primary signing key resolution and signature verification if an
+    /// <see cref="Interfaces.IToBeSignedAttestor"/> attests that it has already validated the message's ToBeSigned construction.
+    /// This is intended for counter-signature / receipt scenarios where the receipt validates the same Sig_structure.
+    /// </remarks>
+    public bool AllowToBeSignedAttestationToSkipPrimarySignature { get; set; } = true;
+
+    /// <summary>
     /// Creates a new instance of <see cref="CoseSign1ValidationOptions"/> with default values.
     /// </summary>
     public CoseSign1ValidationOptions()
@@ -90,7 +100,8 @@ public sealed class CoseSign1ValidationOptions
             AssociatedData = AssociatedData,
             CancellationToken = CancellationToken,
             CertificateHeaderLocation = CertificateHeaderLocation,
-            SkipPostSignatureValidation = SkipPostSignatureValidation
+            SkipPostSignatureValidation = SkipPostSignatureValidation,
+            AllowToBeSignedAttestationToSkipPrimarySignature = AllowToBeSignedAttestationToSkipPrimarySignature
         };
     }
 }

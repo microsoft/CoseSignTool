@@ -17,6 +17,7 @@ public sealed class VerificationContext
     {
         public const string KeyLoggerFactory = "__loggerFactory";
         public const string KeyConsole = "__console";
+        public const string KeyPreferCounterSignatureTrust = "__preferCounterSignatureTrust";
     }
 
     /// <summary>
@@ -28,6 +29,15 @@ public sealed class VerificationContext
     /// Dictionary key for <see cref="CoseSignTool.Abstractions.IO.IConsole"/> in <see cref="Options"/>.
     /// </summary>
     public const string KeyConsole = ClassStrings.KeyConsole;
+
+    /// <summary>
+    /// Dictionary key indicating that verification should prefer counter-signature / receipt trust over primary signing-key trust.
+    /// </summary>
+    /// <remarks>
+    /// This is used by the CLI host to coordinate providers (for example, to make a transparency receipt the trust anchor).
+    /// Providers that normally impose primary signing-key trust requirements may choose to suppress those requirements when this flag is set.
+    /// </remarks>
+    public const string KeyPreferCounterSignatureTrust = ClassStrings.KeyPreferCounterSignatureTrust;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerificationContext"/> class.
@@ -63,4 +73,9 @@ public sealed class VerificationContext
     /// Gets the <see cref="ILoggerFactory"/> from <see cref="Options"/>, if present.
     /// </summary>
     public ILoggerFactory? LoggerFactory => Options.TryGetValue(KeyLoggerFactory, out var value) ? value as ILoggerFactory : null;
+
+    /// <summary>
+    /// Gets a value indicating whether the host prefers counter-signature / receipt trust.
+    /// </summary>
+    public bool PreferCounterSignatureTrust => Options.TryGetValue(KeyPreferCounterSignatureTrust, out var value) && value is true;
 }

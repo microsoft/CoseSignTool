@@ -21,7 +21,7 @@ public class AzureTrustedSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-azure"));
+        Assert.That(name, Is.EqualTo("x509-ats"));
     }
 
     [Test]

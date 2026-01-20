@@ -304,7 +304,7 @@ public class InspectCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccess()
     {
-        // Arrange - Create a real signature using sign-ephemeral
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -314,7 +314,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for inspect test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -354,7 +354,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -416,7 +416,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -456,7 +456,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -497,7 +497,7 @@ public class InspectCommandHandlerTests
         {
             // Create large payload
             File.WriteAllText(tempPayload, new string('A', 10000));
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -541,7 +541,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload to extract");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -641,7 +641,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -691,7 +691,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);
@@ -735,7 +735,7 @@ public class InspectCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type indirect");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type indirect");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var file = new FileInfo(tempSignature);

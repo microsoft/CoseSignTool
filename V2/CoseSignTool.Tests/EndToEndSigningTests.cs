@@ -25,14 +25,14 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for signing");
 
             // Act - Sign
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Assert - Sign succeeded
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
             Assert.That(File.Exists(tempSignature), "Signature file should be created");
 
             // Act - Verify
-            var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\"");
+            var verifyExitCode = rootCommand.Invoke($"verify x509 \"{tempSignature}\"");
 
             // Note: Verify may fail since signature is from ephemeral cert (not trusted)
             // This tests that the command runs and returns an expected exit code
@@ -68,7 +68,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for signing");
 
             // Act - Sign
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect the created signature
@@ -104,7 +104,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for detached signing");
 
             // Act - Sign with detached option
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -137,7 +137,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload");
 
             // Act
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --output \"{customOutput}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --output \"{customOutput}\"");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -170,7 +170,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for direct signing");
 
             // Act - Sign with direct signature type
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -203,7 +203,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload for embedded signing");
 
             // Act - Sign with embedded signature type
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -236,7 +236,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "{\"test\":\"json\"}");
 
             // Act - Sign with custom content type
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --content-type application/json");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --content-type application/json");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -269,7 +269,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload");
 
             // Act - Sign with quiet option
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --quiet");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --quiet");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -302,7 +302,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload");
 
             // Act - Sign
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with JSON output format
@@ -338,7 +338,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, "Test payload");
 
             // Act - Sign
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with XML output format
@@ -376,7 +376,7 @@ public class EndToEndSigningTests
             File.WriteAllText(tempPayload, largePayload);
 
             // Act
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -412,7 +412,7 @@ public class EndToEndSigningTests
             File.WriteAllBytes(tempPayload, binaryPayload);
 
             // Act
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));

@@ -138,7 +138,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Adds x5chain/x5t resolution + certificate trust facts/defaults.
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 

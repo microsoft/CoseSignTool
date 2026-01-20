@@ -38,7 +38,7 @@ public class AzureKeyVaultKeyCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-akv-key"));
+        Assert.That(name, Is.EqualTo("akv-key"));
     }
 
     [Test]

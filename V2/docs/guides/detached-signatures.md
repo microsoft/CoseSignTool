@@ -41,7 +41,7 @@ await File.WriteAllBytesAsync("document.json.sig", signature);
 
 ```bash
 # Create detached signature
-CoseSignTool sign-pfx document.json ^
+cosesigntool sign x509 pfx document.json ^
     --pfx cert.pfx ^
     --signature-type detached ^
     --output document.json.sig
@@ -77,7 +77,7 @@ if (result.Overall.IsValid)
 
 ```bash
 # Verify detached signature
-CoseSignTool verify document.json.sig --payload document.json
+cosesigntool verify x509 document.json.sig --payload document.json
 ```
 
 ## Detached vs Embedded Comparison
@@ -155,19 +155,19 @@ Detached signatures enable multiple parties to sign the same payload:
 
 ```bash
 # Developer signs
-CoseSignTool sign-pfx artifact.bin ^
+cosesigntool sign x509 pfx artifact.bin ^
     --pfx developer.pfx ^
     --signature-type detached ^
     --output artifact.bin.dev-sig
 
 # QA signs
-CoseSignTool sign-pfx artifact.bin ^
+cosesigntool sign x509 pfx artifact.bin ^
     --pfx qa.pfx ^
     --signature-type detached ^
     --output artifact.bin.qa-sig
 
 # Security signs
-CoseSignTool sign-pfx artifact.bin ^
+cosesigntool sign x509 pfx artifact.bin ^
     --pfx security.pfx ^
     --signature-type detached ^
     --output artifact.bin.sec-sig
@@ -176,9 +176,9 @@ CoseSignTool sign-pfx artifact.bin ^
 Verify all signatures:
 
 ```bash
-CoseSignTool verify artifact.bin.dev-sig --payload artifact.bin
-CoseSignTool verify artifact.bin.qa-sig --payload artifact.bin
-CoseSignTool verify artifact.bin.sec-sig --payload artifact.bin
+cosesigntool verify x509 artifact.bin.dev-sig --payload artifact.bin
+cosesigntool verify x509 artifact.bin.qa-sig --payload artifact.bin
+cosesigntool verify x509 artifact.bin.sec-sig --payload artifact.bin
 ```
 
 ## Content Type Binding

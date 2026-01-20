@@ -5,210 +5,112 @@ The `verify` command validates COSE Sign1 signatures.
 ## Synopsis
 
 ```bash
-CoseSignTool verify <signature-file> [options]
+cosesigntool verify <root> [<signature>] [options]
 ```
 
-## Description
+Where `<root>` is one of:
 
-The `verify` command validates a COSE Sign1 signature file.
+- `x509` - Verify using X.509 trust and certificate policy
+- `akv` - Verify Azure Key Vault key-only signatures (`kid` pattern validation)
+- `mst` - Verify using MST receipt trust (requires pinned keys or trusted ledger allow-list)
 
-Verification is staged and runs in a secure-by-default order:
+`<signature>` is a positional argument (file path), `-` for stdin, or omit to read stdin.
 
-1. **Key material resolution** - Parse/extract candidate signing key material from headers.
-2. **Key material trust** - Evaluate trust/identity/policy (trust policies are evaluated *before* signature verification).
-3. **Signature** - Cryptographic signature verification.
-4. **Post-signature** - Additional policy that depends on a verified signature.
-
-Verification is composed from multiple validators:
-- Signature validation is orchestrated so that **at least one applicable signature validator must succeed**.
-- X.509-related validation (chain, expiry, EKU, etc.) is only applicable when the message includes certificate headers (`x5t` + `x5chain`).
-- Plugins can contribute additional verification providers and signature validators (for example, key-only signatures identified by `kid`).
-
-## Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `<signature-file>` | Path to the COSE signature file to verify |
-
-## Options
-
-### Core Options
+## Common Options (all roots)
 
 | Option | Description |
 |--------|-------------|
-| `--payload <file>` | Path to payload file (required for detached signatures, optional for indirect) |
-| `--signature-only` | For indirect signatures: verify the signature but skip verifying the payload hash match (does not apply to detached signatures) |
-| `-r, --trust-roots <files>` | Custom trusted root certificate(s) in PEM or DER format |
-| `--trust-pfx <file>` | PFX/PKCS#12 file containing trusted root certificate(s) |
-| `--trust-pfx-password-file <file>` | Path to file containing PFX password (more secure) |
-| `--trust-pfx-password-env <name>` | Environment variable containing PFX password (default: `COSESIGNTOOL_TRUST_PFX_PASSWORD`) |
-| `--revocation-mode <none|offline|online>` | Certificate revocation checking mode (default: `online`) |
-| `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
+| `-p`, `--payload <file>` | Payload file for detached/indirect verification |
+| `--signature-only` | Verify signature only; skip payload/hash verification (indirect signatures) |
+| `-f`, `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
 
-### Certificate Options
+## verify x509
+
+Verify a signature and apply X.509 trust/policy.
+
+```bash
+cosesigntool verify x509 [<signature>] [options]
+```
+
+X.509 options:
 
 | Option | Description |
 |--------|-------------|
-| `--allow-untrusted` | Allow signatures from untrusted roots |
-| `--allow-expired` | Allow expired certificates |
-| `--require-eku <oid>` | Require specific Extended Key Usage |
+| `--trust-roots <files>` | Custom trusted root certificate(s) in PEM or DER format (repeatable) |
+| `--roots <files>` | Alias for `--trust-roots` |
+| `--trust-pfx <file>` | Trusted roots from a PFX/PKCS#12 file |
+| `--trust-pfx-password-file <file>` | Password file for `--trust-pfx` |
+| `--trust-pfx-password-env <env>` | Env var name for `--trust-pfx` password (default: `COSESIGNTOOL_TRUST_PFX_PASSWORD`) |
+| `--trust-system-roots <true|false>` | Trust system certificate store roots (default: `true`) |
+| `--allow-untrusted` | Allow untrusted roots (signature is still cryptographically verified) |
+| `--subject-name <name>` | Required certificate subject common-name (alias: `--cn`) |
+| `--issuer-name <name>` | Required certificate issuer common-name (alias: `--issuer`) |
+| `--revocation-mode <online|offline|none>` | Certificate revocation check mode (default: `online`) |
 
-### Plugin Options
+Examples:
 
-Additional options may be available from installed plugins:
+```bash
+# Basic verification
+cosesigntool verify x509 signed.cose
 
-**MST Plugin:**
+# Detached signature
+cosesigntool verify x509 signed.sig --payload payload.bin
+
+# Custom trust roots
+cosesigntool verify x509 signed.cose --trust-roots ca1.pem --trust-roots ca2.pem
+```
+
+## verify akv
+
+Verify an Azure Key Vault key-only signature.
+
+```bash
+cosesigntool verify akv [<signature>] [options]
+```
+
+AKV options:
+
 | Option | Description |
 |--------|-------------|
-| `--mst-endpoint <uri>` | MST service endpoint |
-| `--verify-receipt` | Verify MST receipt (default: true) |
-| `--require-receipt` | Fail if no receipt is present |
+| `--require-az-key` | Require an Azure Key Vault key signature (kid must be an AKV URI) |
+| `--allowed-vaults <patterns...>` | Allowed Key Vault URI patterns (glob or `regex:` prefix). Repeat for multiple |
 
-## Examples
-
-### Basic Verification (Embedded Signature)
+Example:
 
 ```bash
-CoseSignTool verify signed.cose
+cosesigntool verify akv signature.cose --allowed-vaults "https://production-vault.vault.azure.net/keys/*"
 ```
 
-### Verify Detached Signature
+## verify mst
 
-For detached signatures, the payload is **required** to verify the signature:
+Verify MST receipt trust.
 
 ```bash
-CoseSignTool verify document.sig --payload document.json
+cosesigntool verify mst [<signature>] [options]
 ```
 
-### Verify Indirect Signature
+MST options:
 
-Indirect signatures can be verified with or without the payload:
+| Option | Description |
+|--------|-------------|
+| `--mst-offline-keys <path>` | Pinned MST signing keys JWKS JSON file for offline-only receipt verification (alias: `--offline_keys`) |
+| `--mst-trust-ledger-instance <host-or-url>` | Allowed MST ledger instance(s) (issuer host allow-list). Repeatable |
+
+At least one of `--mst-offline-keys` or `--mst-trust-ledger-instance` is required.
+
+Examples:
 
 ```bash
-# Full verification: signature + payload hash match
-CoseSignTool verify indirect.sig --payload large-file.bin
+# Trust a specific ledger instance (repeatable)
+cosesigntool verify mst signed.cose --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
 
-# Signature-only verification (no payload needed)
-CoseSignTool verify indirect.sig --signature-only
+# Offline-only receipt verification
+cosesigntool verify mst signed.cose --mst-offline-keys esrp-cts-cp.confidential-ledger.azure.com.jwks.json
 ```
-
-### Verify with Custom Trust Root
-
-```bash
-# Single certificate file
-CoseSignTool verify signed.cose --trust-roots my-root-ca.cer
-
-# Multiple certificate files
-CoseSignTool verify signed.cose -r root1.pem -r root2.pem
-```
-
-### Verify with PFX Trust Store
-
-PFX files can contain multiple certificates, making them convenient for managing trust bundles:
-
-```bash
-# PFX with password from environment variable (default: COSESIGNTOOL_TRUST_PFX_PASSWORD)
-set COSESIGNTOOL_TRUST_PFX_PASSWORD=mypassword
-CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx
-
-# PFX with password from file
-CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx --trust-pfx-password-file password.txt
-
-# PFX with password from custom environment variable
-CoseSignTool verify signed.cose --trust-pfx trust-bundle.pfx --trust-pfx-password-env MY_PFX_PASSWORD
-```
-
-> **Security Note**: Avoid passing passwords directly on the command line as they may be logged in shell history. Use environment variables or password files instead.
-
-### JSON Output
-
-```bash
-CoseSignTool verify signed.cose --output-format json
-```
-
-### Verify with MST Receipt (requires MST plugin)
-
-```bash
-CoseSignTool verify signed.cose ^
-  --require-receipt ^
-  --mst-endpoint https://dataplane.codetransparency.azure.net
-```
-
-### Verify with MST Receipt Only (Bypass Certificate Validation)
-
-When using MST transparency receipts, you can bypass traditional certificate chain validation.
-The receipt verification provides an alternative trust anchor - see [MST Plugin Documentation](../plugins/mst-plugin.md#bypassing-certificate-validation-with-receipt-verification) for details.
-
-```bash
-# Trust the MST receipt instead of certificate chain
-CoseSignTool verify signed.cose --require-receipt --allow-untrusted
-
-# With endpoint verification
-CoseSignTool verify signed.cose --require-receipt --mst-endpoint https://... --allow-untrusted
-```
-
-## Trust Models
-
-CoseSignTool supports different trust models depending on your security requirements:
-
-| Trust Model | Options | Description |
-|-------------|---------|-------------|
-| Certificate Chain | (default) | Traditional PKI - trust anchored in X.509 certificate authorities |
-| Certificate + Receipt | `--require-receipt` | Both certificate chain AND MST receipt must be valid |
-| Receipt Only | `--require-receipt --allow-untrusted` | Trust anchored in MST transparency service only |
-| No Validation | `--allow-untrusted` | No trust validation (development/testing only) |
-
-**Recommendation**: For supply chain scenarios, use "Receipt Only" trust (`--require-receipt --allow-untrusted`) to decouple trust from traditional PKI infrastructure.
-
-## Output
-
-### Text Format (default)
-
-```
-Verification Result: VALID
-
-Signature Details:
-  Algorithm: ES384
-  Content Type: application/json
-
-Certificate:
-  Subject: CN=My Signing Cert
-  Issuer: CN=My CA
-  Valid From: 2024-01-01
-  Valid To: 2025-01-01
-  Thumbprint: ABC123...
-```
-
-### JSON Format
-
-```json
-{
-  "isValid": true,
-  "algorithm": "ES384",
-  "contentType": "application/json",
-  "certificate": {
-    "subject": "CN=My Signing Cert",
-    "issuer": "CN=My CA",
-    "thumbprint": "ABC123...",
-    "validFrom": "2024-01-01T00:00:00Z",
-    "validTo": "2025-01-01T00:00:00Z"
-  }
-}
-```
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Verified successfully |
-| 2 | Invalid arguments |
-| 3 | File not found (signature or payload) |
-| 21 | Signature cryptographic verification failed |
-| 22 | Verification failed (resolution, post-signature, payload hash mismatch, unexpected error) |
-| 24 | Signing key material not trusted (trust stage failed) |
 
 ## See Also
 
-- [Inspect Command](inspect.md) - View signature details
-- [Output Formats](output-formats.md) - Output format options
-- [CLI Reference](README.md) - Full CLI documentation
+- [Inspect Command](inspect.md)
+- [Output Formats](output-formats.md)
+- [CLI Reference](README.md)
+

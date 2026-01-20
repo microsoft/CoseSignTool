@@ -20,7 +20,7 @@ public class CommandIntegrationTests
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid()}.bin");
 
         // Act
-        var exitCode = rootCommand.Invoke($"sign-ephemeral \"{nonExistentFile}\"");
+        var exitCode = rootCommand.Invoke($"sign x509 ephemeral \"{nonExistentFile}\"");
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
@@ -39,7 +39,7 @@ public class CommandIntegrationTests
         try
         {
             // Act
-            var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\"");
+            var exitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempFile}\"");
 
             // Assert
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -67,7 +67,7 @@ public class CommandIntegrationTests
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid()}.cose");
 
         // Act
-        var exitCode = rootCommand.Invoke($"verify \"{nonExistentFile}\"");
+        var exitCode = rootCommand.Invoke($"verify x509 \"{nonExistentFile}\"");
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));
@@ -86,7 +86,7 @@ public class CommandIntegrationTests
         try
         {
             // Act
-            var exitCode = rootCommand.Invoke($"verify \"{tempFile}\"");
+            var exitCode = rootCommand.Invoke($"verify x509 \"{tempFile}\"");
 
             // Assert - invalid COSE data returns InvalidSignature
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.InvalidSignature));
@@ -154,7 +154,7 @@ public class CommandIntegrationTests
         try
         {
             // Act - use --signature-type detached (or -d shorthand)
-            var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --signature-type detached");
+            var exitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempFile}\" --signature-type detached");
 
             // Assert
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -186,7 +186,7 @@ public class CommandIntegrationTests
         try
         {
             // Act
-            var exitCode = rootCommand.Invoke($"sign-ephemeral \"{tempFile}\" --output \"{customOutput}\"");
+            var exitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempFile}\" --output \"{customOutput}\"");
 
             // Assert
             Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));

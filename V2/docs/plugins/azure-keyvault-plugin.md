@@ -13,12 +13,12 @@ It supports two primary signing modes:
 
 ## Commands
 
-### sign-akv-cert
+### sign x509 akv-cert
 
 Sign using a certificate stored in Azure Key Vault.
 
 ```bash
-CoseSignTool sign-akv-cert <payload> \
+cosesigntool sign x509 akv-cert <payload> \
   --akv-vault <vault-uri> \
   --akv-cert-name <cert-name> \
   [--akv-cert-version <version>] \
@@ -27,12 +27,12 @@ CoseSignTool sign-akv-cert <payload> \
   [--output <file>]
 ```
 
-### sign-akv-key
+### sign akv akv-key
 
 Sign using a key stored in Azure Key Vault (no certificate).
 
 ```bash
-CoseSignTool sign-akv-key <payload> \
+cosesigntool sign akv akv-key <payload> \
   --akv-vault <vault-uri> \
   --akv-key-name <key-name> \
   [--akv-key-version <version>] \
@@ -64,7 +64,7 @@ using System.Security.Cryptography.Cose;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableAzureKeyVaultTrust(akv => akv
+validation.EnableAzureKeyVaultSupport(akv => akv
   .RequireAzureKeyVaultKid()
   .AllowKidPatterns(new[] { "https://production-vault.vault.azure.net/keys/*" })
   .OfflineOnly());
@@ -99,7 +99,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableAzureKeyVaultTrust(akv => akv
+validation.EnableAzureKeyVaultSupport(akv => akv
     .RequireAzureKeyVaultKid()
     .AllowKidPatterns(new[]
     {
@@ -144,7 +144,7 @@ Azure Key Vault defaults are not enforced automatically; supply a `TrustPlanPoli
 
 ### CLI Options
 
-The `verify` command gains two plugin options:
+The `verify akv` root exposes two plugin options:
 
 - `--require-az-key`: Require the message to look like an AKV key-only signature (`kid` must look like an AKV key id).
 - `--allowed-vaults`: One or more allowed Key Vault URI patterns (glob or `regex:` prefix).
@@ -157,10 +157,10 @@ Example:
 
 ```bash
 # Require the signature to be an AKV key-only signature
-CoseSignTool verify signature.cose --payload payload.bin --require-az-key
+cosesigntool verify akv signature.cose --payload payload.bin --require-az-key
 
 # Require that kid matches one of the allowed patterns
-CoseSignTool verify signature.cose --payload payload.bin --allowed-vaults "https://production-vault.vault.azure.net/keys/*"
+cosesigntool verify akv signature.cose --payload payload.bin --allowed-vaults "https://production-vault.vault.azure.net/keys/*"
 ```
 
 ## Authentication
@@ -170,7 +170,7 @@ The plugin uses Azure Identity (typically `DefaultAzureCredential`). Common supp
 - Azure CLI (`az login`)
 - Environment variables (service principal)
 
-Online verification uses the same credential chain as signing and requires permission to fetch the key material referenced by `kid`.
+The CLI verifier is offline-only by default; it validates `kid` patterns and can verify signatures when a public key is available in the message (for example via an embedded `COSE_Key`).
 
 ## See Also
 

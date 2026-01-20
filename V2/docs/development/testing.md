@@ -155,7 +155,7 @@ public sealed class ValidatorTests
         var validation = services.ConfigureCoseValidation();
 
         // Enable X.509 signing key resolution (x5chain/x5t).
-        validation.EnableCertificateTrust(certTrust => certTrust
+        validation.EnableCertificateSupport(certTrust => certTrust
             .UseSystemTrust()
             );
 
@@ -371,7 +371,7 @@ public class SignVerifyIntegrationTests
         var message = CoseMessage.DecodeSign1(signature);
         var services = new ServiceCollection();
         var validation = services.ConfigureCoseValidation();
-        validation.EnableCertificateTrust(certTrust => certTrust
+        validation.EnableCertificateSupport(certTrust => certTrust
             .UseSystemTrust()
             );
 

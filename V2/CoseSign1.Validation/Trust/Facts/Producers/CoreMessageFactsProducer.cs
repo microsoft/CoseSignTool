@@ -85,6 +85,9 @@ public sealed partial class CoreMessageFactsProducer : ITrustPack
     public IReadOnlyCollection<Type> FactTypes => SupportedTypes;
 
     /// <inheritdoc />
+    public ISigningKeyResolver? SigningKeyResolver => null;
+
+    /// <inheritdoc />
     public TrustPlanDefaults GetDefaults()
     {
         // Secure-by-default: without explicit trust packs, the default plan must deny trust.

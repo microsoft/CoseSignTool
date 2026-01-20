@@ -72,7 +72,7 @@ public class SigningTests
 
         var services = new ServiceCollection();
         var validation = services.ConfigureCoseValidation();
-        validation.EnableCertificateTrust(certTrust => certTrust
+        validation.EnableCertificateSupport(certTrust => certTrust
             .UseSystemTrust()
             );
 

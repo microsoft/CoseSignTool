@@ -47,7 +47,7 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
     internal static class ClassStrings
     {
         // Command metadata
-        public static readonly string CommandNameValue = "sign-ephemeral";
+            public static readonly string CommandNameValue = "x509-ephemeral";
         public static readonly string CommandDescriptionValue = string.Concat(
             "Sign with an ephemeral (in-memory) certificate for testing. ",
             "Default: RSA-4096 with full certificate chain and CodeSigning EKU.");

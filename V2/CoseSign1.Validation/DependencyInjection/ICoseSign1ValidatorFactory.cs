@@ -65,8 +65,18 @@ internal sealed class CoseSign1ValidatorFactory : ICoseSign1ValidatorFactory
         string? trustPlanKey = null,
         ILogger<CoseSign1Validator>? logger = null)
     {
-        var signingKeyResolvers = Services.GetServices<ISigningKeyResolver>();
+        var signingKeyResolvers = Services.GetServices<ISigningKeyResolver>().ToList();
         var postSignatureValidators = Services.GetServices<IPostSignatureValidator>();
+        var toBeSignedAttestors = Services.GetServices<IToBeSignedAttestor>();
+
+        // Trust packs may provide a tightly-coupled signing key resolver.
+        foreach (var pack in Services.GetServices<ITrustPack>())
+        {
+            if (pack.SigningKeyResolver != null)
+            {
+                signingKeyResolvers.Add(pack.SigningKeyResolver);
+            }
+        }
 
         CompiledTrustPlan trustPlan;
         if (!string.IsNullOrWhiteSpace(trustPlanKey))
@@ -85,6 +95,7 @@ internal sealed class CoseSign1ValidatorFactory : ICoseSign1ValidatorFactory
         return new CoseSign1Validator(
             signingKeyResolvers,
             postSignatureValidators,
+            toBeSignedAttestors,
             trustPlan,
             options,
             trustEvaluationOptions,

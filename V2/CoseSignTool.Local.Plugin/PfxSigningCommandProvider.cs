@@ -36,7 +36,7 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     internal static class ClassStrings
     {
         // Command metadata
-        public static readonly string CommandNameValue = "sign-pfx";
+        public static readonly string CommandNameValue = "x509-pfx";
         public static readonly string CommandDescriptionValue = "Sign a payload with a PFX/PKCS#12 certificate file";
         public static readonly string ExampleUsageValue = "--pfx cert.pfx";
 

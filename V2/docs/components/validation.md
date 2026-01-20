@@ -39,7 +39,7 @@ var services = new ServiceCollection();
 services.AddLogging();
 
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust();
+validation.EnableCertificateSupport();
 
 using var serviceProvider = services.BuildServiceProvider();
 var validator = serviceProvider.GetRequiredService<ICoseSign1ValidatorFactory>().Create();

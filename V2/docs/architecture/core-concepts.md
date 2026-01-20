@@ -46,7 +46,7 @@ CoseHandler.SetValidation("RequireEku:1.3.6.1.4.1.311.10.3.13");
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 
@@ -73,7 +73,7 @@ builder.Services
         return CertificateSigningService.Create(certificate, cb);
     })
     .ConfigureCoseValidation()
-    .EnableCertificateTrust(cert => cert.UseSystemTrust());
+    .EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 builder.Services.AddScoped<ICoseSign1Validator>(sp =>
     sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
@@ -133,7 +133,7 @@ Different services have different lifetimes:
 ```csharp
 // Scoped: build the validator from the current DI scope
 services.ConfigureCoseValidation()
-    .EnableCertificateTrust(cert => cert.UseSystemTrust());
+    .EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 services.AddScoped<ICoseSign1Validator>(sp =>
     sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
@@ -273,7 +273,7 @@ V2 favors composition over class hierarchies.
 // Compose validation via DI: trust packs + post-signature validators
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 services.AddSingleton<IPostSignatureValidator, CustomBusinessValidator>();
 

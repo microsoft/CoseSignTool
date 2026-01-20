@@ -38,11 +38,37 @@ public class AzureTrustedSigningPlugin : IPlugin
     public PluginExtensions GetExtensions() => new(
         signingCommandProviders: [new AzureTrustedSigningCommandProvider()],
         verificationProviders: [],
-        transparencyProviders: []);
+        transparencyProviders: [],
+        signingRootProviders: [],
+        signingMaterialProviders: [],
+        certificateSigningMaterialProviders: [new AtsCertificateSigningMaterialProvider()]);
 
     /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
     {
         // No additional commands - signing handled through extensions
     }
+}
+
+[ExcludeFromCodeCoverage]
+internal sealed class AtsCertificateSigningMaterialProvider : ICertificateSigningMaterialProvider
+{
+    internal static class ClassStrings
+    {
+        public const string ProviderId = "ats";
+        public const string ProviderDisplayName = "Azure Trusted Signing";
+        public const string ProviderHelpSummary = "Microsoft Azure Trusted Signing cloud service";
+    }
+
+    public string ProviderId => ClassStrings.ProviderId;
+
+    public string ProviderDisplayName => ClassStrings.ProviderDisplayName;
+
+    public string ProviderHelpSummary => ClassStrings.ProviderHelpSummary;
+
+    public string CommandName => AzureTrustedSigningCommandProvider.ClassStrings.CommandNameValue;
+
+    public int Priority => 50;
+
+    public IReadOnlyList<string> Aliases => [];
 }

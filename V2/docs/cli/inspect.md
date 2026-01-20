@@ -1,3 +1,49 @@
+````markdown
+# Inspect Command
+
+The `inspect` command displays details about a COSE Sign1 message (headers, payload information, certificate chain presence, etc.).
+
+## Synopsis
+
+```bash
+cosesigntool inspect [<file>] [options]
+```
+
+`<file>` is a positional argument (file path), `-` for stdin, or omit to read stdin.
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `-x`, `--extract-payload <path>` | Extract embedded payload to the specified path. Use `-` for stdout. Only works for embedded signatures |
+| `-f`, `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
+
+## Examples
+
+```bash
+# Inspect a signature file
+cosesigntool inspect signed.cose
+
+# Inspect from stdin (pipeline)
+cat signed.cose | cosesigntool inspect -
+
+# Extract embedded payload to a file
+cosesigntool inspect signed.cose --extract-payload payload.bin
+
+# Extract embedded payload to stdout
+cosesigntool inspect signed.cose --extract-payload - > payload.bin
+
+# JSON output for scripting
+cosesigntool inspect signed.cose -f json
+```
+
+## See Also
+
+- [Verify Command](verify.md)
+- [Output Formats](output-formats.md)
+- [CLI Reference](README.md)
+
+````
 # Inspect Command
 
 The `inspect` command displays detailed information about a COSE Sign1 signature, including protected headers, payload information, certificate chain details, and CWT claims.

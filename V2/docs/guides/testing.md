@@ -48,7 +48,7 @@ public class SigningTests
         var validation = services.ConfigureCoseValidation();
 
         // Registers the certificate signing-key resolver used to verify X.509-backed signatures.
-        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+        validation.EnableCertificateSupport(certTrust => certTrust.UseEmbeddedChainOnly());
 
         using var sp = services.BuildServiceProvider();
         using var scope = sp.CreateScope();
@@ -201,7 +201,7 @@ public class SigningServiceTests
         var message = CoseMessage.DecodeSign1(signatureBytes);
         var services = new ServiceCollection();
         var validation = services.ConfigureCoseValidation();
-        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+        validation.EnableCertificateSupport(certTrust => certTrust.UseEmbeddedChainOnly());
 
         using var sp = services.BuildServiceProvider();
         using var scope = sp.CreateScope();
@@ -248,7 +248,7 @@ public class SignVerifyIntegrationTests
         var message = CoseMessage.DecodeSign1(signature);
         var services = new ServiceCollection();
         var validation = services.ConfigureCoseValidation();
-        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+        validation.EnableCertificateSupport(certTrust => certTrust.UseEmbeddedChainOnly());
 
         using var sp = services.BuildServiceProvider();
         using var scope = sp.CreateScope();
@@ -287,7 +287,7 @@ public class SignVerifyIntegrationTests
         var message = CoseMessage.DecodeSign1(signature);
         var services = new ServiceCollection();
         var validation = services.ConfigureCoseValidation();
-        validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+        validation.EnableCertificateSupport(certTrust => certTrust.UseEmbeddedChainOnly());
 
         using var sp = services.BuildServiceProvider();
         using var scope = sp.CreateScope();
@@ -332,7 +332,7 @@ public void Verify_WithFullChain_Succeeds()
 
     var services = new ServiceCollection();
     var validation = services.ConfigureCoseValidation();
-    validation.EnableCertificateTrust(certTrust => certTrust
+    validation.EnableCertificateSupport(certTrust => certTrust
         .UseCustomRootTrust(trustedRoots)
         );
 
@@ -380,9 +380,11 @@ public class CliIntegrationTests
             Environment.SetEnvironmentVariable("COSESIGNTOOL_PFX_PASSWORD", "test-password");
             
             // Act
-            var exitCode = await CoseSignToolCli.Main(new[]
+            var exitCode = CoseSignTool.Program.Main(new[]
             {
-                "sign-pfx",
+                "sign",
+                "x509",
+                "pfx",
                 inputFile,
                 "--pfx", pfxFile,
                 "--output", outputFile
@@ -422,7 +424,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(certTrust => certTrust.UseEmbeddedChainOnly());
+validation.EnableCertificateSupport(certTrust => certTrust.UseEmbeddedChainOnly());
 services.AddSingleton<IPostSignatureValidator, AlwaysPassPostSignatureValidator>();
 
 using var sp = services.BuildServiceProvider();

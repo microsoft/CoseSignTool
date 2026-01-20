@@ -127,6 +127,12 @@
                             Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
 
+        <!-- Build plugins first to avoid stale/binary-incompatible deployments. -->
+        <MSBuild Projects="@(PluginProjects)"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build"
+                 Condition="'@(PluginProjects)' != ''" />
+
         <!-- Extract plugin names from project paths -->
         <ItemGroup>
             <PluginNames Include="@(PluginProjects->'%(Filename)')" />
@@ -150,6 +156,12 @@
             <PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
                                       Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
+
+        <!-- Build plugins first to avoid stale/binary-incompatible deployments. -->
+        <MSBuild Projects="@(PluginProjectsForPublish)"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build"
+                 Condition="'@(PluginProjectsForPublish)' != ''" />
 
         <!-- Extract plugin names -->
         <ItemGroup>

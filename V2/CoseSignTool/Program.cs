@@ -25,6 +25,11 @@ public static class Program
         public static readonly string OptionAdditionalPluginDir = "--additional-plugin-dir";
         public static readonly string ErrorFatal = "Fatal error: {0}";
 
+        // Help tokens (duplicated here to keep Program self-contained)
+        public static readonly string TokenHelpLong = "--help";
+        public static readonly string TokenHelpShort = "-h";
+        public static readonly string TokenHelpQuestion = "-?";
+
         // Log message templates
         public static readonly string LogStarting = "CoseSignTool starting with verbosity level {Verbosity}";
         public static readonly string LogExiting = "CoseSignTool exiting with code {ExitCode}";
@@ -88,6 +93,7 @@ public static class Program
             var systemCommandLineConsole = new TextWriterConsole(
                 effectiveConsole.StandardOutput,
                 effectiveConsole.StandardError);
+
             var result = rootCommand.Invoke(args, systemCommandLineConsole);
 
             logger.LogDebug(ClassStrings.LogExiting, result);
@@ -119,6 +125,21 @@ public static class Program
         {
             loggerFactory?.Dispose();
         }
+    }
+
+    private static bool HasHelpToken(string[] args)
+    {
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, ClassStrings.TokenHelpLong, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, ClassStrings.TokenHelpShort, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, ClassStrings.TokenHelpQuestion, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

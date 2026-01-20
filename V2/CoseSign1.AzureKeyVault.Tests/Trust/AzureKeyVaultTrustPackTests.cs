@@ -309,12 +309,12 @@ public class AzureKeyVaultTrustPackTests
     }
 
     [Test]
-    public void EnableAzureKeyVaultTrust_RegistersOptionsAndTrustPack()
+    public void EnableAzureKeyVaultSupport_RegistersOptionsAndTrustPack()
     {
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
-        _ = builder.EnableAzureKeyVaultTrust(b => b.RequireAzureKeyVaultKid().AllowKidPatterns(new[] { "*" }).OfflineOnly());
+        _ = builder.EnableAzureKeyVaultSupport(b => b.RequireAzureKeyVaultKid().AllowKidPatterns(new[] { "*" }).OfflineOnly());
 
         Assert.That(services.Any(sd => sd.ServiceType == typeof(AzureKeyVaultTrustOptions)), Is.True);
         Assert.That(services.Any(sd => sd.ServiceType == typeof(ITrustPack) && sd.ImplementationType == typeof(AzureKeyVaultTrustPack)), Is.True);

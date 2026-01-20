@@ -33,6 +33,8 @@ public class TrustPlanPolicyTests
     {
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(TestFact) };
 
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
+
         public TrustPlanDefaults GetDefaults()
         {
             return new TrustPlanDefaults(
@@ -63,6 +65,8 @@ public class TrustPlanPolicyTests
 
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(CounterSignatureSubjectFact) };
 
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
+
         public TrustPlanDefaults GetDefaults()
         {
             return new TrustPlanDefaults(
@@ -85,6 +89,8 @@ public class TrustPlanPolicyTests
     private sealed class MissingCounterSignatureSubjectsProducer : ITrustPack
     {
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(CounterSignatureSubjectFact) };
+
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
 
         public TrustPlanDefaults GetDefaults()
         {
@@ -115,6 +121,8 @@ public class TrustPlanPolicyTests
         }
 
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(CounterSignatureSubjectFact), typeof(TestFact) };
+
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
 
         public TrustPlanDefaults GetDefaults()
         {

@@ -17,15 +17,15 @@ In V2, a trust pack is the preferred unit of reuse:
 - It implements `ITrustPack : IMultiTrustFactProducer` (so it can produce facts).
 - It exposes its default trust contribution via `ITrustPack.GetDefaults()`.
 
-## Opt-in API surface (`Enable*Trust`)
+## Opt-in API surface (`Enable*Support`)
 
-Packages should expose a single opt-in extension method on `ICoseValidationBuilder`, typically named `Enable*Trust(...)`.
+Packages should expose a single opt-in extension method on `ICoseValidationBuilder`, typically named `Enable*Support(...)`.
 
 Examples in this repo:
 
-- `EnableCertificateTrust`
-- `EnableAzureKeyVaultTrust`
-- `EnableMstTrust`
+- `EnableCertificateSupport`
+- `EnableAzureKeyVaultSupport`
+- `EnableMstSupport`
 
 Consumers use the “gate” created by `ConfigureCoseValidation()`:
 
@@ -36,13 +36,13 @@ using CoseSign1.Validation.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableFooTrust(foo =>
+validation.EnableFooSupport(foo =>
 {
     // optional configuration
 });
 ```
 
-## Inside `EnableFooTrust(...)`
+## Inside `EnableFooSupport(...)`
 
 Your extension method should register any staged services and your trust pack (usually as singletons):
 
@@ -70,7 +70,7 @@ If your extension needs to impose requirements beyond its default fragments, pre
 
 Recommended tests for extension packages:
 
-- `Enable*Trust` tests: verify the expected services are registered.
+- `Enable*Support` tests: verify the expected services are registered.
 - Trust pack tests: verify defaults (`GetDefaults()`) and fact production behavior.
 - End-to-end tests: sign a test message, enable your trust pack, validate the message.
 

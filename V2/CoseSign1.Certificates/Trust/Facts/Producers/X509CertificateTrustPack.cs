@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Extensions;
+using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Plan;
@@ -57,6 +58,9 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
     }
 
     private readonly CertificateTrustBuilder.CertificateTrustOptions Options;
+
+    /// <inheritdoc />
+    public ISigningKeyResolver? SigningKeyResolver => null;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="X509CertificateTrustPack"/> class.

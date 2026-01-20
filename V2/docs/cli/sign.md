@@ -10,27 +10,27 @@ Sign commands are provided by CLI plugins:
 
 | Command | Description |
 |---------|-------------|
-| `sign-pfx` | Sign using a PFX/PKCS#12 certificate file |
-| `sign-certstore` | Sign using Windows/Linux certificate store |
-| `sign-pem` | Sign using PEM-encoded certificate and key |
-| `sign-ephemeral` | Sign using temporary self-signed certificate |
+| `sign x509 pfx` | Sign using a PFX/PKCS#12 certificate file |
+| `sign x509 certstore` | Sign using Windows/Linux certificate store |
+| `sign x509 pem` | Sign using PEM-encoded certificate and key |
+| `sign x509 ephemeral` | Sign using temporary self-signed certificate |
 
 ### Azure Plugin Commands
 
 | Command | Description |
 |---------|-------------|
-| `sign-akv-cert` | Sign using an Azure Key Vault certificate |
-| `sign-akv-key` | Sign using an Azure Key Vault key (adds `kid` header) |
-| `sign-azure` | Sign using Azure Trusted Signing |
+| `sign x509 akv-cert` | Sign using an Azure Key Vault certificate |
+| `sign akv akv-key` | Sign using an Azure Key Vault key (adds `kid` header; alias: `key`) |
+| `sign x509 ats` | Sign using Azure Trusted Signing |
 
-## sign-pfx
+## sign x509 pfx
 
 Sign using a PFX/PKCS#12 certificate file.
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-pfx <input-file> [options]
+cosesigntool sign x509 pfx [<payload>] [options]
 ```
 
 ### Options
@@ -51,17 +51,17 @@ CoseSignTool sign-pfx <input-file> [options]
 
 ```bash
 set COSESIGNTOOL_PFX_PASSWORD=my-password
-CoseSignTool sign-pfx document.json --pfx cert.pfx --output signed.cose
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --output signed.cose
 ```
 
-## sign-certstore
+## sign x509 certstore
 
 Sign using a certificate from the system certificate store.
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-certstore <input-file> [options]
+cosesigntool sign x509 certstore [<payload>] [options]
 ```
 
 ### Options
@@ -78,21 +78,21 @@ CoseSignTool sign-certstore <input-file> [options]
 ### Example
 
 ```bash
-CoseSignTool sign-certstore document.json ^
+cosesigntool sign x509 certstore document.json ^
     --thumbprint ABC123DEF456... ^
     --store-name My ^
     --store-location CurrentUser ^
     --output signed.cose
 ```
 
-## sign-pem
+## sign x509 pem
 
 Sign using PEM-encoded certificate and private key files.
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-pem <input-file> [options]
+cosesigntool sign x509 pem [<payload>] [options]
 ```
 
 ### Options
@@ -110,20 +110,20 @@ CoseSignTool sign-pem <input-file> [options]
 ### Example
 
 ```bash
-CoseSignTool sign-pem document.json ^
+cosesigntool sign x509 pem document.json ^
     --cert-file certificate.pem ^
     --key-file private-key.pem ^
     --output signed.cose
 ```
 
-## sign-ephemeral
+## sign x509 ephemeral
 
 Sign using a temporary self-signed certificate. **For testing only.**
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-ephemeral <input-file> [options]
+cosesigntool sign x509 ephemeral [<payload>] [options]
 ```
 
 ### Options
@@ -145,19 +145,19 @@ CoseSignTool sign-ephemeral <input-file> [options]
 ### Example
 
 ```bash
-CoseSignTool sign-ephemeral document.json --output test.cose
+cosesigntool sign x509 ephemeral document.json --output test.cose
 ```
 
 > **Warning:** Ephemeral certificates are self-signed and should not be used in production.
 
-## sign-akv-cert
+## sign x509 akv-cert
 
 Sign using a certificate stored in Azure Key Vault.
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-akv-cert <input-file> [options]
+cosesigntool sign x509 akv-cert [<payload>] [options]
 ```
 
 ### Options
@@ -177,20 +177,20 @@ Authentication uses `DefaultAzureCredential` (non-interactive). Configure creden
 ### Example
 
 ```bash
-CoseSignTool sign-akv-cert document.json ^
+cosesigntool sign x509 akv-cert document.json ^
     --akv-vault https://my-vault.vault.azure.net ^
     --akv-cert-name signing-cert ^
     --output signed.cose
 ```
 
-## sign-akv-key
+## sign akv akv-key
 
 Sign using a key stored in Azure Key Vault (no certificate). This adds a `kid` header per RFC 9052.
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-akv-key <input-file> [options]
+cosesigntool sign akv akv-key [<payload>] [options]
 ```
 
 ### Options
@@ -210,20 +210,20 @@ Authentication uses `DefaultAzureCredential` (non-interactive). Configure creden
 ### Example
 
 ```bash
-CoseSignTool sign-akv-key document.json ^
+cosesigntool sign akv akv-key document.json ^
     --akv-vault https://my-vault.vault.azure.net ^
     --akv-key-name signing-key ^
     --output signed.cose
 ```
 
-## sign-azure
+## sign x509 ats
 
 Sign using Azure Trusted Signing (requires Azure plugin).
 
 ### Synopsis
 
 ```bash
-CoseSignTool sign-azure <input-file> [options]
+cosesigntool sign x509 ats [<payload>] [options]
 ```
 
 ### Options
@@ -240,7 +240,7 @@ CoseSignTool sign-azure <input-file> [options]
 ### Example
 
 ```bash
-CoseSignTool sign-azure document.json ^
+cosesigntool sign x509 ats document.json ^
     --ats-endpoint https://myaccount.codesigning.azure.net ^
     --ats-account-name myaccount ^
     --ats-cert-profile-name myprofile ^
@@ -253,10 +253,10 @@ All sign commands support these common options:
 
 | Option | Description |
 |--------|-------------|
-| `--output <path>`, `-o` | Output file path (default: `<input>.cose`) |
-| `--content-type <type>`, `-c` | MIME type for content type header |
+| `--output <path>`, `-o` | Output file path. Use `-` for stdout. Defaults: `<payload>.cose` for file payloads, stdout for stdin |
+| `--content-type <type>`, `-c` | MIME type for content type header (default: `application/octet-stream`) |
 | `--signature-type <type>`, `-t` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
-| `--hash-algorithm <alg>` | Hash algorithm for indirect signatures (default: `SHA256`) |
+| `--quiet`, `-q` | Suppress normal output (errors still reported) |
 
 ## Exit Codes
 

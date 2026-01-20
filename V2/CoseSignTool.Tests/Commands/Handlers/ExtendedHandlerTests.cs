@@ -68,7 +68,7 @@ public class ExtendedHandlerTests
             File.WriteAllText(tempPayload, "Test payload for inspect test");
 
             // Sign the payload
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
             Assert.That(File.Exists(tempSignature));
 
@@ -105,7 +105,7 @@ public class ExtendedHandlerTests
             File.WriteAllText(tempPayload, "Test payload for inspect test");
 
             // Sign the payload
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Inspect with quiet format
@@ -141,11 +141,11 @@ public class ExtendedHandlerTests
             File.WriteAllText(tempPayload, "Test payload for verify test");
 
             // Sign the payload
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with JSON format
-            var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format json");
+            var verifyExitCode = rootCommand.Invoke($"verify x509 \"{tempSignature}\" --output-format json");
 
             // Assert - Either success or verification failure is acceptable
             Assert.That(verifyExitCode == (int)ExitCode.Success ||
@@ -179,11 +179,11 @@ public class ExtendedHandlerTests
             File.WriteAllText(tempPayload, "Test payload for verify test");
 
             // Sign the payload
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with quiet format
-            var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format quiet");
+            var verifyExitCode = rootCommand.Invoke($"verify x509 \"{tempSignature}\" --output-format quiet");
 
             // Assert - Either success or verification failure is acceptable
             Assert.That(verifyExitCode == (int)ExitCode.Success ||
@@ -217,11 +217,11 @@ public class ExtendedHandlerTests
             File.WriteAllText(tempPayload, "Test payload for verify test");
 
             // Sign the payload
-            var signExitCode = rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
 
             // Act - Verify with XML format
-            var verifyExitCode = rootCommand.Invoke($"verify \"{tempSignature}\" --output-format xml");
+            var verifyExitCode = rootCommand.Invoke($"verify x509 \"{tempSignature}\" --output-format xml");
 
             // Assert - Either success or verification failure is acceptable
             Assert.That(verifyExitCode == (int)ExitCode.Success ||
@@ -249,7 +249,7 @@ public class ExtendedHandlerTests
         var rootCommand = builder.BuildRootCommand();
 
         // Act - Using verbose with help should work
-        var exitCode = rootCommand.Invoke("sign-ephemeral --help --verbose");
+        var exitCode = rootCommand.Invoke("sign x509 ephemeral --help --verbose");
 
         // Assert - Help should show (exit code 0)
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
@@ -298,7 +298,7 @@ public class ExtendedHandlerTests
 
             // Act - Use all options together
             var exitCode = rootCommand.Invoke(
-                $"sign-ephemeral \"{tempPayload}\" " +
+                $"sign x509 ephemeral \"{tempPayload}\" " +
                 $"--output \"{customOutput}\" " +
                 "--signature-type detached " +
                 "--content-type application/json " +
@@ -330,7 +330,7 @@ public class ExtendedHandlerTests
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"nonexistent_verify_{Guid.NewGuid()}.cose");
 
         // Act
-        var exitCode = rootCommand.Invoke($"verify \"{nonExistentFile}\"");
+        var exitCode = rootCommand.Invoke($"verify x509 \"{nonExistentFile}\"");
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.FileNotFound));

@@ -5,6 +5,7 @@ namespace CoseSignTool.Commands.Builders;
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
@@ -142,7 +143,7 @@ public class SigningCommandBuilder
                 cat document.txt | CoseSignTool {1} {2} | base64 > signed.b64
 
               # Sign and verify in pipeline:
-                echo 'test' | CoseSignTool {1} {2} | CoseSignTool verify -
+                                echo 'test' | CoseSignTool {1} {2} | CoseSignTool verify x509 -
 
               # Batch signing multiple files:
                 for file in *.txt; do CoseSignTool {1} "$file" {2}; done
@@ -177,15 +178,48 @@ public class SigningCommandBuilder
     /// <returns>The constructed command.</returns>
     public Command BuildSigningCommand(ISigningCommandProvider provider)
     {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        // Back-compat path: command name is the provider's (historical) command name.
+        // New unified `sign <root> <provider>` surface uses the overload that allows naming.
+        return BuildSigningCommand(
+            provider,
+            cliCommandName: provider.CommandName,
+            displayCommandName: provider.CommandName,
+            commandDescriptionPrefix: provider.CommandDescription);
+    }
+
+    /// <summary>
+    /// Creates a signing command from a plugin provider with a caller-specified CLI name.
+    /// Used by the unified <c>sign &lt;root&gt; &lt;provider&gt;</c> surface.
+    /// </summary>
+    /// <param name="provider">The plugin command provider.</param>
+    /// <param name="cliCommandName">The command token to expose in the CLI (e.g., "pfx").</param>
+    /// <param name="displayCommandName">The command string to show in help examples and output (e.g., "sign x509 pfx").</param>
+    /// <param name="commandDescriptionPrefix">Optional description prefix (defaults to provider description).</param>
+    /// <returns>The constructed command.</returns>
+    public Command BuildSigningCommand(
+        ISigningCommandProvider provider,
+        string cliCommandName,
+        string displayCommandName,
+        string? commandDescriptionPrefix = null)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cliCommandName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayCommandName);
+
         // Build command description with pipeline examples
         var providerExample = GetProviderExample(provider);
+        var descriptionPrefix = string.IsNullOrWhiteSpace(commandDescriptionPrefix)
+            ? provider.CommandDescription
+            : commandDescriptionPrefix;
         var commandDescription = string.Format(
             ClassStrings.CommandDescriptionTemplate,
-            provider.CommandDescription,
-            provider.CommandName,
+            descriptionPrefix,
+            displayCommandName,
             providerExample);
 
-        var command = new Command(provider.CommandName, commandDescription);
+        var command = new Command(cliCommandName, commandDescription);
 
         // Payload argument - optional for stdin support
         var payloadArgument = new Argument<string?>(
@@ -248,6 +282,20 @@ public class SigningCommandBuilder
         });
 
         return command;
+    }
+
+    private static string GetInvocationCommandPath(CommandResult commandResult)
+    {
+        // Build a user-friendly command path without including the synthetic RootCommand name.
+        // Example: sign -> x509 -> pfx
+        var segments = new Stack<string>();
+
+        for (var current = commandResult; current != null && current.Parent is CommandResult; current = current.Parent as CommandResult)
+        {
+            segments.Push(current.Command.Name);
+        }
+
+        return string.Join(' ', segments);
     }
 
     private async Task<int> HandleSigningCommandAsync(
@@ -323,7 +371,10 @@ public class SigningCommandBuilder
             if (!suppressOutput)
             {
                 formatter.BeginSection(ClassStrings.SectionSigningOperation);
-                formatter.WriteKeyValue(ClassStrings.KeyCommand, provider.CommandName);
+
+                var displayName = GetInvocationCommandPath(context.ParseResult.CommandResult);
+
+                formatter.WriteKeyValue(ClassStrings.KeyCommand, displayName);
                 formatter.WriteKeyValue(ClassStrings.KeyPayload, useStdin ? AssemblyStrings.IO.StdinDisplayName : payloadPath!);
                 formatter.WriteKeyValue(
                     ClassStrings.KeyOutput,

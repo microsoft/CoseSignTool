@@ -106,7 +106,7 @@ cosesigntool inspect signed.cose --output-format xml
 Quiet format suppresses all output except errors, useful for scripts that only care about exit codes:
 
 ```bash
-cosesigntool verify signed.cose --output-format quiet
+cosesigntool verify x509 signed.cose --output-format quiet
 echo $?  # 0 = success, non-zero = failure
 ```
 

@@ -6,10 +6,10 @@ namespace CoseSign1.Transparent.MST.Trust;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>
-/// Message-scoped fact indicating whether an MST receipt header is present.
+/// Counter-signature-scoped fact indicating whether an MST receipt header is present.
 /// </summary>
-public sealed record MstReceiptPresentFact(bool IsPresent) : IMessageFact
+public sealed record MstReceiptPresentFact(bool IsPresent) : ICounterSignatureFact
 {
     /// <inheritdoc />
-    public TrustFactScope Scope => TrustFactScope.Message;
+    public TrustFactScope Scope => TrustFactScope.CounterSignature;
 }

@@ -104,7 +104,7 @@ var validation = services.ConfigureCoseValidation();
 services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
 
 // Enable certificate trust and require the chain to be trusted.
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
 var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
     f => f.IsTrusted,
     "X.509 certificate chain must be trusted"));
@@ -136,7 +136,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     .WithRevocationMode(X509RevocationMode.Online));
 
@@ -164,7 +164,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 services.AddSingleton<ISigningKeyResolver>(_ => new CertificateSigningKeyResolver(CoseHeaderLocation.Protected));
-validation.EnableCertificateTrust(cert => cert.UseCustomRootTrust(trustedRoots));
+validation.EnableCertificateSupport(cert => cert.UseCustomRootTrust(trustedRoots));
 
 using var sp = services.BuildServiceProvider();
 var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
@@ -198,7 +198,8 @@ CoseSignTool V2 supports ML-DSA (FIPS 204) via Windows-only platform crypto supp
 
 ### Hybrid / Dual Signatures
 
-The V2 library surface does not provide a first-class "countersignature" feature.
+The V2 library surface does not provide a first-class COSE "countersignature" authoring feature.
+However, the trust system does model receipt-like artifacts (for example, MST receipts) as **counter-signature subjects** for the purpose of trust evaluation.
 If you need both classical + post-quantum assurances, produce two independent signatures over the same payload and ship them side-by-side.
 
 ## Operational Security

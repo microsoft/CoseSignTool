@@ -12,6 +12,13 @@ using CoseSignTool.Commands;
 [TestFixture]
 public class CommandBuilderTests
 {
+    private static Command GetSigningProviderCommand(RootCommand rootCommand, string rootId, string providerId)
+    {
+        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign");
+        var rootSubcommand = signCommand.Subcommands.First(c => c.Name == rootId);
+        return rootSubcommand.Subcommands.First(c => c.Name == providerId);
+    }
+
     [Test]
     public void BuildRootCommand_ReturnsRootCommand()
     {
@@ -49,8 +56,8 @@ public class CommandBuilderTests
         var rootCommand = builder.BuildRootCommand();
 
         // Assert
-        var signCommand = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "sign-ephemeral");
-        Assert.That(signCommand, Is.Not.Null);
+        var providerCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
+        Assert.That(providerCommand, Is.Not.Null);
     }
 
     [Test]
@@ -89,7 +96,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var payloadArg = signCommand.Arguments.FirstOrDefault(a => a.Name == "payload");
@@ -107,7 +114,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var outputOption = signCommand.Options.FirstOrDefault(o => o.Name == "output");
@@ -122,7 +129,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var signatureTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "signature-type");
@@ -140,9 +147,10 @@ public class CommandBuilderTests
         // Act
         var rootCommand = builder.BuildRootCommand();
         var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+        var x509VerifyCommand = verifyCommand.Subcommands.First(c => c.Name == "x509");
 
         // Assert - signature is optional (MinimumNumberOfValues = 0) to support stdin
-        var signatureArg = verifyCommand.Arguments.FirstOrDefault(a => a.Name == "signature");
+        var signatureArg = x509VerifyCommand.Arguments.FirstOrDefault(a => a.Name == "signature");
         Assert.That(signatureArg, Is.Not.Null);
         Assert.That(signatureArg!.Arity.MinimumNumberOfValues, Is.EqualTo(0), "Signature should be optional to support stdin");
         Assert.That(signatureArg!.Arity.MaximumNumberOfValues, Is.EqualTo(1), "Should accept at most one argument");
@@ -283,7 +291,14 @@ public class CommandBuilderTests
             Assert.That(rootCommand, Is.Not.Null);
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "verify"), Is.True);
             Assert.That(rootCommand.Subcommands.Any(c => c.Name == "inspect"), Is.True);
-            Assert.That(rootCommand.Subcommands.Any(c => c.Name == "sign-test"), Is.True);
+
+            var sign = rootCommand.Subcommands.FirstOrDefault(c => c.Name == "sign");
+            Assert.That(sign, Is.Not.Null);
+
+            var x509 = sign!.Subcommands.FirstOrDefault(c => c.Name == "x509");
+            Assert.That(x509, Is.Not.Null);
+
+            Assert.That(x509!.Subcommands.Any(c => c.Name == "test"), Is.True);
 
             var output = console.GetStderr();
             Assert.That(output, Does.Contain("Warning: Failed to get extensions from plugin 'ThrowExt':"));
@@ -340,6 +355,7 @@ public class CommandBuilderTests
         {
             "--output-format", "quiet",
             "verify",
+            "x509",
             missingSignature
         });
 
@@ -389,7 +405,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var signatureTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "signature-type");
@@ -404,7 +420,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var contentTypeOption = signCommand.Options.FirstOrDefault(o => o.Name == "content-type");
@@ -419,7 +435,7 @@ public class CommandBuilderTests
 
         // Act
         var rootCommand = builder.BuildRootCommand();
-        var signCommand = rootCommand.Subcommands.First(c => c.Name == "sign-ephemeral");
+        var signCommand = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
 
         // Assert
         var quietOption = signCommand.Options.FirstOrDefault(o => o.Name == "quiet");
@@ -442,9 +458,12 @@ public class CommandBuilderTests
             // Assert
             Assert.That(rootCommand, Is.Not.Null);
             // Should still have the built-in commands
-            Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "sign-ephemeral"));
+            Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "sign"));
             Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "verify"));
             Assert.That(rootCommand.Subcommands, Has.Some.Matches<System.CommandLine.Command>(c => c.Name == "inspect"));
+
+            var ephemeral = GetSigningProviderCommand(rootCommand, rootId: "x509", providerId: "ephemeral");
+            Assert.That(ephemeral, Is.Not.Null);
         }
         finally
         {
@@ -518,9 +537,10 @@ public class CommandBuilderTests
         // Act
         var rootCommand = builder.BuildRootCommand();
         var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+        var x509VerifyCommand = verifyCommand.Subcommands.First(c => c.Name == "x509");
 
         // Assert
-        var payloadOption = verifyCommand.Options.FirstOrDefault(o => o.Name == "payload");
+        var payloadOption = x509VerifyCommand.Options.FirstOrDefault(o => o.Name == "payload");
         Assert.That(payloadOption, Is.Not.Null, "Verify command should have --payload option");
         Assert.That(payloadOption!.Aliases, Does.Contain("-p"), "Should have -p alias");
     }
@@ -534,9 +554,10 @@ public class CommandBuilderTests
         // Act
         var rootCommand = builder.BuildRootCommand();
         var verifyCommand = rootCommand.Subcommands.First(c => c.Name == "verify");
+        var x509VerifyCommand = verifyCommand.Subcommands.First(c => c.Name == "x509");
 
         // Assert
-        var signatureOnlyOption = verifyCommand.Options.FirstOrDefault(o => o.Name == "signature-only");
+        var signatureOnlyOption = x509VerifyCommand.Options.FirstOrDefault(o => o.Name == "signature-only");
         Assert.That(signatureOnlyOption, Is.Not.Null, "Verify command should have --signature-only option");
     }
 

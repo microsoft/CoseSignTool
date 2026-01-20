@@ -8,7 +8,7 @@ For the plugin authoring model (interfaces and extension points), see the [Plugi
 
 Plugins implement `CoseSignTool.Abstractions.IPlugin` and can contribute functionality via:
 
-- **Signing commands** (e.g., `sign-pfx`, `sign-azure`) via `ISigningCommandProvider`
+- **Signing providers** (used under `cosesigntool sign <root> <provider> ...`) via `ISigningCommandProvider`
 - **Verification providers** (extra verification behaviors and/or options surfaced by `verify`) via `IVerificationProvider`
 - **Transparency providers** (e.g., MST) via `ITransparencyProviderContributor`
 
@@ -23,15 +23,15 @@ In V2, **all signing commands are provided by plugins**. The core CLI provides t
 The default distribution includes these plugins (each has its own documentation page):
 
 - **Local signing**: [Local plugin](../plugins/local-plugin.md)
-  - Commands: `sign-pfx`, `sign-pem`, `sign-certstore`, `sign-ephemeral`
+  - Commands: `sign x509 pfx`, `sign x509 pem`, `sign x509 certstore`, `sign x509 ephemeral`
 - **Azure Key Vault**: [Azure Key Vault plugin](../plugins/azure-keyvault-plugin.md)
-  - Commands: `sign-akv-cert`, `sign-akv-key`
+  - Commands: `sign x509 akv-cert`, `sign akv akv-key`
 - **Azure Trusted Signing**: [Azure plugin](../plugins/azure-plugin.md)
-  - Command: `sign-azure`
+  - Command: `sign x509 ats`
 - **Microsoft Signing Transparency (MST)**: [MST plugin](../plugins/mst-plugin.md)
-  - Adds verification options (for example `--require-receipt`, `--mst-endpoint`, `--mst-trust-mode`)
-- **Indirect signatures**: [Indirect plugin](../plugins/indirect-plugin.md)
-  - Adds signing options (for example `--signature-type indirect`, `--hash-algorithm`)
+  - Adds MST receipt verification support under `cosesigntool verify mst` (for example `--mst-offline-keys`, `--mst-trust-ledger-instance`)
+- **Indirect signatures**: [Indirect signatures](../plugins/indirect-plugin.md)
+  - Uses the standard `--signature-type indirect` option (default); the CLI does not currently expose a `--hash-algorithm` switch
 
 This guide intentionally links to the plugin-specific docs above rather than duplicating every command/option detail.
 

@@ -139,7 +139,7 @@ var message = CoseMessage.DecodeSign1(statement);
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 
@@ -186,7 +186,7 @@ if (!receiptResult.IsValid)
 ### Create SCITT Statement
 
 ```bash
-CoseSignTool sign-pfx artifact-manifest.json ^
+cosesigntool sign x509 pfx artifact-manifest.json ^
     --pfx issuer.pfx ^
     --content-type "application/vnd.scitt.claim+cbor" ^
     --output statement.cose
@@ -195,9 +195,8 @@ CoseSignTool sign-pfx artifact-manifest.json ^
 ### Verify with Transparency
 
 ```bash
-CoseSignTool verify statement.cose ^
-    --require-receipt ^
-    --mst-endpoint https://dataplane.codetransparency.azure.net
+cosesigntool verify mst statement.cose ^
+    --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
 ```
 
 ## SCITT Content Types

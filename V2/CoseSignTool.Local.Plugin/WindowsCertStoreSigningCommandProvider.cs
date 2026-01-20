@@ -21,7 +21,7 @@ public class WindowsCertStoreSigningCommandProvider : ISigningCommandProvider
     internal static class ClassStrings
     {
         // Command metadata
-        public static readonly string CommandNameValue = "sign-certstore";
+        public static readonly string CommandNameValue = "x509-certstore";
         public static readonly string CommandDescriptionValue = "Sign a payload with a certificate from Windows certificate store";
         public static readonly string ExampleUsageValue = "--thumbprint ABC123";
 

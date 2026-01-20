@@ -64,10 +64,10 @@ byte[] detachedSignature = factory.CreateCoseSign1MessageBytes(
 
 ```bash
 # Embedded direct signature
-CoseSignTool sign-pfx document.json --pfx cert.pfx --signature-type embedded --output signed.cose
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --signature-type embedded --output signed.cose
 
 # Detached direct signature
-CoseSignTool sign-pfx document.json --pfx cert.pfx --signature-type detached --output signed.cose
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --signature-type detached --output signed.cose
 ```
 
 ## Indirect Signatures
@@ -143,10 +143,9 @@ byte[] streamSignature = await factory.CreateCoseSign1MessageBytesAsync<Indirect
 
 ```bash
 # Indirect signature
-CoseSignTool sign-pfx large-file.bin ^
+cosesigntool sign x509 pfx large-file.bin ^
     --pfx cert.pfx ^
     --signature-type indirect ^
-    --hash-algorithm SHA256 ^
     --output signed.cose
 ```
 
@@ -196,23 +195,23 @@ Indirect signatures sign a *hash envelope* instead of the original payload.
 - Signature verification is self-contained (the signed bytes are the hash envelope), so you can verify the COSE signature without the original payload.
 - Payload verification is a separate step: compute the expected hash of the payload using the algorithm encoded in the message headers, then compare it to the signed hash content.
 
-For most callers, the CLI provides this end-to-end verification via `cosesigntool verify` with `--payload` (and `--signature-only` to skip payload verification).
+For most callers, the CLI provides this end-to-end verification via `cosesigntool verify x509` with `--payload` (and `--signature-only` to skip payload verification).
 
 ### CLI Verification
 
 ```bash
 # Direct signature (embedded) - fully self-contained
-CoseSignTool verify signed.cose
+cosesigntool verify x509 signed.cose
 
 # Direct signature (detached) - payload REQUIRED to verify signature
-CoseSignTool verify signed.cose --payload document.json
+cosesigntool verify x509 signed.cose --payload document.json
 
 # Indirect signature - payload needed to verify hash match
 # (signature itself can be verified without payload)
-CoseSignTool verify signed.cose --payload large-file.bin
+cosesigntool verify x509 signed.cose --payload large-file.bin
 
 # Indirect signature - verify signature only (no payload verification)
-CoseSignTool verify signed.cose --signature-only
+cosesigntool verify x509 signed.cose --signature-only
 ```
 
 ## Supported Hash Algorithms

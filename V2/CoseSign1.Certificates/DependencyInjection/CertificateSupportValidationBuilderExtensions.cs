@@ -12,18 +12,18 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
 
 /// <summary>
-/// Validation builder extensions for enabling the certificate trust pack.
+/// Validation builder extensions for enabling certificate support.
 /// </summary>
-public static class CertificateTrustValidationBuilderExtensions
+public static class CertificateSupportValidationBuilderExtensions
 {
     /// <summary>
-    /// Enables the certificate trust pack by registering default trust-plan fragments and related services.
+    /// Enables certificate support by registering the certificate trust pack and related services.
     /// </summary>
     /// <param name="validationBuilder">The validation builder.</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The same builder instance for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="validationBuilder"/> is null.</exception>
-    public static ICoseValidationBuilder EnableCertificateTrust(
+    public static ICoseValidationBuilder EnableCertificateSupport(
         this ICoseValidationBuilder validationBuilder,
         Action<CertificateTrustBuilder>? configure = null)
     {

@@ -4,6 +4,7 @@
 namespace CoseSignTool.Commands;
 
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
@@ -25,6 +26,9 @@ public class CommandBuilder
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
+        // Common literals
+        public const string Space = " ";
+
         // Root command
         public static readonly string RootDescription = string.Concat(
             "Modern CLI tool for COSE Sign1 signing and verification\n\n",
@@ -35,11 +39,11 @@ public class CommandBuilder
             "  - Chain commands: output can feed directly into verification or encoding\n\n",
             "QUICK EXAMPLES:\n",
             "  # Sign from stdin to stdout:\n",
-            "    echo 'data' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose\n\n",
+            "    echo 'data' | CoseSignTool sign x509 pfx --pfx cert.pfx > signed.cose\n\n",
             "  # Sign file, verify in pipeline:\n",
-            "    CoseSignTool sign-pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify -\n\n",
+            "    CoseSignTool sign x509 pfx file.txt --pfx cert.pfx -o - | CoseSignTool verify x509 -\n\n",
             "  # JSON output for scripting:\n",
-            "    CoseSignTool verify signature.cose --output-format json\n\n",
+            "    CoseSignTool verify x509 signature.cose --output-format json\n\n",
             "Use 'CoseSignTool [command] --help' for detailed command-specific examples.");
 
         // Global options
@@ -65,19 +69,19 @@ public class CommandBuilder
             "Verify a COSE Sign1 signature\n\n",
             "EXAMPLES:\n",
             "  # Basic verification (embedded signature):\n",
-            "    cosesigntool verify signature.cose\n\n",
+            "    cosesigntool verify x509 signature.cose\n\n",
             "  # Verify detached signature (payload required):\n",
-            "    cosesigntool verify signature.cose --payload document.json\n\n",
+            "    cosesigntool verify x509 signature.cose --payload document.json\n\n",
             "  # Verify indirect signature (payload required for hash match):\n",
-            "    cosesigntool verify indirect.sig --payload large-file.bin\n\n",
+            "    cosesigntool verify x509 indirect.sig --payload large-file.bin\n\n",
             "  # Verify signature only (skip payload hash verification):\n",
-            "    cosesigntool verify indirect.sig --signature-only\n\n",
+            "    cosesigntool verify x509 indirect.sig --signature-only\n\n",
             "  # Verify with specific trust roots:\n",
-            "    cosesigntool verify signature.cose --trust-roots ca-cert.pem\n\n",
+            "    cosesigntool verify x509 signature.cose --trust-roots ca-cert.pem\n\n",
             "  # Allow self-signed certificates (dev/test):\n",
-            "    cosesigntool verify signature.cose --allow-untrusted\n\n",
+            "    cosesigntool verify x509 signature.cose --allow-untrusted\n\n",
             "  # JSON output for scripting:\n",
-            "    cosesigntool verify signature.cose -f json");
+            "    cosesigntool verify x509 signature.cose -f json");
         public static readonly string ArgumentSignature = "signature";
         public static readonly string ArgumentSignatureDescription = string.Concat(
             "Path to the COSE signature file. Use '-' to read from stdin.\n",
@@ -97,6 +101,19 @@ public class CommandBuilder
             "Verify only the cryptographic signature, skip payload verification.\n",
             "  For indirect signatures, this verifies the signature over the hash\n",
             "  envelope without checking if a payload matches the hash.");
+
+        // Sign command
+        public static readonly string CommandSign = "sign";
+        public static readonly string SignDescription = "Sign a payload";
+        public static readonly string ArgumentPayload = "payload";
+        public static readonly string ArgumentPayloadDescription = "Path to payload file to sign. Use '-' or omit to read from stdin.";
+
+        // Sign command construction
+        public const string RootDescriptionFallbackPrefix = "Sign using ";
+        public const string RootDescriptionFallbackSuffix = " material";
+        public const string ProviderDisplayNameSeparator = ": ";
+
+        public static readonly string SigningMaterialProviderKeySeparator = "::";
 
         // Inspect command
         public static readonly string CommandInspect = "inspect";
@@ -225,7 +242,10 @@ public class CommandBuilder
             rootCommand,
             additionalPluginDirectories,
             out var transparencyProviders,
-            out var verificationProviders);
+            out var verificationProviders,
+            out var signingRootProviders,
+            out var signingMaterialProviders,
+            out var signingCommandProviders);
 
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
@@ -233,11 +253,8 @@ public class CommandBuilder
             transparencyProviders: transparencyProviders,
             loggerFactory: LoggerFactory);
 
-        // NOTE: All signing commands (including sign-ephemeral) are provided by plugins.
-        // The Local.Plugin provides: sign-pfx, sign-pem, sign-ephemeral, sign-cert-store
-        // If no plugins are loaded, only verify and inspect commands will be available.
-
         // Add built-in verify and inspect commands with verification providers
+        rootCommand.AddCommand(BuildSignCommand(signingCommandBuilder, signingRootProviders, signingMaterialProviders, signingCommandProviders));
         rootCommand.AddCommand(BuildVerifyCommand(verificationProviders));
         rootCommand.AddCommand(BuildInspectCommand());
 
@@ -251,10 +268,16 @@ public class CommandBuilder
         RootCommand rootCommand,
         IEnumerable<string>? additionalPluginDirectories,
         out IReadOnlyList<ITransparencyProvider> transparencyProviders,
-        out IReadOnlyList<IVerificationProvider> verificationProviders)
+        out IReadOnlyList<IVerificationProvider> verificationProviders,
+        out IReadOnlyList<ISigningRootProvider> signingRootProviders,
+        out IReadOnlyList<ISigningMaterialProvider> signingMaterialProviders,
+        out IReadOnlyList<ISigningCommandProvider> signingCommandProviders)
     {
         transparencyProviders = Array.Empty<ITransparencyProvider>();
         verificationProviders = Array.Empty<IVerificationProvider>();
+        signingRootProviders = Array.Empty<ISigningRootProvider>();
+        signingMaterialProviders = Array.Empty<ISigningMaterialProvider>();
+        signingCommandProviders = Array.Empty<ISigningCommandProvider>();
 
         try
         {
@@ -276,7 +299,12 @@ public class CommandBuilder
             // Collect providers from all plugins
             var transparencyProvidersList = new List<ITransparencyProvider>();
             var verificationProvidersList = new List<IVerificationProvider>();
+            var signingRootProvidersList = new List<ISigningRootProvider>();
+            var signingMaterialProvidersList = new List<ISigningMaterialProvider>();
+            var signingCommandProvidersList = new List<ISigningCommandProvider>();
             var plugins = loader.Plugins;
+
+            var pluginExtensions = new List<(IPlugin Plugin, PluginExtensions Extensions)>();
 
             foreach (var plugin in plugins)
             {
@@ -285,6 +313,7 @@ public class CommandBuilder
                 try
                 {
                     extensions = plugin.GetExtensions();
+                    pluginExtensions.Add((plugin, extensions));
                 }
                 catch (Exception ex)
                 {
@@ -316,30 +345,51 @@ public class CommandBuilder
                 {
                     Console.StandardError.WriteLine(string.Format(ClassStrings.WarningVerificationProvider, plugin.Name, ex.Message));
                 }
+
+                // Collect signing root/material providers
+                try
+                {
+                    signingRootProvidersList.AddRange(extensions.SigningRootProviders);
+                    signingMaterialProvidersList.AddRange(extensions.SigningMaterialProviders);
+
+                    foreach (var certificateProvider in extensions.CertificateSigningMaterialProviders)
+                    {
+                        signingMaterialProvidersList.Add(new CertificateSigningMaterialProviderAdapter(certificateProvider));
+                    }
+
+                    signingCommandProvidersList.AddRange(extensions.SigningCommandProviders);
+                }
+                catch (Exception ex)
+                {
+                    Console.StandardError.WriteLine(string.Format(ClassStrings.WarningPluginExtensions, plugin.Name, ex.Message));
+                }
             }
 
             transparencyProviders = transparencyProvidersList;
             verificationProviders = verificationProvidersList.OrderBy(p => p.Priority).ToList();
+            signingRootProviders = signingRootProvidersList
+                .GroupBy(r => r.RootId, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(r => r.RootId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            signingMaterialProviders = signingMaterialProvidersList
+                .GroupBy(p => string.Concat(p.RootId, ClassStrings.SigningMaterialProviderKeySeparator, p.ProviderId), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(p => p.Priority)
+                .ThenBy(p => p.ProviderId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            // Create signing command builder with transparency providers
-            var signingCommandBuilder = new SigningCommandBuilder(
-                Console,
-                transparencyProviders: transparencyProviders.Count > 0 ? transparencyProviders : null);
+            signingCommandProviders = signingCommandProvidersList
+                .GroupBy(p => p.CommandName, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(p => p.CommandName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             // Register all loaded plugins
-            foreach (var plugin in plugins)
+            foreach (var (plugin, extensions) in pluginExtensions)
             {
                 try
                 {
-                    var extensions = plugin.GetExtensions();
-
-                    // Register signing commands via providers (centralized I/O, factories managed by main exe)
-                    foreach (var provider in extensions.SigningCommandProviders)
-                    {
-                        var signingCommand = signingCommandBuilder.BuildSigningCommand(provider);
-                        rootCommand.AddCommand(signingCommand);
-                    }
-
                     // Register other commands directly (verify, utilities, etc.)
                     plugin.RegisterCommands(rootCommand);
                 }
@@ -360,47 +410,126 @@ public class CommandBuilder
         }
     }
 
+    private sealed class CertificateSigningMaterialProviderAdapter : ISigningMaterialProvider, ISigningMaterialProviderWithAliases
+    {
+        private readonly ICertificateSigningMaterialProvider Inner;
+
+        public CertificateSigningMaterialProviderAdapter(ICertificateSigningMaterialProvider inner)
+        {
+            Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        }
+
+        public string ProviderId => Inner.ProviderId;
+
+        public string RootId => CertificateSigningRootIds.X509;
+
+        public string ProviderDisplayName => Inner.ProviderDisplayName;
+
+        public string ProviderHelpSummary => Inner.ProviderHelpSummary;
+
+        public string CommandName => Inner.CommandName;
+
+        public int Priority => Inner.Priority;
+
+        public IReadOnlyList<string> Aliases => Inner.Aliases;
+    }
+
     /// <summary>
-    /// Builds the 'verify' command for validating COSE signatures.
+    /// Builds the unified 'sign' command with <c>sign &lt;root&gt; &lt;provider&gt;</c> subcommands.
+    /// </summary>
+    private Command BuildSignCommand(
+        SigningCommandBuilder signingCommandBuilder,
+        IReadOnlyList<ISigningRootProvider> signingRootProviders,
+        IReadOnlyList<ISigningMaterialProvider> signingMaterialProviders,
+        IReadOnlyList<ISigningCommandProvider> signingCommandProviders)
+    {
+        ArgumentNullException.ThrowIfNull(signingCommandBuilder);
+        ArgumentNullException.ThrowIfNull(signingRootProviders);
+        ArgumentNullException.ThrowIfNull(signingMaterialProviders);
+        ArgumentNullException.ThrowIfNull(signingCommandProviders);
+
+        var sign = new Command(ClassStrings.CommandSign, ClassStrings.SignDescription);
+
+        // Build a lookup from implementation command name -> provider.
+        // This is internal wiring only; we do not surface these names in help output.
+        var implByCommandName = signingCommandProviders
+            .ToDictionary(p => p.CommandName, p => p, StringComparer.OrdinalIgnoreCase);
+
+        // Root commands: prefer explicit roots from extensions.
+        // Also allow implicit roots if a provider extends a root with no root provider.
+        var rootIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in signingRootProviders)
+        {
+            rootIds.Add(root.RootId);
+        }
+
+        foreach (var provider in signingMaterialProviders)
+        {
+            rootIds.Add(provider.RootId);
+        }
+
+        foreach (var rootId in rootIds.OrderBy(r => r, StringComparer.OrdinalIgnoreCase))
+        {
+            var rootProvider = signingRootProviders.FirstOrDefault(r => string.Equals(r.RootId, rootId, StringComparison.OrdinalIgnoreCase));
+            var rootDescription = rootProvider?.RootHelpSummary ?? string.Concat(ClassStrings.RootDescriptionFallbackPrefix, rootId, ClassStrings.RootDescriptionFallbackSuffix);
+
+            var rootCommand = new Command(rootId, rootDescription);
+
+            var providersForRoot = signingMaterialProviders
+                .Where(p => string.Equals(p.RootId, rootId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => p.Priority)
+                .ThenBy(p => p.ProviderId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var materialProvider in providersForRoot)
+            {
+                if (!implByCommandName.TryGetValue(materialProvider.CommandName, out var implProvider))
+                {
+                    // Plugin wiring issue. Skip adding a broken command.
+                    continue;
+                }
+
+                var cliProviderName = materialProvider.ProviderId;
+                var displayCommandName = string.Concat(ClassStrings.CommandSign, ClassStrings.Space, rootId, ClassStrings.Space, cliProviderName);
+
+                var providerCommand = signingCommandBuilder.BuildSigningCommand(
+                    implProvider,
+                    cliCommandName: cliProviderName,
+                    displayCommandName: displayCommandName,
+                    commandDescriptionPrefix: string.Concat(materialProvider.ProviderDisplayName, ClassStrings.ProviderDisplayNameSeparator, materialProvider.ProviderHelpSummary));
+
+                if (materialProvider is ISigningMaterialProviderWithAliases withAliases)
+                {
+                    foreach (var alias in withAliases.Aliases)
+                    {
+                        if (!string.IsNullOrWhiteSpace(alias))
+                        {
+                            providerCommand.AddAlias(alias);
+                        }
+                    }
+                }
+
+                rootCommand.AddCommand(providerCommand);
+            }
+
+            sign.AddCommand(rootCommand);
+        }
+
+        return sign;
+    }
+
+    /// <summary>
+    /// Builds the 'verify' command with <c>verify &lt;root&gt;</c> subcommands.
     /// </summary>
     private Command BuildVerifyCommand(IReadOnlyList<IVerificationProvider> verificationProviders)
     {
-        var command = new Command(ClassStrings.CommandVerify, ClassStrings.VerifyDescription);
+        ArgumentNullException.ThrowIfNull(verificationProviders);
 
-        // Signature argument - accepts file path or '-' for stdin
-        var signatureArgument = new Argument<string?>(
-            name: ClassStrings.ArgumentSignature,
-            description: ClassStrings.ArgumentSignatureDescription,
-            getDefaultValue: () => null)
+        var verify = new Command(ClassStrings.CommandVerify, ClassStrings.VerifyDescription);
+
+        static OutputFormat GetOutputFormat(InvocationContext context)
         {
-            Arity = ArgumentArity.ZeroOrOne
-        };
-        command.AddArgument(signatureArgument);
-
-        // Payload option for detached/indirect signatures
-        var payloadOption = new Option<FileInfo?>(
-            name: ClassStrings.OptionPayload,
-            description: ClassStrings.OptionPayloadDescription);
-        payloadOption.AddAlias(ClassStrings.OptionPayloadAlias);
-        command.AddOption(payloadOption);
-
-        // Signature-only option for indirect signatures
-        var signatureOnlyOption = new Option<bool>(
-            name: ClassStrings.OptionSignatureOnly,
-            description: ClassStrings.OptionSignatureOnlyDescription);
-        command.AddOption(signatureOnlyOption);
-
-        // Let each verification provider add its options
-        foreach (var provider in verificationProviders)
-        {
-            provider.AddVerificationOptions(command);
-        }
-
-        // Set handler
-        command.SetHandler(async (context) =>
-        {
-            // Get global output format option
-            var outputFormat = OutputFormat.Text; // default
+            var outputFormat = OutputFormat.Text;
             foreach (var option in context.ParseResult.RootCommandResult.Command.Options)
             {
                 if (option.Name == ClassStrings.OptionNameOutputFormat)
@@ -410,33 +539,101 @@ public class CommandBuilder
                     {
                         outputFormat = parsed;
                     }
+
                     break;
                 }
             }
 
-            // Get payload and signature-only options
-            FileInfo? payloadFile = null;
-            bool signatureOnly = false;
-            foreach (var opt in context.ParseResult.CommandResult.Command.Options)
+            return outputFormat;
+        }
+
+        void ConfigureVerifyExecution(Command command, IReadOnlyList<IVerificationProvider> providers)
+        {
+            // Signature argument - accepts file path or '-' for stdin
+            var signatureArgument = new Argument<string?>(
+                name: ClassStrings.ArgumentSignature,
+                description: ClassStrings.ArgumentSignatureDescription,
+                getDefaultValue: () => null)
             {
-                if (opt.Name == ClassStrings.OptionNamePayload)
+                Arity = ArgumentArity.ZeroOrOne
+            };
+            command.AddArgument(signatureArgument);
+
+            // Payload option for detached/indirect signatures
+            var payloadOption = new Option<FileInfo?>(
+                name: ClassStrings.OptionPayload,
+                description: ClassStrings.OptionPayloadDescription);
+            payloadOption.AddAlias(ClassStrings.OptionPayloadAlias);
+            command.AddOption(payloadOption);
+
+            // Signature-only option for indirect signatures
+            var signatureOnlyOption = new Option<bool>(
+                name: ClassStrings.OptionSignatureOnly,
+                description: ClassStrings.OptionSignatureOnlyDescription);
+            command.AddOption(signatureOnlyOption);
+
+            foreach (var provider in providers)
+            {
+                provider.AddVerificationOptions(command);
+            }
+
+            command.SetHandler(async (InvocationContext context) =>
+            {
+                var payloadFile = context.ParseResult.GetValueForOption(payloadOption);
+                var signatureOnly = context.ParseResult.GetValueForOption(signatureOnlyOption);
+
+                var outputFormat = GetOutputFormat(context);
+                var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
+                var handler = new VerifyCommandHandler(Console, formatter, providers, LoggerFactory);
+                var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
+                context.ExitCode = exitCode;
+            });
+        }
+
+        Command BuildVerifyRootCommand(string rootId, string description, IReadOnlyList<IVerificationProvider> providers)
+        {
+            var command = new Command(rootId, description);
+            ConfigureVerifyExecution(command, providers);
+            return command;
+        }
+
+        // Require explicit roots:
+        //   verify <root> <signature>
+
+        var rootProviders = verificationProviders
+            .OfType<IVerificationRootProvider>()
+            .OrderBy(p => p.Priority)
+            .ThenBy(p => p.RootId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Roots are provided by plugins.
+        // Build one verify subcommand per root: `verify <root>`.
+        foreach (var rootProvider in rootProviders)
+        {
+            var rootId = rootProvider.RootId;
+
+            var optionScopeRootIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootId };
+            if (rootProvider is IVerificationRootOptionScopeProvider scopeProvider)
+            {
+                foreach (var additional in scopeProvider.AdditionalRootIdsForOptionScope)
                 {
-                    payloadFile = context.ParseResult.GetValueForOption(opt) as FileInfo;
-                }
-                else if (opt.Name == ClassStrings.OptionNameSignatureOnly)
-                {
-                    var value = context.ParseResult.GetValueForOption(opt);
-                    signatureOnly = value is bool b && b;
+                    if (!string.IsNullOrWhiteSpace(additional))
+                    {
+                        optionScopeRootIds.Add(additional);
+                    }
                 }
             }
 
-            var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
-            var handler = new VerifyCommandHandler(Console, formatter, verificationProviders, LoggerFactory);
-            var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
-            context.ExitCode = exitCode;
-        });
+            // Avoid showing other roots' options under this root unless the root explicitly requests them.
+            var providersForRoot = verificationProviders
+                .Where(p => p is not IVerificationRootProvider rp
+                            || optionScopeRootIds.Contains(rp.RootId))
+                .ToList();
 
-        return command;
+            verify.AddCommand(BuildVerifyRootCommand(rootId, rootProvider.RootHelpSummary, providersForRoot));
+        }
+
+        return verify;
     }
 
     /// <summary>

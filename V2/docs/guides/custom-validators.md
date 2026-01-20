@@ -74,8 +74,8 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust();
-validation.EnableMstTrust();
+validation.EnableCertificateSupport();
+validation.EnableMstSupport();
 
 services.AddSingleton<IPostSignatureValidator>(
     _ => new ContentTypeAllowListValidator(new[] { "application/json" }));

@@ -10,7 +10,11 @@
         <Configuration>
           <Format>cobertura</Format>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
-          <ExcludeByFile>**/obj/**,**/bin/**,**/*.Designer.cs,**/*.g.cs,**/*.g.i.cs</ExcludeByFile>
+          <!--
+            NOTE: Cobertura can surface Windows paths with backslashes (e.g. C:\...\obj\...\*.g.cs).
+            Include both slash styles so generated/obj/bin files are reliably excluded on Windows.
+          -->
+          <ExcludeByFile>**/obj/**,**/bin/**,**/*.Designer.cs,**/*.g.cs,**/*.g.i.cs,**\\obj\\**,**\\bin\\**,**\\*.Designer.cs,**\\*.g.cs,**\\*.g.i.cs</ExcludeByFile>
           <IncludeDirectory>../</IncludeDirectory>
           <SingleHit>false</SingleHit>
           <UseSourceLink>false</UseSourceLink>
@@ -18,7 +22,7 @@
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicReport>true</DeterministicReport>
           <!-- Thresholds -->
-          <Threshold>95</Threshold>
+          <Threshold>96</Threshold>
           <ThresholdType>line</ThresholdType>
           <ThresholdStat>total</ThresholdStat>
         </Configuration>

@@ -19,7 +19,7 @@ public class PemSigningCommandProvider : ISigningCommandProvider
     internal static class ClassStrings
     {
         // Command metadata
-        public static readonly string CommandNameValue = "sign-pem";
+            public static readonly string CommandNameValue = "x509-pem";
         public static readonly string CommandDescriptionValue = "Sign a payload with PEM certificate and private key files";
         public static readonly string ExampleUsageValue = "--cert-file cert.pem --key-file key.pem";
 

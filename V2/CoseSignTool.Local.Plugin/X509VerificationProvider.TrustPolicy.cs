@@ -19,6 +19,13 @@ public partial class X509VerificationProvider : IVerificationProviderWithTrustPl
             throw new ArgumentNullException(nameof(parseResult));
         }
 
+        if (context != null && context.PreferCounterSignatureTrust)
+        {
+            // When receipt/counter-signature trust is the chosen trust anchor (e.g., MST receipts),
+            // do not impose primary signing-key certificate trust requirements.
+            return null;
+        }
+
         var allowUntrusted = IsAllowUntrusted(parseResult);
         var requiredSubjectCn = GetSubjectName(parseResult);
         var requiredIssuerCn = GetIssuerName(parseResult);

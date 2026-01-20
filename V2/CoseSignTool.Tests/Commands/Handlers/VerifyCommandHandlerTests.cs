@@ -523,7 +523,7 @@ public class VerifyCommandHandlerTests
             // Use helper that ensures provider options are registered
             var context = CreateInvocationContextWithProviders(
                 new[] { x509Provider },
-                $"verify \"{tempSignature}\" --allow-untrusted");
+                $"verify x509 \"{tempSignature}\" --allow-untrusted");
 
             // Act
             var result = await handler.HandleAsync(context, new FileInfo(tempPayload), signatureOnly: false);
@@ -551,9 +551,9 @@ public class VerifyCommandHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WhenProviderValidatorFails_WritesFailureDetailsAndReturnsVerificationFailed()
+    public async Task HandleAsync_WhenProviderValidatorFails_WritesFailureDetailsAndReturnsUntrustedCertificate()
     {
-        // Arrange - Create a real signature using sign-ephemeral (so base certificate validation can succeed)
+        // Arrange - Create a real signature using sign x509 ephemeral (so base certificate validation can succeed)
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -572,7 +572,7 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for failing-provider verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -580,7 +580,7 @@ public class VerifyCommandHandlerTests
             // Use the helper to ensure provider options are registered on the same instances
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, failingProvider },
-                $"verify \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
+                $"verify x509 \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
 
             // Act
             var result = await handler.HandleAsync(context, new FileInfo(tempPayload), signatureOnly: false);
@@ -643,17 +643,16 @@ public class VerifyCommandHandlerTests
 
     private static InvocationContext CreateInvocationContext(FileInfo? signature = null)
     {
-        var command = new Command("verify");
-        var signatureArg = new Argument<string?>("signature");
+        var verify = new Command("verify");
+        var x509 = new Command("x509");
+        x509.AddArgument(new Argument<string?>("signature"));
+        verify.AddCommand(x509);
 
-        command.AddArgument(signatureArg);
-
-        // Parse using a root command so the "verify" token is interpreted as a command name,
-        // not as the argument value.
+        // Parse using a root command so the "verify" token is interpreted as a command name.
         var root = new RootCommand();
-        root.AddCommand(command);
+        root.AddCommand(verify);
 
-        var args = signature != null ? $"verify \"{signature.FullName}\"" : "verify";
+        var args = signature != null ? $"verify x509 \"{signature.FullName}\"" : "verify x509";
         var parseResult = root.Parse(args);
         return new InvocationContext(parseResult);
     }
@@ -670,17 +669,20 @@ public class VerifyCommandHandlerTests
     /// </summary>
     private static Command CreateVerifyCommandWithProviders(IEnumerable<IVerificationProvider> providers)
     {
-        var command = new Command("verify");
-        command.AddArgument(new Argument<string?>("signature"));
-        command.AddOption(new Option<FileInfo?>("--payload", "-p"));
-        command.AddOption(new Option<bool>("--signature-only"));
-        // Let each provider register its options - this initializes the provider's Option fields
+        var verify = new Command("verify");
+        var x509 = new Command("x509");
+        x509.AddArgument(new Argument<string?>("signature") { Arity = ArgumentArity.ZeroOrOne });
+        x509.AddOption(new Option<FileInfo?>("--payload", "-p"));
+        x509.AddOption(new Option<bool>("--signature-only"));
+
+        // Let each provider register its options - this initializes the provider's Option fields.
         foreach (var provider in providers)
         {
-            provider.AddVerificationOptions(command);
+            provider.AddVerificationOptions(x509);
         }
 
-        return command;
+        verify.AddCommand(x509);
+        return verify;
     }
 
     private sealed class FixedKeyVerificationProvider : IVerificationProvider
@@ -809,12 +811,15 @@ public class VerifyCommandHandlerTests
         };
 
         // Build a root command with the correct argument name and pass '-' so the handler reads stdin.
+        // With fix-forward CLI, verification root is required.
         var verify = new Command("verify");
-        verify.AddArgument(new Argument<string?>("signature"));
+        var x509 = new Command("x509");
+        x509.AddArgument(new Argument<string?>("signature"));
+        verify.AddCommand(x509);
         var root = new RootCommand();
         root.AddCommand(verify);
 
-        var context = CreateInvocationContext(root, "verify -");
+        var context = CreateInvocationContext(root, "verify x509 -");
 
         var exitCode = await handler.HandleAsync(context);
         formatter.Flush();
@@ -857,7 +862,7 @@ public class VerifyCommandHandlerTests
             // Use the new helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new[] { provider },
-                $"verify \"{tempSignaturePath}\" --allow-untrusted");
+                $"verify x509 \"{tempSignaturePath}\" --allow-untrusted");
 
             var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: false);
 
@@ -908,7 +913,7 @@ public class VerifyCommandHandlerTests
             // Also include --allow-untrusted since we're using an ephemeral cert
             var context = CreateInvocationContextWithProviders(
                 new[] { provider },
-                $"verify \"{tempSignaturePath}\" --signature-only --allow-untrusted");
+                $"verify x509 \"{tempSignaturePath}\" --signature-only --allow-untrusted");
 
             var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: true);
 
@@ -956,7 +961,7 @@ public class VerifyCommandHandlerTests
             // Use helper that ensures provider options are registered
             var context = CreateInvocationContextWithProviders(
                 new[] { x509Provider },
-                $"verify \"{tempSignaturePath}\" --allow-untrusted");
+                $"verify x509 \"{tempSignaturePath}\" --allow-untrusted");
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayloadPath), signatureOnly: false);
 
             Assert.That(result, Is.EqualTo((int)ExitCode.VerificationFailed));
@@ -1015,17 +1020,17 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithValidCoseSignature_ReturnsSuccessOrValidationStatus()
     {
-        // Arrange - Create a real signature using sign-ephemeral
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = TestConsole.CreateVerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler(verificationProviders: new[] { new X509VerificationProvider() });
 
         try
         {
             File.WriteAllText(tempPayload, "Test payload for verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1163,7 +1168,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             // Use embedded signature type
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1206,7 +1211,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload");
             // Use direct with detached flag
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1236,7 +1241,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithVerificationProvider_CallsProviderMethods()
     {
-        // Arrange - Create a real signature using sign-ephemeral
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -1258,14 +1263,14 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, mockProvider },
-                $"verify \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
+                $"verify x509 \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
 
             // Act - provide payload for indirect signature validation
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
@@ -1316,14 +1321,14 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for null-metadata verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, nullMetadataProvider },
-                $"verify \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
+                $"verify x509 \"{signature.FullName}\" --allow-untrusted --payload \"{tempPayload}\"");
 
             // Act - pass payloadFile to validate the payload hash
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
@@ -1349,7 +1354,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithFailingVerificationProvider_ReturnsVerificationFailed()
     {
-        // Arrange - Create a real signature using sign-ephemeral
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -1358,13 +1363,14 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(stringWriter);
 
         // Create a provider that adds a failing validator
-        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: false);
-        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { mockProvider });
+        var x509Provider = new X509VerificationProvider();
+        var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: false, includeKeyResolver: false);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] { x509Provider, mockProvider });
 
         try
         {
             File.WriteAllText(tempPayload, "Test payload for verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1381,7 +1387,7 @@ public class VerifyCommandHandlerTests
             // or verification failed (if our mock validator's failure was processed)
             // Since the composite validator runs all validators, check that at least the provider was invoked
             var output = stringWriter.ToString();
-            Assert.That(output, Does.Contain("Active Providers: MockProvider"));
+            Assert.That(output, Does.Contain("MockProvider"));
         }
         finally
         {
@@ -1399,7 +1405,7 @@ public class VerifyCommandHandlerTests
     [Test]
     public async Task HandleAsync_WithInactiveProvider_DoesNotCallProviderValidators()
     {
-        // Arrange - Create a real signature using sign-ephemeral
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -1408,13 +1414,14 @@ public class VerifyCommandHandlerTests
         var formatter = new TextOutputFormatter(stringWriter);
 
         // Create a provider that is NOT activated
-        var mockProvider = new MockVerificationProvider(isActivated: false, validationPasses: true);
-        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { mockProvider });
+        var x509Provider = new X509VerificationProvider();
+        var mockProvider = new MockVerificationProvider(isActivated: false, validationPasses: true, includeKeyResolver: false);
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] { x509Provider, mockProvider });
 
         try
         {
             File.WriteAllText(tempPayload, "Test payload for verify test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1459,7 +1466,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload for detached verification test");
             // Create a detached signature
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1500,7 +1507,7 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1541,7 +1548,7 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for signature-only test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1588,13 +1595,13 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for signature-only test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new[] { provider },
-                $"verify \"{tempSignature}\" --signature-only --allow-untrusted");
+                $"verify x509 \"{tempSignature}\" --signature-only --allow-untrusted");
             var result = await handler.HandleAsync(context, payloadFile: null, signatureOnly: true);
             formatter.Flush();
 
@@ -1641,13 +1648,13 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             // Use the helper that ensures provider options are registered on the same instance
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, new AllowAllTrustProvider("P1"), new AllowAllTrustProvider("P2") },
-                $"verify \"{tempSignature}\" --allow-untrusted --payload \"{tempPayload}\"");
+                $"verify x509 \"{tempSignature}\" --allow-untrusted --payload \"{tempPayload}\"");
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
@@ -1692,13 +1699,13 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             // Use the helper to ensure provider options are registered on the same instances
             var context = CreateInvocationContextWithProviders(
                 new IVerificationProvider[] { x509Provider, failingProvider },
-                $"verify \"{tempSignature}\" --payload \"{tempPayload}\" --allow-untrusted");
+                $"verify x509 \"{tempSignature}\" --payload \"{tempPayload}\" --allow-untrusted");
             var result = await handler.HandleAsync(context, payloadFile: new FileInfo(tempPayload), signatureOnly: false);
             formatter.Flush();
 
@@ -1799,7 +1806,7 @@ public class VerifyCommandHandlerTests
         {
             File.WriteAllText(tempPayload, "Test payload for detached test");
             // Create a detached signature
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1832,12 +1839,12 @@ public class VerifyCommandHandlerTests
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
         var tempSignature = $"{tempPayload}.cose";
-        var handler = TestConsole.CreateVerifyCommandHandler();
+        var handler = TestConsole.CreateVerifyCommandHandler(verificationProviders: new[] { new X509VerificationProvider() });
 
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1877,12 +1884,14 @@ public class VerifyCommandHandlerTests
 
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
-        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { new ThrowingVerificationProvider() });
+        var handler = TestConsole.CreateVerifyCommandHandler(
+            formatter,
+            new IVerificationProvider[] { new X509VerificationProvider(), new ThrowingVerificationProvider() });
 
         try
         {
             File.WriteAllText(tempPayload, "Test payload for provider-throws test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
             var signature = new FileInfo(tempSignature);
@@ -1924,11 +1933,11 @@ public class VerifyCommandHandlerTests
         try
         {
             File.WriteAllText(tempPayload, "resolution-failure-test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature should exist");
 
-            // sign-ephemeral creates indirect signatures - use --signature-only since we're testing key resolution failure
-            var context = CreateInvocationContext(rootCommand, $"verify \"{tempSignature}\" --signature-only");
+            // sign x509 ephemeral creates indirect signatures - use --signature-only since we're testing key resolution failure
+            var context = CreateInvocationContext(rootCommand, $"verify x509 \"{tempSignature}\" --signature-only");
             var exitCode = await handler.HandleAsync(context, payloadFile: null, signatureOnly: true);
             formatter.Flush();
 
@@ -1950,11 +1959,17 @@ public class VerifyCommandHandlerTests
         }
     }
 
-    private sealed class ResolutionFailingProvider : IVerificationProvider, IVerificationProviderWithTrustPlanPolicy
+    private sealed class ResolutionFailingProvider : IVerificationRootProvider, IVerificationProviderWithTrustPlanPolicy
     {
         public string ProviderName => "ResolutionFail";
 
         public string Description => "Adds a failing key material resolution validator";
+
+        public string RootId => "x509";
+
+        public string RootDisplayName => "X509";
+
+        public string RootHelpSummary => "Test root provider for resolution failure";
 
         public int Priority => 0;
 
@@ -2082,6 +2097,8 @@ public class VerifyCommandHandlerTests
         }
 
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(MockTrustFact) };
+
+    public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
 
         public CoseSign1.Validation.Trust.Plan.TrustPlanDefaults GetDefaults()
         {

@@ -171,6 +171,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: Array.Empty<ISigningKeyResolver>(),
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         Assert.That(() => validator.Validate(null!), Throws.ArgumentNullException);
@@ -187,6 +188,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         var result = validator.Validate(message);
@@ -208,6 +210,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan(),
             options: new CoseSign1ValidationOptions { DetachedPayload = null });
 
@@ -233,6 +236,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan(),
             options: options);
 
@@ -261,6 +265,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan(),
             options: options);
 
@@ -285,6 +290,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan(),
             options: options);
 
@@ -308,6 +314,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: new[] { new CountingFailingPostSignatureValidator() },
+            toBeSignedAttestors: null,
             trustPlan: trustPlan);
 
         var result = validator.Validate(message);
@@ -335,6 +342,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: trustPlan,
             options: null,
             trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
@@ -358,6 +366,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: new[] { postValidator },
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan(),
             options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true });
 
@@ -380,6 +389,7 @@ public sealed class CoseSign1ValidatorBranchTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         using var cts = new CancellationTokenSource();

@@ -21,7 +21,7 @@ public class PemSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-pem"));
+        Assert.That(name, Is.EqualTo("x509-pem"));
     }
 
     [Test]

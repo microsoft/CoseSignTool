@@ -19,7 +19,7 @@ public class AzureTrustedSigningCommandProvider : ISigningCommandProvider
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public static readonly string CommandNameValue = "sign-azure";
+        public static readonly string CommandNameValue = "x509-ats";
         public static readonly string CommandDescriptionValue = "Sign a payload using Azure Trusted Signing service";
         public static readonly string ExampleUsageValue = "--ats-endpoint https://... --ats-account-name <account> --ats-cert-profile-name <profile>";
 

@@ -131,7 +131,9 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
         return new PluginExtensions(
             signingCommandProviders: new ISigningCommandProvider[] { new MinimalSigningCommandProvider() },
             verificationProviders: Array.Empty<IVerificationProvider>(),
-            transparencyProviders: Array.Empty<ITransparencyProviderContributor>());
+            transparencyProviders: Array.Empty<ITransparencyProviderContributor>(),
+            signingRootProviders: Array.Empty<ISigningRootProvider>(),
+            signingMaterialProviders: new ISigningMaterialProvider[] { new MinimalSigningMaterialProvider() });
     }
 
     /// <inheritdoc/>
@@ -165,6 +167,29 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
         }
 
         public IDictionary<string, string> GetSigningMetadata() => new Dictionary<string, string>();
+    }
+
+    private sealed class MinimalSigningMaterialProvider : ISigningMaterialProvider
+    {
+        internal static class ClassStrings
+        {
+            public const string RootId = "x509";
+            public const string ProviderId = "test";
+            public const string ProviderDisplayName = "Test";
+            public const string ProviderHelpSummary = "Minimal test signing provider";
+        }
+
+        public string ProviderId => ClassStrings.ProviderId;
+
+        public string RootId => ClassStrings.RootId;
+
+        public string ProviderDisplayName => ClassStrings.ProviderDisplayName;
+
+        public string ProviderHelpSummary => ClassStrings.ProviderHelpSummary;
+
+        public string CommandName => MinimalSigningCommandProvider.ClassStrings.CommandName;
+
+        public int Priority => 0;
     }
 }
 

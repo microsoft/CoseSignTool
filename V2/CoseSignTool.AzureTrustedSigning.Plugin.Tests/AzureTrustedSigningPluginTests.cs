@@ -88,7 +88,7 @@ public class AzureTrustedSigningPluginTests
         // Assert
         Assert.That(providers, Is.Not.Null);
         Assert.That(providers, Has.Count.EqualTo(1));
-        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-azure"));
+        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "x509-ats"));
     }
 
     [Test]

@@ -25,6 +25,8 @@ These types establish stable identities for trust evaluation:
   - `CounterSignatureId`: SHA-256 of the raw counter-signature structure bytes.
 - `TrustSubject` / `TrustSubjectKind`: the entity being reasoned about (message, signing key, counter-signature, etc.).
 
+In practice, counter-signature subjects are used to model receipt-like artifacts that are attached to a message (for example, MST transparency receipts) so policies can be expressed per-receipt.
+
 ## Facts
 
 Facts are produced lazily, on-demand during rule evaluation.

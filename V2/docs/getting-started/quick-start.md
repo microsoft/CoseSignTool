@@ -27,7 +27,7 @@ dotnet add package CoseSign1.Validation --version 2.0.0-preview
 
 ```bash
 # Sign with an ephemeral test certificate (development only)
-echo "Hello, COSE!" | cosesigntool sign-ephemeral -o signed.cose
+echo "Hello, COSE!" | cosesigntool sign x509 ephemeral -o signed.cose
 
 # Verify the signature (allow untrusted for self-signed test certs)
 cosesigntool verify signed.cose --allow-untrusted
@@ -35,7 +35,7 @@ cosesigntool verify signed.cose --allow-untrusted
 # Sign with a PFX certificate (password via environment variable)
 export COSESIGNTOOL_PFX_PASSWORD=mypassword  # Linux/macOS
 set COSESIGNTOOL_PFX_PASSWORD=mypassword     # Windows
-cosesigntool sign-pfx myfile.txt --pfx certificate.pfx
+cosesigntool sign x509 pfx myfile.txt --pfx certificate.pfx
 
 # Inspect a signature
 cosesigntool inspect signed.cose
@@ -90,7 +90,7 @@ var message = CoseMessage.DecodeSign1(signedMessage);
 // For development only: UseEmbeddedChainOnly() trusts the embedded chain without requiring a known root.
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(cert => cert.UseEmbeddedChainOnly());
+validation.EnableCertificateSupport(cert => cert.UseEmbeddedChainOnly());
 
 using var sp = services.BuildServiceProvider();
 var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
@@ -142,7 +142,7 @@ using System.Security.Cryptography.Cose;
 // Configure validation (trust packs + explicit trust requirements)
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 // Add an explicit trust requirement: require the X.509 chain to be trusted.
 var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(

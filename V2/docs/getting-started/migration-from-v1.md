@@ -175,7 +175,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 
@@ -440,7 +440,7 @@ byte[] message2 = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(pa
 var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(certTrust => certTrust
+validation.EnableCertificateSupport(certTrust => certTrust
     .UseSystemTrust()
     );
 

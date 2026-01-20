@@ -36,7 +36,7 @@ var service = new AzureTrustedSigningService(options);
 
 **CLI:**
 ```bash
-CoseSignTool sign-azure document.json ^
+cosesigntool sign x509 ats document.json ^
     --ats-endpoint https://myaccount.codesigning.azure.net ^
     --ats-account-name myaccount ^
     --ats-cert-profile-name myprofile

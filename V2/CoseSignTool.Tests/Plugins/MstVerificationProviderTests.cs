@@ -18,23 +18,35 @@ using Microsoft.Extensions.DependencyInjection;
 [TestFixture]
 public class MstVerificationProviderTests
 {
-    private record TestState(MstVerificationProvider Provider, Command Command, Parser Parser);
+    private record TestState(MstVerificationProvider Provider, Command MstCommand, Parser Parser);
 
     private static ServiceProvider BuildServiceProvider(MstVerificationProvider provider, ParseResult parseResult)
     {
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
-        provider.ConfigureValidation(builder, parseResult, new VerificationContext(detachedPayload: null));
+
+        // Simulate CLI behavior: only configure activated providers.
+        if (provider.IsActivated(parseResult))
+        {
+            provider.ConfigureValidation(builder, parseResult, new VerificationContext(detachedPayload: null));
+        }
         return services.BuildServiceProvider();
     }
 
     private static TestState CreateTestState()
     {
         var provider = new MstVerificationProvider();
-        var command = new Command("verify", "Test verify command");
-        provider.AddVerificationOptions(command);
-        var parser = new Parser(command);
-        return new TestState(provider, command, parser);
+
+        var root = new RootCommand();
+        var verify = new Command("verify", "Test verify command");
+        var mst = new Command("mst", "Test MST root command");
+        provider.AddVerificationOptions(mst);
+
+        verify.AddCommand(mst);
+        root.AddCommand(verify);
+
+        var parser = new Parser(root);
+        return new TestState(provider, mst, parser);
     }
 
     [Test]
@@ -71,15 +83,11 @@ public class MstVerificationProviderTests
     public void AddVerificationOptions_AddsAllRequiredOptions()
     {
         // Arrange
-        var (_, Command, _) = CreateTestState();
+        var (_, mstCommand, _) = CreateTestState();
 
         // Assert
-        Assert.That(Command.Options.Any(o => o.Name == "require-receipt"), Is.True);
-        Assert.That(Command.Options.Any(o => o.Name == "mst-endpoint"), Is.True);
-        Assert.That(Command.Options.Any(o => o.Name == "verify-receipt"), Is.True);
-        Assert.That(Command.Options.Any(o => o.Name == "mst-trust-mode"), Is.True);
-        Assert.That(Command.Options.Any(o => o.Name == "mst-trust-file"), Is.True);
-        Assert.That(Command.Options.Any(o => o.Name == "mst-trusted-key"), Is.True);
+        Assert.That(mstCommand.Options.Any(o => o.Name == "mst-offline-keys"), Is.True);
+        Assert.That(mstCommand.Options.Any(o => o.Name == "mst-trust-ledger-instance"), Is.True);
     }
 
     [Test]
@@ -87,7 +95,7 @@ public class MstVerificationProviderTests
     {
         // Arrange - no MST options specified
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("");
+        var parseResult = Parser.Parse("verify");
 
         // Act
         var isActivated = Provider.IsActivated(parseResult);
@@ -97,11 +105,11 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void IsActivated_WithRequireReceipt_ReturnsTrue()
+    public void IsActivated_WithMstTrust_ReturnsTrue()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--require-receipt");
+        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
 
         // Act
         var isActivated = Provider.IsActivated(parseResult);
@@ -111,36 +119,22 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void IsActivated_WithMstEndpoint_ReturnsTrue()
+    public void ConfigureValidation_WithNoOptions_DoesNotRegisterMstTrustPack()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--mst-endpoint https://example.com");
-
-        // Act
-        var isActivated = Provider.IsActivated(parseResult);
-
-        // Assert
-        Assert.That(isActivated, Is.True, "provider should activate when endpoint is provided");
-    }
-
-    [Test]
-    public void ConfigureValidation_WithNoOptions_RegistersMstTrustPack()
-    {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("");
+        var parseResult = Parser.Parse("verify");
 
         using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
+        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Empty);
     }
 
     [Test]
-    public void ConfigureValidation_WithRequireReceipt_RegistersMstTrustPack()
+    public void ConfigureValidation_WithMstTrustAndLedgerAllowList_RegistersMstTrustPackAndPolicy()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--require-receipt");
+        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
 
         using var sp = BuildServiceProvider(Provider, parseResult);
         Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
@@ -151,61 +145,27 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void ConfigureValidation_WithEndpoint_RegistersMstTrustPack()
+    public void CreateTrustPlanPolicy_WithMstTrustButNoAllowListOrOfflineKeys_ThrowsArgumentException()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--mst-endpoint https://example.codetransparency.azure.net");
-
-        using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
+        var parseResult = Parser.Parse("verify mst");
 
         var ctx = new VerificationContext(detachedPayload: null);
-        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
+        Assert.Throws<ArgumentException>(() => Provider.CreateTrustPlanPolicy(parseResult, ctx));
     }
 
     [Test]
-    public void ConfigureValidation_WithEndpointAndNoVerify_RegistersMstTrustPack()
-    {
-        // Arrange - endpoint but verify-receipt set to false
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--mst-endpoint https://example.com --verify-receipt false");
-
-        using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
-
-        // When verification is disabled, the provider does not require receipt trust.
-        var ctx = new VerificationContext(detachedPayload: null);
-        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
-    }
-
-    [Test]
-    public void ConfigureValidation_WithBothOptions_RegistersMstTrustPack()
+    public void ConfigureValidation_WithMstTrustAndOfflineKeys_RegistersReceiptFacts()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--require-receipt --mst-endpoint https://example.codetransparency.azure.net");
-
-        using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
-
-        var ctx = new VerificationContext(detachedPayload: null);
-        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
-    }
-
-    [Test]
-    public void ConfigureValidation_WithOfflineTrustModeAndTrustFile_RegistersReceiptFacts()
-    {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var tmp = Path.Combine(Path.GetTempPath(), $"mst_trust_{Guid.NewGuid():N}.json");
-        // The CLI only needs a JSON object to consider the trust file present/parseable.
-        // Keep this test independent of Azure SDK surface area.
-        File.WriteAllText(tmp, "{}");
+        var tmp = Path.Combine(Path.GetTempPath(), $"mst_offline_{Guid.NewGuid():N}.jwks.json");
+        File.WriteAllText(tmp, "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"k1\",\"n\":\"AQAB\",\"e\":\"AQAB\"}]}");
 
         try
         {
-            var parseResult = Parser.Parse($"--mst-trust-mode offline --mst-endpoint https://example.codetransparency.azure.net --mst-trust-file \"{tmp}\"");
+            var parseResult = Parser.Parse($"verify mst --mst-offline-keys \"{tmp}\"");
 
             using var sp = BuildServiceProvider(Provider, parseResult);
             var trustPack = sp.GetServices<ITrustPack>().OfType<MstTrustPack>().Single();
@@ -221,64 +181,32 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void GetVerificationMetadata_WithNoOptions_ShowsNotRequired()
+    public void GetVerificationMetadata_WithNoOptions_ShowsNotEnabled()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("");
+        var parseResult = Parser.Parse("verify");
 
         // Act
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        Assert.That(metadata, Does.ContainKey("Receipt Required"));
-        Assert.That(metadata["Receipt Required"], Is.EqualTo("No"));
+        Assert.That(metadata, Does.ContainKey("MST Trust"));
+        Assert.That(metadata["MST Trust"], Is.EqualTo("No"));
     }
 
     [Test]
-    public void GetVerificationMetadata_WithRequireReceipt_ShowsRequired()
+    public void GetVerificationMetadata_WithMstTrust_ShowsEnabled()
     {
         // Arrange
         var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--require-receipt");
+        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
 
         // Act
         var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
         // Assert
-        Assert.That(metadata, Does.ContainKey("Receipt Required"));
-        Assert.That(metadata["Receipt Required"], Is.EqualTo("Yes"));
-    }
-
-    [Test]
-    public void GetVerificationMetadata_WithEndpoint_IncludesEndpointInfo()
-    {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--mst-endpoint https://myservice.codetransparency.azure.net");
-
-        // Act
-        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
-
-        // Assert
-        Assert.That(metadata, Does.ContainKey("MST Endpoint"));
-        Assert.That(metadata["MST Endpoint"], Is.EqualTo("https://myservice.codetransparency.azure.net"));
-        Assert.That(metadata, Does.ContainKey("Verify Receipt"));
-        Assert.That(metadata["Verify Receipt"], Is.EqualTo("Yes"));
-    }
-
-    [Test]
-    public void GetVerificationMetadata_WithEndpointNoVerify_ShowsNoVerify()
-    {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("--mst-endpoint https://example.com --verify-receipt false");
-
-        // Act
-        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
-
-        // Assert
-        Assert.That(metadata, Does.ContainKey("Verify Receipt"));
-        Assert.That(metadata["Verify Receipt"], Is.EqualTo("No"));
+        Assert.That(metadata, Does.ContainKey("MST Trust"));
+        Assert.That(metadata["MST Trust"], Is.EqualTo("Yes"));
     }
 }

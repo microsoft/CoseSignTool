@@ -20,12 +20,12 @@ This plugin enables cloud-based code signing using Azure Trusted Signing service
 
 ## Commands
 
-### sign-azure
+### sign x509 ats
 
 Sign a payload using Azure Trusted Signing service.
 
 ```bash
-CoseSignTool sign-azure <payload> --ats-endpoint <url> --ats-account-name <name> --ats-cert-profile-name <profile> [options]
+cosesigntool sign x509 ats <payload> --ats-endpoint <url> --ats-account-name <name> --ats-cert-profile-name <profile> [options]
 ```
 
 **Options**:
@@ -41,13 +41,13 @@ CoseSignTool sign-azure <payload> --ats-endpoint <url> --ats-account-name <name>
 **Examples**:
 ```bash
 # Sign with Azure Trusted Signing
-CoseSignTool sign-azure document.json \
+cosesigntool sign x509 ats document.json \
     --ats-endpoint https://myaccount.codesigning.azure.net \
     --ats-account-name myaccount \
     --ats-cert-profile-name production
 
 # Create indirect signature
-CoseSignTool sign-azure document.json \
+cosesigntool sign x509 ats document.json \
     --ats-endpoint https://myaccount.codesigning.azure.net \
     --ats-account-name myaccount \
     --ats-cert-profile-name production \
@@ -74,8 +74,10 @@ No additional configuration needed. The plugin automatically uses the managed id
 az login
 
 # Run signing command
-CoseSignTool sign-azure document.json --ats-endpoint ... --ats-account-name ... --ats-cert-profile-name ...
+cosesigntool sign x509 ats document.json --ats-endpoint ... --ats-account-name ... --ats-cert-profile-name ...
 ```
+
+Note: In V2, Azure Trusted Signing is exposed as `sign x509 ats`.
 
 ### Using Service Principal
 

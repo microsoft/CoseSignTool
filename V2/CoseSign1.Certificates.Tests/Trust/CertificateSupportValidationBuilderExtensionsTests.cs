@@ -10,22 +10,23 @@ using CoseSign1.Validation.Trust;
 using Microsoft.Extensions.DependencyInjection;
 
 [TestFixture]
-public class CertificateTrustValidationBuilderExtensionsTests
+public class CertificateSupportValidationBuilderExtensionsTests
 {
     [Test]
-    public void EnableCertificateTrust_NullBuilder_ThrowsArgumentNullException()
+    public void EnableCertificateSupport_NullBuilder_ThrowsArgumentNullException()
     {
         ICoseValidationBuilder? builder = null;
-        Assert.Throws<ArgumentNullException>(() => builder!.EnableCertificateTrust());
+        Assert.Throws<ArgumentNullException>(
+            () => CertificateSupportValidationBuilderExtensions.EnableCertificateSupport(builder!));
     }
 
     [Test]
-    public void EnableCertificateTrust_RegistersOptionsAndTrustPack()
+    public void EnableCertificateSupport_RegistersOptionsAndTrustPack()
     {
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
-        _ = builder.EnableCertificateTrust(b =>
+        _ = CertificateSupportValidationBuilderExtensions.EnableCertificateSupport(builder, b =>
         {
             b.UseEmbeddedChainOnly();
         });

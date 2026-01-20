@@ -43,6 +43,8 @@ public sealed class TrustPlanPolicyProposalShapesTests
 
         public IReadOnlyCollection<Type> FactTypes => new[] { FactType };
 
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
+
         public ProposalShapesFactProducer(Type factType)
         {
             FactType = factType ?? throw new ArgumentNullException(nameof(factType));
@@ -105,6 +107,8 @@ public sealed class TrustPlanPolicyProposalShapesTests
         }
 
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(CounterSignatureSubjectFact) };
+
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
 
         public TrustPlanDefaults GetDefaults()
         {

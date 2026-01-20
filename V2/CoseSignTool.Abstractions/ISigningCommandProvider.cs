@@ -13,7 +13,8 @@ using CoseSign1.Abstractions;
 public interface ISigningCommandProvider
 {
     /// <summary>
-    /// Gets the name of the signing command (e.g., "sign-pfx", "sign-azure").
+    /// Gets the internal identifier used to wire <see cref="ISigningMaterialProvider"/> entries to
+    /// command-provider implementations (e.g., "x509-pfx"). This value is not user-facing.
     /// </summary>
     string CommandName { get; }
 

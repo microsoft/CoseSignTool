@@ -157,9 +157,9 @@ This section provides comprehensive documentation for each NuGet package in the 
 **Microsoft's Signing Transparency** for the CLI tool.
 
 **Options Added to `verify` Command**:
-- `--require-receipt` - Require MST receipt for verification
-- `--mst-endpoint` - MST service endpoint URL
-- `--verify-receipt` - Verify the MST receipt
+- `--mst-trust` - Enable MST receipt trust validation for verification
+- `--mst-offline-keys` - Pinned offline keys JWKS JSON for offline-only verification
+- `--mst-trust-ledger-instance` - Allowed MST ledger instance(s) (issuer host allow-list)
 
 **Use When**: Verifying supply chain transparency via CLI.
 

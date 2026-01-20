@@ -8,6 +8,7 @@ using System.Security.Cryptography.Cose;
 using System.Text;
 using System.Text.RegularExpressions;
 using CoseSign1.Abstractions;
+using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Plan;
@@ -98,6 +99,9 @@ public sealed class AzureKeyVaultTrustPack : ITrustPack
 
     /// <inheritdoc/>
     public IReadOnlyCollection<Type> FactTypes => SupportedTypes;
+
+    /// <inheritdoc />
+    public ISigningKeyResolver? SigningKeyResolver => null;
 
     /// <inheritdoc/>
     public TrustPlanDefaults GetDefaults()

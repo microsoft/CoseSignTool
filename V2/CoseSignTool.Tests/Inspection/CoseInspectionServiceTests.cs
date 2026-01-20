@@ -1190,7 +1190,7 @@ public class CoseInspectionServiceTests
     [Test]
     public async Task InspectAsync_WithValidSignature_ReturnsSuccess()
     {
-        // Arrange - Create a real signature using sign-ephemeral command
+        // Arrange - Create a real signature using sign x509 ephemeral
         var builder = TestConsole.CreateCommandBuilder();
         var rootCommand = builder.BuildRootCommand();
         var tempPayload = Path.GetTempFileName();
@@ -1202,7 +1202,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for inspection");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1247,7 +1247,7 @@ public class CoseInspectionServiceTests
             File.WriteAllText(tempPayload, "This is a text payload that should show a preview when inspected.");
 
             // Sign with 'embedded' type to ensure payload is embedded
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1290,7 +1290,7 @@ public class CoseInspectionServiceTests
             File.WriteAllBytes(tempPayload, [0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD]);
 
             // Sign with 'embedded' type
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1334,7 +1334,7 @@ public class CoseInspectionServiceTests
             File.WriteAllText(tempPayload, "Test payload");
 
             // Sign with 'detached' type
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1374,7 +1374,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
@@ -1414,7 +1414,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
@@ -1454,7 +1454,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "{\"test\": \"data\"}");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --content-type application/json");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --content-type application/json");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
@@ -1498,7 +1498,7 @@ public class CoseInspectionServiceTests
             File.WriteAllText(tempPayload, longText);
 
             // Sign with 'embedded' type to ensure payload is embedded
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1541,7 +1541,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Act
             var result = await service.InspectAsync(tempSignature);
@@ -1579,7 +1579,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Test each formatter type
@@ -1634,7 +1634,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for JSON inspection");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1704,7 +1704,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1747,7 +1747,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1805,7 +1805,7 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test");
             // Create detached signature (payload not embedded)
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1853,7 +1853,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, testContent);
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1898,7 +1898,7 @@ public class CoseInspectionServiceTests
         {
             // Write binary data (not valid UTF-8 text)
             File.WriteAllBytes(tempPayload, new byte[] { 0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD, 0x00, 0x00 });
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -1943,7 +1943,7 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, "Test");
             // Create indirect signature (default type)
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type indirect");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type indirect");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2196,7 +2196,7 @@ public class CoseInspectionServiceTests
         {
             File.WriteAllText(tempPayload, testContent);
             // Sign with 'embedded' type to ensure payload is in signature
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2245,7 +2245,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2297,7 +2297,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2345,7 +2345,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2386,7 +2386,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type indirect");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type indirect");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2428,7 +2428,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "{\"test\": true}");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --content-type application/json");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --content-type application/json");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2470,7 +2470,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2512,7 +2512,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2618,7 +2618,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2728,7 +2728,7 @@ public class CoseInspectionServiceTests
         {
             // Create empty file
             File.WriteAllBytes(tempPayload, []);
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2806,7 +2806,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload for indirect signature");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type indirect");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type indirect");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2849,7 +2849,7 @@ public class CoseInspectionServiceTests
         {
             var originalContent = "Test payload content for extraction";
             File.WriteAllText(tempPayload, originalContent);
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act - extract payload
@@ -2896,7 +2896,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "x");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type embedded");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type embedded");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act
@@ -2936,7 +2936,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test payload");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\" --signature-type detached");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\" --signature-type detached");
             Assert.That(File.Exists(tempSignature), "Signature file should exist");
 
             // Act - try to extract payload from detached signature
@@ -2984,7 +2984,7 @@ public class CoseInspectionServiceTests
         try
         {
             File.WriteAllText(tempPayload, "Test");
-            rootCommand.Invoke($"sign-ephemeral \"{tempPayload}\"");
+            rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Act - use custom display path
             var customDisplayPath = "<stdin>";

@@ -53,6 +53,7 @@ public class VerifyCommandHandler
         public static readonly string ErrorPayloadHashMismatch = "Payload hash does not match the signed hash in the indirect signature";
         public static readonly string ErrorSigningKeyMaterialNotTrusted = "Signing key material is not trusted";
         public static readonly string SuccessVerified = "Signature verified successfully";
+        public static readonly string SuccessVerifiedViaReceipt = "Envelope verified successfully (satisfied by receipt)";
         public static readonly string SuccessSignatureVerified = "Signature verified successfully (payload verification skipped)";
         public static readonly string SuccessPayloadVerified = "Payload hash verification successful";
         public static readonly string WarningMultipleTrustPolicies = string.Concat(
@@ -67,7 +68,13 @@ public class VerifyCommandHandler
         public static readonly string ValueEmbedded = "Embedded";
         public static readonly string ValueDetached = "Detached";
         public static readonly string ValueIndirect = "Indirect";
+
+        public static readonly string MetadataKeyToBeSignedAttestationProvider = "ToBeSignedAttestation.Provider";
+
+        public static readonly string ErrorNoVerifyRootSelected =
+            "No verification root was selected. Invoke 'verify <root>' (e.g., 'verify x509').";
     }
+
 
     private readonly IOutputFormatter Formatter;
     private readonly IReadOnlyList<IVerificationProvider> VerificationProviders;
@@ -262,18 +269,72 @@ public class VerifyCommandHandler
             var verificationContext = new VerificationContext(detachedPayload: payloadBytes, options: contextOptions);
             var activatedProviders = new List<string>();
 
+            // Pass 1: determine selected root trust model.
+            // Root trust model is selected by `verify <root>` subcommands.
+            var invokedCommandName = parseResult.CommandResult.Command.Name;
+            var invokedRootProvider = VerificationProviders
+                .OfType<IVerificationRootProvider>()
+                .FirstOrDefault(rp => string.Equals(rp.RootId, invokedCommandName, StringComparison.OrdinalIgnoreCase));
+
+            var selectedRootProvider = invokedRootProvider;
+
+            if (selectedRootProvider == null)
+            {
+                Console.StandardError.WriteLine(ClassStrings.ErrorNoVerifyRootSelected);
+                return Task.FromResult((int)ExitCode.InvalidArguments);
+            }
+
+            // Apply root-level behavior flags.
+            var selectedRootFeatures = selectedRootProvider is IVerificationRootFeaturesProvider featuresProvider
+                ? featuresProvider.RootFeatures
+                : VerificationRootFeatures.None;
+
+            if (selectedRootFeatures.HasFlag(VerificationRootFeatures.PreferCounterSignatureTrust))
+            {
+                verificationContext.Options[VerificationContext.KeyPreferCounterSignatureTrust] = true;
+            }
+
+            // Pass 2: compute active providers.
+            // - Selected root provider is always active (even if it doesn't have explicit options).
+            // - Other roots are only active when their own options activate them.
+            var activeProviders = new List<IVerificationProvider>();
+            if (selectedRootProvider != null)
+            {
+                activeProviders.Add(selectedRootProvider);
+            }
+
+            foreach (var provider in VerificationProviders)
+            {
+                if (selectedRootProvider != null && ReferenceEquals(provider, selectedRootProvider))
+                {
+                    continue;
+                }
+
+                if (provider is IVerificationRootProvider)
+                {
+                    // Never auto-enable non-selected roots; allow opt-in via provider-specific options.
+                    if (provider.IsActivated(parseResult))
+                    {
+                        activeProviders.Add(provider);
+                    }
+
+                    continue;
+                }
+
+                if (provider.IsActivated(parseResult))
+                {
+                    activeProviders.Add(provider);
+                }
+            }
+
+            // Pass 2: configure validation and collect trust policies.
             var providerTrustPlanPolicies = new List<TrustPlanPolicy>();
 
             var services = new ServiceCollection();
             var validationBuilder = services.ConfigureCoseValidation();
 
-            foreach (var provider in VerificationProviders)
+            foreach (var provider in activeProviders)
             {
-                if (!provider.IsActivated(parseResult))
-                {
-                    continue;
-                }
-
                 activatedProviders.Add(provider.ProviderName);
 
                 provider.ConfigureValidation(validationBuilder, parseResult, verificationContext);
@@ -297,6 +358,11 @@ public class VerifyCommandHandler
             {
                 validationOptions.WithDetachedPayload(payloadBytes);
             }
+
+            // Root selection controls whether a trusted counter-signature / receipt may satisfy envelope integrity.
+            // Some roots allow a trusted ToBeSigned attestation to satisfy envelope integrity.
+            validationOptions.AllowToBeSignedAttestationToSkipPrimarySignature =
+                selectedRootFeatures.HasFlag(VerificationRootFeatures.AllowToBeSignedAttestationToSkipPrimarySignature);
 
             // "Signature-only" means we intentionally skip post-signature policy.
             validationOptions.SkipPostSignatureValidation = signatureOnly;
@@ -329,13 +395,22 @@ public class VerifyCommandHandler
                 trustPlan = combined.Compile(serviceProvider);
             }
 
-            var signingKeyResolvers = serviceProvider.GetServices<ISigningKeyResolver>();
+            var signingKeyResolvers = serviceProvider.GetServices<ISigningKeyResolver>().ToList();
+            foreach (var pack in serviceProvider.GetServices<ITrustPack>())
+            {
+                if (pack.SigningKeyResolver != null)
+                {
+                    signingKeyResolvers.Add(pack.SigningKeyResolver);
+                }
+            }
             var postSignatureValidators = serviceProvider.GetServices<IPostSignatureValidator>();
+            var toBeSignedAttestors = serviceProvider.GetServices<IToBeSignedAttestor>();
 
             var logger2 = LoggerFactory?.CreateLogger<CoseSign1Validator>();
             ICoseSign1Validator coseValidator = new CoseSign1Validator(
                 signingKeyResolvers,
                 postSignatureValidators,
+                toBeSignedAttestors,
                 trustPlan,
                 validationOptions,
                 trustEvaluationOptions,
@@ -350,10 +425,61 @@ public class VerifyCommandHandler
 
             var validationResult = message.Validate(coseValidator);
 
-            if (!validationResult.Resolution.IsValid)
+            if (!validationResult.Overall.IsValid)
             {
-                Formatter.WriteError(ClassStrings.ErrorKeyMaterialResolutionFailed);
-                foreach (var failure in validationResult.Resolution.Failures)
+                // Important: stages can be NotApplicable (e.g., when a prior stage fails, or when a stage
+                // is intentionally skipped). Only treat explicit failures as the cause.
+                if (validationResult.Trust.IsFailure)
+                {
+                    Formatter.WriteError(ClassStrings.ErrorSigningKeyMaterialNotTrusted);
+                    foreach (var failure in validationResult.Trust.Failures)
+                    {
+                        Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                    }
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.UntrustedCertificate);
+                }
+
+                if (validationResult.Resolution.IsFailure)
+                {
+                    Formatter.WriteError(ClassStrings.ErrorKeyMaterialResolutionFailed);
+                    foreach (var failure in validationResult.Resolution.Failures)
+                    {
+                        Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                    }
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.VerificationFailed);
+                }
+
+                if (validationResult.Signature.IsFailure)
+                {
+                    Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
+                    foreach (var failure in validationResult.Signature.Failures)
+                    {
+                        Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                    }
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.InvalidSignature);
+                }
+
+                if (validationResult.PostSignaturePolicy.IsFailure)
+                {
+                    Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
+                    foreach (var failure in validationResult.PostSignaturePolicy.Failures)
+                    {
+                        Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
+                    }
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.VerificationFailed);
+                }
+
+                // Fallback: surface overall failures if present.
+                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
+                foreach (var failure in validationResult.Overall.Failures)
                 {
                     Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                 }
@@ -361,44 +487,6 @@ public class VerifyCommandHandler
                 Formatter.Flush();
                 return Task.FromResult((int)ExitCode.VerificationFailed);
             }
-
-            if (!validationResult.Trust.IsValid)
-            {
-                Formatter.WriteError(ClassStrings.ErrorSigningKeyMaterialNotTrusted);
-                foreach (var failure in validationResult.Trust.Failures)
-                {
-                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
-                }
-                Formatter.EndSection();
-                Formatter.Flush();
-                return Task.FromResult((int)ExitCode.UntrustedCertificate);
-            }
-
-            if (!validationResult.Signature.IsValid)
-            {
-                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
-                foreach (var failure in validationResult.Signature.Failures)
-                {
-                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
-                }
-                Formatter.EndSection();
-                Formatter.Flush();
-                return Task.FromResult((int)ExitCode.InvalidSignature);
-            }
-
-            if (!validationResult.PostSignaturePolicy.IsValid)
-            {
-                Formatter.WriteError(ClassStrings.ErrorVerificationFailed);
-                foreach (var failure in validationResult.PostSignaturePolicy.Failures)
-                {
-                    Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
-                }
-                Formatter.EndSection();
-                Formatter.Flush();
-                return Task.FromResult((int)ExitCode.VerificationFailed);
-            }
-
-            var overall = validationResult.Overall;
 
             // Success
             if (signatureOnly)
@@ -407,19 +495,23 @@ public class VerifyCommandHandler
             }
             else
             {
-                Formatter.WriteSuccess(ClassStrings.SuccessVerified);
+                if (validationResult.Signature.IsNotApplicable && validationResult.Overall.Metadata.ContainsKey(ClassStrings.MetadataKeyToBeSignedAttestationProvider))
+                {
+                    Formatter.WriteSuccess(ClassStrings.SuccessVerifiedViaReceipt);
+                }
+                else
+                {
+                    Formatter.WriteSuccess(ClassStrings.SuccessVerified);
+                }
             }
 
             // Add metadata from providers
-            foreach (var provider in VerificationProviders)
+            foreach (var provider in activeProviders)
             {
-                if (provider.IsActivated(parseResult))
+                var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult.Overall);
+                foreach (var kvp in metadata)
                 {
-                    var metadata = provider.GetVerificationMetadata(parseResult, message, validationResult.Overall);
-                    foreach (var kvp in metadata)
-                    {
-                        Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
-                    }
+                    Formatter.WriteKeyValue(kvp.Key, kvp.Value?.ToString() ?? ClassStrings.NullValue);
                 }
             }
 

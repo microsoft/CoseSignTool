@@ -55,7 +55,7 @@ var services = new ServiceCollection();
 services.AddLogging();
 
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust();
+validation.EnableCertificateSupport();
 
 // Add explicit requirements (require chain to be trusted)
 var policy = TrustPlanPolicy.PrimarySigningKey(key => key.RequireFact<X509ChainTrustedFact>(
@@ -70,6 +70,50 @@ var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
 var message = CoseMessage.DecodeSign1(signatureBytes);
 var result = message.Validate(validator);
 ```
+
+### Counter-signatures (receipt-style trust subjects)
+
+Some trust packs model additional signed artifacts as **counter-signature subjects**.
+This is useful for scenarios where there can be multiple independent “receipts” attached to a message.
+
+For example, `CoseSign1.Transparent.MST` models each MST receipt as a counter-signature subject and produces receipt facts in the **counter-signature scope**.
+To require “at least one valid MST receipt”, use `TrustPlanPolicy.AnyCounterSignature(...)`:
+
+```csharp
+using CoseSign1.Certificates.Trust.Facts;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Trust;
+using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography.Cose;
+
+var services = new ServiceCollection();
+services.AddLogging();
+
+var validation = services.ConfigureCoseValidation();
+validation.EnableCertificateSupport();
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+
+var policy = TrustPlanPolicy.PrimarySigningKey(key => key
+        .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "X.509 certificate chain must be trusted"))
+    .And(TrustPlanPolicy.AnyCounterSignature(cs => cs
+        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
+
+services.AddSingleton<CompiledTrustPlan>(sp => policy.Compile(sp));
+
+using var sp = services.BuildServiceProvider();
+var validator = sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create();
+
+var message = CoseMessage.DecodeSign1(signatureBytes);
+var result = message.Validate(validator);
+```
+
+Notes:
+
+- `AnyCounterSignature(...)` defaults to **deny on empty**, so it naturally expresses “a receipt is required”.
+- If you want “receipt present but don’t cryptographically verify it”, omit the `MstReceiptTrustedFact` requirement.
 
 ### Adding additional requirements (advanced)
 

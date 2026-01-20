@@ -1,55 +1,42 @@
-# CoseSignTool.IndirectSignature.Plugin
+# Indirect Signatures
 
-The Indirect Signature plugin adds support for indirect (hash envelope) signatures to the CoseSignTool CLI.
+CoseSignTool V2 supports indirect (hash envelope) signatures via the standard `--signature-type indirect` mode.
+No separate plugin is required.
 
 ## Overview
 
-Indirect signatures sign a hash of the payload rather than the payload itself, enabling efficient signing of large files.
+Indirect signatures sign a hash of the payload rather than embedding/signing the payload bytes directly.
+This enables efficient signing and verification of large files.
 
-## Installation
+## CLI Options
 
-The plugin is included with CoseSignTool by default.
-
-## Options Added
-
-The plugin adds support for indirect signatures via the `--signature-type` option:
+Indirect signatures are controlled by the standard signing option:
 
 | Option | Description |
 |--------|-------------|
-| `--signature-type indirect` | Create an indirect (hash envelope) signature |
-| `--hash-algorithm <alg>` | Hash algorithm for indirect signatures |
+| `--signature-type indirect` | Create an indirect (hash envelope) signature (this is the default signature type) |
 
-## Supported Hash Algorithms
-
-| Algorithm | Description |
-|-----------|-------------|
-| `SHA256` | SHA-256 (default) |
-| `SHA384` | SHA-384 |
-| `SHA512` | SHA-512 |
-| `SHA3-256` | SHA3-256 |
-| `SHA3-384` | SHA3-384 |
-| `SHA3-512` | SHA3-512 |
+The payload hash algorithm is currently fixed to SHA-256 and is not configurable via a CLI option.
 
 ## Usage
 
-### Create Indirect Signature
+### Create an Indirect Signature
 
 ```bash
-CoseSignTool sign-pfx large-file.bin ^
-    --pfx cert.pfx ^
-    --signature-type indirect ^
-    --hash-algorithm SHA384 ^
-    --output large-file.sig
+cosesigntool sign x509 pfx large-file.bin \
+    --pfx cert.pfx \
+    --signature-type indirect \
+    -o large-file.sig
 ```
 
-### Verify Indirect Signature
+### Verify an Indirect Signature
 
 ```bash
-# Verify signature AND that payload matches the signed hash
-CoseSignTool verify large-file.sig --payload large-file.bin
+# Verify signature AND (if provided) verify that payload matches the signed hash
+cosesigntool verify x509 large-file.sig --payload large-file.bin
 
 # Verify signature only (no payload needed)
-CoseSignTool verify large-file.sig --signature-only
+cosesigntool verify x509 large-file.sig --signature-only
 ```
 
 ## When to Use Indirect Signatures
@@ -98,7 +85,7 @@ Indirect signatures have two distinct verification steps:
 The signature over the hash envelope can be verified without the original payload:
 
 ```bash
-CoseSignTool verify large-file.sig --signature-only
+cosesigntool verify x509 large-file.sig --signature-only
 ```
 
 This confirms:
@@ -111,7 +98,7 @@ This confirms:
 To verify the payload matches the signed hash:
 
 ```bash
-CoseSignTool verify large-file.sig --payload large-file.bin
+cosesigntool verify x509 large-file.sig --payload large-file.bin
 ```
 
 This additionally confirms:

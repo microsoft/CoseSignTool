@@ -24,6 +24,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+        <ProjectReference Include="..\CoseSignTool.AzureKeyVault.Plugin\CoseSignTool.AzureKeyVault.Plugin.csproj" />
         <ProjectReference Include="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj" />
         <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
         <ProjectReference Include="..\CoseSignTool.TestPlugins.Plugin\CoseSignTool.TestPlugins.Plugin.csproj" />
@@ -63,6 +64,10 @@
     <Target Name="BuildAndDeployPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
         <Message Text="Building and deploying plugins for tests..." Importance="high" />
 
+        <MSBuild Projects="..\CoseSignTool.AzureKeyVault.Plugin\CoseSignTool.AzureKeyVault.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Restore;Build" />
+
         <MSBuild Projects="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj"
                  Properties="Configuration=$(Configuration)"
                  Targets="Restore;Build" />
@@ -82,6 +87,10 @@
         <MSBuild Projects="$(MSBuildProjectFile)"
                  Properties="PluginName=CoseSignTool.MST.Plugin;Configuration=$(Configuration)"
                  Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+             Properties="PluginName=CoseSignTool.AzureKeyVault.Plugin;Configuration=$(Configuration)"
+             Targets="DeployPlugin" />
 
         <MSBuild Projects="$(MSBuildProjectFile)"
                  Properties="PluginName=CoseSignTool.AzureTrustedSigning.Plugin;Configuration=$(Configuration)"

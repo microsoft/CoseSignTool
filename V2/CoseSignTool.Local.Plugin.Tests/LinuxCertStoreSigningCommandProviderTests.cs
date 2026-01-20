@@ -21,7 +21,7 @@ public class LinuxCertStoreSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-certstore"));
+        Assert.That(name, Is.EqualTo("x509-certstore"));
     }
 
     [Test]

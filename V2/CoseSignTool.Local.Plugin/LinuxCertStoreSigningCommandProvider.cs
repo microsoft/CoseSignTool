@@ -19,7 +19,7 @@ public class LinuxCertStoreSigningCommandProvider : ISigningCommandProvider
     internal static class ClassStrings
     {
         // Command metadata
-        public static readonly string CommandNameValue = "sign-certstore";
+        public static readonly string CommandNameValue = "x509-certstore";
         public static readonly string CommandDescriptionValue = "Sign a payload by searching system certificate store paths by thumbprint";
         public static readonly string ExampleUsageValue = "--thumbprint ABC123";
 

@@ -13,12 +13,12 @@ This plugin adds commands for signing with certificates stored on the local mach
 
 ## Commands
 
-### sign-pfx
+### sign x509 pfx
 
 Sign a payload using a PFX/PKCS#12 certificate file.
 
 ```bash
-CoseSignTool sign-pfx <payload> --pfx <path> [password-options] [options]
+cosesigntool sign x509 pfx [payload] --pfx <path> [password-options] [options]
 ```
 
 **Options**:
@@ -46,86 +46,82 @@ CoseSignTool sign-pfx <payload> --pfx <path> [password-options] [options]
 # Using environment variable (recommended for CI/CD)
 export COSESIGNTOOL_PFX_PASSWORD=mypassword  # Linux/macOS
 set COSESIGNTOOL_PFX_PASSWORD=mypassword     # Windows
-CoseSignTool sign-pfx document.json --pfx cert.pfx
+cosesigntool sign x509 pfx document.json --pfx cert.pfx
 
 # Using custom environment variable
 export MY_PFX_PWD=mypassword
-CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-env MY_PFX_PWD
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --pfx-password-env MY_PFX_PWD
 
 # Using password file (recommended for automation)
-CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-file /secure/path/password.txt
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --pfx-password-file /secure/path/password.txt
 
 # Interactive prompt
-CoseSignTool sign-pfx document.json --pfx cert.pfx --pfx-password-prompt
+cosesigntool sign x509 pfx document.json --pfx cert.pfx --pfx-password-prompt
 
 # Create indirect signature (SCITT-compliant, payload referenced by hash)
-CoseSignTool sign-pfx document.json --pfx cert.pfx -t indirect
+cosesigntool sign x509 pfx document.json --pfx cert.pfx -t indirect
 
 # Specify output file
-CoseSignTool sign-pfx document.json --pfx cert.pfx -o signed.cose
+cosesigntool sign x509 pfx document.json --pfx cert.pfx -o signed.cose
 ```
 
 ---
 
-### sign-certstore
+### sign x509 certstore
 
-Sign using a certificate from the system certificate store. This command is platform-specific:
-- **Windows**: Accesses the Windows certificate store (CurrentUser/LocalMachine)
-- **Linux/macOS**: Searches common system certificate paths
-
-#### Windows Usage
+Sign using a certificate from the OS certificate store by thumbprint.
 
 ```bash
-CoseSignTool sign-certstore <payload> --thumbprint <thumbprint> [options]
+cosesigntool sign x509 certstore [payload] --thumbprint <thumbprint> [options]
 ```
 
-**Windows Options**:
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--thumbprint` | Yes | Certificate thumbprint (SHA-1 hex string) |
-| `--store-name` | No | Store name (default: My) |
-| `--store-location` | No | Store location: CurrentUser, LocalMachine |
+This provider is platform-specific:
+- **Windows**: uses the Windows certificate store.
+- **Linux/macOS**: searches common certificate store paths.
 
-**Windows Examples**:
-```bash
-# Sign with certificate from CurrentUser\My store
-CoseSignTool sign-certstore document.json --thumbprint ABC123...
+#### Windows
 
-# Sign from LocalMachine store
-CoseSignTool sign-certstore document.json --thumbprint ABC123... --store-location LocalMachine
-```
-
-#### Linux/macOS Usage
-
-```bash
-CoseSignTool sign-certstore <payload> --thumbprint <thumbprint> [options]
-```
-
-**Linux/macOS Options**:
+**Provider options**:
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--thumbprint` | Yes | Certificate thumbprint (hex string) |
-| `--store-paths` | No | Custom certificate store search paths |
+| `--store-name` | No | Store name (default: `My`) |
+| `--store-location` | No | Store location: `CurrentUser` or `LocalMachine` (default: `CurrentUser`) |
 
-Default search paths: `/etc/ssl/certs`, `/etc/pki/tls/certs`, `~/.certs`
+**Examples**:
+```bash
+# Sign with certificate from CurrentUser\My store
+cosesigntool sign x509 certstore document.json --thumbprint ABC123...
 
-**Linux/macOS Examples**:
+# Sign from LocalMachine\My store
+cosesigntool sign x509 certstore document.json --thumbprint ABC123... --store-location LocalMachine
+```
+
+#### Linux/macOS
+
+**Provider options**:
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--thumbprint` | Yes | Certificate thumbprint (hex string) |
+| `--store-paths` | No | Custom search paths (defaults include `/etc/ssl/certs`, `/etc/pki/tls/certs`, `~/.certs`) |
+
+**Examples**:
 ```bash
 # Sign with certificate from default system paths
-CoseSignTool sign-certstore document.json --thumbprint ABC123...
+cosesigntool sign x509 certstore document.json --thumbprint ABC123...
 
-# Sign from custom store path
-CoseSignTool sign-certstore document.json --thumbprint ABC123... --store-paths /my/certs
+# Add custom search paths
+cosesigntool sign x509 certstore document.json --thumbprint ABC123... --store-paths /my/certs
 ```
 
 ---
 
-### sign-pem
+### sign x509 pem
 
 Sign using PEM-encoded certificate and key files.
 
 ```bash
-CoseSignTool sign-pem <payload> --cert-file <path> --key-file <path> [options]
+cosesigntool sign x509 pem [payload] --cert-file <path> --key-file <path> [options]
 ```
 
 **Options**:
@@ -137,17 +133,17 @@ CoseSignTool sign-pem <payload> --cert-file <path> --key-file <path> [options]
 **Examples**:
 ```bash
 # Sign with PEM files
-CoseSignTool sign-pem document.json --cert-file cert.pem --key-file key.pem
+cosesigntool sign x509 pem document.json --cert-file cert.pem --key-file key.pem
 ```
 
 ---
 
-### sign-ephemeral
+### sign x509 ephemeral
 
 Sign using an ephemeral (in-memory) certificate generated on-the-fly. **For testing and development only.**
 
 ```bash
-CoseSignTool sign-ephemeral <payload> [--config <path>] [options]
+cosesigntool sign x509 ephemeral [payload] [--config <path>] [options]
 ```
 
 By default, creates an RSA-4096 certificate with a full certificate chain (Root → Intermediate → Leaf) and CodeSigning EKU for maximum compatibility with COSE signing scenarios.
@@ -175,22 +171,22 @@ By default, creates an RSA-4096 certificate with a full certificate chain (Root 
 **Examples**:
 ```bash
 # Sign with default optimal settings (RSA-4096, full chain, CodeSigning)
-CoseSignTool sign-ephemeral document.json
+cosesigntool sign x509 ephemeral document.json
 
 # Quick test with minimal configuration
-CoseSignTool sign-ephemeral document.json --minimal
+cosesigntool sign x509 ephemeral document.json --minimal
 
 # Post-quantum signing with ML-DSA (Windows only)
-CoseSignTool sign-ephemeral document.json --pqc
+cosesigntool sign x509 ephemeral document.json --pqc
 
 # Custom configuration via JSON file
-CoseSignTool sign-ephemeral document.json --config cert-config.json
+cosesigntool sign x509 ephemeral document.json --config cert-config.json
 
 # Custom subject with ECDSA
-CoseSignTool sign-ephemeral document.json --subject "CN=My Test Signer" --algorithm ECDSA
+cosesigntool sign x509 ephemeral document.json --subject "CN=My Test Signer" --algorithm ECDSA
 
 # Self-signed certificate (no chain)
-CoseSignTool sign-ephemeral document.json --no-chain
+cosesigntool sign x509 ephemeral document.json --no-chain
 ```
 
 **JSON Configuration File Format**:
@@ -237,14 +233,14 @@ All signing commands support Unix-style pipelines:
 
 ```bash
 # Sign from stdin, output to stdout
-echo 'Hello World' | CoseSignTool sign-pfx --pfx cert.pfx > signed.cose
+echo 'Hello World' | cosesigntool sign x509 pfx --pfx cert.pfx > signed.cose
 
 # Chain with verification
-cat document.json | CoseSignTool sign-pfx --pfx cert.pfx | CoseSignTool verify -
+cat document.json | cosesigntool sign x509 pfx --pfx cert.pfx | cosesigntool verify x509 -
 
 # Batch signing
 for file in *.json; do
-    CoseSignTool sign-pfx "$file" --pfx cert.pfx
+  cosesigntool sign x509 pfx "$file" --pfx cert.pfx
 done
 ```
 
@@ -254,7 +250,7 @@ done
 2. **Secure Password Input**: Use environment variables, password files, or interactive prompts for PFX passwords - never pass passwords on the command line
 3. **Key Storage**: Store private keys securely with appropriate file permissions
 4. **Certificate Expiration**: Monitor certificate expiration dates
-5. **Development Only**: The `sign-ephemeral` command is for development only
+5. **Development Only**: The `sign x509 ephemeral` provider is for development only
 
 ### SecurePasswordProvider
 

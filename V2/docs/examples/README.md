@@ -44,7 +44,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Adds x5chain/x5t key resolution + certificate trust defaults.
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 
@@ -161,7 +161,7 @@ var message = CoseMessage.DecodeSign1(signature);
 
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 
@@ -189,7 +189,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Registers AKV signing-key resolvers (offline COSE_Key and optional online) + fact producers.
-validation.EnableAzureKeyVaultTrust(akv => akv
+validation.EnableAzureKeyVaultSupport(akv => akv
     .RequireAzureKeyVaultKid()
     .AllowKidPatterns(new[] { "https://production-vault.vault.azure.net/keys/*" })
     .OfflineOnly());
@@ -224,7 +224,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableAzureKeyVaultTrust(akv => akv
+validation.EnableAzureKeyVaultSupport(akv => akv
     .RequireAzureKeyVaultKid()
     .AllowKidPatterns(new[]
     {
@@ -277,13 +277,13 @@ var client = new CodeTransparencyClient(
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
-validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
 // Require both a trusted certificate chain and a verified MST receipt.
 var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
         .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
-    .And(TrustPlanPolicy.Message(m => m
+    .And(TrustPlanPolicy.AnyCounterSignature(cs => cs
         .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
         .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
 
@@ -316,12 +316,12 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
-validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
 var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
         .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
-    .And(TrustPlanPolicy.Message(m => m
+    .And(TrustPlanPolicy.AnyCounterSignature(cs => cs
         .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
         .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
 
@@ -349,17 +349,18 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableAzureKeyVaultTrust(akv => akv
+validation.EnableAzureKeyVaultSupport(akv => akv
     .RequireAzureKeyVaultKid()
     .AllowKidPatterns(new[] { "https://release-*.vault.azure.net/keys/*" })
     .OfflineOnly());
 
-validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
 var trustPolicy = TrustPlanPolicy.Message(m => m
-        .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern")
-        .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
-        .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify"));
+    .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern"))
+    .And(TrustPlanPolicy.AnyCounterSignature(cs => cs
+    .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+    .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
 
 services.AddSingleton<CompiledTrustPlan>(sp => trustPolicy.Compile(sp));
 
@@ -390,14 +391,15 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
-validation.EnableAzureKeyVaultTrust(akv => akv.AllowKidPatterns(new[] { "https://prod.vault.azure.net/keys/*" }).OfflineOnly());
-validation.EnableMstTrust(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
+validation.EnableAzureKeyVaultSupport(akv => akv.AllowKidPatterns(new[] { "https://prod.vault.azure.net/keys/*" }).OfflineOnly());
+validation.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
 var trustPolicy = TrustPlanPolicy.PrimarySigningKey(k => k
         .RequireFact<X509ChainTrustedFact>(f => f.IsTrusted, "Signing certificate chain must be trusted"))
     .And(TrustPlanPolicy.Message(m => m
-        .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern")
+        .RequireFact<AzureKeyVaultKidAllowedFact>(f => f.IsAllowed, "AKV kid must match an allowed pattern")))
+    .And(TrustPlanPolicy.AnyCounterSignature(cs => cs
         .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
         .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must verify")));
 

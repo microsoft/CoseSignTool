@@ -21,13 +21,17 @@ using Microsoft.Extensions.DependencyInjection;
 /// For offline cryptographic verification, it also contributes a signing key resolver
 /// that can extract an embedded COSE_Key public key header.
 /// </remarks>
-public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWithTrustPlanPolicy
+public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWithTrustPlanPolicy, IVerificationRootProvider
 {
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
         public const string ProviderName = "AzureKeyVault";
         public const string ProviderDescription = "Azure Key Vault key-only signature verification (kid pattern validation)";
+
+        public const string VerifyRootAkv = "akv";
+
+        public const string RootHelpSummary = "Verify Azure Key Vault key-only signatures";
 
         public const string OptionRequireAzKey = "--require-az-key";
         public const string OptionAllowedVaults = "--allowed-vaults";
@@ -60,34 +64,80 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
     /// <inheritdoc/>
     public int Priority => 20; // Trust/assertion validation
 
-    private Option<bool> RequireAzKeyOption = null!;
-    private Option<string[]> AllowedVaultsOption = null!;
+    /// <inheritdoc/>
+    public string RootId => ClassStrings.VerifyRootAkv;
+
+    /// <inheritdoc/>
+    public string RootDisplayName => ProviderName;
+
+    /// <inheritdoc/>
+    public string RootHelpSummary => ClassStrings.RootHelpSummary;
+
+    private static bool IsAkvRoot(ParseResult parseResult)
+    {
+        var commandName = parseResult?.CommandResult?.Command?.Name;
+        return string.Equals(commandName, ClassStrings.VerifyRootAkv, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Option<T>? FindOption<T>(ParseResult parseResult, string optionToken)
+    {
+        var normalized = optionToken.TrimStart('-');
+
+        for (var current = parseResult.CommandResult; current != null; current = current.Parent as CommandResult)
+        {
+            foreach (var opt in current.Command.Options)
+            {
+                if (string.Equals(opt.Name, normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return opt as Option<T>;
+                }
+
+                foreach (var alias in opt.Aliases)
+                {
+                    if (string.Equals(alias.TrimStart('-'), normalized, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return opt as Option<T>;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 
     /// <inheritdoc/>
     public void AddVerificationOptions(Command command)
     {
-        RequireAzKeyOption = new Option<bool>(
+        var requireAzKeyOption = new Option<bool>(
             name: ClassStrings.OptionRequireAzKey,
             description: ClassStrings.DescriptionRequireAzKey);
-        command.AddOption(RequireAzKeyOption);
+        command.AddOption(requireAzKeyOption);
 
-        AllowedVaultsOption = new Option<string[]>(
+        var allowedVaultsOption = new Option<string[]>(
             name: ClassStrings.OptionAllowedVaults,
             description: ClassStrings.DescriptionAllowedVaults)
         {
             Arity = ArgumentArity.ZeroOrMore,
             AllowMultipleArgumentsPerToken = true
         };
-        command.AddOption(AllowedVaultsOption);
+        command.AddOption(allowedVaultsOption);
     }
 
     /// <inheritdoc/>
     public bool IsActivated(ParseResult parseResult)
     {
-        // Activate if any AKV-specific options are provided
-        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
-        var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
-        
+        // Active under `verify akv`, or when any AKV-specific options are provided.
+        if (IsAkvRoot(parseResult))
+        {
+            return true;
+        }
+
+        var requireAzKeyOption = FindOption<bool>(parseResult, ClassStrings.OptionRequireAzKey);
+        var allowedVaultsOption = FindOption<string[]>(parseResult, ClassStrings.OptionAllowedVaults);
+
+        bool requireAzKey = requireAzKeyOption != null && parseResult.GetValueForOption(requireAzKeyOption);
+        var allowedVaults = allowedVaultsOption != null ? parseResult.GetValueForOption(allowedVaultsOption) : null;
+
         return requireAzKey || (allowedVaults != null && allowedVaults.Length > 0);
     }
 
@@ -98,12 +148,15 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
         ArgumentNullException.ThrowIfNull(parseResult);
         ArgumentNullException.ThrowIfNull(context);
 
-        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
-        var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
+        var requireAzKeyOption = FindOption<bool>(parseResult, ClassStrings.OptionRequireAzKey);
+        var allowedVaultsOption = FindOption<string[]>(parseResult, ClassStrings.OptionAllowedVaults);
+
+        bool requireAzKey = IsAkvRoot(parseResult) || (requireAzKeyOption != null && parseResult.GetValueForOption(requireAzKeyOption));
+        var allowedVaults = allowedVaultsOption != null ? parseResult.GetValueForOption(allowedVaultsOption) : null;
 
         // CLI provider is offline by default. Online key-fetching requires additional DI configuration
         // (Key Vault client factory) and should be explicitly enabled elsewhere.
-        validationBuilder.EnableAzureKeyVaultTrust(akv =>
+        validationBuilder.EnableAzureKeyVaultSupport(akv =>
         {
             akv.OfflineOnly();
 
@@ -122,8 +175,11 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
     /// <inheritdoc/>
     public TrustPlanPolicy? CreateTrustPlanPolicy(ParseResult parseResult, VerificationContext context)
     {
-        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
-        var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
+        var requireAzKeyOption = FindOption<bool>(parseResult, ClassStrings.OptionRequireAzKey);
+        var allowedVaultsOption = FindOption<string[]>(parseResult, ClassStrings.OptionAllowedVaults);
+
+        bool requireAzKey = IsAkvRoot(parseResult) || (requireAzKeyOption != null && parseResult.GetValueForOption(requireAzKeyOption));
+        var allowedVaults = allowedVaultsOption != null ? parseResult.GetValueForOption(allowedVaultsOption) : null;
 
         if (allowedVaults != null && allowedVaults.Length > 0)
         {
@@ -145,8 +201,11 @@ public sealed class AzureKeyVaultVerificationProvider : IVerificationProviderWit
     /// <inheritdoc/>
     public IDictionary<string, object?> GetVerificationMetadata(ParseResult parseResult, CoseSign1Message message, ValidationResult validationResult)
     {
-        bool requireAzKey = RequireAzKeyOption != null && parseResult.GetValueForOption(RequireAzKeyOption);
-        var allowedVaults = AllowedVaultsOption != null ? parseResult.GetValueForOption(AllowedVaultsOption) : null;
+        var requireAzKeyOption = FindOption<bool>(parseResult, ClassStrings.OptionRequireAzKey);
+        var allowedVaultsOption = FindOption<string[]>(parseResult, ClassStrings.OptionAllowedVaults);
+
+        bool requireAzKey = IsAkvRoot(parseResult) || (requireAzKeyOption != null && parseResult.GetValueForOption(requireAzKeyOption));
+        var allowedVaults = allowedVaultsOption != null ? parseResult.GetValueForOption(allowedVaultsOption) : null;
 
         var metadata = new Dictionary<string, object?>
         {

@@ -22,7 +22,7 @@ public class PfxSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-pfx"));
+        Assert.That(name, Is.EqualTo("x509-pfx"));
     }
 
     [Test]

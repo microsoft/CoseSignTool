@@ -23,7 +23,7 @@ public class EphemeralSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("sign-ephemeral"));
+        Assert.That(name, Is.EqualTo("x509-ephemeral"));
     }
 
     [Test]

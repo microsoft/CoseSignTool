@@ -62,29 +62,29 @@ dotnet add package CoseSign1.Certificates.Local
 
 ```bash
 # Sign with PFX certificate
-cosesigntool sign-pfx --pfx mycert.pfx --payload document.txt --output document.cose
+cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --output document.cose
 
 # Sign with embedded payload
-cosesigntool sign-pfx --pfx mycert.pfx --payload document.txt --signature-type embedded --output document.cose
+cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --signature-type embedded --output document.cose
 
 # Sign with detached payload (signature only)
-cosesigntool sign-pfx --pfx mycert.pfx --payload document.txt --signature-type detached --output document.sig
+cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --signature-type detached --output document.sig
 ```
 
 ### Verify a Signature
 
 ```bash
 # Verify with automatic certificate extraction
-cosesigntool verify document.cose
+cosesigntool verify x509 document.cose
 
 # Verify detached signature
-cosesigntool verify document.sig --payload document.txt
+cosesigntool verify x509 document.sig --payload document.txt
 
 # Verify with custom trust roots
-cosesigntool verify document.cose --trust-roots ca-bundle.pem
+cosesigntool verify x509 document.cose --trust-roots ca-bundle.pem
 
 # JSON output for automation
-cosesigntool verify document.cose --output-format json
+cosesigntool verify x509 document.cose --output-format json
 ```
 
 ### Inspect a Signature
@@ -241,24 +241,28 @@ Trust is evaluated **before** signature verification to prevent oracle attacks.
 
 | Option | Description |
 |--------|-------------|
-| `-q`, `--quiet` | Suppress all output except errors |
-| `-vv` | Debug verbosity |
-| `-vvv` | Trace verbosity |
-| `--verbosity N` | Set verbosity level (0-4) |
+| `--output-format`, `-f` | Output format: text, json, xml, quiet |
+| `--verbose` | Show verbose help output |
+| `--verbosity N` | Set logging verbosity level (0=quiet .. 4=trace) |
+| `-vv` | Debug verbosity (equivalent to `--verbosity 3`) |
+| `-vvv` | Trace verbosity (equivalent to `--verbosity 4`) |
 | `--log-file <path>` | Write logs to file |
 | `--log-file-append` | Append to existing log file |
-| `--output-format` | Output format: text, json, xml, quiet |
-| `--additional-plugin-dir` | Additional plugin directory |
+| `--log-file-overwrite` | Overwrite existing log file (default) |
+| `--additional-plugin-dir <dir>` | Additional plugin directory |
 
 ### Commands
 
-- **`sign-pfx`** - Sign with PFX certificate
-- **`sign-pem`** - Sign with PEM certificate
-- **`sign-cert-store`** - Sign with Windows Certificate Store
-- **`sign-ephemeral`** - Sign with temporary test certificate
-- **`sign-akv-cert`** - Sign with Azure Key Vault certificate
-- **`sign-ats`** - Sign with Azure Trusted Signing
-- **`verify`** - Verify a signature
+- **`sign x509 pfx`** - Sign with PFX certificate
+- **`sign x509 pem`** - Sign with PEM certificate
+- **`sign x509 certstore`** - Sign with Windows/Linux certificate store
+- **`sign x509 ephemeral`** - Sign with temporary test certificate
+- **`sign x509 akv-cert`** - Sign with Azure Key Vault certificate
+- **`sign akv akv-key`** - Sign with Azure Key Vault key (no X.509 chain)
+- **`sign x509 ats`** - Sign with Azure Trusted Signing
+- **`verify x509`** - Verify using X.509 trust
+- **`verify akv`** - Verify using Azure Key Vault key trust
+- **`verify mst`** - Verify using MST receipt trust
 - **`inspect`** - Inspect signature details
 
 See [CLI Documentation](docs/cli/README.md) for detailed command reference.

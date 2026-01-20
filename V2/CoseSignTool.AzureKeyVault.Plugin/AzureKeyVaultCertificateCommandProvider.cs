@@ -22,7 +22,7 @@ public class AzureKeyVaultCertificateCommandProvider : ISigningCommandProvider
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public static readonly string CommandNameValue = "sign-akv-cert";
+        public static readonly string CommandNameValue = "x509-akv-cert";
         public static readonly string CommandDescriptionValue = "Sign a payload using a certificate from Azure Key Vault";
         public static readonly string ExampleUsageValue = "--akv-vault https://my-vault.vault.azure.net --akv-cert-name my-cert";
 

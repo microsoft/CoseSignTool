@@ -1,10 +1,16 @@
 # CoseSign1.Transparent.MST
 
-Microsoft's Signing Transparency (MST) receipts for COSE Sign1 messages.
+Microsoft's Signing Transparency (MST) receipt support for COSE Sign1 message verification.
 
 ## Overview
 
-Implements Microsoft's Signing Transparency receipts for SCITT compliance, enabling verifiable inclusion proofs for COSE Sign1 messages in transparency logs.
+This package enables verification of MST receipts embedded in COSE Sign1 messages (SCITT receipts).
+
+In V2, MST receipts are modeled as **counter-signatures** for trust evaluation purposes. This enables:
+
+- Trust decisions expressed as `TrustPlanPolicy` rules (facts + rules).
+- Receipt verification scoped to an individual receipt (counter-signature subject).
+- Optional **ToBeSigned attestation**: when a receipt is verified and attests it validated the same COSE `Sig_structure`, staged validation can skip primary signing-key resolution and primary signature verification.
 
 ## Installation
 
@@ -12,285 +18,101 @@ Implements Microsoft's Signing Transparency receipts for SCITT compliance, enabl
 dotnet add package CoseSign1.Transparent.MST --version 2.0.0-preview
 ```
 
-## Key Features
+## What this package does (and doesn’t)
 
-- ✅ **MST Receipt Generation** - Create transparency receipts
-- ✅ **Receipt Verification** - Verify inclusion proofs
-- ✅ **SCITT Compatible** - Standards-compliant transparency
-- ✅ **Sparse Merkle Trees** - Efficient proof generation
-- ✅ **Merkle Inclusion Proofs** - Cryptographic verification
-- ✅ **Log Integration** - Integration with transparency services
+- ✅ Verifies MST receipts embedded in COSE Sign1 messages.
+- ✅ Contributes a trust pack (`ITrustPack`) with MST receipt facts.
+- ✅ Contributes a counter-signature resolver (to discover receipts from the message).
+- ✅ Contributes a ToBeSigned attestor (optional staged-validation optimization).
+- ❌ Does not submit messages to an MST service or “generate receipts”. (Receipt acquisition happens elsewhere.)
 
 ## Quick Start
 
-### Generate Receipt
+### Verify a COSE Sign1 message that includes MST receipts (online)
+
+This example opts into MST support (`EnableMstSupport`) and then expresses trust decisions via a `TrustPlanPolicy`.
 
 ```csharp
-using CoseSign1.Transparent.MST;
-
-// Create transparency service
-var transparencyService = new MstTransparencyService(serviceUrl);
-
-// Submit COSE message for transparency
-var message = await CreateCoseSign1MessageAsync(payload);
-var receipt = await transparencyService.SubmitAsync(message);
-
-// Receipt contains inclusion proof
-Console.WriteLine($"Log Entry ID: {receipt.EntryId}");
-Console.WriteLine($"Log Index: {receipt.LogIndex}");
-```
-
-### Verify Receipt
-
-```csharp
-// Verify receipt authenticity
-var isValid = await transparencyService.VerifyReceiptAsync(receipt);
-
-if (isValid)
-{
-    Console.WriteLine("Receipt verified successfully");
-}
-else
-{
-    Console.WriteLine("Receipt verification failed");
-}
-```
-
-### Add Receipt to Message
-
-```csharp
-// Attach receipt to COSE message
-message.AddTransparencyReceipt(receipt);
-
-// Encode message with receipt
-byte[] encodedWithReceipt = message.Encode();
-```
-
-## Transparency Receipt Structure
-
-```csharp
-public class TransparencyReceipt
-{
-    public string EntryId { get; set; }
-    public long LogIndex { get; set; }
-    public byte[] InclusionProof { get; set; }
-    public byte[] TreeHead { get; set; }
-    public DateTimeOffset Timestamp { get; set; }
-    public string LogId { get; set; }
-}
-```
-
-## MST Transparency Service
-
-```csharp
-public class MstTransparencyService : ITransparencyService
-{
-    public MstTransparencyService(string serviceUrl);
-    public MstTransparencyService(string serviceUrl, HttpClient httpClient);
-    
-    public Task<TransparencyReceipt> SubmitAsync(
-        CoseSign1Message message,
-        CancellationToken cancellationToken = default);
-    
-    public Task<bool> VerifyReceiptAsync(
-        TransparencyReceipt receipt,
-        CancellationToken cancellationToken = default);
-    
-    public Task<TransparencyReceipt> GetReceiptAsync(
-        string entryId,
-        CancellationToken cancellationToken = default);
-}
-```
-
-## Advanced Usage
-
-### Custom Transparency Configuration
-
-```csharp
-var config = new MstConfiguration
-{
-    ServiceUrl = "https://transparency.contoso.com",
-    LogId = "contoso-production",
-    TreeDepth = 256,
-    HashAlgorithm = HashAlgorithmName.SHA256
-};
-
-var service = new MstTransparencyService(config);
-```
-
-### Batch Submission
-
-```csharp
-var messages = new List<CoseSign1Message>
-{
-    message1, message2, message3
-};
-
-var receipts = new List<TransparencyReceipt>();
-
-foreach (var msg in messages)
-{
-    var receipt = await transparencyService.SubmitAsync(msg);
-    receipts.Add(receipt);
-}
-```
-
-### Receipt Extraction
-
-```csharp
-// Extract receipt from message
-TransparencyReceipt? receipt = message.GetTransparencyReceipt();
-
-if (receipt != null)
-{
-    Console.WriteLine($"Message has receipt: {receipt.EntryId}");
-    var isValid = await transparencyService.VerifyReceiptAsync(receipt);
-}
-```
-
-## SCITT Integration
-
-```csharp
-using CoseSign1.Headers;
-using CoseSign1.Factories;
-using CoseSign1.Factories.Direct;
-
-public async Task<CoseSign1Message> CreateScittStatementAsync(
-    byte[] payload,
-    ISigningService signingService)
-{
-    // Create SCITT-compliant message
-    var claims = new CwtClaims
-    {
-        Issuer = "https://contoso.com",
-        Subject = "package:npm/my-package@1.0.0",
-        IssuedAt = DateTimeOffset.UtcNow
-    };
-    
-    var contributor = new CwtClaimsHeaderContributor(claims);
-
-    using var factory = new CoseSign1MessageFactory(signingService);
-
-    var options = new DirectSignatureOptions
-    {
-        EmbedPayload = true,
-        AdditionalHeaderContributors = [contributor],
-    };
-
-    var message = await factory.DirectFactory.CreateCoseSign1MessageAsync(
-        payload,
-        contentType: "application/octet-stream",
-        options);
-    
-    // Submit to transparency log
-    var receipt = await _transparencyService.SubmitAsync(message);
-    
-    // Attach receipt
-    message.AddTransparencyReceipt(receipt);
-    
-    return message;
-}
-```
-
-## Verification Pipeline
-
-```csharp
-using Azure.Security.CodeTransparency;
-using CoseSign1.Certificates.Validation;
-using CoseSign1.Transparent.MST.Validation;
-using CoseSign1.Validation;
-using CoseSign1.Validation.Trust;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation;
+using CoseSign1.Validation.DependencyInjection;
+using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust.Plan;
+using Microsoft.Extensions.DependencyInjection;
 
-var client = new CodeTransparencyClient(new Uri("https://dataplane.codetransparency.azure.net"));
+// Decode a COSE_Sign1 / SCITT statement (bytes include MST receipt header label 394).
+var message = CoseMessage.DecodeSign1(File.ReadAllBytes("statement.scitt"));
 
-var validator = new CoseSign1ValidationBuilder()
-    .AddComponent(new CertificateSigningKeyResolver(certificateHeaderLocation: CoseHeaderLocation.Any))
-    .ValidateMst(mst => mst
-        .RequireReceiptPresence()
-        .VerifyReceipt(client))
-    .OverrideDefaultTrustPolicy(MstTrustPolicies.RequireReceiptPresentAndTrusted())
-    .Build();
+var services = new ServiceCollection();
+var builder = services.ConfigureCoseValidation();
 
-var result = message.Validate(validator);
+// Enable MST receipt support and configure online verification.
+builder.EnableMstSupport(mst => mst.VerifyReceipts(new Uri("https://dataplane.codetransparency.azure.net")));
 
-if (!result.Overall.IsValid)
-{
-    // Inspect staged results: result.Trust, result.Signature, etc.
-}
-```
+using var sp = services.BuildServiceProvider();
 
-## Inclusion Proof Verification
+// Trust decisions live in policy (not in module configuration).
+const string expectedIssuerHost = "esrp-cts-cp.confidential-ledger.azure.com";
+var policy = TrustPlanPolicy.AnyCounterSignature(cs => cs
+    .RequireFact<MstReceiptPresentFact>(f => f.IsPresent, "MST receipt must be present")
+    .RequireFact<MstReceiptTrustedFact>(f => f.IsTrusted, "MST receipt must be verified")
+    .RequireFact<MstReceiptIssuerHostFact>(
+        f => f.Hosts.Any(h => string.Equals(h, expectedIssuerHost, StringComparison.OrdinalIgnoreCase)),
+        $"MST receipt issuer host must be {expectedIssuerHost}"));
 
-```csharp
-public class InclusionProofVerifier
-{
-    public static bool VerifyInclusionProof(
-        byte[] leafHash,
-        byte[] proof,
-        byte[] treeHead,
-        long index)
+var trustPlan = policy.Compile(sp);
+
+var validator = new CoseSign1Validator(
+    signingKeyResolvers: sp.GetServices<ISigningKeyResolver>(),
+    postSignatureValidators: sp.GetServices<IPostSignatureValidator>(),
+    toBeSignedAttestors: sp.GetServices<IToBeSignedAttestor>(),
+    trustPlan: trustPlan,
+    options: new CoseSign1ValidationOptions
     {
-        var currentHash = leafHash;
-        var currentIndex = index;
-        
-        // Walk up the tree
-        for (int i = 0; i < proof.Length; i += 32)
-        {
-            var sibling = proof[i..(i + 32)];
-            
-            if (currentIndex % 2 == 0)
-            {
-                // Left child
-                currentHash = SHA256.HashData(
-                    currentHash.Concat(sibling).ToArray());
-            }
-            else
-            {
-                // Right child
-                currentHash = SHA256.HashData(
-                    sibling.Concat(currentHash).ToArray());
-            }
-            
-            currentIndex /= 2;
-        }
-        
-        return currentHash.SequenceEqual(treeHead);
-    }
+        // When the MST receipt validates the same Sig_structure, staged validation can skip
+        // primary key resolution + primary signature verification.
+        AllowToBeSignedAttestationToSkipPrimarySignature = true,
+    });
+
+var result = await validator.ValidateAsync(message);
+
+if (!result.Overall.IsSuccess)
+{
+    throw new InvalidOperationException("Validation failed: " + result.Overall.Failures[0].Message);
 }
+
+// Optional: assert the attestation shortcut happened.
+Console.WriteLine($"Resolution stage: {result.Resolution.Kind}");
+Console.WriteLine($"Signature stage:  {result.Signature.Kind}");
 ```
 
-## ASP.NET Core Integration
+### Verify with pinned offline keys (no network)
 
-Register MST components via DI:
+If you have a pinned JWKS for the expected MST issuer, you can run in offline-only mode.
 
 ```csharp
-using Azure.Security.CodeTransparency;
-using CoseSign1.Abstractions.Transparency;
-using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Trust;
+using CoseSign1.Validation.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
-services.AddSingleton(sp =>
-    new CodeTransparencyClient(new Uri(configuration["Mst:Endpoint"]!)));
+var jwksJson = File.ReadAllText("esrp-cts-cp.confidential-ledger.azure.com.jwks.json");
 
-services.AddSingleton<ITransparencyProvider>(sp =>
-    new MstTransparencyProvider(sp.GetRequiredService<CodeTransparencyClient>()));
+var services = new ServiceCollection();
+var builder = services.ConfigureCoseValidation();
+
+builder.EnableMstSupport(mst => mst.UseOfflineTrustedJwksJson(jwksJson));
 ```
 
-## Extension Methods
+Pair offline verification with an issuer-host requirement in policy (as shown above) to avoid trusting arbitrary receipts.
 
-```csharp
-// Add receipt to message
-message.AddTransparencyReceipt(receipt);
+## Notes on trust and policy
 
-// Get receipt from message
-TransparencyReceipt? receipt = message.GetTransparencyReceipt();
-
-// Check if message has receipt
-bool hasReceipt = message.HasTransparencyReceipt();
-
-// Remove receipt from message
-message.RemoveTransparencyReceipt();
-```
+- `EnableMstSupport(...)` enables the *capability* (receipt discovery + verification + fact production).
+- `TrustPlanPolicy` expresses *trust decisions* (which receipts/issuers are acceptable).
+- For “real-world” safety, combine:
+  - `MstReceiptTrustedFact` (receipt must verify), and
+  - `MstReceiptIssuerHostFact` (issuer identity constraint).
 
 ## When to Use
 
@@ -304,21 +126,15 @@ message.RemoveTransparencyReceipt();
 ## Related Packages
 
 - **CoseSign1.Factories** - Message creation
-- **CoseSign1.Headers** - CWT claims for SCITT
 - **CoseSign1.Validation** - Validation framework
 - **CoseSign1.Certificates** - Certificate-based signing
 
 ## Documentation
 
-- 📖 [Full Package Documentation](https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/packages/transparency-mst.md)
-- 📖 [SCITT Guide](https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/guides/scitt-compliance.md)
-- 📖 [Transparency Guide](https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/guides/transparency.md)
-
-## Support
-
-- 🐛 [Report Issues](https://github.com/microsoft/CoseSignTool/issues)
-- 💬 [Discussions](https://github.com/microsoft/CoseSignTool/discussions)
-- 📧 Email: cosesigntool@microsoft.com
+- 📖 V2 docs overview: https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/README.md
+- 📖 MST component guide: https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/components/mst.md
+- 📖 Trust plan deep dive: https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/guides/trust-policy.md
+- 📖 SCITT guide: https://github.com/microsoft/CoseSignTool/blob/main/V2/docs/guides/scitt-compliance.md
 
 ## License
 

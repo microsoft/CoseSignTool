@@ -90,18 +90,19 @@ var signature = factory.CreateCoseSign1MessageBytes<DirectSignatureOptions>(payl
 
 ```bash
 # Sign with an ephemeral ML-DSA certificate (testing only)
-CoseSignTool sign-ephemeral document.json ^
+cosesigntool sign x509 ephemeral document.json ^
     --algorithm MLDSA ^
     --key-size 65 ^
     --output signed.cose
 
 # Verify ML-DSA signature
-CoseSignTool verify signed.cose
+cosesigntool verify x509 signed.cose
 ```
 
 ## Hybrid / Dual Signatures
 
-CoseSignTool V2 does not provide a first-class "countersignature" or "hybrid signature" feature in the library surface.
+CoseSignTool V2 does not provide a first-class COSE "countersignature" or "hybrid signature" authoring feature in the library surface.
+Note that the V2 trust system does model receipt-like artifacts (for example, MST receipts) as counter-signature subjects for trust evaluation.
 
 If you need both classical + post-quantum assurances today, the simplest approach is to produce two independent signatures over the same payload (for example, one ECDSA signature and one ML-DSA signature) and ship them side-by-side.
 

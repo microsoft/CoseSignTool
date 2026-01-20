@@ -14,6 +14,7 @@ Welcome to the CoseSignTool V2 documentation. This guide covers all aspects of u
 - [Validation Framework](architecture/validation-framework.md) - Staged validation pipeline
 - [Core Concepts](architecture/core-concepts.md) - Trust, stages, signature types, policies
 - [Signing Services](architecture/signing-services.md) - Local and remote signing services
+- [Signing Roots (Draft)](architecture/signing-roots.md) - Proposed multi-root signing model and plugin composition
 - [Certificate Management](architecture/certificate-management.md) - Certificate sources and chain building
 - [Header Contributors](architecture/header-contributors.md) - Extensible header contribution model
 

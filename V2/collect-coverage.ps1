@@ -14,6 +14,8 @@ param(
     [switch]$IncludeSubAssemblies = $false
 )
 
+$targetLineCoveragePercent = 95
+
 # Ensure relative paths resolve from the V2 directory (script location)
 Set-Location $PSScriptRoot
 
@@ -96,7 +98,7 @@ $projectDisplay = Get-ScopeName $ProjectFilter
 
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  V2 Code Coverage Collection" -ForegroundColor Cyan
-Write-Host "  Target: 95% Line Coverage" -ForegroundColor Cyan
+Write-Host "  Target: $targetLineCoveragePercent% Line Coverage" -ForegroundColor Cyan
 Write-Host "  Scope: $projectDisplay" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -328,11 +330,11 @@ $summary = Get-Content "$reportDir\Summary.txt"
 $lineCoverage = ($summary | Select-String "Line coverage:").ToString() -replace '.*Line coverage:\s*(\d+\.?\d*)%.*', '$1'
 $lineCoverageNum = [double]$lineCoverage
 
-Write-Host "Current Line Coverage: $lineCoverageNum%" -ForegroundColor $(if ($lineCoverageNum -ge 95) { "Green" } elseif ($lineCoverageNum -ge 80) { "Yellow" } else { "Red" })
-Write-Host "Target Line Coverage: 95%" -ForegroundColor Cyan
-Write-Host "Gap: $([math]::Round(95 - $lineCoverageNum, 1))%" -ForegroundColor $(if ($lineCoverageNum -ge 95) { "Green" } else { "Red" })
+Write-Host "Current Line Coverage: $lineCoverageNum%" -ForegroundColor $(if ($lineCoverageNum -ge $targetLineCoveragePercent) { "Green" } elseif ($lineCoverageNum -ge 80) { "Yellow" } else { "Red" })
+Write-Host "Target Line Coverage: $targetLineCoveragePercent%" -ForegroundColor Cyan
+Write-Host "Gap: $([math]::Round($targetLineCoveragePercent - $lineCoverageNum, 1))%" -ForegroundColor $(if ($lineCoverageNum -ge $targetLineCoveragePercent) { "Green" } else { "Red" })
 
-if ($lineCoverageNum -lt 95) {
+if ($lineCoverageNum -lt $targetLineCoveragePercent) {
     Write-Host ""
     Write-Host "Coverage is below target. Review coverage-report\index.html for details." -ForegroundColor Yellow
     if ($testExitCode -ne 0) {

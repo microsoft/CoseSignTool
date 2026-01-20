@@ -114,9 +114,10 @@ public class X509VerificationProviderTests
     }
 
     [Test]
-    public void IsActivated_WithDefaultOptions_ReturnsTrue()
+    public void IsActivated_WithDefaultOptions_ReturnsFalse()
     {
-        // Arrange - default: chain validation is on unless explicitly disabled
+        // Arrange - default X509 root selection is handled by the CLI host.
+        // This provider-level activation indicates whether the user explicitly requested X509-specific behavior.
         var ctx = CreateTestContext();
         var parseResult = ctx.Parser.Parse("");
 
@@ -124,7 +125,7 @@ public class X509VerificationProviderTests
         var isActivated = ctx.Provider.IsActivated(parseResult);
 
         // Assert
-        Assert.That(isActivated, Is.True, "chain validation is on by default");
+        Assert.That(isActivated, Is.False, "X509 options were not explicitly provided");
     }
 
     [Test]
@@ -139,6 +140,20 @@ public class X509VerificationProviderTests
 
         // Assert
         Assert.That(isActivated, Is.True, "provider should be activated with --allow-untrusted");
+    }
+
+    [Test]
+    public void IsActivated_WithTrustRoots_ReturnsTrue()
+    {
+        // Arrange
+        var ctx = CreateTestContext();
+        var parseResult = ctx.Parser.Parse("--trust-roots ca.pem");
+
+        // Act
+        var isActivated = ctx.Provider.IsActivated(parseResult);
+
+        // Assert
+        Assert.That(isActivated, Is.True, "provider should be activated with explicit trust roots");
     }
 
     [Test]
@@ -214,6 +229,27 @@ public class X509VerificationProviderTests
 
         // The default plan requires chain trust, and our test message has no x5t/x5chain headers.
         Assert.That(decision.IsTrusted, Is.False);
+    }
+
+    [Test]
+    public void CreateTrustPlanPolicy_WhenPreferCounterSignatureTrust_ReturnsNull()
+    {
+        // Arrange
+        var ctx = CreateTestContext();
+        var parseResult = ctx.Parser.Parse("");
+
+        var verificationContext = new VerificationContext(
+            detachedPayload: null,
+            options: new Dictionary<string, object?>
+            {
+                [VerificationContext.KeyPreferCounterSignatureTrust] = true
+            });
+
+        // Act
+        var policy = ctx.Provider.CreateTrustPlanPolicy(parseResult, verificationContext);
+
+        // Assert
+        Assert.That(policy, Is.Null);
     }
 
     private static CoseSign1Message CreateTestMessage()

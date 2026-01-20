@@ -80,6 +80,7 @@ public sealed class CoseSign1ValidatorStagedTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: Array.Empty<ISigningKeyResolver>(),
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         var result = validator.Validate(message);
@@ -101,6 +102,7 @@ public sealed class CoseSign1ValidatorStagedTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         var result = validator.Validate(message);
@@ -129,6 +131,7 @@ public sealed class CoseSign1ValidatorStagedTests
         var validator = new CoseSign1Validator(
             signingKeyResolvers: new[] { resolver },
             postSignatureValidators: null,
+            toBeSignedAttestors: null,
             trustPlan: CreateAllowAllTrustPlan());
 
         var result = validator.Validate(message);

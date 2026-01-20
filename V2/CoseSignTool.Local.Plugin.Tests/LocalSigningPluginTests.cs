@@ -89,7 +89,7 @@ public class LocalSigningPluginTests
         Assert.That(providers, Is.Not.Null);
         Assert.That(providers, Is.Not.Empty);
         // Should always include PFX provider
-        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-pfx"));
+        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "x509-pfx"));
     }
 
     [Test]
@@ -107,7 +107,7 @@ public class LocalSigningPluginTests
         // On Windows, should include certstore provider
         if (OperatingSystem.IsWindows())
         {
-            Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-certstore"));
+            Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "x509-certstore"));
         }
     }
 

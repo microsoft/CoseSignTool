@@ -159,7 +159,7 @@ sequenceDiagram
 
 ## Validation (DI Composition)
 
-V2 validation is configured via DI. You opt into trust packs (and related staged services) via `ConfigureCoseValidation()` and `Enable*Trust(...)`, then create an `ICoseSign1Validator` using `ICoseSign1ValidatorFactory`.
+V2 validation is configured via DI. You opt into trust packs (and related staged services) via `ConfigureCoseValidation()` and `Enable*Support(...)`, then create an `ICoseSign1Validator` using `ICoseSign1ValidatorFactory`.
 
 ```mermaid
 sequenceDiagram
@@ -174,7 +174,7 @@ sequenceDiagram
     App->>SC: new ServiceCollection()
     App->>SC: ConfigureCoseValidation()
     SC-->>VB: ICoseValidationBuilder
-    App->>VB: Enable*Trust(...)
+    App->>VB: Enable*Support(...)
     App->>SP: BuildServiceProvider()
     App->>F: Resolve ICoseSign1ValidatorFactory
     F-->>App: Create(...)

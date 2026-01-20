@@ -29,19 +29,19 @@ The logging system supports:
 
 ```bash
 # Quiet mode - minimal output
-cosesigntool verify document.cose -q
+cosesigntool verify x509 document.cose -q
 
 # Default - warnings and errors only
-cosesigntool verify document.cose
+cosesigntool verify x509 document.cose
 
 # Debug verbosity
-cosesigntool verify document.cose -vv
+cosesigntool verify x509 document.cose -vv
 
 # Trace verbosity
-cosesigntool verify document.cose -vvv
+cosesigntool verify x509 document.cose -vvv
 
 # Explicit verbosity level
-cosesigntool verify document.cose --verbosity 3
+cosesigntool verify x509 document.cose --verbosity 3
 ```
 
 ### Output by Verbosity Level
@@ -82,10 +82,10 @@ Write all logs to a file for post-mortem analysis:
 
 ```bash
 # Write logs to file (overwrites existing)
-cosesigntool verify document.cose --log-file verify.log
+cosesigntool verify x509 document.cose --log-file verify.log
 
 # Append to existing log file
-cosesigntool verify document.cose --log-file verify.log --log-file-append
+cosesigntool verify x509 document.cose --log-file verify.log --log-file-append
 ```
 
 ### Log File Formats
@@ -94,13 +94,13 @@ The log file format follows the `--output-format` option:
 
 ```bash
 # Text format (default)
-cosesigntool verify document.cose --log-file verify.log --output-format text
+cosesigntool verify x509 document.cose --log-file verify.log --output-format text
 
 # JSON format for parsing
-cosesigntool verify document.cose --log-file verify.log --output-format json
+cosesigntool verify x509 document.cose --log-file verify.log --output-format json
 
 # XML format
-cosesigntool verify document.cose --log-file verify.log --output-format xml
+cosesigntool verify x509 document.cose --log-file verify.log --output-format xml
 ```
 
 > **Note**: The `--quiet` format is treated as `text` for log files since logs are for diagnostics.
@@ -111,7 +111,7 @@ The log file **always** captures Debug level regardless of console verbosity:
 
 ```bash
 # Console shows only warnings, log file captures everything
-cosesigntool verify document.cose --log-file full-debug.log
+cosesigntool verify x509 document.cose --log-file full-debug.log
 ```
 
 This allows you to run quietly while maintaining full diagnostic capabilities.
@@ -177,16 +177,16 @@ CoseSignTool supports structured output for automation:
 
 ```bash
 # JSON output for parsing
-cosesigntool verify document.cose --output-format json
+cosesigntool verify x509 document.cose --output-format json
 
 # XML output
-cosesigntool verify document.cose --output-format xml
+cosesigntool verify x509 document.cose --output-format xml
 
 # Text output (default, human-readable)
-cosesigntool verify document.cose --output-format text
+cosesigntool verify x509 document.cose --output-format text
 
 # Quiet output (exit code only)
-cosesigntool verify document.cose --output-format quiet
+cosesigntool verify x509 document.cose --output-format quiet
 ```
 
 ### JSON Output Example
@@ -270,7 +270,7 @@ var services = new ServiceCollection();
 services.AddSingleton(loggerFactory);
 
 var validation = services.ConfigureCoseValidation();
-validation.EnableCertificateTrust(cert => cert.UseSystemTrust());
+validation.EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 using var sp = services.BuildServiceProvider();
 using var scope = sp.CreateScope();
@@ -287,7 +287,7 @@ If you need a deterministic record of trust evaluation (what facts were requeste
 ```csharp
 // In Startup.cs or Program.cs
 services.ConfigureCoseValidation()
-  .EnableCertificateTrust(cert => cert.UseSystemTrust());
+  .EnableCertificateSupport(cert => cert.UseSystemTrust());
 
 services.AddScoped<ICoseSign1Validator>(sp =>
   sp.GetRequiredService<ICoseSign1ValidatorFactory>().Create());
@@ -328,7 +328,7 @@ var loggerFactory = LoggerFactory.Create(builder =>
 
 ```bash
 # Full debug output with log file
-cosesigntool verify document.cose -vvv --log-file debug.log
+cosesigntool verify x509 document.cose -vvv --log-file debug.log
 
 # Check log for detailed validation stages
 cat debug.log
@@ -338,7 +338,7 @@ cat debug.log
 
 ```bash
 # JSON log for structured audit trail
-cosesigntool sign-pfx --pfx cert.pfx --payload document.txt \
+cosesigntool sign x509 pfx document.txt --pfx cert.pfx \
     --output document.cose \
     --log-file audit.json \
     --output-format json
@@ -348,7 +348,7 @@ cosesigntool sign-pfx --pfx cert.pfx --payload document.txt \
 
 ```bash
 # Trace level shows plugin discovery details
-cosesigntool verify document.cose -vvv
+cosesigntool verify x509 document.cose -vvv
 
 # Example output:
 # [Debug] PluginLoader: Scanning directory: C:\tools\plugins
@@ -361,7 +361,7 @@ cosesigntool verify document.cose -vvv
 
 ```bash
 # Debug verbosity shows chain building details
-cosesigntool verify document.cose -vv
+cosesigntool verify x509 document.cose -vv
 
 # Example output:
 # [Debug] CertificateChainValidator: Building chain for: CN=Signer
@@ -379,7 +379,7 @@ cosesigntool verify document.cose -vv
 
 ```bash
 # Production verification with full logging
-cosesigntool verify document.cose \
+cosesigntool verify x509 document.cose \
     --log-file /var/log/cosesigntool/verify-$(date +%Y%m%d-%H%M%S).log
 ```
 
@@ -387,7 +387,7 @@ cosesigntool verify document.cose \
 
 ```bash
 # Parse results programmatically
-result=$(cosesigntool verify document.cose --output-format json)
+result=$(cosesigntool verify x509 document.cose --output-format json)
 success=$(echo "$result" | jq '.success')
 ```
 
@@ -398,7 +398,7 @@ success=$(echo "$result" | jq '.success')
 
 ```bash
 # Quiet console, full debug in log file
-cosesigntool verify document.cose -q --log-file debug.log
+cosesigntool verify x509 document.cose -q --log-file debug.log
 ```
 
 ### 4. Rotate Log Files
@@ -407,7 +407,7 @@ Use `--log-file` with timestamps or external log rotation:
 
 ```bash
 # Timestamped log files
-cosesigntool verify document.cose \
+cosesigntool verify x509 document.cose \
     --log-file "verify-$(date +%Y%m%d-%H%M%S).log"
 ```
 
@@ -564,6 +564,6 @@ CoseSignTool uses consistent exit codes for automation:
 
 ```bash
 # Check exit code
-cosesigntool verify document.cose -q
+cosesigntool verify x509 document.cose -q
 echo "Exit code: $?"
 ```

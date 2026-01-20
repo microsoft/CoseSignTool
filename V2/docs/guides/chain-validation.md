@@ -131,7 +131,7 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Uses Windows/macOS/Linux system trust store for chain building
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     );
 
@@ -154,7 +154,7 @@ trustedRoots.Add(new X509Certificate2("my-root-ca.cer"));
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseCustomRootTrust(trustedRoots)
     );
 
@@ -181,7 +181,7 @@ var message = CoseMessage.DecodeSign1(signature);
 var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
-validation.EnableCertificateTrust(cert => cert
+validation.EnableCertificateSupport(cert => cert
     .UseSystemTrust()
     .WithRevocationMode(X509RevocationMode.Online)
     );
@@ -237,20 +237,20 @@ if (!trustResult.IsValid)
 
 ```bash
 # Default: validates chain with online revocation check
-CoseSignTool verify signed.cose
+cosesigntool verify x509 signed.cose
 
 # With custom trust roots (repeatable)
-CoseSignTool verify signed.cose --trust-roots custom-root.cer
+cosesigntool verify x509 signed.cose --trust-roots custom-root.cer
 
 # Disable revocation check (not recommended)
-CoseSignTool verify signed.cose --revocation-mode none
+cosesigntool verify x509 signed.cose --revocation-mode none
 ```
 
 ### Inspect Certificate Chain
 
 ```bash
 # Inspect output includes certificate chain details
-CoseSignTool inspect signed.cose
+cosesigntool inspect signed.cose
 ```
 
 ## Including Certificates in Signatures
@@ -262,7 +262,7 @@ Certificate-based signing in V2 adds X.509 key material headers by default:
 
 These headers are required for certificate-based verification (the verifier resolves the signing certificate by matching `x5t` to a certificate in `x5chain`).
 
-If you want a signature with no X.509 material (for example, a key-only signature with `kid` + embedded COSE_Key), use `sign-akv-key` instead of certificate-based signing.
+If you want a signature with no X.509 material (for example, a key-only signature with `kid` + embedded COSE_Key), use `cosesigntool sign akv akv-key` instead of certificate-based signing.
 
 ## Best Practices
 

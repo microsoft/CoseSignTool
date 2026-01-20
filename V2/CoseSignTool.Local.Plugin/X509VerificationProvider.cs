@@ -26,11 +26,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// Trust requirements (chain trust, subject/issuer matching, etc.) are enforced via
 /// TrustPlanPolicy + trust fact producers (see X509VerificationProvider.TrustPolicy.cs).
 /// </summary>
-public partial class X509VerificationProvider : IVerificationProvider
+public partial class X509VerificationProvider : IVerificationProvider, IVerificationRootProvider
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
+        public const string RootId = "x509";
+
+        public const string RootHelpSummary = "Verify using X.509 certificate trust";
+
         public const string ProviderName = "X509";
         public const string ProviderDescription = "X.509 certificate-based signature validation";
 
@@ -101,83 +105,167 @@ public partial class X509VerificationProvider : IVerificationProvider
     /// <inheritdoc/>
     public int Priority => 10;
 
-    // Options stored as fields so other partials (TrustPolicy) can read them if needed.
-    internal Option<FileInfo[]?> TrustRootsOption = null!;
-    internal Option<FileInfo?> TrustPfxOption = null!;
-    internal Option<FileInfo?> TrustPfxPasswordFileOption = null!;
-    internal Option<string?> TrustPfxPasswordEnvOption = null!;
-    internal Option<bool> TrustSystemRootsOption = null!;
-    internal Option<bool> AllowUntrustedOption = null!;
-    internal Option<string?> SubjectNameOption = null!;
-    internal Option<string?> IssuerNameOption = null!;
-    internal Option<string> RevocationModeOption = null!;
+    /// <inheritdoc/>
+    public string RootId => ClassStrings.RootId;
+
+    private static Option<T>? FindOption<T>(ParseResult parseResult, string optionToken)
+    {
+        var normalized = optionToken.TrimStart('-');
+
+        for (var current = parseResult.CommandResult; current != null; current = current.Parent as CommandResult)
+        {
+            foreach (var opt in current.Command.Options)
+            {
+                if (string.Equals(opt.Name, normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return opt as Option<T>;
+                }
+
+                foreach (var alias in opt.Aliases)
+                {
+                    if (string.Equals(alias.TrimStart('-'), normalized, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return opt as Option<T>;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc/>
+    public string RootDisplayName => ProviderName;
+
+    /// <inheritdoc/>
+    public string RootHelpSummary => ClassStrings.RootHelpSummary;
 
     /// <inheritdoc/>
     public void AddVerificationOptions(Command command)
     {
-        TrustRootsOption = new Option<FileInfo[]?>(
+        var trustRootsOption = new Option<FileInfo[]?>(
             name: ClassStrings.OptionNameTrustRoots,
             description: ClassStrings.DescriptionTrustRoots)
         {
             Arity = ArgumentArity.ZeroOrMore
         };
-        TrustRootsOption.AddAlias(ClassStrings.OptionAliasTrustRoots);
-        command.AddOption(TrustRootsOption);
+        trustRootsOption.AddAlias(ClassStrings.OptionAliasTrustRoots);
+        command.AddOption(trustRootsOption);
 
-        TrustPfxOption = new Option<FileInfo?>(
+        var trustPfxOption = new Option<FileInfo?>(
             name: ClassStrings.OptionNameTrustPfx,
             description: ClassStrings.DescriptionTrustPfx);
-        command.AddOption(TrustPfxOption);
+        command.AddOption(trustPfxOption);
 
-        TrustPfxPasswordFileOption = new Option<FileInfo?>(
+        var trustPfxPasswordFileOption = new Option<FileInfo?>(
             name: ClassStrings.OptionNameTrustPfxPasswordFile,
             description: ClassStrings.DescriptionTrustPfxPasswordFile);
-        command.AddOption(TrustPfxPasswordFileOption);
+        command.AddOption(trustPfxPasswordFileOption);
 
-        TrustPfxPasswordEnvOption = new Option<string?>(
+        var trustPfxPasswordEnvOption = new Option<string?>(
             name: ClassStrings.OptionNameTrustPfxPasswordEnv,
             description: ClassStrings.DescriptionTrustPfxPasswordEnv);
-        command.AddOption(TrustPfxPasswordEnvOption);
+        command.AddOption(trustPfxPasswordEnvOption);
 
-        TrustSystemRootsOption = new Option<bool>(
+        var trustSystemRootsOption = new Option<bool>(
             name: ClassStrings.OptionNameTrustSystemRoots,
             getDefaultValue: () => true,
             description: ClassStrings.DescriptionTrustSystemRoots);
-        command.AddOption(TrustSystemRootsOption);
+        command.AddOption(trustSystemRootsOption);
 
-        AllowUntrustedOption = new Option<bool>(
+        var allowUntrustedOption = new Option<bool>(
             name: ClassStrings.OptionNameAllowUntrusted,
             description: ClassStrings.DescriptionAllowUntrusted);
-        command.AddOption(AllowUntrustedOption);
+        command.AddOption(allowUntrustedOption);
 
-        SubjectNameOption = new Option<string?>(
+        var subjectNameOption = new Option<string?>(
             name: ClassStrings.OptionNameSubjectName,
             description: ClassStrings.DescriptionSubjectName);
-        SubjectNameOption.AddAlias(ClassStrings.OptionAliasSubjectName);
-        command.AddOption(SubjectNameOption);
+        subjectNameOption.AddAlias(ClassStrings.OptionAliasSubjectName);
+        command.AddOption(subjectNameOption);
 
-        IssuerNameOption = new Option<string?>(
+        var issuerNameOption = new Option<string?>(
             name: ClassStrings.OptionNameIssuerName,
             description: ClassStrings.DescriptionIssuerName);
-        IssuerNameOption.AddAlias(ClassStrings.OptionAliasIssuerName);
-        command.AddOption(IssuerNameOption);
+        issuerNameOption.AddAlias(ClassStrings.OptionAliasIssuerName);
+        command.AddOption(issuerNameOption);
 
-        RevocationModeOption = new Option<string>(
+        var revocationModeOption = new Option<string>(
             name: ClassStrings.OptionNameRevocationMode,
             getDefaultValue: () => ClassStrings.RevocationModeOnline,
             description: ClassStrings.DescriptionRevocationMode);
-        RevocationModeOption.FromAmong(
+        revocationModeOption.FromAmong(
             ClassStrings.RevocationModeOnline,
             ClassStrings.RevocationModeOffline,
             ClassStrings.RevocationModeNone);
-        command.AddOption(RevocationModeOption);
+        command.AddOption(revocationModeOption);
     }
 
     /// <inheritdoc/>
     public bool IsActivated(ParseResult parseResult)
     {
-        _ = parseResult;
-        return true;
+        ArgumentNullException.ThrowIfNull(parseResult);
+
+        // X.509 is the default root trust model, but it should not be implicitly active when another
+        // root trust model (e.g., MST receipt trust) is selected.
+        //
+        // The CLI host may still force-activate X509 as the default root provider; this method
+        // answers a narrower question: did the user explicitly request X.509-specific behavior?
+
+        if (HasCustomTrustRoots(parseResult))
+        {
+            return true;
+        }
+
+        var trustPfxOption = FindOption<FileInfo?>(parseResult, ClassStrings.OptionNameTrustPfx);
+        if (trustPfxOption != null && parseResult.GetValueForOption(trustPfxOption) != null)
+        {
+            return true;
+        }
+
+        var trustPfxPasswordFileOption = FindOption<FileInfo?>(parseResult, ClassStrings.OptionNameTrustPfxPasswordFile);
+        if (trustPfxPasswordFileOption != null && parseResult.GetValueForOption(trustPfxPasswordFileOption) != null)
+        {
+            return true;
+        }
+
+        var trustPfxPasswordEnvOption = FindOption<string?>(parseResult, ClassStrings.OptionNameTrustPfxPasswordEnv);
+        var trustPfxPasswordEnv = trustPfxPasswordEnvOption != null ? parseResult.GetValueForOption(trustPfxPasswordEnvOption) : null;
+        if (!string.IsNullOrWhiteSpace(trustPfxPasswordEnv))
+        {
+            return true;
+        }
+
+        if (IsAllowUntrusted(parseResult))
+        {
+            return true;
+        }
+
+        if (!IsTrustSystemRoots(parseResult))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GetSubjectName(parseResult)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GetIssuerName(parseResult)))
+        {
+            return true;
+        }
+
+        var revocationModeOption = FindOption<string>(parseResult, ClassStrings.OptionNameRevocationMode);
+        var revocationMode = revocationModeOption != null
+            ? parseResult.GetValueForOption(revocationModeOption)
+            : ClassStrings.RevocationModeOnline;
+        if (!string.Equals(revocationMode, ClassStrings.RevocationModeOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <inheritdoc/>
@@ -193,7 +281,7 @@ public partial class X509VerificationProvider : IVerificationProvider
             ? LoadCustomRoots(parseResult, NullLogger<X509VerificationProvider>.Instance)
             : null;
 
-        validationBuilder.EnableCertificateTrust(certTrust =>
+        Microsoft.Extensions.DependencyInjection.CertificateSupportValidationBuilderExtensions.EnableCertificateSupport(validationBuilder, certTrust =>
         {
             certTrust
                 .WithRevocationMode(revocationMode);
@@ -252,13 +340,15 @@ public partial class X509VerificationProvider : IVerificationProvider
 
     internal bool HasCustomTrustRoots(ParseResult parseResult)
     {
-        var roots = parseResult.GetValueForOption(TrustRootsOption);
+        var trustRootsOption = FindOption<FileInfo[]?>(parseResult, ClassStrings.OptionNameTrustRoots);
+        var roots = trustRootsOption != null ? parseResult.GetValueForOption(trustRootsOption) : null;
         return (roots != null && roots.Length > 0) || HasTrustPfx(parseResult);
     }
 
     internal bool HasTrustPfx(ParseResult parseResult)
     {
-        var pfx = parseResult.GetValueForOption(TrustPfxOption);
+        var trustPfxOption = FindOption<FileInfo?>(parseResult, ClassStrings.OptionNameTrustPfx);
+        var pfx = trustPfxOption != null ? parseResult.GetValueForOption(trustPfxOption) : null;
         return pfx?.Exists == true;
     }
 
@@ -271,14 +361,16 @@ public partial class X509VerificationProvider : IVerificationProvider
             return null;
         }
 
-        var passwordFile = parseResult.GetValueForOption(TrustPfxPasswordFileOption);
+        var passwordFileOption = FindOption<FileInfo?>(parseResult, ClassStrings.OptionNameTrustPfxPasswordFile);
+        var passwordFile = passwordFileOption != null ? parseResult.GetValueForOption(passwordFileOption) : null;
         if (passwordFile?.Exists == true)
         {
             logger.LogInformation(ClassStrings.InfoReadingPasswordFile, passwordFile.FullName);
             return SecurePasswordProvider.ReadPasswordFromFile(passwordFile.FullName);
         }
 
-        var customEnvVar = parseResult.GetValueForOption(TrustPfxPasswordEnvOption);
+        var passwordEnvOption = FindOption<string?>(parseResult, ClassStrings.OptionNameTrustPfxPasswordEnv);
+        var customEnvVar = passwordEnvOption != null ? parseResult.GetValueForOption(passwordEnvOption) : null;
         var envVarName = string.IsNullOrEmpty(customEnvVar) ? ClassStrings.DefaultTrustPfxPasswordEnvVar : customEnvVar;
         var envPassword = Environment.GetEnvironmentVariable(envVarName);
         if (!string.IsNullOrEmpty(envPassword))
@@ -290,21 +382,35 @@ public partial class X509VerificationProvider : IVerificationProvider
         return null;
     }
 
-    internal bool IsTrustSystemRoots(ParseResult parseResult) =>
-        parseResult.GetValueForOption(TrustSystemRootsOption);
+    internal bool IsTrustSystemRoots(ParseResult parseResult)
+    {
+        var trustSystemRootsOption = FindOption<bool>(parseResult, ClassStrings.OptionNameTrustSystemRoots);
+        return trustSystemRootsOption != null && parseResult.GetValueForOption(trustSystemRootsOption);
+    }
 
-    internal bool IsAllowUntrusted(ParseResult parseResult) =>
-        parseResult.GetValueForOption(AllowUntrustedOption);
+    internal bool IsAllowUntrusted(ParseResult parseResult)
+    {
+        var allowUntrustedOption = FindOption<bool>(parseResult, ClassStrings.OptionNameAllowUntrusted);
+        return allowUntrustedOption != null && parseResult.GetValueForOption(allowUntrustedOption);
+    }
 
-    internal string? GetSubjectName(ParseResult parseResult) =>
-        parseResult.GetValueForOption(SubjectNameOption);
+    internal string? GetSubjectName(ParseResult parseResult)
+    {
+        var subjectNameOption = FindOption<string?>(parseResult, ClassStrings.OptionNameSubjectName);
+        return subjectNameOption != null ? parseResult.GetValueForOption(subjectNameOption) : null;
+    }
 
-    internal string? GetIssuerName(ParseResult parseResult) =>
-        parseResult.GetValueForOption(IssuerNameOption);
+    internal string? GetIssuerName(ParseResult parseResult)
+    {
+        var issuerNameOption = FindOption<string?>(parseResult, ClassStrings.OptionNameIssuerName);
+        return issuerNameOption != null ? parseResult.GetValueForOption(issuerNameOption) : null;
+    }
 
     internal X509RevocationMode ParseRevocationMode(ParseResult parseResult)
     {
-        var mode = parseResult.GetValueForOption(RevocationModeOption) ?? ClassStrings.RevocationModeOnline;
+        var modeOption = FindOption<string>(parseResult, ClassStrings.OptionNameRevocationMode);
+        var mode = modeOption != null ? parseResult.GetValueForOption(modeOption) : null;
+        mode ??= ClassStrings.RevocationModeOnline;
         return mode.ToLowerInvariant() switch
         {
             ClassStrings.RevocationModeOnline => X509RevocationMode.Online,
@@ -320,7 +426,8 @@ public partial class X509VerificationProvider : IVerificationProvider
 
         var collection = new X509Certificate2Collection();
 
-        var roots = parseResult.GetValueForOption(TrustRootsOption);
+        var trustRootsOption = FindOption<FileInfo[]?>(parseResult, ClassStrings.OptionNameTrustRoots);
+        var roots = trustRootsOption != null ? parseResult.GetValueForOption(trustRootsOption) : null;
         if (roots != null)
         {
             foreach (var rootFile in roots)
@@ -338,7 +445,8 @@ public partial class X509VerificationProvider : IVerificationProvider
             }
         }
 
-        var pfxFile = parseResult.GetValueForOption(TrustPfxOption);
+        var trustPfxOption = FindOption<FileInfo?>(parseResult, ClassStrings.OptionNameTrustPfx);
+        var pfxFile = trustPfxOption != null ? parseResult.GetValueForOption(trustPfxOption) : null;
         if (pfxFile?.Exists == true)
         {
             try

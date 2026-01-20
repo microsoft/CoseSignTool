@@ -11,18 +11,18 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
 
 /// <summary>
-/// Validation builder extensions for enabling the Azure Key Vault trust pack.
+/// Validation builder extensions for enabling Azure Key Vault support.
 /// </summary>
-public static class AzureKeyVaultTrustValidationBuilderExtensions
+public static class AzureKeyVaultSupportValidationBuilderExtensions
 {
     /// <summary>
-    /// Enables the Azure Key Vault trust pack by registering default trust-plan fragments and related services.
+    /// Enables Azure Key Vault support by registering the Azure Key Vault trust pack and related services.
     /// </summary>
     /// <param name="validationBuilder">The validation builder.</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The same builder instance for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="validationBuilder"/> is null.</exception>
-    public static ICoseValidationBuilder EnableAzureKeyVaultTrust(
+    public static ICoseValidationBuilder EnableAzureKeyVaultSupport(
         this ICoseValidationBuilder validationBuilder,
         Action<AzureKeyVaultTrustBuilder>? configure = null)
     {

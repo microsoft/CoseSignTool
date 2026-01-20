@@ -99,7 +99,7 @@ public class AzureKeyVaultPluginTests
         var providers = extensions.SigningCommandProviders.ToList();
 
         // Assert
-        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-akv-cert"));
+        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "x509-akv-cert"));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public class AzureKeyVaultPluginTests
         var providers = extensions.SigningCommandProviders.ToList();
 
         // Assert
-        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "sign-akv-key"));
+        Assert.That(providers, Has.Some.Matches<ISigningCommandProvider>(p => p.CommandName == "akv-key"));
     }
 
     [Test]

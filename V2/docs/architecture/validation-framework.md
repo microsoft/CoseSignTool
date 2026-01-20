@@ -29,8 +29,8 @@ var services = new ServiceCollection();
 var validation = services.ConfigureCoseValidation();
 
 // Enable one or more trust packs.
-validation.EnableCertificateTrust();
-validation.EnableMstTrust();
+validation.EnableCertificateSupport();
+validation.EnableMstSupport();
 
 using var sp = services.BuildServiceProvider();
 
@@ -88,7 +88,7 @@ Then create validators normally via `ICoseSign1ValidatorFactory` (it prefers an 
 
 - Add a new key material source: implement and register `ISigningKeyResolver`.
 - Add business rules: implement and register `IPostSignatureValidator`.
-- Add a reusable trust pack: implement `ITrustPack` and expose an opt-in `Enable*Trust(...)` extension.
+- Add a reusable trust pack: implement `ITrustPack` and expose an opt-in `Enable*Support(...)` extension.
 
 See:
 

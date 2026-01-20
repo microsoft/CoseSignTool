@@ -54,6 +54,8 @@ public sealed class TrustPlanTests
 
         public IReadOnlyCollection<Type> FactTypes => Producer.FactTypes;
 
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
+
         public TrustPlanDefaults GetDefaults() => Defaults;
 
         public ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)

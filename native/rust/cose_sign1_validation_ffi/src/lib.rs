@@ -97,9 +97,10 @@ pub fn with_trust_policy_builder_mut(
     Ok(())
 }
 
+#[inline(never)]
 pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
     clear_last_error();
-    match catch_unwind(AssertUnwindSafe(|| f())) {
+    match catch_unwind(AssertUnwindSafe(f)) {
         Ok(Ok(status)) => status,
         Ok(Err(err)) => {
             set_last_error(format!("{:#}", err));
@@ -321,29 +322,4 @@ pub extern "C" fn cose_validator_validate_bytes(
 
         Ok(cose_status_t::COSE_OK)
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn ffi_smoke_builder() {
-        let mut builder: *mut cose_validator_builder_t = ptr::null_mut();
-        assert_eq!(cose_validator_builder_new(&mut builder), cose_status_t::COSE_OK);
-        assert!(!builder.is_null());
-
-        // Pack-specific functions now tested in their respective FFI crates
-        // (e.g., cose_sign1_validation_ffi_certificates)
-
-        let mut validator: *mut cose_validator_t = ptr::null_mut();
-        assert_eq!(
-            cose_validator_builder_build(builder, &mut validator),
-            cose_status_t::COSE_OK
-        );
-        assert!(!validator.is_null());
-
-        cose_validator_free(validator);
-        cose_validator_builder_free(builder);
-    }
 }

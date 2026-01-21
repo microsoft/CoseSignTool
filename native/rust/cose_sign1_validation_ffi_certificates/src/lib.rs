@@ -710,12 +710,3 @@ pub extern "C" fn cose_certificates_trust_policy_builder_require_x509_public_key
         Ok(cose_status_t::COSE_OK)
     })
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn certificates_ffi_smoke() {
-        // Smoke test will validate once we have a proper validator builder in base FFI
-        assert_eq!(2 + 2, 4);
-    }
-}

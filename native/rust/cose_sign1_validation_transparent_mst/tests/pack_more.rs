@@ -6,7 +6,7 @@ use cose_sign1_validation::fluent::{
     CoseSign1TrustPack, CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact,
     UnknownCounterSignatureBytesFact,
 };
-use cose_sign1_validation_transparent_mst::facts::MstReceiptTrustedFact;
+use cose_sign1_validation_transparent_mst::facts::{MstReceiptPresentFact, MstReceiptTrustedFact};
 use cose_sign1_validation_transparent_mst::pack::MstTrustPack;
 use cose_sign1_validation_trust::cose_sign1::CoseSign1ParsedMessage;
 use cose_sign1_validation_trust::facts::{TrustFactEngine, TrustFactProducer, TrustFactSet};
@@ -626,4 +626,52 @@ fn mst_pack_receipts_header_non_array_value_in_unprotected_bytes_is_a_fact_produ
         .get_fact_set::<CounterSignatureSubjectFact>(&message_subject)
         .expect_err("expected invalid header error");
     assert!(err.to_string().contains("invalid header"));
+}
+
+#[test]
+fn mst_pack_counter_signature_subject_not_in_receipts_is_noop_available() {
+    let (statement_bytes, _receipt_bytes, jwks_json) = build_valid_statement_and_receipt();
+
+    let pack = MstTrustPack::offline_with_jwks(jwks_json);
+    let engine = TrustFactEngine::new(vec![Arc::new(pack)])
+        .with_cose_sign1_bytes(Arc::from(statement_bytes.clone().into_boxed_slice()));
+
+    let message_subject = TrustSubject::message(statement_bytes.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, b"not-a-receipt");
+
+    let out = engine
+        .get_fact_set::<MstReceiptPresentFact>(&cs_subject)
+        .expect("fact set");
+
+    let Some(values) = out.as_available() else {
+        panic!("expected Available");
+    };
+    assert!(values.is_empty());
+}
+
+#[test]
+fn mst_pack_default_trust_plan_is_present() {
+    let pack = MstTrustPack::offline_with_jwks("{\"keys\":[]}".to_string());
+    let plan = CoseSign1TrustPack::default_trust_plan(&pack);
+    assert!(plan.is_some());
+}
+
+#[test]
+fn mst_pack_try_read_receipts_no_label_returns_empty() {
+    // Minimal COSE_Sign1: [ bstr(a0), {}, null, bstr("sig") ]
+    let cose_bytes = vec![0x84, 0x41, 0xA0, 0xA0, 0xF6, 0x43, b's', b'i', b'g'];
+
+    let pack = MstTrustPack::online();
+    let engine = TrustFactEngine::new(vec![Arc::new(pack)])
+        .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()));
+
+    let message_subject = TrustSubject::message(b"seed");
+    let cs_subjects = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&message_subject)
+        .expect("fact set");
+
+    let Some(values) = cs_subjects.as_available() else {
+        panic!("expected Available");
+    };
+    assert!(values.is_empty());
 }

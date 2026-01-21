@@ -155,6 +155,10 @@ pub fn verify_mst_receipt(
         .get_cwt_issuer_host(CWT_CLAIMS_LABEL, CWT_ISS_LABEL)
         .ok_or(ReceiptVerifyError::MissingIssuer)?;
 
+    // Map the COSE alg to the expected ECDSA verifier.
+    // Do this early so unsupported alg values are classified as UnsupportedAlg.
+    let verifier = ring_verifier_for_cose_alg(alg)?;
+
     // Resolve the receipt signing key.
     // Match the Azure .NET client behavior (GetServiceCertificateKey):
     // - Try offline keys first (if provided)
@@ -167,8 +171,8 @@ pub fn verify_mst_receipt(
         input.allow_network_fetch,
         input.jwks_api_version,
     )?;
-    validate_receipt_alg_against_jwk(&jwk, alg)?;
     let spki = jwk_to_spki_der(&jwk)?;
+    validate_receipt_alg_against_jwk(&jwk, alg)?;
 
     // VDP is unprotected header label 396.
     let vdp_bytes = unprotected
@@ -184,18 +188,22 @@ pub fn verify_mst_receipt(
 
     // COSE encodes ECDSA signatures as the fixed-length concatenation r||s.
     // Use ring's FIXED verifiers to avoid having to re-encode to ASN.1 DER.
-    let verifier = ring_verifier_for_cose_alg(alg)?;
     let pk = signature::UnparsedPublicKey::new(verifier, spki.as_slice());
 
+    let mut any_matching_data_hash = false;
     for proof_blob in proof_blobs {
         let proof = MstCcfInclusionProof::parse(proof_blob.as_slice())?;
 
-        if proof.data_hash.as_slice() != expected_data_hash.as_slice() {
-            continue;
-        }
-
         // Compute CCF accumulator (leaf hash) and fold proof path.
-        let mut acc = ccf_accumulator_sha256(&proof, expected_data_hash)?;
+        // If the proof doesn't match this statement, try the next blob.
+        let mut acc = match ccf_accumulator_sha256(&proof, expected_data_hash) {
+            Ok(acc) => {
+                any_matching_data_hash = true;
+                acc
+            }
+            Err(ReceiptVerifyError::DataHashMismatch) => continue,
+            Err(e) => return Err(e),
+        };
         for (is_left, sibling) in proof.path.iter() {
             let sibling: [u8; 32] = sibling.as_slice().try_into().map_err(|_| {
                 ReceiptVerifyError::ReceiptDecode("unexpected_path_hash_len".to_string())
@@ -222,6 +230,10 @@ pub fn verify_mst_receipt(
                 statement_sha256: expected_data_hash,
             });
         }
+    }
+
+    if !any_matching_data_hash {
+        return Err(ReceiptVerifyError::DataHashMismatch);
     }
 
     Err(ReceiptVerifyError::SignatureInvalid)
@@ -746,11 +758,7 @@ fn jwk_to_spki_der(jwk: &Jwk) -> Result<Vec<u8>, ReceiptVerifyError> {
         .decode(y)
         .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("y_decode_failed: {e}")))?;
 
-    let expected_len = match crv {
-        "P-256" => 32,
-        "P-384" => 48,
-        _ => unreachable!(),
-    };
+    let expected_len = if crv == "P-256" { 32 } else { 48 };
     if x.len() != expected_len || y.len() != expected_len {
         return Err(ReceiptVerifyError::JwkUnsupported(format!(
             "unexpected_xy_len: x={} y={} expected={}",

@@ -48,12 +48,14 @@ pub struct cose_compiled_trust_plan_t {
     bundled: CoseSign1CompiledTrustPlan,
 }
 
+#[inline(never)]
 fn to_new_utf8(s: &str) -> *mut c_char {
     CString::new(s)
         .unwrap_or_else(|_| CString::new("string contained NUL").unwrap())
         .into_raw()
 }
 
+#[inline(never)]
 fn pack_name_from_ptr(pack_name_utf8: *const c_char) -> Result<String, anyhow::Error> {
     if pack_name_utf8.is_null() {
         anyhow::bail!("pack_name_utf8 must not be null");
@@ -64,6 +66,7 @@ fn pack_name_from_ptr(pack_name_utf8: *const c_char) -> Result<String, anyhow::E
     Ok(s.to_string())
 }
 
+#[inline(never)]
 fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, anyhow::Error> {
     if s.is_null() {
         anyhow::bail!("{arg_name} must not be null");
@@ -82,10 +85,12 @@ fn collect_default_plan_for_pack(
         .ok_or_else(|| anyhow::anyhow!("pack '{}' does not provide a default trust plan", pack.name()))
 }
 
+#[inline(never)]
 fn compile_or_selected(selected: Vec<CompiledTrustPlan>) -> CompiledTrustPlan {
     CompiledTrustPlan::or_plans(selected)
 }
 
+#[inline(never)]
 fn compile_and_selected(selected: Vec<CompiledTrustPlan>) -> CompiledTrustPlan {
     // AND multiple independent plans by treating them as constraints and providing an allow_all
     // trust source to satisfy the plan semantics:
@@ -1028,216 +1033,4 @@ pub extern "C" fn cose_trust_policy_builder_compile(
         }
         Ok(cose_status_t::COSE_OK)
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cose_sign1_validation_ffi::{
-        cose_last_error_message_utf8, cose_string_free, cose_validator_builder_build,
-        cose_validator_builder_free, cose_validator_builder_new, cose_validator_free,
-        cose_validator_t,
-    };
-    use std::ffi::CString;
-
-    fn last_error_string() -> Option<String> {
-        let p = cose_last_error_message_utf8();
-        if p.is_null() {
-            return None;
-        }
-        let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().to_string();
-        unsafe { cose_string_free(p) };
-        Some(s)
-    }
-
-    #[test]
-    fn policy_builder_compiles_and_attaches() {
-        let mut builder: *mut cose_validator_builder_t = std::ptr::null_mut();
-        let status = cose_validator_builder_new(&mut builder);
-        assert_eq!(status, cose_status_t::COSE_OK);
-        assert!(!builder.is_null());
-
-        let mut policy: *mut cose_trust_policy_builder_t = std::ptr::null_mut();
-        let status = cose_trust_policy_builder_new_from_validator_builder(builder, &mut policy);
-        assert_eq!(status, cose_status_t::COSE_OK);
-        assert!(!policy.is_null());
-
-        let status = cose_trust_policy_builder_require_detached_payload_absent(policy);
-        assert_eq!(status, cose_status_t::COSE_OK);
-
-        let mut plan: *mut cose_compiled_trust_plan_t = std::ptr::null_mut();
-        let status = cose_trust_policy_builder_compile(policy, &mut plan);
-        assert_eq!(status, cose_status_t::COSE_OK);
-        assert!(!plan.is_null());
-
-        cose_trust_policy_builder_free(policy);
-
-        let status = cose_validator_builder_with_compiled_trust_plan(builder, plan);
-        assert_eq!(status, cose_status_t::COSE_OK);
-        cose_compiled_trust_plan_free(plan);
-
-        let mut validator: *mut cose_validator_t = std::ptr::null_mut();
-        let status = cose_validator_builder_build(builder, &mut validator);
-        assert_eq!(status, cose_status_t::COSE_OK, "{:?}", last_error_string());
-        assert!(!validator.is_null());
-
-        cose_validator_free(validator);
-        cose_validator_builder_free(builder);
-    }
-
-    #[test]
-    fn policy_builder_cwt_claim_string_helpers_compile() {
-        let mut builder: *mut cose_validator_builder_t = std::ptr::null_mut();
-        let status = cose_validator_builder_new(&mut builder);
-        assert_eq!(status, cose_status_t::COSE_OK);
-
-        let mut policy: *mut cose_trust_policy_builder_t = std::ptr::null_mut();
-        let status = cose_trust_policy_builder_new_from_validator_builder(builder, &mut policy);
-        assert_eq!(status, cose_status_t::COSE_OK);
-
-        // These should compile as they only depend on message facts.
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claims_present(policy),
-            cose_status_t::COSE_OK
-        );
-
-        let iss = CString::new("issuer.example").unwrap();
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_iss_eq(policy, iss.as_ptr()),
-            cose_status_t::COSE_OK
-        );
-
-        // Generic claim helpers: presence + simple equality.
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_present(policy, 6),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_i64_eq(policy, 6, 123),
-            cose_status_t::COSE_OK
-        );
-
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_bool_eq(policy, 6, true),
-            cose_status_t::COSE_OK
-        );
-
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_i64_ge(policy, 6, 123),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_i64_le(policy, 6, 123),
-            cose_status_t::COSE_OK
-        );
-
-        let key = CString::new("nonce").unwrap();
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_present(policy, key.as_ptr()),
-            cose_status_t::COSE_OK
-        );
-
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_bool_eq(policy, key.as_ptr(), true),
-            cose_status_t::COSE_OK
-        );
-
-        let value = CString::new("abc").unwrap();
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_str_eq(
-                policy,
-                key.as_ptr(),
-                value.as_ptr()
-            ),
-            cose_status_t::COSE_OK
-        );
-
-        let prefix = CString::new("a").unwrap();
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_str_starts_with(
-                policy,
-                key.as_ptr(),
-                prefix.as_ptr()
-            ),
-            cose_status_t::COSE_OK
-        );
-
-        let needle = CString::new("b").unwrap();
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_str_contains(
-                policy,
-                key.as_ptr(),
-                needle.as_ptr()
-            ),
-            cose_status_t::COSE_OK
-        );
-
-        // Label-string helpers (compile-only here).
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_str_starts_with(
-                policy,
-                1000,
-                prefix.as_ptr()
-            ),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_label_str_contains(
-                policy,
-                1000,
-                needle.as_ptr()
-            ),
-            cose_status_t::COSE_OK
-        );
-
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_i64_ge(policy, key.as_ptr(), 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_claim_text_i64_le(policy, key.as_ptr(), 0),
-            cose_status_t::COSE_OK
-        );
-
-        // Fixed helpers for standard time claims.
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_exp_ge(policy, 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_exp_le(policy, 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_nbf_ge(policy, 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_nbf_le(policy, 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_iat_ge(policy, 0),
-            cose_status_t::COSE_OK
-        );
-        assert_eq!(
-            cose_trust_policy_builder_require_cwt_iat_le(policy, 0),
-            cose_status_t::COSE_OK
-        );
-
-        // Optional helper: does not require optional packs.
-        assert_eq!(
-            cose_trust_policy_builder_require_counter_signature_envelope_sig_structure_intact_or_missing(policy),
-            cose_status_t::COSE_OK
-        );
-
-        let mut plan: *mut cose_compiled_trust_plan_t = std::ptr::null_mut();
-        let status = cose_trust_policy_builder_compile(policy, &mut plan);
-        assert_eq!(status, cose_status_t::COSE_OK, "{:?}", last_error_string());
-        assert!(!plan.is_null());
-
-        cose_trust_policy_builder_free(policy);
-        cose_compiled_trust_plan_free(plan);
-        cose_validator_builder_free(builder);
-    }
 }

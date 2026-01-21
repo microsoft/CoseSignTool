@@ -11,6 +11,7 @@ use ring::signature::KeyPair as _;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::sync::mpsc;
 use std::thread;
 use tinycbor::{Encode, Encoder};
 
@@ -50,6 +51,39 @@ fn spawn_one_shot_http_server(status_code: u16, body: &'static str) -> (String, 
     });
 
     (format!("http://{}", addr), handle)
+}
+
+fn spawn_one_shot_http_server_capture_request(
+    status_code: u16,
+    body: &'static str,
+) -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+
+    let (tx, rx) = mpsc::channel::<String>();
+
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let mut buf = [0u8; 1024];
+        let n = stream.read(&mut buf).unwrap_or(0);
+        let req = String::from_utf8_lossy(&buf[..n]).to_string();
+        let _ = tx.send(req);
+
+        let status_line = match status_code {
+            200 => "HTTP/1.1 200 OK".to_string(),
+            204 => "HTTP/1.1 204 No Content".to_string(),
+            500 => "HTTP/1.1 500 Internal Server Error".to_string(),
+            other => format!("HTTP/1.1 {other} Status"),
+        };
+
+        let resp = format!(
+            "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.as_bytes().len()
+        );
+        let _ = stream.write_all(resp.as_bytes());
+    });
+
+    (format!("http://{}", addr), rx, handle)
 }
 
 fn sha256(bytes: &[u8]) -> [u8; 32] {
@@ -214,6 +248,65 @@ fn encode_protected_header_bytes_without_issuer(kid: &str, alg: i64, vds: i64) -
 
     (395i64).encode(&mut enc).unwrap();
     vds.encode(&mut enc).unwrap();
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn encode_protected_header_bytes_with_cwt_claims_missing_iss(kid: &str, alg: i64, vds: i64) -> Vec<u8> {
+    let mut buf = vec![0u8; 512];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    // { 1: alg, 4: kid, 395: vds, 15: { 2: "not-issuer" } }
+    enc.map(4).unwrap();
+
+    (1i64).encode(&mut enc).unwrap();
+    alg.encode(&mut enc).unwrap();
+
+    (4i64).encode(&mut enc).unwrap();
+    kid.as_bytes().encode(&mut enc).unwrap();
+
+    (395i64).encode(&mut enc).unwrap();
+    vds.encode(&mut enc).unwrap();
+
+    (15i64).encode(&mut enc).unwrap();
+    enc.map(1).unwrap();
+    (2i64).encode(&mut enc).unwrap();
+    "not-issuer".encode(&mut enc).unwrap();
+
+    let used = buf_len - enc.0.len();
+    buf.truncate(used);
+    buf
+}
+
+fn encode_protected_header_bytes_with_non_int_key(issuer: &str, kid: &str, alg: i64, vds: i64) -> Vec<u8> {
+    let mut buf = vec![0u8; 512];
+    let buf_len = buf.len();
+    let mut enc = Encoder(buf.as_mut_slice());
+
+    // Same as encode_protected_header_bytes, but add a bstr key to exercise non-int key handling.
+    // { 1: alg, 4: kid, 395: vds, 15: { 1: issuer }, h'00': 1 }
+    enc.map(5).unwrap();
+
+    (1i64).encode(&mut enc).unwrap();
+    alg.encode(&mut enc).unwrap();
+
+    (4i64).encode(&mut enc).unwrap();
+    kid.as_bytes().encode(&mut enc).unwrap();
+
+    (395i64).encode(&mut enc).unwrap();
+    vds.encode(&mut enc).unwrap();
+
+    (15i64).encode(&mut enc).unwrap();
+    enc.map(1).unwrap();
+    (1i64).encode(&mut enc).unwrap();
+    issuer.encode(&mut enc).unwrap();
+
+    // Non-int key (bstr) that should be ignored.
+    b"\x00".as_slice().encode(&mut enc).unwrap();
+    (1i64).encode(&mut enc).unwrap();
 
     let used = buf_len - enc.0.len();
     buf.truncate(used);
@@ -604,7 +697,7 @@ fn verify_mst_receipt_can_succeed_for_a_self_signed_es256_test_vector() {
 }
 
 #[test]
-fn verify_mst_receipt_skips_data_hash_mismatched_proof_and_returns_signature_invalid() {
+fn verify_mst_receipt_skips_data_hash_mismatched_proof_and_returns_data_hash_mismatch() {
     // Exercise the `continue` path when a parsed proof's data_hash doesn't match.
     let issuer = "example.com";
     let kid = "kid";
@@ -636,7 +729,7 @@ fn verify_mst_receipt_skips_data_hash_mismatched_proof_and_returns_signature_inv
     })
     .unwrap_err();
 
-    assert!(matches!(err, ReceiptVerifyError::SignatureInvalid));
+    assert!(matches!(err, ReceiptVerifyError::DataHashMismatch));
 }
 
 #[test]
@@ -728,7 +821,7 @@ fn verify_mst_receipt_accepts_tag_18_with_all_integer_width_encodings() {
         })
         .unwrap_err();
 
-        assert!(matches!(err, ReceiptVerifyError::SignatureInvalid));
+        assert!(matches!(err, ReceiptVerifyError::DataHashMismatch));
     }
 }
 
@@ -853,6 +946,234 @@ fn encode_statement_bytes(tagged: bool) -> Vec<u8> {
     } else {
         inner_buf
     }
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_statement_is_empty_hits_tag_none_branch() {
+    let statement = Vec::<u8>::new();
+
+    let kid = "kid_empty_statement";
+    let protected = encode_protected_header_bytes("issuer", kid, -7, 2);
+    // Provide a minimal non-empty proof blob so VDP extraction succeeds.
+    let receipt = encode_receipt_bytes(&protected, Some(&[vec![0xA0]]));
+    let jwks_json = minimal_jwks_json_for_kid(kid, "P-256");
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks_json.as_str()),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected statement reencode failure");
+
+    assert!(matches!(err, ReceiptVerifyError::StatementReencode(_)));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_network_fetch_normalizes_host_to_https_but_parse_fails_fast() {
+    let statement = encode_statement_bytes(false);
+
+    // No scheme => code will build https://{issuer} and Url::parse will fail due to spaces.
+    let protected = encode_protected_header_bytes("bad host", "missing_kid", -35, 2);
+    let receipt = encode_receipt_bytes(&protected, None);
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: None,
+        allow_network_fetch: true,
+        jwks_api_version: None,
+    })
+    .expect_err("expected jwks fetch failure");
+
+    assert!(matches!(err, ReceiptVerifyError::JwksFetch(_)));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_network_fetch_appends_api_version_query() {
+    let (issuer, rx, handle) = spawn_one_shot_http_server_capture_request(204, "");
+
+    let statement = encode_statement_bytes(false);
+    let protected = encode_protected_header_bytes(issuer.as_str(), "missing_kid", -35, 2);
+    let receipt = encode_receipt_bytes(&protected, None);
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: None,
+        allow_network_fetch: true,
+        jwks_api_version: Some("2020-01-01"),
+    })
+    .expect_err("expected jwks fetch failure");
+
+    let req = rx.recv().expect("request captured");
+    handle.join().expect("server thread join");
+
+    assert!(req.contains("GET /jwks?api-version=2020-01-01"));
+    assert!(matches!(err, ReceiptVerifyError::JwksFetch(msg) if msg.contains("http_status_204")));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_cwt_claims_present_but_issuer_missing_in_map() {
+    let statement = encode_statement_bytes(false);
+    let protected = encode_protected_header_bytes_with_cwt_claims_missing_iss(TEST_KID, -35, 2);
+    let receipt = encode_receipt_bytes(&protected, None);
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(TEST_JWKS_JSON),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected missing issuer");
+
+    assert!(matches!(err, ReceiptVerifyError::MissingIssuer));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_protected_header_contains_non_int_key() {
+    let statement = encode_statement_bytes(false);
+    let kid = "kid_non_int_key";
+    let protected = encode_protected_header_bytes_with_non_int_key("issuer", kid, -7, 2);
+    let proof_blob = encode_proof_blob_bytes(
+        [0u8; 32].as_slice(),
+        "evidence",
+        [0u8; 32].as_slice(),
+    );
+    let receipt = encode_receipt_bytes(&protected, Some(&[proof_blob]));
+    let jwks_json = minimal_jwks_json_for_kid(kid, "P-256");
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks_json.as_str()),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected data hash mismatch");
+
+    assert!(matches!(err, ReceiptVerifyError::DataHashMismatch));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_alg_is_unsupported() {
+    let statement = encode_statement_bytes(false);
+    let protected = encode_protected_header_bytes("issuer", TEST_KID, -999, 2);
+    let receipt = encode_receipt_bytes(&protected, None);
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(TEST_JWKS_JSON),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected unsupported alg");
+
+    assert!(matches!(err, ReceiptVerifyError::UnsupportedAlg(-999)));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_data_hash_mismatch() {
+    let statement = encode_statement_bytes(false);
+    let kid = "kid_data_hash_mismatch";
+    let protected = encode_protected_header_bytes("issuer", kid, -7, 2);
+    let proof_blob = encode_proof_blob_bytes(
+        [0u8; 32].as_slice(),
+        "evidence",
+        [0u8; 32].as_slice(),
+    );
+    let receipt = encode_receipt_bytes(&protected, Some(&[proof_blob]));
+    let jwks_json = minimal_jwks_json_for_kid(kid, "P-256");
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks_json.as_str()),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected data hash mismatch");
+
+    assert!(matches!(err, ReceiptVerifyError::DataHashMismatch));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_proof_data_hash_has_unexpected_length() {
+    let statement = encode_statement_bytes(false);
+    let kid = "kid_data_hash_len";
+    let protected = encode_protected_header_bytes("issuer", kid, -7, 2);
+    let proof_blob = encode_proof_blob_bytes(
+        [0u8; 32].as_slice(),
+        "evidence",
+        [0u8; 31].as_slice(),
+    );
+    let receipt = encode_receipt_bytes(&protected, Some(&[proof_blob]));
+    let jwks_json = minimal_jwks_json_for_kid(kid, "P-256");
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks_json.as_str()),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected receipt decode error");
+
+    assert!(matches!(err, ReceiptVerifyError::ReceiptDecode(msg) if msg.contains("unexpected_data_hash_len")));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_proof_internal_txn_hash_has_unexpected_length() {
+    let statement = encode_statement_bytes(false);
+    let kid = "kid_txn_hash_len";
+    let protected = encode_protected_header_bytes("issuer", kid, -7, 2);
+    let proof_blob = encode_proof_blob_bytes(
+        [0u8; 31].as_slice(),
+        "evidence",
+        [0u8; 32].as_slice(),
+    );
+    let receipt = encode_receipt_bytes(&protected, Some(&[proof_blob]));
+    let jwks_json = minimal_jwks_json_for_kid(kid, "P-256");
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks_json.as_str()),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected receipt decode error");
+
+    assert!(matches!(err, ReceiptVerifyError::ReceiptDecode(msg) if msg.contains("unexpected_internal_txn_hash_len")));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_jwk_crv_is_not_supported() {
+    let statement = encode_statement_bytes(false);
+    let kid = "kid_unsupported_crv";
+    let protected = encode_protected_header_bytes("issuer", kid, -7, 2);
+    let proof_blob = encode_proof_blob_bytes(
+        [0u8; 32].as_slice(),
+        "evidence",
+        [0u8; 32].as_slice(),
+    );
+    let receipt = encode_receipt_bytes(&protected, Some(&[proof_blob]));
+
+    let jwks = r#"{"keys":[{"kty":"EC","crv":"P-521","kid":"kid_unsupported_crv","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","y":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}]}"#;
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: Some(jwks),
+        allow_network_fetch: false,
+        jwks_api_version: None,
+    })
+    .expect_err("expected jwk unsupported");
+
+    assert!(matches!(err, ReceiptVerifyError::JwkUnsupported(msg) if msg.contains("unsupported_crv=")));
 }
 
 #[test]
@@ -1060,6 +1381,31 @@ fn verify_mst_receipt_errors_when_network_fetch_returns_error_status_includes_bo
 
     handle.join().expect("server thread join");
     assert!(matches!(err, ReceiptVerifyError::JwksFetch(msg) if msg.contains("http_status_500")));
+}
+
+#[test]
+fn verify_mst_receipt_errors_when_network_fetch_transport_error() {
+    // Bind and immediately drop so the port is closed => connection refused.
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    drop(listener);
+
+    let issuer = format!("http://{addr}");
+
+    let statement = encode_statement_bytes(false);
+    let protected = encode_protected_header_bytes(issuer.as_str(), "missing_kid", -35, 2);
+    let receipt = encode_receipt_bytes(&protected, None);
+
+    let err = verify_mst_receipt(ReceiptVerifyInput {
+        statement_bytes_with_receipts: statement.as_slice(),
+        receipt_bytes: receipt.as_slice(),
+        offline_jwks_json: None,
+        allow_network_fetch: true,
+        jwks_api_version: None,
+    })
+    .expect_err("expected transport error");
+
+    assert!(matches!(err, ReceiptVerifyError::JwksFetch(msg) if !msg.is_empty()));
 }
 
 #[test]

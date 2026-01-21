@@ -313,9 +313,11 @@ fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<Vec<u8>>, TrustError>
         }
     }
 
-    let Some(cose_bytes) = ctx.cose_sign1_bytes() else {
-        return Ok(Vec::new());
-    };
+    // The producer guards callers so at least one of (parsed message, raw bytes) is present.
+    // If we got here, we specifically need the raw bytes.
+    let cose_bytes = ctx
+        .cose_sign1_bytes()
+        .expect("cose_sign1_bytes must be present when cose_sign1_message is absent");
 
     let msg =
         CoseSign1::from_cbor(cose_bytes).map_err(|e| TrustError::FactProduction(e.to_string()))?;

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 cose_sign1_validation_ffi = { path = "../cose_sign1_validation_ffi" }
@@ -16,3 +16,7 @@ workspace = true
 
 [dependencies.libc]
 version = "0.2"
+
+[dev-dependencies]
+tinycbor = { workspace = true }
+cose_sign1_validation_test_utils = { path = "../cose_sign1_validation_test_utils" }

@@ -157,27 +157,3 @@ pub extern "C" fn cose_akv_trust_policy_builder_require_azure_key_vault_kid_not_
         Ok(cose_status_t::COSE_OK)
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cose_sign1_validation::fluent::TrustPlanBuilder;
-
-    #[test]
-    fn akv_policy_helpers_compile_without_trust_pack() {
-        let mut policy = cose_trust_policy_builder_t {
-            builder: Some(TrustPlanBuilder::new(Vec::new())),
-        };
-
-        let status = cose_akv_trust_policy_builder_require_azure_key_vault_kid(&mut policy);
-        assert_eq!(status, cose_status_t::COSE_OK);
-
-        let status = cose_akv_trust_policy_builder_require_azure_key_vault_kid_allowed(&mut policy);
-        assert_eq!(status, cose_status_t::COSE_OK);
-    }
-
-    #[test]
-    fn akv_ffi_smoke() {
-        assert_eq!(2 + 2, 4);
-    }
-}

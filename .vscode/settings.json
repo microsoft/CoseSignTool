@@ -1,0 +1,9 @@
+{
+  // This repo contains multiple independent CMake projects under native/.
+  // The C/C++ extension may not automatically pick up per-target CMake definitions,
+  // so we provide a workspace-wide IntelliSense config in .vscode/c_cpp_properties.json
+  // (including COSE_HAS_*_PACK defines) to prevent pack-gated code from being greyed out.
+  "C_Cpp.default.intelliSenseMode": "windows-msvc-x64",
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.cStandard": "c11"
+}

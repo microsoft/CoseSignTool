@@ -6,12 +6,33 @@ cmake_minimum_required(VERSION 3.20)
 project(cose_sign1_c
     VERSION 0.1.0
     DESCRIPTION "C projection for COSE Sign1 validation"
-    LANGUAGES C
+    LANGUAGES C CXX
 )
+
+# Standard CMake testing option (BUILD_TESTING) + CTest integration.
+include(CTest)
 
 # C standard
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# C++ is only used for optional GoogleTest-based tests (C API is still C).
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(COSE_ENABLE_ASAN "Enable AddressSanitizer for native builds" OFF)
+
+if(COSE_ENABLE_ASAN)
+    if(MSVC)
+        add_compile_options(/fsanitize=address)
+        if(CMAKE_VERSION VERSION_LESS "3.21")
+            message(WARNING "COSE_ENABLE_ASAN is ON. On Windows, CMake 3.21+ is recommended so post-build steps can copy runtime DLL dependencies.")
+        endif()
+    elseif(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    endif()
+endif()
 
 # Find Rust FFI libraries
 # These should be built first with: cargo build --release --workspace
@@ -37,6 +58,11 @@ find_library(COSE_FFI_MST_LIB
 
 find_library(COSE_FFI_AKV_LIB
     NAMES cose_sign1_validation_ffi_akv
+    PATHS ${RUST_FFI_DIR}
+)
+
+find_library(COSE_FFI_TRUST_LIB
+    NAMES cose_sign1_validation_ffi_trust
     PATHS ${RUST_FFI_DIR}
 )
 
@@ -90,11 +116,18 @@ if(COSE_FFI_AKV_LIB)
     target_compile_definitions(cose_sign1 INTERFACE COSE_HAS_AKV_PACK)
 endif()
 
+if(COSE_FFI_TRUST_LIB)
+    message(STATUS "Found trust pack: ${COSE_FFI_TRUST_LIB}")
+    target_link_libraries(cose_sign1 INTERFACE ${COSE_FFI_TRUST_LIB})
+    target_compile_definitions(cose_sign1 INTERFACE COSE_HAS_TRUST_PACK)
+endif()
+
 # Enable testing
 if(BUILD_TESTING)
-    enable_testing()
     add_subdirectory(tests)
 endif()
+
+add_subdirectory(examples)
 
 # Installation rules
 install(DIRECTORY include/cose

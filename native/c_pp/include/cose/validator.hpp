@@ -253,6 +253,13 @@ public:
         
         return Validator(validator);
     }
+
+    /**
+     * @brief Expose the underlying C builder handle for advanced / optional pack projections.
+     */
+    cose_validator_builder_t* native_handle() const {
+        return builder_;
+    }
     
 protected:
     cose_validator_builder_t* builder_;

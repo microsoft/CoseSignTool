@@ -295,28 +295,31 @@ try {
 5. Build C++ projection: `cmake --build build --config Release`
 6. Run tests: `ctest -C Release` (requires Rust DLLs in PATH)
 
-### vcpkg (Future)
+### vcpkg (Overlay Port)
 ```json
 {
-  "name": "cose-sign1-validation",
-  "version": "0.1.0",
-  "description": "COSE Sign1 validation library",
-  "supports": "windows & linux & osx",
-  "default-features": ["certificates"],
-  "features": {
-    "certificates": {
-      "description": "X.509 certificate validation",
-      "dependencies": ["cose-sign1-validation-certificates"]
-    },
-    "mst": {
-      "description": "Merkle Sealed Transparency",
-      "dependencies": ["cose-sign1-validation-mst"]
-    },
-    "akv": {
-      "description": "Azure Key Vault",
-      "dependencies": ["cose-sign1-validation-akv"]
+    "name": "cosesign1-validation-native",
+    "version-string": "0.1.0",
+    "description": "C and C++ projections for COSE_Sign1 validation (Rust FFI-backed)",
+    "supports": "windows | linux | osx",
+    "default-features": ["certificates", "cpp"],
+    "features": {
+        "cpp": {
+            "description": "Install C++ projection headers + CMake target"
+        },
+        "certificates": {
+            "description": "Build/install X.509 certificates pack FFI and enable COSE_HAS_CERTIFICATES_PACK"
+        },
+        "mst": {
+            "description": "Build/install MST pack FFI and enable COSE_HAS_MST_PACK"
+        },
+        "akv": {
+            "description": "Build/install Azure Key Vault pack FFI and enable COSE_HAS_AKV_PACK"
+        },
+        "trust": {
+            "description": "Build/install trust-policy pack FFI and enable COSE_HAS_TRUST_PACK"
+        }
     }
-  }
 }
 ```
 

@@ -1,0 +1,19 @@
+cosesign1-validation-native provides C and C++ projection targets backed by Rust FFI static libraries.
+
+CMake:
+
+  find_package(cose_sign1_validation CONFIG REQUIRED)
+
+  # C API
+  target_link_libraries(your_target PRIVATE cosesign1_validation_native::cose_sign1)
+
+  # C++ API (if installed with feature "cpp")
+  target_link_libraries(your_cpp_target PRIVATE cosesign1_validation_native::cose_sign1_cpp)
+
+Features:
+
+  vcpkg install cosesign1-validation-native[cpp,certificates,mst,akv,trust]
+
+Notes:
+- This overlay port builds the Rust FFI libraries using cargo. Ensure Rust is installed and on PATH.
+- The installed CMake package name is `cose_sign1_validation`.

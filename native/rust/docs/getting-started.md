@@ -60,3 +60,95 @@ A minimal “smoke” setup (real signature verification using embedded X.509 `x
 For a runnable CLI-style demo, see:
 
 - `cose_sign1_validation_demo` (documented in `demo-exe.md`)
+
+### Detailed end-to-end example (custom trust plan + feedback)
+
+This example also exists as a compilable `cargo` example:
+
+- `native/rust/cose_sign1_validation/examples/validate_custom_policy.rs`
+
+Run it:
+
+- From `native/rust/`: `cargo run -p cose_sign1_validation --example validate_custom_policy`
+
+This example shows how to:
+
+- Configure trust packs (certificates pack shown)
+- Compile an explicit trust plan (message-scope + signing-key scope)
+- Validate a COSE_Sign1 message with a detached payload
+- Print user-friendly feedback when validation fails
+
+```rust
+use std::sync::Arc;
+
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_certificates::pack::{
+  CertificateTrustOptions, X509CertificateTrustPack,
+};
+use cose_sign1_validation_trust::CoseHeaderLocation;
+
+fn main() {
+  // Replace these with your own data sources.
+  let cose_bytes: Vec<u8> = /* ... */ Vec::new();
+  let payload_bytes: Vec<u8> = /* ... */ Vec::new();
+
+  if cose_bytes.is_empty() {
+    eprintln!("Provide COSE_Sign1 bytes before validating.");
+    return;
+  }
+
+  // 1) Configure packs
+  let cert_pack = Arc::new(X509CertificateTrustPack::new(CertificateTrustOptions {
+    // Deterministic for local examples/tests: treat embedded x5chain as trusted.
+    // In production, configure roots/CRLs/OCSP rather than enabling this.
+    trust_embedded_chain_as_trusted: true,
+    ..Default::default()
+  }));
+
+  let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![cert_pack];
+
+  // 2) Compile an explicit plan
+  let plan = TrustPlanBuilder::new(trust_packs)
+    .for_message(|msg| {
+      msg.require_content_type_non_empty()
+        .and()
+        .require_detached_payload_present()
+        .and()
+        .require_cwt_claims_present()
+    })
+    .and()
+    .for_primary_signing_key(|key| {
+      key.require_x509_chain_trusted()
+        .and()
+        .require_signing_certificate_present()
+        .and()
+        .require_signing_certificate_thumbprint_present()
+    })
+    .compile()
+    .expect("plan compile");
+
+  // 3) Create validator and configure detached payload
+  let validator = CoseSign1Validator::new(plan).with_options(|o| {
+    o.detached_payload = Some(DetachedPayload::bytes(Arc::from(
+      payload_bytes.into_boxed_slice(),
+    )));
+    o.certificate_header_location = CoseHeaderLocation::Any;
+  });
+
+  // 4) Validate
+  let result = validator
+    .validate_bytes(Arc::from(cose_bytes.into_boxed_slice()))
+    .expect("validation pipeline error");
+
+  if result.overall.is_valid() {
+    println!("Validation successful");
+    return;
+  }
+
+  // Feedback: print stage outcome + failure messages
+  eprintln!("overall: {:?}", result.overall.kind);
+  for failure in &result.overall.failures {
+    eprintln!("- {}", failure.message);
+  }
+}
+```

@@ -10,6 +10,7 @@
 #define COSE_AZURE_KEY_VAULT_H
 
 #include "cose_sign1.h"
+#include "cose_trust.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +54,42 @@ cose_status_t cose_validator_builder_with_akv_pack(
 cose_status_t cose_validator_builder_with_akv_pack_ex(
     cose_validator_builder_t* builder,
     const cose_akv_trust_options_t* options
+);
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` looks like an Azure Key Vault key identifier.
+ *
+ * This API is provided by the AKV pack FFI library and extends `cose_trust_policy_builder_t`.
+ */
+cose_status_t cose_akv_trust_policy_builder_require_azure_key_vault_kid(
+    cose_trust_policy_builder_t* policy_builder
+);
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` does not look like an Azure Key Vault key identifier.
+ *
+ * This API is provided by the AKV pack FFI library and extends `cose_trust_policy_builder_t`.
+ */
+cose_status_t cose_akv_trust_policy_builder_require_not_azure_key_vault_kid(
+    cose_trust_policy_builder_t* policy_builder
+);
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` is allowlisted by the AKV pack configuration.
+ *
+ * This API is provided by the AKV pack FFI library and extends `cose_trust_policy_builder_t`.
+ */
+cose_status_t cose_akv_trust_policy_builder_require_azure_key_vault_kid_allowed(
+    cose_trust_policy_builder_t* policy_builder
+);
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` is not allowlisted by the AKV pack configuration.
+ *
+ * This API is provided by the AKV pack FFI library and extends `cose_trust_policy_builder_t`.
+ */
+cose_status_t cose_akv_trust_policy_builder_require_azure_key_vault_kid_not_allowed(
+    cose_trust_policy_builder_t* policy_builder
 );
 
 #ifdef __cplusplus

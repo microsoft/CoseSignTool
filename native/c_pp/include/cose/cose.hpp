@@ -27,4 +27,8 @@
 #include <cose/azure_key_vault.hpp>
 #endif
 
+#ifdef COSE_HAS_TRUST_PACK
+#include <cose/trust.hpp>
+#endif
+
 #endif // COSE_HPP

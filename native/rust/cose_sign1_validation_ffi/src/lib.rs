@@ -6,7 +6,10 @@
 //! Pack-specific functionality (X.509, MST, AKV, trust policy) lives in separate FFI crates.
 
 use anyhow::Context as _;
-use cose_sign1_validation::fluent::{CoseSign1TrustPack, CoseSign1Validator, DetachedPayload};
+use cose_sign1_validation::fluent::{
+    CoseSign1CompiledTrustPlan, CoseSign1TrustPack, CoseSign1Validator, DetachedPayload,
+    TrustPlanBuilder,
+};
 use std::cell::RefCell;
 use std::ffi::{c_char, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -55,17 +58,43 @@ pub enum cose_status_t {
 #[repr(C)]
 pub struct cose_validator_builder_t {
     pub packs: Vec<Arc<dyn CoseSign1TrustPack>>,
+    pub compiled_plan: Option<CoseSign1CompiledTrustPlan>,
 }
 
 #[repr(C)]
 pub struct cose_validator_t {
     pub packs: Vec<Arc<dyn CoseSign1TrustPack>>,
+    pub compiled_plan: Option<CoseSign1CompiledTrustPlan>,
 }
 
 #[repr(C)]
 pub struct cose_validation_result_t {
     pub ok: bool,
     pub failure_message: Option<String>,
+}
+
+/// Opaque handle for incrementally building a custom trust policy.
+///
+/// This lives in the base FFI crate so optional pack FFI crates (certificates/MST/AKV)
+/// can add policy helper exports without depending on (and thereby statically duplicating)
+/// the trust FFI library.
+#[repr(C)]
+pub struct cose_trust_policy_builder_t {
+    pub builder: Option<TrustPlanBuilder>,
+}
+
+pub fn with_trust_policy_builder_mut(
+    policy_builder: *mut cose_trust_policy_builder_t,
+    f: impl FnOnce(TrustPlanBuilder) -> TrustPlanBuilder,
+) -> Result<(), anyhow::Error> {
+    let policy_builder = unsafe { policy_builder.as_mut() }
+        .ok_or_else(|| anyhow::anyhow!("policy_builder must not be null"))?;
+    let builder = policy_builder
+        .builder
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("policy_builder already compiled or invalid"))?;
+    policy_builder.builder = Some(f(builder));
+    Ok(())
 }
 
 pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
@@ -120,7 +149,10 @@ pub extern "C" fn cose_validator_builder_new(out: *mut *mut cose_validator_build
             anyhow::bail!("out must not be null");
         }
 
-        let builder = cose_validator_builder_t { packs: Vec::new() };
+        let builder = cose_validator_builder_t {
+            packs: Vec::new(),
+            compiled_plan: None,
+        };
         let boxed = Box::new(builder);
         unsafe {
             *out = Box::into_raw(boxed);
@@ -158,6 +190,7 @@ pub extern "C" fn cose_validator_builder_build(
 
         let boxed = Box::new(cose_validator_t {
             packs: builder.packs.clone(),
+            compiled_plan: builder.compiled_plan.clone(),
         });
         unsafe {
             *out = Box::into_raw(boxed);
@@ -250,7 +283,10 @@ pub extern "C" fn cose_validator_validate_bytes(
             Some(unsafe { std::slice::from_raw_parts(detached_payload, detached_payload_len) })
         };
 
-        let mut v = CoseSign1Validator::new(validator.packs.clone());
+        let mut v = match &validator.compiled_plan {
+            Some(plan) => CoseSign1Validator::new(plan.clone()),
+            None => CoseSign1Validator::new(validator.packs.clone()),
+        };
 
         if let Some(bytes) = detached {
             let payload: Arc<[u8]> = bytes.to_vec().into();

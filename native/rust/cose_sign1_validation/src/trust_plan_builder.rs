@@ -180,7 +180,7 @@ impl CoseSign1CompiledTrustPlan {
     }
 
     /// Rehydrate a bundle from a plan and packs, validating that required fact types are provided.
-    pub(crate) fn from_parts(
+    pub fn from_parts(
         plan: CompiledTrustPlan,
         trust_packs: Vec<Arc<dyn CoseSign1TrustPack>>,
     ) -> Result<Self, TrustPlanCompileError> {

@@ -4,8 +4,18 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use cose_sign1_validation_azure_key_vault::facts::{
+    AzureKeyVaultKidAllowedFact, AzureKeyVaultKidDetectedFact,
+};
+use cose_sign1_validation_azure_key_vault::fluent_ext::{
+    AzureKeyVaultKidAllowedWhereExt, AzureKeyVaultKidDetectedWhereExt,
+    AzureKeyVaultMessageScopeRulesExt,
+};
 use cose_sign1_validation_azure_key_vault::pack::{AzureKeyVaultTrustOptions, AzureKeyVaultTrustPack};
-use cose_sign1_validation_ffi::{cose_status_t, cose_validator_builder_t, with_catch_unwind};
+use cose_sign1_validation_ffi::{
+    cose_status_t, cose_trust_policy_builder_t, cose_validator_builder_t, with_catch_unwind,
+    with_trust_policy_builder_mut,
+};
 use std::ffi::{c_char, CStr};
 use std::sync::Arc;
 
@@ -92,9 +102,79 @@ pub extern "C" fn cose_validator_builder_with_akv_pack_ex(
     })
 }
 
+/// Trust-policy helper: require that the message `kid` looks like an Azure Key Vault key identifier.
+#[no_mangle]
+pub extern "C" fn cose_akv_trust_policy_builder_require_azure_key_vault_kid(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_message(|s| s.require_azure_key_vault_kid())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
+/// Trust-policy helper: require that the message `kid` does not look like an Azure Key Vault key identifier.
+#[no_mangle]
+pub extern "C" fn cose_akv_trust_policy_builder_require_not_azure_key_vault_kid(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_message(|s| {
+                s.require::<AzureKeyVaultKidDetectedFact>(|w| w.require_not_azure_key_vault_kid())
+            })
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
+/// Trust-policy helper: require that the message `kid` is allowlisted by the AKV pack configuration.
+#[no_mangle]
+pub extern "C" fn cose_akv_trust_policy_builder_require_azure_key_vault_kid_allowed(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_message(|s| s.require_azure_key_vault_kid_allowed())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
+/// Trust-policy helper: require that the message `kid` is not allowlisted by the AKV pack configuration.
+#[no_mangle]
+pub extern "C" fn cose_akv_trust_policy_builder_require_azure_key_vault_kid_not_allowed(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_message(|s| {
+                s.require::<AzureKeyVaultKidAllowedFact>(|w| w.require_kid_not_allowed())
+            })
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cose_sign1_validation::fluent::TrustPlanBuilder;
+
+    #[test]
+    fn akv_policy_helpers_compile_without_trust_pack() {
+        let mut policy = cose_trust_policy_builder_t {
+            builder: Some(TrustPlanBuilder::new(Vec::new())),
+        };
+
+        let status = cose_akv_trust_policy_builder_require_azure_key_vault_kid(&mut policy);
+        assert_eq!(status, cose_status_t::COSE_OK);
+
+        let status = cose_akv_trust_policy_builder_require_azure_key_vault_kid_allowed(&mut policy);
+        assert_eq!(status, cose_status_t::COSE_OK);
+    }
 
     #[test]
     fn akv_ffi_smoke() {

@@ -2,6 +2,8 @@
 build/
 Build/
 out/
+build-*/
+cmake-build-*/
 
 # Rust build artifacts
 target/
@@ -17,5 +19,13 @@ Testing/
 
 # Coverage reports
 coverage/
+coverage-*/
+coverage*/
 *.profraw
 *.profdata
+
+# vcpkg artifacts (when using vcpkg from this folder)
+vcpkg_installed/
+vcpkg/downloads/
+vcpkg/buildtrees/
+vcpkg/packages/

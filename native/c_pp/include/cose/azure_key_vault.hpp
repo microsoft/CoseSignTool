@@ -10,6 +10,7 @@
 #define COSE_AZURE_KEY_VAULT_HPP
 
 #include <cose/validator.hpp>
+#include <cose/trust.hpp>
 #include <cose/cose_azure_key_vault.h>
 #include <vector>
 #include <string>
@@ -76,6 +77,58 @@ public:
         return *this;
     }
 };
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` looks like an Azure Key Vault key identifier.
+ */
+inline TrustPolicyBuilder& RequireAzureKeyVaultKid(TrustPolicyBuilder& policy) {
+    cose_status_t status = cose_akv_trust_policy_builder_require_azure_key_vault_kid(
+        policy.native_handle()
+    );
+    if (status != COSE_OK) {
+        throw cose_error(status);
+    }
+    return policy;
+}
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` does not look like an Azure Key Vault key identifier.
+ */
+inline TrustPolicyBuilder& RequireNotAzureKeyVaultKid(TrustPolicyBuilder& policy) {
+    cose_status_t status = cose_akv_trust_policy_builder_require_not_azure_key_vault_kid(
+        policy.native_handle()
+    );
+    if (status != COSE_OK) {
+        throw cose_error(status);
+    }
+    return policy;
+}
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` is allowlisted by the AKV pack configuration.
+ */
+inline TrustPolicyBuilder& RequireAzureKeyVaultKidAllowed(TrustPolicyBuilder& policy) {
+    cose_status_t status = cose_akv_trust_policy_builder_require_azure_key_vault_kid_allowed(
+        policy.native_handle()
+    );
+    if (status != COSE_OK) {
+        throw cose_error(status);
+    }
+    return policy;
+}
+
+/**
+ * @brief Trust-policy helper: require that the message `kid` is not allowlisted by the AKV pack configuration.
+ */
+inline TrustPolicyBuilder& RequireAzureKeyVaultKidNotAllowed(TrustPolicyBuilder& policy) {
+    cose_status_t status = cose_akv_trust_policy_builder_require_azure_key_vault_kid_not_allowed(
+        policy.native_handle()
+    );
+    if (status != COSE_OK) {
+        throw cose_error(status);
+    }
+    return policy;
+}
 
 } // namespace cose
 

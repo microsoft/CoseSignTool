@@ -1,0 +1,22 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "windows-msvc-x64 (native packs)",
+      "intelliSenseMode": "windows-msvc-x64",
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "includePath": [
+        "${workspaceFolder}/native/c/include",
+        "${workspaceFolder}/native/c_pp/include",
+        "${workspaceFolder}/native/c_pp/../c/include"
+      ],
+      "defines": [
+        "COSE_HAS_CERTIFICATES_PACK",
+        "COSE_HAS_MST_PACK",
+        "COSE_HAS_AKV_PACK",
+        "COSE_HAS_TRUST_PACK"
+      ]
+    }
+  ]
+}

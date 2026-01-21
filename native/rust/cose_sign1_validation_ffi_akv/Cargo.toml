@@ -15,3 +15,6 @@ workspace = true
 
 [dependencies.libc]
 version = "0.2"
+
+[dev-dependencies]
+cose_sign1_validation = { path = "../cose_sign1_validation" }

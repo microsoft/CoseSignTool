@@ -8,6 +8,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 cose_sign1_validation_ffi = { path = "../cose_sign1_validation_ffi" }
+cose_sign1_validation = { path = "../cose_sign1_validation" }
 cose_sign1_validation_transparent_mst = { path = "../cose_sign1_validation_transparent_mst" }
 
 [dependencies.anyhow]

@@ -35,6 +35,11 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# CMake build directories
+build/
+build-*/
+cmake-build-*/
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
@@ -149,6 +154,11 @@ coverage*.json
 coverage*.xml
 coverage*.info
 
+# Coverage output directories (native scripts, OpenCppCoverage, etc.)
+coverage/
+coverage-*/
+coverage*/
+
 # Visual Studio code coverage results
 *.coverage
 *.coveragexml
@@ -198,6 +208,26 @@ PublishScripts/
 *.nupkg
 # NuGet Symbol Packages
 *.snupkg
+
+# vcpkg artifacts (manifest mode / local dev)
+vcpkg_installed/
+vcpkg/downloads/
+vcpkg/buildtrees/
+vcpkg/packages/
+
+# vcpkg artifacts that may appear under subfolders
+native/**/vcpkg_installed/
+native/**/vcpkg/downloads/
+native/**/vcpkg/buildtrees/
+native/**/vcpkg/packages/
+
+# Native (C/C++) CMake build outputs
+native/**/build/
+native/**/CMakeFiles/
+native/**/CMakeCache.txt
+native/**/cmake_install.cmake
+native/**/CTestTestfile.cmake
+native/**/Testing/
 # The packages folder can be ignored because of Package Restore
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.

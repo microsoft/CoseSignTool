@@ -47,10 +47,7 @@ public:
      */
     ValidatorBuilderWithCertificates& WithCertificates() {
         CheckBuilder();
-        cose_status_t status = cose_validator_builder_with_certificates_pack(builder_);
-        if (status != COSE_OK) {
-            throw cose_error(status);
-        }
+        detail::ThrowIfNotOk(cose_validator_builder_with_certificates_pack(builder_));
         return *this;
     }
     
@@ -82,10 +79,7 @@ public:
             options.pqc_algorithm_oids.empty() ? nullptr : oids_ptrs.data()
         };
         
-        cose_status_t status = cose_validator_builder_with_certificates_pack_ex(builder_, &c_opts);
-        if (status != COSE_OK) {
-            throw cose_error(status);
-        }
+        detail::ThrowIfNotOk(cose_validator_builder_with_certificates_pack_ex(builder_, &c_opts));
         
         return *this;
     }
@@ -95,12 +89,9 @@ public:
  * @brief Trust-policy helper: require that the X.509 chain is trusted.
  */
 inline TrustPolicyBuilder& RequireX509ChainTrusted(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_trusted(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_trusted(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -108,12 +99,9 @@ inline TrustPolicyBuilder& RequireX509ChainTrusted(TrustPolicyBuilder& policy) {
  * @brief Trust-policy helper: require that the X.509 chain is not trusted.
  */
 inline TrustPolicyBuilder& RequireX509ChainNotTrusted(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_not_trusted(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_not_trusted(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -121,12 +109,9 @@ inline TrustPolicyBuilder& RequireX509ChainNotTrusted(TrustPolicyBuilder& policy
  * @brief Trust-policy helper: require that the X.509 chain could be built (pack observed at least one element).
  */
 inline TrustPolicyBuilder& RequireX509ChainBuilt(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_built(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_built(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -134,12 +119,9 @@ inline TrustPolicyBuilder& RequireX509ChainBuilt(TrustPolicyBuilder& policy) {
  * @brief Trust-policy helper: require that the X.509 chain could not be built.
  */
 inline TrustPolicyBuilder& RequireX509ChainNotBuilt(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_not_built(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_not_built(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -147,13 +129,12 @@ inline TrustPolicyBuilder& RequireX509ChainNotBuilt(TrustPolicyBuilder& policy) 
  * @brief Trust-policy helper: require that the X.509 chain element count equals `expected`.
  */
 inline TrustPolicyBuilder& RequireX509ChainElementCountEq(TrustPolicyBuilder& policy, size_t expected) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_element_count_eq(
-        policy.native_handle(),
-        expected
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_element_count_eq(
+            policy.native_handle(),
+            expected
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -161,13 +142,12 @@ inline TrustPolicyBuilder& RequireX509ChainElementCountEq(TrustPolicyBuilder& po
  * @brief Trust-policy helper: require that the X.509 chain status flags equal `expected`.
  */
 inline TrustPolicyBuilder& RequireX509ChainStatusFlagsEq(TrustPolicyBuilder& policy, uint32_t expected) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_chain_status_flags_eq(
-        policy.native_handle(),
-        expected
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_chain_status_flags_eq(
+            policy.native_handle(),
+            expected
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -175,12 +155,9 @@ inline TrustPolicyBuilder& RequireX509ChainStatusFlagsEq(TrustPolicyBuilder& pol
  * @brief Trust-policy helper: require that the leaf chain element (index 0) has a non-empty thumbprint.
  */
 inline TrustPolicyBuilder& RequireLeafChainThumbprintPresent(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_leaf_chain_thumbprint_present(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_leaf_chain_thumbprint_present(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -188,12 +165,9 @@ inline TrustPolicyBuilder& RequireLeafChainThumbprintPresent(TrustPolicyBuilder&
  * @brief Trust-policy helper: require that a signing certificate identity fact is present.
  */
 inline TrustPolicyBuilder& RequireSigningCertificatePresent(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_present(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_present(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -201,13 +175,12 @@ inline TrustPolicyBuilder& RequireSigningCertificatePresent(TrustPolicyBuilder& 
  * @brief Trust-policy helper: pin the leaf certificate subject name (chain element index 0).
  */
 inline TrustPolicyBuilder& RequireLeafSubjectEq(TrustPolicyBuilder& policy, const std::string& subject) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_leaf_subject_eq(
-        policy.native_handle(),
-        subject.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_leaf_subject_eq(
+            policy.native_handle(),
+            subject.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -215,13 +188,12 @@ inline TrustPolicyBuilder& RequireLeafSubjectEq(TrustPolicyBuilder& policy, cons
  * @brief Trust-policy helper: pin the issuer certificate subject name (chain element index 1).
  */
 inline TrustPolicyBuilder& RequireIssuerSubjectEq(TrustPolicyBuilder& policy, const std::string& subject) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_issuer_subject_eq(
-        policy.native_handle(),
-        subject.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_issuer_subject_eq(
+            policy.native_handle(),
+            subject.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -229,13 +201,11 @@ inline TrustPolicyBuilder& RequireIssuerSubjectEq(TrustPolicyBuilder& policy, co
  * @brief Trust-policy helper: require that the signing certificate subject/issuer matches the leaf chain element.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateSubjectIssuerMatchesLeafChainElement(TrustPolicyBuilder& policy) {
-    cose_status_t status =
+    detail::ThrowIfNotOk(
         cose_certificates_trust_policy_builder_require_signing_certificate_subject_issuer_matches_leaf_chain_element(
             policy.native_handle()
-        );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
+        )
+    );
     return policy;
 }
 
@@ -243,13 +213,11 @@ inline TrustPolicyBuilder& RequireSigningCertificateSubjectIssuerMatchesLeafChai
  * @brief Trust-policy helper: if the issuer element (index 1) is missing, allow; otherwise require issuer chaining.
  */
 inline TrustPolicyBuilder& RequireLeafIssuerIsNextChainSubjectOptional(TrustPolicyBuilder& policy) {
-    cose_status_t status =
+    detail::ThrowIfNotOk(
         cose_certificates_trust_policy_builder_require_leaf_issuer_is_next_chain_subject_optional(
             policy.native_handle()
-        );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
+        )
+    );
     return policy;
 }
 
@@ -257,13 +225,12 @@ inline TrustPolicyBuilder& RequireLeafIssuerIsNextChainSubjectOptional(TrustPoli
  * @brief Trust-policy helper: require the leaf signing certificate thumbprint to equal the provided value.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateThumbprintEq(TrustPolicyBuilder& policy, const std::string& thumbprint) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_thumbprint_eq(
-        policy.native_handle(),
-        thumbprint.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_thumbprint_eq(
+            policy.native_handle(),
+            thumbprint.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -271,12 +238,9 @@ inline TrustPolicyBuilder& RequireSigningCertificateThumbprintEq(TrustPolicyBuil
  * @brief Trust-policy helper: require that the leaf signing certificate thumbprint is present and non-empty.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateThumbprintPresent(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_thumbprint_present(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_thumbprint_present(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -284,13 +248,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateThumbprintPresent(TrustPolic
  * @brief Trust-policy helper: require the leaf signing certificate subject to equal the provided value.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateSubjectEq(TrustPolicyBuilder& policy, const std::string& subject) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_subject_eq(
-        policy.native_handle(),
-        subject.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_subject_eq(
+            policy.native_handle(),
+            subject.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -298,13 +261,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateSubjectEq(TrustPolicyBuilder
  * @brief Trust-policy helper: require the leaf signing certificate issuer to equal the provided value.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateIssuerEq(TrustPolicyBuilder& policy, const std::string& issuer) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_issuer_eq(
-        policy.native_handle(),
-        issuer.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_issuer_eq(
+            policy.native_handle(),
+            issuer.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -315,13 +277,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateSerialNumberEq(
     TrustPolicyBuilder& policy,
     const std::string& serial_number
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_serial_number_eq(
-        policy.native_handle(),
-        serial_number.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_serial_number_eq(
+            policy.native_handle(),
+            serial_number.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -329,13 +290,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateSerialNumberEq(
  * @brief Trust-policy helper: require that the signing certificate is expired at or before `now_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateExpiredAtOrBefore(TrustPolicyBuilder& policy, int64_t now_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_expired_at_or_before(
-        policy.native_handle(),
-        now_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_expired_at_or_before(
+            policy.native_handle(),
+            now_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -343,13 +303,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateExpiredAtOrBefore(TrustPolic
  * @brief Trust-policy helper: require that the leaf signing certificate is valid at `now_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateValidAt(TrustPolicyBuilder& policy, int64_t now_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_valid_at(
-        policy.native_handle(),
-        now_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_valid_at(
+            policy.native_handle(),
+            now_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -357,13 +316,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateValidAt(TrustPolicyBuilder& 
  * @brief Trust-policy helper: require signing certificate not-before <= `max_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateNotBeforeLe(TrustPolicyBuilder& policy, int64_t max_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_not_before_le(
-        policy.native_handle(),
-        max_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_not_before_le(
+            policy.native_handle(),
+            max_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -371,13 +329,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateNotBeforeLe(TrustPolicyBuild
  * @brief Trust-policy helper: require signing certificate not-before >= `min_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateNotBeforeGe(TrustPolicyBuilder& policy, int64_t min_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_not_before_ge(
-        policy.native_handle(),
-        min_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_not_before_ge(
+            policy.native_handle(),
+            min_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -385,13 +342,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateNotBeforeGe(TrustPolicyBuild
  * @brief Trust-policy helper: require signing certificate not-after <= `max_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateNotAfterLe(TrustPolicyBuilder& policy, int64_t max_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_not_after_le(
-        policy.native_handle(),
-        max_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_not_after_le(
+            policy.native_handle(),
+            max_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -399,13 +355,12 @@ inline TrustPolicyBuilder& RequireSigningCertificateNotAfterLe(TrustPolicyBuilde
  * @brief Trust-policy helper: require signing certificate not-after >= `min_unix_seconds`.
  */
 inline TrustPolicyBuilder& RequireSigningCertificateNotAfterGe(TrustPolicyBuilder& policy, int64_t min_unix_seconds) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_signing_certificate_not_after_ge(
-        policy.native_handle(),
-        min_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_signing_certificate_not_after_ge(
+            policy.native_handle(),
+            min_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -417,14 +372,13 @@ inline TrustPolicyBuilder& RequireChainElementSubjectEq(
     size_t index,
     const std::string& subject
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_subject_eq(
-        policy.native_handle(),
-        index,
-        subject.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_subject_eq(
+            policy.native_handle(),
+            index,
+            subject.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -436,14 +390,13 @@ inline TrustPolicyBuilder& RequireChainElementIssuerEq(
     size_t index,
     const std::string& issuer
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_issuer_eq(
-        policy.native_handle(),
-        index,
-        issuer.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_issuer_eq(
+            policy.native_handle(),
+            index,
+            issuer.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -455,14 +408,13 @@ inline TrustPolicyBuilder& RequireChainElementThumbprintEq(
     size_t index,
     const std::string& thumbprint
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_thumbprint_eq(
-        policy.native_handle(),
-        index,
-        thumbprint.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_thumbprint_eq(
+            policy.native_handle(),
+            index,
+            thumbprint.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -473,13 +425,12 @@ inline TrustPolicyBuilder& RequireChainElementThumbprintPresent(
     TrustPolicyBuilder& policy,
     size_t index
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_thumbprint_present(
-        policy.native_handle(),
-        index
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_thumbprint_present(
+            policy.native_handle(),
+            index
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -491,14 +442,13 @@ inline TrustPolicyBuilder& RequireChainElementValidAt(
     size_t index,
     int64_t now_unix_seconds
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_valid_at(
-        policy.native_handle(),
-        index,
-        now_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_valid_at(
+            policy.native_handle(),
+            index,
+            now_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -510,14 +460,13 @@ inline TrustPolicyBuilder& RequireChainElementNotBeforeLe(
     size_t index,
     int64_t max_unix_seconds
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_not_before_le(
-        policy.native_handle(),
-        index,
-        max_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_not_before_le(
+            policy.native_handle(),
+            index,
+            max_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -529,14 +478,13 @@ inline TrustPolicyBuilder& RequireChainElementNotBeforeGe(
     size_t index,
     int64_t min_unix_seconds
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_not_before_ge(
-        policy.native_handle(),
-        index,
-        min_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_not_before_ge(
+            policy.native_handle(),
+            index,
+            min_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -548,14 +496,13 @@ inline TrustPolicyBuilder& RequireChainElementNotAfterLe(
     size_t index,
     int64_t max_unix_seconds
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_not_after_le(
-        policy.native_handle(),
-        index,
-        max_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_not_after_le(
+            policy.native_handle(),
+            index,
+            max_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -567,14 +514,13 @@ inline TrustPolicyBuilder& RequireChainElementNotAfterGe(
     size_t index,
     int64_t min_unix_seconds
 ) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_chain_element_not_after_ge(
-        policy.native_handle(),
-        index,
-        min_unix_seconds
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_chain_element_not_after_ge(
+            policy.native_handle(),
+            index,
+            min_unix_seconds
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -582,12 +528,9 @@ inline TrustPolicyBuilder& RequireChainElementNotAfterGe(
  * @brief Trust-policy helper: deny if a PQC algorithm is explicitly detected; allow if missing.
  */
 inline TrustPolicyBuilder& RequireNotPqcAlgorithmOrMissing(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -595,13 +538,12 @@ inline TrustPolicyBuilder& RequireNotPqcAlgorithmOrMissing(TrustPolicyBuilder& p
  * @brief Trust-policy helper: require that the X.509 public key algorithm fact has thumbprint equal to the provided value.
  */
 inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmThumbprintEq(TrustPolicyBuilder& policy, const std::string& thumbprint) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_thumbprint_eq(
-        policy.native_handle(),
-        thumbprint.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_thumbprint_eq(
+            policy.native_handle(),
+            thumbprint.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -609,13 +551,12 @@ inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmThumbprintEq(TrustPolicy
  * @brief Trust-policy helper: require that the X.509 public key algorithm OID equals the provided value.
  */
 inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmOidEq(TrustPolicyBuilder& policy, const std::string& oid) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_oid_eq(
-        policy.native_handle(),
-        oid.c_str()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_oid_eq(
+            policy.native_handle(),
+            oid.c_str()
+        )
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -623,12 +564,9 @@ inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmOidEq(TrustPolicyBuilder
  * @brief Trust-policy helper: require that the X.509 public key algorithm is flagged as PQC.
  */
 inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmIsPqc(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 
@@ -636,12 +574,9 @@ inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmIsPqc(TrustPolicyBuilder
  * @brief Trust-policy helper: require that the X.509 public key algorithm is not flagged as PQC.
  */
 inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmIsNotPqc(TrustPolicyBuilder& policy) {
-    cose_status_t status = cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc(
-        policy.native_handle()
+    detail::ThrowIfNotOk(
+        cose_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc(policy.native_handle())
     );
-    if (status != COSE_OK) {
-        throw cose_error(status);
-    }
     return policy;
 }
 

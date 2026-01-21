@@ -17,3 +17,4 @@ Features:
 Notes:
 - This overlay port builds the Rust FFI libraries using cargo. Ensure Rust is installed and on PATH.
 - The installed CMake package name is `cose_sign1_validation`.
+- Native docs are installed under `share/cosesign1-validation-native/docs/native/` (including `docs/README.md`).

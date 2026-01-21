@@ -72,6 +72,11 @@ if (GTest_FOUND)
 	cose_copy_rust_dlls(smoke_test_cpp)
 	gtest_discover_tests(smoke_test_cpp DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 30)
 
+	add_executable(coverage_surface_cpp coverage_surface_gtest.cpp)
+	target_link_libraries(coverage_surface_cpp PRIVATE cose_sign1_cpp GTest::gtest_main)
+	cose_copy_rust_dlls(coverage_surface_cpp)
+	gtest_discover_tests(coverage_surface_cpp DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 30)
+
 	if (COSE_FFI_TRUST_LIB)
 		add_executable(real_world_trust_plans_test_cpp real_world_trust_plans_gtest.cpp)
 		target_link_libraries(real_world_trust_plans_test_cpp PRIVATE cose_sign1_cpp GTest::gtest_main)

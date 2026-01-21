@@ -77,6 +77,37 @@ jobs:
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
+  native-coverage-windows:
+    name: native-coverage-windows-asan
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build Rust FFI libraries (release)
+      shell: pwsh
+      run: |
+        cargo build --manifest-path native/rust/Cargo.toml --release -p cose_sign1_validation_ffi -p cose_sign1_validation_ffi_certificates -p cose_sign1_validation_ffi_mst -p cose_sign1_validation_ffi_akv -p cose_sign1_validation_ffi_trust
+
+    - name: Install OpenCppCoverage
+      shell: pwsh
+      run: |
+        choco install opencppcoverage -y --no-progress
+
+    - name: Native C coverage (Debug + ASAN, 95% gate)
+      shell: pwsh
+      run: |
+        ./native/c/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
+
+    - name: Native C++ coverage (Debug + ASAN, 95% gate)
+      shell: pwsh
+      run: |
+        ./native/c_pp/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
+
   # Create a changelog that includes all the PRs merged since the last release.
   # If it's not a pull request, skip to the build job.
   create_changelog:

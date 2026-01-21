@@ -39,8 +39,10 @@ ctest -C Release
 Coverage for the C projection is collected with OpenCppCoverage.
 
 ```powershell
-./collect-coverage.ps1 -Configuration RelWithDebInfo
+./collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
 ```
+
+Note: on Windows, `Debug` tends to produce the most reliable line-coverage measurement under OpenCppCoverage (especially when ASAN is enabled).
 
 Outputs HTML to `native/c/coverage/index.html`.
 

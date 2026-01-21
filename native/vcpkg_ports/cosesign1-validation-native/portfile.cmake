@@ -15,6 +15,22 @@ endif()
 
 set(_RUST_WORKSPACE_DIR "${_COSE_REPO_ROOT}/native/rust")
 
+# Locate cargo (vcpkg's build environment may not have rustup on PATH).
+set(_COSE_CARGO "")
+if(DEFINED ENV{CARGO} AND NOT "$ENV{CARGO}" STREQUAL "")
+    set(_COSE_CARGO "$ENV{CARGO}")
+elseif(VCPKG_TARGET_IS_WINDOWS AND DEFINED ENV{USERPROFILE} AND EXISTS "$ENV{USERPROFILE}/.cargo/bin/cargo.exe")
+    set(_COSE_CARGO "$ENV{USERPROFILE}/.cargo/bin/cargo.exe")
+elseif(DEFINED ENV{HOME} AND EXISTS "$ENV{HOME}/.cargo/bin/cargo")
+    set(_COSE_CARGO "$ENV{HOME}/.cargo/bin/cargo")
+else()
+    find_program(_COSE_CARGO cargo)
+endif()
+
+if(_COSE_CARGO STREQUAL "")
+    message(FATAL_ERROR "cargo not found. Install Rust (rustup) and ensure cargo is on PATH, or set the CARGO environment variable.")
+endif()
+
 # Map vcpkg architecture to a Rust target triple where possible.
 set(_RUST_TARGET "")
 if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
@@ -66,7 +82,7 @@ function(_cose_cargo_build config)
 
     foreach(_pkg IN LISTS _PACKAGES_TO_BUILD)
         vcpkg_execute_required_process(
-            COMMAND cargo build ${_CARGO_PROFILE} --package ${_pkg} --locked ${_CARGO_TARGET_ARGS}
+            COMMAND "${_COSE_CARGO}" build ${_CARGO_PROFILE} --package ${_pkg} --locked ${_CARGO_TARGET_ARGS}
             WORKING_DIRECTORY "${_RUST_WORKSPACE_DIR}"
             LOGNAME "cargo-build-${_pkg}-${config}"
         )
@@ -113,6 +129,12 @@ endif()
 # CMake config + usage docs
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/cose_sign1_validationConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/usage" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
+
+# Native developer docs
+file(INSTALL "${_COSE_REPO_ROOT}/native/ARCHITECTURE.md" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}/docs/native")
+file(INSTALL DIRECTORY "${_COSE_REPO_ROOT}/native/docs/" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}/docs/native/docs" FILES_MATCHING PATTERN "*.md")
+file(INSTALL DIRECTORY "${_COSE_REPO_ROOT}/native/c/docs/" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}/docs/native/c/docs" FILES_MATCHING PATTERN "*.md")
+file(INSTALL DIRECTORY "${_COSE_REPO_ROOT}/native/c_pp/docs/" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}/docs/native/c_pp/docs" FILES_MATCHING PATTERN "*.md")
 
 # License
 file(INSTALL "${_COSE_REPO_ROOT}/LICENSE" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)

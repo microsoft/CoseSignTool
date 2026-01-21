@@ -21,6 +21,11 @@ param(
     # Otherwise, run tests via CTest and skip coverage generation.
     [switch]$RequireCoverageTool,
 
+    # Minimum overall line coverage percentage required for production/header code.
+    # Set to 0 to disable coverage gating (tests will still run).
+    [ValidateRange(0, 100)]
+    [int]$MinimumLineCoveragePercent = 95,
+
     [switch]$NoBuild
 )
 
@@ -49,8 +54,111 @@ function Get-NormalizedPath([string]$Path) {
     return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Get-CoberturaLineCoverage([string]$CoberturaPath) {
+    if (-not (Test-Path $CoberturaPath)) {
+        throw "Cobertura report not found: $CoberturaPath"
+    }
+
+    [xml]$xml = Get-Content -LiteralPath $CoberturaPath
+    $root = $xml.SelectSingleNode('/coverage')
+    if (-not $root) {
+        throw "Invalid Cobertura report (missing <coverage> root): $CoberturaPath"
+    }
+
+    # OpenCppCoverage's Cobertura export can include the same source file multiple
+    # times (e.g., once per module/test executable). The <coverage> root totals may
+    # therefore double-count "lines-valid" and under-report the union coverage.
+    # Aggregate coverage by (filename, line number) and take the max hits.
+    $fileToLineHits = @{}
+    $classNodes = $xml.SelectNodes('//class[@filename]')
+    foreach ($classNode in $classNodes) {
+        $filename = $classNode.GetAttribute('filename')
+        if (-not $filename) {
+            continue
+        }
+
+        if (-not $fileToLineHits.ContainsKey($filename)) {
+            $fileToLineHits[$filename] = @{}
+        }
+
+        $lineNodes = $classNode.SelectNodes('lines/line[@number and @hits]')
+        foreach ($lineNode in $lineNodes) {
+            $lineNumber = [int]$lineNode.GetAttribute('number')
+            $hits = [int]$lineNode.GetAttribute('hits')
+            $lineHitsForFile = $fileToLineHits[$filename]
+
+            if ($lineHitsForFile.ContainsKey($lineNumber)) {
+                if ($hits -gt $lineHitsForFile[$lineNumber]) {
+                    $lineHitsForFile[$lineNumber] = $hits
+                }
+            } else {
+                $lineHitsForFile[$lineNumber] = $hits
+            }
+        }
+    }
+
+    $dedupedValid = 0
+    $dedupedCovered = 0
+    foreach ($filename in $fileToLineHits.Keys) {
+        foreach ($lineNumber in $fileToLineHits[$filename].Keys) {
+            $dedupedValid += 1
+            if ($fileToLineHits[$filename][$lineNumber] -gt 0) {
+                $dedupedCovered += 1
+            }
+        }
+    }
+
+    $dedupedPercent = 0.0
+    if ($dedupedValid -gt 0) {
+        $dedupedPercent = ($dedupedCovered / [double]$dedupedValid) * 100.0
+    }
+
+    # Keep root totals for diagnostics/fallback.
+    $rootLinesValid = [int]$root.GetAttribute('lines-valid')
+    $rootLinesCovered = [int]$root.GetAttribute('lines-covered')
+    $rootLineRateAttr = $root.GetAttribute('line-rate')
+    $rootPercent = 0.0
+    if ($rootLinesValid -gt 0) {
+        $rootPercent = ($rootLinesCovered / [double]$rootLinesValid) * 100.0
+    } elseif ($rootLineRateAttr) {
+        $rootPercent = ([double]$rootLineRateAttr) * 100.0
+    }
+
+    # If the deduped aggregation produced no data (e.g., missing <lines> entries),
+    # fall back to root totals so we still surface something useful.
+    if ($dedupedValid -le 0 -and $rootLinesValid -gt 0) {
+        $dedupedValid = $rootLinesValid
+        $dedupedCovered = $rootLinesCovered
+        $dedupedPercent = $rootPercent
+    }
+
+    return [pscustomobject]@{
+        LinesValid = $dedupedValid
+        LinesCovered = $dedupedCovered
+        Percent = $dedupedPercent
+
+        RootLinesValid = $rootLinesValid
+        RootLinesCovered = $rootLinesCovered
+        RootPercent = $rootPercent
+        FileCount = $fileToLineHits.Count
+    }
+}
+
 function Assert-Tooling {
     $openCpp = Get-Command 'OpenCppCoverage.exe' -ErrorAction SilentlyContinue
+    if (-not $openCpp) {
+        $candidates = @(
+            $env:OPENCPPCOVERAGE_PATH,
+            'C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe',
+            'C:\\Program Files (x86)\\OpenCppCoverage\\OpenCppCoverage.exe'
+        )
+        foreach ($candidate in $candidates) {
+            if ($candidate -and (Test-Path $candidate)) {
+                $openCpp = [pscustomobject]@{ Source = $candidate }
+                break
+            }
+        }
+    }
     if (-not $openCpp -and $RequireCoverageTool) {
         throw "OpenCppCoverage.exe not found on PATH. Install OpenCppCoverage and ensure it's available in PATH, or omit -RequireCoverageTool to run tests without coverage. See: https://github.com/OpenCppCoverage/OpenCppCoverage"
     }
@@ -99,6 +207,10 @@ $openCppCoverageExe = $tools.OpenCppCoverage
 $cmakeExe = $tools.CMake
 $ctestExe = $tools.CTest
 
+if ($MinimumLineCoveragePercent -gt 0) {
+    $RequireCoverageTool = $true
+}
+
 # If the caller didn't explicitly override BuildDir/ReportDir, use ASAN-specific defaults.
 if ($EnableAsan) {
     if (-not $PSBoundParameters.ContainsKey('BuildDir')) {
@@ -143,24 +255,57 @@ if (-not (Test-Path $BuildDir)) {
 
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
 
-$sources = @(
-    (Join-Path $PSScriptRoot 'include'),
-    (Join-Path $PSScriptRoot 'tests')
-) -join ';'
+$sourcesList = @(
+    # Production/header code is primarily in include/
+    (Get-NormalizedPath (Join-Path $PSScriptRoot 'include'))
+)
 
-$exclude = @(
+$excludeList = @(
     (Get-NormalizedPath $BuildDir),
-    (Get-NormalizedPath (Join-Path $PSScriptRoot '..\rust\target'))
-) -join ';'
+    (Get-NormalizedPath (Join-Path $PSScriptRoot '..\\rust\\target'))
+)
 
 if ($openCppCoverageExe) {
-    & $openCppCoverageExe `
-        --sources $sources `
-        --excluded_sources $exclude `
-        --export_type ("html:" + $ReportDir) `
-        --quiet `
-        -- `
-        $ctestExe --test-dir $BuildDir -C $Configuration --output-on-failure
+    $coberturaPath = (Join-Path $ReportDir 'cobertura.xml')
+
+    $openCppArgs = @()
+    foreach($s in $sourcesList) { $openCppArgs += '--sources'; $openCppArgs += $s }
+    foreach($e in $excludeList) { $openCppArgs += '--excluded_sources'; $openCppArgs += $e }
+    $openCppArgs += '--export_type'
+    $openCppArgs += ("html:" + $ReportDir)
+    $openCppArgs += '--export_type'
+    $openCppArgs += ("cobertura:" + $coberturaPath)
+
+    # CTest spawns test executables; we must enable child-process coverage.
+    $openCppArgs += '--cover_children'
+
+    $openCppArgs += '--quiet'
+    $openCppArgs += '--'
+
+    & $openCppCoverageExe @openCppArgs $ctestExe --test-dir $BuildDir -C $Configuration --output-on-failure
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenCppCoverage failed with exit code $LASTEXITCODE"
+    }
+
+    $coverage = Get-CoberturaLineCoverage $coberturaPath
+    $pct = [Math]::Round([double]$coverage.Percent, 2)
+    Write-Host "Line coverage (production/header): ${pct}% ($($coverage.LinesCovered)/$($coverage.LinesValid))"
+
+    if (($null -ne $coverage.RootLinesValid) -and ($coverage.RootLinesValid -gt 0)) {
+        $rootPct = [Math]::Round([double]$coverage.RootPercent, 2)
+        Write-Host "(Cobertura root totals: ${rootPct}% ($($coverage.RootLinesCovered)/$($coverage.RootLinesValid)))"
+    }
+
+    if ($MinimumLineCoveragePercent -gt 0) {
+        if ($coverage.LinesValid -le 0) {
+            throw "No coverable production/header lines were detected by OpenCppCoverage (lines-valid=0); cannot enforce $MinimumLineCoveragePercent% gate."
+        }
+
+        if ($coverage.Percent -lt $MinimumLineCoveragePercent) {
+            throw "Line coverage ${pct}% is below required ${MinimumLineCoveragePercent}%."
+        }
+    }
 } else {
     Write-Warning "OpenCppCoverage.exe not found; running tests without coverage."
     & $ctestExe --test-dir $BuildDir -C $Configuration --output-on-failure

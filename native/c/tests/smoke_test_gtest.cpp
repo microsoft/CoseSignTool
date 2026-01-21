@@ -24,6 +24,12 @@ static void assert_ok(cose_status_t st, const char* call) {
     ASSERT_EQ(st, COSE_OK) << call << ": " << take_last_error();
 }
 
+TEST(SmokeC, TakeLastErrorReturnsString) {
+    // Ensure the helper itself is covered even when assertions pass.
+    const auto s = take_last_error();
+    EXPECT_FALSE(s.empty());
+}
+
 TEST(SmokeC, AbiVersionAvailable) {
     EXPECT_GT(cose_ffi_abi_version(), 0u);
 }

@@ -38,6 +38,23 @@ private:
     }
 };
 
+namespace detail {
+
+inline void ThrowIfNotOk(cose_status_t status) {
+    if (status != COSE_OK) {
+        throw cose_error(status);
+    }
+}
+
+template <typename T>
+inline void ThrowIfNotOkOrNull(cose_status_t status, T* ptr) {
+    if (status != COSE_OK || !ptr) {
+        throw cose_error(status);
+    }
+}
+
+} // namespace detail
+
 /**
  * @brief RAII wrapper for validation result
  */

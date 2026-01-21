@@ -76,6 +76,41 @@ static std::string join_path2(const std::string& a, const std::string& b) {
     return a + "/" + b;
 }
 
+TEST(RealWorldTrustPlansC, CoverageHelpers) {
+    // Cover the "no error" branch.
+    cose_last_error_clear();
+    EXPECT_EQ(take_last_error(), "(no error message)");
+
+    // Cover join_path2 branches.
+    EXPECT_EQ(join_path2("", "b"), "b");
+    EXPECT_EQ(join_path2("a/", "b"), "a/b");
+    EXPECT_EQ(join_path2("a\\", "b"), "a\\b");
+    EXPECT_EQ(join_path2("a", "b"), "a/b");
+
+    // Cover read_file_bytes error path.
+    EXPECT_THROW((void)read_file_bytes("this_file_should_not_exist_12345.bin"), std::runtime_error);
+
+    // Cover read_file_bytes success path.
+    const char* temp = std::getenv("TEMP");
+    std::string tmp_dir = temp ? temp : ".";
+    std::string tmp_path = join_path2(tmp_dir, "cose_native_tmp_file.bin");
+    {
+        std::ofstream out(tmp_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        const unsigned char bytes[3] = { 1, 2, 3 };
+        out.write(reinterpret_cast<const char*>(bytes), 3);
+        ASSERT_TRUE(out.good());
+    }
+
+    auto got = read_file_bytes(tmp_path);
+    EXPECT_EQ(got.size(), 3u);
+    EXPECT_EQ(got[0], 1);
+    EXPECT_EQ(got[1], 2);
+    EXPECT_EQ(got[2], 3);
+
+    (void)std::remove(tmp_path.c_str());
+}
+
 TEST(RealWorldTrustPlansC, CompileFailsWhenRequiredPackMissing) {
 #ifndef COSE_HAS_TRUST_PACK
     GTEST_SKIP() << "trust pack not available";

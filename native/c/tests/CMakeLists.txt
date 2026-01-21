@@ -46,6 +46,26 @@ if (GTest_FOUND)
 				COMMAND_EXPAND_LISTS
 			)
 		endif()
+
+		# MSVC ASAN uses an additional runtime DLL that is not always present on PATH.
+		# Copy it next to the executable to avoid 0xc0000135 during gtest discovery.
+		if(MSVC AND COSE_ENABLE_ASAN)
+			get_filename_component(_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+			foreach(_asan_name IN ITEMS
+				clang_rt.asan_dynamic-x86_64.dll
+				clang_rt.asan_dynamic-i386.dll
+				clang_rt.asan_dynamic-aarch64.dll
+			)
+				set(_asan_dll "${_cl_dir}/${_asan_name}")
+				if(EXISTS "${_asan_dll}")
+					add_custom_command(
+						TARGET ${target_name}
+						POST_BUILD
+						COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_asan_dll}" $<TARGET_FILE_DIR:${target_name}>
+					)
+				endif()
+			endforeach()
+		endif()
 	endfunction()
 
 	add_executable(smoke_test smoke_test_gtest.cpp)

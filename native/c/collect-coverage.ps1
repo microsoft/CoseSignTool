@@ -26,20 +26,53 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Find-VsCMakeBin {
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path $vswhere)) {
+        return $null
+    }
+
+    $vsPath = & $vswhere -latest -products * -property installationPath
+    if (-not $vsPath) {
+        return $null
+    }
+
+    $cmakeBin = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
+    if (Test-Path (Join-Path $cmakeBin 'cmake.exe')) {
+        return $cmakeBin
+    }
+
+    return $null
+}
+
+function Get-NormalizedPath([string]$Path) {
+    return [System.IO.Path]::GetFullPath($Path)
+}
+
 function Assert-Tooling {
     $openCpp = Get-Command 'OpenCppCoverage.exe' -ErrorAction SilentlyContinue
     if (-not $openCpp -and $RequireCoverageTool) {
         throw "OpenCppCoverage.exe not found on PATH. Install OpenCppCoverage and ensure it's available in PATH, or omit -RequireCoverageTool to run tests without coverage. See: https://github.com/OpenCppCoverage/OpenCppCoverage"
     }
 
-    $cmake = Get-Command 'cmake.exe' -ErrorAction SilentlyContinue
-    if (-not $cmake) {
-        throw 'cmake.exe not found on PATH.'
+    $cmakeExe = (Get-Command 'cmake.exe' -ErrorAction SilentlyContinue).Source
+    $ctestExe = (Get-Command 'ctest.exe' -ErrorAction SilentlyContinue).Source
+
+    if ((-not $cmakeExe) -or (-not $ctestExe)) {
+        if ($IsWindows) {
+            $vsCmakeBin = Find-VsCMakeBin
+            if ($vsCmakeBin) {
+                if (-not $cmakeExe) { $cmakeExe = (Join-Path $vsCmakeBin 'cmake.exe') }
+                if (-not $ctestExe) { $ctestExe = (Join-Path $vsCmakeBin 'ctest.exe') }
+            }
+        }
     }
 
-    $ctest = Get-Command 'ctest.exe' -ErrorAction SilentlyContinue
-    if (-not $ctest) {
-        throw 'ctest.exe not found on PATH.'
+    if (-not $cmakeExe) {
+        throw 'cmake.exe not found on PATH (and no Visual Studio-bundled CMake was found).'
+    }
+    if (-not $ctestExe) {
+        throw 'ctest.exe not found on PATH (and no Visual Studio-bundled CTest was found).'
     }
 
     $vcpkgExe = Join-Path $VcpkgRoot 'vcpkg.exe'
@@ -56,12 +89,14 @@ function Assert-Tooling {
 
     return @{
         OpenCppCoverage = if ($openCpp) { $openCpp.Source } else { $null }
-        CTest = $ctest.Source
+        CMake = $cmakeExe
+        CTest = $ctestExe
     }
 }
 
 $tools = Assert-Tooling
 $openCppCoverageExe = $tools.OpenCppCoverage
+$cmakeExe = $tools.CMake
 $ctestExe = $tools.CTest
 
 # If the caller didn't explicitly override BuildDir/ReportDir, use ASAN-specific defaults.
@@ -98,8 +133,8 @@ if (-not $NoBuild) {
 		$cmakeArgs += "-DVCPKG_APPLOCAL_DEPS=OFF"
     }
 
-    cmake @cmakeArgs
-    cmake --build $BuildDir --config $Configuration
+    & $cmakeExe @cmakeArgs
+    & $cmakeExe --build $BuildDir --config $Configuration
 }
 
 if (-not (Test-Path $BuildDir)) {
@@ -114,8 +149,8 @@ $sources = @(
 ) -join ';'
 
 $exclude = @(
-    $BuildDir,
-    (Join-Path $PSScriptRoot '..\rust\target')
+    (Get-NormalizedPath $BuildDir),
+    (Get-NormalizedPath (Join-Path $PSScriptRoot '..\rust\target'))
 ) -join ';'
 
 if ($openCppCoverageExe) {

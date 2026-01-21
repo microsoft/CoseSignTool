@@ -1,6 +1,3 @@
-# Native Architecture
-
-This document moved to [native/docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 # Native FFI Architecture
 
 This document describes the complete architecture of the native (C/C++) projections for the COSE Sign1 validation library.

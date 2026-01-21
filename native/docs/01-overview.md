@@ -29,7 +29,7 @@ The native surface is modular: optional packs contribute additional validation f
 Current packs:
 
 - `certificates` (X.509)
-- `mst` (Microsoft Secure Transparency)
+- `mst` (Microsoft's Signing Transparency)
 - `akv` (Azure Key Vault)
 - `trust` (trust-policy / trust-plan authoring)
 

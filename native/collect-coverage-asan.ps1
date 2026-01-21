@@ -23,6 +23,7 @@ if ($BuildRust) {
     }
 }
 
+& (Join-Path $PSScriptRoot 'rust\collect-coverage.ps1') -FailUnderLines $MinimumLineCoveragePercent
 & (Join-Path $PSScriptRoot 'c\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
 & (Join-Path $PSScriptRoot 'c_pp\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
 

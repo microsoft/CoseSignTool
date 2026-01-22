@@ -94,9 +94,7 @@ fn detect_indirect_signature_kind(protected: &CoseHeaderMap, content_type: Optio
         return Some(IndirectSignatureKind::CoseHashEnvelope);
     }
 
-    let Some(ct) = content_type else {
-        return None;
-    };
+    let ct = content_type?;
 
     if COSE_HASH_V.is_match(ct) {
         return Some(IndirectSignatureKind::CoseHashV);

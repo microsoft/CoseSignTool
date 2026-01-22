@@ -16,12 +16,13 @@ sha1.workspace = true
 ring.workspace = true
 hex.workspace = true
 x509-parser.workspace = true
-ml-dsa = { workspace = true, optional = true }
+pqcrypto-mldsa = { workspace = true, optional = true }
+pqcrypto-traits = { workspace = true, optional = true }
 
 [features]
 default = []
 ## Enable verification of ML-DSA (FIPS 204) COSE algorithms (-48/-49/-50).
-pqc-mldsa = ["dep:ml-dsa"]
+pqc-mldsa = ["dep:pqcrypto-mldsa", "dep:pqcrypto-traits"]
 
 [dev-dependencies]
 rcgen = "0.13"

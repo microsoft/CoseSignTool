@@ -36,8 +36,9 @@ base64 = "0.22"
 # X.509 parsing
 x509-parser = "0.16"
 
-# PQC signatures (FIPS 204 ML-DSA / Dilithium)
-ml-dsa = { version = "0.0.4", default-features = false, features = ["alloc", "pkcs8"] }
+# PQC signatures (FIPS 204 ML-DSA)
+pqcrypto-mldsa = { version = "0.1.2", default-features = false, features = ["std"] }
+pqcrypto-traits = { version = "0.3.5", default-features = false, features = ["std"] }
 
 # Prefer tinycbor (per requirements)
 tinycbor = { version = "0.10", features = ["alloc", "std"] }

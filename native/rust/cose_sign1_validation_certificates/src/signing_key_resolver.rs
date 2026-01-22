@@ -14,10 +14,10 @@ use crate::fluent_ext::{X509ChainTrustedWhereExt, X509SigningCertificateIdentity
 use crate::pack::X509CertificateTrustPack;
 
 #[cfg(feature = "pqc-mldsa")]
-use ml_dsa::{MlDsa44, MlDsa65, MlDsa87};
+use pqcrypto_mldsa::{mldsa44, mldsa65, mldsa87};
 
 #[cfg(feature = "pqc-mldsa")]
-use ml_dsa::signature::Verifier as _;
+use pqcrypto_traits::sign::{DetachedSignature as _, PublicKey as _};
 
 const X5CHAIN_HEADER_LABEL: i64 = 33;
 
@@ -215,34 +215,54 @@ pub fn verify_ml_dsa_dispatch(
         ));
     }
 
-    // Map COSE signature verification to the ml-dsa crate's key/signature decoders.
-    let ok = match expected_spki_oid {
-        OID_MLDSA_44 => verify_ml_dsa::<MlDsa44>(public_key_bytes, msg, sig)?,
-        OID_MLDSA_65 => verify_ml_dsa::<MlDsa65>(public_key_bytes, msg, sig)?,
-        OID_MLDSA_87 => verify_ml_dsa::<MlDsa87>(public_key_bytes, msg, sig)?,
-        _ => return Err(format!("unsupported_mldsa_oid: {expected_spki_oid}")),
-    };
-
-    Ok(ok)
+    // Map COSE signature verification to pqcrypto-mldsa's decoders.
+    match expected_spki_oid {
+        OID_MLDSA_44 => verify_mldsa44(public_key_bytes, msg, sig),
+        OID_MLDSA_65 => verify_mldsa65(public_key_bytes, msg, sig),
+        OID_MLDSA_87 => verify_mldsa87(public_key_bytes, msg, sig),
+        _ => Err(format!("unsupported_mldsa_oid: {expected_spki_oid}")),
+    }
 }
 
 #[cfg(feature = "pqc-mldsa")]
-/// Verify an ML-DSA signature for a specific parameter set `P`.
-fn verify_ml_dsa<P: ml_dsa::MlDsaParams>(
-    public_key_bytes: &[u8],
-    msg: &[u8],
-    sig: &[u8],
-) -> Result<bool, String> {
-    let enc_vk = ml_dsa::EncodedVerifyingKey::<P>::try_from(public_key_bytes)
+fn verify_mldsa44(public_key_bytes: &[u8], msg: &[u8], sig: &[u8]) -> Result<bool, String> {
+    let pk = mldsa44::PublicKey::from_bytes(public_key_bytes)
         .map_err(|_| "bad ML-DSA public key bytes".to_string())?;
-    let vk = ml_dsa::VerifyingKey::<P>::decode(&enc_vk);
-
-    let signature = ml_dsa::Signature::<P>::try_from(sig)
+    let signature = mldsa44::DetachedSignature::from_bytes(sig)
         .map_err(|_| "bad ML-DSA signature bytes".to_string())?;
 
-    match vk.verify(msg, &signature) {
+    match mldsa44::verify_detached_signature(&signature, msg, &pk) {
         Ok(()) => Ok(true),
-        Err(_) => Ok(false),
+        Err(pqcrypto_traits::sign::VerificationError::InvalidSignature) => Ok(false),
+        Err(_) => Err("ML-DSA verification failed".to_string()),
+    }
+}
+
+#[cfg(feature = "pqc-mldsa")]
+fn verify_mldsa65(public_key_bytes: &[u8], msg: &[u8], sig: &[u8]) -> Result<bool, String> {
+    let pk = mldsa65::PublicKey::from_bytes(public_key_bytes)
+        .map_err(|_| "bad ML-DSA public key bytes".to_string())?;
+    let signature = mldsa65::DetachedSignature::from_bytes(sig)
+        .map_err(|_| "bad ML-DSA signature bytes".to_string())?;
+
+    match mldsa65::verify_detached_signature(&signature, msg, &pk) {
+        Ok(()) => Ok(true),
+        Err(pqcrypto_traits::sign::VerificationError::InvalidSignature) => Ok(false),
+        Err(_) => Err("ML-DSA verification failed".to_string()),
+    }
+}
+
+#[cfg(feature = "pqc-mldsa")]
+fn verify_mldsa87(public_key_bytes: &[u8], msg: &[u8], sig: &[u8]) -> Result<bool, String> {
+    let pk = mldsa87::PublicKey::from_bytes(public_key_bytes)
+        .map_err(|_| "bad ML-DSA public key bytes".to_string())?;
+    let signature = mldsa87::DetachedSignature::from_bytes(sig)
+        .map_err(|_| "bad ML-DSA signature bytes".to_string())?;
+
+    match mldsa87::verify_detached_signature(&signature, msg, &pk) {
+        Ok(()) => Ok(true),
+        Err(pqcrypto_traits::sign::VerificationError::InvalidSignature) => Ok(false),
+        Err(_) => Err("ML-DSA verification failed".to_string()),
     }
 }
 

@@ -452,7 +452,6 @@ fn select_fact<'a, T: FactProperties>(
 
 /// Returns a rule that trusts when a selected fact of type `T` has `property == expected`.
 ///
-
 /// Returns a rule that trusts when a selected fact of type `T` has a boolean property equal to `expected`.
 /// This is fully declarative: callers name the fact type + the property.
 pub fn require_fact_property_eq<T, SubjectSelector>(

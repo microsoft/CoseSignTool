@@ -31,20 +31,178 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Find-VsCMakeBin {
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (-not (Test-Path $vswhere)) {
+function Resolve-ExePath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string[]]$FallbackPaths
+    )
+
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -and (Test-Path $cmd.Source)) {
+        return $cmd.Source
+    }
+
+    foreach ($p in ($FallbackPaths | Where-Object { $_ })) {
+        if (Test-Path $p) {
+            return $p
+        }
+    }
+
+    return $null
+}
+
+function Get-VsInstallationPath {
+    $vswhere = Resolve-ExePath -Name 'vswhere' -FallbackPaths @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    )
+
+    if (-not $vswhere) {
         return $null
     }
 
-    $vsPath = & $vswhere -latest -products * -property installationPath
+    $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if ($LASTEXITCODE -ne 0 -or -not $vsPath) {
+        $vsPath = & $vswhere -latest -products * -property installationPath
+    }
+
     if (-not $vsPath) {
         return $null
     }
 
-    $cmakeBin = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
-    if (Test-Path (Join-Path $cmakeBin 'cmake.exe')) {
-        return $cmakeBin
+    $vsPath = ($vsPath | Select-Object -First 1).Trim()
+    if (-not $vsPath) {
+        return $null
+    }
+
+    if (-not (Test-Path $vsPath)) {
+        return $null
+    }
+
+    return $vsPath
+}
+
+function Add-VsAsanRuntimeToPath {
+    if (-not ($env:OS -eq 'Windows_NT')) {
+        return
+    }
+
+    $vsPath = Get-VsInstallationPath
+    if (-not $vsPath) {
+        return
+    }
+
+    # On MSVC, /fsanitize=address depends on clang ASAN runtime DLLs that ship with VS.
+    # If they're not on PATH, Windows shows modal popup dialogs and tests fail with 0xc0000135.
+    $candidateDirs = @()
+
+    $msvcToolsRoot = Join-Path $vsPath 'VC\Tools\MSVC'
+    if (Test-Path $msvcToolsRoot) {
+        $latestMsvc = Get-ChildItem -Path $msvcToolsRoot -Directory -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+        if ($latestMsvc) {
+            $candidateDirs += (Join-Path $latestMsvc.FullName 'bin\Hostx64\x64')
+            $candidateDirs += (Join-Path $latestMsvc.FullName 'bin\Hostx64\x86')
+        }
+    }
+
+    $llvmRoot = Join-Path $vsPath 'VC\Tools\Llvm'
+    if (Test-Path $llvmRoot) {
+        $candidateDirs += (Join-Path $llvmRoot 'x64\bin')
+        $clangLibRoot = Join-Path $llvmRoot 'x64\lib\clang'
+        if (Test-Path $clangLibRoot) {
+            $latestClang = Get-ChildItem -Path $clangLibRoot -Directory -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending |
+                Select-Object -First 1
+            if ($latestClang) {
+                $candidateDirs += (Join-Path $latestClang.FullName 'lib\windows')
+            }
+        }
+    }
+
+    $asanDllName = 'clang_rt.asan_dynamic-x86_64.dll'
+    foreach ($dir in ($candidateDirs | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique)) {
+        if (Test-Path (Join-Path $dir $asanDllName)) {
+            if ($env:PATH -notlike "${dir}*") {
+                $env:PATH = "${dir};$env:PATH"
+                Write-Host "Using ASAN runtime from: $dir" -ForegroundColor Yellow
+            }
+            return
+        }
+    }
+}
+
+function Find-VsCMakeBin {
+    function Probe-VsRootForCMakeBin([string]$vsRoot) {
+        if (-not $vsRoot -or -not (Test-Path $vsRoot)) {
+            return $null
+        }
+
+        # Typical layout:
+        #   <vsRoot>\<year>\<edition>\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe
+        $years = Get-ChildItem -Path $vsRoot -Directory -ErrorAction SilentlyContinue
+        foreach ($year in $years) {
+            $editions = Get-ChildItem -Path $year.FullName -Directory -ErrorAction SilentlyContinue
+            foreach ($edition in $editions) {
+                $cmakeBin = Join-Path $edition.FullName 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
+                if (Test-Path (Join-Path $cmakeBin 'cmake.exe')) {
+                    return $cmakeBin
+                }
+
+                $cmakeExtensionRoot = Join-Path $edition.FullName 'Common7\IDE\CommonExtensions\Microsoft\CMake'
+                if (Test-Path $cmakeExtensionRoot) {
+                    $found = Get-ChildItem -Path $cmakeExtensionRoot -Recurse -File -Filter 'cmake.exe' -ErrorAction SilentlyContinue |
+                        Select-Object -First 1
+                    if ($found) {
+                        return (Split-Path -Parent $found.FullName)
+                    }
+                }
+            }
+        }
+        return $null
+    }
+
+    $vswhere = Resolve-ExePath -Name 'vswhere' -FallbackPaths @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    )
+
+    if ($vswhere) {
+        $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if ($LASTEXITCODE -ne 0 -or -not $vsPath) {
+            $vsPath = & $vswhere -latest -products * -property installationPath
+        }
+        if ($vsPath) {
+            $vsPath = ($vsPath | Select-Object -First 1).Trim()
+            if ($vsPath) {
+                $cmakeBin = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
+                if (Test-Path (Join-Path $cmakeBin 'cmake.exe')) {
+                    return $cmakeBin
+                }
+
+                $cmakeExtensionRoot = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\CMake'
+                if (Test-Path $cmakeExtensionRoot) {
+                    $found = Get-ChildItem -Path $cmakeExtensionRoot -Recurse -File -Filter 'cmake.exe' -ErrorAction SilentlyContinue |
+                        Select-Object -First 1
+                    if ($found) {
+                        return (Split-Path -Parent $found.FullName)
+                    }
+                }
+            }
+        }
+    }
+
+    # Final fallback: probe common Visual Studio roots when vswhere is missing/unavailable.
+    $roots = @(
+        (Join-Path $env:ProgramFiles 'Microsoft Visual Studio'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio')
+    )
+    foreach ($r in ($roots | Where-Object { $_ })) {
+        $bin = Probe-VsRootForCMakeBin -vsRoot $r
+        if ($bin) {
+            return $bin
+        }
     }
 
     return $null
@@ -167,11 +325,22 @@ function Assert-Tooling {
     $ctestExe = (Get-Command 'ctest.exe' -ErrorAction SilentlyContinue).Source
 
     if ((-not $cmakeExe) -or (-not $ctestExe)) {
-        if ($IsWindows) {
+        if ($env:OS -eq 'Windows_NT') {
             $vsCmakeBin = Find-VsCMakeBin
             if ($vsCmakeBin) {
-                if (-not $cmakeExe) { $cmakeExe = (Join-Path $vsCmakeBin 'cmake.exe') }
-                if (-not $ctestExe) { $ctestExe = (Join-Path $vsCmakeBin 'ctest.exe') }
+                # Prefer using the VS-bundled CMake/CTest, and ensure child processes can find them.
+                if ($env:PATH -notlike "${vsCmakeBin}*") {
+                    $env:PATH = "${vsCmakeBin};$env:PATH"
+                }
+
+                if (-not $cmakeExe) {
+                    $candidate = (Join-Path $vsCmakeBin 'cmake.exe')
+                    if (Test-Path $candidate) { $cmakeExe = $candidate }
+                }
+                if (-not $ctestExe) {
+                    $candidate = (Join-Path $vsCmakeBin 'ctest.exe')
+                    if (Test-Path $candidate) { $ctestExe = $candidate }
+                }
             }
         }
     }
@@ -222,6 +391,8 @@ if ($EnableAsan) {
 
     # Leak detection is generally not supported/usable on Windows; keep it off to reduce noise.
     $env:ASAN_OPTIONS = 'detect_leaks=0,halt_on_error=1'
+
+    Add-VsAsanRuntimeToPath
 }
 
 if (-not $NoBuild) {

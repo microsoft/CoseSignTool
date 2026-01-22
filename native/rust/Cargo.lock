@@ -129,6 +129,8 @@ dependencies = [
  "cose_sign1_validation_trust",
  "once_cell",
  "regex",
+ "sha1",
+ "sha2",
  "thiserror 2.0.17",
  "tinycbor",
  "x509-parser",

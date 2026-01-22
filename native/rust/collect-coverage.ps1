@@ -59,6 +59,32 @@ function Invoke-Checked {
     }
 }
 
+function Remove-LlvmCovNoise {
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)][object]$Item
+    )
+
+    process {
+        $line = $null
+        if ($Item -is [System.Management.Automation.ErrorRecord]) {
+            $line = $Item.Exception.Message
+        } else {
+            $line = $Item.ToString()
+        }
+
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            return
+        }
+
+        # llvm-profdata/llvm-cov can emit a deterministic warning in multi-crate coverage runs:
+        #   "warning: <N> functions have mismatched data"
+        # This message is noisy and doesn't affect the repo's coverage gates.
+        if ($line -notmatch 'functions have mismatched data') {
+            $line
+        }
+    }
+}
+
 function Assert-FluentHelpersProjectedToFfi {
     param(
         [Parameter(Mandatory = $true)][string]$Root
@@ -181,11 +207,33 @@ try {
     }
 
 
+    # Avoid incremental reuse during coverage runs; incremental artifacts can create
+    # stale coverage mapping/profile mismatches.
+    $prevCargoIncremental = $env:CARGO_INCREMENTAL
+    $env:CARGO_INCREMENTAL = '0'
+
+    # Use a unique per-run target/build directory for cargo-llvm-cov so we never reuse stale
+    # compiled objects/profile data. This avoids the common Windows issue where attempts
+    # to clean/delete the shared llvm-cov build directory can fail due to transient file locks.
+    $prevLlvmCovTargetDir = $env:CARGO_LLVM_COV_TARGET_DIR
+    $prevLlvmCovBuildDir = $env:CARGO_LLVM_COV_BUILD_DIR
+    $prevLlvmProfileFile = $env:LLVM_PROFILE_FILE
+    $prevCargoTargetDir = $env:CARGO_TARGET_DIR
+    $llvmCovWorkDir = $null
     if (-not $NoClean) {
-        Write-Host "Cleaning cargo-llvm-cov artifacts..." -ForegroundColor Yellow
-        Invoke-Checked -Command "cargo llvm-cov clean" -Run {
-            cargo llvm-cov clean --workspace
-        }
+        $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss')
+        $llvmCovWorkDir = Join-Path $here ("target\\llvm-cov-work\\run-{0}-{1}" -f $stamp, $PID)
+        $cargoTargetDir = Join-Path $llvmCovWorkDir 'cargo-target'
+        New-Item -ItemType Directory -Force -Path $cargoTargetDir | Out-Null
+
+        # Ensure cargo and cargo-llvm-cov both write artifacts into the per-run directory.
+        $env:CARGO_TARGET_DIR = $cargoTargetDir
+        $env:CARGO_LLVM_COV_TARGET_DIR = $cargoTargetDir
+        $env:CARGO_LLVM_COV_BUILD_DIR = $cargoTargetDir
+        $env:LLVM_PROFILE_FILE = (Join-Path $cargoTargetDir 'rust-%p-%m.profraw')
+
+        Write-Host "Using cargo-llvm-cov work dir: $llvmCovWorkDir" -ForegroundColor Yellow
+        Write-Host "Using CARGO_TARGET_DIR: $cargoTargetDir" -ForegroundColor Yellow
     }
 
     $baseArgs = @(
@@ -200,20 +248,64 @@ try {
         "--summary-only"
     )
 
+    $reportArgs = @(
+        "--ignore-filename-regex", $ignoreFilenameRegex,
+        "--fail-under-lines", "$FailUnderLines"
+    )
+
+    $summaryReportArgs = @(
+        "--ignore-filename-regex", $ignoreFilenameRegex,
+        "--summary-only"
+    )
+
     try {
+        # Run tests once to produce profiling data, then generate multiple report formats from
+        # the same merged profile to avoid stale/mixed-profile "mismatched data" warnings.
+        Invoke-Checked -Command "cargo llvm-cov (run tests)" -Run {
+            cargo llvm-cov @baseArgs --no-report --quiet
+        }
+
         if (-not $NoHtml) {
-            Invoke-Checked -Command "cargo llvm-cov (html report)" -Run {
-                cargo llvm-cov @baseArgs --html --output-dir $OutputDir
+            Invoke-Checked -Command "cargo llvm-cov report (html)" -Run {
+                $prevEap = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                try {
+                    cargo llvm-cov report @reportArgs --html --output-dir $OutputDir *>&1 | Remove-LlvmCovNoise
+                } finally {
+                    $ErrorActionPreference = $prevEap
+                }
             }
         }
 
-        Invoke-Checked -Command "cargo llvm-cov (lcov report)" -Run {
-            cargo llvm-cov @baseArgs --lcov --output-path (Join-Path $OutputDir "lcov.info")
+        Invoke-Checked -Command "cargo llvm-cov report (lcov)" -Run {
+            $prevEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                cargo llvm-cov report @reportArgs --lcov --output-path (Join-Path $OutputDir "lcov.info") *>&1 | Remove-LlvmCovNoise
+            } finally {
+                $ErrorActionPreference = $prevEap
+            }
         }
     } catch {
         Write-Host "Coverage gate failed; current production-code summary:" -ForegroundColor Yellow
-        & cargo llvm-cov @summaryArgs | Out-Host
+        try {
+            $prevEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                & cargo llvm-cov report --lcov @summaryReportArgs *>&1 | Remove-LlvmCovNoise | Out-Host
+            } finally {
+                $ErrorActionPreference = $prevEap
+            }
+        } catch {
+            & cargo llvm-cov @summaryArgs | Out-Host
+        }
         throw
+    } finally {
+        $env:CARGO_INCREMENTAL = $prevCargoIncremental
+        $env:CARGO_LLVM_COV_TARGET_DIR = $prevLlvmCovTargetDir
+        $env:CARGO_LLVM_COV_BUILD_DIR = $prevLlvmCovBuildDir
+        $env:LLVM_PROFILE_FILE = $prevLlvmProfileFile
+        $env:CARGO_TARGET_DIR = $prevCargoTargetDir
     }
 
     Write-Host "OK: Rust production line coverage >= $FailUnderLines%" -ForegroundColor Green

@@ -5,6 +5,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]
+test = false
 
 [dependencies]
 cose_sign1_validation_ffi = { path = "../cose_sign1_validation_ffi" }

@@ -622,7 +622,8 @@ impl CoseSign1Validator {
         let (plan, trust_packs) = trust_plan.into_parts();
 
         let mut signing_key_resolvers: Vec<Arc<dyn SigningKeyResolver>> = Vec::new();
-        let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> = Vec::new();
+        let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> =
+            vec![Arc::new(crate::indirect_signature::IndirectSignaturePostSignatureValidator::new())];
 
         // Always include message fact production for trust plans.
         let mut trust_producers: Vec<Arc<dyn TrustFactProducer>> = vec![Arc::new(

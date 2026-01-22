@@ -29,3 +29,5 @@ mod message_facts;
 mod trust_packs;
 mod trust_plan_builder;
 mod validator;
+
+mod indirect_signature;

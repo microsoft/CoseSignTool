@@ -2,8 +2,8 @@
 
 Rust port of the V2 trust/validation framework (mirrors `V2/CoseSign1.Validation`).
 
-Docs live in `native/rust/docs/`:
-- `native/rust/docs/README.md`
+Docs live in [native/rust/docs/](docs/):
+- [native/rust/docs/README.md](docs/README.md)
 
 Workspace crates:
 - `cose_sign1_validation_trust`: trust engine (facts/rules/compiled plans/audit/subject IDs).

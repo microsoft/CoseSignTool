@@ -44,7 +44,7 @@ Coverage for the C projection is collected with OpenCppCoverage.
 
 Note: on Windows, `Debug` tends to produce the most reliable line-coverage measurement under OpenCppCoverage (especially when ASAN is enabled).
 
-Outputs HTML to `native/c/coverage/index.html`.
+Outputs HTML to [native/c/coverage/index.html](coverage/index.html).
 
 ## Usage Example
 
@@ -52,7 +52,7 @@ Outputs HTML to `native/c/coverage/index.html`.
 
 This repo ships a real, buildable C example you can use as a starting point:
 
-- `native/c/examples/trust_policy_example.c`
+- [native/c/examples/trust_policy_example.c](examples/trust_policy_example.c)
 
 Build it (after building the Rust FFI libs):
 

@@ -1,6 +1,6 @@
 # C projection
 
-For the full C developer guide (including vcpkg consumption and trust plans), see `native/c/docs/README.md`.
+For the full C developer guide (including vcpkg consumption and trust plans), see [native/c/docs/README.md](../c/docs/README.md).
 
 ## Audience
 
@@ -8,7 +8,7 @@ You want a stable C API you can call from C/C++ (or other languages that can cal
 
 ## API surface
 
-- Headers live in `native/c/include/cose/`.
+- Headers live in [native/c/include/cose/](../c/include/cose/).
 - The core header is:
   - `<cose/cose_sign1.h>`
 - Pack headers (optional):
@@ -50,7 +50,7 @@ Always free returned strings with `cose_string_free`.
 
 ## Testing and examples
 
-- Examples: `native/c/examples/`
-- Tests: `native/c/tests/`
+- Examples: [native/c/examples/](../c/examples/)
+- Tests: [native/c/tests/](../c/tests/)
 
 See [testing + ASAN + coverage](06-testing-coverage-asan.md).

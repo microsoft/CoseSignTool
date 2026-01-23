@@ -31,4 +31,4 @@ Run:
 - `cargo run -p cose_sign1_validation --example validate_smoke`
 - `cargo run -p cose_sign1_validation --example detached_payload_provider`
 
-For the bigger picture docs, see `native/rust/docs/README.md`.
+For the bigger picture docs, see [native/rust/docs/README.md](../docs/README.md).

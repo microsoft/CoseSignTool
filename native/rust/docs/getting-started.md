@@ -55,17 +55,17 @@ temporarily bypass trust evaluation while keeping signature verification enabled
 
 A minimal “smoke” setup (real signature verification using embedded X.509 `x5chain`, with trust bypassed) is shown in:
 
-- `cose_sign1_validation/examples/validate_smoke.rs`
+- [cose_sign1_validation/examples/validate_smoke.rs](../cose_sign1_validation/examples/validate_smoke.rs)
 
 For a runnable CLI-style demo, see:
 
-- `cose_sign1_validation_demo` (documented in `demo-exe.md`)
+- `cose_sign1_validation_demo` (documented in [demo-exe.md](demo-exe.md))
 
 ### Detailed end-to-end example (custom trust plan + feedback)
 
 This example also exists as a compilable `cargo` example:
 
-- `native/rust/cose_sign1_validation/examples/validate_custom_policy.rs`
+- [native/rust/cose_sign1_validation/examples/validate_custom_policy.rs](../cose_sign1_validation/examples/validate_custom_policy.rs)
 
 Run it:
 

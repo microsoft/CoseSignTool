@@ -2,7 +2,7 @@
 
 ## vcpkg can’t find the port
 
-This repo ships an overlay port under `native/vcpkg_ports`.
+This repo ships an overlay port under [native/vcpkg_ports](../vcpkg_ports).
 
 Example:
 
@@ -12,7 +12,7 @@ vcpkg install cosesign1-validation-native --overlay-ports=<repo>/native/vcpkg_po
 
 ## Rust target mismatch
 
-The vcpkg port maps the vcpkg triplet to a Rust target triple. If you use a custom triplet, ensure the port knows how to map it (see `native/vcpkg_ports/cosesign1-validation-native/portfile.cmake`).
+The vcpkg port maps the vcpkg triplet to a Rust target triple. If you use a custom triplet, ensure the port knows how to map it (see [native/vcpkg_ports/cosesign1-validation-native/portfile.cmake](../vcpkg_ports/cosesign1-validation-native/portfile.cmake)).
 
 ## Linker errors about CRT mismatch
 

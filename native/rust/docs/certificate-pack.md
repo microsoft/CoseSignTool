@@ -41,7 +41,7 @@ This requires that some producer provides the countersignature raw bytes (the co
 
 A runnable example that generates a self-signed certificate and embeds it as `x5chain`:
 
-- `cose_sign1_validation_certificates/examples/x5chain_identity.rs`
+- [cose_sign1_validation_certificates/examples/x5chain_identity.rs](../cose_sign1_validation_certificates/examples/x5chain_identity.rs)
 
 ## Deterministic trust (for tests / demos)
 

@@ -12,4 +12,4 @@ When enabled, verification is implemented via `pqcrypto-mldsa` (PQClean-based) a
 
 - `cargo run -p cose_sign1_validation_certificates --example x5chain_identity`
 
-Docs: `native/rust/docs/certificate-pack.md`.
+Docs: [native/rust/docs/certificate-pack.md](../docs/certificate-pack.md).

@@ -9,10 +9,10 @@ Start here:
 
 Cross-cutting:
 
-- Testing/coverage/ASAN: see `native/docs/06-testing-coverage-asan.md`
+- Testing/coverage/ASAN: see [native/docs/06-testing-coverage-asan.md](../../docs/06-testing-coverage-asan.md)
 
 ## Repo quick links
 
-- Headers: `native/c_pp/include/`
-- Examples: `native/c_pp/examples/`
-- Tests: `native/c_pp/tests/`
+- Headers: [native/c_pp/include/](../include/)
+- Examples: [native/c_pp/examples/](../examples/)
+- Tests: [native/c_pp/tests/](../tests/)

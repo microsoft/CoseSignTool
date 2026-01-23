@@ -20,9 +20,11 @@ From repo root:
 This:
 
 - builds required Rust FFI crates
-- runs `native/c/collect-coverage.ps1` (C projection)
-- runs `native/c_pp/collect-coverage.ps1` (C++ projection)
+- runs [native/c/collect-coverage.ps1](../c/collect-coverage.ps1) (C projection)
+- runs [native/c_pp/collect-coverage.ps1](../c_pp/collect-coverage.ps1) (C++ projection)
 - fails if either projection is < 95% **union** line coverage
+
+Runner script: [native/collect-coverage-asan.ps1](../collect-coverage-asan.ps1)
 
 It also builds any Rust dependencies that compile native C/C++ code with ASAN enabled (e.g., PQClean-backed PQC implementations used by feature-gated crates).
 

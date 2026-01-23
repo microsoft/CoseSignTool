@@ -78,7 +78,7 @@ Full parity is required. Implementation will proceed in vertical slices, but the
 - vcpkg (future): manifest mode with per-pack features (e.g., `cose-sign1[certificates,mst]`).
 
 ## Coverage
-- Rust: existing `native/rust/collect-coverage.ps1` should include new FFI crate.
+- Rust: existing [native/rust/collect-coverage.ps1](../rust/collect-coverage.ps1) should include new FFI crate.
 - C/C++: PowerShell scripts will run CTest and collect coverage.
   - Primary path: `OpenCppCoverage` (MSVC-friendly).
   - Fallback path: clang/llvm-cov (optional; depends on toolchain availability).
@@ -106,18 +106,18 @@ Full parity is required. Implementation will proceed in vertical slices, but the
 - `cose_sign1_validation_ffi_trust`: trust policy authoring FFI (rule builders, predicates, plan compilation).
 
 **C projection** (headers + CMake targets):
-- `native/c/include/cose/cose_sign1.h` + base CMake target: core API
-- `native/c/include/cose/cose_certificates.h`: X.509 pack (separate header)
-- `native/c/include/cose/cose_mst.h`: MST pack (separate header)
-- `native/c/include/cose/cose_azure_key_vault.h`: AKV pack (separate header)
-- `native/c/include/cose/cose_trust.h`: trust policy authoring (separate header, TBD)
+- [native/c/include/cose/cose_sign1.h](../c/include/cose/cose_sign1.h) + base CMake target: core API
+- [native/c/include/cose/cose_certificates.h](../c/include/cose/cose_certificates.h): X.509 pack (separate header)
+- [native/c/include/cose/cose_mst.h](../c/include/cose/cose_mst.h): MST pack (separate header)
+- [native/c/include/cose/cose_azure_key_vault.h](../c/include/cose/cose_azure_key_vault.h): AKV pack (separate header)
+- [native/c/include/cose/cose_trust.h](../c/include/cose/cose_trust.h): trust policy authoring (separate header, TBD)
 
 **C++ projection** (headers + CMake targets, per-pack):
-- `native/c_pp/include/cose/validator.hpp`: core RAII wrappers (depends on base FFI)
-- `native/c_pp/include/cose/certificates.hpp`: X.509 pack wrappers (separate, optional)
-- `native/c_pp/include/cose/mst.hpp`: MST pack wrappers (separate, optional)
-- `native/c_pp/include/cose/azure_key_vault.hpp`: AKV pack wrappers (separate, optional)
-- `native/c_pp/include/cose/trust.hpp`: trust policy DSL (separate, optional, TBD)
+- [native/c_pp/include/cose/validator.hpp](../c_pp/include/cose/validator.hpp): core RAII wrappers (depends on base FFI)
+- [native/c_pp/include/cose/certificates.hpp](../c_pp/include/cose/certificates.hpp): X.509 pack wrappers (separate, optional)
+- [native/c_pp/include/cose/mst.hpp](../c_pp/include/cose/mst.hpp): MST pack wrappers (separate, optional)
+- [native/c_pp/include/cose/azure_key_vault.hpp](../c_pp/include/cose/azure_key_vault.hpp): AKV pack wrappers (separate, optional)
+- [native/c_pp/include/cose/trust.hpp](../c_pp/include/cose/trust.hpp): trust policy DSL (separate, optional, TBD)
 
 **Rationale**: This mirrors the Rust crate structure ALL THE WAY UP through C/C++ projections. Native consumers (whether C or C++) can produce binaries with only the packs they need (e.g., MST-only, X509-only, or combined) without linking unused code. Each layer provides modular composition.
 
@@ -137,7 +137,7 @@ Full parity is required. Implementation will proceed in vertical slices, but the
 ## Progress Log (chronological)
 
 ### 2026-01-19 11:00 - Initial spec created
-- Added this progress document to `native/FFI_PROJECTIONS_PROGRESS.md`.
+- Added this progress document to [native/FFI_PROJECTIONS_PROGRESS.md](../FFI_PROJECTIONS_PROGRESS.md).
 - Defined goal: full parity C/C++ projections with Rust fluent API.
 - Identified milestones M1–M8.
 

@@ -13,4 +13,4 @@ Trust engine used by the staged validator.
 
 - `cargo run -p cose_sign1_validation_trust --example trust_plan_minimal`
 
-Docs: `native/rust/docs/trust-model.md` and `native/rust/docs/trust-subjects.md`.
+Docs: [native/rust/docs/trust-model.md](../docs/trust-model.md) and [native/rust/docs/trust-subjects.md](../docs/trust-subjects.md).

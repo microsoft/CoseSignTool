@@ -41,4 +41,4 @@ You can request an audit trail during evaluation. The validator can include audi
 
 A runnable trust engine example is in:
 
-- `cose_sign1_validation_trust/examples/trust_plan_minimal.rs`
+- [cose_sign1_validation_trust/examples/trust_plan_minimal.rs](../cose_sign1_validation_trust/examples/trust_plan_minimal.rs)

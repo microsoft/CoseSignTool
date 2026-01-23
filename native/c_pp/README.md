@@ -42,7 +42,7 @@ Coverage for the C++ projection is collected with OpenCppCoverage.
 
 Note: on Windows, `Debug` tends to produce the most reliable line-coverage measurement under OpenCppCoverage (especially when ASAN is enabled).
 
-Outputs HTML to `native/c_pp/coverage/index.html`.
+Outputs HTML to [native/c_pp/coverage/index.html](coverage/index.html).
 
 ## Usage Example
 
@@ -50,7 +50,7 @@ Outputs HTML to `native/c_pp/coverage/index.html`.
 
 This repo ships a real, buildable C++ example you can use as a starting point:
 
-- `native/c_pp/examples/trust_policy_example.cpp`
+- [native/c_pp/examples/trust_policy_example.cpp](examples/trust_policy_example.cpp)
 
 Build it (after building the Rust FFI libs):
 

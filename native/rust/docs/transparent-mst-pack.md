@@ -13,4 +13,4 @@ This pack reads MST receipt data from COSE headers and exposes facts usable in a
 
 A minimal runnable example that embeds a receipt header and queries MST facts:
 
-- `cose_sign1_validation_transparent_mst/examples/mst_receipt_present.rs`
+- [cose_sign1_validation_transparent_mst/examples/mst_receipt_present.rs](../cose_sign1_validation_transparent_mst/examples/mst_receipt_present.rs)

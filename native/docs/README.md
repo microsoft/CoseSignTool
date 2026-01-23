@@ -7,8 +7,8 @@ This folder is the entry point for native developers.
 The Rust implementation is the **source of truth**. If you are trying to understand behavior, APIs,
 or extension points, prefer the Rust docs first:
 
-- Rust workspace docs: `native/rust/docs/README.md`
-- Crate README surfaces under `native/rust/*/README.md`
+- Rust workspace docs: [native/rust/docs/README.md](../rust/docs/README.md)
+- Crate README surfaces under [native/rust/](../rust/) (each crate has a `README.md`)
 - Runnable examples live under each crate’s `examples/` folder
 
 This `native/docs/` folder focuses on how Rust is packaged and consumed from native code.

@@ -34,4 +34,4 @@ If `verify_reader` is not overridden, the default implementation will buffer int
 
 ## Example
 
-See `cose_sign1_validation/examples/detached_payload_provider.rs`.
+See [cose_sign1_validation/examples/detached_payload_provider.rs](../cose_sign1_validation/examples/detached_payload_provider.rs).

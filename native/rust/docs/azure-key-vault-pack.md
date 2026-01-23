@@ -18,4 +18,4 @@ Patterns support:
 
 A runnable example that sets a `kid` header and evaluates the facts:
 
-- `cose_sign1_validation_azure_key_vault/examples/akv_kid_allowed.rs`
+- [cose_sign1_validation_azure_key_vault/examples/akv_kid_allowed.rs](../cose_sign1_validation_azure_key_vault/examples/akv_kid_allowed.rs)

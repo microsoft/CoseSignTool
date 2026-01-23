@@ -20,6 +20,11 @@ The Rust validator mirrors the V2 “staged pipeline” model:
 
 4. **Post-Signature Validation**
    - Runs `PostSignatureValidator`s (e.g., policy checks that depend on trust decision + signature metadata).
+   - Includes a built-in validator for indirect signature formats when content verification is intended (detached payload validation):
+     - legacy Content-Type suffixes like `+hash-*`
+     - `+cose-hash-v`
+     - COSE Hash Envelope via protected header label `258`
+   - This stage can be skipped via `CoseSign1ValidationOptions.skip_post_signature_validation`.
 
 ## Result model
 

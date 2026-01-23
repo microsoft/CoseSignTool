@@ -9,6 +9,7 @@ COSE_Sign1-focused staged validator.
   - trust evaluation
   - signature verification
   - post-signature policy
+- The post-signature stage includes a built-in validator for indirect signature formats (e.g. `+cose-hash-v` / hash envelopes) when detached payload verification is used.
 - Supports detached payload verification (bytes or provider)
 - Provides extension traits for:
   - signing key resolution (`SigningKeyResolver` / `SigningKey`)

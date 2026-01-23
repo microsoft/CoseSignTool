@@ -6,6 +6,8 @@ Trust pack that parses X.509 certificates from COSE `x5chain` (header label `33`
 
 ML-DSA (FIPS 204) signature verification support is available behind the `pqc-mldsa` feature flag.
 
+When enabled, verification is implemented via `pqcrypto-mldsa` (PQClean-based) and may require a C toolchain in environments that build dependencies from source.
+
 ## Example
 
 - `cargo run -p cose_sign1_validation_certificates --example x5chain_identity`

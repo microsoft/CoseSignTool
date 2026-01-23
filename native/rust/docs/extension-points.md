@@ -45,6 +45,12 @@ Implement `PostSignatureValidator`:
   - signature-stage metadata
   - resolved signing key (if any)
 
+Notes:
+
+- The validator includes a built-in indirect-signature post-signature validator by default.
+- Trust packs can contribute additional post-signature validators via `TrustPack::post_signature_validators()`.
+- You can skip the entire post-signature stage via `CoseSign1ValidationOptions.skip_post_signature_validation`.
+
 ## Trust packs (fact producers)
 
 Implement `cose_sign1_validation_trust::facts::TrustFactProducer`:

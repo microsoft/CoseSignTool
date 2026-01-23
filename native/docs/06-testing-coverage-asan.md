@@ -24,6 +24,8 @@ This:
 - runs `native/c_pp/collect-coverage.ps1` (C++ projection)
 - fails if either projection is < 95% **union** line coverage
 
+It also builds any Rust dependencies that compile native C/C++ code with ASAN enabled (e.g., PQClean-backed PQC implementations used by feature-gated crates).
+
 ## Why Debug?
 
 For header-heavy C++ wrappers, Debug tends to produce more reliable line mapping for OpenCppCoverage than optimized configurations.
@@ -43,7 +45,14 @@ The scripts compute a deduplicated union metric across all files by `(filename, 
 
 ### Missing ASAN runtime DLLs
 
-If tests fail to start with `0xc0000135`, ASAN runtime DLLs are missing from the test folder. The native build scripts copy required runtime DLLs next to test executables.
+If tests fail to start with `0xc0000135` (or you see modal “missing DLL” popups), ASAN runtime DLLs are not being found.
+
+The scripts attempt to locate the Visual Studio ASAN runtime (e.g. `clang_rt.asan_dynamic-x86_64.dll`) and prepend its directory to `PATH` before running tests.
+
+If that detection fails:
+
+- ensure Visual Studio 2022 is installed with the C++ workload, or
+- manually add the VS ASAN runtime directory to `PATH`.
 
 ### Coverage is 0%
 

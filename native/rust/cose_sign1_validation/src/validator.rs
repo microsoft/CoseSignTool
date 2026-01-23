@@ -178,7 +178,7 @@ pub struct CoseSign1ValidationOptions {
     pub associated_data: Option<Arc<[u8]>>,
     /// Which header location to consult for certificate-related headers.
     pub certificate_header_location: CoseHeaderLocation,
-    /// If true, skip any post-signature validators contributed by trust packs.
+    /// If true, skip post-signature validation.
     pub skip_post_signature_validation: bool,
     /// Trust evaluation controls (timeouts, bypass for experiments, etc.).
     pub trust_evaluation_options: TrustEvaluationOptions,

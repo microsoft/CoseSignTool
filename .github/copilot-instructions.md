@@ -210,15 +210,67 @@ public class ExampleCommand : PluginCommandBase
 }
 ```
 
+## Repository Skills System
+
+This repository contains specialized **skills** in `.github/skills/` that provide domain-specific guidance for common development tasks. **ALWAYS use these skills when working in this repository** as they significantly increase efficiency and code quality.
+
+### Available Skills
+
+Each skill has a `SKILL.md` file with detailed instructions. Use the `@workspace` agent to invoke skills:
+
+- **architecture-designer**: Design and evolve architecture, convert requirements to Given/When/Then scenarios
+- **coverage-verifier**: Verify code coverage targets, analyze coverage reports, propose specific tests
+- **documentation**: Update documentation to match implemented APIs and features
+- **implementer**: Implement production code to satisfy failing tests using TDD
+- **security-analysis**: Review and harden code for security issues (crypto, certs, input validation)
+- **spec-test-writer**: Write NUnit tests from Given/When/Then scenarios (TDD red-green-refactor)
+- **testability**: Review and improve testability with DI seams and deterministic behavior
+- **diagnosability**: Ensure production-quality diagnostics with actionable exceptions and structured logging
+- **code-sanitizer**: Enforce coding standards (analyzers, StyleCop, formatting, XML docs)
+
+### When to Use Skills
+
+**ALWAYS invoke relevant skills for these tasks:**
+
+1. **Before designing new features**: Use `architecture-designer` to plan the approach
+2. **Before writing tests**: Use `spec-test-writer` to create TDD tests from scenarios
+3. **When implementing features**: Use `implementer` to write minimal code that passes tests
+4. **After adding features**: Use `coverage-verifier` to ensure coverage targets are met
+5. **When changing security-sensitive code**: Use `security-analysis` to review
+6. **Before committing**: Use `code-sanitizer` to enforce standards
+7. **When updating public APIs**: Use `documentation` to keep docs in sync
+8. **When code is hard to test**: Use `testability` to improve design
+9. **When adding error handling**: Use `diagnosability` to ensure quality diagnostics
+
+### Skill Usage Pattern
+
+```csharp
+// Example: Implementing a new feature with TDD
+@workspace #file:SKILL.md
+// 1. Use architecture-designer to plan the approach
+// 2. Use spec-test-writer to create tests first
+// 3. Use implementer to make tests pass
+// 4. Use coverage-verifier to validate coverage
+// 5. Use code-sanitizer to ensure standards compliance
+```
+
+**Benefits of using skills:**
+- Consistent architecture and coding patterns
+- Higher code quality and test coverage
+- Faster development with established workflows
+- Better security and diagnosability
+- Automated standards enforcement
+
 ## Summary
 When generating code for this repository, always:
-1. Include the Microsoft copyright header
-2. Use file-scoped namespaces
-3. Follow the specified naming conventions
-4. Use explicit types instead of var
-5. Include proper error handling with appropriate exit codes
-6. Implement cancellation token support in async methods
-7. If creating a plug-in, use the established plugin patterns for extensibility
-8. Follow the formatting and spacing rules exactly as specified
-9. Include comprehensive XML documentation for public APIs
-10. Ensure all generated code follows the .editorconfig rules
+1. **Use the skills in `.github/skills/` for all development tasks** (most important!)
+2. Include the Microsoft copyright header
+3. Use file-scoped namespaces
+4. Follow the specified naming conventions
+5. Use explicit types instead of var
+6. Include proper error handling with appropriate exit codes
+7. Implement cancellation token support in async methods
+8. If creating a plug-in, use the established plugin patterns for extensibility
+9. Follow the formatting and spacing rules exactly as specified
+10. Include comprehensive XML documentation for public APIs
+11. Ensure all generated code follows the .editorconfig rules

@@ -15,6 +15,10 @@ test.txt
 # Build lock file for parallel coverage runs
 .build.lock
 
+# Orchestrator worktrees
+.orchestrator/
+.worktrees/
+
 # User-specific files
 *.rsuser
 *.suo

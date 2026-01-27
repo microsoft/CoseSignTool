@@ -9,8 +9,10 @@ using System.CommandLine.Parsing;
 using System.Diagnostics.CodeAnalysis;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Certificates;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Factories.Indirect;
+using CoseSign1.Headers;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Output;
 using Microsoft.Extensions.Logging;
@@ -43,6 +45,14 @@ public class SigningCommandBuilder
         public static readonly string SignatureTypeIndirect = "indirect";
         public static readonly string SignatureTypeDetached = "detached";
         public static readonly string SignatureTypeEmbedded = "embedded";
+
+        // CWT Claims option names
+        public static readonly string OptionNameIssuer = "--issuer";
+        public static readonly string OptionNameCwtSubject = "--cwt-subject";
+        public static readonly string OptionNameNoScitt = "--no-scitt";
+        public static readonly string StandardOptionIssuer = "issuer";
+        public static readonly string StandardOptionCwtSubject = "cwt-subject";
+        public static readonly string StandardOptionNoScitt = "no-scitt";
 
         // Default values
         public static readonly string DefaultContentType = "application/octet-stream";
@@ -126,6 +136,32 @@ public class SigningCommandBuilder
             Suppress informational messages (errors still shown).
               Automatically enabled when writing to stdout.
               Useful for scripting and pipeline operations.
+            """;
+
+        public static readonly string DescriptionIssuer = """
+            CWT Claims issuer (iss) - identifies who created the signature.
+              Overrides the default DID:x509 issuer from the certificate.
+              Examples:
+                https://build.contoso.com     - Build system URL
+                did:web:example.com           - DID identifier
+                urn:uuid:550e8400-e29b-41d4-a716-446655440000
+            """;
+
+        public static readonly string DescriptionCwtSubject = """
+            CWT Claims subject (sub) - identifies what is being signed.
+              Overrides the default subject ("unknown.intent").
+              Examples:
+                pkg:npm/express@4.18.2        - Package URL (purl)
+                sha256:abc123...              - Content hash
+                urn:uuid:550e8400-e29b-41d4-a716-446655440000
+            """;
+
+        public static readonly string DescriptionNoScitt = """
+            Disable automatic SCITT compliance (no CWT claims added).
+              By default, CoseSignTool adds SCITT-compliant CWT claims (iss, sub, iat, nbf)
+              to signatures. Use this flag to disable automatic claim generation.
+              Note: --issuer and --cwt-subject still work with --no-scitt to add
+              only the claims you explicitly specify.
             """;
 
         // Command description template
@@ -258,11 +294,27 @@ public class SigningCommandBuilder
             description: ClassStrings.DescriptionQuiet);
         quietOption.AddAlias(ClassStrings.OptionAliasQuiet);
 
+        // CWT Claims options for SCITT compliance
+        var issuerOption = new Option<string?>(
+            name: ClassStrings.OptionNameIssuer,
+            description: ClassStrings.DescriptionIssuer);
+
+        var cwtSubjectOption = new Option<string?>(
+            name: ClassStrings.OptionNameCwtSubject,
+            description: ClassStrings.DescriptionCwtSubject);
+
+        var noScittOption = new Option<bool>(
+            name: ClassStrings.OptionNameNoScitt,
+            description: ClassStrings.DescriptionNoScitt);
+
         command.AddArgument(payloadArgument);
         command.AddOption(outputOption);
         command.AddOption(signatureTypeOption);
         command.AddOption(contentTypeOption);
         command.AddOption(quietOption);
+        command.AddOption(issuerOption);
+        command.AddOption(cwtSubjectOption);
+        command.AddOption(noScittOption);
 
         // Let plugin add its specific options (--pfx, --thumbprint, etc.)
         provider.AddCommandOptions(command);
@@ -277,7 +329,10 @@ public class SigningCommandBuilder
                 outputOption,
                 signatureTypeOption,
                 contentTypeOption,
-                quietOption);
+                quietOption,
+                issuerOption,
+                cwtSubjectOption,
+                noScittOption);
             context.ExitCode = exitCode;
         });
 
@@ -305,7 +360,10 @@ public class SigningCommandBuilder
         Option<string?> outputOption,
         Option<string> signatureTypeOption,
         Option<string> contentTypeOption,
-        Option<bool> quietOption)
+        Option<bool> quietOption,
+        Option<string?> issuerOption,
+        Option<string?> cwtSubjectOption,
+        Option<bool> noScittOption)
     {
         var parseResult = context.ParseResult;
 
@@ -336,6 +394,9 @@ public class SigningCommandBuilder
             string signatureType = parseResult.GetValueForOption(signatureTypeOption) ?? ClassStrings.SignatureTypeIndirect;
             string contentType = parseResult.GetValueForOption(contentTypeOption) ?? ClassStrings.DefaultContentType;
             bool quiet = parseResult.GetValueForOption(quietOption);
+            string? issuer = parseResult.GetValueForOption(issuerOption);
+            string? cwtSubject = parseResult.GetValueForOption(cwtSubjectOption);
+            bool noScitt = parseResult.GetValueForOption(noScittOption);
 
             // Determine I/O mode
             bool useStdin = string.IsNullOrEmpty(payloadPath) || payloadPath == AssemblyStrings.IO.StdinIndicator;
@@ -344,6 +405,24 @@ public class SigningCommandBuilder
 
             // Extract plugin-specific options
             var pluginOptions = ExtractPluginOptions(parseResult, context.ParseResult.CommandResult.Command);
+
+            // Create CWT claims header contributor if issuer or subject specified
+            IHeaderContributor? cwtContributor = null;
+            if (!string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(cwtSubject))
+            {
+                var claims = new CwtClaims
+                {
+                    Issuer = issuer,
+                    Subject = cwtSubject,
+                    IssuedAt = DateTimeOffset.UtcNow,
+                    NotBefore = DateTimeOffset.UtcNow
+                };
+                cwtContributor = new CwtClaimsHeaderContributor(claims, CwtClaimsHeaderPlacement.ProtectedOnly);
+            }
+
+            // Determine if automatic SCITT compliance should be disabled
+            // --no-scitt disables automatic CWT claim generation by the signing service
+            bool disableAutoScitt = noScitt;
 
             // Determine if payload will be embedded based on signature type
             // For "detached" type, payload is never embedded
@@ -437,17 +516,17 @@ public class SigningCommandBuilder
                 if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
                 {
                     signatureBytes = await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, cancellationToken);
+                        signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, cancellationToken);
                 }
                 else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: true, cancellationToken);
+                        signingService, payloadStream, contentType, embedPayload: true, cwtContributor, disableAutoScitt, cancellationToken);
                 }
                 else if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: false, cancellationToken);
+                        signingService, payloadStream, contentType, embedPayload: false, cwtContributor, disableAutoScitt, cancellationToken);
                 }
                 else
                 {
@@ -560,6 +639,9 @@ public class SigningCommandBuilder
             ClassStrings.StandardOptionSignatureType,
             ClassStrings.StandardOptionContentType,
             ClassStrings.StandardOptionQuiet,
+            ClassStrings.StandardOptionIssuer,
+            ClassStrings.StandardOptionCwtSubject,
+            ClassStrings.StandardOptionNoScitt,
             ClassStrings.StandardOptionHelp
         };
 
@@ -589,11 +671,32 @@ public class SigningCommandBuilder
         Stream payloadStream,
         string contentType,
         bool embedPayload,
+        IHeaderContributor? cwtContributor,
+        bool disableAutoScitt,
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<DirectSignatureFactory>();
         using var factory = new DirectSignatureFactory(signingService, TransparencyProviders, logger);
-        var options = new DirectSignatureOptions { EmbedPayload = embedPayload };
+
+        // Build additional context to pass SCITT settings to the signing service
+        var additionalContext = new Dictionary<string, object>();
+        if (disableAutoScitt)
+        {
+            // Pass CertificateSigningOptions with SCITT disabled
+            additionalContext[nameof(CertificateSigningOptions)] = new CertificateSigningOptions
+            {
+                EnableScittCompliance = false
+            };
+        }
+
+        var options = new DirectSignatureOptions
+        {
+            EmbedPayload = embedPayload,
+            AdditionalHeaderContributors = cwtContributor != null
+                ? new List<IHeaderContributor> { cwtContributor }
+                : null,
+            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null
+        };
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);
     }
@@ -602,11 +705,32 @@ public class SigningCommandBuilder
         ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
         Stream payloadStream,
         string contentType,
+        IHeaderContributor? cwtContributor,
+        bool disableAutoScitt,
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();
         using var factory = new IndirectSignatureFactory(signingService, TransparencyProviders, logger, LoggerFactory);
-        var options = new IndirectSignatureOptions(); // Indirect signatures are always detached (payload not embedded, only hash is signed)
+
+        // Build additional context to pass SCITT settings to the signing service
+        var additionalContext = new Dictionary<string, object>();
+        if (disableAutoScitt)
+        {
+            // Pass CertificateSigningOptions with SCITT disabled
+            additionalContext[nameof(CertificateSigningOptions)] = new CertificateSigningOptions
+            {
+                EnableScittCompliance = false
+            };
+        }
+
+        var options = new IndirectSignatureOptions
+        {
+            // Indirect signatures are always detached (payload not embedded, only hash is signed)
+            AdditionalHeaderContributors = cwtContributor != null
+                ? new List<IHeaderContributor> { cwtContributor }
+                : null,
+            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null
+        };
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);
     }

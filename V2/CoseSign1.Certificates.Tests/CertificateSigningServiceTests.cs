@@ -271,9 +271,10 @@ public class CertificateSigningServiceTests
     }
 
     [Test]
-    public void GetCoseSigner_WithScittComplianceButNonCertificateSigningServiceKey_ThrowsInvalidOperationException()
+    public void GetCoseSigner_WithScittComplianceButNonCertificateSigningKey_SkipsCwtClaims()
     {
-        // Arrange - default SCITT claims require an ICertificateSigningServiceKey
+        // Arrange - when signing key doesn't implement ICertificateSigningKey,
+        // CWT claims should be skipped (not thrown)
         var mockSigningKey = CreateMockSigningKey();
         var service = new TestCertificateSigningService(mockSigningKey.Object, false);
 
@@ -293,9 +294,14 @@ public class CertificateSigningServiceTests
             "application/test",
             additionalContext: additionalContext);
 
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => service.GetCoseSigner(context));
-        Assert.That(ex!.Message, Does.Contain("certificate-based signing key"));
+        // Act - should not throw, just skip CWT claims
+        var signer = service.GetCoseSigner(context);
+
+        // Assert
+        Assert.That(signer, Is.Not.Null);
+        // CWT claims header (label 15) should not be present since key is not certificate-based
+        var hasCwtClaims = signer.ProtectedHeaders.Any(h => h.Key == new CoseHeaderLabel(15));
+        Assert.That(hasCwtClaims, Is.False, "Non-certificate signing key should not have CWT claims");
     }
 
     [Test]

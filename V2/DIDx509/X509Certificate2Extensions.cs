@@ -45,7 +45,7 @@ public static class X509Certificate2Extensions
     internal static class ClassStrings
     {
         public const string ErrorIntermediateIndexMustBeAtLeastOne = "Intermediate index must be >= 1 (1 = PCA)";
-        public const string ErrorChainMustContainAtLeastTwoCertificates = "Chain must contain at least 2 certificates";
+        public const string ErrorChainMustContainAtLeastOneCertificate = "Chain must contain at least 1 certificate";
         public const string ErrorFormatLocationOutOfRangeForChainLength = "Location {0} is out of range for chain of {1} certificates";
 
         public const string ErrorDidCannotBeNullOrEmpty = "DID cannot be null or empty";
@@ -144,8 +144,12 @@ public static class X509Certificate2Extensions
     /// <param name="hashAlgorithm">Hash algorithm (sha256, sha384, or sha512). Default: sha256.</param>
     /// <returns>A DID:X509 identifier string.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="certificate"/> or <paramref name="chain"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="chain"/> contains fewer than two certificates.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="chain"/> is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="location"/> is out of range for the provided chain.</exception>
+    /// <remarks>
+    /// For self-signed certificates (chain with only the leaf certificate), the leaf certificate
+    /// is used as both the leaf and CA certificate in the DID.
+    /// </remarks>
     public static string GetDidWithCertAtLocationInChain(
         this X509Certificate2 certificate,
         IEnumerable<X509Certificate2> chain,
@@ -163,19 +167,28 @@ public static class X509Certificate2Extensions
         }
 
         var certArray = chain.ToArray();
-        if (certArray.Length < 2)
+        if (certArray.Length < 1)
         {
-            throw new ArgumentException(ClassStrings.ErrorChainMustContainAtLeastTwoCertificates, nameof(chain));
+            throw new ArgumentException(ClassStrings.ErrorChainMustContainAtLeastOneCertificate, nameof(chain));
         }
 
-        // Convert negative indices to positive (Python-style)
-        int offset = location < 0 ? certArray.Length + location : location;
-        if (offset < 0 || offset >= certArray.Length)
+        // For self-signed certificates (single cert chain), use the same cert as CA
+        X509Certificate2 caCert;
+        if (certArray.Length == 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(location), string.Format(ClassStrings.ErrorFormatLocationOutOfRangeForChainLength, location, certArray.Length));
+            caCert = certArray[0];
         }
+        else
+        {
+            // Convert negative indices to positive (Python-style)
+            int offset = location < 0 ? certArray.Length + location : location;
+            if (offset < 0 || offset >= certArray.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(location), string.Format(ClassStrings.ErrorFormatLocationOutOfRangeForChainLength, location, certArray.Length));
+            }
 
-        var caCert = certArray[offset];
+            caCert = certArray[offset];
+        }
 
         return new DidX509Builder()
             .WithLeafCertificate(certificate)

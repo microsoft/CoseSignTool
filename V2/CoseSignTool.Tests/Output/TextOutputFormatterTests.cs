@@ -23,7 +23,7 @@ public class TextOutputFormatterTests
 
         // Assert
         Assert.That(output.ToString(), Does.Contain("Test message"));
-        Assert.That(output.ToString(), Does.Contain("✓"));
+        Assert.That(output.ToString(), Does.Contain("[OK]"));
     }
 
     [Test]
@@ -38,7 +38,7 @@ public class TextOutputFormatterTests
 
         // Assert
         Assert.That(error.ToString(), Does.Contain("Error message"));
-        Assert.That(error.ToString(), Does.Contain("✗"));
+        Assert.That(error.ToString(), Does.Contain("[ERROR]"));
     }
 
     [Test]
@@ -53,7 +53,7 @@ public class TextOutputFormatterTests
 
         // Assert
         Assert.That(output.ToString(), Does.Contain("Info message"));
-        Assert.That(output.ToString(), Does.Contain("ℹ"));
+        Assert.That(output.ToString(), Does.Contain("[INFO]"));
     }
 
     [Test]
@@ -68,7 +68,7 @@ public class TextOutputFormatterTests
 
         // Assert
         Assert.That(output.ToString(), Does.Contain("Warning message"));
-        Assert.That(output.ToString(), Does.Contain("⚠"));
+        Assert.That(output.ToString(), Does.Contain("[WARN]"));
     }
 
     [Test]

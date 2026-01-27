@@ -16,10 +16,10 @@ public class TextOutputFormatter : IOutputFormatter
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public static readonly string SuccessPrefix = "✓ ";
-        public static readonly string ErrorPrefix = "✗ ";
-        public static readonly string InfoPrefix = "ℹ ";
-        public static readonly string WarningPrefix = "⚠ ";
+        public static readonly string SuccessPrefix = "[OK] ";
+        public static readonly string ErrorPrefix = "[ERROR] ";
+        public static readonly string InfoPrefix = "[INFO] ";
+        public static readonly string WarningPrefix = "[WARN] ";
         public static readonly string KeyValueFormat = "  {0}: {1}";
     }
 

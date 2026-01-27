@@ -62,6 +62,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         public static readonly string LogAcquiringSigningKeyFormat = "Acquiring signing key for context. ContentType: {ContentType}, IsRemote: {IsRemote}";
         public static readonly string LogSigningKeyAcquiredFormat = "Signing key acquired. CoseAlgorithmId: {CoseAlgorithmId}, KeyType: {KeyType}";
         public static readonly string LogAddingScittCwtClaims = "Adding SCITT-compliant CWT claims to signature headers";
+        public static readonly string LogSkippingCwtClaimsNonCertificateKey = "Skipping CWT claims - signing key is not certificate-based";
         public static readonly string LogApplyingAdditionalHeaderContributorsFormat = "Applying {Count} additional header contributors";
     }
 
@@ -307,15 +308,30 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         CertificateContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
         CertificateContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
 
-        // Check for SCITT compliance and add CWT claims if requested
-        if (context.TryGetCertificateOptions(out var certOptions) && certOptions.EnableScittCompliance)
+        // Get certificate options from context, or use default (which has EnableScittCompliance = true)
+        // This ensures CWT claims are always added unless explicitly disabled
+        var certOptions = context.TryGetCertificateOptions(out var contextOptions)
+            ? contextOptions ?? new CertificateSigningOptions()
+            : new CertificateSigningOptions(); // Default: EnableScittCompliance = true
+
+        // Add CWT claims if SCITT compliance is enabled (default)
+        if (certOptions.EnableScittCompliance == true)
         {
-            Logger.LogDebug(
-                LogEvents.SigningHeaderContributionEvent,
-                ClassStrings.LogAddingScittCwtClaims);
             var cwtContributor = CreateScittCwtClaimsContributor(certOptions, signingKey);
-            cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
-            cwtContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
+            if (cwtContributor != null)
+            {
+                Logger.LogDebug(
+                    LogEvents.SigningHeaderContributionEvent,
+                    ClassStrings.LogAddingScittCwtClaims);
+                cwtContributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
+                cwtContributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
+            }
+            else
+            {
+                Logger.LogDebug(
+                    LogEvents.SigningHeaderContributionEvent,
+                    ClassStrings.LogSkippingCwtClaimsNonCertificateKey);
+            }
         }
 
         // Then apply any additional header contributors from context
@@ -342,8 +358,9 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
     /// <summary>
     /// Creates a CwtClaimsHeaderContributor for SCITT compliance.
     /// Uses custom claims if provided, otherwise generates default claims with DID:x509 issuer.
+    /// Returns null if the signing key is not a certificate-based key (required for DID:x509).
     /// </summary>
-    private static CwtClaimsHeaderContributor CreateScittCwtClaimsContributor(
+    private static CwtClaimsHeaderContributor? CreateScittCwtClaimsContributor(
         CertificateSigningOptions options,
         ISigningKey signingKey)
     {
@@ -360,16 +377,18 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
             var now = DateTimeOffset.UtcNow;
 
             // Cast to ICertificateSigningKey to access certificate chain
+            // If not a certificate-based key, return null to skip CWT claims
             if (signingKey is not ICertificateSigningKey certKey)
             {
-                throw new InvalidOperationException(ClassStrings.ErrorScittComplianceRequiresCertificateSigningKey);
+                return null;
             }
 
             var certificateChain = certKey.GetCertificateChain(X509ChainSortOrder.LeafFirst);
 
             // Generate DID:x509 issuer from certificate chain using extension method
+            // GetDidWithRoot handles self-signed certificates appropriately
             var leafCert = certificateChain.First();
-            string issuer = leafCert.GetDidWithRoot(certificateChain);
+            var issuer = leafCert.GetDidWithRoot(certificateChain);
 
             claims = new CwtClaims
             {

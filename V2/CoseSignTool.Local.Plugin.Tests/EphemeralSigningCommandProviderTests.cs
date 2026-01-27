@@ -318,7 +318,7 @@ public class EphemeralSigningCommandProviderTests
         Assert.That(metadata["Certificate Source"], Is.EqualTo("Ephemeral (in-memory)"));
         Assert.That(metadata["Certificate Subject"], Does.Contain("Test Subject"));
         Assert.That(metadata["Certificate Thumbprint"], Has.Length.EqualTo(40)); // SHA1 thumbprint
-        Assert.That(metadata.ContainsKey("⚠️ Warning"), Is.True);
+        Assert.That(metadata.ContainsKey("!! Warning"), Is.True);
     }
 
     [Test]

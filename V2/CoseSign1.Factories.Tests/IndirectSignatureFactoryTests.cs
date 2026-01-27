@@ -95,7 +95,7 @@ public class IndirectSignatureFactoryTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            factory.CreateCoseSign1MessageBytes(payload.AsSpan(), contentType: null!, options: null, serviceOptions: null));
+            factory.CreateCoseSign1MessageBytes(payload.AsSpan(), contentType: null!, options: null));
     }
 
     [Test]
@@ -790,7 +790,7 @@ public class IndirectSignatureFactoryTests
     }
 
     [Test]
-    public void CreateCoseSign1MessageBytes_WithServiceOptions_UsesSigningService()
+    public void CreateCoseSign1MessageBytes_WithNullOptions_UsesSigningService()
     {
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
@@ -807,8 +807,7 @@ public class IndirectSignatureFactoryTests
         var result = factory.CreateCoseSign1MessageBytes(
             payload,
             "application/json",
-            options: null,
-            serviceOptions: new SigningOptions());
+            options: null);
 
         // Assert
         Assert.That(result, Is.Not.Null);

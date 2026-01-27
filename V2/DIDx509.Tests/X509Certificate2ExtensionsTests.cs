@@ -339,15 +339,30 @@ public class X509Certificate2ExtensionsTests : DIDx509TestBase
     }
 
     [Test]
-    public void GetDidWithCertAtLocationInChain_WithChainTooShort_ThrowsArgumentException()
+    public void GetDidWithCertAtLocationInChain_WithSelfSignedCertificate_UsesLeafAsCa()
+    {
+        // Arrange - single self-signed certificate in chain
+        using var selfSigned = CreateSelfSignedCertificate("CN=Self Signed Test");
+        var chain = new[] { selfSigned };
+
+        // Act - should work with self-signed cert (chain of 1)
+        string did = selfSigned.GetDidWithCertAtLocationInChain(chain, 0);
+
+        // Assert
+        Assert.That(did, Does.StartWith("did:x509:"));
+        Assert.That(did, Does.Contain("::subject:"));
+    }
+
+    [Test]
+    public void GetDidWithCertAtLocationInChain_WithEmptyChain_ThrowsArgumentException()
     {
         // Arrange
         using var leaf = CreateTestCertificate("CN=Leaf");
-        var chain = new[] { leaf };
+        var chain = Array.Empty<X509Certificate2>();
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(() => leaf.GetDidWithCertAtLocationInChain(chain, 0));
-        Assert.That(ex!.Message, Does.Contain("at least 2 certificates"));
+        Assert.That(ex!.Message, Does.Contain("at least 1 certificate"));
     }
 
     [Test]

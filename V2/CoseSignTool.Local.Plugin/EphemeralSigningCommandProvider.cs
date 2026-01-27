@@ -127,10 +127,10 @@ public class EphemeralSigningCommandProvider : ISigningCommandProvider
         public static readonly string MetaKeyCertThumbprint = "Certificate Thumbprint";
         public static readonly string MetaKeyKeyAlgorithm = "Key Algorithm";
         public static readonly string MetaKeyCertChain = "Certificate Chain";
-        public static readonly string MetaKeyWarning = "⚠️ Warning";
+        public static readonly string MetaKeyWarning = "!! Warning";
         public static readonly string MetaValueEphemeral = "Ephemeral (in-memory)";
         public static readonly string MetaValueUnknown = "Unknown";
-        public static readonly string MetaValueChainFull = "Root → Intermediate → Leaf";
+        public static readonly string MetaValueChainFull = "Root > Intermediate > Leaf";
         public static readonly string MetaValueSelfSigned = "Self-signed";
         public static readonly string MetaValueWarning = "Ephemeral certificates are for testing only";
 

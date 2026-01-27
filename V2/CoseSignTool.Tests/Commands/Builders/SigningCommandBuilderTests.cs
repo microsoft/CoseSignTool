@@ -21,7 +21,28 @@ public class SigningCommandBuilderTests
 
         public CoseSigner GetCoseSigner(SigningContext context)
         {
-            return new CoseSigner(_key, HashAlgorithmName.SHA256);
+            // Build headers using the same pattern as CertificateSigningService
+            var protectedHeaders = new CoseHeaderMap();
+            var unprotectedHeaders = new CoseHeaderMap();
+
+            // Apply any header contributors from context (including CoseHashEnvelopeHeaderContributor)
+            if (context.AdditionalHeaderContributors != null)
+            {
+                // Create a mock signing key for the contributor context
+                var mockSigningKey = new Moq.Mock<ISigningKey>();
+                var contributorContext = new HeaderContributorContext(context, mockSigningKey.Object);
+                foreach (var contributor in context.AdditionalHeaderContributors)
+                {
+                    contributor.ContributeProtectedHeaders(protectedHeaders, contributorContext);
+                    contributor.ContributeUnprotectedHeaders(unprotectedHeaders, contributorContext);
+                }
+            }
+
+            return new CoseSigner(
+                _key,
+                HashAlgorithmName.SHA256,
+                protectedHeaders: protectedHeaders,
+                unprotectedHeaders: unprotectedHeaders.Count > 0 ? unprotectedHeaders : null);
         }
 
         public SigningOptions CreateSigningOptions() => new();
@@ -608,6 +629,171 @@ public class SigningCommandBuilderTests
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(File.Exists(outputPath), Is.True);
             Assert.That(new FileInfo(outputPath).Length, Is.GreaterThan(0));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithIndirectSignatureAndPayloadLocation_IncludesLocationInSignature()
+    {
+        // Arrange
+        var provider = new TestSigningCommandProvider();
+        var builder = TestConsole.CreateSigningCommandBuilder();
+        var signingCommand = builder.BuildSigningCommand(provider);
+        var root = CreateRoot(signingCommand);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"sign_builder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var payloadPath = Path.Combine(tempDir, "payload.txt");
+        await File.WriteAllTextAsync(payloadPath, "hello payload");
+
+        var outputPath = Path.Combine(tempDir, "signature-with-location.cose");
+        var payloadLocation = "https://example.com/payloads/12345";
+
+        try
+        {
+            // Act
+            var exitCode = await root.InvokeAsync(new[]
+            {
+                "--output-format", "quiet",
+                provider.CommandName,
+                payloadPath,
+                "--signature-type", "indirect",
+                "--output", outputPath,
+                "--content-type", "text/plain",
+                "--payload-location", payloadLocation,
+                "--mode", "success",
+                "--quiet"
+            });
+
+            // Assert
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(File.Exists(outputPath), Is.True);
+            Assert.That(new FileInfo(outputPath).Length, Is.GreaterThan(0));
+
+            // Verify the signature contains the payload location in headers
+            var signatureBytes = await File.ReadAllBytesAsync(outputPath);
+            var message = CoseSign1Message.DecodeSign1(signatureBytes);
+
+            // PayloadLocation is label 260
+            var payloadLocationLabel = new CoseHeaderLabel(260);
+            Assert.That(message.ProtectedHeaders.ContainsKey(payloadLocationLabel), Is.True,
+                "Signature should contain PayloadLocation header");
+            Assert.That(message.ProtectedHeaders[payloadLocationLabel].GetValueAsString(),
+                Is.EqualTo(payloadLocation),
+                "PayloadLocation header should contain the specified URL");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithIndirectSignatureAndPayloadLocationAlias_IncludesLocationInSignature()
+    {
+        // Arrange
+        var provider = new TestSigningCommandProvider();
+        var builder = TestConsole.CreateSigningCommandBuilder();
+        var signingCommand = builder.BuildSigningCommand(provider);
+        var root = CreateRoot(signingCommand);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"sign_builder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var payloadPath = Path.Combine(tempDir, "payload.txt");
+        await File.WriteAllTextAsync(payloadPath, "hello");
+
+        var outputPath = Path.Combine(tempDir, "signature-alias.cose");
+        var payloadLocation = "file:///data/payload.bin";
+
+        try
+        {
+            // Act - use -l alias
+            var exitCode = await root.InvokeAsync(new[]
+            {
+                "--output-format", "quiet",
+                provider.CommandName,
+                payloadPath,
+                "--signature-type", "indirect",
+                "--output", outputPath,
+                "-l", payloadLocation,
+                "--mode", "success",
+                "--quiet"
+            });
+
+            // Assert
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(File.Exists(outputPath), Is.True);
+
+            var signatureBytes = await File.ReadAllBytesAsync(outputPath);
+            var message = CoseSign1Message.DecodeSign1(signatureBytes);
+
+            var payloadLocationLabel = new CoseHeaderLabel(260);
+            Assert.That(message.ProtectedHeaders.ContainsKey(payloadLocationLabel), Is.True);
+            Assert.That(message.ProtectedHeaders[payloadLocationLabel].GetValueAsString(),
+                Is.EqualTo(payloadLocation));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithIndirectSignatureWithoutPayloadLocation_DoesNotIncludeLocationHeader()
+    {
+        // Arrange
+        var provider = new TestSigningCommandProvider();
+        var builder = TestConsole.CreateSigningCommandBuilder();
+        var signingCommand = builder.BuildSigningCommand(provider);
+        var root = CreateRoot(signingCommand);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"sign_builder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var payloadPath = Path.Combine(tempDir, "payload.txt");
+        await File.WriteAllTextAsync(payloadPath, "hello");
+
+        var outputPath = Path.Combine(tempDir, "signature-no-location.cose");
+
+        try
+        {
+            // Act - do NOT specify --payload-location
+            var exitCode = await root.InvokeAsync(new[]
+            {
+                "--output-format", "quiet",
+                provider.CommandName,
+                payloadPath,
+                "--signature-type", "indirect",
+                "--output", outputPath,
+                "--mode", "success",
+                "--quiet"
+            });
+
+            // Assert
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(File.Exists(outputPath), Is.True);
+
+            var signatureBytes = await File.ReadAllBytesAsync(outputPath);
+            var message = CoseSign1Message.DecodeSign1(signatureBytes);
+
+            var payloadLocationLabel = new CoseHeaderLabel(260);
+            Assert.That(message.ProtectedHeaders.ContainsKey(payloadLocationLabel), Is.False,
+                "Signature should NOT contain PayloadLocation header when not specified");
         }
         finally
         {

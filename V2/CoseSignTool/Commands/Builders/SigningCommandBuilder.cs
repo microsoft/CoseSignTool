@@ -50,9 +50,12 @@ public class SigningCommandBuilder
         public static readonly string OptionNameIssuer = "--issuer";
         public static readonly string OptionNameCwtSubject = "--cwt-subject";
         public static readonly string OptionNameNoScitt = "--no-scitt";
+        public static readonly string OptionNamePayloadLocation = "--payload-location";
+        public static readonly string OptionAliasPayloadLocation = "-l";
         public static readonly string StandardOptionIssuer = "issuer";
         public static readonly string StandardOptionCwtSubject = "cwt-subject";
         public static readonly string StandardOptionNoScitt = "no-scitt";
+        public static readonly string StandardOptionPayloadLocation = "payload-location";
 
         // Default values
         public static readonly string DefaultContentType = "application/octet-stream";
@@ -162,6 +165,16 @@ public class SigningCommandBuilder
               to signatures. Use this flag to disable automatic claim generation.
               Note: --issuer and --cwt-subject still work with --no-scitt to add
               only the claims you explicitly specify.
+            """;
+
+        public static readonly string DescriptionPayloadLocation = """
+            Location URI for the payload (indirect signatures only).
+              Specifies where the original payload can be retrieved.
+              Only applies to indirect signatures (--signature-type indirect).
+              Examples:
+                --payload-location https://example.com/payload.bin
+                --payload-location file:///path/to/payload.bin
+                --payload-location urn:uuid:550e8400-e29b-41d4-a716-446655440000
             """;
 
         // Command description template
@@ -307,6 +320,11 @@ public class SigningCommandBuilder
             name: ClassStrings.OptionNameNoScitt,
             description: ClassStrings.DescriptionNoScitt);
 
+        var payloadLocationOption = new Option<string?>(
+            name: ClassStrings.OptionNamePayloadLocation,
+            description: ClassStrings.DescriptionPayloadLocation);
+        payloadLocationOption.AddAlias(ClassStrings.OptionAliasPayloadLocation);
+
         command.AddArgument(payloadArgument);
         command.AddOption(outputOption);
         command.AddOption(signatureTypeOption);
@@ -315,6 +333,7 @@ public class SigningCommandBuilder
         command.AddOption(issuerOption);
         command.AddOption(cwtSubjectOption);
         command.AddOption(noScittOption);
+        command.AddOption(payloadLocationOption);
 
         // Let plugin add its specific options (--pfx, --thumbprint, etc.)
         provider.AddCommandOptions(command);
@@ -332,7 +351,8 @@ public class SigningCommandBuilder
                 quietOption,
                 issuerOption,
                 cwtSubjectOption,
-                noScittOption);
+                noScittOption,
+                payloadLocationOption);
             context.ExitCode = exitCode;
         });
 
@@ -363,7 +383,8 @@ public class SigningCommandBuilder
         Option<bool> quietOption,
         Option<string?> issuerOption,
         Option<string?> cwtSubjectOption,
-        Option<bool> noScittOption)
+        Option<bool> noScittOption,
+        Option<string?> payloadLocationOption)
     {
         var parseResult = context.ParseResult;
 
@@ -397,6 +418,7 @@ public class SigningCommandBuilder
             string? issuer = parseResult.GetValueForOption(issuerOption);
             string? cwtSubject = parseResult.GetValueForOption(cwtSubjectOption);
             bool noScitt = parseResult.GetValueForOption(noScittOption);
+            string? payloadLocation = parseResult.GetValueForOption(payloadLocationOption);
 
             // Determine I/O mode
             bool useStdin = string.IsNullOrEmpty(payloadPath) || payloadPath == AssemblyStrings.IO.StdinIndicator;
@@ -516,7 +538,7 @@ public class SigningCommandBuilder
                 if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
                 {
                     signatureBytes = await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, cancellationToken);
+                        signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, payloadLocation, cancellationToken);
                 }
                 else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
                 {
@@ -642,6 +664,7 @@ public class SigningCommandBuilder
             ClassStrings.StandardOptionIssuer,
             ClassStrings.StandardOptionCwtSubject,
             ClassStrings.StandardOptionNoScitt,
+            ClassStrings.StandardOptionPayloadLocation,
             ClassStrings.StandardOptionHelp
         };
 
@@ -707,6 +730,7 @@ public class SigningCommandBuilder
         string contentType,
         IHeaderContributor? cwtContributor,
         bool disableAutoScitt,
+        string? payloadLocation,
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();
@@ -729,7 +753,8 @@ public class SigningCommandBuilder
             AdditionalHeaderContributors = cwtContributor != null
                 ? new List<IHeaderContributor> { cwtContributor }
                 : null,
-            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null
+            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null,
+            PayloadLocation = payloadLocation
         };
         return await factory.CreateCoseSign1MessageBytesAsync(
             payloadStream, contentType, options, cancellationToken);

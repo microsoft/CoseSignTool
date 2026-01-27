@@ -106,10 +106,29 @@ var factory = new IndirectSignatureFactory(signingService);
 
 // Stream large file - memory efficient
 using var stream = File.OpenRead("large-file.bin");
-var signature = await factory.CreateIndirectSignatureBytesAsync(
-    stream,
-    HashAlgorithmName.SHA384,
-    "application/octet-stream");
+var options = new IndirectSignatureOptions
+{
+    HashAlgorithm = HashAlgorithmName.SHA384
+};
+var signature = await factory.CreateCoseSign1MessageBytesAsync(stream, "application/octet-stream", options);
+```
+
+### Create Indirect Signature with Payload Location
+
+```csharp
+using CoseSign1.Factories.Indirect;
+
+var factory = new IndirectSignatureFactory(signingService);
+
+var payload = File.ReadAllBytes("document.json");
+var options = new IndirectSignatureOptions
+{
+    HashAlgorithm = HashAlgorithmName.SHA256,
+    // Payload location is stored in COSE header label 260 (RFC 9054)
+    PayloadLocation = "https://example.com/artifacts/document.json"
+};
+
+var signature = factory.CreateCoseSign1MessageBytes(payload, "application/json", options);
 ```
 
 ### Add Custom Headers

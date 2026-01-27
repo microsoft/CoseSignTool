@@ -61,7 +61,7 @@ dotnet add package CoseSign1.Certificates.Local
 ### Sign a File
 
 ```bash
-# Sign with PFX certificate
+# Sign with PFX certificate (indirect signature - default)
 cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --output document.cose
 
 # Sign with embedded payload
@@ -69,6 +69,9 @@ cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --signature-type embedd
 
 # Sign with detached payload (signature only)
 cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --signature-type detached --output document.sig
+
+# Sign with payload location URI (indirect signatures only)
+cosesigntool sign x509 pfx document.txt --pfx mycert.pfx --payload-location https://example.com/docs/document.txt --output document.cose
 ```
 
 ### Verify a Signature

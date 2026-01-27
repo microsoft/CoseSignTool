@@ -256,6 +256,7 @@ All sign commands support these common options:
 | `--output <path>`, `-o` | Output file path. Use `-` for stdout. Defaults: `<payload>.cose` for file payloads, stdout for stdin |
 | `--content-type <type>`, `-c` | MIME type for content type header (default: `application/octet-stream`) |
 | `--signature-type <type>`, `-t` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
+| `--payload-location <uri>`, `-l` | Location URI where payload can be retrieved (indirect signatures only) |
 | `--quiet`, `-q` | Suppress normal output (errors still reported) |
 
 ## Exit Codes

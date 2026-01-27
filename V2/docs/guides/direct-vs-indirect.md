@@ -105,11 +105,16 @@ Indirect signatures use a "hash envelope" payload:
 
 ```cbor
 {
-    "algorithm": "SHA-256",       ; Hash algorithm
-    "hash": h'abc123...',         ; Hash of original payload
-    "location": "file.json"       ; Optional: where to find payload
+    "algorithm": "SHA-256",       ; Hash algorithm (header 258)
+    "preimage-content-type": "application/json",  ; Original content type (header 259)
+    "location": "https://..."     ; Optional: where to find payload (header 260)
 }
 ```
+
+The hash envelope headers are defined by RFC 9054:
+- **PayloadHashAlg (258)** - COSE algorithm identifier for the hash algorithm
+- **PreimageContentType (259)** - Content type of the original payload before hashing  
+- **PayloadLocation (260)** - Optional URI where the original payload can be retrieved
 
 ### When to Use
 
@@ -132,6 +137,15 @@ byte[] signature = factory.CreateCoseSign1MessageBytes<IndirectSignatureOptions>
     payload,
     "application/json");
 
+// With payload location (optional)
+byte[] signatureWithLocation = factory.CreateCoseSign1MessageBytes(
+    payload,
+    "application/json",
+    new IndirectSignatureOptions
+    {
+        PayloadLocation = "https://artifacts.example.com/document.json"
+    });
+
 // Or from stream (memory efficient)
 using var stream = File.OpenRead("large-file.bin");
 byte[] streamSignature = await factory.CreateCoseSign1MessageBytesAsync<IndirectSignatureOptions>(
@@ -142,10 +156,17 @@ byte[] streamSignature = await factory.CreateCoseSign1MessageBytesAsync<Indirect
 ### CLI Usage
 
 ```bash
-# Indirect signature
+# Indirect signature (default)
 cosesigntool sign x509 pfx large-file.bin ^
     --pfx cert.pfx ^
     --signature-type indirect ^
+    --output signed.cose
+
+# Indirect signature with payload location URI
+cosesigntool sign x509 pfx large-file.bin ^
+    --pfx cert.pfx ^
+    --signature-type indirect ^
+    --payload-location https://artifacts.example.com/large-file.bin ^
     --output signed.cose
 ```
 
@@ -284,8 +305,9 @@ Indirect signatures rely on hash collision resistance:
 
 Ensure payload location/identification is clear:
 - Include content type in headers
-- Consider including payload identifier
+- Use `--payload-location` to specify where the payload can be retrieved
 - Document payload retrieval process
+- The PayloadLocation header (260) is signed and tamper-evident
 
 ## See Also
 

@@ -257,15 +257,21 @@ public class CoseSignTool
 
         try
         {
-            // Add universal logging options to the command's options
-            Dictionary<string, string> commandOptions = new Dictionary<string, string>(command.Options)
+            // Convert plugin options (key -> description format) to switch mappings (--key -> key format)
+            // The Options dictionary from plugins uses { "option-name", "description" } format
+            // but CommandLineConfigurationProvider needs { "--option-name", "option-name" } format
+            Dictionary<string, string> commandOptions = new();
+            foreach (var option in command.Options)
             {
-                ["--verbose"] = "verbose",
-                ["-v"] = "verbose",
-                ["--quiet"] = "quiet",
-                ["-q"] = "quiet",
-                ["--verbosity"] = "verbosity"
-            };
+                commandOptions[$"--{option.Key}"] = option.Key;
+            }
+            
+            // Add universal logging options
+            commandOptions["--verbose"] = "verbose";
+            commandOptions["-v"] = "verbose";
+            commandOptions["--quiet"] = "quiet";
+            commandOptions["-q"] = "quiet";
+            commandOptions["--verbosity"] = "verbosity";
 
             provider = CoseCommand.LoadCommandLineArgs(args, commandOptions, out badArg);
             if (provider is null)

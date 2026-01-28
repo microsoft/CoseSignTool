@@ -185,6 +185,7 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <param name="coseHeaderExtender">Optional header extender to add custom headers to the COSE message.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <param name="payloadLocation">Optional URI indicating where the payload can be retrieved from. Only applicable for CoseHashEnvelope format.</param>
     /// <returns>A Task which can be awaited which will return a CoseSign1Message which can be used as a Indirect signature validation of the payload.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     public async Task<CoseSign1Message> CreateIndirectSignatureAsync(
@@ -193,7 +194,8 @@ public sealed partial class IndirectSignatureFactory
         string contentType,
         IndirectSignatureVersion signatureVersion,
         ICoseHeaderExtender? coseHeaderExtender = null,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        string? payloadLocation = null) =>
             (CoseSign1Message)await CreateIndirectSignatureWithChecksInternalAsync(
                 returnBytes: false,
                 signingKeyProvider: signingKeyProvider,
@@ -201,7 +203,8 @@ public sealed partial class IndirectSignatureFactory
                 streamPayload: payload,
                 signatureVersion: signatureVersion,
                 headerExtender: coseHeaderExtender,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken,
+                payloadLocation: payloadLocation).ConfigureAwait(false);
 
     /// <summary>
     /// Creates a Indirect signature of the payload given a hash of the payload returned as a <see cref="CoseSign1Message"/> following the rules in this class description.

@@ -375,6 +375,25 @@ CoseSignTool indirect-sign \
   --cwt-claims "exp:2025-12-31T23:59:59Z"
 ```
 
+### Payload Location (RFC 9054)
+
+When using indirect signatures with the CoseHashEnvelope format, you can optionally include a **payload location** URI. This header (label 260, per [RFC 9054](https://datatracker.ietf.org/doc/rfc9054/)) indicates where the original payload can be retrieved from, enabling verification scenarios where the payload is stored separately from the signature.
+
+```bash
+# Include payload location for remote retrieval
+CoseSignTool indirect-sign \
+  --payload artifact.bin \
+  --signature artifact.cose \
+  --pfx mycert.pfx \
+  --cwt-subject "artifact.release.v2.1" \
+  --payload-location "https://artifacts.example.com/releases/v2.1/artifact.bin"
+```
+
+The payload location is stored in the COSE protected headers alongside other Hash Envelope headers:
+- **Label 258**: Payload Hash Algorithm (e.g., SHA-256)
+- **Label 259**: Preimage Content Type (e.g., application/octet-stream)
+- **Label 260**: Payload Location (optional URI)
+
 ## Validation and Reading CWT Claims
 
 When validating signatures, CoseHandler automatically validates the CWT Claims structure. To read the claims:

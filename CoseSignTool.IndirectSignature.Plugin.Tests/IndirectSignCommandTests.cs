@@ -1019,5 +1019,99 @@ public class IndirectSignCommandTests
         // Assert
         Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
     }
+
+    [TestMethod]
+    public void IndirectSignCommand_Options_ShouldContainPayloadLocationOption()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+
+        // Act
+        IDictionary<string, string> options = command.Options;
+
+        // Assert
+        Assert.IsTrue(options.ContainsKey("payload-location"), "Options should contain payload-location");
+        Assert.IsTrue(options["payload-location"].Contains("URI"), "payload-location description should mention URI");
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithPayloadLocation_ShouldIncludePayloadLocationHeader()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_payload_location";
+        string testPayloadLocation = "https://example.com/payload/test.bin";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath,
+            ["payload-location"] = testPayloadLocation
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify the signature contains the PayloadLocation header (label 260 per RFC 9054)
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            Assert.IsNotNull(message);
+            Assert.IsTrue(message.IsIndirectSignature());
+
+            // PayloadLocation is COSE header label 260
+            bool hasPayloadLocation = message.ProtectedHeaders.TryGetValue(new CoseHeaderLabel(260), out CoseHeaderValue payloadLocationValue);
+            Assert.IsTrue(hasPayloadLocation, "Signature should contain PayloadLocation header (label 260)");
+            string? actualLocation = payloadLocationValue.GetValueAsString();
+            Assert.AreEqual(testPayloadLocation, actualLocation, "PayloadLocation header value should match the specified URI");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task IndirectSignCommand_Execute_WithoutPayloadLocation_ShouldNotIncludePayloadLocationHeader()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+        string signaturePath = TestSignaturePath + "_no_payload_location";
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["payload"] = TestPayloadPath,
+            ["signature"] = signaturePath,
+            ["pfx"] = TestCertificatePath
+        });
+
+        try
+        {
+            // Act
+            PluginExitCode result = await command.ExecuteAsync(configuration);
+
+            // Assert
+            Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsTrue(File.Exists(signaturePath));
+
+            // Verify the signature does NOT contain the PayloadLocation header (label 260)
+            byte[] signatureBytes = File.ReadAllBytes(signaturePath);
+            CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
+            Assert.IsNotNull(message);
+            Assert.IsTrue(message.IsIndirectSignature());
+
+            // PayloadLocation is COSE header label 260
+            bool hasPayloadLocation = message.ProtectedHeaders.TryGetValue(new CoseHeaderLabel(260), out _);
+            Assert.IsFalse(hasPayloadLocation, "Signature should NOT contain PayloadLocation header when not specified");
+        }
+        finally
+        {
+            SafeDeleteFile(signaturePath);
+        }
+    }
 }
 

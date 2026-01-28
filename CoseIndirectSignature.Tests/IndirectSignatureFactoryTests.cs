@@ -440,4 +440,66 @@ public class IndirectSignatureFactoryTests
         IndirectSignature.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
         algo!.Should().Be(CoseHashAlgorithm.SHA256);
     }
+
+    [Test]
+    public async Task TestCreateIndirectSignatureAsyncWithPayloadLocation()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        using IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        string testPayloadLocation = "https://example.com/payload/test.bin";
+
+        using MemoryStream memStream = new(randomBytes);
+        CoseSign1Message indirectSignature = await factory.CreateIndirectSignatureAsync(
+            memStream,
+            coseSigningKeyProvider,
+            "application/test.payload",
+            IndirectSignatureFactory.IndirectSignatureVersion.CoseHashEnvelope,
+            payloadLocation: testPayloadLocation);
+
+        // Verify it's an indirect signature
+        indirectSignature.IsIndirectSignature().Should().BeTrue();
+        indirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
+
+        // Verify PayloadLocation header is set correctly
+        indirectSignature.TryGetPayloadLocation(out string? actualLocation).Should().BeTrue();
+        actualLocation.Should().Be(testPayloadLocation);
+
+        // Verify other headers are also correct
+        indirectSignature.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        indirectSignature.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+    }
+
+    [Test]
+    public async Task TestCreateIndirectSignatureAsyncWithoutPayloadLocation()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        using IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+
+        using MemoryStream memStream = new(randomBytes);
+        CoseSign1Message indirectSignature = await factory.CreateIndirectSignatureAsync(
+            memStream,
+            coseSigningKeyProvider,
+            "application/test.payload",
+            IndirectSignatureFactory.IndirectSignatureVersion.CoseHashEnvelope);
+
+        // Verify it's an indirect signature
+        indirectSignature.IsIndirectSignature().Should().BeTrue();
+        indirectSignature.SignatureMatches(randomBytes).Should().BeTrue();
+
+        // Verify PayloadLocation header is NOT set
+        indirectSignature.TryGetPayloadLocation(out string? actualLocation).Should().BeFalse();
+        actualLocation.Should().BeNull();
+
+        // Verify other headers are correct
+        indirectSignature.TryGetPreImageContentType(out string? payloadType).Should().Be(true);
+        payloadType!.Should().Be("application/test.payload");
+        indirectSignature.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
+        algo!.Should().Be(CoseHashAlgorithm.SHA256);
+    }
 }

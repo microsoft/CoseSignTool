@@ -109,6 +109,7 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <param name="headerExtender">An optional <see cref="ICoseHeaderExtender"/> to extend the protected headers of the CoseSign1Message.</param>
+    /// <param name="payloadLocation">Optional URI indicating where the payload can be retrieved from. Only applicable for CoseHashEnvelope format.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -121,7 +122,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
         bool payloadHashed = false,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        string? payloadLocation = null)
     {
         if (string.IsNullOrWhiteSpace(contentType))
         {
@@ -166,7 +168,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
                             streamPayload,
                             bytePayload,
                             payloadHashed,
-                            headerExtender);
+                            headerExtender,
+                            payloadLocation);
             default:
                 throw new ArgumentOutOfRangeException(nameof(signatureVersion), "Unknown signature version");
         }
@@ -184,6 +187,7 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     /// <param name="signatureVersion">The <see cref="IndirectSignatureVersion"/> this factory should create.</param>
     /// <param name="headerExtender">An optional <see cref="ICoseHeaderExtender"/> to extend the protected headers of the CoseSign1Message.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <param name="payloadLocation">Optional URI indicating where the payload can be retrieved from. Only applicable for CoseHashEnvelope format.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -197,7 +201,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
         ReadOnlyMemory<byte>? bytePayload = null,
         bool payloadHashed = false,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? payloadLocation = null)
     {
         if (string.IsNullOrWhiteSpace(contentType))
         {
@@ -245,7 +250,8 @@ public sealed partial class IndirectSignatureFactory : IDisposable
                             bytePayload,
                             payloadHashed,
                             headerExtender,
-                            cancellationToken).ConfigureAwait(false);
+                            cancellationToken,
+                            payloadLocation).ConfigureAwait(false);
             default:
                 throw new ArgumentOutOfRangeException(nameof(signatureVersion), "Unknown signature version");
         }

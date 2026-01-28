@@ -52,6 +52,18 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                                    GetCertificateProviderInfo() +
                                    GetExamples();
 
+    /// <summary>
+    /// Gets additional optional arguments specific to the indirect-sign command.
+    /// </summary>
+    protected override string GetAdditionalOptionalArguments()
+    {
+        return @"
+Payload location (optional):
+  --payload-location  A URI indicating where the payload can be retrieved from.
+                      This is added to the COSE envelope per RFC 9054.
+";
+    }
+
     /// <inheritdoc/>
     public override async Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default)
     {

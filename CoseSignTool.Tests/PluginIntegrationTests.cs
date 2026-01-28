@@ -264,6 +264,58 @@ public class PluginIntegrationTests
         }
     }
 
+    [TestMethod]
+    public void PluginBooleanOptions_ShouldBeValidOptionKeys()
+    {
+        // This test validates that all boolean options declared by plugins
+        // are also present in their Options dictionary
+        
+        if (_pluginCommands == null || _pluginCommands.Count == 0)
+        {
+            Assert.Inconclusive("No plugins discovered.");
+        }
+
+        foreach (var kvp in _pluginCommands)
+        {
+            IPluginCommand command = kvp.Value;
+            
+            // Each boolean option should exist in the Options dictionary
+            foreach (string booleanOption in command.BooleanOptions)
+            {
+                command.Options.Should().ContainKey(booleanOption,
+                    $"Boolean option '{booleanOption}' in '{command.Name}' should also be in Options dictionary.");
+            }
+        }
+    }
+
+    [TestMethod]
+    public void IndirectVerifyCommand_BooleanOptions_ContainsAllowUntrusted()
+    {
+        if (_pluginCommands == null || !_pluginCommands.TryGetValue("indirect-verify", out IPluginCommand? command) || command == null)
+        {
+            Assert.Inconclusive("indirect-verify plugin command not available.");
+            return;
+        }
+
+        command.BooleanOptions.Should().Contain("allow-untrusted",
+            "IndirectVerifyCommand should declare 'allow-untrusted' as a boolean option.");
+        command.BooleanOptions.Should().Contain("allow-outdated",
+            "IndirectVerifyCommand should declare 'allow-outdated' as a boolean option.");
+    }
+
+    [TestMethod]
+    public void IndirectSignCommand_BooleanOptions_ContainsEnableScitt()
+    {
+        if (_pluginCommands == null || !_pluginCommands.TryGetValue("indirect-sign", out IPluginCommand? command) || command == null)
+        {
+            Assert.Inconclusive("indirect-sign plugin command not available.");
+            return;
+        }
+
+        command.BooleanOptions.Should().Contain("enable-scitt",
+            "IndirectSignCommand should declare 'enable-scitt' as a boolean option.");
+    }
+
     #endregion
 
     #region Plugin Command Execution Tests

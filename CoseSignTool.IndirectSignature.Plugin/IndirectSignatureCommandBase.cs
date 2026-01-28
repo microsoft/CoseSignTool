@@ -65,8 +65,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     /// </summary>
     protected static readonly string[] SigningBooleanOptions = new[]
     {
-        "enable-scitt",
-        "scitt"
+        "enable-scitt"
     };
 
     /// <summary>

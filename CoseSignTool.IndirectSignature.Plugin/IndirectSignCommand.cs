@@ -52,6 +52,9 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                                    GetCertificateProviderInfo() +
                                    GetExamples();
 
+    /// <inheritdoc/>
+    public override IReadOnlyCollection<string> BooleanOptions => SigningBooleanOptions;
+
     /// <summary>
     /// Gets additional optional arguments specific to the indirect-sign command.
     /// </summary>

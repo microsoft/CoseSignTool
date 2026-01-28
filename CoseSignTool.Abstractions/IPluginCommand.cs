@@ -29,6 +29,12 @@ public interface IPluginCommand
     IDictionary<string, string> Options { get; }
 
     /// <summary>
+    /// Gets the names of options that are boolean flags (can be specified without a value).
+    /// When these options are specified without an explicit value, they are treated as "true".
+    /// </summary>
+    IReadOnlyCollection<string> BooleanOptions { get; }
+
+    /// <summary>
     /// Executes the command with the provided configuration.
     /// </summary>
     /// <param name="configuration">The command line configuration containing the parsed arguments.</param>

@@ -73,6 +73,21 @@ public class IndirectVerifyCommandTests
     }
 
     [TestMethod]
+    public void IndirectVerifyCommand_BooleanOptions_ShouldContainValidationBooleanOptions()
+    {
+        // Arrange
+        IndirectVerifyCommand command = new IndirectVerifyCommand();
+
+        // Act
+        IReadOnlyCollection<string> booleanOptions = command.BooleanOptions;
+
+        // Assert
+        Assert.IsNotNull(booleanOptions);
+        Assert.IsTrue(booleanOptions.Contains("allow-untrusted"), "BooleanOptions should contain 'allow-untrusted'");
+        Assert.IsTrue(booleanOptions.Contains("allow-outdated"), "BooleanOptions should contain 'allow-outdated'");
+    }
+
+    [TestMethod]
     public async Task IndirectVerifyCommand_Execute_WithValidSignature_ShouldSucceed()
     {
         // Arrange

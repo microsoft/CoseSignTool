@@ -65,6 +65,20 @@ public class IndirectSignCommandTests
     }
 
     [TestMethod]
+    public void IndirectSignCommand_BooleanOptions_ShouldContainSigningBooleanOptions()
+    {
+        // Arrange
+        IndirectSignCommand command = new IndirectSignCommand();
+
+        // Act
+        IReadOnlyCollection<string> booleanOptions = command.BooleanOptions;
+
+        // Assert
+        Assert.IsNotNull(booleanOptions);
+        Assert.IsTrue(booleanOptions.Contains("enable-scitt"), "BooleanOptions should contain 'enable-scitt'");
+    }
+
+    [TestMethod]
     public async Task IndirectSignCommand_Execute_WithValidPfxCertificate_ShouldSucceed()
     {
         // Arrange

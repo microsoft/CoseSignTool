@@ -51,6 +51,24 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
     };
 
     /// <summary>
+    /// Boolean options that can be specified without an explicit value.
+    /// These are common to verification commands.
+    /// </summary>
+    protected static readonly string[] ValidationBooleanOptions = new[]
+    {
+        "allow-untrusted",
+        "allow-outdated"
+    };
+
+    /// <summary>
+    /// Boolean options for signing commands (SCITT-related flags).
+    /// </summary>
+    protected static readonly string[] SigningBooleanOptions = new[]
+    {
+        "enable-scitt"
+    };
+
+    /// <summary>
     /// Header options for customizing COSE headers.
     /// </summary>
     protected static readonly Dictionary<string, string> HeaderOptions = CoseHeaderHelper.HeaderOptions;

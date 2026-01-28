@@ -257,15 +257,26 @@ public class CoseSignTool
 
         try
         {
-            // Add universal logging options to the command's options
-            Dictionary<string, string> commandOptions = new Dictionary<string, string>(command.Options)
+            // Convert plugin options (key -> description format) to switch mappings (--key -> key format)
+            // The Options dictionary from plugins uses { "option-name", "description" } format
+            // but CommandLineConfigurationProvider needs { "--option-name", "option-name" } format
+            Dictionary<string, string> commandOptions = new();
+            foreach (var option in command.Options)
             {
-                ["--verbose"] = "verbose",
-                ["-v"] = "verbose",
-                ["--quiet"] = "quiet",
-                ["-q"] = "quiet",
-                ["--verbosity"] = "verbosity"
-            };
+                commandOptions[$"--{option.Key}"] = option.Key;
+            }
+            
+            // Add universal logging options
+            commandOptions["--verbose"] = "verbose";
+            commandOptions["-v"] = "verbose";
+            commandOptions["--quiet"] = "quiet";
+            commandOptions["-q"] = "quiet";
+            commandOptions["--verbosity"] = "verbosity";
+
+            // Preprocess args to handle boolean flags without values
+            // CommandLineConfigurationProvider requires a value for each switch, so we add "true" for
+            // boolean flags that don't have an explicit value
+            args = PreprocessBooleanFlags(args, commandOptions, command.BooleanOptions);
 
             provider = CoseCommand.LoadCommandLineArgs(args, commandOptions, out badArg);
             if (provider is null)
@@ -396,6 +407,62 @@ public class CoseSignTool
         string argText = badArg is null ? string.Empty : $"Error: Command line argument {badArg} was not recognized.\r\n\r\n";
         Console.WriteLine(argText + content);
         return badArg is null ? ExitCode.HelpRequested : ExitCode.UnknownArgument;
+    }
+
+    /// <summary>
+    /// Known boolean flags that should be treated as true when specified without a value.
+    /// Only includes universal flags added by CoseSignTool itself, not plugin-specific options.
+    /// Plugin-specific boolean flags are provided via IPluginCommand.BooleanOptions.
+    /// </summary>
+    private static readonly HashSet<string> UniversalBooleanFlags = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "--verbose",
+        "-v",
+        "--quiet",
+        "-q"
+    };
+
+    /// <summary>
+    /// Preprocesses command line arguments to handle boolean flags that don't have explicit values.
+    /// For recognized boolean flags, if no value follows, "true" is inserted.
+    /// </summary>
+    /// <param name="args">The original command line arguments.</param>
+    /// <param name="switchMappings">The switch mappings for the command.</param>
+    /// <param name="pluginBooleanOptions">Boolean options provided by the plugin command.</param>
+    /// <returns>The preprocessed arguments with boolean flags expanded.</returns>
+    private static string[] PreprocessBooleanFlags(string[] args, Dictionary<string, string> switchMappings, IReadOnlyCollection<string> pluginBooleanOptions)
+    {
+        // Build a combined set of boolean flags: universal flags + plugin-specific flags
+        HashSet<string> booleanFlags = new(UniversalBooleanFlags, StringComparer.OrdinalIgnoreCase);
+        foreach (string option in pluginBooleanOptions)
+        {
+            booleanFlags.Add($"--{option}");
+        }
+
+        List<string> result = new();
+        
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            result.Add(arg);
+            
+            // Check if this is a boolean flag
+            if (booleanFlags.Contains(arg) && switchMappings.ContainsKey(arg))
+            {
+                // Check if next arg is a value or another flag (or end of args)
+                bool needsValue = i + 1 >= args.Length || 
+                                  args[i + 1].StartsWith("-") || 
+                                  args[i + 1].StartsWith("/");
+                
+                if (needsValue)
+                {
+                    // Insert "true" as the value for this boolean flag
+                    result.Add("true");
+                }
+            }
+        }
+        
+        return result.ToArray();
     }
     #endregion
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased](https://github.com/microsoft/CoseSignTool/tree/HEAD)
+
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.9...HEAD)
+
+**Merged pull requests:**
+
+- Add --payload-location option for IndirectSignature [\#158](https://github.com/microsoft/CoseSignTool/pull/158) ([JeromySt](https://github.com/JeromySt))
+- Enabled CodeQL scans [\#156](https://github.com/microsoft/CoseSignTool/pull/156) ([NN2000X](https://github.com/NN2000X))
+
 ## [v1.6.9](https://github.com/microsoft/CoseSignTool/tree/v1.6.9) (2025-12-17)
 
 [Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.6.8...v1.6.9)

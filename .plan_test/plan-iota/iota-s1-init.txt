@@ -1,0 +1,4 @@
+Job: iota-s1-init
+Started: 2026-01-28 20:16:58.700
+INITIALIZE
+Completed: 2026-01-28 20:17:33.710

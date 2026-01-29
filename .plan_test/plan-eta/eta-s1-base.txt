@@ -1,0 +1,4 @@
+Job: eta-s1-base
+Started: 2026-01-28 20:14:52.778
+BASE SETUP
+Completed: 2026-01-28 20:15:25.783

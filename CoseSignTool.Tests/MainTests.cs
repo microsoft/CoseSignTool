@@ -41,27 +41,27 @@ public class MainTests
         string certPair = $"\"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}\"";
         string payloadFile = FileSystemUtils.GeneratePayloadFile();
 
-        // sign detached
-        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained];
+        // sign detached - explicitly specify signature file to avoid collision with embedded
+        string detachedSigFile = payloadFile + ".detached.cose";
+        string[] args1 = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained, @"/sf", detachedSigFile];
         CoseSignTool.Main(args1).Should().Be((int)ExitCode.Success, "Detach sign should have succeeded.");
 
-        // sign embedded
-        string[] args2 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep"];
+        // sign embedded - explicitly specify signature file to avoid collision with detached
+        string embeddedSigFile = payloadFile + ".embedded.cose";
+        string[] args2 = ["sign", @"/pfx", PrivateKeyCertFileChained, @"/p", payloadFile, @"/ep", @"/sf", embeddedSigFile];
         CoseSignTool.Main(args2).Should().Be((int)ExitCode.Success, "Embed sign should have succeeded.");
 
         // validate detached
-        string sigFile = payloadFile + ".cose";
-        string[] args3 = ["validate", @"/rt", certPair, @"/sf", sigFile, @"/p", payloadFile, "/rm", "NoCheck"];
+        string[] args3 = ["validate", @"/rt", certPair, @"/sf", detachedSigFile, @"/p", payloadFile, "/rm", "NoCheck"];
         CoseSignTool.Main(args3).Should().Be((int)ExitCode.Success, "Detach validation should have succeeded.");
 
         // validate embedded
-        sigFile = payloadFile + ".csm";
-        string[] args4 = ["validate", @"/rt", certPair, @"/sf", sigFile, "/rm", "NoCheck", "/scd"];
+        string[] args4 = ["validate", @"/rt", certPair, @"/sf", embeddedSigFile, "/rm", "NoCheck", "/scd"];
         CoseSignTool.Main(args4).Should().Be((int)ExitCode.Success, "Embed validation should have succeeded.");
 
         // get content
         string saveFile = payloadFile + ".saved";
-        string[] args5 = ["get", @"/rt", certPair, @"/sf", sigFile, "/sa", saveFile, "/rm", "NoCheck"];
+        string[] args5 = ["get", @"/rt", certPair, @"/sf", embeddedSigFile, "/sa", saveFile, "/rm", "NoCheck"];
         CoseSignTool.Main(args5).Should().Be(0, "Detach validation with save should have suceeded.");
         File.ReadAllText(payloadFile).Should().Be(File.ReadAllText(saveFile), "Saved content should have matched payload.");
     }
@@ -135,9 +135,11 @@ public class MainTests
         string[] args2 = ["sign", "/badArg", @"/pfx", "fake.pfx", @"/p", "some.file"];
         CoseSignTool.Main(args2).Should().Be((int)ExitCode.UnknownArgument);
 
-        // empty payload argument
-        string[] args3 = ["sign", @"/pfx", "fake.pfx", @"/p", ""];
-        CoseSignTool.Main(args3).Should().Be((int)ExitCode.MissingRequiredOption);
+        // missing certificate - no pfx or thumbprint provided
+        // This results in CertificateLoadFailure because LoadCert() throws ArgumentNullException
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string[] args3 = ["sign", @"/p", payloadFile];
+        CoseSignTool.Main(args3).Should().Be((int)ExitCode.CertificateLoadFailure);
     }
 
     [TestMethod]
@@ -568,5 +570,197 @@ public class MainTests
         // Assert
         result.Should().Be((int)ExitCode.HelpRequested, "Unknown verb should show general help");
     }
-}
 
+    #region Piping Tests
+
+    /// <summary>
+    /// Tests that piping works end-to-end by running actual process with redirected streams.
+    /// Simulates: gc mycontent | cosesigntool sign -pfx cert.pfx -ep -po | cosesigntool validate -rt roots.cer
+    /// </summary>
+    [TestMethod]
+    public void EndToEndPipelineWithActualProcess()
+    {
+        // Arrange - create test payload
+        string payloadContent = "Test payload content for piped signing " + Guid.NewGuid().ToString();
+        byte[] payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadContent);
+
+        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        
+        // Step 1: Sign with piped payload (embedded signature so payload is included)
+        byte[] signatureBytes;
+        using (var signProcess = new Process())
+        {
+            signProcess.StartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"\"{exePath}\" sign /pfx \"{PrivateKeyCertFileChained}\" /po /ep",
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            signProcess.Start();
+            
+            // Write payload to stdin
+            signProcess.StandardInput.BaseStream.Write(payloadBytes, 0, payloadBytes.Length);
+            signProcess.StandardInput.Close();
+
+            // Read signature from stdout
+            using MemoryStream ms = new();
+            signProcess.StandardOutput.BaseStream.CopyTo(ms);
+            signatureBytes = ms.ToArray();
+            
+            signProcess.WaitForExit(30000);
+            
+            string stderr = signProcess.StandardError.ReadToEnd();
+            signProcess.ExitCode.Should().Be(0, $"Sign process should succeed. StdErr: {stderr}");
+        }
+
+        signatureBytes.Should().NotBeEmpty("Signature should be produced");
+
+        // Step 2: Validate with piped embedded signature
+        string certPair = $"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}";
+        using (var validateProcess = new Process())
+        {
+            validateProcess.StartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"\"{exePath}\" validate /rt \"{certPair}\" /rm NoCheck",
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            validateProcess.Start();
+            
+            // Write signature to stdin
+            validateProcess.StandardInput.BaseStream.Write(signatureBytes, 0, signatureBytes.Length);
+            validateProcess.StandardInput.Close();
+
+            string stdout = validateProcess.StandardOutput.ReadToEnd();
+            string stderr = validateProcess.StandardError.ReadToEnd();
+            
+            validateProcess.WaitForExit(30000);
+            
+            validateProcess.ExitCode.Should().Be(0, $"Validate process should succeed. StdOut: {stdout}, StdErr: {stderr}");
+            stdout.Should().Contain("Validation succeeded", "Output should indicate success");
+        }
+    }
+
+    /// <summary>
+    /// Tests detached signature validation with piped signature and file-based payload.
+    /// Simulates: gc detached.cose | cosesigntool validate -p payload.txt -rt roots.cer
+    /// </summary>
+    [TestMethod]
+    public void ValidateDetachedSignatureWithPipedSignatureAndPayloadFile()
+    {
+        // Arrange - create signature file first
+        string certPair = $"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}";
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string sigFile = payloadFile + ".detached.cose";
+
+        // Create detached signature using file I/O
+        string[] signArgs = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained, @"/sf", sigFile];
+        CoseSignTool.Main(signArgs).Should().Be((int)ExitCode.Success, "Detached sign should succeed");
+
+        // Read signature for piping
+        byte[] signatureBytes = File.ReadAllBytes(sigFile);
+
+        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        
+        // Validate with piped signature
+        using var validateProcess = new Process();
+        validateProcess.StartInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"\"{exePath}\" validate /p \"{payloadFile}\" /rt \"{certPair}\" /rm NoCheck",
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        validateProcess.Start();
+        
+        // Write signature to stdin
+        validateProcess.StandardInput.BaseStream.Write(signatureBytes, 0, signatureBytes.Length);
+        validateProcess.StandardInput.Close();
+
+        string stdout = validateProcess.StandardOutput.ReadToEnd();
+        string stderr = validateProcess.StandardError.ReadToEnd();
+        
+        validateProcess.WaitForExit(30000);
+        
+        validateProcess.ExitCode.Should().Be(0, $"Validate with piped detached signature should succeed. StdOut: {stdout}, StdErr: {stderr}");
+        stdout.Should().Contain("Validation succeeded", "Output should indicate success");
+
+        // Cleanup
+        File.Delete(payloadFile);
+        File.Delete(sigFile);
+    }
+
+    /// <summary>
+    /// Tests get command with piped embedded signature.
+    /// Simulates: gc embedded.cose | cosesigntool get -rt roots.cer
+    /// Get command writes to stdout by default (no -po needed, unlike sign command)
+    /// </summary>
+    [TestMethod]
+    public void GetContentFromPipedEmbeddedSignature()
+    {
+        // Arrange - create embedded signature file first
+        string certPair = $"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}";
+        string payloadContent = "Unique payload for get test " + Guid.NewGuid().ToString();
+        string payloadFile = Path.GetTempFileName();
+        File.WriteAllText(payloadFile, payloadContent);
+        string sigFile = payloadFile + ".embedded.cose";
+
+        // Create embedded signature using file I/O
+        string[] signArgs = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileChained, @"/ep", @"/sf", sigFile];
+        CoseSignTool.Main(signArgs).Should().Be((int)ExitCode.Success, "Embedded sign should succeed");
+
+        // Read signature for piping
+        byte[] signatureBytes = File.ReadAllBytes(sigFile);
+
+        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        
+        // Get content with piped signature (get writes to stdout by default when -sa not specified)
+        using var getProcess = new Process();
+        getProcess.StartInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"\"{exePath}\" get /rt \"{certPair}\" /rm NoCheck",
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        getProcess.Start();
+        
+        // Write signature to stdin
+        getProcess.StandardInput.BaseStream.Write(signatureBytes, 0, signatureBytes.Length);
+        getProcess.StandardInput.Close();
+
+        using MemoryStream outputMs = new();
+        getProcess.StandardOutput.BaseStream.CopyTo(outputMs);
+        string extractedContent = System.Text.Encoding.UTF8.GetString(outputMs.ToArray());
+        string stderr = getProcess.StandardError.ReadToEnd();
+        
+        getProcess.WaitForExit(30000);
+        
+        getProcess.ExitCode.Should().Be(0, $"Get from piped embedded signature should succeed. StdErr: {stderr}");
+        extractedContent.Should().Contain(payloadContent, "Extracted content should contain original payload");
+
+        // Cleanup
+        File.Delete(payloadFile);
+        File.Delete(sigFile);
+    }
+
+    #endregion
+}

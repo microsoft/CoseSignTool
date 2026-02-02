@@ -13,49 +13,50 @@ public class SignCommand : CoseCommand
 {
     /// <summary>
     /// A map of command line options to their abbreviated aliases.
+    /// All options use -- prefix. Single dash (-) and forward slash (/) are converted to -- for backward compatibility.
     /// </summary>
     private static readonly Dictionary<string, string> PrivateOptions = new()
     {
-        ["-EmbedPayload"] = "EmbedPayload",
-        ["-ep"] = "EmbedPayload",
-        ["-PipeOutput"] = "PipeOutput",
-        ["-po"] = "PipeOutput",
-        ["-PfxCertificate"] = "PfxCertificate",
-        ["-pfx"] = "PfxCertificate",
-        ["-Password"] = "Password",
-        ["-pw"] = "Password",
-        ["-Thumbprint"] = "Thumbprint",
-        ["-th"] = "Thumbprint",
-        ["-StoreName"] = "StoreName",
-        ["-sn"] = "StoreName",
-        ["-StoreLocation"] = "StoreLocation",
-        ["-sl"] = "StoreLocation",
-        ["-ContentType"] = "ContentType",
-        ["-cty"] = "ContentType",
-        ["-IntHeaders"] = "IntHeaders",
-        ["-ih"] = "IntHeaders",
-        ["-StringHeaders"] = "StringHeaders",
-        ["-sh"] = "StringHeaders",
-        ["-IntProtectedHeaders"] = "IntProtectedHeaders",
-        ["-iph"] = "IntProtectedHeaders",
-        ["-StringProtectedHeaders"] = "StringProtectedHeaders",
-        ["-sph"] = "StringProtectedHeaders",
-        ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
-        ["-iuh"] = "IntUnProtectedHeaders",
-        ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
-        ["-suh"] = "StringUnProtectedHeaders",
-        ["-CwtIssuer"] = "CwtIssuer",
-        ["-cwt-iss"] = "CwtIssuer",
-        ["-CwtSubject"] = "CwtSubject",
-        ["-cwt-sub"] = "CwtSubject",
-        ["-CwtAudience"] = "CwtAudience",
-        ["-cwt-aud"] = "CwtAudience",
-        ["-CwtClaims"] = "CwtClaims",
-        ["-cwt"] = "CwtClaims",
-        ["-EnableScittCompliance"] = "EnableScittCompliance",
-        ["-scitt"] = "EnableScittCompliance",
-        ["-CertProvider"] = "CertProvider",
-        ["-cp"] = "CertProvider"
+        ["--EmbedPayload"] = "EmbedPayload",
+        ["--ep"] = "EmbedPayload",
+        ["--PipeOutput"] = "PipeOutput",
+        ["--po"] = "PipeOutput",
+        ["--PfxCertificate"] = "PfxCertificate",
+        ["--pfx"] = "PfxCertificate",
+        ["--Password"] = "Password",
+        ["--pw"] = "Password",
+        ["--Thumbprint"] = "Thumbprint",
+        ["--th"] = "Thumbprint",
+        ["--StoreName"] = "StoreName",
+        ["--sn"] = "StoreName",
+        ["--StoreLocation"] = "StoreLocation",
+        ["--sl"] = "StoreLocation",
+        ["--ContentType"] = "ContentType",
+        ["--cty"] = "ContentType",
+        ["--IntHeaders"] = "IntHeaders",
+        ["--ih"] = "IntHeaders",
+        ["--StringHeaders"] = "StringHeaders",
+        ["--sh"] = "StringHeaders",
+        ["--IntProtectedHeaders"] = "IntProtectedHeaders",
+        ["--iph"] = "IntProtectedHeaders",
+        ["--StringProtectedHeaders"] = "StringProtectedHeaders",
+        ["--sph"] = "StringProtectedHeaders",
+        ["--IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
+        ["--iuh"] = "IntUnProtectedHeaders",
+        ["--StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
+        ["--suh"] = "StringUnProtectedHeaders",
+        ["--CwtIssuer"] = "CwtIssuer",
+        ["--cwt-iss"] = "CwtIssuer",
+        ["--CwtSubject"] = "CwtSubject",
+        ["--cwt-sub"] = "CwtSubject",
+        ["--CwtAudience"] = "CwtAudience",
+        ["--cwt-aud"] = "CwtAudience",
+        ["--CwtClaims"] = "CwtClaims",
+        ["--cwt"] = "CwtClaims",
+        ["--EnableScittCompliance"] = "EnableScittCompliance",
+        ["--scitt"] = "EnableScittCompliance",
+        ["--CertProvider"] = "CertProvider",
+        ["--cp"] = "CertProvider"
     };
 
     // Inherited default values
@@ -237,8 +238,7 @@ public class SignCommand : CoseCommand
                     "CoseSignTool could not determine a path to write the signature file to.");
             }
 
-            string extension = EmbedPayload ? "csm" : "cose";
-            SignatureFile = new FileInfo($"{PayloadFile.FullName}.{extension}");
+            SignatureFile = new FileInfo($"{PayloadFile.FullName}.cose");
         }
 
         try
@@ -1024,88 +1024,96 @@ Sign command: Signs the specified file or piped content with a detached or embed
     An embedded signature contains a copy of the original payload. Not supported for payload of >2gb in size.
 
 Options:
-    PayloadFile / payload / p: Required, pipeable. The file or piped content to sign.
+    --PayloadFile, --payload, -p: Required, pipeable. The file or piped content to sign.
 
-    SignatureFile / sig / sf: Optional. The file path to write the Cose signature to.
-        Default value is [payload file].cose for detached signatures or [payload file].csm for embedded.
+    --SignatureFile, --sig, -sf: Optional. The file path to write the Cose signature to.
+        Default value is [payload file].cose.
         Required if neither PayloadFile or PipeOutput are set.
 
     A signing certificate from one of the following sources:
 
-        Certificate Provider Plugin (--cert-provider / -cp): Use a certificate provider plugin such as Azure
-            Trusted Signing or custom HSM providers. See Certificate Providers section below for available providers.
+        --CertProvider, -cp: Use a certificate provider plugin such as Azure Trusted Signing or custom HSM providers.
+            See Certificate Providers section below for available providers.
 
     --OR--
 
-        PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
+        --PfxCertificate, --pfx: A path to a private key certificate file (.pfx) to sign with.
 
-        Password / pw: Optional. The password for the .pfx file if it has one. (Strongly recommended!)
+        --Password, -pw: Optional. The password for the .pfx file if it has one. (Strongly recommended!)
 
     --OR--
 
-        Thumbprint / th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
+        --Thumbprint, -th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
             Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching
             certificate.
 
-        StoreName / sn: Optional. The name of the local certificate store to find the signing certificate in.
+        --StoreName, -sn: Optional. The name of the local certificate store to find the signing certificate in.
             Default value is 'My'.
 
-        StoreLocation / sl: Optional. The location of the local certificate store to find the signing certificate in.
+        --StoreLocation, -sl: Optional. The location of the local certificate store to find the signing certificate in.
             Default value is 'CurrentUser'.
 
-    PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
-        to file.
+    --PipeOutput, -po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of
+        writing to file.
 
-    EmbedPayload / ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
+    --EmbedPayload, -ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
         Default behavior is 'detached signing', where the COSE signature file .Content property is empty, and to validate
         the signature, the payload must be provided separately. When set to true, the payload is embedded in the signature
         file. Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
 
 Advanced Options:
-    ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
+    --ContentType, -cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
     Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
-        EnableScittCompliance /scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
+        --EnableScittCompliance, --scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
             (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
 
-        CwtIssuer /cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
+        --CwtIssuer, --cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
             compliance is enabled, defaults to a DID:x509 identifier derived from the signing certificate chain.
 
-        CwtSubject /cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
+        --CwtSubject, --cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
             compliance is enabled, defaults to ""unknown.intent"".
 
-        CwtAudience /cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
+        --CwtAudience, --cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
 
-        CwtClaims /cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times for multiple claims.
+        --CwtClaims, --cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times.
             Labels can be integers (e.g., ""100:custom-value"") or RFC 8392 claim names (iss, sub, aud, exp, nbf, iat, cti).
             Timestamp claims (exp, nbf, iat) accept date/time strings (e.g., ""2024-12-31T23:59:59Z"") or Unix timestamps.
             Examples: 
-                /cwt ""cti:abc123"" /cwt ""100:custom-value"" /cwt ""exp:2024-12-31T23:59:59Z""
-                /cwt ""iss:custom-issuer"" /cwt ""sub:custom-subject"" /cwt ""nbf:1735689600""
+                --cwt ""cti:abc123"" --cwt ""100:custom-value"" --cwt ""exp:2024-12-31T23:59:59Z""
+                --cwt ""iss:custom-issuer"" --cwt ""sub:custom-subject"" --cwt ""nbf:1735689600""
 
     Options to customize the headers in the signature:
-        IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.
-        Sample file. [{""label"":""created-at"",""value"":12345678,""protected"":true},{""label"":""customer-count"",""value"":10,""protected"":false}]
+        --IntHeaders, -ih: Optional. Path to a JSON file containing the header collection to be added to the cose message.
+            The label is a string and the value is int32.
+            Sample file: [{""label"":""created-at"",""value"":12345678,""protected"":true}]
 
-        StringHeaders /sh: Optional. Path to a JSON file containing the header collection to be added to the cose message. Both the label and value are strings.
-        Sample file. [{""label"":""message-type"",""value"":""cose"",""protected"":false},{""label"":""customer-name"",""value"":""contoso"",""protected"":true}]
+        --StringHeaders, -sh: Optional. Path to a JSON file containing the header collection to be added to the cose message.
+            Both the label and value are strings.
+            Sample file: [{""label"":""message-type"",""value"":""cose"",""protected"":false}]
 
-        IntProtectedHeaders /iph: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntProtectedHeaders created-at=12345678,customer-count=10
+        --IntProtectedHeaders, -iph: A collection of name-value pairs with a string label and an int32 value.
+            Sample input: --iph created-at=12345678,customer-count=10
 
-        StringProtectedHeaders /sph: A collection of name-value pairs with a string label and value. Sample input: /StringProtectedHeaders message-type=cose,customer-name=contoso
+        --StringProtectedHeaders, -sph: A collection of name-value pairs with a string label and value.
+            Sample input: --sph message-type=cose,customer-name=contoso
     
-        IntUnProtectedHeaders /iuh: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntUnProtectedHeaders created-at=12345678,customer-count=10
+        --IntUnProtectedHeaders, -iuh: A collection of name-value pairs with a string label and an int32 value.
+            Sample input: --iuh created-at=12345678,customer-count=10
 
-        StringUnProtectedHeaders /suh: A collection of name-value pairs with a string label and value. Sample input: /StringUnProtectedHeaders message-type=cose,customer-name=contoso
+        --StringUnProtectedHeaders, -suh: A collection of name-value pairs with a string label and value.
+            Sample input: --suh message-type=cose,customer-name=contoso
 
     Options to customize file and stream handling:
-        MaxWaitTime /wait: The maximum number of seconds to wait for a payload or signature file to be available and non-empty before loading it.
+        --MaxWaitTime, --wait: The maximum number of seconds to wait for a payload or signature file to be available and
+            non-empty before loading it.
 
-        FailFast /ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
+        --FailFast, -ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
 
-        UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.
+        --UseAdvancedStreamHandling, --adv: If set, uses experimental techniques for verifying files before attempting to
+            read them.
 ";
 
     /// <summary>

@@ -6,25 +6,26 @@ public class ValidateCommand : CoseCommand
 {
     /// <summary>
     /// Map of command line options specific to the Validate command and their abbreviated aliases.
+    /// All options use -- prefix. Single dash (-) and forward slash (/) are converted to -- for backward compatibility.
     /// </summary>
     private static readonly Dictionary<string, string> PrivateOptions = new()
     {
-        ["-Roots"] = "Roots",
-        ["-rt"] = "Roots",
-        ["-RevocationMode"] = "RevocationMode",
-        ["-revmode"] = "RevocationMode",
-        ["-rm"] = "RevocationMode",
-        ["-CommonName"] = "CommonName",
-        ["-cn"] = "CommonName",
-        ["-AllowUntrusted"] = "AllowUntrusted",
-        ["-allow"] = "AllowUntrusted",
-        ["-au"] = "AllowUntrusted",
-        ["-AllowOutdated"] = "AllowOutdated",
-        ["-ao"] = "AllowOutdated",
-        ["-ShowCertificateDetails"] = "ShowCertificateDetails",
-        ["-scd"] = "ShowCertificateDetails",
-        ["-Verbose"] = "Verbose",
-        ["-v"] = "Verbose",
+        ["--Roots"] = "Roots",
+        ["--rt"] = "Roots",
+        ["--RevocationMode"] = "RevocationMode",
+        ["--revmode"] = "RevocationMode",
+        ["--rm"] = "RevocationMode",
+        ["--CommonName"] = "CommonName",
+        ["--cn"] = "CommonName",
+        ["--AllowUntrusted"] = "AllowUntrusted",
+        ["--allow"] = "AllowUntrusted",
+        ["--au"] = "AllowUntrusted",
+        ["--AllowOutdated"] = "AllowOutdated",
+        ["--ao"] = "AllowOutdated",
+        ["--ShowCertificateDetails"] = "ShowCertificateDetails",
+        ["--scd"] = "ShowCertificateDetails",
+        ["--Verbose"] = "Verbose",
+        ["--v"] = "Verbose",
     };
 
     /// <summary>
@@ -257,42 +258,45 @@ Validate command: Validates that the specified COSE signature file or piped sign
 
 Options:
 
-    SignatureFile / sigfile / sf: Required, pipeable. The file or piped stream containing the COSE signature.
+    --SignatureFile, --sig, -sf: Required, pipeable. The file or piped stream containing the COSE signature.
 
-    PayloadFile / payload / p: Required for detached and indirect signatures. The original source file that was signed.
+    --PayloadFile, --payload, -p: Required for detached and indirect signatures. The original source file that was signed.
         Do not use for embedded signatures.
 ";
 
     protected const string SharedOptionsText = $@"
-    Roots / rt: Optional. A comma-separated list of public key certificate files (.cer or .p7b), enclosed in quote
+    --Roots, -rt: Optional. A comma-separated list of public key certificate files (.cer or .p7b), enclosed in quote
         marks, to try to chain the signing certificate to.
         CoseSignTool will try to chain to installed roots first, then user-supplied roots.
         If the COSE signature is signed with a self-signed certificate, that certificate must either be installed on and
         trusted by the machine or supplied as a root to pass validation.
         All user-supplied roots are assumed to be trusted for validation purposes.
 
-    RevocationMode / revmode / rm: Optional. The method to check for certificate revocation.
+    --RevocationMode, --revmode, -rm: Optional. The method to check for certificate revocation.
         Valid values: Online, Offline, NoCheck
         Default value: Online
 
-    CommonName / cn: Optional. Specifies a Certificate Common Name that the signing certificate must match to pass
+    --CommonName, -cn: Optional. Specifies a Certificate Common Name that the signing certificate must match to pass
         validation.
 
-    AllowUntrusted / allow / au: Optional flag. Allows validation to succeed when chaining to an arbitrary root
+    --AllowUntrusted, --allow, -au: Optional flag. Allows validation to succeed when chaining to an arbitrary root
         certificate on the host machine without that root being trusted.
 
-    AllowOutdated / ao: Optional flag. Allows validation to succeed when the signing certificate has expired, unless the
-        expired certificate has a lifetime EKU.
+    --AllowOutdated, -ao: Optional flag. Allows validation to succeed when the signing certificate has expired, unless
+        the expired certificate has a lifetime EKU.
 
-    ShowCertificateDetails / scd: Optional flag. Prints the certificate chain details to the console if the certificate chain is available.
+    --ShowCertificateDetails, -scd: Optional flag. Prints the certificate chain details to the console if the
+        certificate chain is available.
 
-    Verbose / v: Optional flag. Includes certificate chain status errors and exception messages in the error output
+    --Verbose, -v: Optional flag. Includes certificate chain status errors and exception messages in the error output
         when validation fails.
 
     Advanced options to customize file and stream handling:
-        MaxWaitTime /wait: The maximum number of seconds to wait for a payload or signature file to be available and non-empty before loading it.
+        --MaxWaitTime, --wait: The maximum number of seconds to wait for a payload or signature file to be available and
+            non-empty before loading it.
 
-        FailFast /ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
+        --FailFast, -ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
 
-        UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.";
+        --UseAdvancedStreamHandling, --adv: If set, uses experimental techniques for verifying files before attempting to
+            read them.";
 }

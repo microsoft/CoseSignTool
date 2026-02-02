@@ -39,7 +39,7 @@ CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)*
 ### Key Features
 - **Automatic DID:x509 Generation**: Issuer identifiers are automatically derived from your certificate chain
 - **CWT Claims Support**: Include standardized claims (issuer, subject, audience, expiration, etc.) in your signatures
-- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates (can be disabled with `--enable-scitt false`)
+- **Enabled by Default**: SCITT compliance is automatically enabled when signing with certificates (can be disabled with `--scitt false`)
 - **Fully Customizable**: Override defaults or add custom claims via CLI or programmatic API
 - **Opt-Out Available**: Disable automatic CWT claims when not needed for your use case
 
@@ -47,20 +47,20 @@ CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)*
 ```bash
 # Basic SCITT-compliant signature
 # Automatically includes: DID:x509 issuer, default subject, timestamps
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
+CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose
 
 # Custom SCITT signature with specific subject and expiration
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-subject "software.release.v1.0" \
-  --cwt-claims "4=1735689600"  # exp: Jan 1, 2025
+CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose \
+  --cwt-sub "software.release.v1.0" \
+  --cwt "exp:2025-01-01T00:00:00Z"
 
 # Disable SCITT compliance (no automatic CWT claims)
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --enable-scitt false
+CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose \
+  --scitt false
 
 # Using Azure Trusted Signing (cloud-based signing)
-CoseSignTool sign -f payload.txt -s signature.cose \
-  --cert-provider azure-trusted-signing \
+CoseSignTool sign --payload payload.txt --SignatureFile signature.cose \
+  --cp azure-trusted-signing \
   --ats-endpoint https://contoso.codesigning.azure.net \
   --ats-account-name ContosoAccount \
   --ats-cert-profile-name ContosoProfile
@@ -75,20 +75,22 @@ CoseSignTool, CoseHandler, and the CoseSign1 libraries are the Microsoft solutio
 ## How do I get started?
 
 ### Using as an executable CLI
-Downloadable versions are available in GitHub [releases](https://github.com/microsoft/CoseSignTool/releases) of this repository. Separate page lists the features and how to use them: [CoseSignTool.md](./docs/CoseSignTool.md).
+Downloadable versions are available in GitHub [releases](https://github.com/microsoft/CoseSignTool/releases) of this repository. Releases include a single self-contained executable that doesn't require .NET to be installed. See [CoseSignTool.md](./docs/CoseSignTool.md) for full documentation.
+
+> **Option format:** CoseSignTool uses double-dash options (e.g., `--PayloadFile`, `--payload`, `--p`) for all option names. Forward slash (`/p`) and single-dash (`-p`) are also accepted for backward compatibility and are converted to double-dash internally.
 
 #### Linux
-Download and extract the folder with the compiled binaries, then make `CoseSignTool` available on the `$PATH`.
+Download and extract the release, then make `CoseSignTool` available on the `$PATH`.
 
 ```bash
-# download and uzip the release
+# download and unzip the release
 mkdir -p ~/cosesigntool
 curl -L https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Linux-release.zip -o ~/cosesigntool/release.zip
 unzip ~/cosesigntool/release.zip -d ~/cosesigntool
-# move the directory to a stable location
-mv ~/cosesigntool/release ~/.local/bin/cosesigntool
-export PATH="$PATH":~/.local/bin/cosesigntool
-# cleanup of files
+# move the executable to a stable location
+mv ~/cosesigntool/CoseSignTool ~/.local/bin/
+export PATH="$PATH":~/.local/bin
+# cleanup
 rm -rf ~/cosesigntool
 # run the binary
 CoseSignTool
@@ -107,13 +109,11 @@ If you're unsure of your Mac's architecture, run `uname -m` in Terminal:
 - `arm64` = Apple Silicon Mac (use arm64 version)
 
 #### Windows
-Similar to Linux or MacOS you could use PowerShell to download the release, extract and move it to the desired location and to add it to the Path like shown in the example below:
+Similar to Linux or MacOS you could use PowerShell to download the release and add it to the Path:
 
 ```ps
 PS C:\Users\johndoe> Invoke-WebRequest -Uri https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Windows-release.zip -OutFile C:\Users\johndoe\release.zip
-PS C:\Users\johndoe> Expand-Archive C:\Users\johndoe\release.zip -DestinationPath C:\Users\johndoe
-PS C:\Users\johndoe> Rename-Item -Path "C:\Users\johndoe\release" -NewName "cosesigntool"
-PS C:\Users\johndoe> Move-Item -Path C:\Users\johndoe\cosesigntool -Destination C:\Users\johndoe\AppData\Local\
+PS C:\Users\johndoe> Expand-Archive C:\Users\johndoe\release.zip -DestinationPath C:\Users\johndoe\AppData\Local\cosesigntool
 PS C:\Users\johndoe> $env:Path += ";C:\Users\johndoe\AppData\Local\cosesigntool"
 PS C:\Users\johndoe> CoseSignTool
 

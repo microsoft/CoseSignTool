@@ -1024,7 +1024,21 @@ The plugin system includes comprehensive error handling:
 
 ### Automated Deployment with MSBuild
 
-For automated plugin deployment, you can use MSBuild targets like those used in the CoseSignTool project:
+For plugins following the `*.Plugin.csproj` naming convention, deployment is **fully automatic**. Simply name your project correctly and place it under the CoseSignTool solution directory:
+
+```
+YourCompany.YourService.Plugin.csproj  → Automatically discovered and deployed
+```
+
+The build system will:
+1. Discover your plugin during `dotnet build CoseSignTool`
+2. Build it with the same Configuration and RuntimeIdentifier
+3. Deploy it to `plugins/YourCompany.YourService.Plugin/` subdirectory
+4. Copy all plugin-specific dependencies
+
+**No manual MSBuild target configuration is required** when following the naming convention.
+
+For custom deployment scenarios (non-standard naming or special requirements), you can add a custom target:
 
 ```xml
 <Target Name="DeployYourPlugin" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">

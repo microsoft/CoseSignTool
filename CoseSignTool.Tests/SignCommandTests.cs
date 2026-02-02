@@ -1805,6 +1805,140 @@ public class SignCommandTests
         }
     }
 
+    /// <summary>
+    /// Tests signing with an encrypted PEM private key.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemPrivateKey_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-123";
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--pw", keyPassword, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with encrypted PEM private key");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing fails with encrypted PEM key when no password is provided.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemKeyWithoutPassword_ShouldFail()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-456";
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Act - Note: No --pw argument provided
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.CertificateLoadFailure, 
+                "Sign should fail when encrypted key is provided without password");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing fails with encrypted PEM key when wrong password is provided.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemKeyWithWrongPassword_ShouldFail()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "correct-password";
+        string wrongPassword = "wrong-password";
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Act - Provide wrong password
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--pw", wrongPassword];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.CertificateLoadFailure, 
+                "Sign should fail when wrong password is provided for encrypted key");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
     #region PEM Helper Methods
 
     private static void CreatePemFileWithKey(X509Certificate2 cert, string pemFile)
@@ -1868,6 +2002,29 @@ public class SignCommandTests
         }
         
         throw new InvalidOperationException("Certificate does not have an RSA or ECDSA private key");
+    }
+
+    private static void CreateEncryptedPemKeyFile(X509Certificate2 cert, string keyFile, string password)
+    {
+        PbeParameters pbeParameters = new PbeParameters(
+            PbeEncryptionAlgorithm.Aes256Cbc, 
+            HashAlgorithmName.SHA256, 
+            iterationCount: 100_000);
+
+        if (cert.GetRSAPrivateKey() is RSA rsa)
+        {
+            string encryptedPem = rsa.ExportEncryptedPkcs8PrivateKeyPem(password, pbeParameters);
+            File.WriteAllText(keyFile, encryptedPem);
+        }
+        else if (cert.GetECDsaPrivateKey() is ECDsa ecdsa)
+        {
+            string encryptedPem = ecdsa.ExportEncryptedPkcs8PrivateKeyPem(password, pbeParameters);
+            File.WriteAllText(keyFile, encryptedPem);
+        }
+        else
+        {
+            throw new InvalidOperationException("Certificate does not have an RSA or ECDSA private key");
+        }
     }
 
     private static void CleanupFile(string filePath)

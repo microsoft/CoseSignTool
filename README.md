@@ -45,9 +45,12 @@ CoseSignTool supports **SCITT (Supply Chain Integrity, Transparency, and Trust)*
 
 ### Quick Example
 ```bash
-# Basic SCITT-compliant signature
+# Basic SCITT-compliant signature with PFX certificate (Windows)
 # Automatically includes: DID:x509 issuer, default subject, timestamps
 CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose
+
+# Using PEM certificate and key files (Linux/Unix)
+CoseSignTool sign --payload payload.txt --pem mycert.pem --key mykey.pem --SignatureFile signature.cose
 
 # Custom SCITT signature with specific subject and expiration
 CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose \

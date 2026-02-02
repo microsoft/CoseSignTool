@@ -23,6 +23,10 @@ public class SignCommand : CoseCommand
         ["--po"] = "PipeOutput",
         ["--PfxCertificate"] = "PfxCertificate",
         ["--pfx"] = "PfxCertificate",
+        ["--PemCertificate"] = "PemCertificate",
+        ["--pem"] = "PemCertificate",
+        ["--PemKey"] = "PemKey",
+        ["--key"] = "PemKey",
         ["--Password"] = "Password",
         ["--pw"] = "Password",
         ["--Thumbprint"] = "Thumbprint",
@@ -90,7 +94,19 @@ public class SignCommand : CoseCommand
     public string? PfxCertificate { get; set; }
 
     /// <summary>
-    /// Optional. Gets or sets the password for the .pfx file if it requires one.
+    /// Optional. Gets or sets the path to a PEM-encoded certificate file to sign with.
+    /// Common on Linux/Unix systems. Use with --PemKey to specify the private key file.
+    /// </summary>
+    public string? PemCertificate { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the path to a PEM-encoded private key file.
+    /// Used together with --PemCertificate for signing. The key may be encrypted (use --Password to decrypt).
+    /// </summary>
+    public string? PemKey { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the password for the .pfx file or encrypted PEM private key if it requires one.
     /// </summary>
     public string? Password { get; set; }
 
@@ -342,6 +358,8 @@ public class SignCommand : CoseCommand
         PipeOutput = GetOptionBool(provider, nameof (PipeOutput));
         Thumbprint = GetOptionString(provider, nameof(Thumbprint));
         PfxCertificate = GetOptionString(provider, nameof(PfxCertificate));
+        PemCertificate = GetOptionString(provider, nameof(PemCertificate));
+        PemKey = GetOptionString(provider, nameof(PemKey));
         Password = GetOptionString(provider, nameof(Password));
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
@@ -575,7 +593,12 @@ public class SignCommand : CoseCommand
         X509Certificate2 cert;
         List<X509Certificate2>? additionalRoots = null;
         
-        if (PfxCertificate is not null)
+        if (PemCertificate is not null)
+        {
+            // Load from PEM files (common on Linux/Unix systems)
+            (cert, additionalRoots) = LoadCertFromPem();
+        }
+        else if (PfxCertificate is not null)
         {
             // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
@@ -604,10 +627,187 @@ public class SignCommand : CoseCommand
         {
             // Load certificate from thumbprint.
             cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName!, StoreLocation) :
-                throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
+                throw new ArgumentNullException("You must specify a certificate file (--pfx or --pem) or thumbprint to sign with.");
         }
 
         return (cert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Loads a certificate and private key from PEM files.
+    /// </summary>
+    /// <returns>The certificate with private key and optional additional root certificates.</returns>
+    /// <exception cref="FileNotFoundException">The PEM certificate or key file was not found.</exception>
+    /// <exception cref="CryptographicException">The PEM files could not be parsed or the key is encrypted and no password was provided.</exception>
+    /// <exception cref="ArgumentException">The private key file was not specified.</exception>
+    private (X509Certificate2 certificate, List<X509Certificate2>? additionalRoots) LoadCertFromPem()
+    {
+        ThrowIfMissing(PemCertificate!, "Could not find the PEM certificate file");
+        
+        // Read the PEM certificate file
+        string certPem = File.ReadAllText(PemCertificate!);
+        
+        // Parse all certificates from the PEM file (may contain a chain)
+        List<X509Certificate2> certificates = ParsePemCertificates(certPem);
+        
+        if (certificates.Count == 0)
+        {
+            throw new CryptographicException($"No valid certificates found in PEM file: {PemCertificate}");
+        }
+
+        // The first certificate is typically the leaf/signing certificate
+        X509Certificate2 leafCert = certificates[0];
+        
+        // If a separate key file is provided, load and combine with the certificate
+        if (PemKey is not null)
+        {
+            ThrowIfMissing(PemKey, "Could not find the PEM private key file");
+            string keyPem = File.ReadAllText(PemKey);
+            leafCert = LoadCertificateWithPrivateKey(leafCert, keyPem);
+        }
+        else if (!leafCert.HasPrivateKey)
+        {
+            // Try to find the private key in the same PEM file as the certificate
+            leafCert = LoadCertificateWithPrivateKey(leafCert, certPem);
+        }
+        
+        if (!leafCert.HasPrivateKey)
+        {
+            throw new CryptographicException(
+                "The certificate does not have a private key. " +
+                "Specify the private key file using --key or include it in the PEM certificate file.");
+        }
+        
+        // Additional certificates in the PEM file are treated as the certificate chain
+        List<X509Certificate2>? additionalRoots = certificates.Count > 1 
+            ? certificates.Skip(1).ToList() 
+            : null;
+
+        return (leafCert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Parses all X.509 certificates from a PEM-encoded string.
+    /// </summary>
+    /// <param name="pem">The PEM-encoded string containing one or more certificates.</param>
+    /// <returns>A list of X509Certificate2 objects.</returns>
+    private static List<X509Certificate2> ParsePemCertificates(string pem)
+    {
+        List<X509Certificate2> certificates = [];
+        
+        // Match all certificate blocks in the PEM
+        const string certHeader = "-----BEGIN CERTIFICATE-----";
+        const string certFooter = "-----END CERTIFICATE-----";
+        
+        int startIndex = 0;
+        while ((startIndex = pem.IndexOf(certHeader, startIndex, StringComparison.Ordinal)) >= 0)
+        {
+            int endIndex = pem.IndexOf(certFooter, startIndex, StringComparison.Ordinal);
+            if (endIndex < 0)
+            {
+                break;
+            }
+            
+            endIndex += certFooter.Length;
+            string certBlock = pem.Substring(startIndex, endIndex - startIndex);
+            
+            try
+            {
+                X509Certificate2 cert = X509Certificate2.CreateFromPem(certBlock);
+                certificates.Add(cert);
+            }
+            catch (CryptographicException)
+            {
+                // Skip invalid certificate blocks
+            }
+            
+            startIndex = endIndex;
+        }
+        
+        return certificates;
+    }
+
+    /// <summary>
+    /// Loads a certificate with its private key from a PEM-encoded key string.
+    /// Supports RSA, ECDSA, and encrypted private keys.
+    /// </summary>
+    /// <param name="certificate">The certificate without private key.</param>
+    /// <param name="keyPem">The PEM-encoded private key string.</param>
+    /// <returns>A new X509Certificate2 instance with the private key attached.</returns>
+    private X509Certificate2 LoadCertificateWithPrivateKey(X509Certificate2 certificate, string keyPem)
+    {
+        // Try to load as RSA key first
+        if (keyPem.Contains("-----BEGIN RSA PRIVATE KEY-----") || 
+            keyPem.Contains("-----BEGIN PRIVATE KEY-----") ||
+            keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+        {
+            try
+            {
+                using RSA rsa = RSA.Create();
+                
+                if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+                {
+                    if (string.IsNullOrEmpty(Password))
+                    {
+                        throw new CryptographicException(
+                            "The private key is encrypted. Please provide a password using --pw or --Password.");
+                    }
+                    rsa.ImportFromEncryptedPem(keyPem, Password);
+                }
+                else
+                {
+                    rsa.ImportFromPem(keyPem);
+                }
+                
+                return certificate.CopyWithPrivateKey(rsa);
+            }
+            catch (CryptographicException) when (!keyPem.Contains("RSA"))
+            {
+                // Not an RSA key, try ECDSA below
+            }
+        }
+        
+        // Try to load as ECDSA key
+        if (keyPem.Contains("-----BEGIN EC PRIVATE KEY-----") || 
+            keyPem.Contains("-----BEGIN PRIVATE KEY-----") ||
+            keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+        {
+            try
+            {
+                using ECDsa ecdsa = ECDsa.Create();
+                
+                if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+                {
+                    if (string.IsNullOrEmpty(Password))
+                    {
+                        throw new CryptographicException(
+                            "The private key is encrypted. Please provide a password using --pw or --Password.");
+                    }
+                    ecdsa.ImportFromEncryptedPem(keyPem, Password);
+                }
+                else
+                {
+                    ecdsa.ImportFromPem(keyPem);
+                }
+                
+                return certificate.CopyWithPrivateKey(ecdsa);
+            }
+            catch (CryptographicException)
+            {
+                // Not an ECDSA key either
+            }
+        }
+        
+        // If we get here with a private key marker but couldn't load it, throw
+        if (keyPem.Contains("PRIVATE KEY"))
+        {
+            throw new CryptographicException(
+                "Could not load the private key. The key format may be unsupported or corrupted. " +
+                "Supported formats: RSA and ECDSA keys in PEM format (PKCS#1, PKCS#8, or encrypted PKCS#8).");
+        }
+        
+        // No private key found in the PEM content
+        return certificate;
     }
 
     /// <summary>
@@ -1037,20 +1237,30 @@ Options:
 
     --OR--
 
-        --PfxCertificate, --pfx: A path to a private key certificate file (.pfx) to sign with.
+        --PfxCertificate, --pfx: A path to a private key certificate file (.pfx) to sign with. Common on Windows.
 
-        --Password, -pw: Optional. The password for the .pfx file if it has one. (Strongly recommended!)
+        --Password, --pw: Optional. The password for the .pfx file or encrypted PEM key if it has one.
 
     --OR--
 
-        --Thumbprint, -th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
+        --PemCertificate, --pem: A path to a PEM-encoded certificate file to sign with. Common on Linux/Unix.
+            The certificate file may contain the full certificate chain (leaf first, then intermediates, then root).
+
+        --PemKey, --key: The path to a PEM-encoded private key file. Required if the certificate file does not contain
+            the private key. Supports RSA and ECDSA keys in PKCS#1, PKCS#8, or encrypted PKCS#8 format.
+
+        --Password, --pw: Optional. The password for an encrypted PEM private key.
+
+    --OR--
+
+        --Thumbprint, --th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
             Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching
             certificate.
 
-        --StoreName, -sn: Optional. The name of the local certificate store to find the signing certificate in.
+        --StoreName, --sn: Optional. The name of the local certificate store to find the signing certificate in.
             Default value is 'My'.
 
-        --StoreLocation, -sl: Optional. The location of the local certificate store to find the signing certificate in.
+        --StoreLocation, --sl: Optional. The location of the local certificate store to find the signing certificate in.
             Default value is 'CurrentUser'.
 
     --PipeOutput, -po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of

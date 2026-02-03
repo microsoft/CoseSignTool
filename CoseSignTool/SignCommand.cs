@@ -29,6 +29,10 @@ public class SignCommand : CoseCommand
         ["--key"] = "PemKey",
         ["--Password"] = "Password",
         ["--pw"] = "Password",
+        ["--PasswordEnvVar"] = "PasswordEnvVar",
+        ["--pwenv"] = "PasswordEnvVar",
+        ["--PasswordPrompt"] = "PasswordPrompt",
+        ["--pwprompt"] = "PasswordPrompt",
         ["--Thumbprint"] = "Thumbprint",
         ["--th"] = "Thumbprint",
         ["--StoreName"] = "StoreName",
@@ -101,14 +105,34 @@ public class SignCommand : CoseCommand
 
     /// <summary>
     /// Optional. Gets or sets the path to a PEM-encoded private key file.
-    /// Used together with --PemCertificate for signing. The key may be encrypted (use --Password to decrypt).
+    /// Used together with --PemCertificate for signing. The key may be encrypted (use --PasswordEnvVar or --PasswordPrompt to provide password).
     /// </summary>
     public string? PemKey { get; set; }
 
     /// <summary>
-    /// Optional. Gets or sets the password for the .pfx file or encrypted PEM private key if it requires one.
+    /// Optional. Gets or sets the name of an environment variable containing the password for encrypted PEM private keys.
+    /// For PEM files with encrypted private keys, use this or --PasswordPrompt to securely provide the password.
+    /// Default environment variable is COSESIGNTOOL_PASSWORD.
+    /// </summary>
+    public string? PasswordEnvVar { get; set; }
+
+    /// <summary>
+    /// Optional. If set, prompts the user interactively to enter the password for encrypted PEM private keys.
+    /// Cannot be used when input is piped or in non-interactive environments.
+    /// </summary>
+    public bool PasswordPrompt { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the password for the .pfx file.
+    /// For PFX files, this can be provided directly on the command line.
+    /// For PEM files with encrypted keys, prefer using --PasswordEnvVar or --PasswordPrompt for security.
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// The default environment variable name for password.
+    /// </summary>
+    public const string DefaultPasswordEnvVar = "COSESIGNTOOL_PASSWORD";
 
     /// <summary>
     /// Optional. Gets or sets the SHA1 thumbprint of a certificate in the Certificate Store to sign the file with.
@@ -360,7 +384,13 @@ public class SignCommand : CoseCommand
         PfxCertificate = GetOptionString(provider, nameof(PfxCertificate));
         PemCertificate = GetOptionString(provider, nameof(PemCertificate));
         PemKey = GetOptionString(provider, nameof(PemKey));
+        
+        // Password handling: direct from command line (for PFX backward compat)
+        // or via environment variable / interactive prompt (preferred for PEM)
         Password = GetOptionString(provider, nameof(Password));
+        PasswordEnvVar = GetOptionString(provider, nameof(PasswordEnvVar));
+        PasswordPrompt = GetOptionBool(provider, nameof(PasswordPrompt));
+        
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
@@ -416,6 +446,90 @@ public class SignCommand : CoseCommand
         CertProvider = GetOptionString(provider, nameof(CertProvider));
 
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Resolves the password for encrypted PEM private keys from environment variable or interactive prompt.
+    /// This is only used for PEM files - PFX password is provided directly via --pw option.
+    /// </summary>
+    /// <returns>The resolved password, or null if not needed.</returns>
+    private string? ResolvePemPassword()
+    {
+        // For security, do not accept plaintext passwords from the command line for PEM keys.
+        // The --pw option is retained for PFX backward compatibility only.
+        if (!string.IsNullOrEmpty(Password))
+        {
+            Console.Error.WriteLine("Error: --pw/--Password is only supported for PFX files. For encrypted PEM private keys, use --pwenv/--PasswordEnvVar or --pwprompt/--PasswordPrompt.");
+            return null;
+        }
+        
+        // For PEM files, check environment variable
+        string envVarName = PasswordEnvVar ?? DefaultPasswordEnvVar;
+        
+        // Try to get password from environment variable
+        string? envPassword = Environment.GetEnvironmentVariable(envVarName);
+        if (!string.IsNullOrEmpty(envPassword))
+        {
+            return envPassword;
+        }
+        
+        // If PasswordEnvVar was explicitly set but the variable is empty/missing, that's an error
+        if (PasswordEnvVar != null)
+        {
+            Console.Error.WriteLine($"Warning: Environment variable '{PasswordEnvVar}' is not set or empty.");
+        }
+        
+        // If interactive prompt is requested, prompt for password
+        if (PasswordPrompt)
+        {
+            return PromptForPassword();
+        }
+        
+        // No password provided
+        return null;
+    }
+
+    /// <summary>
+    /// Prompts the user to enter a password interactively with masked input.
+    /// </summary>
+    /// <returns>The entered password.</returns>
+    private static string? PromptForPassword()
+    {
+        // Check if we're in an interactive terminal
+        if (!Environment.UserInteractive || Console.IsInputRedirected)
+        {
+            Console.Error.WriteLine("Error: Cannot prompt for password in non-interactive mode. Use --pwenv to specify an environment variable.");
+            return null;
+        }
+
+        Console.Error.Write("Enter password: ");
+        
+        StringBuilder password = new StringBuilder();
+        while (true)
+        {
+            ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+            
+            if (key.Key == ConsoleKey.Enter)
+            {
+                Console.Error.WriteLine();
+                break;
+            }
+            else if (key.Key == ConsoleKey.Backspace)
+            {
+                if (password.Length > 0)
+                {
+                    password.Length--;
+                    Console.Error.Write("\b \b");
+                }
+            }
+            else if (!char.IsControl(key.KeyChar))
+            {
+                password.Append(key.KeyChar);
+                Console.Error.Write("*");
+            }
+        }
+        
+        return password.Length > 0 ? password.ToString() : null;
     }
 
     /// <summary>
@@ -747,12 +861,13 @@ public class SignCommand : CoseCommand
                 
                 if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
                 {
-                    if (string.IsNullOrEmpty(Password))
+                    string? pemPassword = ResolvePemPassword();
+                    if (string.IsNullOrEmpty(pemPassword))
                     {
                         throw new CryptographicException(
-                            "The private key is encrypted. Please provide a password using --pw or --Password.");
+                            "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
                     }
-                    rsa.ImportFromEncryptedPem(keyPem, Password);
+                    rsa.ImportFromEncryptedPem(keyPem, pemPassword);
                 }
                 else
                 {
@@ -778,12 +893,13 @@ public class SignCommand : CoseCommand
                 
                 if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
                 {
-                    if (string.IsNullOrEmpty(Password))
+                    string? pemPassword = ResolvePemPassword();
+                    if (string.IsNullOrEmpty(pemPassword))
                     {
                         throw new CryptographicException(
-                            "The private key is encrypted. Please provide a password using --pw or --Password.");
+                            "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
                     }
-                    ecdsa.ImportFromEncryptedPem(keyPem, Password);
+                    ecdsa.ImportFromEncryptedPem(keyPem, pemPassword);
                 }
                 else
                 {
@@ -1239,8 +1355,6 @@ Options:
 
         --PfxCertificate, --pfx: A path to a private key certificate file (.pfx) to sign with. Common on Windows.
 
-        --Password, --pw: Optional. The password for the .pfx file or encrypted PEM key if it has one.
-
     --OR--
 
         --PemCertificate, --pem: A path to a PEM-encoded certificate file to sign with. Common on Linux/Unix.
@@ -1248,8 +1362,6 @@ Options:
 
         --PemKey, --key: The path to a PEM-encoded private key file. Required if the certificate file does not contain
             the private key. Supports RSA and ECDSA keys in PKCS#1, PKCS#8, or encrypted PKCS#8 format.
-
-        --Password, --pw: Optional. The password for an encrypted PEM private key.
 
     --OR--
 
@@ -1263,17 +1375,31 @@ Options:
         --StoreLocation, --sl: Optional. The location of the local certificate store to find the signing certificate in.
             Default value is 'CurrentUser'.
 
-    --PipeOutput, -po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of
+    Password options:
+
+        --Password, --pw: Optional. The password for opening a password-protected PFX file.
+            Example: --pw MyP@ssword
+
+        For PEM files with encrypted private keys, use secure password options instead:
+
+        --PasswordEnvVar, --pwenv: The name of an environment variable containing the password. 
+            If not specified, defaults to checking COSESIGNTOOL_PASSWORD environment variable.
+            Example: --pwenv MY_CERT_PASSWORD
+
+        --PasswordPrompt, --pwprompt: If set, prompts interactively for the password with masked input.
+            Cannot be used in non-interactive environments or when input is piped.
+
+    --PipeOutput, --po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of
         writing to file.
 
-    --EmbedPayload, -ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
+    --EmbedPayload, --ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
         Default behavior is 'detached signing', where the COSE signature file .Content property is empty, and to validate
         the signature, the payload must be provided separately. When set to true, the payload is embedded in the signature
         file. Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
 
 Advanced Options:
-    --ContentType, -cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
+    --ContentType, --cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
     Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:

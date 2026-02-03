@@ -89,29 +89,34 @@ public static class FileInfoExtensions
         writer ??= OutputTarget.StdErr;
         bool waitMessageStarted = false;
         byte ticks = 0;
+        long lastLength = -1;
         while (IsFileLocked(f))
         {
-            long lastLength = f.Length;
-            Thread.Sleep(250);
-            if (OutOfTime(startTime, maxWaitTime) && lastLength == f.Length)
+            f.Refresh();
+            long currentLength = f.Length;
+
+            // If the file is still growing, treat that as progress and keep waiting.
+            if (currentLength != lastLength)
             {
-                if (f.Length > lastLength)
+                lastLength = currentLength;
+                startTime = DateTime.Now;
+
+                ticks++;
+                if (!waitMessageStarted)
                 {
-                    ticks++;
-                    if (!waitMessageStarted)
-                    {
-                        waitMessageStarted = true;
-                        writer.WriteLine($"Waiting for write of file '{f.FullName}' to complete.");
-                    }
-                    else if (ticks % 4 == 0)
-                    {
-                        writer.Write(".");
-                    }
+                    waitMessageStarted = true;
+                    writer.WriteLine($"Waiting for write of file '{f.FullName}' to complete.");
                 }
-                else
+                else if (ticks % 4 == 0)
                 {
-                    throw new IOException($"The file '{f.FullName}' is still locked by another process after {SecondsSince(startTime)} seconds.");
+                    writer.Write(".");
                 }
+            }
+
+            Thread.Sleep(250);
+            if (OutOfTime(startTime, maxWaitTime))
+            {
+                throw new IOException($"The file '{f.FullName}' is still locked by another process after {SecondsSince(startTime)} seconds.");
             }
         }
 

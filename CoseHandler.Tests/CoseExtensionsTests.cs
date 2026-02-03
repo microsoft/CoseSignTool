@@ -49,14 +49,23 @@ public class CoseExtensionsTests
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
         FileInfo f = new(Path.GetTempFileName());
+        Task? writerTask = null;
 
-        // Act
-        // Start the file write then start the loading task before the write completes.
-        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
-        byte[] bytes = f.GetBytesResilient(writeTo: OutputTarget.StdOut);
+        try
+        {
+            // Act
+            // Start the file write then start the loading task before the write completes.
+            writerTask = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+            byte[] bytes = f.GetBytesResilient(writeTo: OutputTarget.StdOut);
 
-        // Assert
-        bytes.Length.Should().BeGreaterThan(38, "GetBytesResilient should keep reading until the write is complete.");
+            // Assert
+            bytes.Length.Should().BeGreaterThan(38, "GetBytesResilient should keep reading until the write is complete.");
+        }
+        finally
+        {
+            writerTask?.GetAwaiter().GetResult();
+            try { f.Delete(); } catch { /* best-effort cleanup */ }
+        }
     }
 
     [TestMethod]
@@ -71,14 +80,23 @@ public class CoseExtensionsTests
         // Arrange
         string text = "This is some text being written slowly."; // 39 chars
         FileInfo f = new(Path.GetTempFileName());
+        Task? writerTask = null;
 
-        // Act
-        // Start the file write then start the loading task before the write completes.
-        _ = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
-        FileStream? stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut);
+        try
+        {
+            // Act
+            // Start the file write then start the loading task before the write completes.
+            writerTask = Task.Run(() => f.WriteAllBytesDelayedAsync(Encoding.UTF8.GetBytes(text), 1, 100));
+            using FileStream stream = f.GetStreamResilient(writeTo: OutputTarget.StdOut)!;
 
-        // Assert
-        stream!.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
+            // Assert
+            stream.Length.Should().BeGreaterThan(38, "GetStreamResilient should keep reading until the write is complete.");
+        }
+        finally
+        {
+            writerTask?.GetAwaiter().GetResult();
+            try { f.Delete(); } catch { /* best-effort cleanup */ }
+        }
     }
 
     [TestMethod]

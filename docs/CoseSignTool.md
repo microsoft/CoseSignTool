@@ -45,9 +45,9 @@ You will need to specify:
 * The payload content to sign. This may be a file specified with the **--PayloadFile** or **--p** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
 * A signing key provider. You have four options:
   1. **Certificate Provider Plugin** (recommended for cloud/HSM signing): Use the **--CertProvider** or **--cp** option to specify a certificate provider plugin (e.g., `azure-trusted-signing`). See [Certificate Providers](#certificate-providers) section below.
-  2. **Local PFX Certificate** (common on Windows): Use the **--PfxCertificate** or **--pfx** option to point to a .pfx certificate file and a **--Password** or **--pw** to open the certificate file with if it is locked. The certificate must include a private key.
+  2. **Local PFX Certificate** (common on Windows): Use the **--PfxCertificate** or **--pfx** option to point to a .pfx certificate file and **--Password** or **--pw** to provide the password if the file is password-protected. The certificate must include a private key.
      * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **--Thumbprint** or **--th** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
-  3. **PEM Certificate Files** (common on Linux/Unix): Use the **--PemCertificate** or **--pem** option to point to a PEM-encoded certificate file. If the private key is in a separate file, use **--PemKey** or **--key** to specify the key file. Use **--Password** or **--pw** if the private key is encrypted.
+  3. **PEM Certificate Files** (common on Linux/Unix): Use the **--PemCertificate** or **--pem** option to point to a PEM-encoded certificate file. If the private key is in a separate file, use **--PemKey** or **--key** to specify the key file. For encrypted private keys, use **--PasswordEnvVar** / **--pwenv** to specify an environment variable containing the password, or **--PasswordPrompt** / **--pwprompt** to enter interactively.
      * **PEM Certificate Chain Handling**: The PEM certificate file may contain multiple certificates (leaf first, then intermediates, then root). All certificates will be used for proper chain building.
      * **Supported Key Formats**: RSA and ECDSA keys in PKCS#1, PKCS#8, or encrypted PKCS#8 format.
   4. **Local Certificate Store**: Use the **--Thumbprint** or **--th** option to pass the SHA1 thumbprint of an installed certificate. The certificate must include a private key.
@@ -168,9 +168,18 @@ CoseSignTool sign --p payload.txt --pem mycert.pem --sf signature.cose
 CoseSignTool sign --p payload.txt --pem mycert.crt --key mykey.pem --sf signature.cose
 ```
 
-**Sign with encrypted private key:**
+**Sign with encrypted private key (using environment variable):**
 ```bash
-CoseSignTool sign --p payload.txt --pem mycert.pem --key mykey.encrypted.pem --pw "keypassword" --sf signature.cose
+# First set the password in an environment variable
+export COSESIGNTOOL_PASSWORD="keypassword"
+# Or specify a custom environment variable:
+export MY_KEY_PASSWORD="keypassword"
+CoseSignTool sign --p payload.txt --pem mycert.pem --key mykey.encrypted.pem --pwenv MY_KEY_PASSWORD --sf signature.cose
+```
+
+**Sign with encrypted private key (interactive prompt):**
+```bash
+CoseSignTool sign --p payload.txt --pem mycert.pem --key mykey.encrypted.pem --pwprompt --sf signature.cose
 ```
 
 **Sign with PEM certificate chain (leaf + intermediates + root in one file):**

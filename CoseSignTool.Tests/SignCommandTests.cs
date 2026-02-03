@@ -415,7 +415,7 @@ public class SignCommandTests
         // Create a PFX file containing a full certificate chain with only leaf having private key
         X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(LoadCertFromPfxWithInvalidThumbprintThrowsException));
         string pfxFileWithChain = Path.GetTempFileName() + "_chain.pfx";
-        
+
         try
         {
             // Export the full certificate chain to a PFX file
@@ -472,7 +472,7 @@ public class SignCommandTests
             X509Certificate2 leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
 
             // Sign using the PFX with a specific thumbprint
-            string[] args = ["sign", "/p", payloadFile, "/pfx", pfxFileWithChain, "/pw", CertPassword, "/th", leafCert.Thumbprint, "/ep"];
+            string[] args = ["sign", "--p", payloadFile, "--pfx", pfxFileWithChain, "--pw", CertPassword, "--th", leafCert.Thumbprint, "--ep"];
             Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
             badArg.Should().BeNull("badArg should be null.");
 
@@ -1745,7 +1745,7 @@ public class SignCommandTests
     public void ApplyOptions_WithPemOptions_ShouldSetProperties()
     {
         // Arrange
-        string[] args = ["sign", "--p", "payload.txt", "--pem", "/path/to/cert.pem", "--key", "/path/to/key.pem", "--pw", "secret123"];
+        string[] args = ["sign", "--p", "payload.txt", "--pem", "/path/to/cert.pem", "--key", "/path/to/key.pem"];
         
         // Act
         Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
@@ -1758,7 +1758,6 @@ public class SignCommandTests
         // Assert
         cmd.PemCertificate.Should().Be("/path/to/cert.pem", "PemCertificate should be set");
         cmd.PemKey.Should().Be("/path/to/key.pem", "PemKey should be set");
-        cmd.Password.Should().Be("secret123", "Password should be set");
     }
 
     /// <summary>
@@ -1817,6 +1816,7 @@ public class SignCommandTests
         string certPemFile = Path.GetTempFileName() + ".crt";
         string encryptedKeyFile = Path.GetTempFileName() + ".key";
         string keyPassword = "test-password-123";
+        string envVarName = "TEST_PEM_PASSWORD_" + Guid.NewGuid().ToString("N")[..8];
         
         try
         {
@@ -1826,9 +1826,12 @@ public class SignCommandTests
             // Create encrypted PEM private key file
             CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
 
-            // Act
+            // Set password via environment variable (secure method)
+            Environment.SetEnvironmentVariable(envVarName, keyPassword);
+
+            // Act - Use --pwenv to specify the environment variable
             string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
-                            "--pw", keyPassword, "--sf", signatureFile];
+                            "--pwenv", envVarName, "--sf", signatureFile];
             
             Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
                 CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
@@ -1844,6 +1847,58 @@ public class SignCommandTests
         }
         finally
         {
+            Environment.SetEnvironmentVariable(envVarName, null);
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing works with password from default COSESIGNTOOL_PASSWORD environment variable.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemPrivateKey_DefaultEnvVar_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-default";
+        string? originalEnvValue = Environment.GetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar);
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Set password via default environment variable
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, keyPassword);
+
+            // Act - Don't specify --pwenv, should use default COSESIGNTOOL_PASSWORD
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with password from default env var");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, originalEnvValue);
             CleanupFile(payloadFile);
             CleanupFile(signatureFile);
             CleanupFile(certPemFile);
@@ -1862,6 +1917,7 @@ public class SignCommandTests
         string certPemFile = Path.GetTempFileName() + ".crt";
         string encryptedKeyFile = Path.GetTempFileName() + ".key";
         string keyPassword = "test-password-456";
+        string? originalEnvValue = Environment.GetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar);
         
         try
         {
@@ -1871,7 +1927,10 @@ public class SignCommandTests
             // Create encrypted PEM private key file
             CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
 
-            // Act - Note: No --pw argument provided
+            // Clear the default password env var to ensure no password is available
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, null);
+
+            // Act - Note: No password env var set
             string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile];
             
             Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
@@ -1888,6 +1947,7 @@ public class SignCommandTests
         }
         finally
         {
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, originalEnvValue);
             CleanupFile(payloadFile);
             CleanupFile(certPemFile);
             CleanupFile(encryptedKeyFile);
@@ -1895,7 +1955,7 @@ public class SignCommandTests
     }
 
     /// <summary>
-    /// Tests that signing fails with encrypted PEM key when wrong password is provided.
+    /// Tests that signing fails with encrypted PEM key when wrong password is provided via environment variable.
     /// </summary>
     [TestMethod]
     public void SignWithEncryptedPemKeyWithWrongPassword_ShouldFail()
@@ -1906,6 +1966,7 @@ public class SignCommandTests
         string encryptedKeyFile = Path.GetTempFileName() + ".key";
         string keyPassword = "correct-password";
         string wrongPassword = "wrong-password";
+        string envVarName = "TEST_WRONG_PASSWORD_" + Guid.NewGuid().ToString("N")[..8];
         
         try
         {
@@ -1915,9 +1976,12 @@ public class SignCommandTests
             // Create encrypted PEM private key file
             CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
 
-            // Act - Provide wrong password
+            // Set wrong password via environment variable
+            Environment.SetEnvironmentVariable(envVarName, wrongPassword);
+
+            // Act - Provide wrong password via env var
             string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
-                            "--pw", wrongPassword];
+                            "--pwenv", envVarName];
             
             Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
                 CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
@@ -1933,10 +1997,35 @@ public class SignCommandTests
         }
         finally
         {
+            Environment.SetEnvironmentVariable(envVarName, null);
             CleanupFile(payloadFile);
             CleanupFile(certPemFile);
             CleanupFile(encryptedKeyFile);
         }
+    }
+
+    /// <summary>
+    /// Tests that PasswordEnvVar and PasswordPrompt options are correctly applied.
+    /// </summary>
+    [TestMethod]
+    public void ApplyOptions_WithPasswordEnvVarOption_ShouldSetProperties()
+    {
+        // Arrange
+        string[] args = ["sign", "--p", "payload.txt", "--pem", "/path/to/cert.pem", "--key", "/path/to/key.pem", 
+                        "--pwenv", "MY_CUSTOM_PASSWORD_VAR"];
+        
+        // Act
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+            CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        badArg.Should().BeNull("badArg should be null.");
+
+        SignCommand cmd = new SignCommand();
+        cmd.ApplyOptions(provider);
+
+        // Assert
+        cmd.PemCertificate.Should().Be("/path/to/cert.pem", "PemCertificate should be set");
+        cmd.PemKey.Should().Be("/path/to/key.pem", "PemKey should be set");
+        cmd.PasswordEnvVar.Should().Be("MY_CUSTOM_PASSWORD_VAR", "PasswordEnvVar should be set");
     }
 
     #region PEM Helper Methods

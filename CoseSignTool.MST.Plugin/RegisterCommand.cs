@@ -48,7 +48,7 @@ public class RegisterCommand : MstCommandBase
     {
         Logger.LogVerbose("Creating transparency service");
         // Create the transparency service with logging
-        CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = client.ToCoseSign1TransparencyService(
+        CoseSign1.Transparent.TransparencyService transparencyService = client.ToCoseSign1TransparencyService(
             logVerbose: Logger.LogVerbose,
             logWarning: Logger.LogWarning,
             logError: Logger.LogError);

@@ -3,9 +3,9 @@
 
 using System;
 using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Extensions;
-using CoseSign1.Transparent.Interfaces;
 using Moq;
 using NUnit.Framework;
 
@@ -35,7 +35,7 @@ public class MstTransparencyServiceExtensionsTests
 
     /// <summary>
     /// Tests the <see cref="MstTransparencyServiceExtensions.ToCoseSign1TransparencyService"/> method
-    /// to ensure it returns a valid <see cref="ITransparencyService"/> instance when the input client is valid.
+    /// to ensure it returns a valid <see cref="TransparencyService"/> instance when the input client is valid.
     /// </summary>
     [Test]
     public void ToCoseSign1TransparencyService_ReturnsTransparencyService_WhenClientIsValid()
@@ -44,7 +44,7 @@ public class MstTransparencyServiceExtensionsTests
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
 
         // Act
-        ITransparencyService result = mockClient.Object.ToCoseSign1TransparencyService();
+        TransparencyService result = mockClient.Object.ToCoseSign1TransparencyService();
 
         // Assert
         Assert.That(result, Is.Not.Null);

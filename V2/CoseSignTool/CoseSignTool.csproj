@@ -4,7 +4,16 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <!-- RuntimeIdentifiers specified for publish commands only, not for pack -->
+        <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    </PropertyGroup>
+
+    <!--Single-file publishing configuration for self-contained deployments.
+        Plugins are embedded in the single-file and extracted on first run.
+        AppContext.BaseDirectory points to the extraction location where plugins are available.-->
+    <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
     <!--NuGet package configuration (CLI tool)-->
@@ -83,7 +92,9 @@
         <PropertyGroup>
             <PluginsDir>$(OutputPath)plugins</PluginsDir>
             <PluginSubDir>$(PluginsDir)\$(PluginName)</PluginSubDir>
-            <PluginSourceDir>$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0</PluginSourceDir>
+            <!-- Handle both RID-specific and non-RID builds -->
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' != ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0\$(RuntimeIdentifier)</PluginSourceDir>
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' == ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0</PluginSourceDir>
         </PropertyGroup>
 
         <MakeDir Directories="$(PluginSubDir)" />
@@ -140,7 +151,7 @@
 
         <!-- Deploy each discovered plugin -->
         <MSBuild Projects="$(MSBuildProjectFile)"
-                 Properties="PluginName=%(PluginNames.Identity);Configuration=$(Configuration)"
+                 Properties="PluginName=%(PluginNames.Identity);Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)"
                  Targets="DeployPlugin"
                  Condition="'@(PluginNames)' != ''" />
 
@@ -159,7 +170,7 @@
 
         <!-- Build plugins first to avoid stale/binary-incompatible deployments. -->
         <MSBuild Projects="@(PluginProjectsForPublish)"
-                 Properties="Configuration=$(Configuration)"
+                 Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)"
                  Targets="Build"
                  Condition="'@(PluginProjectsForPublish)' != ''" />
 
@@ -170,11 +181,32 @@
 
         <!-- Deploy to publish directory -->
         <MSBuild Projects="$(MSBuildProjectFile)"
-                 Properties="PluginName=%(PluginNamesForPublish.Identity);Configuration=$(Configuration);OutputPath=$(PublishDir)"
+                 Properties="PluginName=%(PluginNamesForPublish.Identity);Configuration=$(Configuration);OutputPath=$(PublishDir);RuntimeIdentifier=$(RuntimeIdentifier)"
                  Targets="DeployPlugin"
                  Condition="'@(PluginNamesForPublish)' != ''" />
 
         <Message Text="Deployed @(PluginNamesForPublish->Count()) plugin(s) for publish: @(PluginNamesForPublish, ', ')" Importance="high" Condition="'@(PluginNamesForPublish)' != ''" />
+    </Target>
+
+    <!--Include deployed plugins as Content for single-file bundling-->
+    <Target Name="IncludePluginsInPublish" AfterTargets="DeployAllPlugins" BeforeTargets="_ComputeFilesToBundle" Condition="'$(DeployPlugins)' == 'true' AND '$(PublishSingleFile)' == 'true'">
+        <PropertyGroup>
+            <PluginsDir>$(OutputPath)plugins</PluginsDir>
+        </PropertyGroup>
+
+        <ItemGroup>
+            <Content Include="$(PluginsDir)\**\*.*"
+                     Link="plugins\%(RecursiveDir)%(Filename)%(Extension)"
+                     CopyToOutputDirectory="PreserveNewest"
+                     CopyToPublishDirectory="PreserveNewest"
+                     Condition="Exists('$(PluginsDir)')" />
+        </ItemGroup>
+    </Target>
+
+    <!--Clean up the plugins folder from publish output since plugins are bundled in the single-file exe-->
+    <Target Name="CleanupPluginsFolderForSingleFile" AfterTargets="Publish" Condition="'$(PublishSingleFile)' == 'true' AND '$(DeployPlugins)' == 'true'">
+        <RemoveDir Directories="$(PublishDir)plugins" Condition="Exists('$(PublishDir)plugins')" />
+        <Message Text="Removed plugins folder from publish output (plugins are bundled in single-file exe)" Importance="high" />
     </Target>
 
     <!-- Target to build and deploy all plugins for local development -->
@@ -185,7 +217,7 @@
                                    Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
         </ItemGroup>
 
-        <MSBuild Projects="@(PluginProjectsToBuild)" Properties="Configuration=$(Configuration)" Targets="Build" />
+        <MSBuild Projects="@(PluginProjectsToBuild)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Targets="Build" />
 
         <!-- Then deploy them -->
         <MSBuild Projects="$(MSBuildProjectFile)" Properties="DeployPlugins=true;Configuration=$(Configuration)" Targets="DeployAllPlugins" />

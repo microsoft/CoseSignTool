@@ -15,9 +15,9 @@ using CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Transparency provider for Microsoft's Signing Transparency (MST) service.
-/// Implements the V2 transparency architecture pattern.
+/// Extends <see cref="TransparencyProviderBase"/> to get automatic receipt preservation.
 /// </summary>
-public class MstTransparencyProvider : ITransparencyProvider
+public class MstTransparencyProvider : TransparencyProviderBase
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -66,13 +66,9 @@ public class MstTransparencyProvider : ITransparencyProvider
     private readonly ICodeTransparencyVerifier Verifier;
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
     private readonly CodeTransparencyClientOptions? ClientOptions;
-    private readonly Action<string>? LogVerbose;
-    private readonly Action<string>? LogError;
 
-    /// <summary>
-    /// Gets the name of this transparency provider.
-    /// </summary>
-    public string ProviderName => ClassStrings.ProviderName;
+    /// <inheritdoc/>
+    public override string ProviderName => ClassStrings.ProviderName;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstTransparencyProvider"/> class.
@@ -133,6 +129,7 @@ public class MstTransparencyProvider : ITransparencyProvider
         CodeTransparencyClientOptions? clientOptions,
         Action<string>? logVerbose,
         Action<string>? logError)
+        : base(logVerbose, logError)
     {
         Guard.ThrowIfNull(client);
         Guard.ThrowIfNull(verifier);
@@ -141,24 +138,20 @@ public class MstTransparencyProvider : ITransparencyProvider
         Verifier = verifier;
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
-        LogVerbose = logVerbose;
-        LogError = logError;
     }
 
     /// <summary>
     /// Adds MST transparency proof to the signed COSE message.
+    /// Receipt preservation is handled by the base class.
     /// </summary>
     /// <param name="message">The signed COSE Sign1 message.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A new message with MST receipt embedded in unprotected headers.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown when MST transparency submission fails.</exception>
-    public async Task<CoseSign1Message> AddTransparencyProofAsync(
+    protected override async Task<CoseSign1Message> AddTransparencyProofCoreAsync(
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
-        Guard.ThrowIfNull(message);
-
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingProofAdditionFormat, ProviderName));
 
         // Encode the CoseSign1Message to a byte array
@@ -211,13 +204,10 @@ public class MstTransparencyProvider : ITransparencyProvider
     /// <param name="message">The COSE Sign1 message with MST receipt.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Validation result with status and details.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
-    public Task<TransparencyValidationResult> VerifyTransparencyProofAsync(
+    protected override Task<TransparencyValidationResult> VerifyTransparencyProofCoreAsync(
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
-        Guard.ThrowIfNull(message);
-
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingVerificationFormat, ProviderName));
 
         // Check if the message contains a transparency header

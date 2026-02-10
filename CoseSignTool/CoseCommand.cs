@@ -356,14 +356,6 @@ public abstract partial class CoseCommand
                 arg = $"--{arg.AsSpan(1)}";
             }
             
-            // Extract the option name (before any colon)
-            string argWithoutColon = arg;
-            int colonInArg = arg.StartsWith("--") ? arg.IndexOf(':', 2) : -1;
-            if (colonInArg > 0)
-            {
-                argWithoutColon = arg.Substring(0, colonInArg);
-            }
-
             if (arg.StartsWith('-'))
             {
                 // arg is an option name (possibly with colon-delimited value)

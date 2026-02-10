@@ -581,10 +581,10 @@ public class MainTests
     public void EndToEndPipelineWithActualProcess()
     {
         // Arrange - create test payload
-        string payloadContent = "Test payload content for piped signing " + Guid.NewGuid().ToString();
+        string payloadContent = "Test payload content for piped signing " + Guid.NewGuid();
         byte[] payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadContent);
 
-        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        string exePath = Path.Join(AppContext.BaseDirectory, "CoseSignTool.dll");
         
         // Step 1: Sign with piped payload (embedded signature so payload is included)
         byte[] signatureBytes;
@@ -670,7 +670,7 @@ public class MainTests
         // Read signature for piping
         byte[] signatureBytes = File.ReadAllBytes(sigFile);
 
-        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        string exePath = Path.Join(AppContext.BaseDirectory, "CoseSignTool.dll");
         
         // Validate with piped signature
         using var validateProcess = new Process();
@@ -714,7 +714,7 @@ public class MainTests
     {
         // Arrange - create embedded signature file first
         string certPair = $"{PublicKeyIntermediateCertFile}, {PublicKeyRootCertFile}";
-        string payloadContent = "Unique payload for get test " + Guid.NewGuid().ToString();
+        string payloadContent = "Unique payload for get test " + Guid.NewGuid();
         string payloadFile = Path.GetTempFileName();
         File.WriteAllText(payloadFile, payloadContent);
         string sigFile = payloadFile + ".embedded.cose";
@@ -726,9 +726,9 @@ public class MainTests
         // Read signature for piping
         byte[] signatureBytes = File.ReadAllBytes(sigFile);
 
-        string exePath = Path.Combine(AppContext.BaseDirectory, "CoseSignTool.dll");
+        string exePath = Path.Join(AppContext.BaseDirectory, "CoseSignTool.dll");
         
-        // Get content with piped signature (get writes to stdout by default when -sa not specified)
+        // Get content with piped signature(get writes to stdout by default when -sa not specified)
         using var getProcess = new Process();
         getProcess.StartInfo = new ProcessStartInfo
         {

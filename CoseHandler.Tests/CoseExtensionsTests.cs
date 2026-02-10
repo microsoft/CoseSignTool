@@ -64,7 +64,7 @@ public class CoseExtensionsTests
         finally
         {
             writerTask?.GetAwaiter().GetResult();
-            try { f.Delete(); } catch { /* best-effort cleanup */ }
+            try { f.Delete(); } catch (IOException) { /* best-effort cleanup */ }
         }
     }
 
@@ -95,7 +95,7 @@ public class CoseExtensionsTests
         finally
         {
             writerTask?.GetAwaiter().GetResult();
-            try { f.Delete(); } catch { /* best-effort cleanup */ }
+            try { f.Delete(); } catch (IOException) { /* best-effort cleanup */ }
         }
     }
 

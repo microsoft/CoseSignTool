@@ -1767,7 +1767,7 @@ public class SignCommandTests
     public void SignWithEcdsaPemCertificate_ShouldSucceed()
     {
         // Arrange
-        X509Certificate2 ecdsaCert = TestCertificateUtils.CreateCertificate(
+        using X509Certificate2 ecdsaCert = TestCertificateUtils.CreateCertificate(
             nameof(SignWithEcdsaPemCertificate_ShouldSucceed), 
             useEcc: true);
         
@@ -1797,7 +1797,6 @@ public class SignCommandTests
         }
         finally
         {
-            ecdsaCert.Dispose();
             CleanupFile(payloadFile);
             CleanupFile(signatureFile);
             CleanupFile(pemFile);
@@ -2124,7 +2123,7 @@ public class SignCommandTests
             {
                 File.Delete(filePath);
             }
-            catch { /* ignore cleanup errors */ }
+            catch (IOException) { /* ignore cleanup errors */ }
         }
     }
 

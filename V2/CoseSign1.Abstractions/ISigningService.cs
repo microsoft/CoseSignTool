@@ -45,4 +45,13 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     /// Examples: service name, version, compliance requirements (SCITT, etc.)
     /// </summary>
     SigningServiceMetadata ServiceMetadata { get; }
+
+    /// <summary>
+    /// Verifies a signature created by this signing service.
+    /// Used by factories to perform post-sign verification.
+    /// </summary>
+    /// <param name="message">The COSE Sign1 message to verify.</param>
+    /// <param name="context">The signing context used to create the signature.</param>
+    /// <returns>True if the signature is valid; otherwise false.</returns>
+    bool VerifySignature(CoseSign1Message message, SigningContext context);
 }

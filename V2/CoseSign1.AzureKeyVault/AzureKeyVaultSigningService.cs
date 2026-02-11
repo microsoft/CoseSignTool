@@ -355,6 +355,21 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
     }
 
     /// <inheritdoc/>
+    public bool VerifySignature(CoseSign1Message message, SigningContext context)
+    {
+        ThrowIfDisposed();
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(context);
+
+        var state = GetRequiredState();
+        var coseKey = state.SigningKey.GetCoseKey();
+
+        return message.Content != null
+            ? message.VerifyEmbedded(coseKey)
+            : message.VerifyDetached(coseKey, context.PayloadBytes.ToArray());
+    }
+
+    /// <inheritdoc/>
     public SigningOptions CreateSigningOptions()
     {
         return new SigningOptions();

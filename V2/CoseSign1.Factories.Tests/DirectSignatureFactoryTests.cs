@@ -27,7 +27,12 @@ public class DirectSignatureFactoryTests
     /// Creates a new mock signing service for testing.
     /// </summary>
     private static Mock<ISigningService<SigningOptions>> CreateMockSigningService()
-        => new Mock<ISigningService<SigningOptions>>();
+    {
+        var mock = new Mock<ISigningService<SigningOptions>>();
+        mock.Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+        return mock;
+    }
 
     [Test]
     public void CreateCoseSign1MessageBytes_WithSpanPayload_CallsSigningService()

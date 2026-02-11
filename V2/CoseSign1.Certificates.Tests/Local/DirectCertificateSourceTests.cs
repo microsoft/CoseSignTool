@@ -620,10 +620,15 @@ internal class MockSigningService : ISigningService<SigningOptions>
         return new SigningOptions();
     }
 
+    public bool VerifySignature(CoseSign1Message message, SigningContext context)
+    {
+        return true; // Default: verification passes for tests
+    }
+
     public void Dispose() { }
 }
 
-internal class MockSigningKeyProvider : ISigningKeyProvider
+internal class MockSigningKeyProvider: ISigningKeyProvider
 {
     private readonly X509Certificate2 Certificate;
     private readonly bool IsRemoteField;

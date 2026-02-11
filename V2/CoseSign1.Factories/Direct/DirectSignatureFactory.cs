@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Factories.Exceptions;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -126,6 +127,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <returns>The COSE Sign1 message as a byte array.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the underlying buffer could not be acquired.</exception>
+    /// <exception cref="SignatureVerificationException">Thrown when post-sign verification fails.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         ReadOnlySpan<byte> payload,
         string contentType,
@@ -207,8 +209,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
                     ClassStrings.LogPostSignVerificationFailed);
-                throw new InvalidOperationException(
-                    ClassStrings.LogPostSignVerificationFailed);
+                throw new SignatureVerificationException(
+                    ClassStrings.LogPostSignVerificationFailed, operationId);
             }
             Logger.LogDebug(
                 LogEvents.PostSignVerificationSucceededEvent,
@@ -306,7 +308,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="payloadStream"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when post-sign verification fails.</exception>
+    /// <exception cref="SignatureVerificationException">Thrown when post-sign verification fails.</exception>
     public virtual async Task<byte[]> CreateCoseSign1MessageBytesAsync(
         Stream payloadStream,
         string contentType,
@@ -425,8 +427,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
                     ClassStrings.LogPostSignVerificationFailed);
-                throw new InvalidOperationException(
-                    ClassStrings.LogPostSignVerificationFailed);
+                throw new SignatureVerificationException(
+                    ClassStrings.LogPostSignVerificationFailed, operationId);
             }
             Logger.LogDebug(
                 LogEvents.PostSignVerificationSucceededEvent,

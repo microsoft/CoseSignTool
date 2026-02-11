@@ -19,7 +19,12 @@ using Moq;
 public class CoseSign1MessageFactoryTests
 {
     private static Mock<ISigningService<SigningOptions>> CreateMockSigningService()
-        => new Mock<ISigningService<SigningOptions>>();
+    {
+        var mock = new Mock<ISigningService<SigningOptions>>();
+        mock.Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+        return mock;
+    }
 
     private static int ReadInt32FromCoseHeaderValue(CoseHeaderValue value)
     {

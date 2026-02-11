@@ -211,6 +211,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
                 AdditionalHeaderContributors = headerContributors,
                 AdditionalContext = options.AdditionalContext,
                 AdditionalData = options.AdditionalData,
+                DisableTransparency = options.DisableTransparency,
+                FailOnTransparencyError = options.FailOnTransparencyError,
                 EmbedPayload = true  // Embed the hash (not the original payload)
             };
 
@@ -368,6 +370,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
                 AdditionalHeaderContributors = headerContributors,
                 AdditionalContext = options.AdditionalContext,
                 AdditionalData = options.AdditionalData,
+                DisableTransparency = options.DisableTransparency,
+                FailOnTransparencyError = options.FailOnTransparencyError,
                 EmbedPayload = true  // Embed the hash
             };
 

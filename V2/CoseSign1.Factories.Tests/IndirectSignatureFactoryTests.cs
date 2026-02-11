@@ -28,7 +28,12 @@ public class IndirectSignatureFactoryTests
     }
 
     private static Mock<ISigningService<SigningOptions>> CreateMockSigningService()
-        => new Mock<ISigningService<SigningOptions>>();
+    {
+        var mock = new Mock<ISigningService<SigningOptions>>();
+        mock.Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+        return mock;
+    }
 
     [Test]
     public void Constructor_WithNullSigningService_ShouldThrowArgumentNullException()

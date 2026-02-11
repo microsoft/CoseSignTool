@@ -8,6 +8,7 @@ using System.Security.Cryptography.Cose;
 using System.Text;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Exceptions;
 using Moq;
 
 /// <summary>
@@ -1084,7 +1085,7 @@ public class DirectSignatureFactoryTests
 
     [Test]
     [Category("Unit")]
-    public void CreateCoseSign1MessageBytes_WhenVerificationFails_ThrowsInvalidOperationException()
+    public void CreateCoseSign1MessageBytes_WhenVerificationFails_ThrowsSignatureVerificationException()
     {
         // Given a DirectSignatureFactory
         var mockSigningService = CreateMockSigningService();
@@ -1103,8 +1104,8 @@ public class DirectSignatureFactoryTests
         var factory = new DirectSignatureFactory(mockSigningService.Object);
 
         // When CreateCoseSign1MessageBytes is called
-        // Then an exception is thrown because verification failed
-        Assert.Throws<InvalidOperationException>(
+        // Then a SignatureVerificationException is thrown because verification failed
+        Assert.Throws<SignatureVerificationException>(
             () => factory.CreateCoseSign1MessageBytes(payload, contentType));
     }
 

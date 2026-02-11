@@ -63,11 +63,18 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     // Creates default options instance
     TSigningOptions CreateSigningOptions();
     
+    // Verify a signature created by this service (used for post-sign verification)
+    bool VerifySignature(CoseSign1Message message, SigningContext context);
+    
     // Service characteristics
     bool IsRemote { get; }
     SigningServiceMetadata ServiceMetadata { get; }
 }
 ```
+
+#### VerifySignature
+
+The `VerifySignature` method allows the signing service to verify a signature it has just created. Factories call this method automatically after every signing operation to ensure the produced signature is valid before returning it. If verification fails, the factory throws a `SignatureVerificationException`. See [Post-Sign Verification](../CoseSign1.Factories/README.md#post-sign-verification) in the Factories README for details.
 
 ### ISigningKey
 

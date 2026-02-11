@@ -51,13 +51,18 @@ public class SigningCommandBuilderTests
 
         public SigningServiceMetadata ServiceMetadata { get; } = new("TestSigningService");
 
+        public bool VerifySignature(CoseSign1Message message, SigningContext context)
+        {
+            return true; // Default: verification passes for tests
+        }
+
         public void Dispose()
         {
             _key.Dispose();
         }
     }
 
-    private sealed class TestSigningCommandProvider : ISigningCommandProvider
+    private sealed class TestSigningCommandProvider: ISigningCommandProvider
     {
         private readonly Option<string> _modeOption = new("--mode", getDefaultValue: () => "success");
 

@@ -288,6 +288,22 @@ var contentType = message.ProtectedHeaders.GetValueOrDefault(
     CoseHeaderLabel.ContentType);
 ```
 
+## Post-Sign Verification
+
+All factory methods (both sync and async) automatically verify each signature immediately after creation. The factory calls `ISigningService.VerifySignature` on the newly created `CoseSign1Message` before returning it to the caller. If verification fails, a `SignatureVerificationException` is thrown.
+
+This ensures that every signature returned by the factory is valid and was produced correctly by the signing service. Callers do not need to perform their own verification after signing.
+
+```csharp
+// No manual verification needed — the factory verifies internally.
+// If the signature is invalid, SignatureVerificationException is thrown.
+byte[] signedMessage = factory.CreateCoseSign1MessageBytes(
+    payload,
+    contentType: "application/json");
+```
+
+> **Note:** When mocking `ISigningService` in tests, ensure `VerifySignature` is set up to return `true`; otherwise, signing operations will throw `SignatureVerificationException`.
+
 ## Performance Considerations
 
 1. **Factory Reuse**: Create factory once, reuse for multiple signatures

@@ -64,6 +64,8 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         public static readonly string LogAddingScittCwtClaims = "Adding SCITT-compliant CWT claims to signature headers";
         public static readonly string LogSkippingCwtClaimsNonCertificateKey = "Skipping CWT claims - signing key is not certificate-based";
         public static readonly string LogApplyingAdditionalHeaderContributorsFormat = "Applying {Count} additional header contributors";
+        public static readonly string LogVerifyingSignature = "Verifying signature. HasEmbeddedContent: {HasEmbeddedContent}";
+        public static readonly string LogSignatureVerificationResult = "Signature verification completed. IsValid: {IsValid}";
     }
 
     private static readonly CertificateHeaderContributor CertificateContributor = new();
@@ -424,6 +426,81 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         // Derived classes should override this method
         throw new InvalidOperationException(string.Format(ClassStrings.ErrorNoSigningKeyAvailableFormat, GetType().Name));
+    }
+
+    /// <inheritdoc/>
+    public virtual bool VerifySignature(CoseSign1Message message, SigningContext context)
+    {
+        ThrowIfDisposed();
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(context);
+
+        bool isEmbedded = message.Content != null;
+
+        Logger.LogDebug(
+            LogEvents.SignatureValidationStartedEvent,
+            ClassStrings.LogVerifyingSignature,
+            isEmbedded);
+
+        bool result;
+
+        if (IsRemoteField)
+        {
+            // Remote signing keys (e.g., Azure Key Vault) cannot perform local verification.
+            // Use the certificate's public key extracted from the COSE message headers instead.
+            byte[]? detachedPayload = null;
+            if (!isEmbedded)
+            {
+                detachedPayload = GetPayloadBytesForVerification(context);
+            }
+
+            result = message.VerifySignature(detachedPayload);
+        }
+        else
+        {
+            ISigningKey signingKey = GetSigningKey(context);
+            CoseKey coseKey = signingKey.GetCoseKey();
+
+            if (isEmbedded)
+            {
+                result = message.VerifyEmbedded(coseKey);
+            }
+            else
+            {
+                byte[] payloadBytes = GetPayloadBytesForVerification(context);
+                result = message.VerifyDetached(coseKey, payloadBytes);
+            }
+        }
+
+        Logger.LogDebug(
+            LogEvents.SignatureValidationSucceededEvent,
+            ClassStrings.LogSignatureVerificationResult,
+            result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the payload bytes from the signing context for detached signature verification.
+    /// Handles both byte-based and stream-based contexts.
+    /// </summary>
+    private static byte[] GetPayloadBytesForVerification(SigningContext context)
+    {
+        if (!context.HasStream)
+        {
+            return context.PayloadBytes.ToArray();
+        }
+
+        // For stream-based contexts (async path), read the stream payload
+        Stream stream = context.PayloadStream;
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
     }
 
     /// <summary>

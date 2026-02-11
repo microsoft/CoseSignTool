@@ -328,6 +328,11 @@ public class RemoteSigningTests
             return new SigningOptions();
         }
 
+        public bool VerifySignature(CoseSign1Message message, SigningContext context)
+        {
+            return true; // Default: verification passes for tests
+        }
+
         public void Dispose()
         {
             // No resources to dispose

@@ -362,9 +362,11 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
         Guard.ThrowIfNull(context);
 
         var state = GetRequiredState();
-        var coseKey = state.SigningKey.GetCoseKey();
+        CoseKey coseKey = state.SigningKey.GetCoseKey();
 
-        return message.Content != null
+        bool isEmbedded = message.Content != null;
+
+        return isEmbedded
             ? message.VerifyEmbedded(coseKey)
             : message.VerifyDetached(coseKey, context.PayloadBytes.ToArray());
     }

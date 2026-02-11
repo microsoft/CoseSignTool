@@ -71,6 +71,11 @@ public class X509CertificateTrustPackProducerTests
 
         public SigningServiceMetadata ServiceMetadata { get; } = new("TestSigningService");
 
+        public bool VerifySignature(CoseSign1Message message, SigningContext context)
+        {
+            return true; // Default: verification passes for tests
+        }
+
         public void Dispose()
         {
             _key.Dispose();

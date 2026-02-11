@@ -172,6 +172,38 @@ public class GuardTests
 
     #endregion
 
+    #region ThrowIfNullOrEmpty with Message Tests
+
+    [Test]
+    public void ThrowIfNullOrEmpty_WithMessage_ValidString_DoesNotThrow()
+    {
+        string value = "test";
+
+        Assert.DoesNotThrow(() => Guard.ThrowIfNullOrEmpty(value, "custom message"));
+    }
+
+    [Test]
+    public void ThrowIfNullOrEmpty_WithMessage_NullString_ThrowsArgumentException()
+    {
+        string? value = null;
+
+        ArgumentException ex = Assert.Throws<ArgumentException>(() => Guard.ThrowIfNullOrEmpty(value, "must not be null"));
+        Assert.That(ex.Message, Does.Contain("must not be null"));
+        Assert.That(ex.ParamName, Is.EqualTo("value"));
+    }
+
+    [Test]
+    public void ThrowIfNullOrEmpty_WithMessage_EmptyString_ThrowsArgumentException()
+    {
+        string value = string.Empty;
+
+        ArgumentException ex = Assert.Throws<ArgumentException>(() => Guard.ThrowIfNullOrEmpty(value, "must not be empty"));
+        Assert.That(ex.Message, Does.Contain("must not be empty"));
+        Assert.That(ex.ParamName, Is.EqualTo("value"));
+    }
+
+    #endregion
+
     #region Helper Classes
 
     private class DisposableTestClass : IDisposable

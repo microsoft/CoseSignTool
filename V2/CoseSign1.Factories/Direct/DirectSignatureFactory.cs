@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Factories.Exceptions;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -53,6 +54,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         public static readonly string LogTransparencyAborted = "Transparency application aborted due to provider failure. ProviderName: {ProviderName}, ElapsedMs: {ElapsedMs}";
         public static readonly string LogTransparencyCompletedWithErrors = "Transparency application completed with errors. SuccessCount: {SuccessCount}, FailureCount: {FailureCount}, ElapsedMs: {ElapsedMs}";
         public static readonly string LogTransparencyCompleted = "Transparency application completed successfully. ProviderCount: {ProviderCount}, ElapsedMs: {ElapsedMs}";
+        public static readonly string LogPostSignVerificationStarted = "Verifying created signature";
+        public static readonly string LogPostSignVerificationSucceeded = "Post-sign verification succeeded";
+        public static readonly string LogPostSignVerificationFailed = "Post-sign verification failed";
     }
 
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
@@ -123,6 +127,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <returns>The COSE Sign1 message as a byte array.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="contentType"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the underlying buffer could not be acquired.</exception>
+    /// <exception cref="SignatureVerificationException">Thrown when post-sign verification fails.</exception>
     public virtual byte[] CreateCoseSign1MessageBytes(
         ReadOnlySpan<byte> payload,
         string contentType,
@@ -194,6 +199,22 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             var result = options.EmbedPayload
                 ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
                 : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
+
+            // Post-sign verification
+            Logger.LogDebug(
+                LogEvents.PostSignVerificationStartedEvent,
+                ClassStrings.LogPostSignVerificationStarted);
+            if (!SigningService.VerifySignature(CoseMessage.DecodeSign1(result), context))
+            {
+                Logger.LogError(
+                    LogEvents.PostSignVerificationFailedEvent,
+                    ClassStrings.LogPostSignVerificationFailed);
+                throw new SignatureVerificationException(
+                    ClassStrings.LogPostSignVerificationFailed, operationId);
+            }
+            Logger.LogDebug(
+                LogEvents.PostSignVerificationSucceededEvent,
+                ClassStrings.LogPostSignVerificationSucceeded);
 
             stopwatch.Stop();
             Logger.LogDebug(
@@ -287,6 +308,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The COSE Sign1 message as a byte array.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="payloadStream"/> or <paramref name="contentType"/> is <see langword="null"/>.</exception>
+    /// <exception cref="SignatureVerificationException">Thrown when post-sign verification fails.</exception>
     public virtual async Task<byte[]> CreateCoseSign1MessageBytesAsync(
         Stream payloadStream,
         string contentType,
@@ -395,6 +417,22 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                         : await CoseSign1Message.SignDetachedAsync(payloadStream, signer).ConfigureAwait(false);
                 }
             }, cancellationToken).ConfigureAwait(false);
+
+            // Post-sign verification
+            Logger.LogDebug(
+                LogEvents.PostSignVerificationStartedEvent,
+                ClassStrings.LogPostSignVerificationStarted);
+            if (!SigningService.VerifySignature(CoseMessage.DecodeSign1(result), context))
+            {
+                Logger.LogError(
+                    LogEvents.PostSignVerificationFailedEvent,
+                    ClassStrings.LogPostSignVerificationFailed);
+                throw new SignatureVerificationException(
+                    ClassStrings.LogPostSignVerificationFailed, operationId);
+            }
+            Logger.LogDebug(
+                LogEvents.PostSignVerificationSucceededEvent,
+                ClassStrings.LogPostSignVerificationSucceeded);
 
             stopwatch.Stop();
             Logger.LogDebug(

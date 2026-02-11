@@ -32,6 +32,12 @@ public static class LogEvents
     public const int SigningKeyAcquired = 1030;
     /// <summary>Signing key acquisition failed.</summary>
     public const int SigningKeyAcquisitionFailed = 1031;
+    /// <summary>Post-sign verification started.</summary>
+    public const int PostSignVerificationStarted = 1040;
+    /// <summary>Post-sign verification succeeded.</summary>
+    public const int PostSignVerificationSucceeded = 1041;
+    /// <summary>Post-sign verification failed.</summary>
+    public const int PostSignVerificationFailed = 1042;
 
     // Static EventId instances to avoid allocations on each log call
     /// <summary>EventId for signing started.</summary>
@@ -48,4 +54,10 @@ public static class LogEvents
     public static readonly EventId SigningKeyAcquiredEvent = new(SigningKeyAcquired, nameof(SigningKeyAcquired));
     /// <summary>EventId for signing key acquisition failed.</summary>
     public static readonly EventId SigningKeyAcquisitionFailedEvent = new(SigningKeyAcquisitionFailed, nameof(SigningKeyAcquisitionFailed));
+    /// <summary>EventId for post-sign verification started.</summary>
+    public static readonly EventId PostSignVerificationStartedEvent = new(PostSignVerificationStarted, nameof(PostSignVerificationStarted));
+    /// <summary>EventId for post-sign verification succeeded.</summary>
+    public static readonly EventId PostSignVerificationSucceededEvent = new(PostSignVerificationSucceeded, nameof(PostSignVerificationSucceeded));
+    /// <summary>EventId for post-sign verification failed.</summary>
+    public static readonly EventId PostSignVerificationFailedEvent = new(PostSignVerificationFailed, nameof(PostSignVerificationFailed));
 }

@@ -3,42 +3,56 @@
 
 namespace CoseSign1.Factories.Exceptions;
 
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 
 /// <summary>
-/// Exception thrown when post-sign signature verification fails.
-/// This indicates the signature created by the signing service could not be verified,
-/// which may indicate a key mismatch, corruption, or signing service error.
+/// Exception thrown when a signature created by a factory fails post-sign verification.
+/// This indicates a critical failure - the signature produced cannot be verified.
 /// </summary>
-public class SignatureVerificationException : Exception
+public class SignatureVerificationException : CryptographicException
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public const string DefaultMessage = "Post-sign signature verification failed. The signature could not be verified after creation.";
+        public static readonly string DefaultMessage = "The created signature failed verification.";
     }
 
     /// <summary>
-    /// Creates a default SignatureVerificationException.
+    /// Gets the operation ID for correlation with logs.
     /// </summary>
-    public SignatureVerificationException() : base(ClassStrings.DefaultMessage)
+    public string? OperationId { get; }
+
+    /// <summary>
+    /// Initializes a new instance of SignatureVerificationException.
+    /// </summary>
+    public SignatureVerificationException()
+        : base(ClassStrings.DefaultMessage) { }
+
+    /// <summary>
+    /// Initializes a new instance with a message.
+    /// </summary>
+    /// <param name="message">The error message that explains the reason for the exception.</param>
+    public SignatureVerificationException(string message)
+        : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance with a message and operation ID.
+    /// </summary>
+    /// <param name="message">The error message that explains the reason for the exception.</param>
+    /// <param name="operationId">The operation ID for correlation with logs.</param>
+    public SignatureVerificationException(string message, string? operationId)
+        : base(message)
     {
+        this.OperationId = operationId;
     }
 
     /// <summary>
-    /// Creates a SignatureVerificationException with an error message.
+    /// Initializes a new instance with a message and inner exception.
     /// </summary>
-    /// <param name="message">The error text.</param>
-    public SignatureVerificationException(string message) : base(message)
-    {
-    }
-
-    /// <summary>
-    /// Creates a SignatureVerificationException with an error message and inner exception.
-    /// </summary>
-    /// <param name="message">The error text.</param>
-    /// <param name="innerException">The source exception.</param>
-    public SignatureVerificationException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
+    /// <param name="message">The error message that explains the reason for the exception.</param>
+    /// <param name="innerException">The exception that is the cause of the current exception.</param>
+    public SignatureVerificationException(string message, Exception innerException)
+        : base(message, innerException) { }
 }

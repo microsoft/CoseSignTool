@@ -1007,6 +1007,135 @@ public class DirectSignatureFactoryTests
 
     #endregion
 
+    #region Post-Sign Verification Tests
+
+    [Test]
+    [Category("Unit")]
+    public void CreateCoseSign1MessageBytes_WithEmbedPayload_VerifiesSignatureBeforeReturning()
+    {
+        // Given a DirectSignatureFactory with a valid signing service
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("embedded payload");
+        var contentType = "application/json";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+
+        var factory = new DirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytes is called with EmbedPayload=true
+        var result = factory.CreateCoseSign1MessageBytes(payload, contentType, new DirectSignatureOptions { EmbedPayload = true });
+
+        // Then SigningService.VerifySignature is called with the created message
+        mockSigningService.Verify(
+            s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()),
+            Times.Once);
+
+        // And the returned bytes represent a valid signature
+        Assert.That(result, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    [Category("Unit")]
+    public void CreateCoseSign1MessageBytes_WithDetachedPayload_VerifiesSignatureBeforeReturning()
+    {
+        // Given a DirectSignatureFactory with a valid signing service
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("detached payload");
+        var contentType = "application/json";
+
+        // And options with EmbedPayload = false
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+
+        var factory = new DirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytes is called
+        var result = factory.CreateCoseSign1MessageBytes(
+            payload,
+            contentType,
+            new DirectSignatureOptions { EmbedPayload = false });
+
+        // Then SigningService.VerifySignature is called
+        mockSigningService.Verify(
+            s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()),
+            Times.Once);
+
+        // And the detached signature can be verified with the original payload
+        Assert.That(result, Is.Not.Null.And.Not.Empty);
+        var message = CoseSign1Message.DecodeSign1(result);
+        Assert.That(message.Content, Is.Null, "Detached signature should not contain content");
+    }
+
+    [Test]
+    [Category("Unit")]
+    public void CreateCoseSign1MessageBytes_WhenVerificationFails_ThrowsInvalidOperationException()
+    {
+        // Given a DirectSignatureFactory
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("payload to fail verification");
+        var contentType = "application/json";
+
+        // And a mock signing service where VerifySignature returns false
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(false);
+
+        var factory = new DirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytes is called
+        // Then an exception is thrown because verification failed
+        Assert.Throws<InvalidOperationException>(
+            () => factory.CreateCoseSign1MessageBytes(payload, contentType));
+    }
+
+    [Test]
+    [Category("Unit")]
+    public async Task CreateCoseSign1MessageBytesAsync_VerifiesSignatureBeforeReturning()
+    {
+        // Given a DirectSignatureFactory with a valid signing service
+        var mockSigningService = CreateMockSigningService();
+        var payload = Encoding.UTF8.GetBytes("async payload");
+        using var stream = new MemoryStream(payload);
+        var contentType = "application/octet-stream";
+
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+
+        var factory = new DirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytesAsync is called
+        var result = await factory.CreateCoseSign1MessageBytesAsync(stream, contentType);
+
+        // Then SigningService.VerifySignature is called
+        mockSigningService.Verify(
+            s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()),
+            Times.Once);
+
+        Assert.That(result, Is.Not.Null.And.Not.Empty);
+    }
+
+    #endregion
+
     private CoseSigner CreateMockCoseSigner()
     {
         // Create a real CoseSigner with RSA key for testing

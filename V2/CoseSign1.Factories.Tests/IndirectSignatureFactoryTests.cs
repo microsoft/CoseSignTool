@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Exceptions;
 using CoseSign1.Factories.Indirect;
 using Moq;
 
@@ -847,6 +848,95 @@ public class IndirectSignatureFactoryTests
         var ex = Assert.Throws<TargetInvocationException>(() =>
             method!.Invoke(null, new object[] { new HashAlgorithmName("MD5") }));
         Assert.That(ex!.InnerException, Is.TypeOf<NotSupportedException>());
+    }
+
+    [Test]
+    [Category("Unit")]
+    public void CreateCoseSign1MessageBytes_IndirectSignature_VerifiesBeforeReturning()
+    {
+        // Given an IndirectSignatureFactory with valid signing service
+        var payload = Encoding.UTF8.GetBytes("Test payload for verification");
+        var contentType = "application/json";
+
+        var mockSigningService = CreateMockSigningService();
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytes is called
+        var result = factory.CreateCoseSign1MessageBytes(payload, contentType);
+
+        // Then the underlying verification is performed
+        mockSigningService.Verify(
+            s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()),
+            Times.Once);
+
+        // And the hash envelope signature is valid
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.Not.Empty);
+    }
+
+    [Test]
+    [Category("Unit")]
+    public void CreateCoseSign1MessageBytes_WhenVerificationFails_ThrowsSignatureVerificationException()
+    {
+        // Given an IndirectSignatureFactory
+        var payload = Encoding.UTF8.GetBytes("Test payload for failed verification");
+        var contentType = "application/json";
+
+        var mockSigningService = CreateMockSigningService();
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+
+        // And the underlying DirectFactory's verification fails
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(false);
+
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytes is called
+        // Then SignatureVerificationException is thrown
+        Assert.Throws<SignatureVerificationException>(() =>
+            factory.CreateCoseSign1MessageBytes(payload, contentType));
+    }
+
+    [Test]
+    [Category("Unit")]
+    public async Task CreateCoseSign1MessageBytesAsync_VerifiesSignatureBeforeReturning()
+    {
+        // Given an IndirectSignatureFactory with valid signing service
+        var payload = Encoding.UTF8.GetBytes("Test payload for async verification");
+        var contentType = "application/json";
+
+        var mockSigningService = CreateMockSigningService();
+        var mockCoseSigner = CreateMockCoseSigner();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(mockCoseSigner);
+        mockSigningService
+            .Setup(s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()))
+            .Returns(true);
+
+        var factory = new IndirectSignatureFactory(mockSigningService.Object);
+
+        // When CreateCoseSign1MessageBytesAsync is called
+        var result = await factory.CreateCoseSign1MessageBytesAsync(payload, contentType);
+
+        // Then verification is performed before returning
+        mockSigningService.Verify(
+            s => s.VerifySignature(It.IsAny<CoseSign1Message>(), It.IsAny<SigningContext>()),
+            Times.Once);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.Not.Empty);
     }
 
     private CoseSigner CreateMockCoseSigner()

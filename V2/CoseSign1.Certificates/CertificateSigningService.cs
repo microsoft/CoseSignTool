@@ -64,6 +64,8 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
         public static readonly string LogAddingScittCwtClaims = "Adding SCITT-compliant CWT claims to signature headers";
         public static readonly string LogSkippingCwtClaimsNonCertificateKey = "Skipping CWT claims - signing key is not certificate-based";
         public static readonly string LogApplyingAdditionalHeaderContributorsFormat = "Applying {Count} additional header contributors";
+        public static readonly string LogVerifyingSignature = "Verifying signature. HasEmbeddedContent: {HasEmbeddedContent}";
+        public static readonly string LogSignatureVerificationResult = "Signature verification completed. IsValid: {IsValid}";
     }
 
     private static readonly CertificateHeaderContributor CertificateContributor = new();
@@ -424,6 +426,35 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         // Derived classes should override this method
         throw new InvalidOperationException(string.Format(ClassStrings.ErrorNoSigningKeyAvailableFormat, GetType().Name));
+    }
+
+    /// <inheritdoc/>
+    public virtual bool VerifySignature(CoseSign1Message message, SigningContext context)
+    {
+        ThrowIfDisposed();
+        Guard.ThrowIfNull(message);
+        Guard.ThrowIfNull(context);
+
+        ISigningKey signingKey = GetSigningKey(context);
+        CoseKey coseKey = signingKey.GetCoseKey();
+
+        bool isEmbedded = message.Content != null;
+
+        Logger.LogDebug(
+            LogEvents.SignatureValidationStartedEvent,
+            ClassStrings.LogVerifyingSignature,
+            isEmbedded);
+
+        bool result = isEmbedded
+            ? message.VerifyEmbedded(coseKey)
+            : message.VerifyDetached(coseKey, context.PayloadBytes.ToArray());
+
+        Logger.LogDebug(
+            LogEvents.SignatureValidationSucceededEvent,
+            ClassStrings.LogSignatureVerificationResult,
+            result);
+
+        return result;
     }
 
     /// <summary>

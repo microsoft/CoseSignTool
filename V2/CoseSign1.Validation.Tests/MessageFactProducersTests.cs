@@ -400,4 +400,52 @@ public sealed class MessageFactProducersTests
         byte[] signedBytes = CoseSign1Message.SignDetached("payload"u8.ToArray(), signer);
         return CoseMessage.DecodeSign1(signedBytes);
     }
+
+    [Test]
+    public async Task CoreMessageFactsProducer_WhenMessageUnavailable_CounterSignatureSubjectFact_ReturnsMissing()
+    {
+        var messageId = TrustSubjectId.FromSha256OfBytes(new byte[] { 0x01 });
+        var messageSubject = TrustSubject.Message(messageId);
+
+        var context = new TrustFactContext(
+            messageId,
+            messageSubject,
+            new TrustEvaluationOptions(),
+            memoryCache: null,
+            message: null);
+
+        var producer = new CoreMessageFactsProducer();
+        var factSet = await producer.ProduceAsync(context, typeof(CounterSignatureSubjectFact), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(factSet.IsMissing, Is.True);
+            Assert.That(factSet.MissingReason, Is.Not.Null);
+            Assert.That(factSet.MissingReason!.Code, Is.EqualTo(TrustFactMissingCodes.InputUnavailable));
+        });
+    }
+
+    [Test]
+    public async Task CoreMessageFactsProducer_WhenMessageUnavailable_UnknownCounterSignatureBytesFact_ReturnsMissing()
+    {
+        var messageId = TrustSubjectId.FromSha256OfBytes(new byte[] { 0x01 });
+        var messageSubject = TrustSubject.Message(messageId);
+
+        var context = new TrustFactContext(
+            messageId,
+            messageSubject,
+            new TrustEvaluationOptions(),
+            memoryCache: null,
+            message: null);
+
+        var producer = new CoreMessageFactsProducer();
+        var factSet = await producer.ProduceAsync(context, typeof(UnknownCounterSignatureBytesFact), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(factSet.IsMissing, Is.True);
+            Assert.That(factSet.MissingReason, Is.Not.Null);
+            Assert.That(factSet.MissingReason!.Code, Is.EqualTo(TrustFactMissingCodes.InputUnavailable));
+        });
+    }
 }

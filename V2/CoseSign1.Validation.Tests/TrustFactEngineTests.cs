@@ -65,6 +65,16 @@ public class TrustFactEngineTests
         }
     }
 
+    private sealed class NullFactTypeProducer : IMultiTrustFactProducer
+    {
+        public IReadOnlyCollection<Type> FactTypes => new Type[] { null! };
+
+        public ValueTask<ITrustFactSet> ProduceAsync(TrustFactContext context, Type factType, CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<ITrustFactSet>(TrustFactSet<TestFact>.Available(new TestFact("v")));
+        }
+    }
+
     private sealed class SlowProducer : IMultiTrustFactProducer
     {
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(TestFact) };
@@ -530,6 +540,30 @@ public class TrustFactEngineTests
             Assert.That(result.IsMissing, Is.True);
             Assert.That(result.MissingReason, Is.Not.Null);
             Assert.That(result.MissingReason!.Code, Is.EqualTo(TrustFactMissingCodes.BudgetExceeded));
+        });
+    }
+
+    [Test]
+    public void Constructor_WithNullProducerInList_SkipsNullProducer()
+    {
+        var messageId = TrustSubjectId.FromSha256OfBytes("n"u8);
+
+        // The null producer entry should be silently skipped, not throw.
+        Assert.DoesNotThrow(() =>
+        {
+            IMultiTrustFactProducer[] producers = new IMultiTrustFactProducer[] { null!, new CountingProducer() };
+            _ = new TrustFactEngine(messageId, producers);
+        });
+    }
+
+    [Test]
+    public void Constructor_WithNullFactType_ThrowsInvalidOperationException()
+    {
+        var messageId = TrustSubjectId.FromSha256OfBytes("nft"u8);
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            _ = new TrustFactEngine(messageId, new IMultiTrustFactProducer[] { new NullFactTypeProducer() });
         });
     }
 }

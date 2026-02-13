@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
+
 members = [
+  "cose_openssl/cose_openssl",
+  "cose_openssl/cose_openssl_ffi",
   "cose_sign1_validation",
   "cose_sign1_validation_trust",
   "cose_sign1_validation_certificates",
@@ -51,3 +54,11 @@ url = "2"
 
 # HTTP client (used for optional online JWKS retrieval)
 ureq = { version = "2", features = ["tls"] }
+
+# OpenSSL FFI bindings (used by cose-openssl)
+openssl-sys = "0.9"
+
+# use by cose-openssl. The everparse repo has multiple crates named "cborrs";
+# patch to pick nondet.
+[patch."https://github.com/project-everest/everparse"]
+cborrs = { path = "cose_openssl/.patched/everparse/src/cbor/pulse/nondet/rust" }

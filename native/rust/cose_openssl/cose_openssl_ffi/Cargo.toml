@@ -1,0 +1,19 @@
+[package]
+name = "cose-openssl-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+pqc = ["cose-openssl/pqc"]
+
+[lints.rust]
+warnings = "deny"
+
+[dependencies]
+cose-openssl = { path = "../cose_openssl" }
+
+[dev-dependencies]
+hex = "0.4"

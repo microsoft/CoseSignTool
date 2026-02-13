@@ -93,8 +93,9 @@ public class MainTests
         string[] actualErrors = stderrLines.Where(line => !line.StartsWith("Warning: Command '") || !line.Contains("conflicts with an existing command")).ToArray();
         actualErrors.Should().BeEmpty("There should be no errors (excluding plugin conflict warnings from test infrastructure).");
         
-        redirectedOut.ToString().Should().Contain("Validation succeeded.", "Validation should succeed.");
-        redirectedOut.ToString().Should().Contain("validation type: Detached", "Validation type should be detached.");
+        string stdoutContent = redirectedOut.ToString();
+        stdoutContent.Should().Contain("Validation succeeded.", "Validation should succeed.");
+        stdoutContent.Should().Contain("validation type: Detached", "Validation type should be detached.");
     }
 
     [TestMethod]

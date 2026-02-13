@@ -850,80 +850,61 @@ public class SignCommand : CoseCommand
     /// <returns>A new X509Certificate2 instance with the private key attached.</returns>
     private X509Certificate2 LoadCertificateWithPrivateKey(X509Certificate2 certificate, string keyPem)
     {
-        // Try to load as RSA key first
-        if (keyPem.Contains("-----BEGIN RSA PRIVATE KEY-----") || 
-            keyPem.Contains("-----BEGIN PRIVATE KEY-----") ||
-            keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+        // If the PEM content doesn't contain a private key, return the certificate as-is
+        if (!keyPem.Contains("PRIVATE KEY"))
         {
-            try
-            {
-                using RSA rsa = RSA.Create();
-                
-                if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
-                {
-                    string? pemPassword = ResolvePemPassword();
-                    if (string.IsNullOrEmpty(pemPassword))
-                    {
-                        throw new CryptographicException(
-                            "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
-                    }
-                    rsa.ImportFromEncryptedPem(keyPem, pemPassword);
-                }
-                else
-                {
-                    rsa.ImportFromPem(keyPem);
-                }
-                
-                return certificate.CopyWithPrivateKey(rsa);
-            }
-            catch (CryptographicException) when (!keyPem.Contains("RSA"))
-            {
-                // Not an RSA key, try ECDSA below
-            }
+            return certificate;
         }
-        
-        // Try to load as ECDSA key
-        if (keyPem.Contains("-----BEGIN EC PRIVATE KEY-----") || 
-            keyPem.Contains("-----BEGIN PRIVATE KEY-----") ||
-            keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+
+        // Determine the key algorithm from the certificate's public key
+        // rather than guessing from PEM headers via trial-and-error.
+        string keyAlgorithm = certificate.PublicKey.Oid.Value ?? string.Empty;
+        bool isEncrypted = keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----");
+
+        // RSA OID: 1.2.840.113549.1.1.1
+        if (keyAlgorithm == "1.2.840.113549.1.1.1")
         {
-            try
-            {
-                using ECDsa ecdsa = ECDsa.Create();
-                
-                if (keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
-                {
-                    string? pemPassword = ResolvePemPassword();
-                    if (string.IsNullOrEmpty(pemPassword))
-                    {
-                        throw new CryptographicException(
-                            "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
-                    }
-                    ecdsa.ImportFromEncryptedPem(keyPem, pemPassword);
-                }
-                else
-                {
-                    ecdsa.ImportFromPem(keyPem);
-                }
-                
-                return certificate.CopyWithPrivateKey(ecdsa);
-            }
-            catch (CryptographicException)
-            {
-                // Not an ECDSA key either
-            }
+            using RSA rsa = RSA.Create();
+            ImportPemKey(rsa, keyPem, isEncrypted);
+            return certificate.CopyWithPrivateKey(rsa);
         }
-        
-        // If we get here with a private key marker but couldn't load it, throw
-        if (keyPem.Contains("PRIVATE KEY"))
+
+        // EC OID: 1.2.840.10045.2.1
+        if (keyAlgorithm == "1.2.840.10045.2.1")
         {
-            throw new CryptographicException(
-                "Could not load the private key. The key format may be unsupported or corrupted. " +
-                "Supported formats: RSA and ECDSA keys in PEM format (PKCS#1, PKCS#8, or encrypted PKCS#8).");
+            using ECDsa ecdsa = ECDsa.Create();
+            ImportPemKey(ecdsa, keyPem, isEncrypted);
+            return certificate.CopyWithPrivateKey(ecdsa);
         }
-        
-        // No private key found in the PEM content
-        return certificate;
+
+        throw new CryptographicException(
+            $"Unsupported certificate key algorithm: {certificate.PublicKey.Oid.FriendlyName ?? keyAlgorithm}. " +
+            "Supported algorithms: RSA and ECDSA keys in PEM format (PKCS#1, PKCS#8, or encrypted PKCS#8).");
+    }
+
+    /// <summary>
+    /// Imports a PEM-encoded private key into the given asymmetric algorithm instance,
+    /// handling both encrypted and unencrypted PEM formats.
+    /// </summary>
+    /// <param name="algorithm">The asymmetric algorithm instance to import the key into.</param>
+    /// <param name="keyPem">The PEM-encoded private key string.</param>
+    /// <param name="isEncrypted">Whether the PEM key is encrypted.</param>
+    private void ImportPemKey(AsymmetricAlgorithm algorithm, string keyPem, bool isEncrypted)
+    {
+        if (isEncrypted)
+        {
+            string? pemPassword = ResolvePemPassword();
+            if (string.IsNullOrEmpty(pemPassword))
+            {
+                throw new CryptographicException(
+                    "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
+            }
+            algorithm.ImportFromEncryptedPem(keyPem, pemPassword);
+        }
+        else
+        {
+            algorithm.ImportFromPem(keyPem);
+        }
     }
 
     /// <summary>

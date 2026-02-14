@@ -8,29 +8,33 @@ namespace CoseSignTool;
 /// </summary>
 public abstract partial class CoseCommand
 {
-    [GeneratedRegex(":[^\\/]")]
-    private static partial Regex PatternColonNotUri();
-
     [GeneratedRegex("^/")]
     private static partial Regex PatternStartingSlash();
 
+    // Matches a colon in the OPTION NAME portion (after -/--/) 
+    // Only matches if there's a colon followed by a non-path-separator character
+    // This allows -Option:Value but not -Option:C:\path (drive letter colon)
+    [GeneratedRegex(@"^-{1,2}[^:]+:(?![\\/:])")]
+    private static partial Regex PatternColonDelimitedArg();
+
     /// <summary>
     /// A map of shared command line options to their abbreviated aliases.
+    /// All options use -- prefix. Single dash (-) and forward slash (/) are converted to -- for backward compatibility.
     /// </summary>
     protected internal static readonly Dictionary<string, string> Options = new()
     {
-        ["-PayloadFile"] = "PayloadFile",
-        ["-payload"] = "PayloadFile",
-        ["-p"] = "PayloadFile",
-        ["-SignatureFile"] = "SignatureFile",
-        ["-sig"] = "SignatureFile",
-        ["-sf"] = "SignatureFile",
-        ["-UseAdvancedStreamHandling"] = "UseAdvancedStreamHandling",
-        ["-adv"] = "UseAdvancedStreamHandling",
-        ["-MaxWaitTime"] = "MaxWaitTime",
-        ["-wait"] = "MaxWaitTime",
-        ["-FailFast"] = "FailFast",
-        ["-ff"] = "FailFast",
+        ["--PayloadFile"] = "PayloadFile",
+        ["--payload"] = "PayloadFile",
+        ["--p"] = "PayloadFile",
+        ["--SignatureFile"] = "SignatureFile",
+        ["--sig"] = "SignatureFile",
+        ["--sf"] = "SignatureFile",
+        ["--UseAdvancedStreamHandling"] = "UseAdvancedStreamHandling",
+        ["--adv"] = "UseAdvancedStreamHandling",
+        ["--MaxWaitTime"] = "MaxWaitTime",
+        ["--wait"] = "MaxWaitTime",
+        ["--FailFast"] = "FailFast",
+        ["--ff"] = "FailFast",
     };
 
     #region Public properties
@@ -43,7 +47,7 @@ public abstract partial class CoseCommand
     /// Specifies a file that contains or will contain a COSE X509 signature.
     /// Detach signed signature files contain the hash of the original payload file to match against.
     /// Embed signed signature files include an encoded copy of the entire payload.
-    /// Default filename when signing is [Payload].cose for detached or [Payload].csm for embedded.
+    /// Default filename when signing is [Payload].cose.
     /// </summary>
     public FileInfo? SignatureFile { get; set; }
 
@@ -243,7 +247,10 @@ public abstract partial class CoseCommand
         {
             _ = provider.TryGet(name, out string? text);
             return
-                text?.Split(",").Select(x => x.Trim().Trim('"', '(', ')', '[', ']', '{', '}')).ToArray() ??
+                text?.Split(",")
+                    .Select(x => x.Trim().Trim('"', '(', ')', '[', ']', '{', '}'))
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .ToArray() ??
                 defaultValue ??
                 [];
         }
@@ -330,30 +337,50 @@ public abstract partial class CoseCommand
         }
     }
 
-    // Resolve boolean command line options from "-argname" to "-argname true"
-    // replace /arg with -arg
-    // replace "-arg:" with "-arg "
+    // Normalize boolean command line options from "--argname" to "--argname true"
+    // Normalize option prefixes: 
+    //   /arg becomes --arg
+    //   -arg becomes --arg
+    //   --arg stays as --arg
+    // Handle colon-delimited args like --option:value
     private static string[] CleanArgs(string[] args, StringDictionary options)
     {
         List<string> argsOut = [];
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
-            if (arg.StartsWith('/'))
+            
+            // First normalize prefix: convert / or - to --
+            if (arg.StartsWith('/') || (arg.StartsWith('-') && !arg.StartsWith("--")))
             {
-                // Standardize on -arg
-                arg = $"-{arg.AsSpan(1)}";
+                arg = $"--{arg.AsSpan(1)}";
             }
-
+            
             if (arg.StartsWith('-'))
             {
-                // arg is an option name
-                if (PatternColonNotUri().IsMatch(arg))  // Match if arg contains a colon not followed by a \ or / character
+                // arg is an option name (possibly with colon-delimited value)
+                // Check for colon-delimited format: -option:value or --option:value
+                // But NOT for paths like -p:c:\path (where colon is followed by \)
+                string withoutDashes = arg.StartsWith("--") ? arg.Substring(2) : arg.Substring(1);
+                int colonIdx = withoutDashes.IndexOf(':');
+                
+                if (colonIdx > 0)
                 {
-                    // Split colon-delimited arg into name/value pair, but only on first colon in case the 
-                    // value is a file path
-                    argsOut.AddRange(arg.Split(':', 2, StringSplitOptions.RemoveEmptyEntries));
-                    continue;
+                    // Check if the character AFTER the colon is a path separator or another colon
+                    // If so, this is likely a Windows path, not a delimiter
+                    int colonPosInArg = arg.IndexOf(':', arg.StartsWith("--") ? 2 : 1);
+                    bool isPathColon = colonPosInArg + 1 < arg.Length && 
+                                       (arg[colonPosInArg + 1] == '\\' || arg[colonPosInArg + 1] == '/' || arg[colonPosInArg + 1] == ':');
+                    
+                    if (!isPathColon)
+                    {
+                        // Split colon-delimited arg into name/value pair
+                        string optName = arg.Substring(0, colonPosInArg);
+                        string optValue = arg.Substring(colonPosInArg + 1);
+                        argsOut.Add(optName);
+                        argsOut.Add(optValue);
+                        continue;
+                    }
                 }
 
                 argsOut.Add(arg);
@@ -378,10 +405,37 @@ public abstract partial class CoseCommand
         return [.. argsOut];
     }
 
+    /// <summary>
+    /// Normalizes an option name to the internal format.
+    /// Converts /option and -option to --option for consistency.
+    /// </summary>
+    private static string NormalizeOptionName(string option)
+    {
+        if (option.StartsWith("--"))
+        {
+            return option;
+        }
+        else if (option.StartsWith('/') || option.StartsWith('-'))
+        {
+            // Convert /arg or -arg to --arg
+            return $"--{option.AsSpan(1)}";
+        }
+        return option;
+    }
+
+    /// <summary>
+    /// Determines if a string represents a short option name (1-2 letters).
+    /// </summary>
+    private static bool IsShortOption(string name)
+    {
+        return name.Length <= 2 && name.All(char.IsLetter);
+    }
+
     private static bool IsSwitch(string s, StringDictionary options)
     {
-        // replace '/' with '-', and remove ':*' for easy dict lookup
-        return options.ContainsKey(PatternStartingSlash().Replace(s, "-").Split(":")[0]);
+        // Normalize and check if it's a recognized switch
+        string normalized = NormalizeOptionName(s);
+        return options.ContainsKey(normalized.Split(":")[0]);
     }
 
 
@@ -391,10 +445,30 @@ public abstract partial class CoseCommand
         badArg = null;
         for (int i = 0; i < args.Length; i ++)
         {
-            if (args[i].StartsWith('-') && !options.ContainsKey(args[i]))
+            string arg = args[i];
+            if (arg.StartsWith('-'))
             {
-                badArg = args[i];
-                return true;
+                // Extract just the option name (before any colon delimiter, handling Windows paths)
+                string optionName = arg;
+                int dashOffset = arg.StartsWith("--") ? 2 : 1;
+                int colonIdx = arg.IndexOf(':', dashOffset);
+                if (colonIdx > dashOffset)
+                {
+                    // Check if this colon is a delimiter (not part of a Windows path)
+                    // A Windows path colon is followed by \ or / or another :
+                    bool isDelimiter = colonIdx + 1 >= arg.Length || 
+                                       (arg[colonIdx + 1] != '\\' && arg[colonIdx + 1] != '/' && arg[colonIdx + 1] != ':');
+                    if (isDelimiter)
+                    {
+                        optionName = arg.Substring(0, colonIdx);
+                    }
+                }
+                
+                if (!options.ContainsKey(optionName))
+                {
+                    badArg = arg;
+                    return true;
+                }
             }
         }
 
@@ -423,6 +497,10 @@ Usage:
     -- OR --
     [source program] | CoseSignTool.exe [sign | validate | get] [options]
     where [source program] pipes the first required option to CoseSignTool.
+
+Option format: All options use double-dash prefix (--option), including short aliases (--p, --sf, etc.).
+    Forward slash (/option) and single-dash (-option) are also accepted for backward compatibility.
+    Examples: --PayloadFile, --payload, --p, /p, -p are all equivalent.
 ";
 
     /// <summary>
@@ -435,6 +513,6 @@ Validate: Validates that the specified COSE signature file or piped signature co
 Get: Retrieves and decodes the original payload from a COSE embed signed file or piped signature, writes it to a file or
     to the console, and writes any validation errors to Standard Error.
 
-To see the options for a specific command, type 'CoseSignTool [sign | validate | get] /?'";
+To see the options for a specific command, type 'CoseSignTool [sign | validate | get] --help'";
     #endregion
 }

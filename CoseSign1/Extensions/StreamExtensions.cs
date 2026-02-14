@@ -53,16 +53,20 @@ public static class StreamExtensions
             return true;
         }
 
+        // Stream is not seekable (e.g., piped stdin on Linux/macOS).
+        // We cannot peek without consuming data, so we need to handle this differently.
         try
         {
-            // Stream is not able to seek so we cannot check if it has content, just ensure the stream length is > 0.
-            // In some cases non-seekable streams can return an exception when accessing content related fields because
-            // the data can only be read or written as it arrives or is processed sequentially. 
+            // First try to check the Length property if available.
             return stream.Length > 0;
         }
         catch (NotSupportedException)
         {
-            return false;
+            // Length is not supported (common for piped streams).
+            // For non-seekable streams where we can't check length, we assume there IS content
+            // if the stream is readable. The actual read operation will fail gracefully if empty.
+            // This fixes piping on Linux/macOS where stdin.Length throws NotSupportedException.
+            return stream.CanRead;
         }
     }
 

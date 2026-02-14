@@ -110,7 +110,7 @@ SCITT compliance is **enabled by default** when signing with certificates:
 
 ```bash
 # Basic signing with automatic SCITT compliance
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose
 ```
 
 This automatically adds:
@@ -125,13 +125,13 @@ This automatically adds:
 
 ```bash
 # Set custom issuer and subject
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-issuer "did:example:123" \
-  --cwt-subject "software.release.v1.0"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-iss "did:example:123" \
+  --cwt-sub "software.release.v1.0"
 
 # Add audience claim
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-audience "production.systems"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-aud "production.systems"
 ```
 
 #### Setting Timestamp Claims
@@ -140,14 +140,14 @@ Timestamp claims accept **date/time strings** or **Unix timestamps**:
 
 ```bash
 # Using ISO 8601 date/time format (recommended)
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "exp:2024-12-31T23:59:59Z" \
-  --cwt-claims "nbf:2024-01-01T00:00:00Z" \
-  --cwt-claims "iat:2024-11-19T10:30:00-05:00"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "exp:2024-12-31T23:59:59Z" \
+  --cwt "nbf:2024-01-01T00:00:00Z" \
+  --cwt "iat:2024-11-19T10:30:00-05:00"
 
 # Using Unix timestamps
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "exp:1735689600"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "exp:1735689600"
 ```
 
 #### Custom Claims
@@ -156,33 +156,33 @@ Add custom claims using integer labels (including negative labels), string label
 
 ```bash
 # Using positive integer labels (custom claims)
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "100:custom-value" \
-  --cwt-claims "101:another-value"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "100:custom-value" \
+  --cwt "101:another-value"
 
 # Using string labels (text string keys per CBOR spec)
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "svn:2" \
-  --cwt-claims "build-id:abc123" \
-  --cwt-claims "custom-metadata:value"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "svn:2" \
+  --cwt "build-id:abc123" \
+  --cwt "custom-metadata:value"
 
 # Using negative integer labels (private use per IANA registry)
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "-65537:private-claim" \
-  --cwt-claims "-100:organization-specific"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "-65537:private-claim" \
+  --cwt "-100:organization-specific"
 
 # Using standard claim names
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-claims "cti:abc123" \
-  --cwt-claims "aud:production"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt "cti:abc123" \
+  --cwt "aud:production"
 
 # Combining multiple claim types
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --cwt-issuer "did:example:issuer" \
-  --cwt-subject "release.v2.0" \
-  --cwt-claims "exp:2025-12-31T23:59:59Z" \
-  --cwt-claims "svn:42" \
-  --cwt-claims "200:custom-metadata"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-iss "did:example:issuer" \
+  --cwt-sub "release.v2.0" \
+  --cwt "exp:2025-12-31T23:59:59Z" \
+  --cwt "svn:42" \
+  --cwt "200:custom-metadata"
 ```
 
 **Label Types Supported**:
@@ -200,8 +200,8 @@ If your use case doesn't require SCITT compliance, you can disable automatic CWT
 
 ```bash
 # Disable SCITT compliance - no automatic CWT claims will be added
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --enable-scitt false
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --scitt false
 ```
 
 When SCITT compliance is disabled:
@@ -211,10 +211,10 @@ When SCITT compliance is disabled:
 
 ```bash
 # SCITT disabled but custom claims still work
-CoseSignTool sign -f payload.txt -pfx mycert.pfx -s signature.cose \
-  --enable-scitt false \
-  --cwt-issuer "custom-issuer" \
-  --cwt-subject "custom-subject"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --scitt false \
+  --cwt-iss "custom-issuer" \
+  --cwt-sub "custom-subject"
 ```
 
 ### Indirect Signatures

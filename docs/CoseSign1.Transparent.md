@@ -13,127 +13,117 @@ Before using this library, ensure the following:
 To use this library, add a reference to the `CoseSign1.Transparent` project in your solution. If using NuGet, ensure the package is installed:
 
 ```text
-dotnet add package CoseSign1.Transparency
+dotnet add package CoseSign1.Transparent
 ```
 ## Namespace
-Include the following namesapces in your code:
+Include the following namespaces in your code:
 ```csharp
+using System.Security.Cryptography.Cose;
+using CoseSign1.Transparent;
 using CoseSign1.Transparent.Extensions;
-using CoseSign1.Transparent.Interfaces;
+using CoseSign1.Transparent.MST;
+using CoseSign1.Transparent.MST.Extensions;
 ```
 
 ## Features  
-- **Transparent Message Creation**: Generate COSE messages with transparency metadata.  
-- **Validation**: Validate COSE messages against transparency requirements.  
+- **Transparent Message Creation**: Register a message with a transparency service and embed receipts.
+- **Verification**: Verify embedded receipts (and/or specific receipts) against a transparency service.
 
-## Usage  
-### 1. Creating a Transparent COSE Message  
-To create a transparent COSE Sign1 message, use the `MakeTransparentAsync` method. This method embeds transparency metadata into the message.
-#### <u>Example: Creating a Transparent Message:</u>
+## Usage
+
+This library uses the abstract base class `TransparencyService` as the single service abstraction (the previous `ITransparencyService` interface is not used).
+
+### 1. Creating a Transparent COSE Message
+To create a transparent COSE Sign1 message, use `MakeTransparentAsync`.
+
+#### <u>Example: Creating a Transparent Message</u>
 ```csharp
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
-using CoseSign1.Transparent.Interfaces;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent;
+using CoseSign1.Transparent.Extensions;
 using CoseSign1.Transparent.MST;
 
 public class TransparencyExample
 {
-    public async Task CreateTransparentMessage()
+    public async Task CreateTransparentMessage(CodeTransparencyClient transparencyClient)
     {
-        // Create a COSE Sign1 message (example payload)
         CoseSign1Message message = new CoseSign1Message
         {
             Content = new byte[] { 1, 2, 3, 4 }
         };
 
-        // Initialize the transparency service (using Azure CTS as an example)
-        CodeTransparencyClient transparencyClient = new CodeTransparencyClient();
-        
-        // Optional: Configure verification options for advanced receipt validation
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
             AuthorizedDomains = new List<string> { "trusted-cts.azure.com" },
             AuthorizedReceiptBehavior = AuthorizedReceiptBehavior.RequireAll,
             UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
         };
-        
-        ITransparencyService transparencyService = new MstTransparencyService(
-            transparencyClient, 
-            verificationOptions, 
-            null);
 
-        // Make the message transparent
+        TransparencyService transparencyService = new MstTransparencyService(
+            transparencyClient,
+            verificationOptions,
+            clientOptions: null);
+
         CoseSign1Message transparentMessage = await message.MakeTransparentAsync(transparencyService);
 
         Console.WriteLine("Transparent message created successfully.");
     }
 }
 ```
-### 2. Verifying Transparency  
-To verify the transparency of a COSE Sign1 message, use the `VerifyTransparencyAsync` method. This ensures the message complies with transparency rules.
-#### <u>Example: Verifying a Transparent Message with embedded receipt:</u>
+
+### 2. Verifying Transparency
+To verify transparency for a COSE Sign1 message, use `VerifyTransparencyAsync`.
+
+#### <u>Example: Verifying a Transparent Message with Embedded Receipt(s)</u>
 ```csharp
 using System;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
-using CoseSign1.Transparent.Interfaces;
-using CoseSign1.Transparent.MST;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent;
+using CoseSign1.Transparent.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 
 public class TransparencyExample
 {
-    public async Task VerifyTransparentMessage()
+    public async Task VerifyTransparentMessage(CodeTransparencyClient transparencyClient, CoseSign1Message message)
     {
-        // Example COSE Sign1 message
-        CoseSign1Message message = new CoseSign1Message
-        {
-            Content = new byte[] { 1, 2, 3, 4 }
-        };
+        TransparencyService transparencyService = transparencyClient.ToCoseSign1TransparencyService();
 
-        // Initialize the transparency service
-        ITransparencyService transparencyService = new CodeTransparencyClient().ToCoseSign1TransparentService();
-
-        // Verify the transparency of the message
         bool isTransparent = await message.VerifyTransparencyAsync(transparencyService);
 
         Console.WriteLine($"Message transparency verification result: {isTransparent}");
     }
 }
 ```
-#### <u>Example: Verifying a Transparent Message without an embedded receipt:</u>
+
+#### <u>Example: Verifying with a Specific Receipt</u>
 ```csharp
 using System;
 using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
-using CoseSign1.Transparent.Interfaces;
-using CoseSign1.Transparent.MST;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent;
+using CoseSign1.Transparent.MST.Extensions;
 
 public class TransparencyExample
 {
-    public async Task VerifyTransparentMessageWithReceipt()
+    public async Task VerifyTransparentMessageWithReceipt(CodeTransparencyClient transparencyClient, CoseSign1Message message, byte[] receipt)
     {
-        // Example COSE Sign1 message
-        CoseSign1Message message = new CoseSign1Message
-        {
-            Content = new byte[] { 1, 2, 3, 4 }
-        };
+        TransparencyService transparencyService = transparencyClient.ToCoseSign1TransparencyService();
 
-        // Example receipt
-        byte[] receipt = new byte[] { 5, 6, 7, 8 };
-
-        // Initialize the transparency service
-        ITransparencyService transparencyService = new CodeTransparencyClient().ToCoseSign1TransparentService();
-
-        // Verify the transparency of the message with the receipt
-        bool isTransparent = await message.VerifyTransparencyAsync(transparencyService, receipt);
+        bool isTransparent = await transparencyService.VerifyTransparencyAsync(message, receipt);
 
         Console.WriteLine($"Message transparency verification with receipt result: {isTransparent}");
     }
 }
-
 ```
 ### 3. Managing Receipts  
-Receipts may embedded in the transparency-related headers of COSE Sign1 messages. You can extract or add receipts using the following methods:
+Receipts may be embedded in the transparency-related headers of COSE Sign1 messages. You can extract or add receipts using the following methods:
 #### <u>Extracting Receipts</u>
 Use the `TryGetReceipts` method to extract receipts from a COSE Sign1 message.
 ```csharp
@@ -190,6 +180,10 @@ public class ReceiptExample
     }
 }
 ```
+
+Notes:
+- `AddReceipts` merges with any existing embedded receipts and deduplicates by exact byte-content (not by reference).
+- Null or empty receipts are ignored; if no valid receipts remain after filtering, an exception is thrown.
 ## Advanced Topics
 ### Transparency Header
 The transparency header is identified by the `TransparencyHeaderLabel` field. This label is used to embed and retrieve transparency-related metadata.
@@ -198,8 +192,56 @@ using CoseSign1.Transparent.Extensions;
 
 Console.WriteLine($"Transparency Header Label: {CoseSign1TransparencyMessageExtensions.TransparencyHeaderLabel}");
 ```
+
+### Receipt Preservation When Chaining Services
+Some transparency services may return a *new* `CoseSign1Message` instance (rather than mutating the input message). When calling `MakeTransparentAsync`, this library preserves any existing embedded receipts and merges them into the returned message.
+
+This is especially important when chaining multiple transparency services (e.g., registering with multiple systems). Receipt merging is stable-order (existing receipts first) and deduplicated by byte-content.
+
 ### Custom Transparency Services
-You can implement your own transparency service by creating a class that implements the `ITransparencyService` interface. This allows you to define custom behavior for creating and verifying transparent messages.
+You can implement your own transparency service by deriving from the `TransparencyService` base class. It automatically:
+- Preserves and merges existing receipts into the returned message.
+- Provides optional logging hooks for basic diagnostics (timings and receipt counts).
+
+#### <u>Example: Deriving from `TransparencyService`</u>
+```csharp
+using System;
+using System.Security.Cryptography.Cose;
+using System.Threading;
+using System.Threading.Tasks;
+using CoseSign1.Transparent;
+
+public sealed class MyTransparencyService : TransparencyService
+{
+    public MyTransparencyService(
+        Action<string>? logVerbose = null,
+        Action<string>? logWarning = null,
+        Action<string>? logError = null)
+        : base(logVerbose, logWarning, logError)
+    {
+    }
+
+    protected override Task<CoseSign1Message> MakeTransparentCoreAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
+    {
+        // Register message, embed receipts (or return a new message instance).
+        return Task.FromResult(message);
+    }
+
+    protected override Task<bool> VerifyTransparencyCoreAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
+        => Task.FromResult(true);
+
+    protected override Task<bool> VerifyTransparencyWithReceiptCoreAsync(CoseSign1Message message, byte[] receipt, CancellationToken cancellationToken = default)
+        => Task.FromResult(true);
+}
+```
+
+#### <u>Example: Wiring Logging Hooks</u>
+```csharp
+var service = new MyTransparencyService(
+    logVerbose: Console.WriteLine,
+    logWarning: Console.Error.WriteLine,
+    logError: Console.Error.WriteLine);
+```
 
 ### Error Handling
 #### Common Exceptions
@@ -244,7 +286,7 @@ The project is packaged with the following metadata:
 For issues or feature requests, please contact the maintainers or open an issue in the repository.
 
 ## Conclusion
-The `CoseSign1.Transparency`` library provides a robust solution for creating and verifying transparent COSE Sign1 messages. By embedding transparency metadata, you can ensure traceability and auditability in your software supply chain. For advanced scenarios, consider implementing custom transparency services or managing receipts programmatically.
+The `CoseSign1.Transparent` library provides a robust solution for creating and verifying transparent COSE Sign1 messages. By embedding transparency metadata, you can ensure traceability and auditability in your software supply chain. For advanced scenarios, consider implementing custom transparency services or managing receipts programmatically.
 <br/>
 <br/>
 For more information, refer to the ./docs/CoseSignTool.md.

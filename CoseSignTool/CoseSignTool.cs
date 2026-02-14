@@ -163,8 +163,8 @@ public class CoseSignTool
     {
         try
         {
-            string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string executableDirectory = Path.GetDirectoryName(executablePath) ?? Directory.GetCurrentDirectory();
+            // Use AppContext.BaseDirectory which works for both regular and single-file deployments
+            string executableDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             
             // Only load plugins from the authorized "plugins" subdirectory
             string pluginsDirectory = Path.Join(executableDirectory, "plugins");

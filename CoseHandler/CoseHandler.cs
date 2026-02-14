@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace CoseX509;
@@ -23,7 +23,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
@@ -48,7 +48,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
@@ -73,7 +73,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
@@ -102,7 +102,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="storeName">Optional. The name of the certificate store that contains the signing certificate. Default is "My".</param>
     /// <param name="storeLocation">Optional. The location of the certificate store that contains the signing certificate. Default is "CurrentUser".</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
@@ -131,7 +131,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="storeName">Optional. The name of the certificate store that contains the signing certificate. Default is "My".</param>
     /// <param name="storeLocation">Optional. The location of the certificate store that contains the signing certificate. Default is "CurrentUser".</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
@@ -160,7 +160,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="storeName">Optional. The name of the certificate store that contains the signing certificate. Default is "My".</param>
     /// <param name="storeLocation">Optional. The location of the certificate store that contains the signing certificate. Default is "CurrentUser".</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
@@ -194,7 +194,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
@@ -218,7 +218,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CoseSigningException">Unsupported certificate type for COSE signing, or the certificate chain could not be built.</exception>
@@ -242,7 +242,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <exception cref="CryptographicException">The signing certificate is null or invalid.</exception>
@@ -268,7 +268,7 @@ public static class CoseHandler
     /// <param name="signingKeyProvider">An CertificateCoseSigningKeyProvider that contains the signing certificate and hash information.</param>
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">A MIME type value to set as the Content Type of the payload.</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <returns>The COSE signature structure in a read-only byte array.</returns>
@@ -326,7 +326,7 @@ public static class CoseHandler
     /// <param name="embedSign">True to embed an encoded copy of the payload content into the COSE signature structure.
     /// By default, the COSE signature uses a hash match to compare to the original content. This is called "detached" signing.</param>
     /// <param name="signatureFile">.Optional. Writes the COSE signature to the specified file location.
-    /// For file extension, we recommend ".cose" for detached signatures, or ".csm" if the file is embed-signed.</param>
+    /// We recommend using the ".cose" file extension for COSE signature files.</param>
     /// <param name="contentType">Optional. A MIME type value to set as the Content Type of the payload. Default value is "application/cose".</param>
     /// <param name="headerExtender">Optional. A provider to add custom headers to the signed message.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>

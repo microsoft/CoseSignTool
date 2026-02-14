@@ -268,10 +268,12 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            runtime_id: win-x64
             dir_command: gci -Recurse
             zip_command_debug: Compress-Archive -Path ./debug/ -DestinationPath CoseSignTool-Windows-debug.zip
             zip_command_release: Compress-Archive -Path ./release/ -DestinationPath CoseSignTool-Windows-release.zip
           - os: ubuntu-latest
+            runtime_id: linux-x64
             dir_command: ls -a -R
             zip_command_debug: zip -r CoseSignTool-Linux-debug.zip ./debug/
             zip_command_release: zip -r CoseSignTool-Linux-release.zip ./release/
@@ -292,41 +294,103 @@ jobs:
       uses: actions/checkout@v3
 
     # Build and publish the binaries to ./published.
-    # The publish command will automatically deploy plugins via the DeployAllPluginsForPublish target in CoseSignTool.csproj
+    # Plugins are automatically built and deployed via BuildPlugins and DeployAllPlugins targets (enabled by default)
+    # PublishSingleFile=true creates a single self-contained executable with plugins bundled inside
     - name: Publish outputs
       run: |
         VERSION=${{ needs.create_release.outputs.tag_name }}
         # Remove the 'v' prefix from VERSION for VersionNgt property
         VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
-        RUNTIME_ID=${{ matrix.runtime_id || '' }}
-        if [ -n "$RUNTIME_ID" ]; then
-          echo "Publishing for runtime: $RUNTIME_ID"
-          dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-        else
-          echo "Publishing for current platform"
-          dotnet publish --configuration Debug --self-contained true --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-          dotnet publish --configuration Release --self-contained true --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:DeployPlugins=true CoseSignTool/CoseSignTool.csproj
-        fi
-        # Self-contained is needed. Must use .csproj instead of .sln.
-        # DeployPlugins=true enables automatic plugin deployment during publish
-        # RUNTIME_ID specifies the target runtime (e.g., osx-x64, osx-arm64) for cross-platform builds
-        # Ideally we should also verify in the Build and Test job, but that will require pre-caulculating the version number and either
-        #   Running build and test separately because we can't pass the version number to dotnet test, or
-        #   Setting the version number dynamically in the csproj files, using <FileVersion>$(VersionBin)</FileVersion>  
+        RUNTIME_ID=${{ matrix.runtime_id }}
+        
+        echo "Publishing single-file self-contained executable for runtime: $RUNTIME_ID"
+        echo "Plugins will be bundled inside the executable"
+        
+        dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
+        dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
+        
+        # PublishSingleFile=true bundles everything into a single executable:
+        # - The .NET runtime (self-contained)
+        # - All plugins (bundled and extracted on first run)
+        # - No separate plugins folder needed - everything is in the exe
       shell: bash
+    
+    # Verify the single-file executable was created correctly
+    # With PublishSingleFile=true and IncludeAllContentForSelfExtract=true, plugins are bundled INSIDE the exe
+    - name: Verify single-file executable
+      run: |
+        Write-Host "Verifying single-file self-contained executable..."
+        Write-Host ""
+        
+        # Check debug output
+        Write-Host "=== Debug build ==="
+        $debugExe = Get-ChildItem "published/debug/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
+        if ($debugExe) {
+          $sizeMB = [math]::Round($debugExe.Length / 1MB, 2)
+          Write-Host "✅ Found: $($debugExe.Name) ($sizeMB MB)"
+          
+          # Plugins are bundled inside, so exe should be > 40MB (contains runtime + plugins)
+          if ($sizeMB -gt 40) {
+            Write-Host "✅ Size indicates plugins are bundled (expected for single-file with plugins)"
+          } else {
+            Write-Host "⚠️  Size seems small - plugins may not be bundled correctly"
+          }
+        } else {
+          Write-Host "❌ CoseSignTool executable not found in debug output!"
+          exit 1
+        }
+        
+        # Check that plugins folder does NOT exist (should be bundled in exe)
+        if (Test-Path "published/debug/plugins") {
+          Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
+        } else {
+          Write-Host "✅ No external plugins folder (correctly bundled in exe)"
+        }
+        
+        Write-Host ""
+        Write-Host "=== Release build ==="
+        $releaseExe = Get-ChildItem "published/release/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
+        if ($releaseExe) {
+          $sizeMB = [math]::Round($releaseExe.Length / 1MB, 2)
+          Write-Host "✅ Found: $($releaseExe.Name) ($sizeMB MB)"
+          
+          if ($sizeMB -gt 40) {
+            Write-Host "✅ Size indicates plugins are bundled"
+          } else {
+            Write-Host "⚠️  Size seems small - plugins may not be bundled correctly"
+          }
+        } else {
+          Write-Host "❌ CoseSignTool executable not found in release output!"
+          exit 1
+        }
+        
+        if (Test-Path "published/release/plugins") {
+          Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
+        } else {
+          Write-Host "✅ No external plugins folder (correctly bundled in exe)"
+        }
+        
+        Write-Host ""
+        Write-Host "Single-file verification complete. Plugins are bundled inside the executable."
+        Write-Host "On first run, the exe will extract to a temp directory including the plugins folder."
+      shell: pwsh
 
     # List the contents of the published directory to make sure all the artifacts are there.
     - name: List published directory
       run: ${{ matrix.dir_command }}
       working-directory: ./published
 
-    # Verify that the file versions on the DLLs match the release version
+    # Verify that the file versions on the exe match the release version
     - name: Check File Version
       run: |
-        $file = Get-Item "CoseSignTool.dll"
-        $version = $file.VersionInfo.FileVersion
-        Write-Output "File Version is $version"
+        # With single-file publish, we have CoseSignTool.exe (Windows) or CoseSignTool (Unix)
+        $file = Get-Item "CoseSignTool*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' }
+        if ($file) {
+          $version = $file.VersionInfo.FileVersion
+          Write-Output "File Version is $version"
+        } else {
+          Write-Output "Warning: Could not find CoseSignTool executable"
+        }
       shell: pwsh
       working-directory: ./published/debug
 

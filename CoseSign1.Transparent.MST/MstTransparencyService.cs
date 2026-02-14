@@ -14,24 +14,17 @@ using Azure;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.Extensions;
-using CoseSign1.Transparent.Interfaces;
+using CoseSign1.Transparent;
 
 /// <summary>
-/// Provides an implementation of the <see cref="ITransparencyService"/> interface using Microsoft's Signing Transparency (MST).
+/// Provides an implementation of the <see cref="TransparencyService"/> base class using Microsoft's Signing Transparency (MST).
 /// This service enables the creation and verification of transparent COSE Sign1 messages.
 /// </summary>
-public class MstTransparencyService : ITransparencyService
+public class MstTransparencyService : TransparencyService
 {
     private readonly CodeTransparencyClient TransparencyClient;
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
     private readonly CodeTransparencyClientOptions? ClientOptions;
-    private readonly Action<string>? LogVerbose;
-    private readonly Action<string>? LogError;
-
-    // LogWarning is reserved for future use when warning scenarios are identified
-    #pragma warning disable IDE0052 // Remove unread private members
-    private readonly Action<string>? LogWarning;
-    #pragma warning restore IDE0052 // Remove unread private members
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstTransparencyService"/> class.
@@ -75,13 +68,11 @@ public class MstTransparencyService : ITransparencyService
         Action<string>? logVerbose,
         Action<string>? logWarning,
         Action<string>? logError)
+        : base(logVerbose, logWarning, logError)
     {
         TransparencyClient = transparencyClient ?? throw new ArgumentNullException(nameof(transparencyClient));
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
-        LogVerbose = logVerbose;
-        LogWarning = logWarning;
-        LogError = logError;
     }
 
     /// <summary>
@@ -98,13 +89,8 @@ public class MstTransparencyService : ITransparencyService
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="message"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the transparency operation fails.</exception>
-    public async Task<CoseSign1Message> MakeTransparentAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
+    protected override async Task<CoseSign1Message> MakeTransparentCoreAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
         LogVerbose?.Invoke("Starting MakeTransparentAsync operation");
 
         // Encode the CoseSign1Message to a byte array
@@ -159,7 +145,7 @@ public class MstTransparencyService : ITransparencyService
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="message"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the message does not contain a transparency header.</exception>
-    public Task<bool> VerifyTransparencyAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
+    public override Task<bool> VerifyTransparencyAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
@@ -249,7 +235,7 @@ public class MstTransparencyService : ITransparencyService
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="message"/> or <paramref name="receipt"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="receipt"/> is empty.</exception>
-    public Task<bool> VerifyTransparencyAsync(CoseSign1Message message, byte[] receipt, CancellationToken cancellationToken = default)
+    public override Task<bool> VerifyTransparencyAsync(CoseSign1Message message, byte[] receipt, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {

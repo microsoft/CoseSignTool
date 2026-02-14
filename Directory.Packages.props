@@ -4,7 +4,7 @@
   </PropertyGroup>
   <!-- Core Framework Packages -->
   <ItemGroup>
-    <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.3" />
     <PackageVersion Include="System.Runtime.Caching" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />

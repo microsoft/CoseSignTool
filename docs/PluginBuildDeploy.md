@@ -84,23 +84,28 @@ The GitHub Actions workflow handles plugin deployment in the release process:
 
 ### Local Development
 
-For local development, you can use MSBuild targets to automatically deploy plugins with the enhanced subdirectory architecture:
+For local development, plugins are automatically built and deployed with the main application:
 
 ```bash
-# Build and deploy all plugins to subdirectories
-dotnet build CoseSignTool -p:DeployPlugins=true
+# Build CoseSignTool - plugins are automatically built and deployed (default)
+dotnet build CoseSignTool
+
+# To build WITHOUT plugins (faster for quick iterations)
+dotnet build CoseSignTool -p:NoPlugins=true
 
 # This automatically:
+# - Discovers all *.Plugin.csproj projects
+# - Builds each plugin project
 # - Creates plugins/CoseSignTool.MST.Plugin/ subdirectory
 # - Creates plugins/CoseSignTool.IndirectSignature.Plugin/ subdirectory  
 # - Copies each plugin and its dependencies to respective subdirectories
-# - Maintains backward compatibility with legacy deployment
 ```
 
 **What happens during plugin deployment:**
+- **Plugin Discovery**: All `*.Plugin.csproj` projects are automatically found
+- **Build**: Each plugin is built with the same Configuration and RuntimeIdentifier
 - **MST Plugin**: Deployed to `plugins/CoseSignTool.MST.Plugin/` with Azure dependencies
 - **Indirect Signature Plugin**: Deployed to `plugins/CoseSignTool.IndirectSignature.Plugin/` with minimal dependencies
-- **Legacy Support**: Also copies plugins to flat structure for backward compatibility
 - **Dependency Isolation**: Each plugin's dependencies are isolated in its subdirectory
 
 ## Plugin Deployment Structure
@@ -228,31 +233,21 @@ Add your plugin to the CI/CD pipeline in `.github/workflows/dotnet.yml`:
     copy_if_exists "YourPlugin/bin/Release/net8.0/YourSpecificDependency.dll" "published/release/plugins/"
 ```
 
-### 3. Update Local Development Targets
+### 3. Automatic Deployment (No Manual Configuration Needed)
 
-Add your plugin to the MSBuild targets in `CoseSignTool.csproj`:
+If your plugin project follows the `*.Plugin.csproj` naming convention and is located anywhere under the CoseSignTool solution directory, it will be **automatically discovered, built, and deployed**.
+
+The consolidated plugin discovery in `CoseSignTool.csproj` handles everything:
 
 ```xml
-<Target Name="DeployYourPlugin" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
-  <PropertyGroup>
-    <YourPluginPath>$(MSBuildProjectDirectory)\..\YourPlugin\bin\$(Configuration)\net8.0\YourPlugin.Plugin.dll</YourPluginPath>
-  </PropertyGroup>
-  
-  <Copy SourceFiles="$(YourPluginPath)" 
-        DestinationFolder="$(PluginsDir)" 
-        Condition="Exists('$(YourPluginPath)')" />
-</Target>
-
-<!-- Update BuildAndDeployPlugins target -->
-<Target Name="BuildAndDeployPlugins">
-  <MSBuild Projects="..\YourPlugin\YourPlugin.csproj" 
-           Properties="Configuration=$(Configuration)" />
-  <!-- Add to existing targets -->
-  <MSBuild Projects="$(MSBuildProjectFile)" 
-           Properties="DeployPlugins=true;Configuration=$(Configuration)" 
-           Targets="DeployYourPlugin" />
-</Target>
+<!--Consolidated plugin discovery - reused by all plugin targets-->
+<ItemGroup Condition="'$(DeployPlugins)' == 'true'">
+    <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+    <PluginNames Include="@(PluginProjects->'%(Filename)')" />
+</ItemGroup>
 ```
+
+**No changes to CoseSignTool.csproj are required** - just name your project correctly and it will be included automatically.
 
 ### 4. Update Tests
 
@@ -278,8 +273,11 @@ The CI/CD pipeline includes automated verification:
 For manual verification:
 
 ```bash
-# Build with plugins
-dotnet build CoseSignTool --target BuildAndDeployPlugins
+# Build with plugins (default behavior)
+dotnet build CoseSignTool
+
+# Build without plugins (faster)
+dotnet build CoseSignTool -p:NoPlugins=true
 
 # Navigate to output directory
 cd CoseSignTool/bin/Debug/net8.0

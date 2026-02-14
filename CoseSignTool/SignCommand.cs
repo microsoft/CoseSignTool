@@ -13,49 +13,58 @@ public class SignCommand : CoseCommand
 {
     /// <summary>
     /// A map of command line options to their abbreviated aliases.
+    /// All options use -- prefix. Single dash (-) and forward slash (/) are converted to -- for backward compatibility.
     /// </summary>
     private static readonly Dictionary<string, string> PrivateOptions = new()
     {
-        ["-EmbedPayload"] = "EmbedPayload",
-        ["-ep"] = "EmbedPayload",
-        ["-PipeOutput"] = "PipeOutput",
-        ["-po"] = "PipeOutput",
-        ["-PfxCertificate"] = "PfxCertificate",
-        ["-pfx"] = "PfxCertificate",
-        ["-Password"] = "Password",
-        ["-pw"] = "Password",
-        ["-Thumbprint"] = "Thumbprint",
-        ["-th"] = "Thumbprint",
-        ["-StoreName"] = "StoreName",
-        ["-sn"] = "StoreName",
-        ["-StoreLocation"] = "StoreLocation",
-        ["-sl"] = "StoreLocation",
-        ["-ContentType"] = "ContentType",
-        ["-cty"] = "ContentType",
-        ["-IntHeaders"] = "IntHeaders",
-        ["-ih"] = "IntHeaders",
-        ["-StringHeaders"] = "StringHeaders",
-        ["-sh"] = "StringHeaders",
-        ["-IntProtectedHeaders"] = "IntProtectedHeaders",
-        ["-iph"] = "IntProtectedHeaders",
-        ["-StringProtectedHeaders"] = "StringProtectedHeaders",
-        ["-sph"] = "StringProtectedHeaders",
-        ["-IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
-        ["-iuh"] = "IntUnProtectedHeaders",
-        ["-StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
-        ["-suh"] = "StringUnProtectedHeaders",
-        ["-CwtIssuer"] = "CwtIssuer",
-        ["-cwt-iss"] = "CwtIssuer",
-        ["-CwtSubject"] = "CwtSubject",
-        ["-cwt-sub"] = "CwtSubject",
-        ["-CwtAudience"] = "CwtAudience",
-        ["-cwt-aud"] = "CwtAudience",
-        ["-CwtClaims"] = "CwtClaims",
-        ["-cwt"] = "CwtClaims",
-        ["-EnableScittCompliance"] = "EnableScittCompliance",
-        ["-scitt"] = "EnableScittCompliance",
-        ["-CertProvider"] = "CertProvider",
-        ["-cp"] = "CertProvider"
+        ["--EmbedPayload"] = "EmbedPayload",
+        ["--ep"] = "EmbedPayload",
+        ["--PipeOutput"] = "PipeOutput",
+        ["--po"] = "PipeOutput",
+        ["--PfxCertificate"] = "PfxCertificate",
+        ["--pfx"] = "PfxCertificate",
+        ["--PemCertificate"] = "PemCertificate",
+        ["--pem"] = "PemCertificate",
+        ["--PemKey"] = "PemKey",
+        ["--key"] = "PemKey",
+        ["--Password"] = "Password",
+        ["--pw"] = "Password",
+        ["--PasswordEnvVar"] = "PasswordEnvVar",
+        ["--pwenv"] = "PasswordEnvVar",
+        ["--PasswordPrompt"] = "PasswordPrompt",
+        ["--pwprompt"] = "PasswordPrompt",
+        ["--Thumbprint"] = "Thumbprint",
+        ["--th"] = "Thumbprint",
+        ["--StoreName"] = "StoreName",
+        ["--sn"] = "StoreName",
+        ["--StoreLocation"] = "StoreLocation",
+        ["--sl"] = "StoreLocation",
+        ["--ContentType"] = "ContentType",
+        ["--cty"] = "ContentType",
+        ["--IntHeaders"] = "IntHeaders",
+        ["--ih"] = "IntHeaders",
+        ["--StringHeaders"] = "StringHeaders",
+        ["--sh"] = "StringHeaders",
+        ["--IntProtectedHeaders"] = "IntProtectedHeaders",
+        ["--iph"] = "IntProtectedHeaders",
+        ["--StringProtectedHeaders"] = "StringProtectedHeaders",
+        ["--sph"] = "StringProtectedHeaders",
+        ["--IntUnProtectedHeaders"] = "IntUnProtectedHeaders",
+        ["--iuh"] = "IntUnProtectedHeaders",
+        ["--StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
+        ["--suh"] = "StringUnProtectedHeaders",
+        ["--CwtIssuer"] = "CwtIssuer",
+        ["--cwt-iss"] = "CwtIssuer",
+        ["--CwtSubject"] = "CwtSubject",
+        ["--cwt-sub"] = "CwtSubject",
+        ["--CwtAudience"] = "CwtAudience",
+        ["--cwt-aud"] = "CwtAudience",
+        ["--CwtClaims"] = "CwtClaims",
+        ["--cwt"] = "CwtClaims",
+        ["--EnableScittCompliance"] = "EnableScittCompliance",
+        ["--scitt"] = "EnableScittCompliance",
+        ["--CertProvider"] = "CertProvider",
+        ["--cp"] = "CertProvider"
     };
 
     // Inherited default values
@@ -89,9 +98,41 @@ public class SignCommand : CoseCommand
     public string? PfxCertificate { get; set; }
 
     /// <summary>
-    /// Optional. Gets or sets the password for the .pfx file if it requires one.
+    /// Optional. Gets or sets the path to a PEM-encoded certificate file to sign with.
+    /// Common on Linux/Unix systems. Use with --PemKey to specify the private key file.
+    /// </summary>
+    public string? PemCertificate { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the path to a PEM-encoded private key file.
+    /// Used together with --PemCertificate for signing. The key may be encrypted (use --PasswordEnvVar or --PasswordPrompt to provide password).
+    /// </summary>
+    public string? PemKey { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the name of an environment variable containing the password for encrypted PEM private keys.
+    /// For PEM files with encrypted private keys, use this or --PasswordPrompt to securely provide the password.
+    /// Default environment variable is COSESIGNTOOL_PASSWORD.
+    /// </summary>
+    public string? PasswordEnvVar { get; set; }
+
+    /// <summary>
+    /// Optional. If set, prompts the user interactively to enter the password for encrypted PEM private keys.
+    /// Cannot be used when input is piped or in non-interactive environments.
+    /// </summary>
+    public bool PasswordPrompt { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the password for the .pfx file.
+    /// For PFX files, this can be provided directly on the command line.
+    /// For PEM files with encrypted keys, prefer using --PasswordEnvVar or --PasswordPrompt for security.
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// The default environment variable name for password.
+    /// </summary>
+    public const string DefaultPasswordEnvVar = "COSESIGNTOOL_PASSWORD";
 
     /// <summary>
     /// Optional. Gets or sets the SHA1 thumbprint of a certificate in the Certificate Store to sign the file with.
@@ -237,8 +278,7 @@ public class SignCommand : CoseCommand
                     "CoseSignTool could not determine a path to write the signature file to.");
             }
 
-            string extension = EmbedPayload ? "csm" : "cose";
-            SignatureFile = new FileInfo($"{PayloadFile.FullName}.{extension}");
+            SignatureFile = new FileInfo($"{PayloadFile.FullName}.cose");
         }
 
         try
@@ -342,7 +382,15 @@ public class SignCommand : CoseCommand
         PipeOutput = GetOptionBool(provider, nameof (PipeOutput));
         Thumbprint = GetOptionString(provider, nameof(Thumbprint));
         PfxCertificate = GetOptionString(provider, nameof(PfxCertificate));
+        PemCertificate = GetOptionString(provider, nameof(PemCertificate));
+        PemKey = GetOptionString(provider, nameof(PemKey));
+        
+        // Password handling: direct from command line (for PFX backward compat)
+        // or via environment variable / interactive prompt (preferred for PEM)
         Password = GetOptionString(provider, nameof(Password));
+        PasswordEnvVar = GetOptionString(provider, nameof(PasswordEnvVar));
+        PasswordPrompt = GetOptionBool(provider, nameof(PasswordPrompt));
+        
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
@@ -398,6 +446,90 @@ public class SignCommand : CoseCommand
         CertProvider = GetOptionString(provider, nameof(CertProvider));
 
         base.ApplyOptions(provider);
+    }
+
+    /// <summary>
+    /// Resolves the password for encrypted PEM private keys from environment variable or interactive prompt.
+    /// This is only used for PEM files - PFX password is provided directly via --pw option.
+    /// </summary>
+    /// <returns>The resolved password, or null if not needed.</returns>
+    private string? ResolvePemPassword()
+    {
+        // For security, do not accept plaintext passwords from the command line for PEM keys.
+        // The --pw option is retained for PFX backward compatibility only.
+        if (!string.IsNullOrEmpty(Password))
+        {
+            Console.Error.WriteLine("Error: --pw/--Password is only supported for PFX files. For encrypted PEM private keys, use --pwenv/--PasswordEnvVar or --pwprompt/--PasswordPrompt.");
+            return null;
+        }
+        
+        // For PEM files, check environment variable
+        string envVarName = PasswordEnvVar ?? DefaultPasswordEnvVar;
+        
+        // Try to get password from environment variable
+        string? envPassword = Environment.GetEnvironmentVariable(envVarName);
+        if (!string.IsNullOrEmpty(envPassword))
+        {
+            return envPassword;
+        }
+        
+        // If PasswordEnvVar was explicitly set but the variable is empty/missing, that's an error
+        if (PasswordEnvVar != null)
+        {
+            Console.Error.WriteLine($"Warning: Environment variable '{PasswordEnvVar}' is not set or empty.");
+        }
+        
+        // If interactive prompt is requested, prompt for password
+        if (PasswordPrompt)
+        {
+            return PromptForPassword();
+        }
+        
+        // No password provided
+        return null;
+    }
+
+    /// <summary>
+    /// Prompts the user to enter a password interactively with masked input.
+    /// </summary>
+    /// <returns>The entered password.</returns>
+    private static string? PromptForPassword()
+    {
+        // Check if we're in an interactive terminal
+        if (!Environment.UserInteractive || Console.IsInputRedirected)
+        {
+            Console.Error.WriteLine("Error: Cannot prompt for password in non-interactive mode. Use --pwenv to specify an environment variable.");
+            return null;
+        }
+
+        Console.Error.Write("Enter password: ");
+        
+        StringBuilder password = new StringBuilder();
+        while (true)
+        {
+            ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+            
+            if (key.Key == ConsoleKey.Enter)
+            {
+                Console.Error.WriteLine();
+                break;
+            }
+            else if (key.Key == ConsoleKey.Backspace)
+            {
+                if (password.Length > 0)
+                {
+                    password.Length--;
+                    Console.Error.Write("\b \b");
+                }
+            }
+            else if (!char.IsControl(key.KeyChar))
+            {
+                password.Append(key.KeyChar);
+                Console.Error.Write("*");
+            }
+        }
+        
+        return password.Length > 0 ? password.ToString() : null;
     }
 
     /// <summary>
@@ -575,7 +707,12 @@ public class SignCommand : CoseCommand
         X509Certificate2 cert;
         List<X509Certificate2>? additionalRoots = null;
         
-        if (PfxCertificate is not null)
+        if (PemCertificate is not null)
+        {
+            // Load from PEM files (common on Linux/Unix systems)
+            (cert, additionalRoots) = LoadCertFromPem();
+        }
+        else if (PfxCertificate is not null)
         {
             // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
@@ -604,10 +741,170 @@ public class SignCommand : CoseCommand
         {
             // Load certificate from thumbprint.
             cert = Thumbprint is not null ? CoseHandler.LookupCertificate(Thumbprint, StoreName!, StoreLocation) :
-                throw new ArgumentNullException("You must specify a certificate file or thumbprint to sign with.");
+                throw new ArgumentNullException("You must specify a certificate file (--pfx or --pem) or thumbprint to sign with.");
         }
 
         return (cert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Loads a certificate and private key from PEM files.
+    /// </summary>
+    /// <returns>The certificate with private key and optional additional root certificates.</returns>
+    /// <exception cref="FileNotFoundException">The PEM certificate or key file was not found.</exception>
+    /// <exception cref="CryptographicException">The PEM files could not be parsed or the key is encrypted and no password was provided.</exception>
+    /// <exception cref="ArgumentException">The private key file was not specified.</exception>
+    private (X509Certificate2 certificate, List<X509Certificate2>? additionalRoots) LoadCertFromPem()
+    {
+        ThrowIfMissing(PemCertificate!, "Could not find the PEM certificate file");
+        
+        // Read the PEM certificate file
+        string certPem = File.ReadAllText(PemCertificate!);
+        
+        // Parse all certificates from the PEM file (may contain a chain)
+        List<X509Certificate2> certificates = ParsePemCertificates(certPem);
+        
+        if (certificates.Count == 0)
+        {
+            throw new CryptographicException($"No valid certificates found in PEM file: {PemCertificate}");
+        }
+
+        // The first certificate is typically the leaf/signing certificate
+        X509Certificate2 leafCert = certificates[0];
+        
+        // If a separate key file is provided, load and combine with the certificate
+        if (PemKey is not null)
+        {
+            ThrowIfMissing(PemKey, "Could not find the PEM private key file");
+            string keyPem = File.ReadAllText(PemKey);
+            leafCert = LoadCertificateWithPrivateKey(leafCert, keyPem);
+        }
+        else if (!leafCert.HasPrivateKey)
+        {
+            // Try to find the private key in the same PEM file as the certificate
+            leafCert = LoadCertificateWithPrivateKey(leafCert, certPem);
+        }
+        
+        if (!leafCert.HasPrivateKey)
+        {
+            throw new CryptographicException(
+                "The certificate does not have a private key. " +
+                "Specify the private key file using --key or include it in the PEM certificate file.");
+        }
+        
+        // Additional certificates in the PEM file are treated as the certificate chain
+        List<X509Certificate2>? additionalRoots = certificates.Count > 1 
+            ? certificates.Skip(1).ToList() 
+            : null;
+
+        return (leafCert, additionalRoots);
+    }
+
+    /// <summary>
+    /// Parses all X.509 certificates from a PEM-encoded string.
+    /// </summary>
+    /// <param name="pem">The PEM-encoded string containing one or more certificates.</param>
+    /// <returns>A list of X509Certificate2 objects.</returns>
+    private static List<X509Certificate2> ParsePemCertificates(string pem)
+    {
+        List<X509Certificate2> certificates = [];
+        
+        // Match all certificate blocks in the PEM
+        const string certHeader = "-----BEGIN CERTIFICATE-----";
+        const string certFooter = "-----END CERTIFICATE-----";
+        
+        int startIndex = 0;
+        while ((startIndex = pem.IndexOf(certHeader, startIndex, StringComparison.Ordinal)) >= 0)
+        {
+            int endIndex = pem.IndexOf(certFooter, startIndex, StringComparison.Ordinal);
+            if (endIndex < 0)
+            {
+                break;
+            }
+            
+            endIndex += certFooter.Length;
+            string certBlock = pem.Substring(startIndex, endIndex - startIndex);
+            
+            try
+            {
+                X509Certificate2 cert = X509Certificate2.CreateFromPem(certBlock);
+                certificates.Add(cert);
+            }
+            catch (CryptographicException)
+            {
+                // Skip invalid certificate blocks
+            }
+            
+            startIndex = endIndex;
+        }
+        
+        return certificates;
+    }
+
+    /// <summary>
+    /// Loads a certificate with its private key from a PEM-encoded key string.
+    /// Supports RSA, ECDSA, and encrypted private keys.
+    /// </summary>
+    /// <param name="certificate">The certificate without private key.</param>
+    /// <param name="keyPem">The PEM-encoded private key string.</param>
+    /// <returns>A new X509Certificate2 instance with the private key attached.</returns>
+    private X509Certificate2 LoadCertificateWithPrivateKey(X509Certificate2 certificate, string keyPem)
+    {
+        // If the PEM content doesn't contain a private key, return the certificate as-is
+        if (!keyPem.Contains("PRIVATE KEY"))
+        {
+            return certificate;
+        }
+
+        // Determine the key algorithm from the certificate's public key
+        // rather than guessing from PEM headers via trial-and-error.
+        string keyAlgorithm = certificate.PublicKey.Oid.Value ?? string.Empty;
+        bool isEncrypted = keyPem.Contains("-----BEGIN ENCRYPTED PRIVATE KEY-----");
+
+        // RSA OID: 1.2.840.113549.1.1.1
+        if (keyAlgorithm == "1.2.840.113549.1.1.1")
+        {
+            using RSA rsa = RSA.Create();
+            ImportPemKey(rsa, keyPem, isEncrypted);
+            return certificate.CopyWithPrivateKey(rsa);
+        }
+
+        // EC OID: 1.2.840.10045.2.1
+        if (keyAlgorithm == "1.2.840.10045.2.1")
+        {
+            using ECDsa ecdsa = ECDsa.Create();
+            ImportPemKey(ecdsa, keyPem, isEncrypted);
+            return certificate.CopyWithPrivateKey(ecdsa);
+        }
+
+        throw new CryptographicException(
+            $"Unsupported certificate key algorithm: {certificate.PublicKey.Oid.FriendlyName ?? keyAlgorithm}. " +
+            "Supported algorithms: RSA and ECDSA keys in PEM format (PKCS#1, PKCS#8, or encrypted PKCS#8).");
+    }
+
+    /// <summary>
+    /// Imports a PEM-encoded private key into the given asymmetric algorithm instance,
+    /// handling both encrypted and unencrypted PEM formats.
+    /// </summary>
+    /// <param name="algorithm">The asymmetric algorithm instance to import the key into.</param>
+    /// <param name="keyPem">The PEM-encoded private key string.</param>
+    /// <param name="isEncrypted">Whether the PEM key is encrypted.</param>
+    private void ImportPemKey(AsymmetricAlgorithm algorithm, string keyPem, bool isEncrypted)
+    {
+        if (isEncrypted)
+        {
+            string? pemPassword = ResolvePemPassword();
+            if (string.IsNullOrEmpty(pemPassword))
+            {
+                throw new CryptographicException(
+                    "The private key is encrypted. Please provide a password using --pwenv or --pwprompt.");
+            }
+            algorithm.ImportFromEncryptedPem(keyPem, pemPassword);
+        }
+        else
+        {
+            algorithm.ImportFromPem(keyPem);
+        }
     }
 
     /// <summary>
@@ -1024,88 +1321,116 @@ Sign command: Signs the specified file or piped content with a detached or embed
     An embedded signature contains a copy of the original payload. Not supported for payload of >2gb in size.
 
 Options:
-    PayloadFile / payload / p: Required, pipeable. The file or piped content to sign.
+    --PayloadFile, --payload, -p: Required, pipeable. The file or piped content to sign.
 
-    SignatureFile / sig / sf: Optional. The file path to write the Cose signature to.
-        Default value is [payload file].cose for detached signatures or [payload file].csm for embedded.
+    --SignatureFile, --sig, -sf: Optional. The file path to write the Cose signature to.
+        Default value is [payload file].cose.
         Required if neither PayloadFile or PipeOutput are set.
 
     A signing certificate from one of the following sources:
 
-        Certificate Provider Plugin (--cert-provider / -cp): Use a certificate provider plugin such as Azure
-            Trusted Signing or custom HSM providers. See Certificate Providers section below for available providers.
+        --CertProvider, -cp: Use a certificate provider plugin such as Azure Trusted Signing or custom HSM providers.
+            See Certificate Providers section below for available providers.
 
     --OR--
 
-        PfxCertificate / pfx: A path to a private key certificate file (.pfx) to sign with.
-
-        Password / pw: Optional. The password for the .pfx file if it has one. (Strongly recommended!)
+        --PfxCertificate, --pfx: A path to a private key certificate file (.pfx) to sign with. Common on Windows.
 
     --OR--
 
-        Thumbprint / th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
+        --PemCertificate, --pem: A path to a PEM-encoded certificate file to sign with. Common on Linux/Unix.
+            The certificate file may contain the full certificate chain (leaf first, then intermediates, then root).
+
+        --PemKey, --key: The path to a PEM-encoded private key file. Required if the certificate file does not contain
+            the private key. Supports RSA and ECDSA keys in PKCS#1, PKCS#8, or encrypted PKCS#8 format.
+
+    --OR--
+
+        --Thumbprint, --th: The SHA1 thumbprint of a certificate in the local certificate store to sign the file with.
             Use the optional StoreName and StoreLocation parameters to tell CoseSignTool where to find the matching
             certificate.
 
-        StoreName / sn: Optional. The name of the local certificate store to find the signing certificate in.
+        --StoreName, --sn: Optional. The name of the local certificate store to find the signing certificate in.
             Default value is 'My'.
 
-        StoreLocation / sl: Optional. The location of the local certificate store to find the signing certificate in.
+        --StoreLocation, --sl: Optional. The location of the local certificate store to find the signing certificate in.
             Default value is 'CurrentUser'.
 
-    PipeOutput /po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of writing
-        to file.
+    Password options:
 
-    EmbedPayload / ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
+        --Password, --pw: Optional. The password for opening a password-protected PFX file.
+            Example: --pw MyP@ssword
+
+        For PEM files with encrypted private keys, use secure password options instead:
+
+        --PasswordEnvVar, --pwenv: The name of an environment variable containing the password. 
+            If not specified, defaults to checking COSESIGNTOOL_PASSWORD environment variable.
+            Example: --pwenv MY_CERT_PASSWORD
+
+        --PasswordPrompt, --pwprompt: If set, prompts interactively for the password with masked input.
+            Cannot be used in non-interactive environments or when input is piped.
+
+    --PipeOutput, --po: Optional. If set, outputs the detached or embedded COSE signature to Standard Out instead of
+        writing to file.
+
+    --EmbedPayload, --ep: Optional. If true, embeds a copy of the payload in the COSE signature file .Content property.
         Default behavior is 'detached signing', where the COSE signature file .Content property is empty, and to validate
         the signature, the payload must be provided separately. When set to true, the payload is embedded in the signature
         file. Embed-signed files are not readable by standard text editors, but can be read with the CoseSignTool 'Get'
         command.
 
 Advanced Options:
-    ContentType /cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
+    --ContentType, --cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
     Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
-        EnableScittCompliance /scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
+        --EnableScittCompliance, --scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
             (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
 
-        CwtIssuer /cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
+        --CwtIssuer, --cwt-iss: Optional. The CWT issuer (iss) claim for SCITT compliance. If not specified and SCITT
             compliance is enabled, defaults to a DID:x509 identifier derived from the signing certificate chain.
 
-        CwtSubject /cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
+        --CwtSubject, --cwt-sub: Optional. The CWT subject (sub) claim for SCITT compliance. If not specified and SCITT
             compliance is enabled, defaults to ""unknown.intent"".
 
-        CwtAudience /cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
+        --CwtAudience, --cwt-aud: Optional. The CWT audience (aud) claim for SCITT compliance.
 
-        CwtClaims /cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times for multiple claims.
+        --CwtClaims, --cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times.
             Labels can be integers (e.g., ""100:custom-value"") or RFC 8392 claim names (iss, sub, aud, exp, nbf, iat, cti).
             Timestamp claims (exp, nbf, iat) accept date/time strings (e.g., ""2024-12-31T23:59:59Z"") or Unix timestamps.
             Examples: 
-                /cwt ""cti:abc123"" /cwt ""100:custom-value"" /cwt ""exp:2024-12-31T23:59:59Z""
-                /cwt ""iss:custom-issuer"" /cwt ""sub:custom-subject"" /cwt ""nbf:1735689600""
+                --cwt ""cti:abc123"" --cwt ""100:custom-value"" --cwt ""exp:2024-12-31T23:59:59Z""
+                --cwt ""iss:custom-issuer"" --cwt ""sub:custom-subject"" --cwt ""nbf:1735689600""
 
     Options to customize the headers in the signature:
-        IntHeaders /ih: Optional. Path to a JSON file containing the header collection to be added to the cose message. The label is a string and the value is int32.
-        Sample file. [{""label"":""created-at"",""value"":12345678,""protected"":true},{""label"":""customer-count"",""value"":10,""protected"":false}]
+        --IntHeaders, -ih: Optional. Path to a JSON file containing the header collection to be added to the cose message.
+            The label is a string and the value is int32.
+            Sample file: [{""label"":""created-at"",""value"":12345678,""protected"":true}]
 
-        StringHeaders /sh: Optional. Path to a JSON file containing the header collection to be added to the cose message. Both the label and value are strings.
-        Sample file. [{""label"":""message-type"",""value"":""cose"",""protected"":false},{""label"":""customer-name"",""value"":""contoso"",""protected"":true}]
+        --StringHeaders, -sh: Optional. Path to a JSON file containing the header collection to be added to the cose message.
+            Both the label and value are strings.
+            Sample file: [{""label"":""message-type"",""value"":""cose"",""protected"":false}]
 
-        IntProtectedHeaders /iph: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntProtectedHeaders created-at=12345678,customer-count=10
+        --IntProtectedHeaders, -iph: A collection of name-value pairs with a string label and an int32 value.
+            Sample input: --iph created-at=12345678,customer-count=10
 
-        StringProtectedHeaders /sph: A collection of name-value pairs with a string label and value. Sample input: /StringProtectedHeaders message-type=cose,customer-name=contoso
+        --StringProtectedHeaders, -sph: A collection of name-value pairs with a string label and value.
+            Sample input: --sph message-type=cose,customer-name=contoso
     
-        IntUnProtectedHeaders /iuh: A collection of name-value pairs with a string label and an int32 value. Sample input: /IntUnProtectedHeaders created-at=12345678,customer-count=10
+        --IntUnProtectedHeaders, -iuh: A collection of name-value pairs with a string label and an int32 value.
+            Sample input: --iuh created-at=12345678,customer-count=10
 
-        StringUnProtectedHeaders /suh: A collection of name-value pairs with a string label and value. Sample input: /StringUnProtectedHeaders message-type=cose,customer-name=contoso
+        --StringUnProtectedHeaders, -suh: A collection of name-value pairs with a string label and value.
+            Sample input: --suh message-type=cose,customer-name=contoso
 
     Options to customize file and stream handling:
-        MaxWaitTime /wait: The maximum number of seconds to wait for a payload or signature file to be available and non-empty before loading it.
+        --MaxWaitTime, --wait: The maximum number of seconds to wait for a payload or signature file to be available and
+            non-empty before loading it.
 
-        FailFast /ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
+        --FailFast, -ff: If set, limits the timeout on null and empty file checks to 100ms instead of 10 seconds.
 
-        UseAdvancedStreamHandling /adv: If set, uses experimental techniques for verifying files before attempting to read them.
+        --UseAdvancedStreamHandling, --adv: If set, uses experimental techniques for verifying files before attempting to
+            read them.
 ";
 
     /// <summary>

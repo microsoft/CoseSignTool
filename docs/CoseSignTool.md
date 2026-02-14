@@ -42,20 +42,23 @@ CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.t
 The **Sign** command signs a file or stream.
 
 You will need to specify:
-* The payload content to sign. This may be a file specified with the **/Payload** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
-* A signing key provider. You have three options:
-  1. **Certificate Provider Plugin** (recommended for cloud/HSM signing): Use the **/CertProvider** or **/cp** option to specify a certificate provider plugin (e.g., `azure-trusted-signing`). See [Certificate Providers](#certificate-providers) section below.
-  2. **Local PFX Certificate**: Use the **/PfxCertificate** option to point to a .pfx certificate file and a **/Password** to open the certificate file with if it is locked. The certificate must include a private key.
-     * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **/Thumbprint** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
-  3. **Local Certificate Store**: Use the **/Thumbprint** option to pass the SHA1 thumbprint of an installed certificate. The certificate must include a private key.
+* The payload content to sign. This may be a file specified with the **--PayloadFile** or **--p** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length are not yet supported.
+* A signing key provider. You have four options:
+  1. **Certificate Provider Plugin** (recommended for cloud/HSM signing): Use the **--CertProvider** or **--cp** option to specify a certificate provider plugin (e.g., `azure-trusted-signing`). See [Certificate Providers](#certificate-providers) section below.
+  2. **Local PFX Certificate** (common on Windows): Use the **--PfxCertificate** or **--pfx** option to point to a .pfx certificate file and **--Password** or **--pw** to provide the password if the file is password-protected. The certificate must include a private key.
+     * **PFX Certificate Chain Handling**: When using a PFX file that contains multiple certificates (such as a complete certificate chain), CoseSignTool will automatically use all certificates in the PFX for proper chain building. If you specify a **--Thumbprint** or **--th** along with the PFX file, CoseSignTool will use the certificate matching that thumbprint for signing and treat the remaining certificates as additional roots for chain validation. If no thumbprint is specified, the first certificate with a private key will be used for signing.
+  3. **PEM Certificate Files** (common on Linux/Unix): Use the **--PemCertificate** or **--pem** option to point to a PEM-encoded certificate file. If the private key is in a separate file, use **--PemKey** or **--key** to specify the key file. For encrypted private keys, use **--PasswordEnvVar** / **--pwenv** to specify an environment variable containing the password, or **--PasswordPrompt** / **--pwprompt** to enter interactively.
+     * **PEM Certificate Chain Handling**: The PEM certificate file may contain multiple certificates (leaf first, then intermediates, then root). All certificates will be used for proper chain building.
+     * **Supported Key Formats**: RSA and ECDSA keys in PKCS#1, PKCS#8, or encrypted PKCS#8 format.
+  4. **Local Certificate Store**: Use the **--Thumbprint** or **--th** option to pass the SHA1 thumbprint of an installed certificate. The certificate must include a private key.
 
 You may also want to specify:
-* Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **/EmbedPayload option.** Note that embedded signatures are only supported for payload of less than 2gb.
+* Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **--EmbedPayload** or **--ep** option. Note that embedded signatures are only supported for payload of less than 2gb.
 * Where to write the signature to. You have three ways to go here:
-    1. Write to the Standard Output channel (STDOUT) / console by using the **/PipeOutput** option.
-    1. Specify an output file with **/SignatureFile**
-    1. Let CoseSignTool decide. It will write to *payload-file*.cose for detached or *payload-file*.csm for embedded signatures. But if you don't specify a payload file at all, it will exit with an error.
-* What certificate store to use. If you passed in a thumbprint instead of a .pfx certificate, CoseSignTool will assume that certificate is in the default store (My/CurrentUser on Windows) unless you tell it otherwise. Use the **/StoreName** and **/StoreLocation** options to specify a store.
+    1. Write to the Standard Output channel (STDOUT) / console by using the **--PipeOutput** or **--po** option.
+    1. Specify an output file with **--SignatureFile** or **--sf**
+    1. Let CoseSignTool decide. It will write to *payload-file*.cose. But if you don't specify a payload file at all, it will exit with an error.
+* What certificate store to use. If you passed in a thumbprint instead of a .pfx certificate, CoseSignTool will assume that certificate is in the default store (My/CurrentUser on Windows) unless you tell it otherwise. Use the **--StoreName** or **--sn** and **--StoreLocation** or **--sl** options to specify a store.
 >Pro tip: Certificate store operations run faster if you use a custom store containing only the certificates you will sign with. You can create a custom store by adding a certificate to a store with a unique Store Name and pre-defined Store Location. For example, in Powershell: 
 ~~~
 Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUser\MyNewStore'
@@ -66,44 +69,44 @@ Import-Certificate -FilePath 'c:\my\cert.pfx' -CertStoreLocation 'Cert:CurrentUs
 **CoseSignTool automatically enables SCITT (Supply Chain Integrity, Transparency, and Trust) compliance** when signing with certificates. This includes adding CWT (CBOR Web Token) Claims to your signatures with DID:x509 identifiers.
 
 #### SCITT Arguments:
-* **/EnableScitt**, **/scitt** - Enable or disable SCITT compliance (default: **true**).
+* **--EnableScittCompliance**, **--scitt** - Enable or disable SCITT compliance (default: **true**).
   ```bash
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /scitt false  # Disable SCITT
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --scitt false  # Disable SCITT
   ```
 
-* **/CwtIssuer**, **/cwt-iss** - Set the issuer claim. If not specified, a **DID:x509 identifier is automatically generated** from your certificate chain.
+* **--CwtIssuer**, **--cwt-iss** - Set the issuer claim. If not specified, a **DID:x509 identifier is automatically generated** from your certificate chain.
   ```bash
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-iss "did:example:custom-issuer"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt-iss "did:example:custom-issuer"
   ```
 
-* **/CwtSubject**, **/cwt-sub** - Set the subject claim (default: **"unknown.intent"**). This should describe the purpose or intent of the signature.
+* **--CwtSubject**, **--cwt-sub** - Set the subject claim (default: **"unknown.intent"**). This should describe the purpose or intent of the signature.
   ```bash
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-sub "software.release.v1.2.3"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt-sub "software.release.v1.2.3"
   ```
 
-* **/CwtAudience**, **/cwt-aud** - Set the audience claim. Specifies the intended recipient or system.
+* **--CwtAudience**, **--cwt-aud** - Set the audience claim. Specifies the intended recipient or system.
   ```bash
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt-aud "production.systems"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt-aud "production.systems"
   ```
 
-* **/CwtClaims**, **/cwt** - Add custom CWT claims using `label:value` format. Can be specified multiple times.
+* **--CwtClaims**, **--cwt** - Add custom CWT claims using `label:value` format. Can be specified multiple times.
   ```bash
   # Standard timestamp claims (accepts ISO 8601 date/time strings or Unix timestamps)
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "exp:2025-12-31T23:59:59Z"
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "nbf:2024-01-01T00:00:00Z"
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "iat:2024-11-19T10:30:00-05:00"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt "exp:2025-12-31T23:59:59Z"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt "nbf:2024-01-01T00:00:00Z"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt "iat:2024-11-19T10:30:00-05:00"
   
   # Using Unix timestamps
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "exp:1735689600"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt "exp:1735689600"
   
   # Custom claims (use integer labels 100+)
-  CoseSignTool sign /p payload.txt /pfx cert.pfx /cwt "100:custom-value" /cwt "101:another-value"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx --cwt "100:custom-value" --cwt "101:another-value"
   
   # Combining multiple claims
-  CoseSignTool sign /p payload.txt /pfx cert.pfx \
-    /cwt-sub "release.v2.0" \
-    /cwt "exp:2025-12-31T23:59:59Z" \
-    /cwt "200:build-metadata"
+  CoseSignTool sign --p payload.txt --pfx cert.pfx \
+    --cwt-sub "release.v2.0" \
+    --cwt "exp:2025-12-31T23:59:59Z" \
+    --cwt "200:build-metadata"
   ```
 
 #### Standard CWT Claim Labels:
@@ -121,36 +124,80 @@ For comprehensive SCITT documentation, examples, and programmatic API usage, see
 
 **Basic SCITT-compliant signature (automatic DID:x509 issuer + default subject):**
 ```bash
-CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose
 ```
 
 **Custom subject and expiration:**
 ```bash
-CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
-  /cwt-sub "software.release.v1.0" \
-  /cwt "exp:2025-12-31T23:59:59Z"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-sub "software.release.v1.0" \
+  --cwt "exp:2025-12-31T23:59:59Z"
 ```
 
 **Full SCITT signature with all standard claims:**
 ```bash
-CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
-  /cwt-sub "container.image.production" \
-  /cwt-aud "production.kubernetes.cluster" \
-  /cwt "exp:2025-06-30T23:59:59Z" \
-  /cwt "nbf:2024-01-01T00:00:00Z" \
-  /cwt "iat:2024-11-19T15:30:00Z"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-sub "container.image.production" \
+  --cwt-aud "production.kubernetes.cluster" \
+  --cwt "exp:2025-06-30T23:59:59Z" \
+  --cwt "nbf:2024-01-01T00:00:00Z" \
+  --cwt "iat:2024-11-19T15:30:00Z"
 ```
 
 **Custom issuer (override DID:x509 auto-generation):**
 ```bash
-CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose \
-  /cwt-iss "did:example:custom-issuer" \
-  /cwt-sub "document.approval"
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose \
+  --cwt-iss "did:example:custom-issuer" \
+  --cwt-sub "document.approval"
 ```
 
 **Disable SCITT compliance:**
 ```bash
-CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose /scitt false
+CoseSignTool sign --p payload.txt --pfx mycert.pfx --sf signature.cose --scitt false
+```
+
+### PEM Certificate Examples (Linux/Unix):
+
+**Sign with combined PEM file (certificate + key in one file):**
+```bash
+CoseSignTool sign --p payload.txt --pem mycert.pem --sf signature.cose
+```
+
+**Sign with separate certificate and key files:**
+```bash
+CoseSignTool sign --p payload.txt --pem mycert.crt --key mykey.pem --sf signature.cose
+```
+
+**Sign with encrypted private key (using environment variable):**
+```bash
+# First set the password in an environment variable
+export COSESIGNTOOL_PASSWORD="keypassword"
+# Or specify a custom environment variable:
+export MY_KEY_PASSWORD="keypassword"
+CoseSignTool sign --p payload.txt --pem mycert.pem --key mykey.encrypted.pem --pwenv MY_KEY_PASSWORD --sf signature.cose
+```
+
+**Sign with encrypted private key (interactive prompt):**
+```bash
+CoseSignTool sign --p payload.txt --pem mycert.pem --key mykey.encrypted.pem --pwprompt --sf signature.cose
+```
+
+**Sign with PEM certificate chain (leaf + intermediates + root in one file):**
+```bash
+# The PEM file should contain certificates in order: leaf first, then intermediates, then root
+CoseSignTool sign --p payload.txt --pem fullchain.pem --key privkey.pem --sf signature.cose
+```
+
+**Creating PEM files from existing certificates:**
+```bash
+# Extract certificate from PFX to PEM format
+openssl pkcs12 -in mycert.pfx -clcerts -nokeys -out mycert.crt
+
+# Extract private key from PFX to PEM format  
+openssl pkcs12 -in mycert.pfx -nocerts -nodes -out mykey.pem
+
+# Combine certificate and key into single PEM file
+cat mycert.crt mykey.pem > combined.pem
 ```
 
 ### Headers:
@@ -159,13 +206,13 @@ CoseSignTool sign /p payload.txt /pfx mycert.pfx /sf signature.cose /scitt false
 >Note: SCITT CWT Claims are automatically added to protected headers when enabled. Custom headers are applied in addition to CWT Claims.
 
     * Command-line:
-        * /IntProtectedHeaders, /iph - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntProtectedHeaders created-at=12345678,customer-count=10
-        * /StringProtectedHeaders, /sph - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringProtectedHeaders message-type="cose",customer-name="contoso"
-        * /IntUnProtectedHeaders, /iuh - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: /IntUnProtectedHeaders created-at=12345678,customer-count=10
-        * /StringUnProtectedHeaders, /suh - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: /StringUnProtectedHeaders message-type="cose",customer-name="contoso"
+        * **--IntProtectedHeaders**, **--iph** - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: `--iph created-at=12345678,customer-count=10`
+        * **--StringProtectedHeaders**, **--sph** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--sph message-type="cose",customer-name="contoso"`
+        * **--IntUnProtectedHeaders**, **--iuh** - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: `--iuh created-at=12345678,customer-count=10`
+        * **--StringUnProtectedHeaders**, **--suh** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--suh message-type="cose",customer-name="contoso"`
     * File:
-        * /IntHeaders, /ih - A JSON file containing the headers with the value being an int32.
-        * /StringHeaders, /sh - A JSON file containing the headers with the value being a string.
+        * **--IntHeaders**, **--ih** - A JSON file containing the headers with the value being an int32.
+        * **--StringHeaders**, **--sh** - A JSON file containing the headers with the value being a string.
 
 The JSON schema is the same for both types of header files. Sample int32 and string headers file are shown below.
 
@@ -201,23 +248,23 @@ The JSON schema is the same for both types of header files. Sample int32 and str
 ]
 ~~~
 
-Run *CoseSignTool sign /?* for the complete command line usage.
+Run *CoseSignTool sign --help* for the complete command line usage.
 
 ### PFX Certificate Chain Examples
 
 **Sign with a PFX containing a certificate chain (uses first certificate with private key):**
 ```bash
-CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /sf signature.cose
+CoseSignTool sign --p payload.txt --pfx certificates.pfx --pw password123 --sf signature.cose
 ```
 
 **Sign with a specific certificate from a PFX chain using thumbprint:**
 ```bash
-CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /th A1B2C3D4E5F6789... /sf signature.cose
+CoseSignTool sign --p payload.txt --pfx certificates.pfx --pw password123 --th A1B2C3D4E5F6789... --sf signature.cose
 ```
 
 **Sign with embedded payload using PFX certificate chain:**
 ```bash
-CoseSignTool sign /p payload.txt /pfx certificates.pfx /pw password123 /ep /sf signature.csm
+CoseSignTool sign --p payload.txt --pfx certificates.pfx --pw password123 --ep --sf signature.cose
 ```
 
 When using these commands with a PFX file containing multiple certificates, CoseSignTool will automatically embed the complete certificate chain in the COSE signature, ensuring proper validation without requiring additional root certificates to be specified during validation.
@@ -232,10 +279,10 @@ CoseSignTool supports an extensible **Certificate Provider Plugin Architecture**
 Microsoft's cloud-based signing service providing managed certificates, FIPS 140-2 Level 3 HSM-backed signing, and seamless Azure integration.
 
 **Parameters:**
-* **/CertProvider**, **/cp** - Set to `azure-trusted-signing` to use Azure Trusted Signing
-* **/ats-endpoint**, **/e** - Azure Trusted Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
-* **/ats-account-name**, **/a** - Azure Trusted Signing account name
-* **/ats-cert-profile-name**, **/p** - Certificate profile name within the account
+* **--CertProvider**, **--cp** - Set to `azure-trusted-signing` to use Azure Trusted Signing
+* **--ats-endpoint** - Azure Trusted Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
+* **--ats-account-name** - Azure Trusted Signing account name
+* **--ats-cert-profile-name** - Certificate profile name within the account
 
 **Authentication:**
 Azure Trusted Signing uses Azure DefaultAzureCredential, which automatically tries:
@@ -250,11 +297,11 @@ Azure Trusted Signing uses Azure DefaultAzureCredential, which automatically tri
 ```bash
 # Basic usage with Azure CLI authentication
 az login
-CoseSignTool sign /p payload.txt /sf signature.cose \
-  /cp azure-trusted-signing \
-  /ats-endpoint https://contoso.codesigning.azure.net \
-  /ats-account-name ContosoAccount \
-  /ats-cert-profile-name ContosoProfile
+CoseSignTool sign --p payload.txt --sf signature.cose \
+  --cp azure-trusted-signing \
+  --ats-endpoint https://contoso.codesigning.azure.net \
+  --ats-account-name ContosoAccount \
+  --ats-cert-profile-name ContosoProfile
 ```
 
 ```bash
@@ -263,31 +310,31 @@ export AZURE_TENANT_ID="your-tenant-id"
 export AZURE_CLIENT_ID="your-client-id"
 export AZURE_CLIENT_SECRET="your-client-secret"
 
-CoseSignTool sign /p payload.txt /sf signature.cose \
-  /cp azure-trusted-signing \
-  /ats-endpoint https://contoso.codesigning.azure.net \
-  /ats-account-name ContosoAccount \
-  /ats-cert-profile-name ContosoProfile
+CoseSignTool sign --p payload.txt --sf signature.cose \
+  --cp azure-trusted-signing \
+  --ats-endpoint https://contoso.codesigning.azure.net \
+  --ats-account-name ContosoAccount \
+  --ats-cert-profile-name ContosoProfile
 ```
 
 ```bash
 # With SCITT compliance and embedded payload
-CoseSignTool sign /p payload.txt /sf payload.csm /ep \
-  /cp azure-trusted-signing \
-  /ats-endpoint https://contoso.codesigning.azure.net \
-  /ats-account-name ContosoAccount \
-  /ats-cert-profile-name ContosoProfile \
-  /cwt-sub "software.release.v2.0" \
-  /cwt "exp:2025-12-31T23:59:59Z"
+CoseSignTool sign --p payload.txt --sf payload.cose --ep \
+  --cp azure-trusted-signing \
+  --ats-endpoint https://contoso.codesigning.azure.net \
+  --ats-account-name ContosoAccount \
+  --ats-cert-profile-name ContosoProfile \
+  --cwt-sub "software.release.v2.0" \
+  --cwt "exp:2025-12-31T23:59:59Z"
 ```
 
 ```bash
 # Batch signing with piped input
-cat payload.txt | CoseSignTool sign /po \
-  /cp azure-trusted-signing \
-  /ats-endpoint https://contoso.codesigning.azure.net \
-  /ats-account-name ContosoAccount \
-  /ats-cert-profile-name ContosoProfile > signature.cose
+cat payload.txt | CoseSignTool sign --po \
+  --cp azure-trusted-signing \
+  --ats-endpoint https://contoso.codesigning.azure.net \
+  --ats-account-name ContosoAccount \
+  --ats-cert-profile-name ContosoProfile > signature.cose
 ```
 
 ### Creating Custom Certificate Providers
@@ -311,34 +358,34 @@ For detailed certificate provider documentation, see **[CertificateProviders.md]
 The **Validate** command validates that a COSE signature is properly constructed, matches the signed payload, and roots to a valid certificate chain.
 
 You will need to specify:
-* What to validate. This may be a file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length may be truncated, depending on what operating system and command shell you use.
-* (For detached signatures only) the **/Payload** that was signed. If validating an embedded signature (including indirect signatures), skip this part as the payload/hash is embedded in the signature.
+* What to validate. This may be a file specified with the **--SignatureFile** or **--sf** option or you can pipe it in on the Standard Input channel when you call CoseSignTool. Piping in the content is generally considered more secure and performant option but large streams of > 2gb in length may be truncated, depending on what operating system and command shell you use.
+* (For detached signatures only) the **--PayloadFile** or **--p** that was signed. If validating an embedded signature (including indirect signatures), skip this part as the payload/hash is embedded in the signature.
 
 You may also want to specify:
-* Some root certificates. By default, CoseSignTool will try to chain the signing certificate to whatever certificates are installed on the machine. If you want to chain to certificates that are not installed, use the **/Roots** option.
+* Some root certificates. By default, CoseSignTool will try to chain the signing certificate to whatever certificates are installed on the machine. If you want to chain to certificates that are not installed, use the **--Roots** or **--rt** option.
     * User-specified roots will be treated as "trusted" for purposes of validation.
     * Root certificates for validation do not have to include a private key, so .cer files are acceptable.
     * To supply multiple root certificates, separate the file paths with commas.
-* Certificate Details. You can use the */ShowCertificateDetails** option to print out the details of the signing certificate chain.
-* Verbosity. You can use the */Verbose** option to get more detailed output on validation failures.
+* Certificate Details. You can use the **--ShowCertificateDetails** or **--scd** option to print out the details of the signing certificate chain.
+* Verbosity. You can use the **--Verbose** or **--v** option to get more detailed output on validation failures.
 
 And in some cases:
-* **/RevocationMode** -- By default, CoseSignTool checks the signing certificate against an online database to see if it has been revoked. You can skip this check by setting **/RevocationMode** to **none**. RevocationMode.Offline is not yet implemented.
-* **/CommonName** -- Forces validation to require that the signing certificate match a specific Common Name value.
-* **/AllowUntrusted** -- Prevents CoseSignTool from failing validation when the certificate chain has an untrusted root. This is intended for test purposes and should not generally be used for production.
-* **/AllowOutdated** -- Prevents CoseSignTool from failing validation when the certificate chain has an expired certificate, unless the expired certificate has a lifetime EKU.
+* **--RevocationMode** or **--rm** -- By default, CoseSignTool checks the signing certificate against an online database to see if it has been revoked. You can skip this check by setting **--RevocationMode** to **NoCheck**. RevocationMode.Offline is not yet implemented.
+* **--CommonName** or **--cn** -- Forces validation to require that the signing certificate match a specific Common Name value.
+* **--AllowUntrusted** or **--au** -- Prevents CoseSignTool from failing validation when the certificate chain has an untrusted root. This is intended for test purposes and should not generally be used for production.
+* **--AllowOutdated** or **--ao** -- Prevents CoseSignTool from failing validation when the certificate chain has an expired certificate, unless the expired certificate has a lifetime EKU.
 
-Run *CoseSignTool validate /?* for the complete command line usage.
+Run *CoseSignTool validate --help* for the complete command line usage.
 
 ## Get
-The **Get** command retrieves the payload from a COSE embed-signed file and writes the text to cosole or to a file. It also runs the Validate command and prints out any errors on the Standard Error pipe.
+The **Get** command retrieves the payload from a COSE embed-signed file and writes the text to console or to a file. It also runs the Validate command and prints out any errors on the Standard Error pipe.
 
 You will need to specify:
-* What to validate. This may be an embed-signed file specified with the **/SignatureFile** option or you can pipe it in on the Standard Input channel when you call CoseSignTool.
+* What to validate. This may be an embed-signed file specified with the **--SignatureFile** or **--sf** option or you can pipe it in on the Standard Input channel when you call CoseSignTool.
 
 You may also want to specify:
-* A file to write the payload to. Use the **/SaveTo** option to specify a file path; otherwise the payload will be printed to Standard Out.
-* **/Roots**, **/Verbosity**, **/RevocationMode**, **/CommonName**, **/AllowUntrusted**, and **/AllowOutdated** exactly as with the Validate command.
+* A file to write the payload to. Use the **--SaveTo** or **--sa** option to specify a file path; otherwise the payload will be printed to Standard Out.
+* **--Roots**, **--Verbose**, **--RevocationMode**, **--CommonName**, **--AllowUntrusted**, and **--AllowOutdated** exactly as with the Validate command.
 
-Run *CoseSignTool get /?* for the complete command line usage.
+Run *CoseSignTool get --help* for the complete command line usage.
 

@@ -99,23 +99,8 @@ public static class PluginLoader
                 "Attempted to load from an empty or null directory path.");
         }
 
-        string executablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-        string executableDirectory;
-        
-        if (string.IsNullOrWhiteSpace(executablePath))
-        {
-            // Fallback for single-file deployments or when Location is not available
-            executableDirectory = Directory.GetCurrentDirectory();
-        }
-        else
-        {
-            executableDirectory = Path.GetDirectoryName(executablePath);
-            if (string.IsNullOrWhiteSpace(executableDirectory))
-            {
-                // Additional fallback if GetDirectoryName returns null/empty
-                executableDirectory = Directory.GetCurrentDirectory();
-            }
-        }
+        // Use AppContext.BaseDirectory which works for both regular and single-file deployments
+        string executableDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         
         string authorizedPluginsDirectory = Path.Join(executableDirectory, "plugins");
         

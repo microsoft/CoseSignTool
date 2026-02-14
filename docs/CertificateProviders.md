@@ -32,7 +32,7 @@ The plugin architecture automatically:
 ## Built-in Providers
 
 ### Local Certificate Provider (Default)
-When no `--cert-provider` is specified, CoseSignTool uses local certificate loading:
+When no `--cp` is specified, CoseSignTool uses local certificate loading:
 - **PFX files**: Load certificates with private keys from `.pfx` files
 - **Certificate stores**: Access certificates from Windows/macOS/Linux certificate stores
 
@@ -48,7 +48,7 @@ See [Azure Trusted Signing](#azure-trusted-signing) section for details.
 
 ### Basic Syntax
 ```bash
-CoseSignTool sign --payload <file> --cert-provider <provider-name> [provider-options]
+CoseSignTool sign --p <file> --cp <provider-name> [provider-options]
 ```
 
 ### List Available Providers
@@ -60,9 +60,9 @@ CoseSignTool sign --help
 ### Example with Azure Trusted Signing
 ```bash
 CoseSignTool sign \
-  --payload payload.txt \
-  --signature signature.cose \
-  --cert-provider azure-trusted-signing \
+  --p payload.txt \
+  --sf signature.cose \
+  --cp azure-trusted-signing \
   --ats-endpoint https://contoso.codesigning.azure.net \
   --ats-account-name ContosoAccount \
   --ats-cert-profile-name ContosoProfile
@@ -120,9 +120,9 @@ Azure Trusted Signing uses **Azure DefaultAzureCredential** for authentication, 
 az login
 
 CoseSignTool sign \
-  --payload document.pdf \
-  --signature document.pdf.cose \
-  --cert-provider azure-trusted-signing \
+  --p document.pdf \
+  --sf document.pdf.cose \
+  --cp azure-trusted-signing \
   --ats-endpoint https://contoso.codesigning.azure.net \
   --ats-account-name ContosoAccount \
   --ats-cert-profile-name ContosoProfile
@@ -148,9 +148,9 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
           CoseSignTool sign \
-            --payload release-artifact.bin \
-            --signature release-artifact.bin.cose \
-            --cert-provider azure-trusted-signing \
+            --p release-artifact.bin \
+            --sf release-artifact.bin.cose \
+            --cp azure-trusted-signing \
             --ats-endpoint ${{ secrets.ATS_ENDPOINT }} \
             --ats-account-name ${{ secrets.ATS_ACCOUNT_NAME }} \
             --ats-cert-profile-name ${{ secrets.ATS_CERT_PROFILE_NAME }}
@@ -174,9 +174,9 @@ steps:
     scriptLocation: 'inlineScript'
     inlineScript: |
       CoseSignTool sign \
-        --payload $(Build.ArtifactStagingDirectory)/artifact.bin \
-        --signature $(Build.ArtifactStagingDirectory)/artifact.bin.cose \
-        --cert-provider azure-trusted-signing \
+        --p $(Build.ArtifactStagingDirectory)/artifact.bin \
+        --sf $(Build.ArtifactStagingDirectory)/artifact.bin.cose \
+        --cp azure-trusted-signing \
         --ats-endpoint $(ATS_ENDPOINT) \
         --ats-account-name $(ATS_ACCOUNT_NAME) \
         --ats-cert-profile-name $(ATS_CERT_PROFILE_NAME)
@@ -185,16 +185,16 @@ steps:
 #### Embedded Signature with SCITT Claims
 ```bash
 CoseSignTool sign \
-  --payload payload.txt \
-  --signature payload.csm \
-  --embed-payload \
-  --cert-provider azure-trusted-signing \
+  --p payload.txt \
+  --sf payload.cose \
+  --ep \
+  --cp azure-trusted-signing \
   --ats-endpoint https://contoso.codesigning.azure.net \
   --ats-account-name ContosoAccount \
   --ats-cert-profile-name ContosoProfile \
-  --cwt-subject "software.release.v2.0" \
-  --cwt-audience "production.systems" \
-  --cwt-claims "exp:2025-12-31T23:59:59Z"
+  --cwt-sub "software.release.v2.0" \
+  --cwt-aud "production.systems" \
+  --cwt "exp:2025-12-31T23:59:59Z"
 ```
 
 #### Batch Signing with Environment Variables
@@ -212,9 +212,9 @@ export AZURE_CLIENT_SECRET="your-client-secret"
 # Sign multiple files
 for file in *.bin; do
   CoseSignTool sign \
-    --payload "$file" \
-    --signature "${file}.cose" \
-    --cert-provider azure-trusted-signing \
+    --p "$file" \
+    --sf "${file}.cose" \
+    --cp azure-trusted-signing \
     --ats-endpoint "$ATS_ENDPOINT" \
     --ats-account-name "$ATS_ACCOUNT_NAME" \
     --ats-cert-profile-name "$ATS_CERT_PROFILE_NAME"
@@ -225,9 +225,9 @@ done
 
 | Parameter | Alias | Required | Description |
 |-----------|-------|----------|-------------|
-| `--ats-endpoint` | `-e` | Yes | Azure Trusted Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`) |
-| `--ats-account-name` | `-a` | Yes | Azure Trusted Signing account name |
-| `--ats-cert-profile-name` | `-p` | Yes | Certificate profile name within the account |
+| `--ats-endpoint` | | Yes | Azure Trusted Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`) |
+| `--ats-account-name` | | Yes | Azure Trusted Signing account name |
+| `--ats-cert-profile-name` | | Yes | Certificate profile name within the account |
 
 ### Troubleshooting Azure Trusted Signing
 
@@ -270,11 +270,11 @@ Error: Certificate provider 'azure-trusted-signing' cannot create a provider wit
 **Solution**: Verify all required parameters are provided
 ```bash
 CoseSignTool sign \
-  --cert-provider azure-trusted-signing \
+  --cp azure-trusted-signing \
   --ats-endpoint "https://your-endpoint.codesigning.azure.net" \
   --ats-account-name "YourAccount" \
   --ats-cert-profile-name "YourProfile" \
-  --payload test.txt
+  --p test.txt
 ```
 
 ## Creating Custom Certificate Providers
@@ -288,7 +288,7 @@ public interface ICertificateProviderPlugin
 {
     /// <summary>
     /// Gets the unique name of this certificate provider (e.g., "azure-trusted-signing").
-    /// Used with the --cert-provider command line parameter.
+    /// Used with the --cp command line parameter.
     /// </summary>
     string ProviderName { get; }
 

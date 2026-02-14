@@ -85,7 +85,7 @@ public class VerifyCommand : MstCommandBase
         Logger.LogVerbose("Creating transparency service with verification options");
         
         // Create the transparency service with verification options and logging
-        CoseSign1.Transparent.Interfaces.ITransparencyService transparencyService = 
+        CoseSign1.Transparent.TransparencyService transparencyService = 
             new CoseSign1.Transparent.MST.MstTransparencyService(
                 client, 
                 verificationOptions, 

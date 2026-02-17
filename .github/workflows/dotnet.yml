@@ -293,6 +293,15 @@ jobs:
     - name: Checkout code again
       uses: actions/checkout@v3
 
+    # Restore all projects including plugins.
+    # Plugin projects are not direct ProjectReferences of CoseSignTool — they are discovered
+    # by glob in the BuildPlugins MSBuild target. Because of this, `dotnet publish` only
+    # restores CoseSignTool and its transitive project references, leaving plugin projects
+    # without a project.assets.json. Restoring the full solution up front ensures plugins
+    # are restored before the BuildPlugins target tries to compile them.
+    - name: Restore all projects
+      run: dotnet restore CoseSignTool.sln --runtime ${{ matrix.runtime_id }}
+
     # Build and publish the binaries to ./published.
     # Plugins are automatically built and deployed via BuildPlugins and DeployAllPlugins targets (enabled by default)
     # PublishSingleFile=true creates a single self-contained executable with plugins bundled inside
@@ -306,8 +315,8 @@ jobs:
         echo "Publishing single-file self-contained executable for runtime: $RUNTIME_ID"
         echo "Plugins will be bundled inside the executable"
         
-        dotnet publish --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
-        dotnet publish --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
+        dotnet publish --no-restore --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
+        dotnet publish --no-restore --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
         
         # PublishSingleFile=true bundles everything into a single executable:
         # - The .NET runtime (self-contained)

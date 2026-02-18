@@ -1,0 +1,21 @@
+[package]
+name = "cose_openssl"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
+[features]
+pqc = []
+
+[lints.rust]
+warnings = "deny"
+
+[dependencies]
+hex = "0.4"
+openssl-sys = "0.9"
+
+# Once https://github.com/project-everest/everparse/pull/260 is merged,
+# change to official mirror.
+cborrs-nondet = { git  = "https://github.com/maxtropets/everparse.git", branch = "f/unique-cargo-crates" }

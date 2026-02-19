@@ -15,7 +15,4 @@ warnings = "deny"
 [dependencies]
 hex = "0.4"
 openssl-sys = "0.9"
-
-# Once https://github.com/project-everest/everparse/pull/260 is merged,
-# change to official mirror.
-cborrs-nondet = { git  = "https://github.com/maxtropets/everparse.git", branch = "f/unique-cargo-crates" }
+cborrs-nondet = { git  = "https://github.com/project-everest/everparse.git", rev = "7b55c57ef5b71368bc739dabef7e384f74026e41" }

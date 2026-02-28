@@ -325,6 +325,7 @@ pub extern "C" fn cose_sign1_akv_create_signing_key(
 // ============================================================================
 
 /// Opaque handle for AKV signing service.
+#[allow(dead_code)]
 pub struct AkvSigningServiceHandle(cose_sign1_azure_key_vault::signing::AzureKeyVaultSigningService);
 
 /// Create an AKV signing service from a key client.

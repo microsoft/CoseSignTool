@@ -43,7 +43,7 @@ pub fn message_parse_inner(
 
         let bytes = unsafe { slice::from_raw_parts(data, data_len) };
 
-        let provider = ffi_cbor_provider();
+        let _provider = ffi_cbor_provider();
         match CoseSign1Message::parse(bytes) {
             Ok(message) => {
                 let inner = MessageInner { message };

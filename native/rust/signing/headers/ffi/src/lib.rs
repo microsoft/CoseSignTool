@@ -426,7 +426,7 @@ pub fn impl_cwt_claims_to_cbor_inner(
             return FFI_ERR_NULL_POINTER;
         };
 
-        let provider = ffi_cbor_provider();
+        let _provider = ffi_cbor_provider();
         match inner.claims.to_cbor_bytes() {
             Ok(bytes) => {
                 let len = bytes.len();
@@ -506,7 +506,7 @@ pub fn impl_cwt_claims_from_cbor_inner(
 
         let data = unsafe { slice::from_raw_parts(cbor_data, cbor_len as usize) };
 
-        let provider = ffi_cbor_provider();
+        let _provider = ffi_cbor_provider();
         match CwtClaims::from_cbor_bytes(data) {
             Ok(claims) => {
                 let inner = CwtClaimsInner { claims };

@@ -265,7 +265,6 @@ pub fn run(args: SignArgs) -> i32 {
 #[cfg(feature = "mst")]
 fn apply_mst_transparency(args: &SignArgs, cose_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     use cose_sign1_transparent_mst::signing::{MstTransparencyClient, MstTransparencyClientOptions, MstTransparencyProvider};
-    use cose_sign1_signing::transparency::add_proof_with_receipt_merge;
     use url::Url;
 
     // This is a stub implementation as per the task requirements
@@ -283,7 +282,7 @@ fn apply_mst_transparency(args: &SignArgs, cose_bytes: &[u8]) -> Result<Vec<u8>,
     // Create MST client with default options (this code path validates but doesn't execute)
     let client_options = MstTransparencyClientOptions::default();
     let mst_client = MstTransparencyClient::new(endpoint, client_options);
-    let transparency_provider = MstTransparencyProvider::new(mst_client);
+    let _transparency_provider = MstTransparencyProvider::new(mst_client);
 
     // For now, just return the original bytes as a stub
     // The real implementation would call:

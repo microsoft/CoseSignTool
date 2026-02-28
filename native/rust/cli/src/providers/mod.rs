@@ -18,6 +18,7 @@ pub trait SigningProvider {
     /// Short name for `--provider` dispatch (e.g., "der", "pfx", "akv").
     fn name(&self) -> &str;
     /// Description for help text.
+    #[allow(dead_code)]
     fn description(&self) -> &str;
     /// Create a CryptoSigner from the provider-specific arguments.
     fn create_signer(&self, args: &SigningProviderArgs) -> Result<Box<dyn crypto_primitives::CryptoSigner>, anyhow::Error>;
@@ -25,6 +26,7 @@ pub trait SigningProvider {
 
 /// Arguments passed to signing providers.
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct SigningProviderArgs {
     // DER provider
     pub key_path: Option<std::path::PathBuf>,
@@ -62,6 +64,7 @@ pub struct SigningProviderArgs {
 }
 
 /// A verification provider contributes trust packs and policy to the validator.
+#[allow(dead_code)]
 pub trait VerificationProvider {
     /// Short name (e.g., "certificates", "mst", "akv").
     fn name(&self) -> &str;
@@ -76,6 +79,7 @@ pub trait VerificationProvider {
 
 /// Arguments passed to verification providers.
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct VerificationProviderArgs {
     /// Allow embedded cert chains as trusted (testing only)
     pub allow_embedded: bool,

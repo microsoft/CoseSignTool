@@ -577,6 +577,7 @@ dependencies = [
  "cose_sign1_azure_key_vault",
  "cose_sign1_azure_trusted_signing",
  "cose_sign1_certificates",
+ "cose_sign1_certificates_local",
  "cose_sign1_crypto_openssl",
  "cose_sign1_factories",
  "cose_sign1_headers",

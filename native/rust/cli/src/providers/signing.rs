@@ -143,14 +143,48 @@ impl SigningProvider for EphemeralSigningProvider {
 
     fn create_signer(
         &self,
-        _args: &SigningProviderArgs,
+        args: &SigningProviderArgs,
     ) -> Result<Box<dyn crypto_primitives::CryptoSigner>, anyhow::Error> {
-        // TODO: Use cose_sign1_certificates_local to generate ephemeral cert + key
-        // Study: native/rust/extension_packs/certificates/local/src/lib.rs
-        // The API is roughly: EphemeralCertificateFactory::new().create_self_signed(subject)?
-        // This returns (cert_der, key_der)
-        // Then create signer from key_der
-        anyhow::bail!("Ephemeral provider requires cose_sign1_certificates_local integration — stub")
+        use cose_sign1_certificates_local::{
+            EphemeralCertificateFactory, SoftwareKeyProvider,
+            options::CertificateOptions, traits::CertificateFactory,
+        };
+        use cose_sign1_crypto_openssl::OpenSslCryptoProvider;
+        use crypto_primitives::CryptoProvider;
+
+        // Determine subject name from args or use default
+        let subject = args.subject.as_deref().unwrap_or("CN=CoseSignTool Ephemeral");
+
+        // Create the factory with a software key provider
+        let key_provider = Box::new(SoftwareKeyProvider::new());
+        let factory = EphemeralCertificateFactory::new(key_provider);
+
+        // Build certificate options
+        let options = CertificateOptions::default()
+            .with_subject_name(subject);
+
+        // Generate the certificate + key
+        let cert = factory.create_certificate(options)
+            .map_err(|e| anyhow::anyhow!("Failed to create ephemeral certificate: {}", e))?;
+
+        // Compute thumbprint before moving key_der out
+        let thumbprint = hex::encode(cert.thumbprint_sha256());
+
+        let key_der = cert.private_key_der
+            .ok_or_else(|| anyhow::anyhow!("Ephemeral certificate has no private key"))?;
+
+        // Create a CryptoSigner from the private key DER
+        let provider = OpenSslCryptoProvider;
+        let signer = provider.signer_from_der(&key_der)
+            .map_err(|e| anyhow::anyhow!("Failed to create signer from ephemeral key: {}", e))?;
+
+        tracing::info!(
+            subject = subject,
+            thumbprint = %thumbprint,
+            "Generated ephemeral signing certificate"
+        );
+
+        Ok(signer)
     }
 }
 

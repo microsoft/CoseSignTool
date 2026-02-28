@@ -1,0 +1,50 @@
+{
+  "name": "cosesign1-validation-native",
+  "version-string": "0.1.0",
+  "description": "C and C++ projections for COSE_Sign1 validation (Rust FFI-backed)",
+  "homepage": "https://github.com/microsoft/cosesigntool",
+  "license": "MIT",
+  "supports": "windows | linux | osx",
+  "default-features": ["certificates", "cpp", "signing", "primitives", "mst", "certificates-local", "crypto", "factories"],
+  "features": {
+    "cpp": {
+      "description": "Install C++ projection headers + CMake target"
+    },
+    "certificates": {
+      "description": "Build/install X.509 certificates pack FFI and enable COSE_HAS_CERTIFICATES_PACK"
+    },
+    "certificates-local": {
+      "description": "Build/install local certificate generation FFI and enable COSE_HAS_CERTIFICATES_LOCAL"
+    },
+    "crypto": {
+      "description": "Build/install OpenSSL crypto provider FFI and enable COSE_HAS_CRYPTO_OPENSSL"
+    },
+    "cbor-everparse": {
+      "description": "Use EverParse CBOR provider and enable COSE_CBOR_EVERPARSE"
+    },
+    "factories": {
+      "description": "Build/install factories FFI and enable COSE_HAS_FACTORIES"
+    },
+    "mst": {
+      "description": "Build/install MST pack FFI and enable COSE_HAS_MST_PACK"
+    },
+    "akv": {
+      "description": "Build/install Azure Key Vault pack FFI and enable COSE_HAS_AKV_PACK"
+    },
+    "trust": {
+      "description": "Build/install trust-policy pack FFI and enable COSE_HAS_TRUST_PACK"
+    },
+    "signing": {
+      "description": "Build/install signing FFI and enable COSE_HAS_SIGNING"
+    },
+    "primitives": {
+      "description": "Build/install primitives FFI and enable COSE_HAS_PRIMITIVES"
+    },
+    "headers": {
+      "description": "Build/install headers FFI and enable COSE_HAS_HEADERS"
+    },
+    "did-x509": {
+      "description": "Build/install DID X.509 FFI and enable COSE_HAS_DID_X509"
+    }
+  }
+}

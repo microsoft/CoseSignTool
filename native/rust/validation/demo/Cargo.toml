@@ -1,0 +1,27 @@
+[package]
+name = "cose_sign1_validation_demo"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "cose_sign1_validation_demo"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+anyhow.workspace = true
+cose_sign1_validation = { path = "../core" }
+cose_sign1_validation_primitives = { path = "../primitives" }
+cose_sign1_certificates = { path = "../../extension_packs/certificates" }
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+
+# Signing an ephemeral ES256 COSE_Sign1
+ring.workspace = true
+sha1.workspace = true
+hex.workspace = true
+base64.workspace = true
+rcgen = "0.13"
+x509-parser.workspace = true

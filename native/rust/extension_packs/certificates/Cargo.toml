@@ -1,0 +1,36 @@
+[package]
+name = "cose_sign1_certificates"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+[dependencies]
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cose_sign1_signing = { path = "../../signing/core" }
+cose_sign1_headers = { path = "../../signing/headers" }
+did_x509 = { path = "../../did/x509" }
+cose_sign1_validation = { path = "../../validation/core" }
+cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+crypto_primitives = { path = "../../primitives/crypto" }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+sha1.workspace = true
+sha2.workspace = true
+x509-parser.workspace = true
+openssl = "0.10"
+tracing = { workspace = true }
+
+[features]
+default = []
+
+[dev-dependencies]
+cose_sign1_certificates_local = { path = "local" }
+rcgen = "0.13"
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+openssl = "0.10"

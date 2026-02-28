@@ -1,0 +1,31 @@
+# CMake build directories
+build/
+Build/
+out/
+build-*/
+cmake-build-*/
+
+# Rust build artifacts
+target/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.vcxproj.user
+
+# Test outputs
+Testing/
+
+# Coverage reports
+coverage/
+coverage-*/
+coverage*/
+*.profraw
+*.profdata
+
+# vcpkg artifacts (when using vcpkg from this folder)
+vcpkg_installed/
+vcpkg/downloads/
+vcpkg/buildtrees/
+vcpkg/packages/

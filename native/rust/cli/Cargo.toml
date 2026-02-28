@@ -1,0 +1,53 @@
+[package]
+name = "cose_sign1_cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "CoseSignTool"
+path = "src/main.rs"
+
+[lib]
+name = "cose_sign1_cli"
+
+[features]
+default = ["crypto-openssl", "certificates", "mst"]
+crypto-openssl = ["dep:cose_sign1_crypto_openssl", "dep:openssl"]
+certificates = ["dep:cose_sign1_certificates"]
+akv = ["dep:cose_sign1_azure_key_vault"]
+ats = ["dep:cose_sign1_azure_trusted_signing"]
+mst = ["dep:cose_sign1_transparent_mst", "dep:url"]
+
+[dependencies]
+# Always required
+cose_sign1_primitives = { path = "../primitives/cose/sign1" }
+cose_primitives = { path = "../primitives/cose" }
+crypto_primitives = { path = "../primitives/crypto" }
+cose_sign1_signing = { path = "../signing/core" }
+cose_sign1_factories = { path = "../signing/factories" }
+cose_sign1_headers = { path = "../signing/headers" }
+cose_sign1_validation = { path = "../validation/core" }
+cose_sign1_validation_primitives = { path = "../validation/primitives" }
+cbor_primitives = { path = "../primitives/cbor" }
+cbor_primitives_everparse = { path = "../primitives/cbor/everparse" }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+serde_json = { workspace = true }
+
+# Feature-gated
+cose_sign1_crypto_openssl = { path = "../primitives/crypto/openssl", optional = true }
+cose_sign1_certificates = { path = "../extension_packs/certificates", optional = true }
+cose_sign1_azure_key_vault = { path = "../extension_packs/azure_key_vault", optional = true }
+cose_sign1_azure_trusted_signing = { path = "../extension_packs/azure_trusted_signing", optional = true }
+cose_sign1_transparent_mst = { path = "../extension_packs/mst", optional = true }
+openssl = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+
+[dev-dependencies]
+openssl = { workspace = true }
+tempfile = { workspace = true }

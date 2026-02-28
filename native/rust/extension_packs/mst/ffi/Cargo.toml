@@ -1,0 +1,26 @@
+[package]
+name = "cose_sign1_transparent_mst_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_validation_ffi = { path = "../../../validation/core/ffi" }
+cose_sign1_validation = { path = "../../../validation/core" }
+cose_sign1_transparent_mst = { path = ".." }
+cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse" }
+
+[dependencies.anyhow]
+workspace = true
+
+[dependencies.libc]
+version = "0.2"
+
+[dependencies.url]
+workspace = true
+
+[dev-dependencies]
+cose_sign1_validation_primitives_ffi = { path = "../../../validation/primitives/ffi" }

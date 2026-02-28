@@ -366,3 +366,9 @@ FodyWeavers.xsd
 
 # Visual Studio live unit testing configuration files.
 *.lutconfig
+
+# Copilot Orchestrator temporary files
+.worktrees/
+.orchestrator/
+.copilot-cli/
+.github/instructions/orchestrator-*.instructions.md

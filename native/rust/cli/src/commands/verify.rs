@@ -217,6 +217,15 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         });
     }
 
+    // Determine trust model based on CLI flags:
+    // - If --require-mst-receipt is set (and no explicit trust roots), MST receipt IS the trust.
+    //   We still require signature verification but don't require X509 chain trust.
+    // - Otherwise, use standard X509 chain trust.
+    #[cfg(feature = "mst")]
+    let mst_is_trust = args.require_mst_receipt && provider_args.trust_roots.is_empty();
+    #[cfg(not(feature = "mst"))]
+    let mst_is_trust = false;
+
     // Add MST receipt requirement if enabled
     #[cfg(feature = "mst")]
     {
@@ -245,21 +254,28 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         }
     }
 
-    // Add primary signing key requirements (this preserves existing logic)
-    trust_plan_builder = trust_plan_builder.for_primary_signing_key(|key| {
-        let mut rules = key.require::<X509ChainTrustedFact>(|f| f.require_trusted())
-            .and()
-            .require::<X509SigningCertificateIdentityFact>(|f| f.cert_valid_at(now));
+    // Add primary signing key requirements based on trust model
+    if mst_is_trust {
+        // MST trust model: The MST receipt attests the signature was registered
+        // in the transparency ledger, providing trust. We don't require X509
+        // chain trust or cert validity — the receipt IS the trust anchor.
+        // No for_primary_signing_key rules needed.
+    } else {
+        // Standard X509 trust model: require chain trust + valid cert identity.
+        trust_plan_builder = trust_plan_builder.for_primary_signing_key(|key| {
+            let mut rules = key.require::<X509ChainTrustedFact>(|f| f.require_trusted())
+                .and()
+                .require::<X509SigningCertificateIdentityFact>(|f| f.cert_valid_at(now));
 
-        // Add thumbprint pinning if specified (for now, just use the first one)
-        if let Some(first_thumbprint) = args.allowed_thumbprint.first() {
-            rules = rules.and().require::<X509SigningCertificateIdentityFact>(|f| {
-                f.thumbprint_eq(first_thumbprint)
-            });
-        }
+            if let Some(first_thumbprint) = args.allowed_thumbprint.first() {
+                rules = rules.and().require::<X509SigningCertificateIdentityFact>(|f| {
+                    f.thumbprint_eq(first_thumbprint)
+                });
+            }
 
-        rules
-    });
+            rules
+        });
+    }
 
     let compiled_plan = match trust_plan_builder.compile() {
         Ok(plan) => plan,
@@ -274,6 +290,13 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
     if let Some(payload) = detached_payload {
         validator = validator.with_options(|o| {
             o.detached_payload = Some(payload);
+        });
+    }
+    // When MST is the trust model, bypass X509 trust evaluation.
+    // MST receipt verification happens in the post-signature stage via the MST trust pack.
+    if mst_is_trust {
+        validator = validator.with_options(|o| {
+            o.trust_evaluation_options.bypass_trust = true;
         });
     }
 

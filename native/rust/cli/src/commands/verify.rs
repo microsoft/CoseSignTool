@@ -159,11 +159,28 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         mst_ledger_instances: Vec::new(),
     };
 
+    // Determine trust model based on CLI flags:
+    // - If --require-mst-receipt is set (and no explicit trust roots), MST receipt IS the trust.
+    //   The MST receipt counter-signature provides trust, not X509 chain trust.
+    // - Otherwise, use standard X509 chain trust.
+    #[cfg(feature = "mst")]
+    let mst_is_trust = args.require_mst_receipt && provider_args.trust_roots.is_empty();
+    #[cfg(not(feature = "mst"))]
+    let mst_is_trust = false;
+
     // 4. Collect trust packs from available providers
+    // When MST is the trust model, skip the certificates provider — MST receipt
+    // verification via counter-signatures provides trust instead of X509 chain trust.
+    // The validator's counter-signature bypass path handles this automatically when
+    // no primary key resolver is present.
     let mut trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = Vec::new();
     let providers = available_providers();
     
     for provider in &providers {
+        if mst_is_trust && provider.name() == "certificates" {
+            tracing::info!(provider = provider.name(), "Skipping — MST receipt is the trust mechanism");
+            continue;
+        }
         match provider.create_trust_pack(&provider_args) {
             Ok(pack) => {
                 tracing::info!(provider = provider.name(), "Added trust pack");
@@ -216,15 +233,6 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
             })
         });
     }
-
-    // Determine trust model based on CLI flags:
-    // - If --require-mst-receipt is set (and no explicit trust roots), MST receipt IS the trust.
-    //   We still require signature verification but don't require X509 chain trust.
-    // - Otherwise, use standard X509 chain trust.
-    #[cfg(feature = "mst")]
-    let mst_is_trust = args.require_mst_receipt && provider_args.trust_roots.is_empty();
-    #[cfg(not(feature = "mst"))]
-    let mst_is_trust = false;
 
     // Add MST receipt requirement if enabled
     #[cfg(feature = "mst")]

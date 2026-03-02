@@ -159,28 +159,12 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         mst_ledger_instances: Vec::new(),
     };
 
-    // Determine trust model based on CLI flags:
-    // - If --require-mst-receipt is set (and no explicit trust roots), MST receipt IS the trust.
-    //   The MST receipt counter-signature provides trust, not X509 chain trust.
-    // - Otherwise, use standard X509 chain trust.
-    #[cfg(feature = "mst")]
-    let mst_is_trust = args.require_mst_receipt && provider_args.trust_roots.is_empty();
-    #[cfg(not(feature = "mst"))]
-    let mst_is_trust = false;
-
-    // 4. Collect trust packs from available providers
-    // When MST is the trust model, skip the certificates provider — MST receipt
-    // verification via counter-signatures provides trust instead of X509 chain trust.
-    // The validator's counter-signature bypass path handles this automatically when
-    // no primary key resolver is present.
+    // 4. Collect trust packs from ALL available providers.
+    // The trust plan DSL handles OR composition between different trust models.
     let mut trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = Vec::new();
     let providers = available_providers();
     
     for provider in &providers {
-        if mst_is_trust && provider.name() == "certificates" {
-            tracing::info!(provider = provider.name(), "Skipping — MST receipt is the trust mechanism");
-            continue;
-        }
         match provider.create_trust_pack(&provider_args) {
             Ok(pack) => {
                 tracing::info!(provider = provider.name(), "Added trust pack");
@@ -198,7 +182,17 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         return 2;
     }
 
-    // 5. Build trust policy from CLI flags
+    // 5. Build trust policy from CLI flags using AND/OR composition.
+    //
+    // The trust plan DSL composes different trust models:
+    // - X509 chain trust:  for_primary_signing_key(chain_trusted AND cert_valid)
+    // - MST receipt trust:  for_counter_signature(receipt_trusted)
+    //
+    // When both are requested, they compose as:
+    //   (X509 chain trusted AND cert valid) OR (MST receipt trusted)
+    //
+    // This mirrors V2 C# where trust plan composition handles all combinations
+    // without any pipeline bypasses or provider filtering.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("clock")
@@ -234,19 +228,6 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         });
     }
 
-    // Add MST receipt requirement if enabled
-    #[cfg(feature = "mst")]
-    {
-        if args.require_mst_receipt {
-            use cose_sign1_transparent_mst::validation::fluent_ext::*;
-            use cose_sign1_transparent_mst::validation::facts::*;
-            
-            trust_plan_builder = trust_plan_builder.for_message(|msg| {
-                msg.require::<MstReceiptPresentFact>(|f| f.require_receipt_present())
-            });
-        }
-    }
-
     // Add AKV KID requirements if enabled
     #[cfg(feature = "akv")]
     {
@@ -262,14 +243,22 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         }
     }
 
-    // Add primary signing key requirements based on trust model
-    if mst_is_trust {
-        // MST trust model: The MST receipt attests the signature was registered
-        // in the transparency ledger, providing trust. We don't require X509
-        // chain trust or cert validity — the receipt IS the trust anchor.
-        // No for_primary_signing_key rules needed.
-    } else {
-        // Standard X509 trust model: require chain trust + valid cert identity.
+    // Compose trust model(s) via OR semantics:
+    //
+    // X509 trust: for_primary_signing_key(chain_trusted AND cert_valid)
+    // MST trust:  for_counter_signature(receipt_trusted)
+    //
+    // When --require-mst-receipt is set, MST receipt trust is an alternative
+    // to X509 chain trust. The plan evaluates as:
+    //   (X509 rules) OR (MST receipt rules)
+    // If either path succeeds, trust passes.
+
+    // X509 chain trust (always added when trust roots are provided or allow-embedded)
+    let has_x509_trust = !args.allowed_thumbprint.is_empty()
+        || !provider_args.trust_roots.is_empty()
+        || args.allow_embedded;
+
+    if has_x509_trust {
         trust_plan_builder = trust_plan_builder.for_primary_signing_key(|key| {
             let mut rules = key.require::<X509ChainTrustedFact>(|f| f.require_trusted())
                 .and()
@@ -285,6 +274,25 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
         });
     }
 
+    // MST receipt trust (alternative via OR when --require-mst-receipt is set)
+    #[cfg(feature = "mst")]
+    {
+        if args.require_mst_receipt {
+            use cose_sign1_transparent_mst::validation::fluent_ext::*;
+            use cose_sign1_transparent_mst::validation::facts::*;
+
+            // If we already have X509 trust rules, compose with OR
+            if has_x509_trust {
+                trust_plan_builder = trust_plan_builder.or();
+            }
+
+            // MST receipt trust via counter-signature — mirrors MstTrustPack::default_trust_plan()
+            trust_plan_builder = trust_plan_builder.for_counter_signature(|cs| {
+                cs.require::<MstReceiptTrustedFact>(|f| f.require_receipt_trusted())
+            });
+        }
+    }
+
     let compiled_plan = match trust_plan_builder.compile() {
         Ok(plan) => plan,
         Err(e) => {
@@ -298,13 +306,6 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
     if let Some(payload) = detached_payload {
         validator = validator.with_options(|o| {
             o.detached_payload = Some(payload);
-        });
-    }
-    // When MST is the trust model, bypass X509 trust evaluation.
-    // MST receipt verification happens in the post-signature stage via the MST trust pack.
-    if mst_is_trust {
-        validator = validator.with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
         });
     }
 

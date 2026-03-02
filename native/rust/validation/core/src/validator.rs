@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 //! Core validator pipeline implementation.
@@ -636,27 +636,35 @@ impl CoseSign1Validator {
 
         // If signing key resolution fails, we may still be able to validate via trusted
         // counter-signatures that attest to envelope integrity.
-        let attempt_signature_bypass = !resolution_result.is_valid();
+        // We also attempt bypass when resolution succeeds, because trust may have been
+        // achieved via counter-signatures (e.g. MST receipts in an OR plan) rather than
+        // via the primary signing key path.
+        let attempt_signature_bypass_on_resolution_failure = !resolution_result.is_valid();
 
         // Stage 2: Key Material Trust
         let (trust_result, trust_decision, signature_stage_metadata) = self
             .run_trust_stage(
                 cose_sign1_bytes.clone(),
                 cose_sign1_parsed.clone(),
-                attempt_signature_bypass,
+                // Always attempt to check for counter-sig bypass, not just on resolution failure.
+                // This enables OR-composed trust plans where trust may come from counter-sigs
+                // (e.g. MST receipts) even when the primary key was resolved.
+                true,
             )
             .map_err(CoseSign1ValidationError::Trust)?;
         info!(stage = "trust_evaluation", is_trusted = trust_decision.is_trusted, "Trust evaluation complete");
 
-        if attempt_signature_bypass {
+        // Check if counter-signatures provide integrity attestation (signature bypass).
+        // This is true when trust was achieved via counter-signatures rather than primary key.
+        let counter_sig_bypassed = signature_stage_metadata
+            .get(Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE)
+            .map(|v| v.as_str())
+            == Some(Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED);
+
+        if attempt_signature_bypass_on_resolution_failure {
             // Preserve existing behavior when key resolution fails and we don't have an
             // integrity-attesting counter-signature to fall back to.
-            let bypassed = signature_stage_metadata
-                .get(Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE)
-                .map(|v| v.as_str())
-                == Some(Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED);
-
-            if !trust_result.is_valid() || !bypassed {
+            if !trust_result.is_valid() || !counter_sig_bypassed {
                 return Ok(CoseSign1ValidationResult {
                     resolution: resolution_result.clone(),
                     trust: ValidationResult::not_applicable(
@@ -759,6 +767,51 @@ impl CoseSign1Validator {
             });
         }
 
+
+        // When counter-signatures provide integrity attestation (e.g. MST receipt verified
+        // the Sig_structure through the OR path in the trust plan), bypass primary signature
+        // verification. The counter-sig has already attested that the envelope is intact.
+        if counter_sig_bypassed {
+            let signature_result = ValidationResult::success(
+                Self::STAGE_NAME_SIGNATURE,
+                Some(signature_stage_metadata.clone()),
+            );
+
+            let post_signature_result = self.run_post_signature_stage(
+                &cose_sign1_parsed,
+                cose_key.as_ref(),
+                &trust_decision,
+                &signature_stage_metadata,
+            );
+
+            if !post_signature_result.is_valid() {
+                return Ok(CoseSign1ValidationResult {
+                    resolution: resolution_result,
+                    trust: trust_result,
+                    signature: signature_result,
+                    post_signature_policy: post_signature_result.clone(),
+                    overall: post_signature_result,
+                });
+            }
+
+            let mut combined_metadata = BTreeMap::new();
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_RESOLUTION, &resolution_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_SIGNATURE, &signature_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_POST, &post_signature_result);
+
+            let overall = ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
+
+            return Ok(CoseSign1ValidationResult {
+                resolution: resolution_result,
+                trust: trust_result,
+                signature: signature_result,
+                post_signature_policy: post_signature_result,
+                overall,
+            });
+        }
+
+        // Standard path: verify primary signature with the resolved key.
         // Stage 3: Signature Verification
         let cose_key = cose_key
             .as_ref()
@@ -842,24 +895,24 @@ impl CoseSign1Validator {
         // Stage 1: Key Material Resolution
         let (resolution_result, cose_key) = self.run_resolution_stage_async(&cose_sign1_parsed).await;
 
-        let attempt_signature_bypass = !resolution_result.is_valid();
+        let attempt_signature_bypass_on_resolution_failure = !resolution_result.is_valid();
 
         // Stage 2: Key Material Trust
         let (trust_result, trust_decision, signature_stage_metadata) = self
             .run_trust_stage(
                 cose_sign1_bytes.clone(),
                 cose_sign1_parsed.clone(),
-                attempt_signature_bypass,
+                true, // Always check for counter-sig bypass (OR-composed trust plans)
             )
             .map_err(CoseSign1ValidationError::Trust)?;
 
-        if attempt_signature_bypass {
-            let bypassed = signature_stage_metadata
-                .get(Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE)
-                .map(|v| v.as_str())
-                == Some(Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED);
+        let counter_sig_bypassed = signature_stage_metadata
+            .get(Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE)
+            .map(|v| v.as_str())
+            == Some(Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED);
 
-            if !trust_result.is_valid() || !bypassed {
+        if attempt_signature_bypass_on_resolution_failure {
+            if !trust_result.is_valid() || !counter_sig_bypassed {
                 return Ok(CoseSign1ValidationResult {
                     resolution: resolution_result.clone(),
                     trust: ValidationResult::not_applicable(
@@ -962,6 +1015,51 @@ impl CoseSign1Validator {
             });
         }
 
+
+        // When counter-signatures provide integrity attestation (e.g. MST receipt verified
+        // the Sig_structure through the OR path in the trust plan), bypass primary signature
+        // verification. The counter-sig has already attested that the envelope is intact.
+        if counter_sig_bypassed {
+            let signature_result = ValidationResult::success(
+                Self::STAGE_NAME_SIGNATURE,
+                Some(signature_stage_metadata.clone()),
+            );
+
+            let post_signature_result = self.run_post_signature_stage(
+                &cose_sign1_parsed,
+                cose_key.as_ref(),
+                &trust_decision,
+                &signature_stage_metadata,
+            );
+
+            if !post_signature_result.is_valid() {
+                return Ok(CoseSign1ValidationResult {
+                    resolution: resolution_result,
+                    trust: trust_result,
+                    signature: signature_result,
+                    post_signature_policy: post_signature_result.clone(),
+                    overall: post_signature_result,
+                });
+            }
+
+            let mut combined_metadata = BTreeMap::new();
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_RESOLUTION, &resolution_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_SIGNATURE, &signature_result);
+            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_POST, &post_signature_result);
+
+            let overall = ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
+
+            return Ok(CoseSign1ValidationResult {
+                resolution: resolution_result,
+                trust: trust_result,
+                signature: signature_result,
+                post_signature_policy: post_signature_result,
+                overall,
+            });
+        }
+
+        // Standard path: verify primary signature with the resolved key.
         // Stage 3: Signature Verification
         let cose_key = cose_key
             .as_ref()

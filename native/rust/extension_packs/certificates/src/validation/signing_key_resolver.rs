@@ -6,7 +6,6 @@ use cose_sign1_validation_primitives::facts::TrustFactProducer;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::{CoseHeaderLocation, CoseSign1Message};
 use cose_sign1_primitives::headers::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
-use cose_sign1_crypto_openssl::OpenSslCryptoProvider;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -98,10 +97,13 @@ impl CoseKeyResolver for X509CertificateCoseKeyResolver {
             }
         };
 
-        // Create verifier using OpenSslCryptoProvider
-        use crypto_primitives::CryptoProvider;
-        let provider = OpenSslCryptoProvider;
-        let verifier = match provider.verifier_from_der(&public_key_der) {
+        // Create verifier using OpenSslCryptoProvider.
+        // For RSA keys, use the message's algorithm (PS256, RS256, etc.) since
+        // the key type alone can't distinguish PSS from PKCS#1 v1.5.
+        let msg_alg = message.alg().unwrap_or(0);
+        let verifier = match cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(
+            &public_key_der, msg_alg,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 return CoseKeyResolutionResult::failure(
@@ -110,6 +112,8 @@ impl CoseKeyResolver for X509CertificateCoseKeyResolver {
                 );
             }
         };
+
+        let verifier: Box<dyn crypto_primitives::CryptoVerifier> = Box::new(verifier);
 
         let mut out = CoseKeyResolutionResult::success(Arc::from(verifier));
         out.diagnostics.push("x509_verifier_resolved_via_openssl_crypto_provider".to_string());

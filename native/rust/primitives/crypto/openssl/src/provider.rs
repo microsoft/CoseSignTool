@@ -84,7 +84,9 @@ fn detect_algorithm_from_public_key(pkey: &openssl::pkey::PKey<openssl::pkey::Pu
             Ok(-7) // ES256
         }
         Id::RSA => {
-            // Default to RS256 for RSA keys
+            // Default to RS256 for RSA keys when algorithm not specified.
+            // When used via x5chain resolution, the resolver overrides this
+            // with the message's actual algorithm (PS256, RS384, etc.).
             Ok(-257) // RS256
         }
         Id::ED25519 => {

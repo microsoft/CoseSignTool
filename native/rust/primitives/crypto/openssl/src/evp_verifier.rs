@@ -137,7 +137,9 @@ fn create_verifier<'a>(key: &'a EvpPublicKey, cose_alg: i64) -> Result<Verifier<
             if cose_alg == -37 || cose_alg == -38 || cose_alg == -39 {
                 verifier.set_rsa_padding(openssl::rsa::Padding::PKCS1_PSS)
                     .map_err(|e| CryptoError::VerificationFailed(format!("Failed to set PSS padding: {}", e)))?;
-                verifier.set_rsa_pss_saltlen(openssl::sign::RsaPssSaltlen::DIGEST_LENGTH)
+                // AUTO recovers the actual salt length from the signature,
+                // accepting any valid PSS salt length (DIGEST_LENGTH, MAX_LENGTH, etc.).
+                verifier.set_rsa_pss_saltlen(openssl::sign::RsaPssSaltlen::custom(-2))
                     .map_err(|e| CryptoError::VerificationFailed(format!("Failed to set PSS salt length: {}", e)))?;
             }
             
@@ -219,7 +221,8 @@ fn verify_rsa(
     if cose_alg == -37 || cose_alg == -38 || cose_alg == -39 {
         verifier.set_rsa_padding(openssl::rsa::Padding::PKCS1_PSS)
             .map_err(|e| CryptoError::VerificationFailed(format!("Failed to set PSS padding: {}", e)))?;
-        verifier.set_rsa_pss_saltlen(openssl::sign::RsaPssSaltlen::DIGEST_LENGTH)
+        // AUTO recovers the actual salt length from the signature.
+        verifier.set_rsa_pss_saltlen(openssl::sign::RsaPssSaltlen::custom(-2))
             .map_err(|e| CryptoError::VerificationFailed(format!("Failed to set PSS salt length: {}", e)))?;
     }
     

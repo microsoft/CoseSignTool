@@ -16,7 +16,7 @@ use cose_sign1_validation_primitives::fluent::{HasTrustSubject, TrustPlanBuilder
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::rules::{AuditedRule, OnEmptyBehavior, TrustRuleRef};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use parking_lot::Mutex;
+use std::sync::Mutex;
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------

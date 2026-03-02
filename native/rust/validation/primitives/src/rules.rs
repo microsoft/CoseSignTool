@@ -16,7 +16,8 @@ use crate::error::TrustError;
 use crate::fact_properties::{FactProperties, FactValue, FactValueOwned};
 use crate::facts::{FactKey, TrustFactEngine, TrustFactSet};
 use crate::subject::TrustSubject;
-use parking_lot::Mutex;
+use std::sync::Mutex;
+#[cfg(feature = "regex")]
 use regex::Regex;
 use std::any::Any;
 use std::sync::Arc;
@@ -326,6 +327,7 @@ pub enum PropertyPredicate {
     StrContains(String),
     StrStartsWith(String),
     StrEndsWith(String),
+    #[cfg(feature = "regex")]
     StrMatchesRegex(String),
     NumGeI64(i64),
     NumLeI64(i64),
@@ -353,6 +355,7 @@ impl PropertyPredicate {
                 FactValue::Str(s) => s.ends_with(suffix),
                 _ => false,
             },
+            #[cfg(feature = "regex")]
             PropertyPredicate::StrMatchesRegex(pattern) => match actual {
                 FactValue::Str(s) => Regex::new(pattern)
                     .map(|re| re.is_match(s.as_ref()))
@@ -773,7 +776,7 @@ impl TrustRule for AuditedRule {
         subject: &TrustSubject,
     ) -> Result<TrustDecision, TrustError> {
         let decision = self.inner.evaluate(engine, subject)?;
-        self.audit.lock().push(AuditEvent::RuleEvaluated {
+        self.audit.lock().expect("lock poisoned").push(AuditEvent::RuleEvaluated {
             subject: subject.id,
             rule_name: self.inner.name(),
             decision: decision.clone(),

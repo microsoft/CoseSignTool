@@ -12,7 +12,7 @@ use cose_sign1_validation_primitives::{
     subject::TrustSubject,
     TrustDecision,
 };
-use parking_lot::Mutex;
+use std::sync::Mutex;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -179,7 +179,7 @@ fn audited_rule_records_audit_event() {
     let d = audited.evaluate(&engine, &subject).unwrap();
     assert!(!d.is_trusted);
 
-    let mut guard = audit.lock();
+    let mut guard = audit.lock().expect("lock poisoned");
     let built = std::mem::take(&mut *guard).build();
     drop(guard);
 

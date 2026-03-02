@@ -12,7 +12,7 @@ cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
 cose_sign1_signing = { path = "../../signing/core" }
 cose_sign1_certificates = { path = "../certificates" }
 cose_sign1_validation = { path = "../../validation/core" }
-cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+cose_sign1_validation_primitives = { path = "../../validation/primitives", features = ["regex"] }
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 crypto_primitives = { path = "../../primitives/crypto" }

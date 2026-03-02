@@ -15,7 +15,7 @@ use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509Cer
 use cbor_primitives_everparse::EverParseCborProvider;
 use ring::rand;
 use ring::signature;
-use sha1::Digest as _;
+use sha2::Digest as _;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -26,7 +26,7 @@ use x509_parser::parse_x509_certificate;
 
 /// Returns a static usage/help string for the CLI.
 fn usage() -> &'static str {
-    "cose_sign1_validation_demo\n\nUSAGE:\n  cose_sign1_validation_demo selftest\n  cose_sign1_validation_demo validate --cose <path> [--detached <path>] [--allow-thumbprint <sha1-hex>]\n\nCOMMANDS:\n  selftest\n    Generates an ephemeral ES256 key + self-signed cert, signs a COSE_Sign1 with\n    protected x5chain, and validates it using the real certificates trust pack\n    + a trust policy override that pins by signing cert thumbprint.\n\n  validate\n    Validates an existing COSE_Sign1 file. If --allow-thumbprint is provided,\n    trust is pinned to that signing certificate thumbprint.\n\nNOTES:\n  This demo currently treats embedded x5chain as trusted (deterministic, OS-agnostic).\n"
+    "cose_sign1_validation_demo\n\nUSAGE:\n  cose_sign1_validation_demo selftest\n  cose_sign1_validation_demo validate --cose <path> [--detached <path>] [--allow-thumbprint <sha256-hex>]\n\nCOMMANDS:\n  selftest\n    Generates an ephemeral ES256 key + self-signed cert, signs a COSE_Sign1 with\n    protected x5chain, and validates it using the real certificates trust pack\n    + a trust policy override that pins by signing cert thumbprint.\n\n  validate\n    Validates an existing COSE_Sign1 file. If --allow-thumbprint is provided,\n    trust is pinned to that signing certificate thumbprint.\n\nNOTES:\n  This demo currently treats embedded x5chain as trusted (deterministic, OS-agnostic).\n"
 }
 
 
@@ -49,10 +49,10 @@ fn now_unix_seconds() -> i64 {
 }
 
 /// Compute uppercase SHA-1 hex for a byte slice.
-fn sha1_hex_upper(bytes: &[u8]) -> String {
-    let mut sha1 = sha1::Sha1::new();
-    sha1.update(bytes);
-    hex::encode_upper(sha1.finalize())
+fn sha256_hex_upper(bytes: &[u8]) -> String {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(bytes);
+    hex::encode_upper(hasher.finalize())
 }
 
 /// Convert a PKCS#8 private key (DER) into a PEM string.
@@ -171,7 +171,7 @@ fn extract_uncompressed_public_key_bytes(cert_der: &[u8]) -> anyhow::Result<Vec<
 /// Build a trust plan that requires a trusted chain and pins trust to a signing cert thumbprint.
 fn build_thumbprint_pinned_trust_plan(
     pack: Arc<X509CertificateTrustPack>,
-    allowed_thumbprint_sha1_hex: &str,
+    allowed_thumbprint_sha256_hex: &str,
 ) -> CoseSign1CompiledTrustPlan {
     let now = now_unix_seconds();
     TrustPlanBuilder::new(vec![pack])
@@ -180,7 +180,7 @@ fn build_thumbprint_pinned_trust_plan(
                 .and()
                 .require::<X509SigningCertificateIdentityFact>(|f| {
                     f.cert_valid_at(now)
-                        .thumbprint_eq(allowed_thumbprint_sha1_hex.to_string())
+                        .thumbprint_eq(allowed_thumbprint_sha256_hex.to_string())
                 })
         })
         .compile()
@@ -236,8 +236,8 @@ fn run_selftest() -> anyhow::Result<()> {
         enc.into_bytes()
     };
 
-    let thumbprint = sha1_hex_upper(&leaf_der);
-    println!("ephemeral signing cert thumbprint (SHA1/HEX): {thumbprint}");
+    let thumbprint = sha256_hex_upper(&leaf_der);
+    println!("ephemeral signing cert thumbprint (SHA256/HEX): {thumbprint}");
 
     // Sanity-check: verify the signature with ring directly.
     {

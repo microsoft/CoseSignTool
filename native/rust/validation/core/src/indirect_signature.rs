@@ -5,14 +5,24 @@ use crate::validator::{PostSignatureValidationContext, PostSignatureValidator, V
 use cbor_primitives::CborDecoder;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use once_cell::sync::Lazy;
-use regex::Regex;
-use sha1::Digest as _;
 use std::io::Read;
 
-static COSE_HASH_V: Lazy<Regex> = Lazy::new(|| Regex::new("(?i)\\+cose-hash-v").unwrap());
-static HASH_LEGACY: Lazy<Regex> =
-    Lazy::new(|| Regex::new("(?i)\\+hash-([\\w_]+)").unwrap());
+/// Case-insensitive check for `+cose-hash-v` suffix in content type.
+fn is_cose_hash_v(ct: &str) -> bool {
+    ct.to_ascii_lowercase().contains("+cose-hash-v")
+}
+
+/// Extract the hash algorithm name from a legacy `+hash-<alg>` content type suffix.
+/// Returns the algorithm name (e.g., "SHA256") if found, None otherwise.
+fn extract_legacy_hash_alg(ct: &str) -> Option<String> {
+    let lower = ct.to_ascii_lowercase();
+    let prefix = "+hash-";
+    let pos = lower.find(prefix)?;
+    let after = &ct[pos + prefix.len()..];
+    // Take word characters (alphanumeric + underscore) only
+    let alg: String = after.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+    if alg.is_empty() { None } else { Some(alg) }
+}
 
 const VALIDATOR_NAME: &str = "Indirect Signature Content Validation";
 
@@ -33,6 +43,7 @@ enum HashAlgorithm {
     Sha256,
     Sha384,
     Sha512,
+    #[cfg(feature = "legacy-sha1")]
     Sha1,
 }
 
@@ -42,6 +53,7 @@ impl HashAlgorithm {
             Self::Sha256 => "SHA256",
             Self::Sha384 => "SHA384",
             Self::Sha512 => "SHA512",
+            #[cfg(feature = "legacy-sha1")]
             Self::Sha1 => "SHA1",
         }
     }
@@ -55,6 +67,7 @@ fn cose_hash_alg_from_cose_alg_value(value: i64) -> Option<HashAlgorithm> {
         -16 => Some(HashAlgorithm::Sha256),
         -43 => Some(HashAlgorithm::Sha384),
         -44 => Some(HashAlgorithm::Sha512),
+        #[cfg(feature = "legacy-sha1")]
         -14 => Some(HashAlgorithm::Sha1),
         _ => None,
     }
@@ -66,6 +79,7 @@ fn legacy_hash_alg_from_name(name: &str) -> Option<HashAlgorithm> {
         "SHA256" => Some(HashAlgorithm::Sha256),
         "SHA384" => Some(HashAlgorithm::Sha384),
         "SHA512" => Some(HashAlgorithm::Sha512),
+        #[cfg(feature = "legacy-sha1")]
         "SHA1" => Some(HashAlgorithm::Sha1),
         _ => None,
     }
@@ -100,11 +114,11 @@ fn detect_indirect_signature_kind(protected: &CoseHeaderMap, content_type: Optio
 
     let ct = content_type?;
 
-    if COSE_HASH_V.is_match(ct) {
+    if is_cose_hash_v(ct) {
         return Some(IndirectSignatureKind::CoseHashV);
     }
 
-    if HASH_LEGACY.is_match(ct) {
+    if extract_legacy_hash_alg(ct).is_some() {
         return Some(IndirectSignatureKind::LegacyHashExtension);
     }
 
@@ -112,15 +126,18 @@ fn detect_indirect_signature_kind(protected: &CoseHeaderMap, content_type: Optio
 }
 
 fn compute_hash_bytes(alg: HashAlgorithm, data: &[u8]) -> Vec<u8> {
+    use sha2::Digest as _;
     match alg {
         HashAlgorithm::Sha256 => sha2::Sha256::digest(data).to_vec(),
         HashAlgorithm::Sha384 => sha2::Sha384::digest(data).to_vec(),
         HashAlgorithm::Sha512 => sha2::Sha512::digest(data).to_vec(),
+        #[cfg(feature = "legacy-sha1")]
         HashAlgorithm::Sha1 => sha1::Sha1::digest(data).to_vec(),
     }
 }
 
 fn compute_hash_reader(alg: HashAlgorithm, mut reader: impl Read) -> Result<Vec<u8>, String> {
+    use sha2::Digest as _;
     let mut buf = [0u8; 64 * 1024];
     match alg {
         HashAlgorithm::Sha256 => {
@@ -162,7 +179,8 @@ fn compute_hash_reader(alg: HashAlgorithm, mut reader: impl Read) -> Result<Vec<
             }
             Ok(hasher.finalize().to_vec())
         }
-        HashAlgorithm::Sha1 => {
+        #[cfg(feature = "legacy-sha1")]
+        HashAlgorithm::Sha1 =>  {
             let mut hasher = sha1::Sha1::new();
             loop {
                 let read = reader
@@ -289,11 +307,9 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
         let (alg, expected_hash, format_name) = match kind {
             IndirectSignatureKind::LegacyHashExtension => {
                 let ct = content_type.unwrap_or_default();
-                let caps = HASH_LEGACY
-                    .captures(&ct)
-                    .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
+                let alg_name = extract_legacy_hash_alg(&ct);
 
-                let Some(alg_name) = caps else {
+                let Some(alg_name) = alg_name else {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         "Indirect signature content-type did not contain a +hash-* extension",

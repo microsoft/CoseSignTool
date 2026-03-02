@@ -23,5 +23,4 @@ cose_sign1_validation_primitives = { path = "../../validation/primitives" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
 rcgen = "0.13"
 ring.workspace = true
-sha1.workspace = true
 openssl = "0.10"

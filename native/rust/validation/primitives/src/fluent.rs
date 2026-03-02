@@ -577,6 +577,7 @@ where
     }
 
     /// String field must match a regular expression pattern.
+    #[cfg(feature = "regex")]
     pub fn str_matches_regex(
         mut self,
         field: Field<TFact, String>,

@@ -7,13 +7,14 @@ license.workspace = true
 [lib]
 test = false
 
+[features]
+default = []
+legacy-sha1 = ["dep:sha1"]
+
 [dependencies]
-sha1.workspace = true
+sha1 = { workspace = true, optional = true }
 sha2.workspace = true
 tracing = { workspace = true }
-
-once_cell.workspace = true
-regex.workspace = true
 
 cose_sign1_validation_primitives = { path = "../primitives" }
 cose_sign1_primitives = { path = "../../primitives/cose/sign1" }

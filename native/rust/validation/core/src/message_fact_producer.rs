@@ -14,8 +14,6 @@ use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_primitives::ids::sha256_of_bytes;
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -142,7 +140,7 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
 
 /// Returns the static set of fact keys provided by the message fact producer.
 pub(crate) fn provided_fact_keys() -> &'static [FactKey] {
-    static PROVIDED: Lazy<[FactKey; 10]> = Lazy::new(|| {
+    static PROVIDED: std::sync::LazyLock<[FactKey; 10]> = std::sync::LazyLock::new(|| {
         [
             FactKey::of::<CoseSign1MessageBytesFact>(),
             FactKey::of::<CoseSign1MessagePartsFact>(),
@@ -577,18 +575,17 @@ fn resolve_content_type(msg: &CoseSign1Message) -> Option<String> {
 
     let ct = raw_ct?;
 
-    static COSE_HASH_V: Lazy<Regex> = Lazy::new(|| Regex::new("(?i)\\+cose-hash-v").unwrap());
-    static HASH_LEGACY: Lazy<Regex> = Lazy::new(|| Regex::new("(?i)\\+hash-([\\w_]+)").unwrap());
-
-    if COSE_HASH_V.is_match(&ct) {
-        let stripped = COSE_HASH_V.replace_all(&ct, "");
-        let stripped = stripped.trim();
+    // Check for +cose-hash-v suffix (case-insensitive) and strip it
+    let lower = ct.to_ascii_lowercase();
+    if lower.contains("+cose-hash-v") {
+        let pos = lower.find("+cose-hash-v").unwrap();
+        let stripped = ct[..pos].trim();
         return (!stripped.is_empty()).then(|| stripped.to_string());
     }
 
-    if HASH_LEGACY.is_match(&ct) {
-        let stripped = HASH_LEGACY.replace_all(&ct, "");
-        let stripped = stripped.trim();
+    // Check for +hash-<alg> suffix (case-insensitive) and strip it
+    if let Some(pos) = lower.find("+hash-") {
+        let stripped = ct[..pos].trim();
         return (!stripped.is_empty()).then(|| stripped.to_string());
     }
 

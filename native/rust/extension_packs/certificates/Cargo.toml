@@ -18,7 +18,6 @@ cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 crypto_primitives = { path = "../../primitives/crypto" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
-sha1.workspace = true
 sha2.workspace = true
 x509-parser.workspace = true
 openssl = "0.10"

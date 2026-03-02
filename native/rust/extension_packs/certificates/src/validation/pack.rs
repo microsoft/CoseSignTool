@@ -12,7 +12,7 @@ use cose_sign1_validation_primitives::facts::TrustFactSet;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use sha1::{Digest as _, Sha1};
+use sha2::Digest as _;
 use std::sync::Arc;
 use x509_parser::prelude::*;
 
@@ -297,9 +297,9 @@ impl X509CertificateTrustPack {
         let (_, cert) = X509Certificate::from_der(der.as_slice())
             .map_err(|e| TrustError::FactProduction(format!("x509 parse failed: {e:?}")))?;
 
-        let mut sha1 = Sha1::new();
-        sha1.update(der.as_slice());
-        let thumb = hex_encode_upper(&sha1.finalize());
+        let mut sha256_hasher = sha2::Sha256::new();
+        sha256_hasher.update(der.as_slice());
+        let thumb = hex_encode_upper(&sha256_hasher.finalize());
 
         let subject = cert.subject().to_string();
         let issuer = cert.issuer().to_string();

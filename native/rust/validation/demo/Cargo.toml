@@ -11,6 +11,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+sha2.workspace = true
 anyhow.workspace = true
 cose_sign1_validation = { path = "../core" }
 cose_sign1_validation_primitives = { path = "../primitives" }
@@ -20,7 +21,6 @@ cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 
 # Signing an ephemeral ES256 COSE_Sign1
 ring.workspace = true
-sha1.workspace = true
 hex.workspace = true
 base64.workspace = true
 rcgen = "0.13"

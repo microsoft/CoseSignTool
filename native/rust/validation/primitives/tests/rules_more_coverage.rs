@@ -13,7 +13,7 @@ use cose_sign1_validation_primitives::rules::{
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::TrustDecision;
-use parking_lot::Mutex;
+use std::sync::Mutex;
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -721,7 +721,7 @@ fn audited_rule_records_rule_evaluation_events() {
     assert!(decision.is_trusted);
 
     let audit_snapshot = {
-        let mut g = audit.lock();
+        let mut g = audit.lock().expect("lock poisoned");
         std::mem::take(&mut *g).build()
     };
 

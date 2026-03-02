@@ -14,7 +14,7 @@ use crate::error::TrustError;
 use crate::ids::SubjectId;
 use crate::subject::TrustSubject;
 use crate::{CoseHeaderLocation, TrustEvaluationOptions};
-use parking_lot::Mutex;
+use std::sync::Mutex;
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -254,12 +254,12 @@ impl TrustFactEngine {
 
     /// Enable audit collection for subsequent evaluations.
     pub fn enable_audit(&self) {
-        *self.audit.lock() = Some(TrustDecisionAuditBuilder::default());
+        *self.audit.lock().expect("lock poisoned") = Some(TrustDecisionAuditBuilder::default());
     }
 
     /// Take the current audit, if enabled.
     pub fn take_audit(&self) -> Option<TrustDecisionAudit> {
-        self.audit.lock().take().map(|b| b.build())
+        self.audit.lock().expect("lock poisoned").take().map(|b| b.build())
     }
 
     /// Returns the available facts for a subject.
@@ -284,7 +284,7 @@ impl TrustFactEngine {
     ) -> Result<TrustFactSet<T>, TrustError> {
         self.ensure_produced(subject, FactKey::of::<T>())?;
 
-        let state = self.state.lock();
+        let state = self.state.lock().expect("lock poisoned");
         if let Some(message) = state.errors.get(&(subject.id, TypeId::of::<T>())) {
             return Ok(TrustFactSet::Error {
                 message: message.clone(),
@@ -338,7 +338,7 @@ impl TrustFactEngine {
         }
 
         {
-            let state = self.state.lock();
+            let state = self.state.lock().expect("lock poisoned");
             if state.produced.contains(&(subject.id, key.type_id)) {
                 return Ok(());
             }
@@ -372,32 +372,32 @@ impl TrustFactEngine {
             }
         }
 
-        let mut state = self.state.lock();
+        let mut state = self.state.lock().expect("lock poisoned");
         state.produced.insert((subject.id, key.type_id));
         Ok(())
     }
 
     /// Marks a specific subject/type as produced.
     fn mark_produced(&self, subject: SubjectId, key: FactKey) {
-        let mut state = self.state.lock();
+        let mut state = self.state.lock().expect("lock poisoned");
         state.produced.insert((subject, key.type_id));
     }
 
     /// Marks a specific subject/type as missing.
     fn mark_missing(&self, subject: SubjectId, type_id: TypeId, reason: String) {
-        let mut state = self.state.lock();
+        let mut state = self.state.lock().expect("lock poisoned");
         state.missing.insert((subject, type_id), reason);
     }
 
     /// Marks a specific subject/type as errored.
     fn mark_error(&self, subject: SubjectId, type_id: TypeId, message: String) {
-        let mut state = self.state.lock();
+        let mut state = self.state.lock().expect("lock poisoned");
         state.errors.insert((subject, type_id), message);
     }
 
     /// Records an observed fact value for the subject and optionally emits an audit event.
     fn observe_fact<T: Any + Send + Sync>(&self, subject: SubjectId, fact: T) {
-        let mut state = self.state.lock();
+        let mut state = self.state.lock().expect("lock poisoned");
         let entry = state
             .facts
             .entry(subject)
@@ -406,7 +406,7 @@ impl TrustFactEngine {
             .or_default();
         entry.push(Arc::new(fact));
 
-        if let Some(builder) = self.audit.lock().as_mut() {
+        if let Some(builder) = self.audit.lock().expect("lock poisoned").as_mut() {
             builder.push(AuditEvent::FactObserved {
                 subject,
                 fact_type: std::any::type_name::<T>(),

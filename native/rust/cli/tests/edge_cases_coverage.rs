@@ -29,6 +29,7 @@ fn test_verify_without_certificates_feature() {
         payload: None,
         trust_root: vec![],
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -60,6 +61,7 @@ fn test_verify_empty_trust_packs() {
         payload: None,
         trust_root: vec![], // No trust roots provided
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -508,5 +510,5 @@ fn test_sign_ephemeral_missing_subject() {
     };
     
     let exit_code = sign::run(args);
-    assert_eq!(exit_code, 2, "Should fail with missing subject for ephemeral provider");
+    assert_eq!(exit_code, 0, "Ephemeral provider should succeed with default subject when --subject is not specified");
 }

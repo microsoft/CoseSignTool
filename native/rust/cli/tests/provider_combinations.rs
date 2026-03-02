@@ -314,6 +314,7 @@ fn test_verify_with_multiple_trust_roots() {
         payload: None,
         trust_root: vec![root1, root2], // Multiple trust roots
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -344,7 +345,8 @@ fn test_verify_allow_embedded() {
         input: input_path,
         payload: None,
         trust_root: vec![],
-        allow_embedded: true, // Test allow embedded flag
+        allow_embedded: true,
+            allow_untrusted: false, // Test allow embedded flag
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -376,6 +378,7 @@ fn test_verify_content_type_requirement_only() {
         payload: None,
         trust_root: vec![],
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: true, // Only require content type present
         content_type: None, // But don't specify value
         require_cwt: false,

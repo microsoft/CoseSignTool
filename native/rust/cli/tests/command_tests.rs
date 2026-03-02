@@ -599,6 +599,7 @@ fn test_verify_command_no_trust_root() {
         payload: None,
         trust_root: vec![], // No trust roots
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -673,6 +674,7 @@ fn test_verify_command_with_detached_payload() {
         payload: Some(payload_path), // Provide detached payload
         trust_root: vec![],
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -713,6 +715,7 @@ fn test_verify_command_invalid_cose_bytes() {
         payload: None,
         trust_root: vec![],
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,

@@ -97,19 +97,47 @@ impl CoseKeyResolver for X509CertificateCoseKeyResolver {
             }
         };
 
-        // Create verifier using OpenSslCryptoProvider.
-        // For RSA keys, use the message's algorithm (PS256, RS256, etc.) since
-        // the key type alone can't distinguish PSS from PKCS#1 v1.5.
-        let msg_alg = message.alg().unwrap_or(0);
-        let verifier = match cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(
-            &public_key_der, msg_alg,
-        ) {
-            Ok(v) => v,
-            Err(e) => {
-                return CoseKeyResolutionResult::failure(
-                    Some("VERIFIER_CREATION_FAILED".to_string()),
-                    Some(format!("Failed to create verifier: {}", e)),
-                );
+        // Create verifier using the message's algorithm when available.
+        // This matters for RSA keys where the key type alone can't distinguish
+        // RS* (PKCS#1 v1.5) from PS* (PSS). If the message has no algorithm,
+        // fall back to auto-detection from the key type.
+        let msg_alg = message.alg();
+        let verifier = if let Some(alg) = msg_alg {
+            // Use the message's algorithm directly
+            match cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(&public_key_der, alg) {
+                Ok(v) => v,
+                Err(e) => {
+                    return CoseKeyResolutionResult::failure(
+                        Some("VERIFIER_CREATION_FAILED".to_string()),
+                        Some(format!("Failed to create verifier: {}", e)),
+                    );
+                }
+            }
+        } else {
+            // No algorithm in message — use auto-detection from key type
+            use crypto_primitives::CryptoProvider;
+            let provider = cose_sign1_crypto_openssl::OpenSslCryptoProvider;
+            match provider.verifier_from_der(&public_key_der) {
+                Ok(v) => {
+                    // verifier_from_der returns Box<dyn CryptoVerifier>, we need EvpVerifier
+                    // Re-create with the auto-detected algorithm
+                    let detected_alg = v.algorithm();
+                    match cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(&public_key_der, detected_alg) {
+                        Ok(ev) => ev,
+                        Err(e) => {
+                            return CoseKeyResolutionResult::failure(
+                                Some("VERIFIER_CREATION_FAILED".to_string()),
+                                Some(format!("Failed to create verifier: {}", e)),
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    return CoseKeyResolutionResult::failure(
+                        Some("VERIFIER_CREATION_FAILED".to_string()),
+                        Some(format!("Failed to create verifier: {}", e)),
+                    );
+                }
             }
         };
 

@@ -6,7 +6,7 @@
 
 use did_x509_ffi::error::{
     did_x509_error_free, DidX509ErrorHandle, FFI_ERR_INVALID_ARGUMENT, FFI_ERR_NULL_POINTER,
-    FFI_ERR_PARSE_FAILED, FFI_ERR_BUILD_FAILED,
+    FFI_ERR_PARSE_FAILED,
 };
 use did_x509_ffi::types::DidX509ParsedHandle;
 use did_x509_ffi::*;

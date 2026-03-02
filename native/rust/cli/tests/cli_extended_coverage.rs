@@ -277,6 +277,7 @@ fn test_verify_command_basic() {
         payload: None, // Embedded payload
         trust_root: vec![],
         allow_embedded: true,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -343,6 +344,7 @@ fn test_verify_command_with_detached_payload() {
         payload: Some(payload_file.clone()), // Detached payload
         trust_root: vec![],
         allow_embedded: true,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,
@@ -573,6 +575,7 @@ fn test_verify_command_with_nonexistent_signature() {
         payload: None,
         trust_root: vec![],
         allow_embedded: false,
+            allow_untrusted: false,
         require_content_type: false,
         content_type: None,
         require_cwt: false,

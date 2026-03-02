@@ -22,6 +22,20 @@ pub trait SigningProvider {
     fn description(&self) -> &str;
     /// Create a CryptoSigner from the provider-specific arguments.
     fn create_signer(&self, args: &SigningProviderArgs) -> Result<Box<dyn crypto_primitives::CryptoSigner>, anyhow::Error>;
+    /// Create a CryptoSigner along with an optional certificate chain (DER-encoded certs).
+    /// Providers that generate or load certificates should return the chain here
+    /// so the sign command can embed x5chain in the COSE protected header.
+    fn create_signer_with_chain(&self, args: &SigningProviderArgs) -> Result<SignerWithChain, anyhow::Error> {
+        let signer = self.create_signer(args)?;
+        Ok(SignerWithChain { signer, cert_chain: Vec::new() })
+    }
+}
+
+/// A signer plus optional certificate chain for embedding in COSE headers.
+pub struct SignerWithChain {
+    pub signer: Box<dyn crypto_primitives::CryptoSigner>,
+    /// DER-encoded certificate chain (signing cert first, then intermediates).
+    pub cert_chain: Vec<Vec<u8>>,
 }
 
 /// Arguments passed to signing providers.

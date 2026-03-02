@@ -167,18 +167,41 @@ pub fn run(args: SignArgs) -> i32 {
         ats_profile: args.ats_profile.clone(),
         ..Default::default()
     };
-    let signer = match provider.create_signer(&provider_args) {
-        Ok(s) => s,
+    let result = match provider.create_signer_with_chain(&provider_args) {
+        Ok(r) => r,
         Err(e) => {
             eprintln!("Error creating signer: {}", e);
             return 2;
         }
     };
+    let signer = result.signer;
+    let cert_chain = result.cert_chain;
 
     // 4. Set up protected headers
     let mut protected = cose_primitives::CoseHeaderMap::new();
     protected.set_alg(signer.algorithm());
     protected.set_content_type(cose_primitives::ContentType::Text(args.content_type.clone()));
+
+    // Embed x5chain (label 33) if the provider returned certificates
+    if !cert_chain.is_empty() {
+        if cert_chain.len() == 1 {
+            // Single cert: bstr
+            protected.insert(
+                cose_primitives::CoseHeaderLabel::Int(33),
+                cose_primitives::CoseHeaderValue::Bytes(cert_chain[0].clone()),
+            );
+        } else {
+            // Multiple certs: array of bstr
+            let arr: Vec<cose_primitives::CoseHeaderValue> = cert_chain
+                .iter()
+                .map(|c| cose_primitives::CoseHeaderValue::Bytes(c.clone()))
+                .collect();
+            protected.insert(
+                cose_primitives::CoseHeaderLabel::Int(33),
+                cose_primitives::CoseHeaderValue::Array(arr),
+            );
+        }
+    }
 
     // 5. Add CWT claims if specified
     if args.issuer.is_some() || args.cwt_subject.is_some() {

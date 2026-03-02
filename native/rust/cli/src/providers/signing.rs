@@ -145,6 +145,13 @@ impl SigningProvider for EphemeralSigningProvider {
         &self,
         args: &SigningProviderArgs,
     ) -> Result<Box<dyn crypto_primitives::CryptoSigner>, anyhow::Error> {
+        Ok(self.create_signer_with_chain(args)?.signer)
+    }
+
+    fn create_signer_with_chain(
+        &self,
+        args: &SigningProviderArgs,
+    ) -> Result<super::SignerWithChain, anyhow::Error> {
         use cose_sign1_certificates_local::{
             EphemeralCertificateFactory, SoftwareKeyProvider,
             options::CertificateOptions, traits::CertificateFactory,
@@ -169,6 +176,7 @@ impl SigningProvider for EphemeralSigningProvider {
 
         // Compute thumbprint before moving key_der out
         let thumbprint = hex::encode(cert.thumbprint_sha256());
+        let cert_der = cert.cert_der.clone();
 
         let key_der = cert.private_key_der
             .ok_or_else(|| anyhow::anyhow!("Ephemeral certificate has no private key"))?;
@@ -184,7 +192,10 @@ impl SigningProvider for EphemeralSigningProvider {
             "Generated ephemeral signing certificate"
         );
 
-        Ok(signer)
+        Ok(super::SignerWithChain {
+            signer,
+            cert_chain: vec![cert_der],
+        })
     }
 }
 

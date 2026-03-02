@@ -26,6 +26,10 @@ pub struct VerifyArgs {
     #[arg(long)]
     pub allow_embedded: bool,
 
+    /// Skip X.509 chain trust validation (verify signature only, testing/debugging)
+    #[arg(long)]
+    pub allow_untrusted: bool,
+
     /// Require content-type header to be present
     #[arg(long)]
     pub require_content_type: bool,
@@ -256,13 +260,21 @@ fn run_with_certificates(args: VerifyArgs) -> i32 {
     // X509 chain trust (always added when trust roots are provided or allow-embedded)
     let has_x509_trust = !args.allowed_thumbprint.is_empty()
         || !provider_args.trust_roots.is_empty()
-        || args.allow_embedded;
+        || args.allow_embedded
+        || args.allow_untrusted;
 
     if has_x509_trust {
         trust_plan_builder = trust_plan_builder.for_primary_signing_key(|key| {
-            let mut rules = key.require::<X509ChainTrustedFact>(|f| f.require_trusted())
-                .and()
-                .require::<X509SigningCertificateIdentityFact>(|f| f.cert_valid_at(now));
+            // When --allow-untrusted, skip both chain trust AND cert validity checks.
+            // Just require the signing key to be resolvable. Signature verification
+            // happens in Stage 3 regardless.
+            let mut rules = if args.allow_untrusted {
+                key.allow_all()
+            } else {
+                key.require::<X509ChainTrustedFact>(|f| f.require_trusted())
+                    .and()
+                    .require::<X509SigningCertificateIdentityFact>(|f| f.cert_valid_at(now))
+            };
 
             if let Some(first_thumbprint) = args.allowed_thumbprint.first() {
                 rules = rules.and().require::<X509SigningCertificateIdentityFact>(|f| {

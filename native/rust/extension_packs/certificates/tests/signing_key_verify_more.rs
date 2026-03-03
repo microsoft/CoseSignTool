@@ -222,7 +222,7 @@ fn signing_key_verify_es256_reports_unexpected_ec_public_key_format_when_point_n
 
 #[test]
 fn signing_key_verify_es256_returns_true_for_valid_signature() {
-    let CertifiedKey { cert, key_pair } =
+    let CertifiedKey { cert, signing_key } =
         generate_simple_self_signed(vec!["verify-es256-valid".to_string()]).unwrap();
 
     let protected = encode_protected_x5chain_single_bstr(cert.der().as_ref());
@@ -244,7 +244,7 @@ fn signing_key_verify_es256_returns_true_for_valid_signature() {
     // Sign using the same P-256 private key using OpenSSL
     use openssl::pkey::PKey;
     
-    let pkcs8_der = key_pair.serialize_der();
+    let pkcs8_der = signing_key.serialize_der();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
     
     // Create signer and sign the data

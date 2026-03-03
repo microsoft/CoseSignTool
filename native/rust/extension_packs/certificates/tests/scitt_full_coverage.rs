@@ -7,7 +7,7 @@ use cose_sign1_certificates::signing::scitt::{build_scitt_cwt_claims, create_sci
 use cose_sign1_certificates::error::CertificateError;
 use cose_sign1_headers::CwtClaims;
 use cose_sign1_signing::{HeaderContributor, HeaderMergeStrategy};
-use rcgen::{CertificateParams, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256};
+use rcgen::{CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256};
 
 fn make_cert_with_eku() -> Vec<u8> {
     let mut params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
@@ -34,7 +34,8 @@ fn make_two_cert_chain() -> Vec<Vec<u8>> {
     leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
     
     let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &root_cert, &root_key).unwrap();
+    let issuer = Issuer::from_ca_cert_der(root_cert.der(), &root_key).unwrap();
+    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
     
     vec![
         leaf_cert.der().to_vec(),

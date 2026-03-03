@@ -28,7 +28,7 @@ default = []
 
 [dev-dependencies]
 cose_sign1_certificates_local = { path = "local" }
-rcgen = "0.13"
+rcgen = { version = "0.14", features = ["x509-parser"] }
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }

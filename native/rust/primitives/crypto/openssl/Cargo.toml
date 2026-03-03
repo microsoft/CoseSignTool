@@ -12,7 +12,7 @@ test = false
 [features]
 default = ["cbor-everparse"]
 cbor-everparse = ["cose_primitives/cbor-everparse"]
-pqc = ["dep:openssl-sys", "dep:foreign-types", "crypto_primitives/pqc"]  # Enable post-quantum cryptography algorithm support (ML-DSA / FIPS 204)
+pqc = ["dep:openssl-sys", "dep:foreign-types", "crypto_primitives/pqc", "cose_primitives/pqc"]  # Enable post-quantum cryptography algorithm support (ML-DSA / FIPS 204)
 
 [dependencies]
 cose_primitives = { path = "../../cose", default-features = false }

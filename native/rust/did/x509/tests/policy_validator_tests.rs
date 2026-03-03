@@ -11,7 +11,8 @@ use did_x509::policy_validators::{
 };
 use did_x509::models::SanType;
 use did_x509::error::DidX509Error;
-use rcgen::{CertificateParams, DnType, SanType as RcgenSanType, Ia5String, KeyPair};
+use rcgen::{CertificateParams, DnType, SanType as RcgenSanType, KeyPair};
+use rcgen::string::Ia5String;
 use rcgen::ExtendedKeyUsagePurpose;
 use x509_parser::prelude::*;
 

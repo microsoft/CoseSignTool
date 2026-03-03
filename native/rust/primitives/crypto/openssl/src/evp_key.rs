@@ -274,3 +274,68 @@ pub fn generate_mldsa_keypair(variant: MlDsaVariant) -> Result<EvpPrivateKey, St
         key_type: KeyType::MlDsa(variant),
     })
 }
+
+/// Generates an ML-DSA key pair as raw DER-encoded bytes.
+///
+/// Returns `(private_key_der, public_key_der)` suitable for storage or use with
+/// OpenSSL's `PKey::private_key_from_der`.
+///
+/// # Arguments
+///
+/// * `variant` - The ML-DSA variant to generate
+#[cfg(feature = "pqc")]
+pub fn generate_mldsa_key_der(variant: MlDsaVariant) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let evp_key = generate_mldsa_keypair(variant)?;
+    let private_der = evp_key.pkey.private_key_to_der()
+        .map_err(|e| format!("Failed to serialize ML-DSA private key: {}", e))?;
+    let public_der = evp_key.pkey.public_key_to_der()
+        .map_err(|e| format!("Failed to serialize ML-DSA public key: {}", e))?;
+    Ok((private_der, public_der))
+}
+
+/// Signs an X.509 certificate with a pure signature algorithm (no external digest).
+///
+/// Pure signature algorithms like ML-DSA and Ed25519 do not use an external hash
+/// function — the hash is internal to the signature scheme. OpenSSL's `X509_sign`
+/// must be called with a NULL message digest for these algorithms, which the Rust
+/// `openssl` crate's `X509Builder::sign()` does not support.
+///
+/// This function signs an already-built `X509` certificate in-place via FFI.
+///
+/// # Arguments
+///
+/// * `x509` - The X509 certificate to sign (must have subject, issuer, validity, etc. set)
+/// * `pkey` - The private key to sign with (ML-DSA or Ed25519)
+///
+/// # Safety
+///
+/// Uses unsafe FFI to call `X509_sign` with NULL md.
+#[cfg(feature = "pqc")]
+pub fn sign_x509_prehash(
+    x509: &openssl::x509::X509,
+    pkey: &PKey<Private>,
+) -> Result<(), String> {
+    use foreign_types::ForeignTypeRef;
+
+    extern "C" {
+        fn X509_sign(
+            x: *mut openssl_sys::X509,
+            pkey: *mut openssl_sys::EVP_PKEY,
+            md: *const openssl_sys::EVP_MD,
+        ) -> std::os::raw::c_int;
+    }
+
+    let ret = unsafe {
+        X509_sign(
+            x509.as_ptr() as *mut openssl_sys::X509,
+            pkey.as_ptr() as *mut openssl_sys::EVP_PKEY,
+            std::ptr::null(), // NULL md = pure signature algorithm
+        )
+    };
+
+    if ret <= 0 {
+        return Err("X509_sign with pure algorithm failed".to_string());
+    }
+
+    Ok(())
+}

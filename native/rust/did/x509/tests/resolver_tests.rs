@@ -4,7 +4,7 @@
 use did_x509::*;
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedKey, 
-    DnType, IsCa, KeyPair,
+    DnType, IsCa, Issuer, KeyPair,
 };
 use sha2::{Sha256, Digest};
 
@@ -43,7 +43,7 @@ fn base64url_encode(input: &[u8]) -> String {
 }
 
 /// Generate a simple CA certificate (default key type, typically EC)
-fn generate_ca_cert() -> (Vec<u8>, CertifiedKey) {
+fn generate_ca_cert() -> (Vec<u8>, CertifiedKey<KeyPair>) {
     let mut ca_params = CertificateParams::default();
     ca_params.distinguished_name.push(DnType::CommonName, "Test CA");
     ca_params.distinguished_name.push(DnType::OrganizationName, "Test Org");
@@ -53,29 +53,31 @@ fn generate_ca_cert() -> (Vec<u8>, CertifiedKey) {
     let ca_cert = ca_params.self_signed(&ca_key).unwrap();
     let ca_der = ca_cert.der().to_vec();
     
-    (ca_der, CertifiedKey { cert: ca_cert, key_pair: ca_key })
+    (ca_der, CertifiedKey { cert: ca_cert, signing_key: ca_key })
 }
 
 /// Generate a leaf certificate signed by CA
-fn generate_leaf_cert(ca: &CertifiedKey, cn: &str) -> Vec<u8> {
+fn generate_leaf_cert(ca: &CertifiedKey<KeyPair>, cn: &str) -> Vec<u8> {
     let mut leaf_params = CertificateParams::default();
     leaf_params.distinguished_name.push(DnType::CommonName, cn);
     leaf_params.distinguished_name.push(DnType::OrganizationName, "Test Org");
     
     let leaf_key = KeyPair::generate().unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &ca.cert, &ca.key_pair).unwrap();
+    let issuer = Issuer::from_ca_cert_der(ca.cert.der(), &ca.signing_key).unwrap();
+    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
     
     leaf_cert.der().to_vec()
 }
 
 /// Generate a leaf certificate with explicit P-256 EC key
-fn generate_leaf_cert_ec_p256(ca: &CertifiedKey, cn: &str) -> Vec<u8> {
+fn generate_leaf_cert_ec_p256(ca: &CertifiedKey<KeyPair>, cn: &str) -> Vec<u8> {
     let mut leaf_params = CertificateParams::default();
     leaf_params.distinguished_name.push(DnType::CommonName, cn);
     leaf_params.distinguished_name.push(DnType::OrganizationName, "Test Org");
     
     let leaf_key = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &ca.cert, &ca.key_pair).unwrap();
+    let issuer = Issuer::from_ca_cert_der(ca.cert.der(), &ca.signing_key).unwrap();
+    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
     
     leaf_cert.der().to_vec()
 }

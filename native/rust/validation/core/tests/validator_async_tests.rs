@@ -25,7 +25,7 @@ use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_primitives::error::PayloadError;
 use cose_sign1_primitives::sig_structure::SizedRead;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::future::Future;
 use std::io::Cursor;
 use std::pin::Pin;
@@ -280,7 +280,7 @@ impl TrustFactProducer for FailingCounterSigFactProducer {
     }
 
     fn provides(&self) -> &'static [FactKey] {
-        static PROVIDED: Lazy<[FactKey; 2]> = Lazy::new(|| {
+        static PROVIDED: LazyLock<[FactKey; 2]> = LazyLock::new(|| {
             [
                 FactKey::of::<CounterSignatureSubjectFact>(),
                 FactKey::of::<CounterSignatureEnvelopeIntegrityFact>(),

@@ -23,6 +23,7 @@ crypto_primitives = { path = "../../primitives/crypto" }
 
 [dev-dependencies]
 anyhow.workspace = true
+sha1.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 x509-parser.workspace = true

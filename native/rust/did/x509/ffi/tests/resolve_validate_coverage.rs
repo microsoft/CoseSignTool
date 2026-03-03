@@ -8,7 +8,8 @@
 use did_x509_ffi::*;
 use did_x509::builder::DidX509Builder;
 use did_x509::models::policy::DidX509Policy;
-use rcgen::{CertificateParams, DnType, SanType as RcgenSanType, KeyPair, ExtendedKeyUsagePurpose, Ia5String};
+use rcgen::{CertificateParams, DnType, SanType as RcgenSanType, KeyPair, ExtendedKeyUsagePurpose};
+use rcgen::string::Ia5String;
 use serde_json::Value;
 use std::ffi::{CStr, CString};
 use std::ptr;

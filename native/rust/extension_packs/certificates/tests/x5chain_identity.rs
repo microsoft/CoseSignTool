@@ -78,7 +78,7 @@ fn x5chain_identity_fact_is_produced() {
         .get_facts::<X509SigningCertificateIdentityFact>(&subject)
         .unwrap();
     assert_eq!(1, facts.len());
-    assert_eq!(40, facts[0].certificate_thumbprint.len());
+    assert_eq!(64, facts[0].certificate_thumbprint.len());
     assert!(!facts[0].subject.is_empty());
     assert!(!facts[0].issuer.is_empty());
     assert!(!facts[0].serial_number.is_empty());

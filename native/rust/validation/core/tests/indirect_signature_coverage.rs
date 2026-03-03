@@ -278,6 +278,7 @@ fn cose_hash_v_succeeds_with_sha512() {
 
 /// Cover CoseHashV with SHA1 algorithm (-14).
 #[test]
+#[cfg(feature = "legacy-sha1")]
 fn cose_hash_v_succeeds_with_sha1() {
     let artifact = Arc::<[u8]>::from(b"payload".to_vec().into_boxed_slice());
     let expected_hash = sha1::Sha1::digest(artifact.as_ref()).to_vec();

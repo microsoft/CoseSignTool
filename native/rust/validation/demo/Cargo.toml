@@ -23,5 +23,5 @@ cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 ring.workspace = true
 hex.workspace = true
 base64.workspace = true
-rcgen = "0.13"
+rcgen = "0.14"
 x509-parser.workspace = true

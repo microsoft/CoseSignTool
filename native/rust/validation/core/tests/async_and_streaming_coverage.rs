@@ -26,7 +26,7 @@ use cose_sign1_primitives::{CoseSign1Message, payload::{Payload, StreamingPayloa
 use cose_sign1_primitives::error::PayloadError;
 use cose_sign1_primitives::sig_structure::SizedRead;
 use crypto_primitives::{CryptoError, CryptoVerifier, VerifyingContext};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::future::Future;
 use std::io::Cursor;
 use std::pin::Pin;
@@ -486,7 +486,7 @@ fn test_counter_signature_result_helpers() {
         }
 
         fn provides(&self) -> &'static [FactKey] {
-            static PROVIDED: Lazy<[FactKey; 1]> = Lazy::new(|| {
+            static PROVIDED: LazyLock<[FactKey; 1]> = LazyLock::new(|| {
                 [FactKey::of::<CounterSignatureSubjectFact>()]
             });
             &*PROVIDED

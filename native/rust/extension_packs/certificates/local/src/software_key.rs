@@ -6,7 +6,9 @@
 use crate::error::CertLocalError;
 use crate::key_algorithm::KeyAlgorithm;
 use crate::traits::{GeneratedKey, PrivateKeyProvider};
-use rcgen::KeyPair;
+use openssl::ec::{EcGroup, EcKey};
+use openssl::nid::Nid;
+use openssl::pkey::PKey;
 
 /// In-memory software key provider for generating cryptographic keys.
 ///
@@ -37,10 +39,10 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
 
     fn supports_algorithm(&self, algorithm: KeyAlgorithm) -> bool {
         match algorithm {
-            KeyAlgorithm::Rsa => false, // ring backend doesn't support RSA key generation
+            KeyAlgorithm::Rsa => false, // Not yet implemented
             KeyAlgorithm::Ecdsa => true,
             #[cfg(feature = "pqc")]
-            KeyAlgorithm::MlDsa => false, // Not yet implemented
+            KeyAlgorithm::MlDsa => true,
         }
     }
 
@@ -58,34 +60,53 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
 
         let size = key_size.unwrap_or_else(|| algorithm.default_key_size());
 
-        // Use rcgen's key pair generation
-        let key_pair = match algorithm {
+        match algorithm {
             KeyAlgorithm::Rsa => {
-                // ring backend doesn't support RSA key generation
-                return Err(CertLocalError::UnsupportedAlgorithm(
-                    "RSA key generation is not supported with ring backend".to_string(),
-                ));
+                Err(CertLocalError::UnsupportedAlgorithm(
+                    "RSA key generation is not yet implemented".to_string(),
+                ))
             }
             KeyAlgorithm::Ecdsa => {
-                KeyPair::generate()
-                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?
+                let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let ec_key = EcKey::generate(&group)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let pkey = PKey::from_ec_key(ec_key)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let private_key_der = pkey.private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey.public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
             }
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => {
-                return Err(CertLocalError::UnsupportedAlgorithm(
-                    "ML-DSA is not yet implemented".to_string(),
-                ));
+                use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant};
+
+                // Map key_size parameter to ML-DSA variant:
+                // 44 -> ML-DSA-44, 65 -> ML-DSA-65 (default), 87 -> ML-DSA-87
+                let variant = match size {
+                    44 => MlDsaVariant::MlDsa44,
+                    87 => MlDsaVariant::MlDsa87,
+                    _ => MlDsaVariant::MlDsa65, // default
+                };
+
+                let (private_key_der, public_key_der) = generate_mldsa_key_der(variant)
+                    .map_err(CertLocalError::KeyGenerationFailed)?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
             }
-        };
-
-        let private_key_der = key_pair.serialize_der();
-        let public_key_der = key_pair.public_key_der().to_vec();
-
-        Ok(GeneratedKey {
-            private_key_der,
-            public_key_der,
-            algorithm,
-            key_size: size,
-        })
+        }
     }
 }

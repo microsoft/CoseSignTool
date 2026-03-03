@@ -28,7 +28,7 @@ sha2 = { workspace = true }
 
 [dev-dependencies]
 cose_sign1_validation_primitives = { path = "../../validation/primitives" }
-rcgen = "0.13"
+rcgen = "0.14"
 openssl = { workspace = true }
 bytes = "1"
 serde_json = { workspace = true }

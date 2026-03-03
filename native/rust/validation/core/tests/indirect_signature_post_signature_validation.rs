@@ -784,6 +784,7 @@ fn envelope_hashes_with_sha512_via_provider_streaming() {
 }
 
 #[test]
+#[cfg(feature = "legacy-sha1")]
 fn envelope_hashes_with_sha1_via_provider_streaming() {
     let artifact = b"artifact".to_vec();
     let expected_hash = sha1::Sha1::digest(artifact.as_slice()).to_vec();
@@ -832,6 +833,7 @@ fn legacy_hash_extension_succeeds_for_sha512() {
 }
 
 #[test]
+#[cfg(feature = "legacy-sha1")]
 fn legacy_hash_extension_succeeds_for_sha1() {
     let artifact = Arc::<[u8]>::from(b"hello world".to_vec().into_boxed_slice());
     let expected_hash = sha1::Sha1::digest(artifact.as_ref()).to_vec();

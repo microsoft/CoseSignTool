@@ -15,7 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
 [dev-dependencies]
-rcgen = "0.13"
+rcgen = { version = "0.14", features = ["x509-parser"] }
 hex = "0.4"
 sha2.workspace = true
 openssl = "0.10"

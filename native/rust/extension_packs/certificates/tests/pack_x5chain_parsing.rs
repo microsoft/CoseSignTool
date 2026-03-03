@@ -309,7 +309,7 @@ fn single_bstr_x5chain_produces_identity() {
     match identity {
         TrustFactSet::Available(v) => {
             assert_eq!(1, v.len(), "expected exactly one certificate");
-            assert_eq!(40, v[0].certificate_thumbprint.len());
+            assert_eq!(64, v[0].certificate_thumbprint.len());
             assert!(!v[0].subject.is_empty());
             assert!(!v[0].issuer.is_empty());
         }
@@ -328,7 +328,7 @@ fn skip_non_x5chain_header_entries() {
     match identity {
         TrustFactSet::Available(v) => {
             assert_eq!(1, v.len(), "expected exactly one certificate after skipping non-x5chain");
-            assert_eq!(40, v[0].certificate_thumbprint.len());
+            assert_eq!(64, v[0].certificate_thumbprint.len());
         }
         other => panic!("expected Available, got {other:?}"),
     }
@@ -439,7 +439,7 @@ fn bstr_wrapped_cose_signature_produces_identity() {
     match identity {
         TrustFactSet::Available(v) => {
             assert_eq!(1, v.len(), "expected one certificate from bstr-wrapped encoding");
-            assert_eq!(40, v[0].certificate_thumbprint.len());
+            assert_eq!(64, v[0].certificate_thumbprint.len());
         }
         other => panic!("expected Available, got {other:?}"),
     }
@@ -552,7 +552,7 @@ fn x5chain_array_with_multiple_certs() {
             // X509SigningCertificateIdentityFact is for the leaf only;
             // having two certs in the x5chain array still yields one identity fact.
             assert_eq!(1, v.len(), "expected one identity fact for the leaf cert");
-            assert_eq!(40, v[0].certificate_thumbprint.len());
+            assert_eq!(64, v[0].certificate_thumbprint.len());
         }
         other => panic!("expected Available, got {other:?}"),
     }

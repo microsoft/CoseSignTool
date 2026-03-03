@@ -10,8 +10,9 @@ use did_x509::error::DidX509Error;
 use did_x509::models::SanType;
 use rcgen::{
     CertificateParams, DnType, KeyPair, ExtendedKeyUsagePurpose,
-    SanType as RcgenSanType, Ia5String
+    SanType as RcgenSanType,
 };
+use rcgen::string::Ia5String;
 
 /// Generate certificate with code signing EKU
 fn generate_code_signing_cert() -> Vec<u8> {

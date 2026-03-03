@@ -17,7 +17,7 @@ use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::{generate_simple_self_signed, CertifiedKey};
+use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -74,7 +74,7 @@ fn gen_p256_cert_der() -> Vec<u8> {
 }
 
 /// Generate a self-signed EC P-256 certificate and return both DER and key pair.
-fn gen_p256_cert_and_key() -> CertifiedKey {
+fn gen_p256_cert_and_key() -> CertifiedKey<KeyPair> {
     generate_simple_self_signed(vec!["resolver-test.example.com".to_string()]).unwrap()
 }
 
@@ -322,7 +322,7 @@ fn verify_es256_invalid_sig_returns_false() {
 
 #[test]
 fn verify_es256_valid_sig_returns_true() {
-    let CertifiedKey { cert, key_pair } = gen_p256_cert_and_key();
+    let CertifiedKey { cert, signing_key } = gen_p256_cert_and_key();
     let cert_der = cert.der().as_ref().to_vec();
     let protected = protected_x5chain_bstr(&cert_der);
     let key = resolve_key(&protected).cose_key.unwrap();
@@ -334,7 +334,7 @@ fn verify_es256_valid_sig_returns_true() {
     use openssl::sign::Signer;
     use openssl::hash::MessageDigest;
     
-    let pkcs8_der = key_pair.serialize_der();
+    let pkcs8_der = signing_key.serialize_der();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
     
     let mut signer = Signer::new(MessageDigest::sha256(), &pkey).unwrap();

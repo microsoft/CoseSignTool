@@ -17,8 +17,9 @@ use did_x509::models::policy::DidX509Policy;
 use did_x509::error::DidX509Error;
 use rcgen::{
     CertificateParams, DnType, KeyPair, ExtendedKeyUsagePurpose, 
-    IsCa, BasicConstraints as RcgenBasicConstraints, SanType as RcgenSanType, Ia5String
+    IsCa, BasicConstraints as RcgenBasicConstraints, SanType as RcgenSanType,
 };
+use rcgen::string::Ia5String;
 use x509_parser::prelude::*;
 
 /// Generate an EC certificate with code signing EKU

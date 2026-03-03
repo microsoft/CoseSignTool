@@ -77,7 +77,7 @@ pub mod provider;
 // Re-exports
 pub use evp_key::{EvpPrivateKey, EvpPublicKey, KeyType};
 #[cfg(feature = "pqc")]
-pub use evp_key::{MlDsaVariant, generate_mldsa_keypair};
+pub use evp_key::{MlDsaVariant, generate_mldsa_keypair, generate_mldsa_key_der, sign_x509_prehash};
 pub use evp_signer::EvpSigner;
 pub use evp_verifier::EvpVerifier;
 pub use provider::OpenSslCryptoProvider;

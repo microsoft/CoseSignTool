@@ -185,7 +185,7 @@ fn counter_signature_signing_key_can_produce_x5chain_identity() {
     match identity {
         TrustFactSet::Available(v) => {
             assert_eq!(1, v.len());
-            assert_eq!(40, v[0].certificate_thumbprint.len());
+            assert_eq!(64, v[0].certificate_thumbprint.len());
             assert!(!v[0].subject.is_empty());
             assert!(!v[0].issuer.is_empty());
         }

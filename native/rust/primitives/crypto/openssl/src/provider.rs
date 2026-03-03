@@ -62,11 +62,14 @@ fn detect_algorithm_from_private_key(pkey: &openssl::pkey::PKey<openssl::pkey::P
         }
         #[cfg(feature = "pqc")]
         _ => {
-            // Try ML-DSA detection
-            if is_mldsa_key(pkey) {
-                Ok(-48) // ML-DSA-44 (default)
-            } else {
-                Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id())))
+            // Try ML-DSA detection via EVP_PKEY_is_a
+            use crate::evp_key::EvpPrivateKey;
+            match EvpPrivateKey::from_pkey(pkey.clone()) {
+                Ok(evp) => match evp.key_type() {
+                    crate::evp_key::KeyType::MlDsa(variant) => Ok(variant.cose_algorithm()),
+                    _ => Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id()))),
+                },
+                Err(_) => Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id()))),
             }
         }
         #[cfg(not(feature = "pqc"))]
@@ -94,25 +97,17 @@ fn detect_algorithm_from_public_key(pkey: &openssl::pkey::PKey<openssl::pkey::Pu
         }
         #[cfg(feature = "pqc")]
         _ => {
-            // Try ML-DSA detection
-            if is_mldsa_key_public(pkey) {
-                Ok(-48) // ML-DSA-44 (default)
-            } else {
-                Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id())))
+            // Try ML-DSA detection via EVP_PKEY_is_a
+            use crate::evp_key::EvpPublicKey;
+            match EvpPublicKey::from_pkey(pkey.clone()) {
+                Ok(evp) => match evp.key_type() {
+                    crate::evp_key::KeyType::MlDsa(variant) => Ok(variant.cose_algorithm()),
+                    _ => Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id()))),
+                },
+                Err(_) => Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id()))),
             }
         }
         #[cfg(not(feature = "pqc"))]
         _ => Err(CryptoError::UnsupportedOperation(format!("Unsupported key type: {:?}", pkey.id()))),
     }
-}
-
-#[cfg(feature = "pqc")]
-fn is_mldsa_key<T>(_pkey: &openssl::pkey::PKey<T>) -> bool {
-    // Simplified detection - in production, use EVP_PKEY_is_a
-    false
-}
-
-#[cfg(feature = "pqc")]
-fn is_mldsa_key_public(_pkey: &openssl::pkey::PKey<openssl::pkey::Public>) -> bool {
-    false
 }

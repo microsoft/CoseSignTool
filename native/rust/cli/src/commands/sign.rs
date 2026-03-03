@@ -46,6 +46,14 @@ pub struct SignArgs {
     #[arg(long)]
     pub subject: Option<String>,
 
+    /// Key algorithm for ephemeral provider: ecdsa (default) or mldsa (requires --features pqc)
+    #[arg(long, default_value = "ecdsa", value_parser = ["ecdsa", "mldsa"])]
+    pub algorithm: String,
+
+    /// Key size / parameter set (e.g., 256 for ECDSA P-256, 44/65/87 for ML-DSA)
+    #[arg(long)]
+    pub key_size: Option<u32>,
+
     /// Content type (e.g., "application/spdx+json")
     #[arg(short, long, default_value = "application/octet-stream")]
     pub content_type: String,
@@ -157,6 +165,9 @@ pub fn run(args: SignArgs) -> i32 {
         cert_file: args.cert_file.clone(),
         key_file: args.key_file.clone(),
         subject: args.subject.clone(),
+        algorithm: Some(args.algorithm.clone()),
+        key_size: args.key_size,
+        pqc: args.algorithm == "mldsa",
         vault_url: args.vault_url.clone(),
         cert_name: args.cert_name.clone(),
         cert_version: args.cert_version.clone(),

@@ -162,13 +162,28 @@ impl SigningProvider for EphemeralSigningProvider {
         // Determine subject name from args or use default
         let subject = args.subject.as_deref().unwrap_or("CN=CoseSignTool Ephemeral");
 
+        // Determine key algorithm from args
+        let key_algorithm = match args.algorithm.as_deref() {
+            #[cfg(feature = "pqc")]
+            Some("mldsa") => cose_sign1_certificates_local::key_algorithm::KeyAlgorithm::MlDsa,
+            #[cfg(not(feature = "pqc"))]
+            Some("mldsa") => return Err(anyhow::anyhow!(
+                "ML-DSA requires the 'pqc' feature. Rebuild with: cargo build --features pqc"
+            )),
+            _ => cose_sign1_certificates_local::key_algorithm::KeyAlgorithm::Ecdsa,
+        };
+
         // Create the factory with a software key provider
         let key_provider = Box::new(SoftwareKeyProvider::new());
         let factory = EphemeralCertificateFactory::new(key_provider);
 
         // Build certificate options
-        let options = CertificateOptions::default()
-            .with_subject_name(subject);
+        let mut options = CertificateOptions::default()
+            .with_subject_name(subject)
+            .with_key_algorithm(key_algorithm);
+        if let Some(size) = args.key_size {
+            options = options.with_key_size(size);
+        }
 
         // Generate the certificate + key
         let cert = factory.create_certificate(options)

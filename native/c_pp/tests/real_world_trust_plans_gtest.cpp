@@ -3,15 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cose/sign1/trust.hpp>
-
-#ifdef COSE_HAS_CERTIFICATES_PACK
-#include <cose/sign1/extension_packs/certificates.hpp>
-#endif
-
-#ifdef COSE_HAS_MST_PACK
-#include <cose/sign1/extension_packs/mst.hpp>
-#endif
+#include <cose/cose.hpp>
 
 #include <cstdint>
 #include <fstream>

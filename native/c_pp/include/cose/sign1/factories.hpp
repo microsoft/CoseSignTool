@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <utility>
 
+#ifdef COSE_HAS_CRYPTO_OPENSSL
+#include <cose/crypto/openssl.hpp>
+#endif
+
 namespace cose::sign1 {
 
 /**
@@ -103,17 +107,22 @@ public:
      * 
      * Ownership of the signer handle is transferred to the factory.
      * 
-     * @param signer_handle Crypto signer handle (ownership transferred)
+     * @param signer Crypto signer handle (ownership transferred)
      * @return Factory instance
      * @throws FactoryError on failure
      */
-    static Factory FromCryptoSigner(CryptoSignerHandle* signer_handle) {
+#ifdef COSE_HAS_CRYPTO_OPENSSL
+    static Factory FromCryptoSigner(cose::CryptoSignerHandle& signer) {
         CoseSign1FactoriesHandle* h = nullptr;
         CoseSign1FactoriesErrorHandle* err = nullptr;
-        int status = cose_sign1_factories_create_from_crypto_signer(signer_handle, &h, &err);
+        // Cast between equivalent opaque handle types from different FFI crates
+        auto* raw = reinterpret_cast<::CryptoSignerHandle*>(signer.native_handle());
+        int status = cose_sign1_factories_create_from_crypto_signer(raw, &h, &err);
+        signer.release();
         cose::detail::ThrowIfNotOkFactory(status, err);
         return Factory(h);
     }
+#endif
 
     /**
      * @brief Destructor - frees the factory handle

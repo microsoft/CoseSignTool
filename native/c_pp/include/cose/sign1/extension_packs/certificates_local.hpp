@@ -9,12 +9,86 @@
 #ifndef COSE_SIGN1_CERTIFICATES_LOCAL_HPP
 #define COSE_SIGN1_CERTIFICATES_LOCAL_HPP
 
-#include <cose/sign1/extension_packs/certificates_local.h>
 #include <cose/sign1/validation.hpp>
 #include <vector>
 #include <string>
 #include <stdexcept>
 #include <utility>
+
+// We cannot include <cose/sign1/extension_packs/certificates_local.h> directly
+// because it redefines cose_status_t and its enumerators without the
+// COSE_STATUS_T_DEFINED guard, conflicting with <cose/cose.h>.
+// Instead, forward-declare the types and functions we need.
+extern "C" {
+
+typedef struct cose_cert_local_factory_t cose_cert_local_factory_t;
+typedef struct cose_cert_local_chain_t cose_cert_local_chain_t;
+
+uint32_t cose_cert_local_ffi_abi_version(void);
+
+char* cose_cert_local_last_error_message_utf8(void);
+void cose_cert_local_last_error_clear(void);
+void cose_cert_local_string_free(char* s);
+
+cose_status_t cose_cert_local_factory_new(cose_cert_local_factory_t** out);
+void cose_cert_local_factory_free(cose_cert_local_factory_t* factory);
+
+cose_status_t cose_cert_local_factory_create_cert(
+    const cose_cert_local_factory_t* factory,
+    const char* subject,
+    uint32_t algorithm,
+    uint32_t key_size,
+    uint64_t validity_secs,
+    uint8_t** out_cert_der,
+    size_t* out_cert_len,
+    uint8_t** out_key_der,
+    size_t* out_key_len
+);
+
+cose_status_t cose_cert_local_factory_create_self_signed(
+    const cose_cert_local_factory_t* factory,
+    uint8_t** out_cert_der,
+    size_t* out_cert_len,
+    uint8_t** out_key_der,
+    size_t* out_key_len
+);
+
+cose_status_t cose_cert_local_chain_new(cose_cert_local_chain_t** out);
+void cose_cert_local_chain_free(cose_cert_local_chain_t* chain_factory);
+
+cose_status_t cose_cert_local_chain_create(
+    const cose_cert_local_chain_t* chain_factory,
+    uint32_t algorithm,
+    bool include_intermediate,
+    uint8_t*** out_certs_data,
+    size_t** out_certs_lengths,
+    size_t* out_certs_count,
+    uint8_t*** out_keys_data,
+    size_t** out_keys_lengths,
+    size_t* out_keys_count
+);
+
+cose_status_t cose_cert_local_load_pem(
+    const uint8_t* pem_data,
+    size_t pem_len,
+    uint8_t** out_cert_der,
+    size_t* out_cert_len,
+    uint8_t** out_key_der,
+    size_t* out_key_len
+);
+
+cose_status_t cose_cert_local_load_der(
+    const uint8_t* cert_data,
+    size_t cert_len,
+    uint8_t** out_cert_der,
+    size_t* out_cert_len
+);
+
+void cose_cert_local_bytes_free(uint8_t* ptr, size_t len);
+void cose_cert_local_array_free(uint8_t** ptr, size_t len);
+void cose_cert_local_lengths_array_free(size_t* ptr, size_t len);
+
+} // extern "C"
 
 namespace cose {
 

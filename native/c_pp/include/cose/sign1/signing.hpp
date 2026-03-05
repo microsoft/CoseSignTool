@@ -21,6 +21,10 @@
 #include <cose/sign1.hpp>
 #endif
 
+#ifdef COSE_HAS_CRYPTO_OPENSSL
+#include <cose/crypto/openssl.hpp>
+#endif
+
 namespace cose {
 
 /**
@@ -249,6 +253,22 @@ public:
     }
     
     /**
+     * @brief Create a CoseKey from a raw handle (takes ownership)
+     * 
+     * Used by extension pack wrappers that obtain a raw cose_key_t handle
+     * from C FFI functions.
+     * 
+     * @param k Raw key handle (ownership transferred)
+     * @return CoseKey instance
+     */
+    static CoseKey FromRawHandle(cose_key_t* k) {
+        if (!k) {
+            throw SigningError(0, "Null key handle");
+        }
+        return CoseKey(k);
+    }
+
+    /**
      * @brief Get the native handle
      * @return Native C handle
      */
@@ -450,6 +470,7 @@ public:
         return SigningService(s);
     }
     
+#ifdef COSE_HAS_CRYPTO_OPENSSL
     /**
      * @brief Create signing service directly from a CryptoSigner (no callback needed)
      * 
@@ -479,6 +500,7 @@ public:
         
         return SigningService(s);
     }
+#endif
     
     ~SigningService() {
         if (handle_) {
@@ -543,6 +565,7 @@ public:
         return SignatureFactory(f);
     }
     
+#ifdef COSE_HAS_CRYPTO_OPENSSL
     /**
      * @brief Create factory directly from a CryptoSigner (simplest path)
      * 
@@ -574,6 +597,7 @@ public:
         
         return SignatureFactory(f);
     }
+#endif
     
     ~SignatureFactory() {
         if (handle_) {
@@ -711,7 +735,7 @@ public:
         
         int status = cose_sign1_factory_sign_direct_streaming(
             handle_,
-            detail::stream_trampoline,
+            cose::detail::stream_trampoline,
             total_size,
             &reader,
             content_type.c_str(),
@@ -779,7 +803,7 @@ public:
         
         int status = cose_sign1_factory_sign_indirect_streaming(
             handle_,
-            detail::stream_trampoline,
+            cose::detail::stream_trampoline,
             total_size,
             &reader,
             content_type.c_str(),
@@ -803,9 +827,9 @@ public:
      * @param content_type Content type string
      * @return Parsed CoseSign1Message object
      */
-    cose::CoseSign1Message SignDirect(const uint8_t* payload, uint32_t len, const char* content_type) {
+    CoseSign1Message SignDirect(const uint8_t* payload, uint32_t len, const char* content_type) {
         auto bytes = SignDirectBytes(payload, len, content_type);
-        return cose::CoseSign1Message::Parse(bytes.data(), bytes.size());
+        return CoseSign1Message::Parse(bytes.data(), bytes.size());
     }
 
     /**
@@ -815,9 +839,9 @@ public:
      * @param content_type Content type string
      * @return Parsed CoseSign1Message object
      */
-    cose::CoseSign1Message SignIndirect(const uint8_t* payload, uint32_t len, const char* content_type) {
+    CoseSign1Message SignIndirect(const uint8_t* payload, uint32_t len, const char* content_type) {
         auto bytes = SignIndirectBytes(payload, len, content_type);
-        return cose::CoseSign1Message::Parse(bytes.data(), bytes.size());
+        return CoseSign1Message::Parse(bytes.data(), bytes.size());
     }
 #endif
     
@@ -836,38 +860,35 @@ private:
 
 } // namespace cose::sign1
 
+// ============================================================================
+// Forward declaration for certificates FFI function (global namespace)
+// We avoid including <cose/sign1/extension_packs/certificates.h> to prevent
+// its conflicting forward declaration of cose_key_t.
+// ============================================================================
+#ifdef COSE_HAS_CERTIFICATES_PACK
+extern "C" cose_status_t cose_certificates_key_from_cert_der(
+    const uint8_t* cert_der,
+    size_t cert_der_len,
+    cose_key_t** out_key
+);
+#endif
+
 namespace cose {
 
-// ============================================================================
-// CoseKey::FromCertificateDer implementation (requires certificates FFI)
-// ============================================================================
-
-// Forward declaration for certificates FFI function
-extern "C" {
-    typedef enum {
-        COSE_OK = 0,
-        // ... other codes
-    } cose_status_t;
-    
-    cose_status_t cose_certificates_key_from_cert_der(
-        const uint8_t* cert_der,
-        size_t cert_der_len,
-        cose_key_t** out_key
-    );
-}
-
+#ifdef COSE_HAS_CERTIFICATES_PACK
 inline CoseKey CoseKey::FromCertificateDer(const std::vector<uint8_t>& cert_der) {
     cose_key_t* k = nullptr;
-    cose_status_t status = cose_certificates_key_from_cert_der(
+    ::cose_status_t status = ::cose_certificates_key_from_cert_der(
         cert_der.data(),
         cert_der.size(),
         &k
     );
-    if (status != COSE_OK || !k) {
+    if (status != ::COSE_OK || !k) {
         throw SigningError(static_cast<int>(status), "Failed to create key from certificate DER");
     }
     return CoseKey(k);
 }
+#endif
 
 } // namespace cose
 

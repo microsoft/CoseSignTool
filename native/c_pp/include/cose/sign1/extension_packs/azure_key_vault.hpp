@@ -11,7 +11,14 @@
 
 #include <cose/sign1/validation.hpp>
 #include <cose/sign1/trust.hpp>
+
+// Work around azure_key_vault.h:20 conflicting forward declaration of cose_key_t.
+// signing.h already defined 'typedef CoseKeyHandle cose_key_t;', but azure_key_vault.h
+// tries 'typedef struct cose_key_t cose_key_t;' which is a different type in C++.
+#define cose_key_t CoseKeyHandle
 #include <cose/sign1/extension_packs/azure_key_vault.h>
+#undef cose_key_t
+
 #include <vector>
 #include <string>
 
@@ -231,7 +238,7 @@ public:
             throw std::runtime_error("Failed to create signing key from AKV client");
         }
         
-        return cose::CoseKey(key);
+        return cose::CoseKey::FromRawHandle(key);
     }
 #else
     /**

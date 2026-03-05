@@ -12,7 +12,15 @@
 #include <cose/sign1/validation.hpp>
 #include <cose/sign1/trust.hpp>
 #include <cose/sign1/signing.hpp>
+
+// Work around certificates.h:381 conflicting forward declaration of cose_key_t.
+// signing.h already defined 'typedef CoseKeyHandle cose_key_t;', but certificates.h
+// tries 'typedef struct cose_key_t cose_key_t;' which is a different type in C++.
+// Redirect so the conflicting typedef becomes a harmless duplicate of CoseKeyHandle.
+#define cose_key_t CoseKeyHandle
 #include <cose/sign1/extension_packs/certificates.h>
+#undef cose_key_t
+
 #include <vector>
 #include <string>
 

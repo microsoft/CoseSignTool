@@ -74,4 +74,8 @@
 #include <cose/sign1/cwt.hpp>
 #endif
 
+// Re-export cose::sign1 names into cose namespace for convenience.
+// This allows callers to write cose::ValidatorBuilder instead of cose::sign1::ValidatorBuilder.
+namespace cose { using namespace cose::sign1; }
+
 #endif // COSE_HPP

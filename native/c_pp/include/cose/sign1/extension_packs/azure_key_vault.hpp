@@ -120,6 +120,38 @@ inline TrustPolicyBuilder& RequireAzureKeyVaultKidNotAllowed(TrustPolicyBuilder&
 }
 
 /**
+ * @brief Add Azure Key Vault KID validation pack with default options.
+ * @param builder The validator builder to configure
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithAzureKeyVault(ValidatorBuilder& builder) {
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_akv_pack(builder.native_handle()));
+    return builder;
+}
+
+/**
+ * @brief Add Azure Key Vault KID validation pack with custom options.
+ * @param builder The validator builder to configure
+ * @param options Azure Key Vault validation options
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithAzureKeyVault(ValidatorBuilder& builder, const AzureKeyVaultOptions& options) {
+    std::vector<const char*> patterns_ptrs;
+    for (const auto& s : options.allowed_kid_patterns) {
+        patterns_ptrs.push_back(s.c_str());
+    }
+    patterns_ptrs.push_back(nullptr);
+
+    cose_akv_trust_options_t c_opts = {
+        options.require_azure_key_vault_kid,
+        options.allowed_kid_patterns.empty() ? nullptr : patterns_ptrs.data()
+    };
+
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_akv_pack_ex(builder.native_handle(), &c_opts));
+    return builder;
+}
+
+/**
  * @brief RAII wrapper for Azure Key Vault key client
  */
 class AkvKeyClient {

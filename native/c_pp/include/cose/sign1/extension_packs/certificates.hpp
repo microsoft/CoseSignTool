@@ -589,6 +589,46 @@ inline TrustPolicyBuilder& RequireX509PublicKeyAlgorithmIsNotPqc(TrustPolicyBuil
     return policy;
 }
 
+/**
+ * @brief Add X.509 certificate validation pack with default options.
+ * @param builder The validator builder to configure
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithCertificates(ValidatorBuilder& builder) {
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_certificates_pack(builder.native_handle()));
+    return builder;
+}
+
+/**
+ * @brief Add X.509 certificate validation pack with custom options.
+ * @param builder The validator builder to configure
+ * @param options Certificate validation options
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithCertificates(ValidatorBuilder& builder, const CertificateOptions& options) {
+    std::vector<const char*> thumbprints_ptrs;
+    for (const auto& s : options.allowed_thumbprints) {
+        thumbprints_ptrs.push_back(s.c_str());
+    }
+    thumbprints_ptrs.push_back(nullptr);
+
+    std::vector<const char*> oids_ptrs;
+    for (const auto& s : options.pqc_algorithm_oids) {
+        oids_ptrs.push_back(s.c_str());
+    }
+    oids_ptrs.push_back(nullptr);
+
+    cose_certificate_trust_options_t c_opts = {
+        options.trust_embedded_chain_as_trusted,
+        options.identity_pinning_enabled,
+        options.allowed_thumbprints.empty() ? nullptr : thumbprints_ptrs.data(),
+        options.pqc_algorithm_oids.empty() ? nullptr : oids_ptrs.data()
+    };
+
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_certificates_pack_ex(builder.native_handle(), &c_opts));
+    return builder;
+}
+
 // Note: CoseKey::FromCertificateDer() is implemented in signing.hpp
 
 } // namespace cose::sign1

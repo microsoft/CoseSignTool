@@ -188,6 +188,33 @@ inline TrustPolicyBuilder& RequireMstReceiptStatementCoverageContains(TrustPolic
     return policy;
 }
 
+/**
+ * @brief Add MST receipt verification pack with default options (online mode).
+ * @param builder The validator builder to configure
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithMst(ValidatorBuilder& builder) {
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_mst_pack(builder.native_handle()));
+    return builder;
+}
+
+/**
+ * @brief Add MST receipt verification pack with custom options.
+ * @param builder The validator builder to configure
+ * @param options MST verification options
+ * @return Reference to the builder for chaining.
+ */
+inline ValidatorBuilder& WithMst(ValidatorBuilder& builder, const MstOptions& options) {
+    cose_mst_trust_options_t c_opts = {
+        options.allow_network,
+        options.offline_jwks_json.empty() ? nullptr : options.offline_jwks_json.c_str(),
+        options.jwks_api_version.empty() ? nullptr : options.jwks_api_version.c_str()
+    };
+
+    cose::detail::ThrowIfNotOk(cose_sign1_validator_builder_with_mst_pack_ex(builder.native_handle(), &c_opts));
+    return builder;
+}
+
 // ============================================================================
 // MST Transparency Client Signing Support
 // ============================================================================

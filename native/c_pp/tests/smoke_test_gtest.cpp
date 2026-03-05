@@ -17,8 +17,8 @@ TEST(Smoke, BasicValidatorBuilds) {
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
 TEST(Smoke, CertificatesPackBuildsDefault) {
-    auto builder = cose::ValidatorBuilderWithCertificates();
-    builder.WithCertificates();
+    cose::ValidatorBuilder builder;
+    cose::WithCertificates(builder);
     auto validator = builder.Build();
     (void)validator;
 }
@@ -28,8 +28,8 @@ TEST(Smoke, CertificatesPackBuildsCustomOptions) {
     opts.trust_embedded_chain_as_trusted = true;
     opts.allowed_thumbprints = {"ABCD1234"};
 
-    auto builder = cose::ValidatorBuilderWithCertificates();
-    builder.WithCertificates(opts);
+    cose::ValidatorBuilder builder;
+    cose::WithCertificates(builder, opts);
     auto validator = builder.Build();
     (void)validator;
 }
@@ -37,8 +37,8 @@ TEST(Smoke, CertificatesPackBuildsCustomOptions) {
 
 #ifdef COSE_HAS_MST_PACK
 TEST(Smoke, MstPackBuildsDefault) {
-    auto builder = cose::ValidatorBuilderWithMst();
-    builder.WithMst();
+    cose::ValidatorBuilder builder;
+    cose::WithMst(builder);
     auto validator = builder.Build();
     (void)validator;
 }
@@ -48,8 +48,8 @@ TEST(Smoke, MstPackBuildsCustomOptions) {
     opts.allow_network = false;
     opts.offline_jwks_json = R"({"keys":[]})";
 
-    auto builder = cose::ValidatorBuilderWithMst();
-    builder.WithMst(opts);
+    cose::ValidatorBuilder builder;
+    cose::WithMst(builder, opts);
     auto validator = builder.Build();
     (void)validator;
 }
@@ -57,8 +57,8 @@ TEST(Smoke, MstPackBuildsCustomOptions) {
 
 #ifdef COSE_HAS_AKV_PACK
 TEST(Smoke, AkvPackBuildsDefault) {
-    auto builder = cose::ValidatorBuilderWithAzureKeyVault();
-    builder.WithAzureKeyVault();
+    cose::ValidatorBuilder builder;
+    cose::WithAzureKeyVault(builder);
     auto validator = builder.Build();
     (void)validator;
 }
@@ -67,8 +67,9 @@ TEST(Smoke, AkvPackBuildsDefault) {
 #ifdef COSE_HAS_TRUST_PACK
 TEST(Smoke, BundledTrustPlanCompilesAndAttaches) {
 #ifdef COSE_HAS_CERTIFICATES_PACK
-    auto builder = cose::ValidatorBuilderWithCertificates();
-    builder.WithCertificates();
+    cose::ValidatorBuilder cert_builder;
+    cose::WithCertificates(cert_builder);
+    auto builder = std::move(cert_builder);
 #else
     auto builder = cose::ValidatorBuilder();
 #endif
@@ -96,13 +97,13 @@ TEST(Smoke, CustomTrustPolicyCompilesAndAttaches) {
     auto builder = cose::ValidatorBuilder();
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
-    ASSERT_EQ(cose_sign1_validator_builder_with_certificates_pack(builder.native_handle()), COSE_OK);
+    cose::WithCertificates(builder);
 #endif
 #ifdef COSE_HAS_MST_PACK
-    ASSERT_EQ(cose_sign1_validator_builder_with_mst_pack(builder.native_handle()), COSE_OK);
+    cose::WithMst(builder);
 #endif
 #ifdef COSE_HAS_AKV_PACK
-    ASSERT_EQ(cose_sign1_validator_builder_with_akv_pack(builder.native_handle()), COSE_OK);
+    cose::WithAzureKeyVault(builder);
 #endif
 
     auto policy = cose::TrustPolicyBuilder(builder);

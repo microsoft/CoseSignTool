@@ -100,6 +100,8 @@ fn default_sign_args(
         cert_file: None,
         key_file: None,
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,

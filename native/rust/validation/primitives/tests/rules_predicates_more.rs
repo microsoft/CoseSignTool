@@ -210,26 +210,29 @@ fn property_predicates_cover_unhit_variants_and_type_mismatches() {
     assert!(!non_empty.evaluate(&engine, &subject).unwrap().is_trusted);
 
     // Invalid regex should be treated as non-match.
-    let bad_regex = require_fact_property::<PropsFact, _>(
-        "bad_regex",
-        |s: &TrustSubject| s.clone(),
-        FactSelector::first(),
-        "s",
-        PropertyPredicate::StrMatchesRegex("(".to_string()),
-        "NoMatch",
-    );
-    assert!(!bad_regex.evaluate(&engine, &subject).unwrap().is_trusted);
+    #[cfg(feature = "regex")]
+    {
+        let bad_regex = require_fact_property::<PropsFact, _>(
+            "bad_regex",
+            |s: &TrustSubject| s.clone(),
+            FactSelector::first(),
+            "s",
+            PropertyPredicate::StrMatchesRegex("(".to_string()),
+            "NoMatch",
+        );
+        assert!(!bad_regex.evaluate(&engine, &subject).unwrap().is_trusted);
 
-    // Valid regex should match.
-    let good_regex = require_fact_property::<PropsFact, _>(
-        "good_regex",
-        |s: &TrustSubject| s.clone(),
-        FactSelector::first(),
-        "s",
-        PropertyPredicate::StrMatchesRegex("hello.*world".to_string()),
-        "NoMatch",
-    );
-    assert!(good_regex.evaluate(&engine, &subject).unwrap().is_trusted);
+        // Valid regex should match.
+        let good_regex = require_fact_property::<PropsFact, _>(
+            "good_regex",
+            |s: &TrustSubject| s.clone(),
+            FactSelector::first(),
+            "s",
+            PropertyPredicate::StrMatchesRegex("hello.*world".to_string()),
+            "NoMatch",
+        );
+        assert!(good_regex.evaluate(&engine, &subject).unwrap().is_trusted);
+    }
 
     // StrContains success path.
     let contains = require_fact_property::<PropsFact, _>(
@@ -484,15 +487,18 @@ fn property_predicate_type_mismatch_paths_are_exercised() {
     );
     assert!(!ends_on_num.evaluate(&engine, &subject).unwrap().is_trusted);
 
-    let regex_on_num = require_fact_property::<PropsFact, _>(
-        "regex_on_num",
-        |s: &TrustSubject| s.clone(),
-        FactSelector::first(),
-        "u",
-        PropertyPredicate::StrMatchesRegex(".*".to_string()),
-        "NoMatch",
-    );
-    assert!(!regex_on_num.evaluate(&engine, &subject).unwrap().is_trusted);
+    #[cfg(feature = "regex")]
+    {
+        let regex_on_num = require_fact_property::<PropsFact, _>(
+            "regex_on_num",
+            |s: &TrustSubject| s.clone(),
+            FactSelector::first(),
+            "u",
+            PropertyPredicate::StrMatchesRegex(".*".to_string()),
+            "NoMatch",
+        );
+        assert!(!regex_on_num.evaluate(&engine, &subject).unwrap().is_trusted);
+    }
 
     let num_on_str = require_fact_property::<PropsFact, _>(
         "num_on_str",

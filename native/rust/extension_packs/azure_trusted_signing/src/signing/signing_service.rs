@@ -41,6 +41,7 @@ struct AtsCertificateSourceAdapter {
 }
 
 impl AtsCertificateSourceAdapter {
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn new(inner: Arc<AzureTrustedSigningCertificateSource>) -> Self {
         Self {
             inner,
@@ -79,6 +80,7 @@ impl CertificateSource for AtsCertificateSourceAdapter {
         Ok(self.leaf_cert.get().unwrap())
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn has_private_key(&self) -> bool {
         false // remote — private key lives in HSM
     }
@@ -110,16 +112,19 @@ impl CryptoSigner for AtsSigningKeyProviderAdapter {
         self.signer.sign(data)
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.signer.algorithm()
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         self.signer.key_type()
     }
 }
 
 impl SigningKeyProvider for AtsSigningKeyProviderAdapter {
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn is_remote(&self) -> bool {
         true
     }

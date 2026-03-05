@@ -300,15 +300,18 @@ fn property_predicates_cover_more_match_arms() {
     );
     assert!(ends.evaluate(&engine, &subject).unwrap().is_trusted);
 
-    let bad_re = require_fact_property::<PropFact, _>(
-        "bad_re",
-        |x: &TrustSubject| x.clone(),
-        FactSelector::first(),
-        "s",
-        PropertyPredicate::StrMatchesRegex("[".to_string()),
-        "NoMatch",
-    );
-    assert!(!bad_re.evaluate(&engine, &subject).unwrap().is_trusted);
+    #[cfg(feature = "regex")]
+    {
+        let bad_re = require_fact_property::<PropFact, _>(
+            "bad_re",
+            |x: &TrustSubject| x.clone(),
+            FactSelector::first(),
+            "s",
+            PropertyPredicate::StrMatchesRegex("[".to_string()),
+            "NoMatch",
+        );
+        assert!(!bad_re.evaluate(&engine, &subject).unwrap().is_trusted);
+    }
 
     let ge_u32 = require_fact_property::<PropFact, _>(
         "ge_u32",

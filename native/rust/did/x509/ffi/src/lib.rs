@@ -61,6 +61,29 @@ pub use crate::error::{
     did_x509_error_code, did_x509_error_free, did_x509_error_message, did_x509_string_free,
 };
 
+/// Handle a panic from catch_unwind by setting the error and returning FFI_ERR_PANIC.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn handle_panic(out_error: *mut *mut DidX509ErrorHandle, context: &str) -> i32 {
+    set_error(
+        out_error,
+        ErrorInner::new(format!("panic during {}", context), FFI_ERR_PANIC),
+    );
+    FFI_ERR_PANIC
+}
+
+/// Handle a NUL byte in a CString by setting the error and returning FFI_ERR_INVALID_ARGUMENT.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn handle_nul_byte(out_error: *mut *mut DidX509ErrorHandle, field: &str) -> i32 {
+    set_error(
+        out_error,
+        ErrorInner::new(
+            format!("{} contained NUL byte", field),
+            FFI_ERR_INVALID_ARGUMENT,
+        ),
+    );
+    FFI_ERR_INVALID_ARGUMENT
+}
+
 /// ABI version for this library.
 ///
 /// Increment when making breaking changes to the FFI interface.
@@ -127,13 +150,7 @@ pub fn impl_parse_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during parsing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "parsing"),
     }
 }
 
@@ -182,28 +199,13 @@ pub fn impl_parsed_get_fingerprint_inner(
                 }
                 FFI_OK
             }
-            Err(_) => {
-                set_error(
-                    out_error,
-                    ErrorInner::new(
-                        "fingerprint contained NUL byte",
-                        FFI_ERR_INVALID_ARGUMENT,
-                    ),
-                );
-                FFI_ERR_INVALID_ARGUMENT
-            }
+            Err(_) => handle_nul_byte(out_error, "fingerprint"),
         }
     }));
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during fingerprint extraction", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "fingerprint extraction"),
     }
 }
 
@@ -252,28 +254,13 @@ pub fn impl_parsed_get_hash_algorithm_inner(
                 }
                 FFI_OK
             }
-            Err(_) => {
-                set_error(
-                    out_error,
-                    ErrorInner::new(
-                        "hash algorithm contained NUL byte",
-                        FFI_ERR_INVALID_ARGUMENT,
-                    ),
-                );
-                FFI_ERR_INVALID_ARGUMENT
-            }
+            Err(_) => handle_nul_byte(out_error, "hash algorithm"),
         }
     }));
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during hash algorithm extraction", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "hash algorithm extraction"),
     }
 }
 
@@ -427,16 +414,7 @@ pub fn impl_build_with_eku_inner(
                     }
                     FFI_OK
                 }
-                Err(_) => {
-                    set_error(
-                        out_error,
-                        ErrorInner::new(
-                            "DID string contained NUL byte",
-                            FFI_ERR_INVALID_ARGUMENT,
-                        ),
-                    );
-                    FFI_ERR_INVALID_ARGUMENT
-                }
+                Err(_) => handle_nul_byte(out_error, "DID string"),
             },
             Err(err) => {
                 set_error(out_error, ErrorInner::from_did_error(&err));
@@ -447,17 +425,9 @@ pub fn impl_build_with_eku_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during building", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "building"),
     }
 }
-
-/// Build DID:x509 from CA cert DER + EKU OIDs.
 ///
 /// # Safety
 ///
@@ -550,16 +520,7 @@ pub fn impl_build_from_chain_inner(
                     }
                     FFI_OK
                 }
-                Err(_) => {
-                    set_error(
-                        out_error,
-                        ErrorInner::new(
-                            "DID string contained NUL byte",
-                            FFI_ERR_INVALID_ARGUMENT,
-                        ),
-                    );
-                    FFI_ERR_INVALID_ARGUMENT
-                }
+                Err(_) => handle_nul_byte(out_error, "DID string"),
             },
             Err(err) => {
                 set_error(out_error, ErrorInner::from_did_error(&err));
@@ -570,16 +531,9 @@ pub fn impl_build_from_chain_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during building from chain", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "building from chain"),
     }
 }
-
 /// Build DID:x509 from cert chain (leaf-first) with auto EKU extraction.
 ///
 /// # Safety
@@ -701,13 +655,7 @@ pub fn impl_validate_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during validation", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "validation"),
     }
 }
 
@@ -828,16 +776,7 @@ pub fn impl_resolve_inner(
                             }
                             FFI_OK
                         }
-                        Err(_) => {
-                            set_error(
-                                out_error,
-                                ErrorInner::new(
-                                    "DID document JSON contained NUL byte",
-                                    FFI_ERR_INVALID_ARGUMENT,
-                                ),
-                            );
-                            FFI_ERR_INVALID_ARGUMENT
-                        }
+                        Err(_) => handle_nul_byte(out_error, "DID document JSON"),
                     },
                     Err(err) => {
                         set_error(
@@ -860,13 +799,7 @@ pub fn impl_resolve_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during resolution", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "resolution"),
     }
 }
 

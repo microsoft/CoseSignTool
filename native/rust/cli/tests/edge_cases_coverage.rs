@@ -298,6 +298,8 @@ fn test_sign_detached_mode() {
         cert_file: None,
         key_file: None,
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: true, // Test detached mode
@@ -337,6 +339,8 @@ fn test_invalid_output_formats() {
         cert_file: None,
         key_file: None,
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,
@@ -376,6 +380,8 @@ fn test_sign_mst_invalid_url() {
         cert_file: None,
         key_file: None,
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,
@@ -415,6 +421,8 @@ fn test_sign_pem_missing_cert_file() {
         cert_file: None, // Missing cert file
         key_file: Some(temp_dir.path().join("key.pem")),
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,
@@ -453,6 +461,8 @@ fn test_sign_pem_missing_key_file() {
         cert_file: Some(temp_dir.path().join("cert.pem")),
         key_file: None, // Missing key file
         subject: None,
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,
@@ -491,6 +501,8 @@ fn test_sign_ephemeral_missing_subject() {
         cert_file: None,
         key_file: None,
         subject: None, // Missing subject for ephemeral
+        algorithm: "ecdsa".to_string(),
+        key_size: None,
         content_type: "application/octet-stream".to_string(),
         format: "direct".to_string(),
         detached: false,

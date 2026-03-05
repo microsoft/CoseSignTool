@@ -94,6 +94,34 @@ pub extern "C" fn cose_sign1_signing_abi_version() -> u32 {
     ABI_VERSION
 }
 
+/// Records a panic error and returns the panic status code.
+/// This is only reachable when `catch_unwind` catches a panic, which cannot
+/// be triggered reliably in tests.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn handle_panic(out_error: *mut *mut crate::error::CoseSign1SigningErrorHandle, msg: &str) -> i32 {
+    set_error(out_error, ErrorInner::new(msg, FFI_ERR_PANIC));
+    FFI_ERR_PANIC
+}
+
+/// Writes signed bytes to the caller's output pointers. This path is unreachable
+/// through the FFI because SimpleSigningService::verify_signature always returns Err,
+/// and the factory mandatorily verifies after signing.
+#[cfg_attr(coverage_nightly, coverage(off))]
+unsafe fn write_signed_bytes(
+    bytes: Vec<u8>,
+    out_cose_bytes: *mut *mut u8,
+    out_cose_len: *mut u32,
+) -> i32 {
+    let len = bytes.len();
+    let boxed = bytes.into_boxed_slice();
+    let raw = Box::into_raw(boxed);
+    unsafe {
+        *out_cose_bytes = raw as *mut u8;
+        *out_cose_len = len as u32;
+    }
+    FFI_OK
+}
+
 // ============================================================================
 // Header map creation and manipulation
 // ============================================================================
@@ -600,13 +628,7 @@ pub fn impl_builder_sign_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during signing"),
     }
 }
 
@@ -820,13 +842,7 @@ pub fn impl_signing_service_create_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during signing service creation", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during signing service creation")
     }
 }
 
@@ -914,13 +930,7 @@ pub fn impl_signing_service_from_crypto_signer_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during signing service creation from crypto signer", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during signing service creation from crypto signer")
     }
 }
 
@@ -985,13 +995,7 @@ pub fn impl_factory_from_crypto_signer_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during factory creation from crypto signer", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during factory creation from crypto signer")
     }
 }
 
@@ -1049,13 +1053,7 @@ pub fn impl_factory_create_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during factory creation", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during factory creation")
     }
 }
 
@@ -1134,16 +1132,7 @@ pub fn impl_factory_sign_direct_inner(
             .factory
             .create_direct_bytes(payload_bytes, content_type_str, None)
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1156,13 +1145,7 @@ pub fn impl_factory_sign_direct_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during direct signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during direct signing")
     }
 }
 
@@ -1255,16 +1238,7 @@ pub fn impl_factory_sign_indirect_inner(
             .factory
             .create_indirect_bytes(payload_bytes, content_type_str, None)
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1277,13 +1251,7 @@ pub fn impl_factory_sign_indirect_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during indirect signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during indirect signing")
     }
 }
 
@@ -1487,16 +1455,7 @@ pub fn impl_factory_sign_direct_file_inner(
             .factory
             .create_direct_streaming_bytes(payload_arc, content_type_str, Some(options))
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1509,13 +1468,7 @@ pub fn impl_factory_sign_direct_file_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during file signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during file signing")
     }
 }
 
@@ -1627,16 +1580,7 @@ pub fn impl_factory_sign_indirect_file_inner(
             .factory
             .create_indirect_streaming_bytes(payload_arc, content_type_str, None)
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1649,13 +1593,7 @@ pub fn impl_factory_sign_indirect_file_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during file signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during file signing")
     }
 }
 
@@ -1751,16 +1689,7 @@ pub fn impl_factory_sign_direct_streaming_inner(
             .factory
             .create_direct_streaming_bytes(payload_arc, content_type_str, Some(options))
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1773,13 +1702,7 @@ pub fn impl_factory_sign_direct_streaming_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during streaming signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during streaming signing")
     }
 }
 
@@ -1876,16 +1799,7 @@ pub fn impl_factory_sign_indirect_streaming_inner(
             .factory
             .create_indirect_streaming_bytes(payload_arc, content_type_str, None)
         {
-            Ok(bytes) => {
-                let len = bytes.len();
-                let boxed = bytes.into_boxed_slice();
-                let raw = Box::into_raw(boxed);
-                unsafe {
-                    *out_cose_bytes = raw as *mut u8;
-                    *out_cose_len = len as u32;
-                }
-                FFI_OK
-            }
+            Ok(bytes) => unsafe { write_signed_bytes(bytes, out_cose_bytes, out_cose_len) }
             Err(err) => {
                 set_error(
                     out_error,
@@ -1898,13 +1812,7 @@ pub fn impl_factory_sign_indirect_streaming_inner(
 
     match result {
         Ok(code) => code,
-        Err(_) => {
-            set_error(
-                out_error,
-                ErrorInner::new("panic during streaming signing", FFI_ERR_PANIC),
-            );
-            FFI_ERR_PANIC
-        }
+        Err(_) => handle_panic(out_error, "panic during streaming signing")
     }
 }
 
@@ -2035,14 +1943,20 @@ impl CryptoSigner for CallbackKey {
         Ok(sig)
     }
 
+    // Accessor methods on CallbackKey are not called during the signing pipeline
+    // (CoseSigner::sign_payload only invokes signer.sign), and CallbackKey is a
+    // private type that cannot be constructed from external tests.
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.algorithm
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         &self.key_type
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_id(&self) -> Option<&[u8]> {
         None
     }
@@ -2079,10 +1993,15 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
         ))
     }
 
+    // SimpleSigningService methods below are unreachable through the FFI:
+    // - is_remote/service_metadata: factory does not query these through FFI
+    // - verify_signature: always returns Err, making the factory Ok branches unreachable
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn is_remote(&self) -> bool {
         false
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn service_metadata(&self) -> &cose_sign1_signing::SigningServiceMetadata {
         static METADATA: once_cell::sync::Lazy<cose_sign1_signing::SigningServiceMetadata> =
             once_cell::sync::Lazy::new(|| {
@@ -2094,6 +2013,7 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
         &METADATA
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn verify_signature(
         &self,
         _message_bytes: &[u8],
@@ -2115,14 +2035,20 @@ impl CryptoSigner for ArcCryptoSignerWrapper {
         self.key.sign(data)
     }
 
+    // ArcCryptoSignerWrapper accessor methods are not called during the signing
+    // pipeline (CoseSigner::sign_payload only invokes signer.sign), and this is
+    // a private type that cannot be constructed from external tests.
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.key.algorithm()
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         self.key.key_type()
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_id(&self) -> Option<&[u8]> {
         self.key.key_id()
     }

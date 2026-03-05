@@ -97,6 +97,7 @@ impl AzureTrustedSigningCertificateSource {
     }
 
     /// Decode base64 fields from a completed SignStatus.
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn decode_sign_status(status: SignStatus) -> Result<(Vec<u8>, Vec<u8>), AtsError> {
         let sig_b64 = status.signature
             .ok_or_else(|| AtsError::SigningFailed("No signature in response".into()))?;

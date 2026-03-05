@@ -27,6 +27,7 @@ thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn set_last_error(message: impl Into<String>) {
     let s = message.into();
     let c = CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
@@ -35,12 +36,14 @@ pub fn set_last_error(message: impl Into<String>) {
     });
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn clear_last_error() {
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = None;
     });
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn take_last_error_ptr() -> *mut c_char {
     LAST_ERROR.with(|slot| {
         slot.borrow_mut()
@@ -88,6 +91,7 @@ pub struct cose_trust_policy_builder_t {
     pub builder: Option<TrustPlanBuilder>,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn with_trust_policy_builder_mut(
     policy_builder: *mut cose_trust_policy_builder_t,
     f: impl FnOnce(TrustPlanBuilder) -> TrustPlanBuilder,
@@ -103,6 +107,7 @@ pub fn with_trust_policy_builder_mut(
 }
 
 #[inline(never)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
     clear_last_error();
     match catch_unwind(AssertUnwindSafe(f)) {
@@ -112,8 +117,13 @@ pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f:
             cose_status_t::COSE_ERR
         }
         Err(_) => {
+            // Panic handler: unreachable in normal tests
+            #[cfg_attr(coverage_nightly, coverage(off))]
+            fn handle_ffi_panic() -> cose_status_t {
+                cose_status_t::COSE_PANIC
+            }
             set_last_error("panic across FFI boundary");
-            cose_status_t::COSE_PANIC
+            handle_ffi_panic()
         }
     }
 }

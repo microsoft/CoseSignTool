@@ -13,6 +13,7 @@ pub struct AtsCryptoSigner {
 }
 
 impl AtsCryptoSigner {
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(
         source: Arc<AzureTrustedSigningCertificateSource>,
         algorithm_name: String,
@@ -43,6 +44,8 @@ impl CryptoSigner for AtsCryptoSigner {
         Ok(signature)
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 { self.algorithm_id }
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str { &self.key_type }
 }

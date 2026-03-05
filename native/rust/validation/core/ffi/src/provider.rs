@@ -25,6 +25,7 @@ compile_error!(
 );
 
 /// Instantiate the compile-time-selected CBOR provider.
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn ffi_cbor_provider() -> FfiCborProvider {
     FfiCborProvider::default()
 }

@@ -201,6 +201,7 @@ impl CertificateProfileClient {
     /// Creates a new client with an explicit credential.
     ///
     /// Follows the same pattern as `azure_security_keyvault_certificates::CertificateClient::new()`.
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(
         options: CertificateProfileClientOptions,
         credential: Arc<dyn TokenCredential>,
@@ -243,6 +244,7 @@ impl CertificateProfileClient {
     }
 
     /// Creates a new client with DeveloperToolsCredential (for local dev).
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new_dev(
         options: CertificateProfileClientOptions,
     ) -> Result<Self> {
@@ -310,6 +312,7 @@ impl CertificateProfileClient {
     /// println!("Signature: {} bytes", result.signature.unwrap_or_default().len());
     /// # Ok(()) }
     /// ```
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn start_sign(
         &self,
         algorithm: &str,

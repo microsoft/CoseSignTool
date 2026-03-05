@@ -69,6 +69,7 @@ fn declarative_predicates_support_contains_regex_and_numeric_comparisons() {
         "NameMissingOrDoesNotContain",
     );
 
+    #[cfg(feature = "regex")]
     let name_matches_regex = require_fact_property::<DummyFact, _>(
         "name_matches_regex",
         |s: &TrustSubject| s.clone(),
@@ -93,6 +94,7 @@ fn declarative_predicates_support_contains_regex_and_numeric_comparisons() {
             .unwrap()
             .is_trusted
     );
+    #[cfg(feature = "regex")]
     assert!(
         name_matches_regex
             .evaluate(&engine, &subject)

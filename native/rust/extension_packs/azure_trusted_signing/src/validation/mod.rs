@@ -24,6 +24,10 @@ impl TrustFactProducer for AtsFactProducer {
         "azure_trusted_signing"
     }
 
+    // produce() requires a TrustFactContext that cannot be constructed outside
+    // the TrustFactEngine. The engine dispatches to produce() internally, and the
+    // AtsFactProducer::provides() returns &[] so the engine never routes to it.
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         // TODO: Detect ATS-issued certificates by examining the x5chain issuer CN
         // and EKU OIDs (specific to Microsoft Trusted Signing).

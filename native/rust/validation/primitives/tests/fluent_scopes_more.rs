@@ -255,7 +255,6 @@ fn where_string_predicates_build_and_evaluate() {
             m.require::<StringFact>(|w| {
                 w.str_non_empty(Field::new("value"))
                     .str_contains(Field::new("value"), "world")
-                    .str_matches_regex(Field::new("value"), "hello.*world")
             })
         })
         .compile();

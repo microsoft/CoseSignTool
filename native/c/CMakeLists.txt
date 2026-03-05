@@ -53,19 +53,34 @@ find_library(COSE_FFI_BASE_LIB
 )
 
 # Pack FFI libraries (optional)
+# Two-phase find: prefer local Rust build (NO_DEFAULT_PATH), then fall back to
+# system/vcpkg paths. The Rust crate name and the vcpkg port name differ, so
+# both are listed in NAMES.
 find_library(COSE_FFI_CERTIFICATES_LIB
-    NAMES cose_sign1_validation_ffi_certificates
+    NAMES cose_sign1_certificates_ffi cose_sign1_validation_ffi_certificates
     PATHS ${RUST_FFI_DIR}
+    NO_DEFAULT_PATH
+)
+find_library(COSE_FFI_CERTIFICATES_LIB
+    NAMES cose_sign1_certificates_ffi cose_sign1_validation_ffi_certificates
 )
 
 find_library(COSE_FFI_MST_LIB
-    NAMES cose_sign1_validation_ffi_mst
+    NAMES cose_sign1_transparent_mst_ffi cose_sign1_validation_ffi_mst
     PATHS ${RUST_FFI_DIR}
+    NO_DEFAULT_PATH
+)
+find_library(COSE_FFI_MST_LIB
+    NAMES cose_sign1_transparent_mst_ffi cose_sign1_validation_ffi_mst
 )
 
 find_library(COSE_FFI_AKV_LIB
-    NAMES cose_sign1_validation_ffi_akv
+    NAMES cose_sign1_azure_key_vault_ffi cose_sign1_validation_ffi_akv
     PATHS ${RUST_FFI_DIR}
+    NO_DEFAULT_PATH
+)
+find_library(COSE_FFI_AKV_LIB
+    NAMES cose_sign1_azure_key_vault_ffi cose_sign1_validation_ffi_akv
 )
 
 find_library(COSE_FFI_TRUST_LIB
@@ -252,7 +267,10 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(examples)
+option(BUILD_EXAMPLES "Build example programs" ON)
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 # Installation rules
 install(DIRECTORY include/cose

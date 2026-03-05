@@ -61,14 +61,14 @@ extern "C" {
 typedef struct cose_sign1_builder_t cose_sign1_builder_t;
 
 /**
- * @brief Opaque handle to a header map.
+ * @brief Opaque handle to a header map (alias for CoseHeaderMapHandle from cose.h).
  */
-typedef struct cose_headermap_t cose_headermap_t;
+typedef CoseHeaderMapHandle cose_headermap_t;
 
 /**
- * @brief Opaque handle to a signing key.
+ * @brief Opaque handle to a signing key (alias for CoseKeyHandle from cose.h).
  */
-typedef struct cose_key_t cose_key_t;
+typedef CoseKeyHandle cose_key_t;
 
 /**
  * @brief Opaque handle to a signing service.

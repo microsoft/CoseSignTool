@@ -79,8 +79,8 @@ if (GTest_FOUND)
 		cose_copy_rust_dlls(real_world_trust_plans_test)
 
 		get_filename_component(COSE_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
-		set(COSE_TESTDATA_V1_DIR "${COSE_REPO_ROOT}/native/rust/cose_sign1_certificates/testdata/v1")
-		set(COSE_MST_JWKS_PATH "${COSE_REPO_ROOT}/native/rust/cose_sign1_validation_transparent_mst/testdata/esrp-cts-cp.confidential-ledger.azure.com.jwks.json")
+		set(COSE_TESTDATA_V1_DIR "${COSE_REPO_ROOT}/native/rust/extension_packs/certificates/testdata/v1")
+		set(COSE_MST_JWKS_PATH "${COSE_REPO_ROOT}/native/rust/extension_packs/mst/testdata/esrp-cts-cp.confidential-ledger.azure.com.jwks.json")
 
 		target_compile_definitions(real_world_trust_plans_test PRIVATE
 			COSE_TESTDATA_V1_DIR="${COSE_TESTDATA_V1_DIR}"
@@ -100,8 +100,8 @@ else()
 		target_link_libraries(real_world_trust_plans_test PRIVATE cose_sign1)
 
 		get_filename_component(COSE_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
-		set(COSE_TESTDATA_V1_DIR "${COSE_REPO_ROOT}/native/rust/cose_sign1_certificates/testdata/v1")
-		set(COSE_MST_JWKS_PATH "${COSE_REPO_ROOT}/native/rust/cose_sign1_validation_transparent_mst/testdata/esrp-cts-cp.confidential-ledger.azure.com.jwks.json")
+		set(COSE_TESTDATA_V1_DIR "${COSE_REPO_ROOT}/native/rust/extension_packs/certificates/testdata/v1")
+		set(COSE_MST_JWKS_PATH "${COSE_REPO_ROOT}/native/rust/extension_packs/mst/testdata/esrp-cts-cp.confidential-ledger.azure.com.jwks.json")
 
 		target_compile_definitions(real_world_trust_plans_test PRIVATE
 			COSE_TESTDATA_V1_DIR="${COSE_TESTDATA_V1_DIR}"

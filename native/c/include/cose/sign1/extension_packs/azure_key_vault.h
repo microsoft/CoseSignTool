@@ -16,8 +16,7 @@
 extern "C" {
 #endif
 
-// Forward declaration for signing key handle
-typedef struct cose_key_t cose_key_t;
+// CoseKeyHandle is available from cose.h (included transitively via validation.h)
 
 /**
  * @brief Options for Azure Key Vault KID validation
@@ -159,7 +158,7 @@ void cose_akv_key_client_free(cose_akv_key_client_handle_t* client);
  */
 cose_status_t cose_sign1_akv_create_signing_key(
     cose_akv_key_client_handle_t* akv_client,
-    cose_key_t** out_key
+    CoseKeyHandle** out_key
 );
 
 /* ========================================================================== */

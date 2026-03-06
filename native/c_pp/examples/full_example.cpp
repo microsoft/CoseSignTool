@@ -3,361 +3,284 @@
 
 /**
  * @file full_example.cpp
- * @brief Comprehensive C++ example demonstrating real COSE Sign1 signing with RAII
- * 
- * This example shows the complete workflow from certificate generation through signing
- * to validation, using real cryptographic operations. It demonstrates:
- * - RAII resource management (no manual cleanup)
- * - Real ECDSA and ML-DSA-65 signatures (no dummy callbacks)
- * - Certificate chain creation
- * - Post-quantum cryptography (when available)
- * - Exception-based error handling
+ * @brief Comprehensive C++ example demonstrating COSE Sign1 validation with RAII
+ *
+ * This example shows the full range of the C++ API, including:
+ * - Basic validation (always available)
+ * - Trust policy authoring with certificates and MST packs
+ * - Multi-pack composition with AND/OR operators
+ * - Trust plan builder for composing pack default plans
+ * - Message parsing and header inspection
+ * - CWT claims building and serialization
+ *
+ * Compare with the C examples to see the RAII advantage: no goto cleanup,
+ * no manual free calls, and exception-based error handling.
  */
 
 #include <cose/cose.hpp>
 
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
+#include <ctime>
 #include <iostream>
 #include <string>
 #include <vector>
 
 int main() {
     try {
-        // Example payload to sign
-        const std::string payload_text = "Hello, COSE Sign1 from C++!";
-        std::vector<uint8_t> payload(payload_text.begin(), payload_text.end());
-
-        std::vector<uint8_t> signed_bytes;
-
-        // ========================================================================
-        // Part 1: Real Signing with Self-Signed Certificate
-        // ========================================================================
-#if defined(COSE_HAS_CERTIFICATES_LOCAL) && defined(COSE_HAS_CRYPTO_OPENSSL) && defined(COSE_HAS_FACTORIES)
-        std::cout << "=== Part 1: Self-Signed Certificate Signing ===" << std::endl;
-        
-        // Generate ephemeral self-signed certificate with ECDSA P-256
-        auto cert = cose::EphemeralCertificateFactory::New().CreateSelfSigned();
-        std::cout << "✓ Generated self-signed certificate" << std::endl;
-        
-        // Create signer from the private key
-        auto signer = cose::CryptoProvider::New().SignerFromDer(cert.key_der);
-        std::cout << "✓ Created signer (algorithm: " << signer.Algorithm() << ")" << std::endl;
-        
-        // Create factory and sign - DIRECT crypto flow (no callback!)
-        auto factory = cose::SignatureFactory::FromCryptoSigner(signer);
-        signed_bytes = factory.SignDirectBytes(
-            payload.data(), 
-            static_cast<uint32_t>(payload.size()), 
-            "application/example"
-        );
-        std::cout << "✓ Signed with real ECDSA signature (" << signed_bytes.size() << " bytes)" << std::endl;
-#else
-        std::cout << "=== Part 1: Self-Signed Certificate Signing (SKIPPED - feature not available) ===" << std::endl;
-        std::cout << "Requires: COSE_HAS_CERTIFICATES_LOCAL, COSE_HAS_CRYPTO_OPENSSL, COSE_HAS_FACTORIES" << std::endl;
-#endif
-
-        // ========================================================================
-        // Part 2: Certificate Chain Signing
-        // ========================================================================
-#if defined(COSE_HAS_CERTIFICATES_LOCAL) && defined(COSE_HAS_CRYPTO_OPENSSL) && defined(COSE_HAS_FACTORIES)
-        std::cout << "\n=== Part 2: Certificate Chain Signing ===" << std::endl;
-        
-        // Create certificate chain factory
-        auto chain_factory = cose::CertificateChainFactory::New();
-        
-        // Generate a certificate chain (ECDSA with intermediate CA)
-        auto chain = chain_factory.CreateChain(COSE_KEY_ALG_ECDSA, true);
-        std::cout << "✓ Generated certificate chain" << std::endl;
-        std::cout << "  Chain length: " << chain.size() << " certificates" << std::endl;
-        
-        if (chain.size() > 0) {
-            // Use the leaf certificate (first in chain) for signing
-            std::cout << "  Leaf cert size: " << chain[0].cert_der.size() << " bytes" << std::endl;
-            std::cout << "  Leaf key size: " << chain[0].key_der.size() << " bytes" << std::endl;
-            
-            if (chain.size() > 1) {
-                std::cout << "  Intermediate cert size: " << chain[1].cert_der.size() << " bytes" << std::endl;
-            }
-            if (chain.size() > 2) {
-                std::cout << "  Root cert size: " << chain[2].cert_der.size() << " bytes" << std::endl;
-            }
-            
-            // Create signer from leaf certificate's private key
-            auto chain_crypto = cose::CryptoProvider::New();
-            auto chain_signer = chain_crypto.SignerFromDer(chain[0].key_der);
-            
-            // Create factory DIRECTLY from signer (no callback!)
-            auto chain_factory_sig = cose::SignatureFactory::FromCryptoSigner(chain_signer);
-            
-            // Sign with the leaf certificate
-            auto chain_signed = chain_factory_sig.SignDirectBytes(
-                payload.data(),
-                static_cast<uint32_t>(payload.size()),
-                "application/chain-example"
-            );
-            std::cout << "✓ Signed with leaf certificate" << std::endl;
-            std::cout << "  Signed message size: " << chain_signed.size() << " bytes" << std::endl;
-        }
-#else
-        std::cout << "\n=== Part 2: Certificate Chain Signing (SKIPPED - feature not available) ===" << std::endl;
-#endif
-
-        // ========================================================================
-        // Part 3: Post-Quantum Cryptography (ML-DSA-65)
-        // ========================================================================
-#if defined(COSE_HAS_CERTIFICATES_LOCAL) && defined(COSE_HAS_CRYPTO_OPENSSL) && defined(COSE_HAS_FACTORIES) && defined(COSE_HAS_PQC)
-        std::cout << "\n=== Part 3: Post-Quantum Signing (ML-DSA-65) ===" << std::endl;
-        
-        // Create a PQC certificate with ML-DSA-65
-        auto pqc_factory = cose::EphemeralCertificateFactory::New();
-        auto pqc_cert = pqc_factory.CreateCertificate(
-            "CN=PQC Test Certificate",
-            COSE_KEY_ALG_MLDSA,  // ML-DSA algorithm
-            65,                   // ML-DSA-65 (security level)
-            86400                 // 1 day validity
-        );
-        std::cout << "✓ Generated ML-DSA-65 certificate" << std::endl;
-        std::cout << "  Certificate size: " << pqc_cert.cert_der.size() << " bytes" << std::endl;
-        std::cout << "  Private key size: " << pqc_cert.key_der.size() << " bytes" << std::endl;
-        
-        // Create signer from PQC private key
-        auto pqc_crypto = cose::CryptoProvider::New();
-        auto pqc_signer = pqc_crypto.SignerFromDer(pqc_cert.key_der);
-        std::cout << "✓ Created ML-DSA signer" << std::endl;
-        std::cout << "  Algorithm: " << pqc_signer.Algorithm() << " (ML-DSA-65)" << std::endl;
-        
-        // Create factory DIRECTLY from signer (no callback!)
-        auto pqc_factory_sig = cose::SignatureFactory::FromCryptoSigner(pqc_signer);
-        
-        // Sign with ML-DSA-65
-        auto pqc_signed = pqc_factory_sig.SignDirectBytes(
-            payload.data(),
-            static_cast<uint32_t>(payload.size()),
-            "application/pqc-example"
-        );
-        std::cout << "✓ Created COSE Sign1 message with ML-DSA-65 signature" << std::endl;
-        std::cout << "  Total size: " << pqc_signed.size() << " bytes" << std::endl;
-        
-        // Verify PQC signature
-        auto pqc_verifier = pqc_crypto.VerifierFromDer(pqc_cert.cert_der);
-        std::cout << "✓ PQC signature verification available" << std::endl;
-#else
-        std::cout << "\n=== Part 3: Post-Quantum Signing (SKIPPED - feature not available) ===" << std::endl;
-        #ifndef COSE_HAS_PQC
-        std::cout << "Note: PQC support not enabled. Define COSE_HAS_PQC to enable." << std::endl;
-        #endif
-#endif
-
-        // ========================================================================
-        // Part 4: Streaming Signing (large payload support)
-        // ========================================================================
-#if defined(COSE_HAS_FACTORIES) && defined(COSE_HAS_CRYPTO_OPENSSL) && defined(COSE_HAS_CERTIFICATES_LOCAL)
-        std::cout << "\n=== Part 4: Streaming Signing ===" << std::endl;
-        
-        // Generate a test file (or use an existing one)
-        std::string test_file = "test_payload.bin";
-        {
-            std::ofstream f(test_file, std::ios::binary);
-            std::vector<uint8_t> chunk(65536, 0x42); // 64KB chunks
-            for (int i = 0; i < 16; i++) f.write((char*)chunk.data(), chunk.size()); // 1MB file
-        }
-        std::cout << "✓ Created test file: " << test_file << " (1MB)" << std::endl;
-        
-        // Sign the file without loading it into memory
-        auto stream_cert = cose::EphemeralCertificateFactory::New().CreateSelfSigned();
-        auto stream_signer = cose::CryptoProvider::New().SignerFromDer(stream_cert.key_der);
-        auto stream_factory = cose::SignatureFactory::FromCryptoSigner(stream_signer);
-        
-        // File-based streaming sign (detached signature)
-        auto detached_sig = stream_factory.SignDirectFile(test_file, "application/octet-stream");
-        std::cout << "✓ Streamed 1MB file -> detached signature: " << detached_sig.size() << " bytes" << std::endl;
-        std::cout << "  (File was never fully loaded into memory)" << std::endl;
-        
-        // Callback-based streaming (from any source)
-        auto in_memory_data = std::vector<uint8_t>(1024 * 1024, 0xAB); // 1MB
-        size_t offset = 0;
-        auto reader = [&](uint8_t* buf, size_t len) -> size_t {
-            size_t remaining = in_memory_data.size() - offset;
-            size_t to_read = std::min(len, remaining);
-            std::memcpy(buf, in_memory_data.data() + offset, to_read);
-            offset += to_read;
-            return to_read;
+        // Dummy COSE Sign1 bytes for demonstration purposes.
+        // In production, these would come from a file or network.
+        std::vector<uint8_t> cose_bytes = {
+            0xD2, 0x84, 0x43, 0xA1, 0x01, 0x26, 0xA0, 0x44,
+            0x74, 0x65, 0x73, 0x74, 0x40
         };
-        auto streamed_sig = stream_factory.SignDirectStreaming(reader, in_memory_data.size(), "application/octet-stream");
-        std::cout << "✓ Callback-streamed 1MB -> detached signature: " << streamed_sig.size() << " bytes" << std::endl;
-        
-        // Cleanup test file
-        std::remove(test_file.c_str());
-        std::cout << "✓ Cleaned up test file" << std::endl;
-#else
-        std::cout << "\n=== Part 4: Streaming Signing (SKIPPED - feature not available) ===" << std::endl;
-        std::cout << "Requires: COSE_HAS_FACTORIES, COSE_HAS_CRYPTO_OPENSSL, COSE_HAS_CERTIFICATES_LOCAL" << std::endl;
-#endif
 
-        // ========================================================================
-        // Part 5: Message Inspection (fluent API - RAII cleanup)
-        // ========================================================================
-#ifdef COSE_HAS_PRIMITIVES
-        std::cout << "\n=== Part 5: Message Inspection ===" << std::endl;
-        
-        if (!signed_bytes.empty()) {
-            // Parse the COSE Sign1 message
-            // The CoseSign1Message object owns the parsed data and cleans up automatically
-            auto msg = cose::CoseSign1Message::Parse(signed_bytes.data(), signed_bytes.size());
-            
-            // Access protected headers with optional pattern
-            auto protected_headers = msg.ProtectedHeaders();
-            auto alg = protected_headers.GetInt(COSE_HEADER_ALG);
-            if (alg.has_value()) {
-                std::cout << "Algorithm: " << alg.value() << std::endl;
-            }
-            
-            auto content_type = protected_headers.GetText(COSE_HEADER_CONTENT_TYPE);
-            if (content_type.has_value()) {
-                std::cout << "Content Type: " << content_type.value() << std::endl;
-            }
-            
-            // Check payload type
-            if (msg.IsDetached()) {
-                std::cout << "Payload: <detached>" << std::endl;
+        // ====================================================================
+        // Part 1: Basic Validation (always available)
+        // ====================================================================
+        std::cout << "=== Part 1: Basic Validation ===" << std::endl;
+        {
+            // ValidatorBuilder → Build → Validate.
+            // All three RAII objects are destroyed automatically at scope exit.
+            cose::ValidatorBuilder builder;
+            cose::Validator validator = builder.Build();
+            cose::ValidationResult result = validator.Validate(cose_bytes);
+
+            if (result.Ok()) {
+                std::cout << "Validation succeeded" << std::endl;
             } else {
-                auto embedded_payload = msg.Payload();
-                if (embedded_payload.has_value()) {
-                    std::cout << "Payload: " << embedded_payload->size() << " bytes embedded" << std::endl;
-                }
+                std::cout << "Validation failed: " << result.FailureMessage() << std::endl;
             }
-            
-            // Access raw signature bytes
-            auto signature = msg.Signature();
-            std::cout << "Signature: " << signature.size() << " bytes" << std::endl;
         }
-#else
-        std::cout << "\n=== Part 5: Message Inspection (SKIPPED - feature not available) ===" << std::endl;
-#endif
+        // No cleanup code needed — RAII destructors freed builder, validator, and result.
 
-        // ========================================================================
-        // Part 6: Validation with Certificates (fluent trust policy API)
-        // ========================================================================
-#ifdef COSE_HAS_CERTIFICATES_PACK
-        std::cout << "\n=== Part 6: Validation with Certificates ===" << std::endl;
-        
-        if (!signed_bytes.empty()) {
-            // Build validator with certificates pack using fluent interface
-            cose::ValidatorBuilderWithCertificates builder;
-            builder.WithCertificates();
-            
-            // Create custom trust policy bound to the builder's configured packs
+        // ====================================================================
+        // Part 2: Validation with Trust Policy + Certificates Pack
+        // ====================================================================
+#if defined(COSE_HAS_CERTIFICATES_PACK) && defined(COSE_HAS_TRUST_PACK)
+        std::cout << "\n=== Part 2: Trust Policy + Certificates ===" << std::endl;
+        {
+            // Create a plain ValidatorBuilder and register the certificates pack
+            // using the composable free function (no subclass required).
+            cose::ValidatorBuilder builder;
+            cose::CertificateOptions cert_opts;
+            cert_opts.trust_embedded_chain_as_trusted = true;
+            cose::WithCertificates(builder, cert_opts);
+
+            // Build a trust policy with fluent chaining.
             cose::TrustPolicyBuilder policy(builder);
-            
-            // Chain multiple policy requirements fluently
-            policy.RequireContentTypeNonEmpty();
-            
-            // Add certificate-specific requirements
-            policy.And();
+            policy
+                .RequireContentTypeNonEmpty()
+                .And();
             cose::RequireX509ChainTrusted(policy);
             cose::RequireSigningCertificatePresent(policy);
             cose::RequireSigningCertificateThumbprintPresent(policy);
-            
-            // Compile the policy into an optimized plan
-            auto plan = policy.Compile();
-            
-            // Attach the compiled plan to the validator builder
+
+            // Compile to an optimized plan and attach to the builder.
+            cose::CompiledTrustPlan plan = policy.Compile();
             cose::WithCompiledTrustPlan(builder, plan);
-            
-            // Build the validator (builder is consumed here)
-            auto validator = builder.Build();
-            
-            // Validate the message
-            // The ValidationResult object manages its own lifetime
-            auto result = validator.Validate(signed_bytes, {});
-            
-            if (result.Ok()) {
-                std::cout << "✓ Validation successful" << std::endl;
-            } else {
-                std::cout << "✗ Validation failed: " << result.FailureMessage() << std::endl;
+
+            // Build and validate.
+            cose::Validator validator = builder.Build();
+            cose::ValidationResult result = validator.Validate(cose_bytes);
+
+            std::cout << (result.Ok() ? "Passed" : result.FailureMessage()) << std::endl;
+        }
+#else
+        std::cout << "\n=== Part 2: Trust Policy + Certificates (SKIPPED) ===" << std::endl;
+        std::cout << "Requires: COSE_HAS_CERTIFICATES_PACK, COSE_HAS_TRUST_PACK" << std::endl;
+#endif
+
+        // ====================================================================
+        // Part 3: Multi-Pack Composition (Certificates + MST)
+        // ====================================================================
+#if defined(COSE_HAS_CERTIFICATES_PACK) && defined(COSE_HAS_MST_PACK) && defined(COSE_HAS_TRUST_PACK)
+        std::cout << "\n=== Part 3: Multi-Pack Composition ===" << std::endl;
+        {
+            // Register both packs on the same builder using free functions.
+            cose::ValidatorBuilder builder;
+            cose::WithCertificates(builder);
+            cose::MstOptions mst_opts;
+            mst_opts.allow_network = false;
+            mst_opts.offline_jwks_json = "{\"keys\":[]}";
+            cose::WithMst(builder, mst_opts);
+
+            // Build a combined policy mixing certificate AND MST requirements.
+            cose::TrustPolicyBuilder policy(builder);
+            cose::RequireX509ChainTrusted(policy);
+            policy.And();
+            cose::RequireSigningCertificatePresent(policy);
+            policy.Or();
+            cose::RequireMstReceiptPresent(policy);
+            policy.And();
+            cose::RequireMstReceiptTrusted(policy);
+
+            cose::CompiledTrustPlan plan = policy.Compile();
+            cose::WithCompiledTrustPlan(builder, plan);
+
+            cose::Validator validator = builder.Build();
+            cose::ValidationResult result = validator.Validate(cose_bytes);
+
+            std::cout << (result.Ok() ? "Passed" : result.FailureMessage()) << std::endl;
+        }
+#else
+        std::cout << "\n=== Part 3: Multi-Pack Composition (SKIPPED) ===" << std::endl;
+        std::cout << "Requires: COSE_HAS_CERTIFICATES_PACK, COSE_HAS_MST_PACK, COSE_HAS_TRUST_PACK" << std::endl;
+#endif
+
+        // ====================================================================
+        // Part 4: Trust Plan Builder — inspect packs and compose default plans
+        // ====================================================================
+#ifdef COSE_HAS_TRUST_PACK
+        std::cout << "\n=== Part 4: Trust Plan Builder ===" << std::endl;
+        {
+            cose::ValidatorBuilder builder;
+
+            // Register packs so the plan builder can discover them.
+#ifdef COSE_HAS_CERTIFICATES_PACK
+            cose::WithCertificates(builder);
+#endif
+#ifdef COSE_HAS_MST_PACK
+            cose::WithMst(builder);
+#endif
+
+            cose::TrustPlanBuilder plan_builder(builder);
+
+            // Enumerate registered packs.
+            size_t pack_count = plan_builder.PackCount();
+            std::cout << "Registered packs: " << pack_count << std::endl;
+            for (size_t i = 0; i < pack_count; ++i) {
+                std::cout << "  [" << i << "] " << plan_builder.PackName(i)
+                          << " (has default plan: "
+                          << (plan_builder.PackHasDefaultPlan(i) ? "yes" : "no")
+                          << ")" << std::endl;
             }
+
+            // Compose all pack default plans with OR semantics.
+            plan_builder.AddAllPackDefaultPlans();
+            cose::CompiledTrustPlan or_plan = plan_builder.CompileOr();
+            std::cout << "Compiled OR plan from all defaults" << std::endl;
+
+            // Re-compose with AND semantics (clear previous selections first).
+            plan_builder.ClearSelectedPlans();
+            plan_builder.AddAllPackDefaultPlans();
+            cose::CompiledTrustPlan and_plan = plan_builder.CompileAnd();
+            std::cout << "Compiled AND plan from all defaults" << std::endl;
+
+            // Attach the OR plan and validate.
+            cose::WithCompiledTrustPlan(builder, or_plan);
+            cose::Validator validator = builder.Build();
+            cose::ValidationResult result = validator.Validate(cose_bytes);
+            std::cout << (result.Ok() ? "Passed" : result.FailureMessage()) << std::endl;
         }
 #else
-        std::cout << "\n=== Part 6: Validation (SKIPPED - certificates pack not available) ===" << std::endl;
+        std::cout << "\n=== Part 4: Trust Plan Builder (SKIPPED) ===" << std::endl;
+        std::cout << "Requires: COSE_HAS_TRUST_PACK" << std::endl;
 #endif
 
-        // ========================================================================
-        // Part 7: DID:X509 Operations (fluent API)
-        // ========================================================================
-#ifdef COSE_HAS_DID_X509
-        std::cout << "\n=== Part 7: DID:X509 Operations ===" << std::endl;
-        
-        // Example certificate data (would normally be loaded from files)
-        // Using minimal dummy data for demonstration
-        std::vector<uint8_t> leaf_cert = {
-            0x30, 0x82, 0x01, 0x00  // Minimal DER certificate header (not valid)
-        };
-        std::vector<uint8_t> root_cert = {
-            0x30, 0x82, 0x01, 0x00  // Minimal DER certificate header (not valid)
-        };
-        
-        // Note: In production, load real DER-encoded X.509 certificates
-        try {
-            const uint8_t* certs[] = { leaf_cert.data(), root_cert.data() };
-            uint32_t lens[] = { 
-                static_cast<uint32_t>(leaf_cert.size()), 
-                static_cast<uint32_t>(root_cert.size())
-            };
-            
-            // Generate DID:X509 from certificate chain
-            // RAII ensures all intermediate strings are cleaned up
-            auto did = cose::DidX509BuildFromChain(certs, lens, 2);
-            std::cout << "Generated DID:X509: " << did << std::endl;
-            
-            // Parse and inspect the DID
-            // The ParsedDid object manages its lifetime automatically
-            auto parsed = cose::DidX509Parse(did);
-            std::cout << "DID subjects: " << parsed.SubjectCount() << std::endl;
-            std::cout << "Hash algorithm: " << parsed.HashAlgorithm() << std::endl;
-            
-            // Validate DID against chain
-            bool is_valid = cose::DidX509ValidateAgainstChain(did, certs, lens, 2);
-            std::cout << "DID validation: " << (is_valid ? "valid" : "invalid") << std::endl;
-            
-        } catch (const cose::DidX509Error& e) {
-            std::cout << "DID:X509 error (expected with dummy data): " << e.what() << std::endl;
+        // ====================================================================
+        // Part 5: Message Parsing (COSE_Sign1 structure inspection)
+        // ====================================================================
+#ifdef COSE_HAS_PRIMITIVES
+        std::cout << "\n=== Part 5: Message Parsing ===" << std::endl;
+        {
+            // Parse raw bytes into a CoseSign1Message.
+            cose::CoseSign1Message msg = cose::CoseSign1Message::Parse(cose_bytes);
+
+            // Algorithm is optional — may not be present in all messages.
+            std::optional<int64_t> alg = msg.Algorithm();
+            if (alg.has_value()) {
+                std::cout << "Algorithm: " << *alg << std::endl;
+            }
+
+            std::cout << "Detached: " << (msg.IsDetached() ? "yes" : "no") << std::endl;
+
+            // Inspect protected headers.
+            cose::CoseHeaderMap protected_hdrs = msg.ProtectedHeaders();
+            std::cout << "Protected header count: " << protected_hdrs.Len() << std::endl;
+
+            std::optional<std::string> ct = protected_hdrs.GetText(3); // label 3 = content type
+            if (ct.has_value()) {
+                std::cout << "Content-Type: " << *ct << std::endl;
+            }
+
+            // Payload and signature.
+            std::optional<std::vector<uint8_t>> payload = msg.Payload();
+            if (payload.has_value()) {
+                std::cout << "Payload: " << payload->size() << " bytes" << std::endl;
+            } else {
+                std::cout << "Payload: <detached>" << std::endl;
+            }
+
+            std::vector<uint8_t> sig = msg.Signature();
+            std::cout << "Signature: " << sig.size() << " bytes" << std::endl;
+
+            // Unprotected headers are also available.
+            cose::CoseHeaderMap unprotected_hdrs = msg.UnprotectedHeaders();
+            std::cout << "Unprotected header count: " << unprotected_hdrs.Len() << std::endl;
         }
 #else
-        std::cout << "\n=== Part 7: DID:X509 (SKIPPED - feature not available) ===" << std::endl;
+        std::cout << "\n=== Part 5: Message Parsing (SKIPPED) ===" << std::endl;
+        std::cout << "Requires: COSE_HAS_PRIMITIVES" << std::endl;
 #endif
 
-        // ========================================================================
-        // Summary: Benefits of C++ RAII API over C API
-        // ========================================================================
-        std::cout << "\n=== Summary: C++ RAII Advantages ===" << std::endl;
-        std::cout << "✓ No manual cleanup - destructors handle resource management" << std::endl;
-        std::cout << "✓ No goto statements - exceptions handle error paths" << std::endl;
-        std::cout << "✓ Real cryptography - OpenSSL integration for ECDSA and ML-DSA" << std::endl;
-        std::cout << "✓ Certificate generation - ephemeral certs and chains" << std::endl;
-        std::cout << "✓ Type safety - std::string and std::vector instead of raw pointers" << std::endl;
-        std::cout << "✓ Move semantics - zero-copy resource transfer" << std::endl;
-        std::cout << "✓ Optional pattern - clear handling of missing values" << std::endl;
-        
+        // ====================================================================
+        // Part 6: CWT Claims — build claims and serialize to CBOR
+        // ====================================================================
+#ifdef COSE_HAS_CWT_HEADERS
+        std::cout << "\n=== Part 6: CWT Claims ===" << std::endl;
+        {
+            int64_t now = static_cast<int64_t>(std::time(nullptr));
+
+            // Fluent builder for CWT claims (RFC 8392).
+            cose::CwtClaims claims = cose::CwtClaims::New();
+            claims
+                .SetIssuer("did:x509:example-issuer")
+                .SetSubject("my-artifact")
+                .SetAudience("https://contoso.com")
+                .SetIssuedAt(now)
+                .SetNotBefore(now)
+                .SetExpiration(now + 3600);
+
+            // Read back
+            std::optional<std::string> iss = claims.GetIssuer();
+            if (iss.has_value()) {
+                std::cout << "Issuer: " << *iss << std::endl;
+            }
+            std::optional<std::string> sub = claims.GetSubject();
+            if (sub.has_value()) {
+                std::cout << "Subject: " << *sub << std::endl;
+            }
+
+            // Serialize to CBOR bytes (for embedding in COSE protected headers).
+            std::vector<uint8_t> cbor = claims.ToCbor();
+            std::cout << "Serialized CWT claims: " << cbor.size() << " CBOR bytes" << std::endl;
+
+            // Round-trip: deserialize and verify.
+            cose::CwtClaims parsed = cose::CwtClaims::FromCbor(cbor);
+            std::optional<std::string> rt_iss = parsed.GetIssuer();
+            std::cout << "Round-trip issuer: " << rt_iss.value_or("<missing>") << std::endl;
+        }
+#else
+        std::cout << "\n=== Part 6: CWT Claims (SKIPPED) ===" << std::endl;
+        std::cout << "Requires: COSE_HAS_CWT_HEADERS" << std::endl;
+#endif
+
+        // ====================================================================
+        // Summary: C++ RAII advantages over the C API
+        // ====================================================================
+        std::cout << "\n=== Summary ===" << std::endl;
+        std::cout << "No manual cleanup — destructors free every handle" << std::endl;
+        std::cout << "No goto cleanup  — exceptions unwind the stack safely" << std::endl;
+        std::cout << "Type safety      — std::string, std::vector, std::optional" << std::endl;
+        std::cout << "Move semantics   — zero-copy ownership transfer" << std::endl;
+
         return 0;
 
     } catch (const cose::cose_error& e) {
         std::cerr << "COSE error: " << e.what() << std::endl;
         return 1;
-    } catch (const cose::SigningError& e) {
-        std::cerr << "Signing error: " << e.what() << std::endl;
-        return 1;
-    } catch (const cose::primitives_error& e) {
-        std::cerr << "Primitives error: " << e.what() << std::endl;
-        return 1;
-    } catch (const cose::DidX509Error& e) {
-        std::cerr << "DID:X509 error: " << e.what() << std::endl;
-        return 1;
     } catch (const std::exception& e) {
-        std::cerr << "Unexpected error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
 }
-

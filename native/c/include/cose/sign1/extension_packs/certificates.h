@@ -377,8 +377,8 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_public_k
 // Certificate Key Factory Functions
 // ============================================================================
 
-// Forward declaration from cosesign1_signing.h
-typedef struct cose_key_t cose_key_t;
+// Use CoseKeyHandle from cose.h (included transitively via validation.h)
+// signing.h provides the cose_key_t alias if both headers are included.
 
 /**
  * @brief Create a CoseKey from a DER-encoded X.509 certificate's public key.
@@ -394,7 +394,7 @@ typedef struct cose_key_t cose_key_t;
 cose_status_t cose_certificates_key_from_cert_der(
     const uint8_t* cert_der,
     size_t cert_der_len,
-    cose_key_t** out_key
+    CoseKeyHandle** out_key
 );
 
 #ifdef __cplusplus

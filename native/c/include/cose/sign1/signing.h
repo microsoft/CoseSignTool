@@ -370,12 +370,7 @@ int cose_key_from_callback(
     cose_key_t** out_key
 );
 
-/**
- * @brief Frees a key handle.
- *
- * @param key Key handle to free (can be NULL).
- */
-void cose_key_free(cose_key_t* key);
+/* cose_key_free() is declared in <cose/cose.h> — use CoseKeyHandle* or cose_key_t* */
 
 // ============================================================================
 // Signing service functions

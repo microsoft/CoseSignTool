@@ -54,14 +54,14 @@ ctest -C Release
 | `<cose/crypto/openssl.hpp>` | `CryptoProvider`, `CryptoSigner`, `CryptoVerifier` |
 | `<cose/did/x509.hpp>` | `ParsedDid`, DID:x509 free functions |
 
-All types live in the `cose::sign1::` namespace (or `cose::crypto::`, `cose::did::` where noted).
+All types live in the `cose::sign1` namespace (or `cose::crypto`, `cose::did` where noted).
+The umbrella header `<cose/cose.hpp>` imports `cose::sign1` into `cose::`, so you can use
+the shorter `cose::ValidatorBuilder` form when including it.
 
 ## Validation Example
 
 ```cpp
-#include <cose/sign1/validation.hpp>
-#include <cose/sign1/trust.hpp>
-#include <cose/sign1/extension_packs/certificates.hpp>
+#include <cose/cose.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -70,13 +70,13 @@ All types live in the `cose::sign1::` namespace (or `cose::crypto::`, `cose::did
 int main() {
     try {
         // 1 — Create builder and register packs
-        auto builder = cose::sign1::ValidatorBuilder::New();
-        builder.WithCertificatesPack();
+        cose::ValidatorBuilder builder;
+        cose::WithCertificates(builder);
 
         // 2 — Author a trust policy
-        auto policy = cose::sign1::TrustPolicyBuilder::FromValidatorBuilder(builder);
+        cose::TrustPolicyBuilder policy(builder);
 
-        // Message-scope rules
+        // Message-scope rules (methods on TrustPolicyBuilder chain fluently)
         policy
             .RequireContentTypeNonEmpty()
             .And()
@@ -84,14 +84,16 @@ int main() {
             .And()
             .RequireCwtClaimsPresent();
 
-        // Pack-specific rules (certificates)
-        cose::sign1::certificates::RequireX509ChainTrusted(policy);
-        cose::sign1::certificates::RequireSigningCertificatePresent(policy);
-        cose::sign1::certificates::RequireSigningCertificateThumbprintPresent(policy);
+        // Pack-specific rules (free functions that also return TrustPolicyBuilder&)
+        cose::RequireX509ChainTrusted(policy);
+        policy.And();
+        cose::RequireSigningCertificatePresent(policy);
+        policy.And();
+        cose::RequireSigningCertificateThumbprintPresent(policy);
 
         // 3 — Compile and attach
         auto plan = policy.Compile();
-        builder.WithCompiledTrustPlan(plan);
+        cose::WithCompiledTrustPlan(builder, plan);
 
         // 4 — Build validator
         auto validator = builder.Build();
@@ -247,6 +249,40 @@ CMake sets these automatically when the corresponding FFI library is found:
 
 The umbrella header `<cose/cose.hpp>` uses these defines to conditionally include
 pack headers, so including it gives you everything that was linked.
+
+## Composable Pack Registration
+
+Extension packs are registered on a `ValidatorBuilder` via free functions in each pack
+header. These compose freely — register as many packs as you need on a single builder:
+
+```cpp
+cose::ValidatorBuilder builder;
+
+// Register multiple packs on the same builder
+cose::WithCertificates(builder);                       // default options
+
+cose::MstOptions mst_opts;
+mst_opts.allow_network = false;
+mst_opts.offline_jwks_json = jwks_str;
+cose::WithMst(builder, mst_opts);                      // custom options
+
+cose::WithAzureKeyVault(builder);                      // default options
+
+// Then author policies referencing facts from ANY registered pack
+cose::TrustPolicyBuilder policy(builder);
+cose::RequireX509ChainTrusted(policy);
+policy.And();
+cose::RequireMstReceiptTrusted(policy);
+
+auto plan = policy.Compile();
+cose::WithCompiledTrustPlan(builder, plan);
+auto validator = builder.Build();
+```
+
+Each `With*` function has two overloads:
+- Default options: `WithCertificates(builder)`
+- Custom options: `WithCertificates(builder, opts)` where `opts` is a C++ options struct
+  (`CertificateOptions`, `MstOptions`, `AzureKeyVaultOptions`)
 
 ## Coverage (Windows)
 

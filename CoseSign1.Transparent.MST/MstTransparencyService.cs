@@ -26,10 +26,10 @@ public class MstTransparencyService : TransparencyService
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
     private readonly CodeTransparencyClientOptions? ClientOptions;
     private readonly MstPollingOptions? PollingOptions;
-    private readonly Uri? _serviceEndpoint;
+    private readonly Uri? ServiceEndpointUri;
 
     /// <inheritdoc />
-    public override Uri? ServiceEndpoint => _serviceEndpoint;
+    public override Uri? ServiceEndpoint => this.ServiceEndpointUri;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstTransparencyService"/> class.
@@ -145,7 +145,7 @@ public class MstTransparencyService : TransparencyService
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
         PollingOptions = pollingOptions;
-        _serviceEndpoint = serviceEndpoint ?? TryGetEndpointFromClient(transparencyClient);
+        ServiceEndpointUri = serviceEndpoint ?? TryGetEndpointFromClient(transparencyClient);
     }
 
     /// <summary>

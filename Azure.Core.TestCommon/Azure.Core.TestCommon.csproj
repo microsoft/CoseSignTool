@@ -3,7 +3,7 @@
   <!--
     Curated subset of Azure.Core.TestFramework for testing Azure SDK clients.
     Source: https://github.com/Azure/azure-sdk-for-net/tree/main/sdk/core/Azure.Core.TestFramework/src
-    Copied: 2026-03-06 (Azure.Core 1.50.0 era)
+    Copied: 2026-03-06 (Azure.Core 1.51.1 era)
     
     The full upstream framework is not usable as a submodule or NuGet package
     because it depends on the Azure SDK's internal eng/ build system and

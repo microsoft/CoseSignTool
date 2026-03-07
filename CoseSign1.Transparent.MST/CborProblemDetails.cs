@@ -184,6 +184,7 @@ public class CborProblemDetails
             CborReaderState.Null => ReadNull(reader),
             CborReaderState.SinglePrecisionFloat => reader.ReadSingle(),
             CborReaderState.DoublePrecisionFloat => reader.ReadDouble(),
+            CborReaderState.HalfPrecisionFloat => reader.ReadDouble(),
             _ => Skip(reader),
         };
     }

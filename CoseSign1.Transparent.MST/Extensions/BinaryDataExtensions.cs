@@ -57,7 +57,7 @@ public static class BinaryDataExtensions
                 }
             }
         }
-        catch(InvalidOperationException)
+        catch (InvalidOperationException)
         {
             return false;
         }
@@ -73,4 +73,3 @@ public static class BinaryDataExtensions
         return false;
     }
 }
-

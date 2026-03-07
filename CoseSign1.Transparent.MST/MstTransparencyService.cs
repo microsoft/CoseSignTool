@@ -12,9 +12,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Transparent.MST.Extensions;
-using CoseSign1.Transparent.Extensions;
 using CoseSign1.Transparent;
+using CoseSign1.Transparent.Extensions;
+using CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Provides an implementation of the <see cref="TransparencyService"/> base class using Microsoft's Signing Transparency (MST).
@@ -25,6 +25,11 @@ public class MstTransparencyService : TransparencyService
     private readonly CodeTransparencyClient TransparencyClient;
     private readonly CodeTransparencyVerificationOptions? VerificationOptions;
     private readonly CodeTransparencyClientOptions? ClientOptions;
+    private readonly MstPollingOptions? PollingOptions;
+    private readonly Uri? _serviceEndpoint;
+
+    /// <inheritdoc />
+    public override Uri? ServiceEndpoint => _serviceEndpoint;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MstTransparencyService"/> class.
@@ -32,7 +37,18 @@ public class MstTransparencyService : TransparencyService
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
     public MstTransparencyService(CodeTransparencyClient transparencyClient)
-        : this(transparencyClient, null, null, null, null, null)
+        : this(transparencyClient, null, null, null, null, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with a service endpoint.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="serviceEndpoint">The URI of the Azure CTS endpoint this service communicates with.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public MstTransparencyService(CodeTransparencyClient transparencyClient, Uri serviceEndpoint)
+        : this(transparencyClient, null, null, null, serviceEndpoint, null, null, null)
     {
     }
 
@@ -47,7 +63,37 @@ public class MstTransparencyService : TransparencyService
         CodeTransparencyClient transparencyClient,
         CodeTransparencyVerificationOptions? verificationOptions,
         CodeTransparencyClientOptions? clientOptions)
-        : this(transparencyClient, verificationOptions, clientOptions, null, null, null)
+        : this(transparencyClient, verificationOptions, clientOptions, null, null, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with polling options.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public MstTransparencyService(
+        CodeTransparencyClient transparencyClient,
+        MstPollingOptions pollingOptions)
+        : this(transparencyClient, null, null, pollingOptions, null, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with verification and polling options.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public MstTransparencyService(
+        CodeTransparencyClient transparencyClient,
+        CodeTransparencyVerificationOptions? verificationOptions,
+        CodeTransparencyClientOptions? clientOptions,
+        MstPollingOptions? pollingOptions)
+        : this(transparencyClient, verificationOptions, clientOptions, pollingOptions, null, null, null, null)
     {
     }
 
@@ -68,11 +114,61 @@ public class MstTransparencyService : TransparencyService
         Action<string>? logVerbose,
         Action<string>? logWarning,
         Action<string>? logError)
+        : this(transparencyClient, verificationOptions, clientOptions, null, null, logVerbose, logWarning, logError)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with all options.
+    /// </summary>
+    /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
+    /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
+    /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
+    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <param name="serviceEndpoint">The URI of the Azure CTS endpoint this service communicates with.</param>
+    /// <param name="logVerbose">Optional verbose logging callback.</param>
+    /// <param name="logWarning">Optional warning logging callback.</param>
+    /// <param name="logError">Optional error logging callback.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
+    public MstTransparencyService(
+        CodeTransparencyClient transparencyClient,
+        CodeTransparencyVerificationOptions? verificationOptions,
+        CodeTransparencyClientOptions? clientOptions,
+        MstPollingOptions? pollingOptions,
+        Uri? serviceEndpoint,
+        Action<string>? logVerbose,
+        Action<string>? logWarning,
+        Action<string>? logError)
         : base(logVerbose, logWarning, logError)
     {
         TransparencyClient = transparencyClient ?? throw new ArgumentNullException(nameof(transparencyClient));
         VerificationOptions = verificationOptions;
         ClientOptions = clientOptions;
+        PollingOptions = pollingOptions;
+        _serviceEndpoint = serviceEndpoint ?? TryGetEndpointFromClient(transparencyClient);
+    }
+
+    /// <summary>
+    /// Attempts to derive the service endpoint URI from the <see cref="CodeTransparencyClient"/>
+    /// by reading its internal <c>_endpoint</c> field via reflection.
+    /// </summary>
+    /// <remarks>
+    /// The Azure.Security.CodeTransparency SDK does not currently expose the endpoint as a public
+    /// property. This method uses reflection as a best-effort fallback so callers don't need to
+    /// pass the URI twice. Returns <c>null</c> if the field is not found or inaccessible.
+    /// </remarks>
+    private static Uri? TryGetEndpointFromClient(CodeTransparencyClient client)
+    {
+        try
+        {
+            var field = typeof(CodeTransparencyClient)
+                .GetField("_endpoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            return field?.GetValue(client) as Uri;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -88,6 +184,7 @@ public class MstTransparencyService : TransparencyService
     /// <see cref="CoseSign1Message"/> with the transparency metadata or headers applied.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="message"/> is null.</exception>
+    /// <exception cref="MstServiceException">Thrown if the MST service returns an error with CBOR problem details.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the transparency operation fails.</exception>
     protected override async Task<CoseSign1Message> MakeTransparentCoreAsync(CoseSign1Message message, CancellationToken cancellationToken = default)
     {
@@ -97,9 +194,42 @@ public class MstTransparencyService : TransparencyService
         BinaryData content = BinaryData.FromBytes(message.Encode());
         LogVerbose?.Invoke($"Encoded message size: {content.ToArray().Length} bytes");
 
-        // Request the entry be created in the transparency service
-        LogVerbose?.Invoke("Calling CreateEntryAsync...");
-        Operation<BinaryData> operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Completed, content, cancellationToken).ConfigureAwait(false);
+        Operation<BinaryData> operation;
+        try
+        {
+            // Request the entry be created in the transparency service
+            LogVerbose?.Invoke("Calling CreateEntryAsync...");
+            operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Started, content, cancellationToken).ConfigureAwait(false);
+
+            // Wait for the operation to complete, respecting polling options.
+            // DelayStrategy takes precedence over PollingInterval if both are set.
+            LogVerbose?.Invoke("Waiting for CreateEntryAsync operation to complete...");
+            if (PollingOptions?.DelayStrategy != null)
+            {
+                LogVerbose?.Invoke($"Using custom DelayStrategy: {PollingOptions.DelayStrategy.GetType().Name}");
+                await operation.WaitForCompletionAsync(PollingOptions.DelayStrategy, cancellationToken).ConfigureAwait(false);
+            }
+            else if (PollingOptions?.PollingInterval != null)
+            {
+                LogVerbose?.Invoke($"Using fixed polling interval: {PollingOptions.PollingInterval.Value.TotalMilliseconds}ms");
+                await operation.WaitForCompletionAsync(PollingOptions.PollingInterval.Value, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await operation.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Azure.RequestFailedException rfEx)
+        {
+            // Parse CBOR problem details from the MST error response (RFC 9290)
+            var mstEx = MstServiceException.FromRequestFailedException(rfEx);
+            LogError?.Invoke(mstEx.Message);
+            if (mstEx.ProblemDetails != null)
+            {
+                LogVerbose?.Invoke($"Problem details: {mstEx.ProblemDetails}");
+            }
+            throw mstEx;
+        }
 
         // Check if the operation was successful
         if (!operation.HasValue)
@@ -161,7 +291,7 @@ public class MstTransparencyService : TransparencyService
             LogError?.Invoke(error);
             throw new InvalidOperationException(error);
         }
-        
+
         LogVerbose?.Invoke("Transparency header found in message");
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -184,39 +314,39 @@ public class MstTransparencyService : TransparencyService
             LogVerbose?.Invoke("Transparency verification succeeded");
             return Task.FromResult(true);
         }
-        catch(InvalidOperationException ex)
+        catch (InvalidOperationException ex)
         {
             LogError?.Invoke($"Verification failed: {ex.Message}");
             LogVerbose?.Invoke($"InvalidOperationException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(CryptographicException ex)
+        catch (CryptographicException ex)
         {
             LogError?.Invoke($"Cryptographic error during verification: {ex.Message}");
             LogVerbose?.Invoke($"CryptographicException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(CborContentException ex)
+        catch (CborContentException ex)
         {
             LogError?.Invoke($"CBOR content error during verification: {ex.Message}");
             LogVerbose?.Invoke($"CborContentException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(ArgumentException ex)
+        catch (ArgumentException ex)
         {
             LogError?.Invoke($"Invalid argument during verification: {ex.Message}");
             LogVerbose?.Invoke($"ArgumentException details: {ex}");
             return Task.FromResult(false);
         }
-        catch(AggregateException ex)
+        catch (AggregateException ex)
         {
             LogError?.Invoke($"Multiple verification failures occurred");
-            
+
             foreach (var innerEx in ex.InnerExceptions)
             {
                 LogVerbose?.Invoke($"  - {innerEx.Message}");
             }
-            
+
             return Task.FromResult(false);
         }
     }
@@ -257,4 +387,3 @@ public class MstTransparencyService : TransparencyService
         return VerifyTransparencyAsync(message, cancellationToken);
     }
 }
-

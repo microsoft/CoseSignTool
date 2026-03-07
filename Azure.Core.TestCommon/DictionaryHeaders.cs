@@ -50,14 +50,7 @@ internal class DictionaryHeaders
     {
         if (_headers.TryGetValue(name, out object? objValue))
         {
-            if (objValue is List<string> values)
-            {
-                value = JoinHeaderValue(values);
-            }
-            else
-            {
-                value = objValue as string;
-            }
+            value = objValue is List<string> values ? JoinHeaderValue(values) : objValue as string;
             return true;
         }
 
@@ -72,15 +65,9 @@ internal class DictionaryHeaders
     {
         if (_headers.TryGetValue(name, out object? objValue))
         {
-            if (objValue is List<string> valuesList)
-            {
-                values = valuesList;
-            }
-            else
-            {
-                values = new List<string> { (objValue as string)! };
-            }
-
+            values = objValue is List<string> valuesList
+                ? valuesList
+                : new List<string> { (objValue as string)! };
             return true;
         }
 

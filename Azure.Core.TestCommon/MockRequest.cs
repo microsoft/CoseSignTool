@@ -13,7 +13,7 @@ namespace Azure.Core.TestCommon;
 /// </remarks>
 [ExcludeFromCodeCoverage]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-public class MockRequest : Request
+public sealed class MockRequest : Request
 {
     private readonly DictionaryHeaders _headers = new();
 

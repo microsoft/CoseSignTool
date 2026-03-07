@@ -14,7 +14,7 @@ namespace Azure.Core.TestCommon;
 /// </remarks>
 [ExcludeFromCodeCoverage]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-public class MockResponse : Response
+public sealed class MockResponse : Response
 {
     private readonly Dictionary<string, List<string>> _headers = new(StringComparer.OrdinalIgnoreCase);
     private bool? _isError;

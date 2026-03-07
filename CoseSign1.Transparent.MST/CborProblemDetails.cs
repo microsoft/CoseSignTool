@@ -75,7 +75,11 @@ public class CborProblemDetails
             var reader = new CborReader(cborBytes);
             return ParseFromReader(reader);
         }
-        catch (Exception)
+        catch (CborContentException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
         {
             return null;
         }

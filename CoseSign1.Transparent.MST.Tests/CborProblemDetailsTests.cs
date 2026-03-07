@@ -482,7 +482,8 @@ public class CborProblemDetailsTests
             Status = 400,
             Detail = "Payload is not valid"
         };
-        var ex = new MstServiceException("test", details, new RequestFailedException(400, "Bad Request"));
+        // Verify the constructor overload that accepts CborProblemDetails works.
+        Assert.DoesNotThrow(() => new MstServiceException("test", details, new RequestFailedException(400, "Bad Request")));
 
         // Verify via FromRequestFailedException which uses BuildErrorMessage internally
         var rfEx = new RequestFailedException(400, "Bad Request");

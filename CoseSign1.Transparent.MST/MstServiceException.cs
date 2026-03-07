@@ -4,6 +4,7 @@
 namespace CoseSign1.Transparent.MST;
 
 using System;
+using System.Formats.Cbor;
 using System.Text;
 
 /// <summary>
@@ -135,9 +136,13 @@ public class MstServiceException : Exception
                         problemDetails = CborProblemDetails.TryParse(content.ToArray());
                     }
                 }
-                catch
+                catch (CborContentException)
                 {
-                    // Parsing failure is non-fatal; fall through to generic message
+                    // CBOR parsing failure is non-fatal; fall through to generic message
+                }
+                catch (InvalidOperationException)
+                {
+                    // Parsing state failure is non-fatal; fall through to generic message
                 }
             }
         }

@@ -165,7 +165,11 @@ public class MstTransparencyService : TransparencyService
                 .GetField("_endpoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             return field?.GetValue(client) as Uri;
         }
-        catch
+        catch (System.Reflection.TargetInvocationException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
         {
             return null;
         }

@@ -5,6 +5,7 @@ Start here:
 - [Consume via vcpkg](01-consume-vcpkg.md)
 - [Core API](02-core-api.md)
 - [Packs](04-packs.md)
+- [Trust plans and policies](05-trust-plans.md)
 - [Errors](03-errors.md)
 
 Cross-cutting:

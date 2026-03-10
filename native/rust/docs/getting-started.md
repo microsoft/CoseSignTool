@@ -13,7 +13,18 @@ From `native/rust/`:
 
 ## Crates
 
-- `cose_sign1_validation_trust`
+### CBOR Abstraction
+
+- `cbor_primitives` -- Zero-dependency trait crate (`CborProvider`, `CborEncoder`, `CborDecoder`, `DynCborProvider`)
+- `cbor_primitives_everparse` -- EverParse/cborrs implementation (formally verified by MSR, no float support)
+
+### Primitives
+
+- `cose_sign1_primitives` -- Core types: `CoseSign1Message`, `CoseHeaderMap`, `CoseKey`, `CoseSign1Builder`, streaming `SizedRead`
+
+### Validation Pipeline
+
+- `cose_sign1_validation_primitives`
   - The trust engine (facts, producers, rules, policies, compiled plans, audit)
   - Stable `TrustSubject` IDs (V2-style SHA-256 semantics)
 
@@ -22,10 +33,20 @@ From `native/rust/`:
   - Extension traits: signing key resolver, counter-signature resolver, post-signature validators
   - Detached payload support (bytes/provider)
 
-- Optional fact producers (“packs”)
+- Optional fact producers ("packs")
   - `cose_sign1_validation_certificates`: parses `x5chain` (COSE header label `33`) and emits X.509 identity facts
-  - `cose_sign1_validation_transparent_mst`: reads MST receipt headers and emits MST facts
+  - `cose_sign1_transparent_mst`: reads MST receipt headers and emits MST facts
   - `cose_sign1_validation_azure_key_vault`: inspects KID header label `4` and matches allowed AKV patterns
+
+### FFI Projections
+
+- `cose_sign1_primitives_ffi` -- C ABI for parse/verify/headers
+- `cose_sign1_signing_ffi` -- C ABI for signing/building messages
+- `cose_sign1_validation_ffi` -- C ABI for the staged validator
+- `cose_sign1_validation_primitives_ffi` / `_certificates` / `_mst` / `_akv` -- Per-pack FFI
+
+FFI crates select their CBOR provider at compile time via Cargo features.
+See [CBOR Provider Selection](cbor-providers.md).
 
 ## Quick start: validate a message
 
@@ -85,7 +106,7 @@ use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_certificates::pack::{
   CertificateTrustOptions, X509CertificateTrustPack,
 };
-use cose_sign1_validation_trust::CoseHeaderLocation;
+use cose_sign1_validation_primitives::CoseHeaderLocation;
 
 fn main() {
   // Replace these with your own data sources.
@@ -129,9 +150,7 @@ fn main() {
 
   // 3) Create validator and configure detached payload
   let validator = CoseSign1Validator::new(plan).with_options(|o| {
-    o.detached_payload = Some(DetachedPayload::bytes(Arc::from(
-      payload_bytes.into_boxed_slice(),
-    )));
+    o.detached_payload = Some(Payload::Bytes(payload_bytes));
     o.certificate_header_location = CoseHeaderLocation::Any;
   });
 

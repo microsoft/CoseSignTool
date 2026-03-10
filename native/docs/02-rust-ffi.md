@@ -8,12 +8,32 @@
 
 ## Key crates (conceptual)
 
-- Base FFI crate: `cose_sign1_validation_ffi`
-- Optional FFI crates (pinned behind vcpkg features):
-  - `cose_sign1_validation_ffi_certificates`
-  - `cose_sign1_validation_ffi_mst`
-  - `cose_sign1_validation_ffi_akv`
-  - `cose_sign1_validation_ffi_trust`
+### Primitives + Signing FFI
+- `cose_sign1_primitives_ffi` -- Parse, verify, header access (~25 exports)
+- `cose_sign1_signing_ffi` -- Build and sign COSE_Sign1 messages (~22 exports)
+
+### Validation FFI
+- Base FFI crate: `cose_sign1_validation_ffi` (~12 exports)
+- Per-pack FFI crates (pinned behind vcpkg features):
+  - `cose_sign1_validation_ffi_certificates` (~34 exports)
+  - `cose_sign1_validation_ffi_mst` (~17 exports)
+  - `cose_sign1_validation_ffi_akv` (~6 exports)
+  - `cose_sign1_validation_primitives_ffi` (~29 exports)
+
+### CBOR Provider Selection
+
+FFI crates select their CBOR provider at **compile time** via Cargo feature
+flags.  Each FFI crate contains `src/provider.rs` with a feature-gated type
+alias.  The default feature `cbor-everparse` selects EverParse (formally
+verified by MSR).
+
+To build with a different provider:
+```powershell
+cargo build --release -p cose_sign1_validation_ffi --no-default-features --features cbor-<name>
+```
+
+The C/C++ ABI is unchanged -- same headers, same function signatures.
+See [cbor-providers.md](../rust/docs/cbor-providers.md) for the full guide.
 
 ## Build the Rust artifacts locally
 

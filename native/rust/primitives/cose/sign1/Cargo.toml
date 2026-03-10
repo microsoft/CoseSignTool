@@ -1,0 +1,24 @@
+[package]
+name = "cose_sign1_primitives"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.70"  # Required for std::sync::OnceLock
+description = "Core types and traits for CoseSign1 signing and verification with pluggable CBOR"
+
+[lib]
+test = false
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["dep:cbor_primitives_everparse", "cose_primitives/cbor-everparse"]
+pqc = ["cose_primitives/pqc"]  # Enable post-quantum cryptography algorithm support (ML-DSA / FIPS 204)
+
+[dependencies]
+cose_primitives = { path = "..", default-features = false }
+cbor_primitives = { path = "../../cbor" }
+cbor_primitives_everparse = { path = "../../cbor/everparse", optional = true }
+crypto_primitives = { path = "../../crypto" }
+
+[dev-dependencies]
+cbor_primitives_everparse = { path = "../../cbor/everparse" }

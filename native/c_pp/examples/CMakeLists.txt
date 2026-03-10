@@ -9,7 +9,7 @@ if(NOT COSE_CPP_BUILD_EXAMPLES)
 endif()
 
 if(NOT COSE_FFI_TRUST_LIB)
-    message(STATUS "Skipping C++ examples: trust pack not found (cose_sign1_validation_ffi_trust)")
+    message(STATUS "Skipping C++ examples: trust pack not found (cose_sign1_validation_primitives_ffi)")
     return()
 endif()
 
@@ -20,3 +20,28 @@ add_executable(cose_trust_policy_example_cpp
 target_link_libraries(cose_trust_policy_example_cpp PRIVATE
     cose_sign1_cpp
 )
+
+add_executable(cose_full_example_cpp
+    full_example.cpp
+)
+
+target_link_libraries(cose_full_example_cpp PRIVATE
+    cose_sign1_cpp
+)
+
+# Full example requires signing, primitives, headers, and DID libraries
+if(TARGET cose_signing)
+    target_link_libraries(cose_full_example_cpp PRIVATE cose_signing)
+endif()
+
+if(TARGET cose_primitives)
+    target_link_libraries(cose_full_example_cpp PRIVATE cose_primitives)
+endif()
+
+if(TARGET cose_cwt_headers)
+    target_link_libraries(cose_full_example_cpp PRIVATE cose_cwt_headers)
+endif()
+
+if(TARGET cose_did_x509)
+    target_link_libraries(cose_full_example_cpp PRIVATE cose_did_x509)
+endif()

@@ -1,0 +1,25 @@
+[package]
+name = "cose_sign1_validation_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_validation = { path = ".." }
+cose_sign1_primitives = { path = "../../../primitives/cose/sign1" }
+
+# CBOR provider — exactly one must be enabled (default: EverParse)
+cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse", optional = true }
+
+anyhow = { version = "1" }
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["dep:cbor_primitives_everparse"]
+
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

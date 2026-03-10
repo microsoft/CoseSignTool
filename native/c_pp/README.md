@@ -1,27 +1,31 @@
 # COSE Sign1 C++ API
 
-Modern C++ (C++17) projection for the COSE Sign1 validation library with RAII wrappers and fluent builder pattern.
+Modern C++17 RAII projection for the COSE Sign1 SDK. Every header wraps the
+corresponding C header with move-only classes, fluent builders, and exception-based
+error handling.
 
 ## Prerequisites
 
-- CMake 3.20 or later
-- C++17-capable compiler (MSVC 2017+, GCC 7+, Clang 5+)
-- Rust toolchain (to build the underlying FFI libraries)
+| Tool | Version |
+|------|---------|
+| CMake | 3.20+ |
+| C++ compiler | C++17 (MSVC 2017+, GCC 7+, Clang 5+) |
+| Rust toolchain | stable (builds the FFI libraries) |
 
 ## Building
 
 ### 1. Build the Rust FFI libraries
 
 ```bash
-cd ../rust
+cd native/rust
 cargo build --release --workspace
 ```
 
 ### 2. Configure and build the C++ projection
 
 ```bash
-mkdir build
-cd build
+cd native/c_pp
+mkdir build && cd build
 cmake .. -DBUILD_TESTING=ON
 cmake --build . --config Release
 ```
@@ -32,79 +36,32 @@ cmake --build . --config Release
 ctest -C Release
 ```
 
-## Coverage (Windows)
+## Header Reference
 
-Coverage for the C++ projection is collected with OpenCppCoverage.
+| Header | Purpose |
+|--------|---------|
+| `<cose/cose.hpp>` | Umbrella — conditionally includes everything |
+| `<cose/sign1.hpp>` | `CoseSign1Message`, `CoseHeaderMap` |
+| `<cose/sign1/validation.hpp>` | `ValidatorBuilder`, `Validator`, `ValidationResult` |
+| `<cose/sign1/trust.hpp>` | `TrustPlanBuilder`, `TrustPolicyBuilder` |
+| `<cose/sign1/signing.hpp>` | `CoseSign1Builder`, `SigningService`, `SignatureFactory` |
+| `<cose/sign1/factories.hpp>` | Factory multi-wrapper |
+| `<cose/sign1/cwt.hpp>` | `CwtClaims` fluent builder / serializer |
+| `<cose/sign1/extension_packs/certificates.hpp>` | X.509 certificate trust pack |
+| `<cose/sign1/extension_packs/certificates_local.hpp>` | Ephemeral certificate generation |
+| `<cose/sign1/extension_packs/azure_key_vault.hpp>` | Azure Key Vault trust pack |
+| `<cose/sign1/extension_packs/mst.hpp>` | Microsoft Transparency trust pack |
+| `<cose/crypto/openssl.hpp>` | `CryptoProvider`, `CryptoSigner`, `CryptoVerifier` |
+| `<cose/did/x509.hpp>` | `ParsedDid`, DID:x509 free functions |
 
-```powershell
-./collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
-```
+All types live in the `cose::sign1` namespace (or `cose::crypto`, `cose::did` where noted).
+The umbrella header `<cose/cose.hpp>` imports `cose::sign1` into `cose::`, so you can use
+the shorter `cose::ValidatorBuilder` form when including it.
 
-Note: on Windows, `Debug` tends to produce the most reliable line-coverage measurement under OpenCppCoverage (especially when ASAN is enabled).
-
-Outputs HTML to [native/c_pp/coverage/index.html](coverage/index.html).
-
-## Usage Example
-
-## Compilable example programs
-
-This repo ships a real, buildable C++ example you can use as a starting point:
-
-- [native/c_pp/examples/trust_policy_example.cpp](examples/trust_policy_example.cpp)
-
-Build it (after building the Rust FFI libs):
-
-```bash
-cd native/c_pp
-cmake -S . -B build -DBUILD_TESTING=ON
-cmake --build build --config Release --target cose_trust_policy_example_cpp
-```
-
-Run it:
-
-```bash
-native/c_pp/build/examples/Release/cose_trust_policy_example_cpp.exe path/to/message.cose [path/to/detached_payload.bin]
-```
-
-### Basic validation with certificates pack
+## Validation Example
 
 ```cpp
 #include <cose/cose.hpp>
-
-int main() {
-    try {
-        // Build validator with certificates pack
-        auto validator = cose::ValidatorBuilderWithCertificates()
-            .WithCertificates()
-            .Build();
-        
-        // Validate COSE Sign1 message
-        std::vector<uint8_t> cose_bytes = /* ... */;
-        auto result = validator.Validate(cose_bytes);
-        
-        if (result.Ok()) {
-            std::cout << "✓ Validation successful\n";
-        } else {
-            std::cout << "✗ Validation failed: " 
-                      << result.FailureMessage() << "\n";
-        }
-        
-    } catch (const cose::cose_error& e) {
-        std::cerr << "Error: " << e.what() << "\n";
-        return 1;
-    }
-    
-    return 0;
-}
-```
-
-### Detailed end-to-end example (custom trust policy + feedback)
-
-This example shows how to author a custom trust policy (message-scope + pack-specific rules), compile it into a bundled plan, attach it to the validator builder, and then validate bytes with a user-friendly failure message.
-
-```cpp
-#include <cose/certificates.hpp>
-#include <cose/trust.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -112,14 +69,14 @@ This example shows how to author a custom trust policy (message-scope + pack-spe
 
 int main() {
     try {
-        // 1) Configure builder + packs you intend to rely on
-        cose::ValidatorBuilderWithCertificates builder;
-        builder.WithCertificates();
+        // 1 — Create builder and register packs
+        cose::ValidatorBuilder builder;
+        cose::WithCertificates(builder);
 
-        // 2) Build a custom trust policy bound to the builder's configured packs
+        // 2 — Author a trust policy
         cose::TrustPolicyBuilder policy(builder);
 
-        // Message-scope requirements
+        // Message-scope rules (methods on TrustPolicyBuilder chain fluently)
         policy
             .RequireContentTypeNonEmpty()
             .And()
@@ -127,153 +84,210 @@ int main() {
             .And()
             .RequireCwtClaimsPresent();
 
-        // Pack-specific trust-policy helpers (certificates pack)
+        // Pack-specific rules (free functions that also return TrustPolicyBuilder&)
         cose::RequireX509ChainTrusted(policy);
+        policy.And();
         cose::RequireSigningCertificatePresent(policy);
+        policy.And();
         cose::RequireSigningCertificateThumbprintPresent(policy);
 
-        // 3) Compile policy into a bundled plan and attach it
+        // 3 — Compile and attach
         auto plan = policy.Compile();
         cose::WithCompiledTrustPlan(builder, plan);
 
-        // 4) Build validator
+        // 4 — Build validator
         auto validator = builder.Build();
 
-        // 5) Validate bytes
-        std::vector<uint8_t> cose_bytes = /* ... */;
-        if (cose_bytes.empty()) {
-            std::cerr << "Provide COSE_Sign1 bytes before calling Validate().\n";
-            return 1;
-        }
-
+        // 5 — Validate
+        std::vector<uint8_t> cose_bytes = /* ... */ {};
         auto result = validator.Validate(cose_bytes);
+
         if (result.Ok()) {
             std::cout << "Validation successful\n";
-            return 0;
+        } else {
+            std::cout << "Validation failed: "
+                      << result.FailureMessage() << "\n";
         }
-
-        std::cout << "Validation failed: " << result.FailureMessage() << "\n";
-        return 2;
     } catch (const cose::cose_error& e) {
         std::cerr << "Error: " << e.what() << "\n";
-        return 3;
+        return 1;
     }
+    return 0;
 }
 ```
 
-### Using custom options
+## Signing Example
 
 ```cpp
-#include <cose/certificates.hpp>
+#include <cose/sign1/signing.hpp>
+#include <cose/crypto/openssl.hpp>
 
-// Certificate options
-cose::CertificateOptions cert_opts;
-cert_opts.trust_embedded_chain_as_trusted = true;
-cert_opts.identity_pinning_enabled = true;
-cert_opts.allowed_thumbprints = {
-    "ABCD1234...",
-    "5678EFGH..."
-};
+#include <cstdint>
+#include <iostream>
+#include <vector>
 
-auto validator = cose::ValidatorBuilderWithCertificates()
-    .WithCertificates(cert_opts)
-    .Build();
+int main() {
+    try {
+        // Create a signer from a DER-encoded private key
+        auto signer = cose::crypto::OpenSslSigner::FromDer(
+            private_key_der.data(), private_key_der.size());
+
+        // Create a factory wired to the signer
+        auto factory = cose::sign1::SignatureFactory::FromCryptoSigner(signer);
+
+        // Sign a payload directly
+        auto signed_bytes = factory.SignDirectBytes(
+            payload.data(),
+            static_cast<uint32_t>(payload.size()),
+            "application/example");
+
+        std::cout << "Signed " << signed_bytes.size() << " bytes\n";
+    } catch (const cose::cose_error& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+    return 0;
+}
 ```
 
-### Multiple packs (requires separate includes)
+## CWT Claims Example
 
 ```cpp
-// Note: This requires a more complex inheritance structure
-// For now, use individual pack builder classes
-// Future: implement a unified builder that composes all packs
+#include <cose/sign1/cwt.hpp>
+
+#include <cstdint>
+#include <iostream>
+#include <vector>
+
+int main() {
+    try {
+        auto claims = cose::sign1::CwtClaims::New()
+            .SetIssuer("did:x509:abc123")
+            .SetSubject("my-artifact");
+
+        // Serialize to CBOR for use as a protected header
+        std::vector<uint8_t> cbor = claims.ToCbor();
+        std::cout << "CWT claims: " << cbor.size() << " bytes of CBOR\n";
+    } catch (const cose::cose_error& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+    return 0;
+}
 ```
 
-## Per-Pack Headers
-
-The C++ projection follows the per-pack modular design:
-
-- `<cose/validator.hpp>` - Base validator and builder (required)
-- `<cose/certificates.hpp>` - X.509 certificate pack wrappers
-- `<cose/mst.hpp>` - MST receipt verification pack wrappers
-- `<cose/azure_key_vault.hpp>` - Azure Key Vault KID validation pack wrappers
-- `<cose/cose.hpp>` - Convenience header (includes all available packs)
-
-Include only the headers you need. Each pack header provides:
-- An options struct (e.g., `CertificateOptions`)
-- A builder extension class (e.g., `ValidatorBuilderWithCertificates`)
-- Pack-specific methods (e.g., `.WithCertificates()`)
-
-## Pack Options
-
-### Certificates Pack
+## Message Parsing Example
 
 ```cpp
-cose::CertificateOptions opts;
-opts.trust_embedded_chain_as_trusted = true;  // For testing/pinned roots
-opts.identity_pinning_enabled = true;
-opts.allowed_thumbprints = {"ABCD...", "1234..."};
-opts.pqc_algorithm_oids = {"1.2.3.4.5"};
+#include <cose/sign1.hpp>
 
-builder.WithCertificates(opts);
+#include <iostream>
+#include <optional>
+#include <vector>
+
+int main() {
+    try {
+        std::vector<uint8_t> raw = /* read from file */ {};
+        auto msg = cose::sign1::CoseSign1Message::FromBytes(raw);
+
+        std::cout << "Algorithm: " << msg.Algorithm() << "\n";
+
+        auto ct = msg.ContentType();
+        if (ct) {
+            std::cout << "Content-Type: " << *ct << "\n";
+        }
+
+        auto payload = msg.Payload();
+        std::cout << "Payload size: " << payload.size() << " bytes\n";
+    } catch (const cose::cose_error& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+    return 0;
+}
 ```
 
-### MST Pack
+## RAII Design Principles
+
+- All wrapper classes are **move-only** (copy ctor/assignment deleted).
+- Destructors call the corresponding C `*_free()` function automatically.
+- Factory methods are `static` and throw `cose::cose_error` on failure.
+- `native_handle()` gives access to the underlying C handle for interop.
+- Headers are **header-only** — no separate `.cpp` compilation needed.
+
+## Exception Handling
+
+Errors are reported via `cose::cose_error` (inherits `std::runtime_error`).
+The exception message is populated from the FFI thread-local error string.
 
 ```cpp
-cose::MstOptions opts;
-opts.allow_network = false;
-opts.offline_jwks_json = R"({"keys":[...]})";
-opts.jwks_api_version = "2024-01-01";
-
-builder.WithMst(opts);
+try {
+    auto validator = builder.Build();
+} catch (const cose::cose_error& e) {
+    // e.what() contains the detailed FFI error message
+    std::cerr << e.what() << "\n";
+}
 ```
 
-### Azure Key Vault Pack
+## Feature Defines
+
+CMake sets these automatically when the corresponding FFI library is found:
+
+| Define | Set When |
+|--------|----------|
+| `COSE_HAS_CERTIFICATES_PACK` | certificates FFI lib found |
+| `COSE_HAS_MST_PACK` | MST FFI lib found |
+| `COSE_HAS_AKV_PACK` | AKV FFI lib found |
+| `COSE_HAS_TRUST_PACK` | trust FFI lib found |
+| `COSE_HAS_PRIMITIVES` | primitives FFI lib found |
+| `COSE_HAS_SIGNING` | signing FFI lib found |
+| `COSE_HAS_FACTORIES` | factories FFI lib found |
+| `COSE_HAS_CWT_HEADERS` | headers FFI lib found |
+| `COSE_HAS_DID_X509` | DID:x509 FFI lib found |
+| `COSE_CRYPTO_OPENSSL` | OpenSSL crypto provider selected |
+| `COSE_CBOR_EVERPARSE` | EverParse CBOR provider selected |
+
+The umbrella header `<cose/cose.hpp>` uses these defines to conditionally include
+pack headers, so including it gives you everything that was linked.
+
+## Composable Pack Registration
+
+Extension packs are registered on a `ValidatorBuilder` via free functions in each pack
+header. These compose freely — register as many packs as you need on a single builder:
 
 ```cpp
-cose::AzureKeyVaultOptions opts;
-opts.require_azure_key_vault_kid = true;
-opts.allowed_kid_patterns = {
-    "https://*.vault.azure.net/keys/*",
-    "https://*.managedhsm.azure.net/keys/*"
-};
+cose::ValidatorBuilder builder;
 
-builder.WithAzureKeyVault(opts);
+// Register multiple packs on the same builder
+cose::WithCertificates(builder);                       // default options
+
+cose::MstOptions mst_opts;
+mst_opts.allow_network = false;
+mst_opts.offline_jwks_json = jwks_str;
+cose::WithMst(builder, mst_opts);                      // custom options
+
+cose::WithAzureKeyVault(builder);                      // default options
+
+// Then author policies referencing facts from ANY registered pack
+cose::TrustPolicyBuilder policy(builder);
+cose::RequireX509ChainTrusted(policy);
+policy.And();
+cose::RequireMstReceiptTrusted(policy);
+
+auto plan = policy.Compile();
+cose::WithCompiledTrustPlan(builder, plan);
+auto validator = builder.Build();
 ```
 
-## RAII and Exception Safety
+Each `With*` function has two overloads:
+- Default options: `WithCertificates(builder)`
+- Custom options: `WithCertificates(builder, opts)` where `opts` is a C++ options struct
+  (`CertificateOptions`, `MstOptions`, `AzureKeyVaultOptions`)
 
-All C++ wrappers use RAII for automatic resource management:
-- No manual `free()` calls needed
-- Resources cleaned up automatically via destructors
-- Move semantics supported for efficient transfers
-- Copy constructors deleted (move-only types)
+## Coverage (Windows)
 
-Errors are reported via `cose::cose_error` exceptions that include detailed error messages from the underlying FFI layer.
+```powershell
+./collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
+```
 
-## Design Principles
-
-- **Header-only wrappers**: All C++ code is in headers, no separate `.cpp` compilation needed
-- **Zero-cost abstraction**: Minimal overhead over C API
-- **Modern C++**: Uses C++17 features (structured bindings, if-init, etc.)
-- **Per-pack modularity**: Include and link only what you need
-- **Exception-based error handling**: Natural C++ idiom
-- **RAII resource management**: No manual cleanup required
-
-## Comparison with C API
-
-| Feature | C API | C++ API |
-|---------|-------|---------|
-| Resource management | Manual `*_free()` | Automatic RAII |
-| Error handling | Status codes + `cose_last_error_message_utf8()` | Exceptions with messages |
-| Builder pattern | Function calls | Fluent method chaining |
-| String handling | `char*` + manual free | `std::string` |
-| Binary data | `uint8_t*` + length | `std::vector<uint8_t>` |
-| Options | C structs with pointers | C++ structs with STL containers |
-
-## Memory Safety
-
-- All heap allocations managed by RAII
-- No raw pointers in public API (except internally for FFI)
-- Move semantics prevent double-free
-- Deleted copy constructors prevent accidental copying of resources
+Outputs HTML to [native/c_pp/coverage/index.html](coverage/index.html).

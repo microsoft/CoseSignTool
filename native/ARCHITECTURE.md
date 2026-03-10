@@ -1,399 +1,348 @@
 # Native Architecture
 
-This document moved to [native/docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-# Native FFI Architecture
+> **Canonical reference**: [`.github/instructions/native-architecture.instructions.md`](../.github/instructions/native-architecture.instructions.md)
 
-This document describes the complete architecture of the native (C/C++) projections for the COSE Sign1 validation library.
+This document summarises the complete architecture of the native (Rust + C + C++) COSE Sign1 SDK.
 
 ## Overview
 
-The native projections provide three layers of abstraction:
-1. **Rust FFI Layer**: C ABI exports from Rust using `extern "C"`
-2. **C Projection**: Direct C API wrapping the FFI layer
-3. **C++ Projection**: RAII wrappers providing modern C++ idioms
+Three layers of abstraction, all driven from a single Rust implementation:
 
-All three layers follow a **per-pack modular architecture**, allowing consumers to include and link only the functionality they need.
+| Layer | Language | Location | What it provides |
+|-------|----------|----------|-----------------|
+| **Library crates** | Rust | `native/rust/` | Signing, validation, trust-plan engine, extension packs |
+| **FFI crates** | Rust (`extern "C"`) | `native/rust/*/ffi/` | C-ABI exports, panic safety, opaque handles |
+| **Projection headers** | C / C++ | `native/c/include/cose/`, `native/c_pp/include/cose/` | Header-only wrappers consumed via CMake / vcpkg |
 
-## Per-Pack Modularity
+## Directory Layout
 
-The library is organized into packs, each providing specific validation functionality:
+### Rust workspace (`native/rust/`)
 
-- **Base**: Core validator, builder, result types (required)
-- **Certificates Pack**: X.509 certificate validation
-- **MST Pack**: Merkle Sealed Transparency receipt verification
-- **AKV Pack**: Azure Key Vault KID validation
-- **Trust Pack**: Trust policy authoring (future milestone)
-
-Each pack is:
-- A separate Rust FFI crate (staticlib/cdylib)
-- A separate C header file
-- A separate C++ header file
-- An optional CMake target
-- An optional vcpkg feature (future)
-
-## Layer 1: Rust FFI
-
-### Directory Structure
 ```
-native/rust/
-├── cose_sign1_validation_ffi/          # Base FFI (required)
-│   ├── Cargo.toml                      # crate-type = ["cdylib", "staticlib", "rlib"]
-│   └── src/
-│       ├── lib.rs                      # Core types, builder, validator
-│       ├── error.rs                    # Panic catching, thread-local errors
-│       └── version.rs                  # ABI versioning
-├── cose_sign1_validation_ffi_certificates/  # Certificates pack FFI
-│   ├── Cargo.toml                      # crate-type = ["staticlib", "cdylib"]
-│   └── src/
-│       ├── lib.rs                      # Pack registration function
-│       └── options.rs                  # C ABI options struct
-├── cose_sign1_validation_ffi_mst/      # MST pack FFI
-├── cose_sign1_validation_ffi_akv/      # AKV pack FFI
-└── cose_sign1_validation_ffi_trust/    # Trust pack FFI (placeholder)
+primitives/
+  cbor/                   cbor_primitives          — CBOR trait crate (zero deps)
+  cbor/everparse/         cbor_primitives_everparse — EverParse CBOR backend
+  crypto/                 crypto_primitives         — Crypto trait crate (zero deps)
+  crypto/openssl/         cose_sign1_crypto_openssl — OpenSSL provider
+  cose/                   cose_primitives           — RFC 9052 shared types & IANA constants
+  cose/sign1/             cose_sign1_primitives     — Sign1 message, builder, headers
+signing/
+  core/                   cose_sign1_signing        — Builder, signing service, factory
+  factories/              cose_sign1_factories      — Multi-factory extensible router
+  headers/                cose_sign1_headers        — CWT claims builder
+validation/
+  core/                   cose_sign1_validation     — Staged validator facade
+  primitives/             cose_sign1_validation_primitives — Trust engine (facts, rules, plans)
+extension_packs/
+  certificates/           cose_sign1_certificates   — X.509 chain trust pack
+  certificates/local/     cose_sign1_certificates_local — Ephemeral cert generation
+  azure_key_vault/        cose_sign1_azure_key_vault — AKV KID trust pack
+  mst/                    cose_sign1_transparent_mst — Merkle Sealed Transparency pack
+did/x509/                 did_x509                  — DID:x509 utilities
+partner/cose_openssl/     cose_openssl              — Partner OpenSSL wrapper (excluded from workspace)
 ```
 
-### Build Artifacts
-- **Windows**: `*.dll` + `*.dll.lib` (import library)
-- **Linux**: `*.so`
-- **macOS**: `*.dylib`
+Each library crate above has a companion `ffi/` subcrate that exports the C ABI.
 
-Static libraries (`.lib`/`.a`) also available for all packs.
+### C headers (`native/c/include/cose/`)
 
-### C ABI Types
+```
+cose.h                          — Shared COSE types, status codes, IANA constants
+sign1.h                         — COSE_Sign1 message primitives (auto-includes cose.h)
+sign1/
+  validation.h                  — Validator builder / runner
+  trust.h                       — Trust plan / policy authoring
+  signing.h                     — Sign1 builder, signing service, factory
+  factories.h                   — Multi-factory wrapper
+  cwt.h                         — CWT claims builder / serializer
+  extension_packs/
+    certificates.h              — X.509 certificate trust pack
+    certificates_local.h        — Ephemeral certificate generation
+    azure_key_vault.h           — Azure Key Vault trust pack
+    mst.h                       — Microsoft Transparency trust pack
+crypto/
+  openssl.h                     — OpenSSL crypto provider
+did/
+  x509.h                        — DID:x509 utilities
+```
+
+### C++ headers (`native/c_pp/include/cose/`)
+
+Same tree shape with `.hpp` extension plus:
+- `cose.hpp` — umbrella header (conditional includes via `COSE_HAS_*` defines)
+- Every header provides RAII classes in `namespace cose` / `namespace cose::sign1`
+
+## Naming Conventions
+
+### FFI two-tier prefix system
+
+| Prefix | Scope | Examples |
+|--------|-------|---------|
+| `cose_` | Generic COSE operations | `cose_status_t`, `cose_headermap_*`, `cose_key_*`, `cose_crypto_*`, `cose_cwt_*` |
+| `cose_sign1_` | Sign1-specific operations | `cose_sign1_message_*`, `cose_sign1_builder_*`, `cose_sign1_validator_*`, `cose_sign1_trust_*` |
+| `did_x509_` | DID:x509 (separate RFC domain) | `did_x509_parse`, `did_x509_validate` |
+
+### C++ namespaces
+
+- `cose::` — shared types (`CoseHeaderMap`, `CoseKey`, `cose_error`)
+- `cose::sign1::` — Sign1-specific classes (`CoseSign1Message`, `ValidatorBuilder`, `CwtClaims`)
+
+## Key Capabilities
+
+### Signing
+
 ```c
-// Opaque handles
-typedef struct cose_validator_builder_t cose_validator_builder_t;
-typedef struct cose_validator_t cose_validator_t;
-typedef struct cose_validation_result_t cose_validation_result_t;
+// C: create and sign a COSE_Sign1 message
+#include <cose/sign1/signing.h>
+#include <cose/crypto/openssl.h>
 
-// Status codes
-typedef enum {
-    COSE_OK = 0,
-    COSE_ERR = 1,
-    COSE_PANIC = 2,
-    COSE_INVALID_ARG = 3
-} cose_status_t;
+cose_crypto_signer_t* signer = NULL;
+cose_crypto_openssl_signer_from_der(private_key, key_len, &signer);
 
-// Pack options (one struct per pack)
-typedef struct cose_certificate_trust_options_t { /* ... */ } cose_certificate_trust_options_t;
-typedef struct cose_mst_trust_options_t { /* ... */ } cose_mst_trust_options_t;
-typedef struct cose_akv_trust_options_t { /* ... */ } cose_akv_trust_options_t;
+cose_sign1_factory_t* factory = NULL;
+cose_sign1_factory_from_crypto_signer(signer, &factory);
+
+uint8_t* signed_bytes = NULL;
+uint32_t signed_len = 0;
+cose_sign1_factory_sign_direct(factory, payload, payload_len,
+    "application/example", &signed_bytes, &signed_len, NULL);
 ```
 
-### Key Functions (Base)
-```c
-cose_validator_builder_t* cose_validator_builder_new(void);
-void cose_validator_builder_free(cose_validator_builder_t*);
-cose_status_t cose_validator_builder_build(cose_validator_builder_t*, cose_validator_t**);
-cose_status_t cose_validator_validate_bytes(cose_validator_t*, const uint8_t*, size_t, 
-                                             const uint8_t*, size_t, cose_validation_result_t**);
-```
-
-### Key Functions (Per-Pack)
-```c
-// Certificates pack
-cose_status_t cose_validator_builder_with_certificates_pack(cose_validator_builder_t*);
-cose_status_t cose_validator_builder_with_certificates_pack_ex(cose_validator_builder_t*, 
-                                                                 cose_certificate_trust_options_t*);
-
-// MST pack
-cose_status_t cose_validator_builder_with_mst_pack(cose_validator_builder_t*);
-cose_status_t cose_validator_builder_with_mst_pack_ex(cose_validator_builder_t*, 
-                                                       cose_mst_trust_options_t*);
-
-// AKV pack
-cose_status_t cose_validator_builder_with_akv_pack(cose_validator_builder_t*);
-cose_status_t cose_validator_builder_with_akv_pack_ex(cose_validator_builder_t*, 
-                                                       cose_akv_trust_options_t*);
-```
-
-## Layer 2: C Projection
-
-### Directory Structure
-```
-native/c/
-├── CMakeLists.txt                      # Build system with conditional pack linking
-├── README.md                           # C API documentation
-├── include/cose/
-│   ├── cose_sign1.h                    # Base API (required)
-│   ├── cose_certificates.h             # Certificates pack API
-│   ├── cose_mst.h                      # MST pack API
-│   └── cose_azure_key_vault.h          # AKV pack API
-└── tests/
-    ├── CMakeLists.txt
-    └── smoke_test.c                    # Basic validation test
-```
-
-### CMake Configuration
-```cmake
-find_library(COSE_FFI_BASE_LIB cose_sign1_validation_ffi REQUIRED)
-find_library(COSE_FFI_CERTIFICATES_LIB cose_sign1_validation_ffi_certificates)
-find_library(COSE_FFI_MST_LIB cose_sign1_validation_ffi_mst)
-find_library(COSE_FFI_AKV_LIB cose_sign1_validation_ffi_akv)
-
-if(COSE_FFI_CERTIFICATES_LIB)
-    target_link_libraries(cose_sign1 PUBLIC ${COSE_FFI_CERTIFICATES_LIB})
-    target_compile_definitions(cose_sign1 PUBLIC COSE_HAS_CERTIFICATES_PACK)
-endif()
-# ... similar for MST and AKV
-```
-
-### Header Organization
-Each pack header:
-1. Includes `cose_sign1.h` (base types)
-2. Declares pack-specific options struct
-3. Declares pack registration functions
-4. Protected by include guards
-5. Uses `extern "C"` for C++ compatibility
-
-### Usage Example (C)
-```c
-#include <cose/cose_sign1.h>
-#include <cose/cose_certificates.h>
-
-cose_validator_builder_t* builder = cose_validator_builder_new();
-cose_validator_builder_with_certificates_pack(builder);
-
-cose_validator_t* validator;
-if (cose_validator_builder_build(builder, &validator) != COSE_OK) {
-    fprintf(stderr, "Build failed: %s\n", cose_last_error_message_utf8());
-    cose_validator_builder_free(builder);
-    return 1;
-}
-
-cose_validation_result_t* result;
-cose_validator_validate_bytes(validator, cose_bytes, cose_len, NULL, 0, &result);
-
-if (cose_validation_result_ok(result)) {
-    printf("Valid!\n");
-} else {
-    char* msg = cose_validation_result_failure_message(result);
-    printf("Invalid: %s\n", msg);
-    cose_string_free(msg);
-}
-
-cose_validation_result_free(result);
-cose_validator_free(validator);
-cose_validator_builder_free(builder);
-```
-
-## Layer 3: C++ Projection
-
-### Directory Structure
-```
-native/c_pp/
-├── CMakeLists.txt                      # Interface library with conditional pack linking
-├── README.md                           # C++ API documentation
-├── include/cose/
-│   ├── validator.hpp                   # Base RAII types (required)
-│   ├── certificates.hpp                # Certificates pack RAII
-│   ├── mst.hpp                         # MST pack RAII
-│   ├── azure_key_vault.hpp             # AKV pack RAII
-│   └── cose.hpp                        # Convenience header (includes all)
-└── tests/
-    ├── CMakeLists.txt
-    └── smoke_test.cpp                  # RAII validation test
-```
-
-### RAII Design Principles
-- **Non-copyable**: Copy constructors deleted
-- **Movable**: Move constructors/assignment enabled
-- **Exception-based**: Errors throw `cose::cose_error`
-- **Automatic cleanup**: Destructors call FFI free functions
-- **Modern C++17**: Uses `std::vector`, `std::string`, structured bindings
-
-### Key Classes
-
-#### Base (validator.hpp)
 ```cpp
-namespace cose {
-    // Exception type
-    class cose_error : public std::runtime_error { /* ... */ };
-    
-    // RAII wrapper for validation result
-    class ValidationResult {
-        cose_validation_result_t* handle;
-    public:
-        ValidationResult(cose_validation_result_t*);
-        ~ValidationResult();
-        bool Ok() const;
-        std::string FailureMessage() const;
-    };
-    
-    // RAII wrapper for validator
-    class Validator {
-        cose_validator_t* handle;
-    public:
-        Validator(cose_validator_t*);
-        ~Validator();
-        ValidationResult Validate(const std::vector<uint8_t>& cose_bytes,
-                                  const std::vector<uint8_t>& detached_payload = {});
-    };
-    
-    // Fluent builder base class
-    class ValidatorBuilder {
-    protected:
-        cose_validator_builder_t* handle;
-    public:
-        ValidatorBuilder();
-        virtual ~ValidatorBuilder();
-        Validator Build();
-    };
-}
+// C++: same operation with RAII
+#include <cose/sign1/signing.hpp>
+#include <cose/crypto/openssl.hpp>
+
+auto provider = cose::CryptoProvider::New();
+auto signer = provider.SignerFromDer(private_key);
+auto factory = cose::sign1::SignatureFactory::FromCryptoSigner(signer);
+auto bytes = factory.SignDirectBytes(payload, payload_len, "application/example");
 ```
 
-#### Per-Pack Extensions (certificates.hpp, mst.hpp, azure_key_vault.hpp)
+### Validation with trust policy
+
+```c
+// C: build validator, add packs, author trust policy, validate
+#include <cose/sign1/validation.h>
+#include <cose/sign1/trust.h>
+#include <cose/sign1/extension_packs/certificates.h>
+
+cose_sign1_validator_builder_t* builder = NULL;
+cose_sign1_validator_builder_new(&builder);
+cose_sign1_validator_builder_with_certificates_pack(builder);
+
+cose_sign1_trust_policy_builder_t* policy = NULL;
+cose_sign1_trust_policy_builder_new_from_validator_builder(builder, &policy);
+cose_sign1_trust_policy_builder_require_content_type_non_empty(policy);
+cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted(policy);
+
+cose_sign1_compiled_trust_plan_t* plan = NULL;
+cose_sign1_trust_policy_builder_compile(policy, &plan);
+cose_sign1_validator_builder_with_compiled_trust_plan(builder, plan);
+
+cose_sign1_validator_t* validator = NULL;
+cose_sign1_validator_builder_build(builder, &validator);
+
+cose_sign1_validation_result_t* result = NULL;
+cose_sign1_validator_validate_bytes(validator, cose_bytes, len, NULL, 0, &result);
+```
+
 ```cpp
-namespace cose {
-    // Options use C++ types
-    struct CertificateOptions {
-        bool trust_embedded_chain_as_trusted = false;
-        bool identity_pinning_enabled = false;
-        std::vector<std::string> allowed_thumbprints;
-        std::vector<std::string> pqc_algorithm_oids;
-    };
-    
-    // Builder extends base class
-    class ValidatorBuilderWithCertificates : public ValidatorBuilder {
-    public:
-        ValidatorBuilderWithCertificates& WithCertificates();
-        ValidatorBuilderWithCertificates& WithCertificates(const CertificateOptions& options);
-    };
-}
+// C++: same with RAII and fluent API
+#include <cose/sign1/validation.hpp>
+#include <cose/sign1/trust.hpp>
+#include <cose/sign1/extension_packs/certificates.hpp>
+
+auto builder = cose::sign1::ValidatorBuilder();
+cose::sign1::WithCertificates(builder);
+
+auto policy = cose::sign1::TrustPolicyBuilder(builder);
+policy.RequireContentTypeNonEmpty();
+cose::sign1::RequireX509ChainTrusted(policy);
+
+auto plan = policy.Compile();
+cose::sign1::WithCompiledTrustPlan(builder, plan);
+
+auto validator = builder.Build();
+auto result = validator.Validate(cose_bytes);
 ```
 
-### Usage Example (C++)
+### CWT claims
+
 ```cpp
-#include <cose/certificates.hpp>
+// C++: build CWT claims for COSE_Sign1 protected headers
+#include <cose/sign1/cwt.hpp>
 
-try {
-    // Fluent builder with pack
-    auto validator = cose::ValidatorBuilderWithCertificates()
-        .WithCertificates()
-        .Build();
-    
-    std::vector<uint8_t> cose_bytes = /* ... */;
-    auto result = validator.Validate(cose_bytes);
-    
-    if (result.Ok()) {
-        std::cout << "Valid!\n";
-    } else {
-        std::cout << "Invalid: " << result.FailureMessage() << "\n";
-    }
-    
-    // RAII cleanup happens automatically
-} catch (const cose::cose_error& e) {
-    std::cerr << "Error: " << e.what() << "\n";
-    return 1;
+auto claims = cose::sign1::CwtClaims::New();
+claims.SetIssuer("did:x509:...");
+claims.SetSubject("my-artifact");
+claims.SetIssuedAt(std::time(nullptr));
+auto cbor = claims.ToCbor();
+```
+
+### Message parsing
+
+```cpp
+// C++: parse and inspect a COSE_Sign1 message
+#include <cose/sign1.hpp>
+
+auto msg = cose::sign1::CoseSign1Message::Parse(cose_bytes);
+auto alg = msg.Algorithm();           // std::optional<int64_t>
+auto payload = msg.Payload();         // std::optional<std::vector<uint8_t>>
+auto headers = msg.ProtectedHeaders(); // cose::CoseHeaderMap
+auto kid = headers.GetBytes(COSE_HEADER_KID); // std::optional<std::vector<uint8_t>>
+```
+
+## Extension Packs
+
+Each pack follows the same pattern:
+
+| Pack | Rust crate | C header | C++ header | FFI prefix |
+|------|-----------|----------|------------|------------|
+| X.509 Certificates | `cose_sign1_certificates` | `<cose/sign1/extension_packs/certificates.h>` | `<cose/sign1/extension_packs/certificates.hpp>` | `cose_sign1_certificates_*` |
+| Azure Key Vault | `cose_sign1_azure_key_vault` | `<cose/sign1/extension_packs/azure_key_vault.h>` | `<cose/sign1/extension_packs/azure_key_vault.hpp>` | `cose_sign1_akv_*` |
+| Azure Trusted Signing | `cose_sign1_azure_trusted_signing` | `<cose/sign1/extension_packs/azure_trusted_signing.h>` | `<cose/sign1/extension_packs/azure_trusted_signing.hpp>` | `cose_sign1_ats_*` |
+| Merkle Sealed Transparency | `cose_sign1_transparent_mst` | `<cose/sign1/extension_packs/mst.h>` | `<cose/sign1/extension_packs/mst.hpp>` | `cose_sign1_mst_*` |
+| Ephemeral Certs (test) | `cose_sign1_certificates_local` | `<cose/sign1/extension_packs/certificates_local.h>` | `<cose/sign1/extension_packs/certificates_local.hpp>` | `cose_cert_local_*` |
+
+## Build & Consume
+
+### From Rust
+
+```bash
+cargo test --workspace
+cargo run -p cose_sign1_validation_demo -- selftest
+```
+
+### From C/C++ via vcpkg
+
+```bash
+vcpkg install cosesign1-validation-native[certificates,mst,signing,cpp]
+```
+
+### From C/C++ via CMake (manual)
+
+```bash
+# 1. Build Rust FFI libs
+cd native/rust && cargo build --release --workspace
+
+# 2. Build C/C++ tests
+cd native/c && cmake -B build -DBUILD_TESTING=ON && cmake --build build --config Release
+cd native/c_pp && cmake -B build -DBUILD_TESTING=ON && cmake --build build --config Release
+```
+
+## CLI Tool
+
+The `cose_sign1_cli` crate provides a command-line interface for signing, verifying, and inspecting COSE_Sign1 messages.
+
+### Feature-Flag-Based Provider Selection
+
+Unlike the V2 C# implementation which uses runtime plugin discovery, the CLI uses **compile-time provider selection**:
+
+```rust
+// V2 C# (runtime)
+var plugins = pluginLoader.DiscoverPlugins();
+var factory = router.GetFactory<AzureKeyVaultOptions>();
+
+// Rust CLI (compile-time)
+#[cfg(feature = "akv")]
+providers.push(Box::new(AkvSigningProvider));
+```
+
+This provides several advantages:
+- **Smaller binaries**: Only enabled providers are compiled in
+- **Better performance**: No runtime reflection or plugin loading overhead
+- **Security**: Attack surface is limited to compile-time selected features
+- **Deterministic**: No runtime dependency on plugin discovery mechanisms
+
+### Signing Providers
+
+| Provider | `--provider` | Feature Flag | CLI Flags | V2 C# Equivalent |
+|----------|-------------|-------------|-----------|-------------------|
+| DER key | `der` | `crypto-openssl` | `--key key.der` | (base) |
+| PFX/PKCS#12 | `pfx` | `crypto-openssl` | `--pfx cert.pfx [--pfx-password ...]` | `x509-pfx` |
+| PEM files | `pem` | `crypto-openssl` | `--cert-file cert.pem --key-file key.pem` | `x509-pem` |
+| Ephemeral | `ephemeral` | `certificates` | `[--subject CN=Test]` | `x509-ephemeral` |
+| AKV certificate | `akv-cert` | `akv` | `--vault-url ... --cert-name ...` | `x509-akv-cert` |
+| AKV key | `akv-key` | `akv` | `--vault-url ... --key-name ...` | `akv-key` |
+| ATS | `ats` | `ats` | `--ats-endpoint ... --ats-account ... --ats-profile ...` | `x509-ats` |
+
+### Verification Providers
+
+| Provider | Feature Flag | CLI Flags | V2 C# Equivalent |
+|----------|-------------|-----------|-------------------|
+| X.509 Certificates | `certificates` | `--trust-root`, `--allow-embedded`, `--allowed-thumbprint` | `X509` |
+| MST Receipts | `mst` | `--require-mst-receipt`, `--mst-offline-keys`, `--mst-ledger-instance` | `MST` |
+| AKV KID | `akv` | `--require-akv-kid`, `--akv-allowed-vault` | `AzureKeyVault` |
+
+### Feature Flag → Provider Mapping
+
+| Feature Flag | Signing Providers | Verification Providers | Extension Pack Crate |
+|-------------|------------------|----------------------|---------------------|
+| `crypto-openssl` | `der`, `pfx`, `pem` | - | `cose_sign1_crypto_openssl` |
+| `certificates` | `ephemeral` | `certificates` | `cose_sign1_certificates` |
+| `akv` | `akv-cert`, `akv-key` | `akv` | `cose_sign1_azure_key_vault` |
+| `ats` | `ats` | - | `cose_sign1_azure_trusted_signing` |
+| `mst` | - | `mst` | `cose_sign1_transparent_mst` |
+
+### V2 C# Plugin → Rust Feature Flag Mapping
+
+| V2 C# Plugin Command | Rust CLI Provider | Rust Feature Flag | Example CLI Usage |
+|---------------------|------------------|------------------|------------------|
+| `x509-pfx` | `pfx` | `crypto-openssl` | `--provider pfx --pfx cert.pfx` |
+| `x509-pem` | `pem` | `crypto-openssl` | `--provider pem --cert-file cert.pem --key-file key.pem` |
+| `x509-ephemeral` | `ephemeral` | `certificates` | `--provider ephemeral --subject "CN=Test"` |
+| `x509-akv-cert` | `akv-cert` | `akv` | `--provider akv-cert --vault-url ... --cert-name ...` |
+| `akv-key` | `akv-key` | `akv` | `--provider akv-key --vault-url ... --key-name ...` |
+| `x509-ats` | `ats` | `ats` | `--provider ats --ats-endpoint ... --ats-account ...` |
+
+### Provider Trait Abstractions
+
+#### SigningProvider
+```rust
+pub trait SigningProvider {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn create_signer(&self, args: &SigningProviderArgs) 
+        -> Result<Box<dyn CryptoSigner>, anyhow::Error>;
 }
 ```
 
-## Build System Integration
-
-### CMake Workflow
-1. Build Rust FFI libraries: `cargo build --release --workspace`
-2. Configure C projection: `cmake -B build -S native/c -DBUILD_TESTING=ON`
-3. Build C projection: `cmake --build build --config Release`
-4. Configure C++ projection: `cmake -B build -S native/c_pp -DBUILD_TESTING=ON`
-5. Build C++ projection: `cmake --build build --config Release`
-6. Run tests: `ctest -C Release` (requires Rust DLLs in PATH)
-
-### vcpkg (Overlay Port)
-```json
-{
-    "name": "cosesign1-validation-native",
-    "version-string": "0.1.0",
-    "description": "C and C++ projections for COSE_Sign1 validation (Rust FFI-backed)",
-    "supports": "windows | linux | osx",
-    "default-features": ["certificates", "cpp"],
-    "features": {
-        "cpp": {
-            "description": "Install C++ projection headers + CMake target"
-        },
-        "certificates": {
-            "description": "Build/install X.509 certificates pack FFI and enable COSE_HAS_CERTIFICATES_PACK"
-        },
-        "mst": {
-            "description": "Build/install MST pack FFI and enable COSE_HAS_MST_PACK"
-        },
-        "akv": {
-            "description": "Build/install Azure Key Vault pack FFI and enable COSE_HAS_AKV_PACK"
-        },
-        "trust": {
-            "description": "Build/install trust-policy pack FFI and enable COSE_HAS_TRUST_PACK"
-        }
-    }
+#### VerificationProvider
+```rust
+pub trait VerificationProvider {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn create_trust_pack(&self, args: &VerificationProviderArgs) 
+        -> Result<Arc<dyn CoseSign1TrustPack>, anyhow::Error>;
 }
 ```
 
-## Error Handling
+### Output Formatters
 
-### Rust FFI Layer
-- All public functions wrapped in `with_catch_unwind()`
-- Panics converted to `COSE_PANIC` status code
-- Error messages stored thread-locally
-- Retrieved via `cose_last_error_message_utf8()`
+The CLI supports multiple output formats via the `OutputFormat` enum:
+- **Text**: Human-readable tabular format (default)
+- **JSON**: Structured JSON for programmatic consumption
+- **Quiet**: Minimal output (exit codes only)
 
-### C Projection
-- Check status codes after every call
-- Use `cose_last_error_message_utf8()` for details
-- Manually free all returned strings with `cose_string_free()`
+All commands consistently support these formats via the `--output-format` flag.
 
-### C++ Projection
-- Exceptions thrown for all errors
-- `cose::cose_error` includes detailed message
-- RAII ensures cleanup even during exception unwinding
-- No manual resource management needed
+### Architecture Comparison
 
-## Testing Strategy
+| Aspect | V2 C# | Rust CLI |
+|--------|--------|----------|
+| Plugin Discovery | Runtime via reflection | Compile-time via Cargo features |
+| Provider Registration | `ICoseSignToolPlugin.Initialize()` | Static trait implementation |
+| Configuration | Options classes + DI container | Command-line arguments + provider args |
+| Async Model | `async Task<T>` throughout | Sync CLI with async internals |
+| Error Handling | Exceptions + `Result<T>` | `anyhow::Error` + exit codes |
+| Output | Logging frameworks | Structured output formatters |
 
-### Smoke Tests (Current)
-- **C**: Builder creation, pack registration, validator build
-- **C++**: RAII wrappers, fluent API, exception handling, all packs
+## Quality Gates
 
-### Future Integration Tests
-- Real COSE Sign1 message validation
-- Certificate chain validation scenarios
-- MST receipt verification with mock receipts
-- AKV KID validation with pattern matching
-- Trust policy evaluation
-- Negative test cases (invalid signatures, expired certs, etc.)
-
-### Coverage Testing
-- **Rust**: `cargo-llvm-cov` with 95% target (already achieved)
-- **C**: OpenCppCoverage (Windows) or gcov (Linux)
-- **C++**: OpenCppCoverage (Windows) or gcov (Linux)
-
-## Documentation
-
-Each layer provides:
-- **README.md**: Usage guide with examples
-- **API reference**: Inline comments in headers
-- **Architecture guide**: This document
-- **Progress log**: [FFI_PROJECTIONS_PROGRESS.md](FFI_PROJECTIONS_PROGRESS.md)
-
-## Future Work
-
-### Milestone M3: Trust Policy Authoring
-- Expose trust policy DSL to C/C++
-- `TrustPlanBuilder` FFI
-- C and C++ wrappers for policy construction
-- Default trust plans
-
-### Milestone M4: Comprehensive Testing
-- Integration tests with real COSE messages
-- Certificate validation test suite
-- MST verification test suite
-- Performance benchmarks
-
-### Milestone M5: Packaging
-- vcpkg port with per-pack features
-- CMake find_package support
-- Conan package (optional)
-- Documentation site
-
-### Milestone M6: Coverage & CI
-- OpenCppCoverage scripts for C/C++
-- GitHub Actions workflow for native builds
-- Coverage reporting and enforcement
-- Cross-platform testing (Windows, Linux, macOS)
+| Gate | What | Enforced by |
+|------|------|-------------|
+| No tests in `src/` | `#[cfg(test)]` forbidden in `src/` directories | `Assert-NoTestsInSrc` |
+| FFI parity | Every `require_*` helper has FFI export | `Assert-FluentHelpersProjectedToFfi` |
+| Dependency allowlist | External deps must be in `allowed-dependencies.toml` | `Assert-AllowedDependencies` |
+| Line coverage ≥ 95% | Production code only | `collect-coverage.ps1` |

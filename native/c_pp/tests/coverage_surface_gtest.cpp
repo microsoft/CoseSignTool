@@ -126,7 +126,7 @@ TEST(CoverageSurface, ThrowsWhenValidatorBuilderConsumed) {
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
 TEST(CoverageSurface, CertificatesPackAndPolicyHelpers) {
-    cose::ValidatorBuilderWithCertificates b;
+    cose::ValidatorBuilder b;
 
     cose::CertificateOptions opts;
     opts.trust_embedded_chain_as_trusted = true;
@@ -134,8 +134,8 @@ TEST(CoverageSurface, CertificatesPackAndPolicyHelpers) {
     opts.allowed_thumbprints = {"aa", "bb"};
     opts.pqc_algorithm_oids = {"1.2.3.4"};
 
-    EXPECT_NO_THROW((void)b.WithCertificates());
-    EXPECT_NO_THROW((void)b.WithCertificates(opts));
+    EXPECT_NO_THROW((void)cose::WithCertificates(b));
+    EXPECT_NO_THROW((void)cose::WithCertificates(b, opts));
 
     cose::TrustPolicyBuilder policy(b);
 
@@ -189,15 +189,15 @@ TEST(CoverageSurface, CertificatesPackAndPolicyHelpers) {
 
 #ifdef COSE_HAS_MST_PACK
 TEST(CoverageSurface, MstPackAndPolicyHelpers) {
-    cose::ValidatorBuilderWithMst b;
+    cose::ValidatorBuilder b;
 
     cose::MstOptions opts;
     opts.allow_network = false;
     opts.offline_jwks_json = "{\"keys\":[]}";
     opts.jwks_api_version = "2023-01-01";
 
-    EXPECT_NO_THROW((void)b.WithMst());
-    EXPECT_NO_THROW((void)b.WithMst(opts));
+    EXPECT_NO_THROW((void)cose::WithMst(b));
+    EXPECT_NO_THROW((void)cose::WithMst(b, opts));
 
     cose::TrustPolicyBuilder policy(b);
 
@@ -224,14 +224,14 @@ TEST(CoverageSurface, MstPackAndPolicyHelpers) {
 
 #ifdef COSE_HAS_AKV_PACK
 TEST(CoverageSurface, AkvPackAndPolicyHelpers) {
-    cose::ValidatorBuilderWithAzureKeyVault b;
+    cose::ValidatorBuilder b;
 
     cose::AzureKeyVaultOptions opts;
     opts.require_azure_key_vault_kid = true;
     opts.allowed_kid_patterns = {"*.vault.azure.net/keys/*"};
 
-    EXPECT_NO_THROW((void)b.WithAzureKeyVault());
-    EXPECT_NO_THROW((void)b.WithAzureKeyVault(opts));
+    EXPECT_NO_THROW((void)cose::WithAzureKeyVault(b));
+    EXPECT_NO_THROW((void)cose::WithAzureKeyVault(b, opts));
 
     cose::TrustPolicyBuilder policy(b);
 

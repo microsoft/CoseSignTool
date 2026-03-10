@@ -210,6 +210,24 @@ public class ExampleCommand : PluginCommandBase
 }
 ```
 
+## Command Execution Efficiency (MANDATORY)
+
+**Never re-run an expensive command (build, test, lint, coverage) just to apply a different text filter.**
+
+All long-running commands MUST capture full output to a file on the first run, then search that file for subsequent analysis. See `.github/instructions/command-output-capture.instructions.md` for the full policy.
+
+Quick reference:
+```powershell
+# CORRECT: Capture once, search many times
+cargo test --workspace 2>&1 | Out-File -FilePath "$env:TEMP\test-output.txt" -Encoding utf8
+Select-String -Path "$env:TEMP\test-output.txt" -Pattern "FAILED"
+Select-String -Path "$env:TEMP\test-output.txt" -Pattern "error"
+
+# WRONG: Re-running the same command with different filters
+cargo test --workspace 2>&1 | Select-String "FAILED"    # run 1: 10 minutes
+cargo test --workspace 2>&1 | Select-String "error"      # run 2: 10 minutes WASTED
+```
+
 ## Summary
 When generating code for this repository, always:
 1. Include the Microsoft copyright header
@@ -222,3 +240,4 @@ When generating code for this repository, always:
 8. Follow the formatting and spacing rules exactly as specified
 9. Include comprehensive XML documentation for public APIs
 10. Ensure all generated code follows the .editorconfig rules
+11. Capture long-running command output to files — never re-run just to filter differently

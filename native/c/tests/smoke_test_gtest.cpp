@@ -4,11 +4,11 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <cose/cose_sign1.h>
-#include <cose/cose_certificates.h>
-#include <cose/cose_mst.h>
-#include <cose/cose_azure_key_vault.h>
-#include <cose/cose_trust.h>
+#include <cose/sign1/validation.h>
+#include <cose/sign1/extension_packs/certificates.h>
+#include <cose/sign1/extension_packs/mst.h>
+#include <cose/sign1/extension_packs/azure_key_vault.h>
+#include <cose/sign1/trust.h>
 }
 
 #include <string>
@@ -31,53 +31,53 @@ TEST(SmokeC, TakeLastErrorReturnsString) {
 }
 
 TEST(SmokeC, AbiVersionAvailable) {
-    EXPECT_GT(cose_ffi_abi_version(), 0u);
+    EXPECT_GT(cose_sign1_validation_abi_version(), 0u);
 }
 
 TEST(SmokeC, BuilderCreatesAndBuilds) {
-    cose_validator_builder_t* builder = nullptr;
-    cose_validator_t* validator = nullptr;
+    cose_sign1_validator_builder_t* builder = nullptr;
+    cose_sign1_validator_t* validator = nullptr;
 
-    assert_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
-    assert_ok(cose_validator_builder_with_certificates_pack(builder), "cose_validator_builder_with_certificates_pack");
+    assert_ok(cose_sign1_validator_builder_with_certificates_pack(builder), "cose_sign1_validator_builder_with_certificates_pack");
 #endif
 
 #ifdef COSE_HAS_MST_PACK
-    assert_ok(cose_validator_builder_with_mst_pack(builder), "cose_validator_builder_with_mst_pack");
+    assert_ok(cose_sign1_validator_builder_with_mst_pack(builder), "cose_sign1_validator_builder_with_mst_pack");
 #endif
 
 #ifdef COSE_HAS_AKV_PACK
-    assert_ok(cose_validator_builder_with_akv_pack(builder), "cose_validator_builder_with_akv_pack");
+    assert_ok(cose_sign1_validator_builder_with_akv_pack(builder), "cose_sign1_validator_builder_with_akv_pack");
 #endif
 
 #ifdef COSE_HAS_TRUST_PACK
     // Attach a bundled plan from pack defaults.
     {
-        cose_trust_plan_builder_t* plan_builder = nullptr;
-        cose_compiled_trust_plan_t* plan = nullptr;
+        cose_sign1_trust_plan_builder_t* plan_builder = nullptr;
+        cose_sign1_compiled_trust_plan_t* plan = nullptr;
 
         assert_ok(
-            cose_trust_plan_builder_new_from_validator_builder(builder, &plan_builder),
-            "cose_trust_plan_builder_new_from_validator_builder");
+            cose_sign1_trust_plan_builder_new_from_validator_builder(builder, &plan_builder),
+            "cose_sign1_trust_plan_builder_new_from_validator_builder");
 
         assert_ok(
-            cose_trust_plan_builder_add_all_pack_default_plans(plan_builder),
-            "cose_trust_plan_builder_add_all_pack_default_plans");
+            cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder),
+            "cose_sign1_trust_plan_builder_add_all_pack_default_plans");
 
-        assert_ok(cose_trust_plan_builder_compile_or(plan_builder, &plan), "cose_trust_plan_builder_compile_or");
+        assert_ok(cose_sign1_trust_plan_builder_compile_or(plan_builder, &plan), "cose_sign1_trust_plan_builder_compile_or");
         assert_ok(
-            cose_validator_builder_with_compiled_trust_plan(builder, plan),
-            "cose_validator_builder_with_compiled_trust_plan");
+            cose_sign1_validator_builder_with_compiled_trust_plan(builder, plan),
+            "cose_sign1_validator_builder_with_compiled_trust_plan");
 
-        cose_compiled_trust_plan_free(plan);
-        cose_trust_plan_builder_free(plan_builder);
+        cose_sign1_compiled_trust_plan_free(plan);
+        cose_sign1_trust_plan_builder_free(plan_builder);
     }
 #endif
 
-    assert_ok(cose_validator_builder_build(builder, &validator), "cose_validator_builder_build");
+    assert_ok(cose_sign1_validator_builder_build(builder, &validator), "cose_sign1_validator_builder_build");
 
-    cose_validator_free(validator);
-    cose_validator_builder_free(builder);
+    cose_sign1_validator_free(validator);
+    cose_sign1_validator_builder_free(builder);
 }

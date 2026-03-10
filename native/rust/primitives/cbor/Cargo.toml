@@ -1,0 +1,10 @@
+[package]
+name = "cbor_primitives"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+# NO dependencies - trait-only crate

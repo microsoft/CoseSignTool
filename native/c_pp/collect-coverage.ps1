@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
+    # Default to Debug because OpenCppCoverage relies on PDB debug info, and
+    # RelWithDebInfo /O2 optimizations inline C++ header functions, preventing
+    # the coverage tool from attributing executed lines back to the headers.
     [ValidateSet('Debug', 'Release', 'RelWithDebInfo')]
-    [string]$Configuration = 'RelWithDebInfo',
+    [string]$Configuration = 'Debug',
 
     [string]$BuildDir = (Join-Path $PSScriptRoot 'build'),
     [string]$ReportDir = (Join-Path $PSScriptRoot 'coverage'),
@@ -12,7 +15,7 @@ param(
 
     # Optional: use vcpkg toolchain so GoogleTest can be found and the CTest
     # suite runs gtest-discovered tests.
-    [string]$VcpkgRoot = 'C:\vcpkg',
+    [string]$VcpkgRoot = ($env:VCPKG_ROOT ?? 'C:\vcpkg'),
     [string]$VcpkgTriplet = 'x64-windows',
     [switch]$UseVcpkg = $true,
     [switch]$EnsureGTest = $true,
@@ -403,7 +406,7 @@ if (-not $NoBuild) {
         $UseVcpkg = $true
     }
 
-    $cmakeArgs = @('-S', $PSScriptRoot, '-B', $BuildDir, '-DBUILD_TESTING=ON')
+    $cmakeArgs = @('-S', $PSScriptRoot, '-B', $BuildDir, '-DBUILD_TESTING=ON', '-DBUILD_EXAMPLES=OFF')
     if ($EnableAsan) {
         $cmakeArgs += '-DCOSE_ENABLE_ASAN=ON'
     }
@@ -420,6 +423,33 @@ if (-not $NoBuild) {
 
 if (-not (Test-Path $BuildDir)) {
     throw "Build directory not found: $BuildDir. Build first (or pass -BuildDir pointing to an existing build)."
+}
+
+# Ensure Rust FFI DLLs and OpenSSL are on PATH so test executables can find them at runtime.
+$rustFfiDir = (Get-NormalizedPath (Join-Path $PSScriptRoot '..\rust\target\release'))
+if (Test-Path $rustFfiDir) {
+    if ($env:PATH -notlike "*$rustFfiDir*") {
+        $env:PATH = "${rustFfiDir};$env:PATH"
+        Write-Host "Added Rust FFI dir to PATH: $rustFfiDir"
+    }
+}
+
+$opensslDir = $env:OPENSSL_DIR
+if ($opensslDir) {
+    $opensslBin = Join-Path $opensslDir 'bin'
+    if ((Test-Path $opensslBin) -and ($env:PATH -notlike "*$opensslBin*")) {
+        $env:PATH = "${opensslBin};$env:PATH"
+        Write-Host "Added OpenSSL bin to PATH: $opensslBin"
+    }
+}
+
+# vcpkg runtime DLLs (e.g., GTest DLLs on Windows)
+if ($UseVcpkg -and $VcpkgRoot) {
+    $vcpkgBin = Join-Path $VcpkgRoot "installed\${VcpkgTriplet}\bin"
+    if ((Test-Path $vcpkgBin) -and ($env:PATH -notlike "*$vcpkgBin*")) {
+        $env:PATH = "${vcpkgBin};$env:PATH"
+        Write-Host "Added vcpkg bin to PATH: $vcpkgBin"
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null

@@ -22,8 +22,8 @@ Provide detached payload via `CoseSign1ValidationOptions.detached_payload`.
 Streaming `Sig_structure` construction is only used when:
 
 - message payload is detached (payload is `nil`)
-- you provided `DetachedPayload::Provider`
-- the provider returns a `len_hint()`
-- `len_hint() > LARGE_STREAM_THRESHOLD`
+- you provided `Payload::Streaming`
+- the payload provider returns a correct `size()`
+- `size() > LARGE_STREAM_THRESHOLD`
 
-Also, to avoid buffering, your `SigningKey` should override `verify_reader`.
+Also, to avoid buffering, your `CoseKey` should override `verify_reader`.

@@ -12,7 +12,7 @@ CMake:
 
 Features:
 
-  vcpkg install cosesign1-validation-native[cpp,certificates,mst,akv,trust]
+  vcpkg install cosesign1-validation-native[cpp,certificates,mst,akv,trust,signing,primitives,headers,did-x509]
 
 Notes:
 - This overlay port builds the Rust FFI libraries using cargo. Ensure Rust is installed and on PATH.

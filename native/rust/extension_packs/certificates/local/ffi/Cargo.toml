@@ -1,0 +1,15 @@
+[package]
+name = "cose_sign1_certificates_local_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_certificates_local = { path = ".." }
+anyhow = { version = "1" }
+
+[features]
+pqc = ["cose_sign1_certificates_local/pqc"]

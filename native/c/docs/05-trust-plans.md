@@ -1,6 +1,6 @@
 # Trust plans and policies (C)
 
-The trust authoring surface is in `<cose/cose_trust.h>`.
+The trust authoring surface is in `<cose/sign1/trust.h>`.
 
 There are two related concepts:
 

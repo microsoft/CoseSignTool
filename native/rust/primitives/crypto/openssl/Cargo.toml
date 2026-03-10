@@ -1,0 +1,25 @@
+[package]
+name = "cose_sign1_crypto_openssl"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.70"
+description = "OpenSSL-based cryptographic provider for COSE operations (safe Rust bindings)"
+
+[lib]
+test = false
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["cose_primitives/cbor-everparse"]
+pqc = ["dep:openssl-sys", "dep:foreign-types", "crypto_primitives/pqc", "cose_primitives/pqc"]  # Enable post-quantum cryptography algorithm support (ML-DSA / FIPS 204)
+
+[dependencies]
+cose_primitives = { path = "../../cose", default-features = false }
+crypto_primitives = { path = ".." }
+openssl = "0.10"
+openssl-sys = { version = "0.9", optional = true }
+foreign-types = { version = "0.3", optional = true }
+
+[dev-dependencies]
+cbor_primitives_everparse = { path = "../../cbor/everparse" }

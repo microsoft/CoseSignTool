@@ -51,7 +51,7 @@ This keeps signature verification enabled (useful for scenarios where trust is h
 
 If the COSE message has `payload = nil`, the validator requires a detached payload via:
 
-- `CoseSign1ValidationOptions { detached_payload: Some(DetachedPayload::Bytes(...)) }`, or
-- `DetachedPayload::Provider` for a stream-like source.
+- `CoseSign1ValidationOptions { detached_payload: Some(Payload::Bytes(...)) }`, or
+- `Payload::Streaming(Box<dyn StreamingPayload>)` for a stream-like source.
 
 See `detached-payloads.md`.

@@ -1,6 +1,6 @@
 # Core API (C)
 
-The base validation API is in `<cose/cose_sign1.h>`.
+The base validation API is in `<cose/sign1/validation.h>`.
 
 ## Basic flow
 
@@ -13,7 +13,7 @@ The base validation API is in `<cose/cose_sign1.h>`.
 ## Minimal example
 
 ```c
-#include <cose/cose_sign1.h>
+#include <cose/sign1/validation.h>
 #include <stdlib.h>
 
 int validate(const unsigned char* msg, size_t msg_len) {

@@ -68,10 +68,10 @@ fn test_akv_key_signing_provider() {
 #[cfg(feature = "ats")]
 #[test]
 fn test_ats_signing_provider() {
-    let provider = AtsSigningProvider;
+    let provider = AasSigningProvider;
     assert_eq!(provider.name(), "ats");
     assert!(!provider.description().is_empty());
-    assert!(provider.description().contains("Azure") && provider.description().contains("Trusted Signing"));
+    assert!(provider.description().contains("Azure") && provider.description().contains("Artifact Signing"));
 }
 
 #[cfg(any(feature = "crypto-openssl", feature = "akv", feature = "ats"))]

@@ -40,7 +40,7 @@ Detailed design docs live in [native/rust/docs/](docs/).
 | `cose_sign1_certificates_local` | `extension_packs/certificates/local/` | Ephemeral certificate generation (test/dev) |
 | `cose_sign1_transparent_mst` | `extension_packs/mst/` | Microsoft Transparency receipt verification |
 | `cose_sign1_azure_key_vault` | `extension_packs/azure_key_vault/` | Azure Key Vault `kid` detection / allow-listing |
-| `cose_sign1_azure_trusted_signing` | `extension_packs/azure_trusted_signing/` | Azure Trusted Signing (ATS) pack + `azure_trusted_signing_client` sub-crate |
+| `cose_sign1_azure_artifact_signing` | `extension_packs/azure_artifact_signing/` | Azure Artifact Signing (AAS) pack + `azure_artifact_signing_client` sub-crate |
 
 ## DID
 

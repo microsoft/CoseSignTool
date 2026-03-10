@@ -12,7 +12,7 @@ The CLI tool uses compile-time feature selection for cryptographic providers and
 | `certificates` | ✓ | X.509 certificate chain validation |
 | `mst` | ✓ | Microsoft Transparency receipt verification |
 | `akv` | ✗ | Azure Key Vault signing and validation |
-| `ats` | ✗ | Azure Trusted Signing integration |
+| `ats` | ✗ | Azure Artifact Signing integration |
 
 ## Signing Providers
 
@@ -26,7 +26,7 @@ All signing providers are available through the `--provider` flag on the `sign` 
 | Ephemeral | `ephemeral` | `certificates` | `[--subject CN=Test]` | `x509-ephemeral` |
 | AKV certificate | `akv-cert` | `akv` | `--vault-url ... --cert-name ...` | `x509-akv-cert` |
 | AKV key | `akv-key` | `akv` | `--vault-url ... --key-name ...` | `akv-key` |
-| ATS | `ats` | `ats` | `--ats-endpoint ... --ats-account ... --ats-profile ...` | `x509-ats` |
+| AAS | `ats` | `ats` | `--ats-endpoint ... --ats-account ... --ats-profile ...` | `x509-ats` |
 
 ## Verification Providers
 
@@ -47,7 +47,7 @@ cargo build -p cose_sign1_cli --features crypto-openssl,certificates
 # Full (all providers)
 cargo build -p cose_sign1_cli --all-features
 
-# Cloud signing (AKV + ATS)
+# Cloud signing (AKV + AAS)
 cargo build -p cose_sign1_cli --features crypto-openssl,akv,ats
 
 # Default build (OpenSSL + certificates + MST)
@@ -129,9 +129,9 @@ cosesigntool sign --input payload.bin --output signed.cose --provider akv-key \
   --vault-url "https://myvault.vault.azure.net" --key-name "my-key"
 ```
 
-**ATS Provider (`--provider ats`)**
+**AAS Provider (`--provider ats`)**
 ```bash
-# Sign with Azure Trusted Signing (requires: ats)
+# Sign with Azure Artifact Signing (requires: ats)
 cosesigntool sign --input payload.bin --output signed.cose --provider ats \
   --ats-endpoint "https://northcentralus.codesigning.azure.net" \
   --ats-account "MyAccount" --ats-profile "MyProfile"

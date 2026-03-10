@@ -153,12 +153,12 @@ fn test_ats_provider_availability() {
     let providers = available_providers();
     let provider_names: Vec<_> = providers.iter().map(|p| p.name()).collect();
     
-    // With ATS feature, should have ATS provider
-    assert!(provider_names.contains(&"ats"), "Should have ATS provider with ats feature");
+    // With AAS feature, should have AAS provider
+    assert!(provider_names.contains(&"ats"), "Should have AAS provider with ats feature");
     
-    let ats_provider = find_provider("ats");
-    assert!(ats_provider.is_some(), "ATS provider should be findable");
-    assert_eq!(ats_provider.unwrap().name(), "ats");
+    let aas_provider = find_provider("ats");
+    assert!(aas_provider.is_some(), "AAS provider should be findable");
+    assert_eq!(aas_provider.unwrap().name(), "ats");
 }
 
 #[cfg(not(feature = "ats"))]
@@ -167,11 +167,11 @@ fn test_ats_provider_unavailable() {
     let providers = available_providers();
     let provider_names: Vec<_> = providers.iter().map(|p| p.name()).collect();
     
-    // Without ATS feature, should not have ATS provider
-    assert!(!provider_names.contains(&"ats"), "Should not have ATS provider without ats feature");
+    // Without AAS feature, should not have AAS provider
+    assert!(!provider_names.contains(&"ats"), "Should not have AAS provider without ats feature");
     
-    let ats_provider = find_provider("ats");
-    assert!(ats_provider.is_none(), "ATS provider should not be findable without ats feature");
+    let aas_provider = find_provider("ats");
+    assert!(aas_provider.is_none(), "AAS provider should not be findable without ats feature");
 }
 
 #[test]
@@ -200,8 +200,8 @@ fn test_provider_descriptions_meaningful() {
                                  "AKV cert provider should mention Azure Key Vault and certificate"),
             "akv-key" => assert!(description.contains("Azure Key Vault") && description.contains("key"), 
                                 "AKV key provider should mention Azure Key Vault and key"),
-            "ats" => assert!(description.contains("Azure Trusted Signing"), 
-                            "ATS provider should mention Azure Trusted Signing"),
+            "ats" => assert!(description.contains("Azure Artifact Signing"), 
+                            "AAS provider should mention Azure Artifact Signing"),
             _ => {} // Unknown provider, skip specific checks
         }
     }

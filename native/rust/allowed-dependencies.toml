@@ -57,7 +57,7 @@ cborrs = "EverParse-generated deterministic CBOR codec"
 [crate.cose_sign1_signing]
 thiserror = "Custom error types"
 
-[crate.azure_trusted_signing_client]
+[crate.azure_artifact_signing_client]
 azure_core = "Azure SDK HTTP pipeline"
 azure_identity = "Azure identity credentials"
 tokio = "Async runtime"
@@ -65,7 +65,7 @@ serde = "JSON serialization"
 serde_json = "JSON parsing"
 base64 = "Base64 encoding/decoding for digest and cert bytes"
 url = "URL construction"
-reqwest = "HTTP client for direct REST API calls (no generated Rust SDK exists for ATS)"
+reqwest = "HTTP client for direct REST API calls (no generated Rust SDK exists for AAS)"
 
 [crate.cose_sign1_headers]
 thiserror = "Custom error types"
@@ -109,11 +109,11 @@ azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedI
 azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 
-[crate.cose_sign1_azure_trusted_signing]
-azure_core = "Azure SDK HTTP pipeline for ATS certificate/signing API calls"
-azure_identity = "Azure identity credentials for authenticating to ATS"
+[crate.cose_sign1_azure_artifact_signing]
+azure_core = "Azure SDK HTTP pipeline for AAS certificate/signing API calls"
+azure_identity = "Azure identity credentials for authenticating to AAS"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
-once_cell = "Lazy initialization of ATS clients"
+once_cell = "Lazy initialization of AAS clients"
 
 [crate.x509]
 x509-parser = "X.509 certificate parsing"
@@ -161,11 +161,11 @@ azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedI
 azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 
-[crate.azure_trusted_signing]
-azure_core = "Azure SDK HTTP pipeline for ATS certificate/signing API calls"
-azure_identity = "Azure identity credentials for authenticating to ATS"
+[crate.azure_artifact_signing]
+azure_core = "Azure SDK HTTP pipeline for AAS certificate/signing API calls"
+azure_identity = "Azure identity credentials for authenticating to AAS"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
-once_cell = "Lazy initialization of ATS clients"
+once_cell = "Lazy initialization of AAS clients"
 base64 = "Base64 encoding/decoding for digest and cert bytes"
 
 [crate.client]
@@ -232,7 +232,7 @@ azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedI
 [crate.cose_sign1_certificates_local_ffi]
 anyhow = "Ergonomic error handling at FFI boundary"
 
-[crate.cose_sign1_azure_trusted_signing_ffi]
+[crate.cose_sign1_azure_artifact_signing_ffi]
 libc = "C ABI types for FFI projections"
 anyhow = "Ergonomic error handling at FFI boundary"
 

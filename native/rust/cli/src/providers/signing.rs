@@ -296,47 +296,47 @@ impl SigningProvider for AkvKeySigningProvider {
     }
 }
 
-/// Azure Trusted Signing provider.
+/// Azure Artifact Signing provider.
 ///
-/// Maps V2 `AzureTrustedSigningCommandProvider` (command: "x509-ats").
+/// Maps V2 `AzureArtifactSigningCommandProvider` (command: "x509-ats").
 /// CLI: `cosesigntool sign --provider ats --ats-endpoint https://... --ats-account <name> --ats-profile <name>`
 #[cfg(feature = "ats")]
-pub struct AtsSigningProvider;
+pub struct AasSigningProvider;
 
 #[cfg(feature = "ats")]
-impl SigningProvider for AtsSigningProvider {
+impl SigningProvider for AasSigningProvider {
     fn name(&self) -> &str {
         "ats"
     }
 
     fn description(&self) -> &str {
-        "Sign using Azure Trusted Signing service"
+        "Sign using Azure Artifact Signing service"
     }
 
     fn create_signer(
         &self,
         args: &SigningProviderArgs,
     ) -> Result<Box<dyn crypto_primitives::CryptoSigner>, anyhow::Error> {
-        let endpoint = args.ats_endpoint.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("--ats-endpoint is required for ATS provider"))?;
-        let account = args.ats_account.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("--ats-account-name is required for ATS provider"))?;
-        let profile = args.ats_profile.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("--ats-cert-profile-name is required for ATS provider"))?;
+        let endpoint = args.aas_endpoint.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--ats-endpoint is required for AAS provider"))?;
+        let account = args.aas_account.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--ats-account-name is required for AAS provider"))?;
+        let profile = args.aas_profile.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--ats-cert-profile-name is required for AAS provider"))?;
 
-        // Create ATS signing service options
-        let options = cose_sign1_azure_trusted_signing::options::AzureTrustedSigningOptions {
+        // Create AAS signing service options
+        let options = cose_sign1_azure_artifact_signing::options::AzureArtifactSigningOptions {
             endpoint: endpoint.clone(),
             account_name: account.clone(),
             certificate_profile_name: profile.clone(),
         };
 
-        // Create the ATS certificate source with DefaultAzureCredential
-        let source = cose_sign1_azure_trusted_signing::signing::certificate_source::AzureTrustedSigningCertificateSource::new(options)
-            .map_err(|e| anyhow::anyhow!("Failed to create ATS client: {}", e))?;
+        // Create the AAS certificate source with DefaultAzureCredential
+        let source = cose_sign1_azure_artifact_signing::signing::certificate_source::AzureArtifactSigningCertificateSource::new(options)
+            .map_err(|e| anyhow::anyhow!("Failed to create AAS client: {}", e))?;
 
-        // Create AtsCryptoSigner (remote signing via ATS HSM)
-        let signer = cose_sign1_azure_trusted_signing::signing::ats_crypto_signer::AtsCryptoSigner::new(
+        // Create AasCryptoSigner (remote signing via AAS HSM)
+        let signer = cose_sign1_azure_artifact_signing::signing::aas_crypto_signer::AasCryptoSigner::new(
             std::sync::Arc::new(source),
             "PS256".to_string(),
             -37, // COSE PS256
@@ -368,7 +368,7 @@ pub fn available_providers() -> Vec<Box<dyn SigningProvider>> {
     }
     
     #[cfg(feature = "ats")]
-    providers.push(Box::new(AtsSigningProvider));
+    providers.push(Box::new(AasSigningProvider));
 
     providers
 }

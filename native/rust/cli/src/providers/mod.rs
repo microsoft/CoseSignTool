@@ -71,10 +71,10 @@ pub struct SigningProviderArgs {
     pub key_name: Option<String>,
     /// AKV key version (optional)
     pub key_version: Option<String>,
-    // ATS provider
-    pub ats_endpoint: Option<String>,
-    pub ats_account: Option<String>,
-    pub ats_profile: Option<String>,
+    // AAS provider
+    pub aas_endpoint: Option<String>,
+    pub aas_account: Option<String>,
+    pub aas_profile: Option<String>,
 }
 
 /// A verification provider contributes trust packs and policy to the validator.

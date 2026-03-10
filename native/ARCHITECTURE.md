@@ -201,7 +201,7 @@ Each pack follows the same pattern:
 |------|-----------|----------|------------|------------|
 | X.509 Certificates | `cose_sign1_certificates` | `<cose/sign1/extension_packs/certificates.h>` | `<cose/sign1/extension_packs/certificates.hpp>` | `cose_sign1_certificates_*` |
 | Azure Key Vault | `cose_sign1_azure_key_vault` | `<cose/sign1/extension_packs/azure_key_vault.h>` | `<cose/sign1/extension_packs/azure_key_vault.hpp>` | `cose_sign1_akv_*` |
-| Azure Trusted Signing | `cose_sign1_azure_trusted_signing` | `<cose/sign1/extension_packs/azure_trusted_signing.h>` | `<cose/sign1/extension_packs/azure_trusted_signing.hpp>` | `cose_sign1_ats_*` |
+| Azure Artifact Signing | `cose_sign1_azure_artifact_signing` | `<cose/sign1/extension_packs/azure_artifact_signing.h>` | `<cose/sign1/extension_packs/azure_artifact_signing.hpp>` | `cose_sign1_ats_*` |
 | Merkle Sealed Transparency | `cose_sign1_transparent_mst` | `<cose/sign1/extension_packs/mst.h>` | `<cose/sign1/extension_packs/mst.hpp>` | `cose_sign1_mst_*` |
 | Ephemeral Certs (test) | `cose_sign1_certificates_local` | `<cose/sign1/extension_packs/certificates_local.h>` | `<cose/sign1/extension_packs/certificates_local.hpp>` | `cose_cert_local_*` |
 
@@ -265,7 +265,7 @@ This provides several advantages:
 | Ephemeral | `ephemeral` | `certificates` | `[--subject CN=Test]` | `x509-ephemeral` |
 | AKV certificate | `akv-cert` | `akv` | `--vault-url ... --cert-name ...` | `x509-akv-cert` |
 | AKV key | `akv-key` | `akv` | `--vault-url ... --key-name ...` | `akv-key` |
-| ATS | `ats` | `ats` | `--ats-endpoint ... --ats-account ... --ats-profile ...` | `x509-ats` |
+| AAS | `ats` | `ats` | `--ats-endpoint ... --ats-account ... --ats-profile ...` | `x509-ats` |
 
 ### Verification Providers
 
@@ -282,7 +282,7 @@ This provides several advantages:
 | `crypto-openssl` | `der`, `pfx`, `pem` | - | `cose_sign1_crypto_openssl` |
 | `certificates` | `ephemeral` | `certificates` | `cose_sign1_certificates` |
 | `akv` | `akv-cert`, `akv-key` | `akv` | `cose_sign1_azure_key_vault` |
-| `ats` | `ats` | - | `cose_sign1_azure_trusted_signing` |
+| `ats` | `ats` | - | `cose_sign1_azure_artifact_signing` |
 | `mst` | - | `mst` | `cose_sign1_transparent_mst` |
 
 ### V2 C# Plugin → Rust Feature Flag Mapping

@@ -98,17 +98,17 @@ pub struct SignArgs {
     #[arg(long = "akv-key-version")]
     pub key_version: Option<String>,
 
-    /// ATS endpoint URL (e.g., https://eus.codesigning.azure.net)
+    /// AAS endpoint URL (e.g., https://eus.codesigning.azure.net)
     #[arg(long = "ats-endpoint")]
-    pub ats_endpoint: Option<String>,
+    pub aas_endpoint: Option<String>,
 
-    /// ATS account name
+    /// AAS account name
     #[arg(long = "ats-account-name")]
-    pub ats_account: Option<String>,
+    pub aas_account: Option<String>,
 
-    /// ATS certificate profile name
+    /// AAS certificate profile name
     #[arg(long = "ats-cert-profile-name")]
-    pub ats_profile: Option<String>,
+    pub aas_profile: Option<String>,
 
     /// Add MST transparency receipt after signing
     #[arg(long)]
@@ -173,9 +173,9 @@ pub fn run(args: SignArgs) -> i32 {
         cert_version: args.cert_version.clone(),
         key_name: args.key_name.clone(),
         key_version: args.key_version.clone(),
-        ats_endpoint: args.ats_endpoint.clone(),
-        ats_account: args.ats_account.clone(),
-        ats_profile: args.ats_profile.clone(),
+        aas_endpoint: args.aas_endpoint.clone(),
+        aas_account: args.aas_account.clone(),
+        aas_profile: args.aas_profile.clone(),
         ..Default::default()
     };
     let result = match provider.create_signer_with_chain(&provider_args) {

@@ -113,9 +113,9 @@ fn default_sign_args(
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     }

@@ -49,9 +49,9 @@ fn test_sign_pfx_provider() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -89,9 +89,9 @@ fn test_sign_pfx_provider_missing_pfx_arg() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -133,9 +133,9 @@ fn test_sign_pfx_provider_env_password() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -178,9 +178,9 @@ fn test_sign_pem_provider() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -218,9 +218,9 @@ fn test_sign_ephemeral_provider() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -260,9 +260,9 @@ fn test_sign_akv_provider() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -281,7 +281,7 @@ fn test_sign_ats_provider() {
     let args = sign::SignArgs {
         input: input_path,
         output: output_path,
-        provider: "ats".to_string(), // Test Azure Trusted Signing provider
+        provider: "ats".to_string(), // Test Azure Artifact Signing provider
         key: None,
         pfx: None,
         pfx_password: None,
@@ -301,15 +301,15 @@ fn test_sign_ats_provider() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: Some("https://ats.azure.net".to_string()),
-        ats_account: Some("test-account".to_string()),
-        ats_profile: Some("test-profile".to_string()),
+        aas_endpoint: Some("https://ats.azure.net".to_string()),
+        aas_account: Some("test-account".to_string()),
+        aas_profile: Some("test-profile".to_string()),
         add_mst_receipt: false,
         mst_endpoint: None,
     };
     
     let exit_code = sign::run(args);
-    assert_eq!(exit_code, 2, "Should fail with authentication/network issues for ATS");
+    assert_eq!(exit_code, 2, "Should fail with authentication/network issues for AAS");
 }
 
 #[test]
@@ -446,9 +446,9 @@ fn test_sign_write_permission_error() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -488,9 +488,9 @@ fn test_sign_large_payload() {
         cert_version: None,
         key_name: None,
         key_version: None,
-        ats_endpoint: None,
-        ats_account: None,
-        ats_profile: None,
+        aas_endpoint: None,
+        aas_account: None,
+        aas_profile: None,
         add_mst_receipt: false,
         mst_endpoint: None,
     };
@@ -536,9 +536,9 @@ fn test_sign_custom_content_types() {
             cert_version: None,
             key_name: None,
             key_version: None,
-            ats_endpoint: None,
-            ats_account: None,
-            ats_profile: None,
+            aas_endpoint: None,
+            aas_account: None,
+            aas_profile: None,
             add_mst_receipt: false,
             mst_endpoint: None,
         };

@@ -29,9 +29,9 @@ fn test_signing_provider_args_default() {
     assert!(args.cert_version.is_none());
     assert!(args.key_name.is_none());
     assert!(args.key_version.is_none());
-    assert!(args.ats_endpoint.is_none());
-    assert!(args.ats_account.is_none());
-    assert!(args.ats_profile.is_none());
+    assert!(args.aas_endpoint.is_none());
+    assert!(args.aas_account.is_none());
+    assert!(args.aas_profile.is_none());
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_signing_provider_args_debug() {
     assert!(debug_str.contains("cert_file"));
     assert!(debug_str.contains("thumbprint"));
     assert!(debug_str.contains("vault_url"));
-    assert!(debug_str.contains("ats_endpoint"));
+    assert!(debug_str.contains("aas_endpoint"));
 }
 
 #[test]
@@ -105,14 +105,14 @@ fn test_signing_provider_args_akv_fields() {
 fn test_signing_provider_args_ats_fields() {
     let mut args = SigningProviderArgs::default();
     
-    // Test Azure Trusted Signing provider fields
-    args.ats_endpoint = Some("https://test.codesigning.azure.net".to_string());
-    args.ats_account = Some("test-account".to_string());
-    args.ats_profile = Some("test-profile".to_string());
+    // Test Azure Artifact Signing provider fields
+    args.aas_endpoint = Some("https://test.codesigning.azure.net".to_string());
+    args.aas_account = Some("test-account".to_string());
+    args.aas_profile = Some("test-profile".to_string());
     
-    assert_eq!(args.ats_endpoint, Some("https://test.codesigning.azure.net".to_string()));
-    assert_eq!(args.ats_account, Some("test-account".to_string()));
-    assert_eq!(args.ats_profile, Some("test-profile".to_string()));
+    assert_eq!(args.aas_endpoint, Some("https://test.codesigning.azure.net".to_string()));
+    assert_eq!(args.aas_account, Some("test-account".to_string()));
+    assert_eq!(args.aas_profile, Some("test-profile".to_string()));
 }
 
 #[test]

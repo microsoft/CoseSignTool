@@ -12,7 +12,7 @@ use crate::error::CertificateError;
 ///
 /// Implementations:
 /// - `DirectCertificateSource`: Certificate provided directly as DER bytes
-/// - Remote sources: Retrieved from Azure Key Vault, Azure Trusted Signing, etc.
+/// - Remote sources: Retrieved from Azure Key Vault, Azure Artifact Signing, etc.
 pub trait CertificateSource: Send + Sync {
     /// Gets the signing certificate as DER-encoded bytes.
     fn get_signing_certificate(&self) -> Result<&[u8], CertificateError>;

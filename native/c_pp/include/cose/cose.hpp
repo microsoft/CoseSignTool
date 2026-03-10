@@ -39,7 +39,7 @@
 #endif
 
 #ifdef COSE_HAS_ATS_PACK
-#include <cose/sign1/extension_packs/azure_trusted_signing.hpp>
+#include <cose/sign1/extension_packs/azure_artifact_signing.hpp>
 #endif
 
 #ifdef COSE_HAS_TRUST_PACK

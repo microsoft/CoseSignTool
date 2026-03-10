@@ -32,9 +32,9 @@ members = [
   "extension_packs/mst/ffi",
   "extension_packs/azure_key_vault",
   "extension_packs/azure_key_vault/ffi",
-  "extension_packs/azure_trusted_signing",
-  "extension_packs/azure_trusted_signing/ffi",
-  "extension_packs/azure_trusted_signing/client",
+  "extension_packs/azure_artifact_signing",
+  "extension_packs/azure_artifact_signing/ffi",
+  "extension_packs/azure_artifact_signing/client",
   "partner/cose_openssl",
   "partner/cose_openssl/ffi",
 ]

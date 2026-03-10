@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--Build configuration-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+	</PropertyGroup>
+
+	<!--NuGet package configuration-->
+	<PropertyGroup>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Description>V2 Azure Artifact Signing remote signing service for COSE Sign1 with FIPS 140-2 Level 3 HSM-backed keys.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+		<ProjectReference Include="..\DIDx509\DIDx509.csproj" />
+	</ItemGroup>
+
+	<!--Files to include in the package-->
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\docs\packages\azure-artifact-signing.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\azure-artifact-signing.md')" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,803 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace CoseSignTool.Commands.Builders;
+
+using System.CommandLine;
+using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
+using System.Diagnostics.CodeAnalysis;
+using CoseSign1.Abstractions;
+using CoseSign1.Abstractions.Transparency;
+using CoseSign1.Certificates;
+using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
+using CoseSign1.Headers;
+using CoseSignTool.Abstractions;
+using CoseSignTool.Output;
+using Microsoft.Extensions.Logging;
+using IConsole = CoseSignTool.Abstractions.IO.IConsole;
+
+/// <summary>
+/// Builds signing commands from plugin providers.
+/// Centralizes all I/O handling (stdin/stdout/files), factory usage, and output formatting.
+/// Plugins only provide configured signing services.
+/// </summary>
+public class SigningCommandBuilder
+{
+    [ExcludeFromCodeCoverage]
+    internal static class ClassStrings
+    {
+        // Argument and Option names
+        public static readonly string ArgumentNamePayload = "payload";
+        public static readonly string OptionNameOutput = "--output";
+        public static readonly string OptionAliasOutput = "-o";
+        public static readonly string OptionNameSignatureType = "--signature-type";
+        public static readonly string OptionAliasSignatureTypeT = "-t";
+        public static readonly string OptionAliasSignatureTypeD = "-d";
+        public static readonly string OptionNameContentType = "--content-type";
+        public static readonly string OptionAliasContentType = "-c";
+        public static readonly string OptionNameQuiet = "--quiet";
+        public static readonly string OptionAliasQuiet = "-q";
+        public static readonly string OptionNameOutputFormat = "output-format";
+
+        // Signature type values
+        public static readonly string SignatureTypeIndirect = "indirect";
+        public static readonly string SignatureTypeDetached = "detached";
+        public static readonly string SignatureTypeEmbedded = "embedded";
+
+        // CWT Claims option names
+        public static readonly string OptionNameIssuer = "--issuer";
+        public static readonly string OptionNameCwtSubject = "--cwt-subject";
+        public static readonly string OptionNameNoScitt = "--no-scitt";
+        public static readonly string OptionNamePayloadLocation = "--payload-location";
+        public static readonly string OptionAliasPayloadLocation = "-l";
+        public static readonly string StandardOptionIssuer = "issuer";
+        public static readonly string StandardOptionCwtSubject = "cwt-subject";
+        public static readonly string StandardOptionNoScitt = "no-scitt";
+        public static readonly string StandardOptionPayloadLocation = "payload-location";
+
+        // Default values
+        public static readonly string DefaultContentType = "application/octet-stream";
+
+        // Section and key names
+        public static readonly string SectionSigningOperation = "Signing Operation";
+        public static readonly string KeyCommand = "Command";
+        public static readonly string KeyPayload = "Payload";
+        public static readonly string KeyOutput = "Output";
+        public static readonly string KeySignatureType = "Signature Type";
+        public static readonly string KeyEmbedPayload = "Embed Payload";
+        public static readonly string KeyContentType = "Content Type";
+        public static readonly string KeySignatureSize = "Signature Size";
+
+        // Display values
+        public static readonly string EmbedYes = "Yes (embedded)";
+        public static readonly string EmbedNo = "No (detached)";
+
+        // Success and error messages
+        public static readonly string SuccessSigned = "Successfully signed payload";
+        public static readonly string ErrorCancelled = "Operation cancelled by user";
+        public static readonly string ErrorTimeout = "Operation timed out waiting for input/output";
+        public static readonly string ErrorPayloadNotFound = "Payload file not found: {0}";
+        public static readonly string ErrorSigningFailed = "Signing failed: {0}";
+        public static readonly string ErrorUnknownSignatureType = "Unknown signature type: {0}";
+        public static readonly string ErrorFileNotFound = "File not found: {0}";
+
+        // Standard options set
+        public static readonly string StandardOptionOutput = "output";
+        public static readonly string StandardOptionDetached = "detached";
+        public static readonly string StandardOptionSignatureType = "signature-type";
+        public static readonly string StandardOptionContentType = "content-type";
+        public static readonly string StandardOptionQuiet = "quiet";
+        public static readonly string StandardOptionHelp = "help";
+
+        // Plugin options key
+        public static readonly string PluginOptionLoggerFactory = "__loggerFactory";
+        public static readonly string PluginOptionStandardError = "__standardError";
+
+        // Format strings
+        public static readonly string FormatSignatureSize = "{0:N0} bytes";
+        public static readonly string FormatOutputFileCose = "{0}.cose";
+
+        // Description templates
+        public static readonly string DescriptionPayload = """
+            Path to payload file to sign. Use '-' or omit to read from stdin.
+              Examples:
+                myfile.txt          - Sign file from disk
+                -                   - Read from stdin
+                (omitted)           - Read from stdin (default)
+            """;
+
+        public static readonly string DescriptionOutput = """
+            Output path for the signature file. Use '-' for stdout.
+              Default behavior:
+                - If payload is a file: <payload>.cose
+                - If payload is stdin: stdout
+              Examples:
+                --output signature.cose  - Write to file
+                --output -               - Write to stdout
+                (omitted)                - Use default
+            """;
+
+        public static readonly string DescriptionSignatureType = """
+            Signature generation strategy (default: indirect):
+              detached - Sign the payload directly, do not embed payload in signature
+              embedded - Sign the payload directly, embed payload in signature
+              indirect - Sign a hash envelope of the payload (SCITT-compliant, most efficient)
+            """;
+
+        public static readonly string DescriptionContentType = """
+            MIME type of the payload (default: application/octet-stream).
+              Common examples:
+                application/octet-stream - Binary data (default)
+                text/plain               - Plain text
+                application/json         - JSON data
+                application/xml          - XML data
+            """;
+
+        public static readonly string DescriptionQuiet = """
+            Suppress informational messages (errors still shown).
+              Automatically enabled when writing to stdout.
+              Useful for scripting and pipeline operations.
+            """;
+
+        public static readonly string DescriptionIssuer = """
+            CWT Claims issuer (iss) - identifies who created the signature.
+              Overrides the default DID:x509 issuer from the certificate.
+              Examples:
+                https://build.contoso.com     - Build system URL
+                did:web:example.com           - DID identifier
+                urn:uuid:550e8400-e29b-41d4-a716-446655440000
+            """;
+
+        public static readonly string DescriptionCwtSubject = """
+            CWT Claims subject (sub) - identifies what is being signed.
+              Overrides the default subject ("unknown.intent").
+              Examples:
+                pkg:npm/express@4.18.2        - Package URL (purl)
+                sha256:abc123...              - Content hash
+                urn:uuid:550e8400-e29b-41d4-a716-446655440000
+            """;
+
+        public static readonly string DescriptionNoScitt = """
+            Disable automatic SCITT compliance (no CWT claims added).
+              By default, CoseSignTool adds SCITT-compliant CWT claims (iss, sub, iat, nbf)
+              to signatures. Use this flag to disable automatic claim generation.
+              Note: --issuer and --cwt-subject still work with --no-scitt to add
+              only the claims you explicitly specify.
+            """;
+
+        public static readonly string DescriptionPayloadLocation = """
+            Location URI for the payload (indirect signatures only).
+              Specifies where the original payload can be retrieved.
+              Only applies to indirect signatures (--signature-type indirect).
+              Examples:
+                --payload-location https://example.com/payload.bin
+                --payload-location file:///path/to/payload.bin
+                --payload-location urn:uuid:550e8400-e29b-41d4-a716-446655440000
+            """;
+
+        // Command description template
+        public static readonly string CommandDescriptionTemplate = """
+            {0}
+
+            PIPELINE EXAMPLES:
+              # Sign data from stdin, output to stdout:
+                echo 'Hello World' | CoseSignTool {1} {2} > signed.cose
+
+              # Sign file, write signature to stdout:
+                CoseSignTool {1} myfile.txt {2} --output - > signature.cose
+
+              # Chain with other commands:
+                cat document.txt | CoseSignTool {1} {2} | base64 > signed.b64
+
+              # Sign and verify in pipeline:
+                                echo 'test' | CoseSignTool {1} {2} | CoseSignTool verify x509 -
+
+              # Batch signing multiple files:
+                for file in *.txt; do CoseSignTool {1} "$file" {2}; done
+            """;
+    }
+
+    private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
+    private readonly ILoggerFactory? LoggerFactory;
+    private readonly IConsole Console;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SigningCommandBuilder"/> class.
+    /// </summary>
+    /// <param name="console">Console I/O abstraction. Required for stream access.</param>
+    /// <param name="transparencyProviders">Optional transparency providers to attach to signing commands.</param>
+    /// <param name="loggerFactory">Optional logger factory used to create loggers for signing components.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
+    public SigningCommandBuilder(
+        IConsole console,
+        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
+        ILoggerFactory? loggerFactory = null)
+    {
+        Console = console ?? throw new ArgumentNullException(nameof(console));
+        TransparencyProviders = transparencyProviders;
+        LoggerFactory = loggerFactory;
+    }
+
+    /// <summary>
+    /// Creates a signing command from a plugin's command provider.
+    /// </summary>
+    /// <param name="provider">The plugin command provider.</param>
+    /// <returns>The constructed command.</returns>
+    public Command BuildSigningCommand(ISigningCommandProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        // Back-compat path: command name is the provider's (historical) command name.
+        // New unified `sign <root> <provider>` surface uses the overload that allows naming.
+        return BuildSigningCommand(
+            provider,
+            cliCommandName: provider.CommandName,
+            displayCommandName: provider.CommandName,
+            commandDescriptionPrefix: provider.CommandDescription);
+    }
+
+    /// <summary>
+    /// Creates a signing command from a plugin provider with a caller-specified CLI name.
+    /// Used by the unified <c>sign &lt;root&gt; &lt;provider&gt;</c> surface.
+    /// </summary>
+    /// <param name="provider">The plugin command provider.</param>
+    /// <param name="cliCommandName">The command token to expose in the CLI (e.g., "pfx").</param>
+    /// <param name="displayCommandName">The command string to show in help examples and output (e.g., "sign x509 pfx").</param>
+    /// <param name="commandDescriptionPrefix">Optional description prefix (defaults to provider description).</param>
+    /// <returns>The constructed command.</returns>
+    public Command BuildSigningCommand(
+        ISigningCommandProvider provider,
+        string cliCommandName,
+        string displayCommandName,
+        string? commandDescriptionPrefix = null)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cliCommandName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayCommandName);
+
+        // Build command description with pipeline examples
+        var providerExample = GetProviderExample(provider);
+        var descriptionPrefix = string.IsNullOrWhiteSpace(commandDescriptionPrefix)
+            ? provider.CommandDescription
+            : commandDescriptionPrefix;
+        var commandDescription = string.Format(
+            ClassStrings.CommandDescriptionTemplate,
+            descriptionPrefix,
+            displayCommandName,
+            providerExample);
+
+        var command = new Command(cliCommandName, commandDescription);
+
+        // Payload argument - optional for stdin support
+        var payloadArgument = new Argument<string?>(
+            name: ClassStrings.ArgumentNamePayload,
+            description: ClassStrings.DescriptionPayload,
+            getDefaultValue: () => null)
+        {
+            Arity = ArgumentArity.ZeroOrOne
+        };
+
+        // Standard output option - managed by main exe
+        var outputOption = new Option<string?>(
+            name: ClassStrings.OptionNameOutput,
+            description: ClassStrings.DescriptionOutput);
+        outputOption.AddAlias(ClassStrings.OptionAliasOutput);
+
+        // Signature type option - indirect is default
+        var signatureTypeOption = new Option<string>(
+            name: ClassStrings.OptionNameSignatureType,
+            getDefaultValue: () => ClassStrings.SignatureTypeIndirect,
+            description: ClassStrings.DescriptionSignatureType);
+        signatureTypeOption.FromAmong(ClassStrings.SignatureTypeDetached, ClassStrings.SignatureTypeEmbedded, ClassStrings.SignatureTypeIndirect);
+        signatureTypeOption.AddAlias(ClassStrings.OptionAliasSignatureTypeT);
+        signatureTypeOption.AddAlias(ClassStrings.OptionAliasSignatureTypeD);
+
+        // Standard content-type option
+        var contentTypeOption = new Option<string>(
+            name: ClassStrings.OptionNameContentType,
+            getDefaultValue: () => ClassStrings.DefaultContentType,
+            description: ClassStrings.DescriptionContentType);
+        contentTypeOption.AddAlias(ClassStrings.OptionAliasContentType);
+
+        // Quiet mode for pipeline-friendly output
+        var quietOption = new Option<bool>(
+            name: ClassStrings.OptionNameQuiet,
+            description: ClassStrings.DescriptionQuiet);
+        quietOption.AddAlias(ClassStrings.OptionAliasQuiet);
+
+        // CWT Claims options for SCITT compliance
+        var issuerOption = new Option<string?>(
+            name: ClassStrings.OptionNameIssuer,
+            description: ClassStrings.DescriptionIssuer);
+
+        var cwtSubjectOption = new Option<string?>(
+            name: ClassStrings.OptionNameCwtSubject,
+            description: ClassStrings.DescriptionCwtSubject);
+
+        var noScittOption = new Option<bool>(
+            name: ClassStrings.OptionNameNoScitt,
+            description: ClassStrings.DescriptionNoScitt);
+
+        var payloadLocationOption = new Option<string?>(
+            name: ClassStrings.OptionNamePayloadLocation,
+            description: ClassStrings.DescriptionPayloadLocation);
+        payloadLocationOption.AddAlias(ClassStrings.OptionAliasPayloadLocation);
+
+        command.AddArgument(payloadArgument);
+        command.AddOption(outputOption);
+        command.AddOption(signatureTypeOption);
+        command.AddOption(contentTypeOption);
+        command.AddOption(quietOption);
+        command.AddOption(issuerOption);
+        command.AddOption(cwtSubjectOption);
+        command.AddOption(noScittOption);
+        command.AddOption(payloadLocationOption);
+
+        // Let plugin add its specific options (--pfx, --thumbprint, etc.)
+        provider.AddCommandOptions(command);
+
+        // Set handler that manages all I/O and uses factories
+        command.SetHandler(async (InvocationContext context) =>
+        {
+            var exitCode = await HandleSigningCommandAsync(
+                context,
+                provider,
+                payloadArgument,
+                outputOption,
+                signatureTypeOption,
+                contentTypeOption,
+                quietOption,
+                issuerOption,
+                cwtSubjectOption,
+                noScittOption,
+                payloadLocationOption);
+            context.ExitCode = exitCode;
+        });
+
+        return command;
+    }
+
+    private static string GetInvocationCommandPath(CommandResult commandResult)
+    {
+        // Build a user-friendly command path without including the synthetic RootCommand name.
+        // Example: sign -> x509 -> pfx
+        var segments = new Stack<string>();
+
+        for (var current = commandResult; current != null && current.Parent is CommandResult; current = current.Parent as CommandResult)
+        {
+            segments.Push(current.Command.Name);
+        }
+
+        return string.Join(' ', segments);
+    }
+
+    private async Task<int> HandleSigningCommandAsync(
+        InvocationContext context,
+        ISigningCommandProvider provider,
+        Argument<string?> payloadArgument,
+        Option<string?> outputOption,
+        Option<string> signatureTypeOption,
+        Option<string> contentTypeOption,
+        Option<bool> quietOption,
+        Option<string?> issuerOption,
+        Option<string?> cwtSubjectOption,
+        Option<bool> noScittOption,
+        Option<string?> payloadLocationOption)
+    {
+        var parseResult = context.ParseResult;
+
+        // Get global output format option
+        var outputFormat = OutputFormat.Text; // default
+        foreach (var option in parseResult.RootCommandResult.Command.Options)
+        {
+            if (option.Name == ClassStrings.OptionNameOutputFormat)
+            {
+                var formatValue = parseResult.GetValueForOption(option);
+                if (formatValue != null && Enum.TryParse<OutputFormat>(formatValue.ToString(), true, out var parsed))
+                {
+                    outputFormat = parsed;
+                }
+                break;
+            }
+        }
+
+        // Create formatter based on output format (declare outside try for use in catch blocks)
+        var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
+
+        try
+        {
+
+            // Get standard options
+            string? payloadPath = parseResult.GetValueForArgument(payloadArgument);
+            string? outputPath = parseResult.GetValueForOption(outputOption);
+            string signatureType = parseResult.GetValueForOption(signatureTypeOption) ?? ClassStrings.SignatureTypeIndirect;
+            string contentType = parseResult.GetValueForOption(contentTypeOption) ?? ClassStrings.DefaultContentType;
+            bool quiet = parseResult.GetValueForOption(quietOption);
+            string? issuer = parseResult.GetValueForOption(issuerOption);
+            string? cwtSubject = parseResult.GetValueForOption(cwtSubjectOption);
+            bool noScitt = parseResult.GetValueForOption(noScittOption);
+            string? payloadLocation = parseResult.GetValueForOption(payloadLocationOption);
+
+            // Determine I/O mode
+            bool useStdin = string.IsNullOrEmpty(payloadPath) || payloadPath == AssemblyStrings.IO.StdinIndicator;
+            bool useStdout = outputPath == AssemblyStrings.IO.StdinIndicator || (useStdin && string.IsNullOrEmpty(outputPath));
+            bool suppressOutput = quiet || useStdout;
+
+            // Extract plugin-specific options
+            var pluginOptions = ExtractPluginOptions(parseResult, context.ParseResult.CommandResult.Command);
+
+            // Create CWT claims header contributor if issuer or subject specified
+            IHeaderContributor? cwtContributor = null;
+            if (!string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(cwtSubject))
+            {
+                var claims = new CwtClaims
+                {
+                    Issuer = issuer,
+                    Subject = cwtSubject,
+                    IssuedAt = DateTimeOffset.UtcNow,
+                    NotBefore = DateTimeOffset.UtcNow
+                };
+                cwtContributor = new CwtClaimsHeaderContributor(claims, CwtClaimsHeaderPlacement.ProtectedOnly);
+            }
+
+            // Determine if automatic SCITT compliance should be disabled
+            // --no-scitt disables automatic CWT claim generation by the signing service
+            bool disableAutoScitt = noScitt;
+
+            // Determine if payload will be embedded based on signature type
+            // For "detached" type, payload is never embedded
+            // For "embedded" type, payload is always embedded
+            // For "indirect" type, hash envelope is embedded, but original payload is not
+            var normalizedSignatureType = signatureType.ToLowerInvariant();
+            bool willEmbedPayload;
+            if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
+            {
+                willEmbedPayload = false;
+            }
+            else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+            {
+                willEmbedPayload = true;
+            }
+            else if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
+            {
+                willEmbedPayload = true; // Hash envelope is embedded
+            }
+            else
+            {
+                willEmbedPayload = true;
+            }
+
+            if (!suppressOutput)
+            {
+                formatter.BeginSection(ClassStrings.SectionSigningOperation);
+
+                var displayName = GetInvocationCommandPath(context.ParseResult.CommandResult);
+
+                formatter.WriteKeyValue(ClassStrings.KeyCommand, displayName);
+                formatter.WriteKeyValue(ClassStrings.KeyPayload, useStdin ? AssemblyStrings.IO.StdinDisplayName : payloadPath!);
+                formatter.WriteKeyValue(
+                    ClassStrings.KeyOutput,
+                    useStdout
+                        ? AssemblyStrings.IO.StdoutDisplayName
+                        : (outputPath ?? string.Concat(payloadPath, AssemblyStrings.IO.CoseFileExtension)));
+                formatter.WriteKeyValue(ClassStrings.KeySignatureType, signatureType);
+                formatter.WriteKeyValue(ClassStrings.KeyEmbedPayload, willEmbedPayload ? ClassStrings.EmbedYes : ClassStrings.EmbedNo);
+                formatter.WriteKeyValue(ClassStrings.KeyContentType, contentType);
+            }
+
+            // Create a combined cancellation token with timeout for stdin operations
+            // This prevents hanging indefinitely when waiting for stdin input
+            using var stdinTimeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                context.GetCancellationToken(),
+                stdinTimeoutCts.Token);
+            var cancellationToken = linkedCts.Token;
+
+            // Get payload stream - either stdin or file
+            // For large files, we stream directly without buffering into memory
+            Stream payloadStream;
+            bool shouldDisposeStream = true;
+
+            if (useStdin)
+            {
+                // IConsole.StandardInput already has timeout protection via SystemConsole
+                payloadStream = Console.StandardInput;
+                shouldDisposeStream = false; // Don't dispose the console's stdin
+            }
+            else
+            {
+                if (!File.Exists(payloadPath))
+                {
+                    if (!suppressOutput)
+                    {
+                        formatter.WriteError(string.Format(ClassStrings.ErrorPayloadNotFound, payloadPath));
+                        formatter.EndSection();
+                    }
+                    return 3; // FileNotFound
+                }
+                // Open file with FileOptions.SequentialScan for better performance on large files
+                payloadStream = new FileStream(
+                    payloadPath!,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 81920, // 80KB buffer for large file streaming
+                    FileOptions.SequentialScan | FileOptions.Asynchronous);
+            }
+
+            byte[] signatureBytes;
+            try
+            {
+                // Get configured signing service from plugin
+                var signingService = await provider.CreateSigningServiceAsync(pluginOptions);
+
+                // Create signature based on signature type
+                // Use the combined cancellation token that includes timeout
+                if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
+                {
+                    signatureBytes = await CreateIndirectSignatureAsync(
+                        signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, payloadLocation, cancellationToken);
+                }
+                else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+                {
+                    signatureBytes = await CreateDirectSignatureAsync(
+                        signingService, payloadStream, contentType, embedPayload: true, cwtContributor, disableAutoScitt, cancellationToken);
+                }
+                else if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
+                {
+                    signatureBytes = await CreateDirectSignatureAsync(
+                        signingService, payloadStream, contentType, embedPayload: false, cwtContributor, disableAutoScitt, cancellationToken);
+                }
+                else
+                {
+                    throw new InvalidOperationException(string.Format(ClassStrings.ErrorUnknownSignatureType, signatureType));
+                }
+            }
+            finally
+            {
+                if (shouldDisposeStream)
+                {
+                    await payloadStream.DisposeAsync();
+                }
+            }
+
+            // Write signature output
+            // With PQC keys and certificate chains, signatures can be 50-100KB+
+            if (useStdout)
+            {
+                // Write to stdout with timeout protection and chunked streaming
+                // for large PQC signatures with full certificate chains
+                using var stdoutTimeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                using var stdoutLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    context.GetCancellationToken(),
+                    stdoutTimeoutCts.Token);
+
+                await using var stdout = Console.StandardOutputStreamProvider();
+                await WriteToStreamChunkedAsync(stdout, signatureBytes, stdoutLinkedCts.Token);
+            }
+            else
+            {
+                var finalOutputPath = outputPath ?? string.Concat(payloadPath, AssemblyStrings.IO.CoseFileExtension);
+                // Use FileStream with larger buffer for PQC-sized signatures
+                await using var fileStream = new FileStream(
+                    finalOutputPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 81920, // 80KB buffer for large signatures
+                    FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await WriteToStreamChunkedAsync(fileStream, signatureBytes, cancellationToken);
+            }
+
+            if (!suppressOutput)
+            {
+                formatter.WriteSuccess(ClassStrings.SuccessSigned);
+                formatter.WriteKeyValue(ClassStrings.KeySignatureSize, string.Format(ClassStrings.FormatSignatureSize, signatureBytes.Length));
+
+                // Display plugin-provided metadata
+                var metadata = provider.GetSigningMetadata();
+                foreach (var kvp in metadata)
+                {
+                    formatter.WriteKeyValue(kvp.Key, kvp.Value);
+                }
+
+                formatter.EndSection();
+            }
+
+            formatter.Flush();
+            return 0; // Success
+        }
+        catch (OperationCanceledException) when (context.GetCancellationToken().IsCancellationRequested)
+        {
+            // User-initiated cancellation (Ctrl+C)
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError(ClassStrings.ErrorCancelled);
+            }
+            formatter.Flush();
+            return 2; // Cancelled
+        }
+        catch (OperationCanceledException)
+        {
+            // Timeout occurred (stdin/stdout timeout)
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError(ClassStrings.ErrorTimeout);
+            }
+            formatter.Flush();
+            return 11; // Timeout
+        }
+        catch (FileNotFoundException ex)
+        {
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError(string.Format(ClassStrings.ErrorFileNotFound, ex.Message));
+            }
+            formatter.Flush();
+            return 3;
+        }
+        catch (Exception ex)
+        {
+            if (!context.ParseResult.GetValueForOption(quietOption))
+            {
+                formatter.WriteError(string.Format(ClassStrings.ErrorSigningFailed, ex.Message));
+            }
+            formatter.Flush();
+            return 10; // SigningFailed
+        }
+    }
+
+    private Dictionary<string, object?> ExtractPluginOptions(System.CommandLine.Parsing.ParseResult parseResult, Command command)
+    {
+        var options = new Dictionary<string, object?>();
+
+        // Skip standard options that are handled by the main exe
+        var standardOptions = new HashSet<string>
+        {
+            ClassStrings.StandardOptionOutput,
+            ClassStrings.StandardOptionDetached,
+            ClassStrings.StandardOptionSignatureType,
+            ClassStrings.StandardOptionContentType,
+            ClassStrings.StandardOptionQuiet,
+            ClassStrings.StandardOptionIssuer,
+            ClassStrings.StandardOptionCwtSubject,
+            ClassStrings.StandardOptionNoScitt,
+            ClassStrings.StandardOptionPayloadLocation,
+            ClassStrings.StandardOptionHelp
+        };
+
+        foreach (var option in command.Options)
+        {
+            if (!standardOptions.Contains(option.Name))
+            {
+                var value = parseResult.GetValueForOption(option);
+                options[option.Name] = value;
+            }
+        }
+
+        // Add the logger factory so plugins can use it for their internal operations
+        if (LoggerFactory != null)
+        {
+            options[ClassStrings.PluginOptionLoggerFactory] = LoggerFactory;
+        }
+
+        // Add standard error writer so plugins can emit informational/errors without using global Console.Error.
+        options[ClassStrings.PluginOptionStandardError] = Console.StandardError;
+
+        return options;
+    }
+
+    private async Task<byte[]> CreateDirectSignatureAsync(
+        ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
+        Stream payloadStream,
+        string contentType,
+        bool embedPayload,
+        IHeaderContributor? cwtContributor,
+        bool disableAutoScitt,
+        CancellationToken cancellationToken)
+    {
+        var logger = LoggerFactory?.CreateLogger<DirectSignatureFactory>();
+        using var factory = new DirectSignatureFactory(signingService, TransparencyProviders, logger);
+
+        // Build additional context to pass SCITT settings to the signing service
+        var additionalContext = new Dictionary<string, object>();
+        if (disableAutoScitt)
+        {
+            // Pass CertificateSigningOptions with SCITT disabled
+            additionalContext[nameof(CertificateSigningOptions)] = new CertificateSigningOptions
+            {
+                EnableScittCompliance = false
+            };
+        }
+
+        var options = new DirectSignatureOptions
+        {
+            EmbedPayload = embedPayload,
+            AdditionalHeaderContributors = cwtContributor != null
+                ? new List<IHeaderContributor> { cwtContributor }
+                : null,
+            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null
+        };
+        return await factory.CreateCoseSign1MessageBytesAsync(
+            payloadStream, contentType, options, cancellationToken);
+    }
+
+    private async Task<byte[]> CreateIndirectSignatureAsync(
+        ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
+        Stream payloadStream,
+        string contentType,
+        IHeaderContributor? cwtContributor,
+        bool disableAutoScitt,
+        string? payloadLocation,
+        CancellationToken cancellationToken)
+    {
+        var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();
+        using var factory = new IndirectSignatureFactory(signingService, TransparencyProviders, logger, LoggerFactory);
+
+        // Build additional context to pass SCITT settings to the signing service
+        var additionalContext = new Dictionary<string, object>();
+        if (disableAutoScitt)
+        {
+            // Pass CertificateSigningOptions with SCITT disabled
+            additionalContext[nameof(CertificateSigningOptions)] = new CertificateSigningOptions
+            {
+                EnableScittCompliance = false
+            };
+        }
+
+        var options = new IndirectSignatureOptions
+        {
+            // Indirect signatures are always detached (payload not embedded, only hash is signed)
+            AdditionalHeaderContributors = cwtContributor != null
+                ? new List<IHeaderContributor> { cwtContributor }
+                : null,
+            AdditionalContext = additionalContext.Count > 0 ? additionalContext : null,
+            PayloadLocation = payloadLocation
+        };
+        return await factory.CreateCoseSign1MessageBytesAsync(
+            payloadStream, contentType, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a short example string for the provider's required options.
+    /// </summary>
+    private static string GetProviderExample(ISigningCommandProvider provider)
+    {
+        // Use the provider's own example usage - fully extensible via plugins
+        return provider.ExampleUsage;
+    }
+
+    /// <summary>
+    /// Writes data to a stream in chunks for efficient handling of large PQC signatures.
+    /// Uses 64KB chunks to stay below LOH threshold and allow incremental flushing.
+    /// </summary>
+    /// <param name="stream">The output stream to write to.</param>
+    /// <param name="data">The data to write.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private static async Task WriteToStreamChunkedAsync(Stream stream, byte[] data, CancellationToken cancellationToken)
+    {
+        const int chunkSize = 65536; // 64KB chunks - below LOH threshold, good for streaming
+
+        int offset = 0;
+        while (offset < data.Length)
+        {
+            int remaining = data.Length - offset;
+            int writeSize = Math.Min(remaining, chunkSize);
+
+            await stream.WriteAsync(data.AsMemory(offset, writeSize), cancellationToken).ConfigureAwait(false);
+            offset += writeSize;
+
+            // Flush periodically for stdout to ensure data flows through pipes
+            // This is important for pipeline scenarios where downstream commands are waiting
+            if (offset < data.Length)
+            {
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // Final flush to ensure all data is written
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+}

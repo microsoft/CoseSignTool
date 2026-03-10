@@ -1,0 +1,225 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--Build configuration-->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    </PropertyGroup>
+
+    <!--Single-file publishing configuration for self-contained deployments.
+        Plugins are embedded in the single-file and extracted on first run.
+        AppContext.BaseDirectory points to the extraction location where plugins are available.-->
+    <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    </PropertyGroup>
+
+    <!--NuGet package configuration (CLI tool)-->
+    <PropertyGroup>
+        <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
+        <Description>Modern CLI tool for COSE Sign1 signing and verification with extensible plugin architecture.</Description>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>cosesigntool</ToolCommandName>
+        <!-- License inherited from Directory.Build.props -->
+    </PropertyGroup>
+
+    <!-- Plugin deployment - enabled by default for Debug builds -->
+    <PropertyGroup>
+        <DeployPlugins Condition="'$(DeployPlugins)' == '' AND '$(Configuration)' == 'Debug'">true</DeployPlugins>
+        <DeployPlugins Condition="'$(DeployPlugins)' == ''">false</DeployPlugins>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="System.CommandLine" />
+        <PackageReference Include="Spectre.Console" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+        <PackageReference Include="Microsoft.Extensions.Logging" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+        <ProjectReference Include="..\CoseSign1.Factories\CoseSign1.Factories.csproj" />
+        <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+        <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+        <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+        <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    </ItemGroup>
+
+    <!--Files to include in the package-->
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+        <None Include="..\docs\cli\*.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\cli')" />
+    </ItemGroup>
+
+    <!-- Include plugins in the tool package -->
+    <!-- These will be deployed alongside the tool when installed via dotnet tool install -->
+    <ItemGroup>
+        <PluginDlls Include="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+        <PluginDlls Include="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+        <PluginDlls Include="..\CoseSignTool.AzureArtifactSigning.Plugin\bin\$(Configuration)\net10.0\**\*.*"
+                    Exclude="..\CoseSignTool.AzureArtifactSigning.Plugin\bin\$(Configuration)\net10.0\**\*.pdb" />
+    </ItemGroup>
+
+    <!-- Pack plugin files into tools folder structure -->
+    <ItemGroup>
+        <None Include="..\CoseSignTool.Local.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.Local.Plugin\"
+              Visible="false" />
+        <None Include="..\CoseSignTool.MST.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.MST.Plugin\"
+              Visible="false" />
+        <None Include="..\CoseSignTool.AzureArtifactSigning.Plugin\bin\$(Configuration)\net10.0\*.dll"
+              Pack="true"
+              PackagePath="tools\net10.0\any\plugins\CoseSignTool.AzureArtifactSigning.Plugin\"
+              Visible="false" />
+    </ItemGroup>
+
+    <!-- ========================================== -->
+    <!-- Plugin Deployment System                   -->
+    <!-- ========================================== -->
+
+    <!-- Reusable plugin deployment template for isolated plugin loading -->
+    <Target Name="DeployPlugin">
+        <PropertyGroup>
+            <PluginsDir>$(OutputPath)plugins</PluginsDir>
+            <PluginSubDir>$(PluginsDir)\$(PluginName)</PluginSubDir>
+            <!-- Handle both RID-specific and non-RID builds -->
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' != ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0\$(RuntimeIdentifier)</PluginSourceDir>
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' == ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0</PluginSourceDir>
+        </PropertyGroup>
+
+        <MakeDir Directories="$(PluginSubDir)" />
+
+        <!-- Get all plugin files for subdirectory isolation -->
+        <ItemGroup>
+            <AllPluginFiles Include="$(PluginSourceDir)\*.dll;$(PluginSourceDir)\*.exe;$(PluginSourceDir)\*.xml;$(PluginSourceDir)\*.pdb;$(PluginSourceDir)\*.json;$(PluginSourceDir)\*.runtimeconfig.json" />
+        </ItemGroup>
+
+        <!-- Copy ALL plugin files to create self-contained plugin directories -->
+        <!-- Exclude only core .NET framework assemblies to avoid duplication -->
+        <!-- Keep plugin-specific dependencies like System.ClientModel, Azure.* etc -->
+        <ItemGroup>
+            <PluginSpecificFiles Include="@(AllPluginFiles)"
+                Condition="'%(Filename)' != 'System'
+                    AND '%(Filename)' != 'System.Core'
+                    AND '%(Filename)' != 'System.Runtime'
+                    AND '%(Filename)' != 'mscorlib'
+                    AND '%(Filename)' != 'netstandard'
+                    AND '%(Filename)' != 'Microsoft.CSharp'
+                    AND '%(Filename)' != 'WindowsBase'
+                    AND '%(Filename)' != 'Microsoft.VisualBasic'
+                    AND '%(Filename)' != 'Microsoft.VisualBasic.Core'
+                    AND '%(Filename)' != 'Microsoft.Win32.Primitives'
+                    AND '%(Filename)' != 'Microsoft.Win32.Registry'" />
+        </ItemGroup>
+
+        <Copy SourceFiles="@(PluginSpecificFiles)" DestinationFolder="$(PluginSubDir)" Condition="Exists('$(PluginSourceDir)')" SkipUnchangedFiles="true" />
+
+        <Message Text="Plugin '$(PluginName)' deployed to: $(PluginSubDir)" Importance="high" Condition="Exists('$(PluginSourceDir)')" />
+        <Message Text="Copied @(PluginSpecificFiles->Count()) plugin-specific files for subdirectory isolation" Importance="high" Condition="'@(PluginSpecificFiles)' != ''" />
+        <Warning Text="Plugin directory not found at: $(PluginSourceDir)" Condition="!Exists('$(PluginSourceDir)')" />
+    </Target>
+
+    <!-- Automatic plugin discovery and deployment after build -->
+    <Target Name="DeployAllPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+        <!-- Discover all plugin projects by looking for *.Plugin.csproj files -->
+        <!-- Exclude TestPlugins - they are only deployed during test execution -->
+        <ItemGroup>
+            <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                            Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
+        </ItemGroup>
+
+        <!-- Build plugins first to avoid stale/binary-incompatible deployments. -->
+        <MSBuild Projects="@(PluginProjects)"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Build"
+                 Condition="'@(PluginProjects)' != ''" />
+
+        <!-- Extract plugin names from project paths -->
+        <ItemGroup>
+            <PluginNames Include="@(PluginProjects->'%(Filename)')" />
+        </ItemGroup>
+
+        <!-- Deploy each discovered plugin -->
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=%(PluginNames.Identity);Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)"
+                 Targets="DeployPlugin"
+                 Condition="'@(PluginNames)' != ''" />
+
+        <Message Text="Auto-discovered and deployed @(PluginNames->Count()) plugin(s): @(PluginNames, ', ')" Importance="high" Condition="'@(PluginNames)' != ''" />
+        <Warning Text="No plugin projects found (looking for *.Plugin.csproj)" Condition="'@(PluginNames)' == ''" />
+    </Target>
+
+    <!-- Deploy plugins for publish operations -->
+    <Target Name="DeployAllPluginsForPublish" AfterTargets="Publish" Condition="'$(DeployPlugins)' == 'true'">
+        <!-- Discover all plugin projects -->
+        <!-- Exclude TestPlugins - they are only deployed during test execution -->
+        <ItemGroup>
+            <PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                                      Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
+        </ItemGroup>
+
+        <!-- Build plugins first to avoid stale/binary-incompatible deployments. -->
+        <MSBuild Projects="@(PluginProjectsForPublish)"
+                 Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)"
+                 Targets="Build"
+                 Condition="'@(PluginProjectsForPublish)' != ''" />
+
+        <!-- Extract plugin names -->
+        <ItemGroup>
+            <PluginNamesForPublish Include="@(PluginProjectsForPublish->'%(Filename)')" />
+        </ItemGroup>
+
+        <!-- Deploy to publish directory -->
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=%(PluginNamesForPublish.Identity);Configuration=$(Configuration);OutputPath=$(PublishDir);RuntimeIdentifier=$(RuntimeIdentifier)"
+                 Targets="DeployPlugin"
+                 Condition="'@(PluginNamesForPublish)' != ''" />
+
+        <Message Text="Deployed @(PluginNamesForPublish->Count()) plugin(s) for publish: @(PluginNamesForPublish, ', ')" Importance="high" Condition="'@(PluginNamesForPublish)' != ''" />
+    </Target>
+
+    <!--Include deployed plugins as Content for single-file bundling-->
+    <Target Name="IncludePluginsInPublish" AfterTargets="DeployAllPlugins" BeforeTargets="_ComputeFilesToBundle" Condition="'$(DeployPlugins)' == 'true' AND '$(PublishSingleFile)' == 'true'">
+        <PropertyGroup>
+            <PluginsDir>$(OutputPath)plugins</PluginsDir>
+        </PropertyGroup>
+
+        <ItemGroup>
+            <Content Include="$(PluginsDir)\**\*.*"
+                     Link="plugins\%(RecursiveDir)%(Filename)%(Extension)"
+                     CopyToOutputDirectory="PreserveNewest"
+                     CopyToPublishDirectory="PreserveNewest"
+                     Condition="Exists('$(PluginsDir)')" />
+        </ItemGroup>
+    </Target>
+
+    <!--Clean up the plugins folder from publish output since plugins are bundled in the single-file exe-->
+    <Target Name="CleanupPluginsFolderForSingleFile" AfterTargets="Publish" Condition="'$(PublishSingleFile)' == 'true' AND '$(DeployPlugins)' == 'true'">
+        <RemoveDir Directories="$(PublishDir)plugins" Condition="Exists('$(PublishDir)plugins')" />
+        <Message Text="Removed plugins folder from publish output (plugins are bundled in single-file exe)" Importance="high" />
+    </Target>
+
+    <!-- Target to build and deploy all plugins for local development -->
+    <Target Name="BuildAndDeployPlugins">
+        <!-- First build plugins (exclude TestPlugins - they are only for test execution) -->
+        <ItemGroup>
+            <PluginProjectsToBuild Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj"
+                                   Exclude="$(MSBuildProjectDirectory)\..\**\*TestPlugins*.csproj" />
+        </ItemGroup>
+
+        <MSBuild Projects="@(PluginProjectsToBuild)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Targets="Build" />
+
+        <!-- Then deploy them -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Properties="DeployPlugins=true;Configuration=$(Configuration)" Targets="DeployAllPlugins" />
+    </Target>
+</Project>

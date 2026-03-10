@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Build configuration-->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
+    <Description>Azure Artifact Signing plugin for CoseSignTool. Provides signing with FIPS 140-2 Level 3 HSM-backed keys.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates.AzureArtifactSigning\CoseSign1.Certificates.AzureArtifactSigning.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider" />
+    <PackageReference Include="Azure.Identity" />
+  </ItemGroup>
+
+  <!--Files to include in the package-->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+    <None Include="..\docs\plugins\azure-artifact-signing.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\plugins\azure-artifact-signing.md')" />
+  </ItemGroup>
+
+</Project>

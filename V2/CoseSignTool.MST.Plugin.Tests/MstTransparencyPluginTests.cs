@@ -1,0 +1,138 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace CoseSignTool.MST.Plugin.Tests;
+
+using System.CommandLine;
+
+/// <summary>
+/// Tests for MstTransparencyPlugin.
+/// </summary>
+[TestFixture]
+public class MstTransparencyPluginTests
+{
+    [Test]
+    public void Name_ReturnsCorrectName()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var name = plugin.Name;
+
+        // Assert
+        Assert.That(name, Is.EqualTo("Microsoft Signing Transparency"));
+    }
+
+    [Test]
+    public void Version_ReturnsVersion()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var version = plugin.Version;
+
+        // Assert
+        Assert.That(version, Is.Not.Null);
+        Assert.That(version, Is.EqualTo("1.0.0"));
+    }
+
+    [Test]
+    public void Description_ReturnsDescription()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var description = plugin.Description;
+
+        // Assert
+        Assert.That(description, Is.Not.Null);
+        Assert.That(description, Is.Not.Empty);
+        Assert.That(description, Does.Contain("Microsoft Signing Transparency"));
+    }
+
+    [Test]
+    public async Task InitializeAsync_CompletesSuccessfully()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act & Assert - no exception should be thrown
+        await plugin.InitializeAsync();
+    }
+
+    [Test]
+    public async Task InitializeAsync_WithConfiguration_CompletesSuccessfully()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+        var options = new Dictionary<string, string>
+        {
+            ["endpoint"] = "https://mst.example.com"
+        };
+
+        // Act & Assert - no exception should be thrown
+        await plugin.InitializeAsync(options);
+    }
+
+    [Test]
+    public void GetExtensions_SigningCommandProviders_ReturnsEmpty()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var extensions = plugin.GetExtensions();
+
+        // Assert - MST plugin doesn't provide signing commands
+        Assert.That(extensions.SigningCommandProviders, Is.Empty);
+    }
+
+    [Test]
+    public void GetExtensions_TransparencyProviders_ReturnsMstContributor()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var extensions = plugin.GetExtensions();
+        var contributors = extensions.TransparencyProviders.ToList();
+
+        // Assert
+        Assert.That(contributors, Has.Count.EqualTo(1));
+        Assert.That(contributors[0], Is.InstanceOf<MstTransparencyProviderContributor>());
+    }
+
+    [Test]
+    public void GetExtensions_VerificationProviders_ReturnsMstVerificationProvider()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+
+        // Act
+        var extensions = plugin.GetExtensions();
+        var providers = extensions.VerificationProviders.ToList();
+
+        // Assert - MST plugin provides verification provider
+        Assert.That(providers, Has.Count.EqualTo(1));
+        Assert.That(providers[0], Is.InstanceOf<MstVerificationProvider>());
+    }
+
+    [Test]
+    public void RegisterCommands_DoesNotAddCommands()
+    {
+        // Arrange
+        var plugin = new MstTransparencyPlugin();
+        var rootCommand = new RootCommand("Test");
+        var initialCount = rootCommand.Subcommands.Count;
+
+        // Act
+        plugin.RegisterCommands(rootCommand);
+
+        // Assert - MST plugin does not add commands (I/O is handled by main exe)
+        Assert.That(rootCommand.Subcommands.Count, Is.EqualTo(initialCount));
+    }
+
+}

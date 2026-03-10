@@ -1,0 +1,136 @@
+<Project>
+  <PropertyGroup>
+    <!-- Prevent traversing to parent Directory.Build.props -->
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+  </PropertyGroup>
+
+  <!-- Versioning - centralized for all packages -->
+  <PropertyGroup>
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionSuffix>preview</VersionSuffix>
+    <Version>$(VersionPrefix)-$(VersionSuffix)</Version>
+    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
+    <PackageVersion>$(VersionPrefix)-$(VersionSuffix)</PackageVersion>
+  </PropertyGroup>
+
+  <!-- Common build settings -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+
+  <!-- Test runner configuration (NUnit only) -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <!-- Test projects are not part of the public shipping surface; avoid requiring XML docs here. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!-- Suppress MTP0001: VSTest properties ignored when using Microsoft.Testing.Platform -->
+    <NoWarn>$(NoWarn);MTP0001;CS1591;MSB0000</NoWarn>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MTP0001;MSB0000</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <!-- Code analysis -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <!-- Documentation enforcement (non-test projects) -->
+  <ItemGroup Condition="'$(IsTestProject)' != 'true' AND '$(MSBuildProjectName)' != 'CoseSignTool.DocumentationAnalyzers'">
+    <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)CoseSignTool.DocumentationAnalyzers\CoseSignTool.DocumentationAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Strong name signing (apply to all non-test projects) -->
+  <PropertyGroup Condition="'$(IsTestProject)' != 'true'">
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <!-- NuGet package defaults for library projects -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'false' AND '$(IsTestProject)' != 'true'">
+    <IsPackable>true</IsPackable>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages\</PackageOutputPath>
+    <Company>Microsoft</Company>
+    <Authors>Microsoft</Authors>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageProjectUrl>https://github.com/microsoft/CoseSignTool</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/microsoft/CoseSignTool</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageReleaseNotes>CHANGELOG.md</PackageReleaseNotes>
+    <PackageTags>cose;sign1;signing;verification;scitt;transparency;cryptography;security</PackageTags>
+  </PropertyGroup>
+
+  <!-- PackageId: Use project name directly. Version 2.0.0 indicates the major version upgrade from V1. -->
+  <PropertyGroup Condition="'$(PackageId)' == ''">
+    <PackageId>$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <!-- Test projects configuration -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Exclude test assemblies from code coverage -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+  </ItemGroup>
+
+  <!-- 
+    NUnit Parallel Test Execution Configuration
+    Include shared parallel configuration in all test projects.
+  -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)CoseSign1.Tests.Common\NUnitParallelConfig.cs" Link="Properties\NUnitParallelConfig.cs" />
+  </ItemGroup>
+
+  <!-- Strong name public key for InternalsVisibleTo (35MSSharedLib1024.snk) -->
+  <PropertyGroup>
+    <StrongNamePublicKey>0024000004800000940000000602000000240000525341310004000001000100b5fc90e7027f67871e773a8fde8938c81dd402ba65b9201d60593e96c492651e889cc13f1415ebb53fac1131ae0bd333c5ee6021672d9718ea31a8aebd0da0072f25d87dba6fc90ffd598ed4da35e44c398c454307e8e33b8426143daec9f596836f97c8f74750e5975c64e2189f45def46b2a2b1247adc3652bf5c308055da9</StrongNamePublicKey>
+    <!-- Moq's DynamicProxy public key for mocking internals -->
+    <MoqPublicKey>0024000004800000940000000602000000240000525341310004000001000100c547cac37abd99c8db225ef2f6c8a3602f3b3606cc9891605d02baa56104f4cfc0734aa39b93bf7852f7d9266654753cc297e7d2edfe0bac1cdcf9f717241550e0a7b191195b7667bb4f64bcb8e2121380fd1d9d46ad2d92d2d15605093924cceaf74c4861eff62abf69b9291ed0a340e113be11e6a7d3113e92484cf7045cc7</MoqPublicKey>
+  </PropertyGroup>
+
+  <!-- 
+    Auto-generate InternalsVisibleTo for test projects.
+    Convention: Project "Foo" exposes internals to "Foo.Tests"
+    Also expose to Moq's DynamicProxy for mocking internal types.
+  -->
+  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>$(MSBuildProjectName).Tests, PublicKey=$(StrongNamePublicKey)</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>DynamicProxyGenAssembly2, PublicKey=$(MoqPublicKey)</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Plugin projects - enable automatic deployment -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Plugin'))">
+    <IsPackable>true</IsPackable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!-- Include common package files for packable projects -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)CHANGELOG.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

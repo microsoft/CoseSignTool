@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Build configuration-->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
+    <Description>Azure Key Vault plugin for CoseSignTool. Provides certificate-based signing with auto-refresh and key-only signing with RFC 9052 kid headers.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates.AzureKeyVault\CoseSign1.Certificates.AzureKeyVault.csproj" />
+    <ProjectReference Include="..\CoseSign1.AzureKeyVault\CoseSign1.AzureKeyVault.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
+  </ItemGroup>
+
+  <!--Files to include in the package-->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+    <None Include="..\docs\plugins\azure-keyvault.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\plugins\azure-keyvault.md')" />
+  </ItemGroup>
+
+</Project>

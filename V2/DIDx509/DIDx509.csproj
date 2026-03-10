@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Build configuration-->
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <RootNamespace>DIDx509</RootNamespace>
+  </PropertyGroup>
+
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>V2 DID:X509 identifier generation for X.509 certificate chains with EKU policy support.</Description>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <!--Files to include in the package-->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\docs\packages\didx509.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\didx509.md')" />
+  </ItemGroup>
+
+</Project>

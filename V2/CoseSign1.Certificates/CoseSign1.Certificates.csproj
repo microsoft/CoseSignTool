@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--Build configuration-->
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    </PropertyGroup>
+
+    <!--Platform-specific compilation constants-->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    </PropertyGroup>
+
+    <!--NuGet package configuration-->
+    <PropertyGroup>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>V2 Certificate-based signing and validation for COSE Sign1 messages with chain building and trust management.</Description>
+    </PropertyGroup>
+
+    <!--Package references-->
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+        <PackageReference Include="System.Runtime.Caching" />
+    </ItemGroup>
+
+    <!--Project references-->
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+        <ProjectReference Include="..\CoseSign1.Factories\CoseSign1.Factories.csproj" />
+        <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+        <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+        <ProjectReference Include="..\DIDx509\DIDx509.csproj" />
+    </ItemGroup>
+
+    <!--Exclude net10.0-only files from netstandard2.0-->
+    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+        <Compile Remove="Local\LinuxCertificateStoreCertificateSource.cs" />
+        <Compile Remove="Local\WindowsCertificateStoreCertificateSource.cs" />
+        <Compile Remove="Remote\RemoteMLDsa.cs" />
+    </ItemGroup>
+
+    <!--Files to include in the package-->
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="..\docs\packages\certificates.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\packages\certificates.md')" />
+    </ItemGroup>
+</Project>

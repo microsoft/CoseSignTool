@@ -1,0 +1,363 @@
+# Component Documentation
+
+This section provides comprehensive documentation for each NuGet package in the CoseSignTool V2 ecosystem.
+
+## Core Packages
+
+### [CoseSign1.Abstractions](abstractions.md)
+**Foundation package** containing interfaces and contracts for the entire V2 architecture.
+
+**Key Features**:
+- `ISigningService` - Core signing abstraction
+- `ICoseSign1MessageFactory` - Message creation interface
+- `IHeaderContributor` - Header extensibility
+- `ISigningKey` - Key abstraction
+- Transparency service interfaces
+
+**Use When**: Creating custom implementations, testing, or extending the framework.
+
+---
+
+### [CoseSign1.Factories](cosesign1.factories.md)
+**Message creation** package for creating COSE Sign1 messages.
+
+**Key Features**:
+- `CoseSign1MessageFactory` - Preferred router (selects direct vs indirect by option type)
+- `DirectSignatureFactory` - Embedded payload signatures
+- `IndirectSignatureFactory` - Hash-based signatures
+- Detached signature support
+- Uses .NET COSE decode APIs (`CoseMessage.DecodeSign1`)
+
+**Use When**: Creating any COSE Sign1 signatures.
+
+---
+
+### [CoseSignTool.Abstractions](cosesigntool-abstractions.md)
+**CLI plugin interfaces** for extending CoseSignTool with custom providers.
+
+**Key Features**:
+- `IPlugin` - Core plugin interface
+- `ISigningCommandProvider` - Add signing commands (e.g., `sign-pfx`)
+- `IVerificationProvider` - Add verification capabilities
+- `ITransparencyProviderContributor` - Integrate transparency services
+- `PluginExtensions` - Model containing all plugin extension points
+
+**Use When**: Creating plugins to extend the CoseSignTool CLI.
+
+---
+
+### [CoseSign1.Certificates](certificates.md)
+**Certificate-based signing** and validation with full X.509 support.
+
+**Key Features**:
+- `CertificateSigningService.Create()` - Factory methods for local and remote signing
+- Certificate sources (File, Store, Base64, Remote)
+- Certificate chain building and validation
+- EKU and SAN policy validators
+- Certificate expiration validation
+
+**Use When**: Using X.509 certificates for signing or validation.
+
+---
+
+### [CoseSign1.Validation](validation.md)
+**Comprehensive validation framework** with composable components.
+
+**Key Features**:
+- `CoseSign1Message.Validate(...)` / `ValidateAsync(...)` - Primary validation entry points (accepts `ICoseSign1Validator`)
+- `ICoseSign1ValidatorFactory` - Create fully-wired validators from DI
+- Trust packs (`ITrustPack`) that produce facts and contribute default trust-plan fragments
+- Staged services (`ISigningKeyResolver`, `IPostSignatureValidator`) composed by DI
+- Staged validation results (`CoseSign1ValidationResult`)
+
+**Use When**: Validating COSE Sign1 messages, implementing custom validation logic.
+
+---
+
+### [CoseSign1.Headers](headers.md)
+**SCITT compliance** with CWT claims and header management.
+
+**Key Features**:
+- `CwtClaims` - CBOR Web Token claims
+- `CwtClaimsHeaderContributor` - SCITT-compliant headers
+- Standard claim validation
+- Subject identifier patterns
+
+**Use When**: Creating SCITT-compliant signatures, supply chain attestations.
+
+---
+
+## Extended Functionality
+
+### [CoseSign1.Certificates.AzureArtifactSigning](azure-artifact-signing.md)
+**Azure integration** for cloud-based signing with Azure Artifact Signing service.
+
+**Key Features**:
+- Azure Artifact Signing integration
+- Managed identity support
+- Certificate lifecycle management
+- High availability signing
+
+**Use When**: Using Azure Artifact Signing for cloud-based code signing.
+
+---
+
+### [DIDx509](didx509.md)
+**Decentralized identifiers** with DID:x509 support.
+
+**Key Features**:
+- DID:x509 URI parsing and resolution
+- X.509 certificate chain to DID conversion
+- DID document creation
+- Certificate-based DID validation
+
+**Use When**: Working with decentralized identifiers, Web3 integration, self-sovereign identity.
+
+---
+
+### [CoseSign1.Transparent.MST](mst.md)
+**Microsoft's Signing Transparency** receipts.
+
+**Key Features**:
+- MST receipt generation
+- Receipt verification
+- Inclusion proof creation
+- Sparse Merkle tree support
+
+**Use When**: Implementing transparency logs with MST, SCITT transparency.
+
+---
+
+## CLI Tool Plugins
+
+### [CoseSignTool.Local.Plugin](../plugins/local-plugin.md)
+**Local certificate signing** for the CLI tool.
+
+**Commands Added**:
+- `sign-pfx` - Sign with PFX certificate file
+- `sign-certstore` - Sign with Windows/Linux certificate store
+- `sign-pem` - Sign with PEM files
+- `sign-ephemeral` - Sign with ephemeral test certificate
+
+**Use When**: Signing with locally stored certificates via CLI.
+
+---
+
+### [CoseSignTool.AzureArtifactSigning.Plugin](../plugins/azure-plugin.md)
+**Azure Artifact Signing** integration for the CLI tool.
+
+**Commands Added**:
+- `sign-azure` - Sign using Azure Artifact Signing
+
+**Use When**: Cloud-based signing with Azure via CLI.
+
+---
+
+### [CoseSignTool.MST.Plugin](../plugins/mst-plugin.md)
+**Microsoft's Signing Transparency** for the CLI tool.
+
+**Options Added to `verify` Command**:
+- `--mst-trust` - Enable MST receipt trust validation for verification
+- `--mst-offline-keys` - Pinned offline keys JWKS JSON for offline-only verification
+- `--mst-trust-ledger-instance` - Allowed MST ledger instance(s) (issuer host allow-list)
+
+**Use When**: Verifying supply chain transparency via CLI.
+
+---
+
+## Testing Utilities
+
+### [CoseSign1.Tests.Common](tests-common.md)
+**Test helpers** and utilities for unit testing.
+
+**Key Features**:
+- Test certificate generation
+- Mock signing services
+- Test data builders
+- Assertion helpers
+
+**Use When**: Writing unit tests for code using CoseSignTool.
+
+---
+
+## Package Selection Guide
+
+### I want to...
+
+#### **Sign documents with a certificate**
+```
+CoseSign1.Certificates
+```
+
+#### **Validate signed messages**
+```
+CoseSign1.Validation
+```
+
+#### **Create SCITT-compliant attestations**
+```
+CoseSign1 + CoseSign1.Headers + CoseSign1.Certificates
+```
+
+#### **Use Azure Artifact Signing**
+```
+CoseSign1.Certificates.AzureArtifactSigning
+```
+
+#### **Work with DID:x509 identifiers**
+```
+DIDx509
+```
+
+#### **Add transparency receipts**
+```
+CoseSign1.Transparent.MST
+```
+
+#### **Create custom signing service**
+```
+CoseSign1.Abstractions (implement ISigningService)
+```
+
+#### **Build custom validators**
+```
+CoseSign1.Validation (implement `IPostSignatureValidator` and register it in DI)
+```
+
+#### **Use CLI for local certificate signing**
+```
+CoseSignTool + CoseSignTool.Local.Plugin
+```
+
+#### **Use CLI with Azure Artifact Signing**
+```
+CoseSignTool + CoseSignTool.AzureArtifactSigning.Plugin
+```
+
+---
+
+## Common Package Combinations
+
+### Basic Signing & Validation
+```xml
+<PackageReference Include="CoseSign1.Certificates" />
+<PackageReference Include="CoseSign1.Validation" />
+```
+
+### SCITT Compliance
+```xml
+<PackageReference Include="CoseSign1.Certificates" />
+<PackageReference Include="CoseSign1.Headers" />
+<PackageReference Include="CoseSign1.Validation" />
+```
+
+### Cloud Signing with Azure
+```xml
+<PackageReference Include="CoseSign1.Certificates.AzureArtifactSigning" />
+<PackageReference Include="CoseSign1.Headers" />
+```
+
+### Transparency & Auditability
+```xml
+<PackageReference Include="CoseSign1.Certificates" />
+<PackageReference Include="CoseSign1.Headers" />
+<PackageReference Include="CoseSign1.Transparent.MST" />
+```
+
+### Full Stack (All Features)
+```xml
+<PackageReference Include="CoseSign1.Certificates" />
+<PackageReference Include="CoseSign1.Certificates.AzureArtifactSigning" />
+<PackageReference Include="CoseSign1.Headers" />
+<PackageReference Include="CoseSign1.Validation" />
+<PackageReference Include="CoseSign1.Transparent.MST" />
+<PackageReference Include="DIDx509" />
+```
+
+---
+
+## Dependency Graph
+
+```
+CoseSign1.Abstractions (Core interfaces)
+    ↓
+    ├── CoseSign1 (Message creation)
+    │   ├── CoseSign1.Headers (CWT claims)
+    │   └── CoseSign1.Validation (Validators)
+    │
+    ├── CoseSign1.Certificates (X.509 support)
+    │   ├── CoseSign1.Certificates.AzureArtifactSigning
+    │   └── DIDx509
+    │
+    └── CoseSign1.Transparent.MST (Transparency)
+```
+
+---
+
+## Version Compatibility
+
+All V2 packages share the same version number and are tested together:
+
+- **Current Version**: 2.0.0-preview
+- **Compatibility**: All packages with the same major.minor version are compatible
+- **Recommendation**: Use the same version for all packages
+
+```xml
+<!-- Central Package Management (Recommended) -->
+<ItemGroup>
+  <PackageVersion Include="CoseSign1.Certificates" Version="2.0.0-preview" />
+  <PackageVersion Include="CoseSign1.Validation" Version="2.0.0-preview" />
+  <PackageVersion Include="CoseSign1.Headers" Version="2.0.0-preview" />
+</ItemGroup>
+```
+
+---
+
+## Platform Support
+
+All packages target **.NET 10** and support:
+
+- ✅ Windows (x64, ARM64)
+- ✅ Linux (x64, ARM64)
+- ✅ macOS (x64, ARM64)
+
+Special features by platform:
+- **Windows**: Full certificate store integration, ML-DSA (post-quantum) preview support
+- **Linux**: Linux certificate store support (ML-DSA not currently supported)
+- **macOS**: Keychain integration (ML-DSA not currently supported)
+
+> **Note**: Post-quantum cryptography (ML-DSA/FIPS 204) is currently only supported on Windows in .NET 10.
+
+---
+
+## Performance Characteristics
+
+| Package | Memory | CPU | Network | Notes |
+|---------|--------|-----|---------|-------|
+| Abstractions | Minimal | Minimal | No | Interfaces only |
+| CoseSign1 | Low | Medium | No | Cryptographic operations |
+| Certificates | Medium | Medium-High | Optional | Chain building, revocation checking |
+| Validation | Low | Medium | Optional | Depends on validators used |
+| Headers | Low | Low | No | Header manipulation |
+| AzureArtifactSigning | Low | Low | Yes | Remote signing service |
+| DIDx509 | Low | Medium | Optional | DID resolution may need network |
+| Transparent.MST | Medium | Medium-High | Yes | Merkle tree operations |
+
+---
+
+## Next Steps
+
+1. **Getting Started**: Read the [Installation Guide](../getting-started/installation.md)
+2. **Quick Start**: Try the [Quick Start Guide](../getting-started/quick-start.md)
+3. **Architecture**: Understand [Core Concepts](../architecture/core-concepts.md)
+4. **Examples**: Explore [Code Examples](../examples/README.md)
+5. **Guides**: Read task-specific [How-To Guides](../guides/README.md)
+
+---
+
+## Support
+
+- 📖 [Documentation](../README.md)
+- 🐛 [GitHub Issues](https://github.com/microsoft/CoseSignTool/issues)
+- 💬 [Discussions](https://github.com/microsoft/CoseSignTool/discussions)
+- 📧 [Email Support](mailto:cosesigntool@microsoft.com)

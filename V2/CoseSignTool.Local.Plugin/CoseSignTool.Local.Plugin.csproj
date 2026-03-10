@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Build configuration-->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--NuGet package configuration-->
+  <PropertyGroup>
+    <PackageReadmeFile Condition="Exists('README.md')">README.md</PackageReadmeFile>
+    <Description>Local certificate signing plugin for CoseSignTool. Provides signing with PFX files, PEM files, and certificate stores.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates.Local\CoseSign1.Certificates.Local.csproj" />
+  </ItemGroup>
+
+  <!--Files to include in the package-->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+    <None Include="..\docs\plugins\local.md" Pack="true" PackagePath="\docs\" Condition="Exists('..\docs\plugins\local.md')" />
+  </ItemGroup>
+
+</Project>

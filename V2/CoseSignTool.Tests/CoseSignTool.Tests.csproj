@@ -1,0 +1,99 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <!-- Always deploy plugins for tests -->
+        <DeployPlugins>true</DeployPlugins>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="NUnit" />
+        <PackageReference Include="NUnit.Analyzers" />
+        <PackageReference Include="NUnit3TestAdapter" />
+        <PackageReference Include="coverlet.collector">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Moq" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+        <ProjectReference Include="..\CoseSignTool.AzureKeyVault.Plugin\CoseSignTool.AzureKeyVault.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSignTool.TestPlugins.Plugin\CoseSignTool.TestPlugins.Plugin.csproj" />
+        <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+    </ItemGroup>
+
+
+
+    <ItemGroup>
+        <Using Include="NUnit.Framework" />
+    </ItemGroup>
+
+    <!-- ========================================== -->
+    <!-- Plugin Deployment for Tests                -->
+    <!-- ========================================== -->
+    <Target Name="DeployPlugin">
+        <PropertyGroup>
+            <PluginsDir>$(OutputPath)plugins</PluginsDir>
+            <PluginSubDir>$(PluginsDir)\$(PluginName)</PluginSubDir>
+            <PluginSourceDir>$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net10.0</PluginSourceDir>
+        </PropertyGroup>
+
+        <MakeDir Directories="$(PluginSubDir)" />
+
+        <ItemGroup>
+            <AllPluginFiles Include="$(PluginSourceDir)\*.dll;$(PluginSourceDir)\*.exe;$(PluginSourceDir)\*.xml;$(PluginSourceDir)\*.pdb;$(PluginSourceDir)\*.json;$(PluginSourceDir)\*.runtimeconfig.json" />
+        </ItemGroup>
+
+        <Message Text="Deploying plugin $(PluginName) to $(PluginSubDir)" Importance="high" />
+
+        <Copy SourceFiles="@(AllPluginFiles)"
+              DestinationFolder="$(PluginSubDir)"
+              SkipUnchangedFiles="true"
+              OverwriteReadOnlyFiles="true" />
+    </Target>
+
+    <Target Name="BuildAndDeployPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+        <Message Text="Building and deploying plugins for tests..." Importance="high" />
+
+        <MSBuild Projects="..\CoseSignTool.AzureKeyVault.Plugin\CoseSignTool.AzureKeyVault.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Restore;Build" />
+
+        <MSBuild Projects="..\CoseSignTool.Local.Plugin\CoseSignTool.Local.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Restore;Build" />
+
+        <MSBuild Projects="..\CoseSignTool.MST.Plugin\CoseSignTool.MST.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Restore;Build" />
+
+        <MSBuild Projects="..\CoseSignTool.AzureArtifactSigning.Plugin\CoseSignTool.AzureArtifactSigning.Plugin.csproj"
+                 Properties="Configuration=$(Configuration)"
+                 Targets="Restore;Build" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.Local.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.MST.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+             Properties="PluginName=CoseSignTool.AzureKeyVault.Plugin;Configuration=$(Configuration)"
+             Targets="DeployPlugin" />
+
+        <MSBuild Projects="$(MSBuildProjectFile)"
+                 Properties="PluginName=CoseSignTool.AzureArtifactSigning.Plugin;Configuration=$(Configuration)"
+                 Targets="DeployPlugin" />
+    </Target>
+</Project>

@@ -91,7 +91,7 @@ jobs:
     - name: Build Rust FFI libraries (release)
       shell: pwsh
       run: |
-        cargo build --manifest-path native/rust/Cargo.toml --release -p cose_sign1_validation_ffi -p cose_sign1_validation_ffi_certificates -p cose_sign1_validation_ffi_mst -p cose_sign1_validation_ffi_akv -p cose_sign1_validation_trust_ffi
+        cargo build --manifest-path native/rust/Cargo.toml --release -p cose_sign1_validation_ffi -p cose_sign1_validation_ffi_certificates -p cose_sign1_validation_ffi_mst -p cose_sign1_validation_ffi_akv -p cose_sign1_validation_ffi_trust
 
     - name: Install OpenCppCoverage
       shell: pwsh

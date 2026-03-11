@@ -230,7 +230,7 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
             try
             {
                 response.ContentStream.Position = 0;
-                MemoryStream bodyBuffer = new();
+                using MemoryStream bodyBuffer = new();
                 response.ContentStream.CopyTo(bodyBuffer);
                 body = bodyBuffer.ToArray();
             }

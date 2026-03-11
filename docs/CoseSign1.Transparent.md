@@ -329,6 +329,8 @@ options.ConfigureTransactionNotCachedRetry(
 
 #### <u>Manual Policy Registration</u>
 ```csharp
+using Azure.Core.Pipeline;
+
 var options = new CodeTransparencyClientOptions();
 options.AddPolicy(
     new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(200), 10),
@@ -363,6 +365,8 @@ TransparencyService service = client.ToCoseSign1TransparencyService(
 
 #### <u>Custom Delay Strategy</u>
 ```csharp
+using Azure.Core;
+
 var pollingOptions = new MstPollingOptions
 {
     DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(500))

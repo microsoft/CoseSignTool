@@ -43,9 +43,9 @@ public class MstPollingOptions
     /// back-off pattern between polling attempts.
     /// </summary>
     /// <remarks>
-    /// When set, this strategy is assigned to <c>Operation&lt;T&gt;.DelayStrategy</c> before
-    /// calling <c>WaitForCompletionAsync</c>. This takes precedence over
-    /// <see cref="PollingInterval"/> if both are specified.
+    /// When set, this strategy is passed to the
+    /// <c>Operation&lt;T&gt;.WaitForCompletionAsync(DelayStrategy, CancellationToken)</c> overload.
+    /// This takes precedence over <see cref="PollingInterval"/> if both are specified.
     ///
     /// <para>Use <see cref="Azure.Core.DelayStrategy.CreateFixedDelayStrategy(TimeSpan)"/>
     /// for a constant interval, or implement a custom strategy for exponential back-off

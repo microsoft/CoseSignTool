@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace System;
+namespace CoseSign1.Transparent.MST;
 
 using System;
 using System.Formats.Cbor;
@@ -19,7 +19,7 @@ public static class BinaryDataExtensions
     /// <param name="binaryData">The <see cref="BinaryData"/> containing the CBOR-encoded data.</param>
     /// <param name="entryId">
     /// When this method returns, contains the extracted "EntryId" value if the operation was successful;
-    /// otherwise, contains <c>null</c>.
+    /// otherwise, contains an empty string.
     /// </param>
     /// <returns>
     /// <c>true</c> if the "EntryId" was successfully extracted; otherwise, <c>false</c>.
@@ -27,9 +27,9 @@ public static class BinaryDataExtensions
     /// <remarks>
     /// This method reads the CBOR-encoded data as a map and searches for a key named "EntryId".
     /// If the key is found, its corresponding value is returned as a string.
-    /// If the data is not valid CBOR or does not contain the "EntryId" key, the method returns <c>false</c>.
+    /// If the data is <c>null</c>, not valid CBOR, or does not contain the "EntryId" key,
+    /// the method returns <c>false</c> with <paramref name="entryId"/> set to an empty string.
     /// </remarks>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="binaryData"/> is <c>null</c>.</exception>
     public static bool TryGetMstEntryId(this BinaryData binaryData, out string? entryId)
     {
         entryId = string.Empty;

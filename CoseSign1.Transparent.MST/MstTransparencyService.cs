@@ -70,11 +70,11 @@ public class MstTransparencyService : TransparencyService
     /// Initializes a new instance of the <see cref="MstTransparencyService"/> class with polling options.
     /// </summary>
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
-    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <param name="pollingOptions">Optional options controlling the polling behavior for long-running operations.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
     public MstTransparencyService(
         CodeTransparencyClient transparencyClient,
-        MstPollingOptions pollingOptions)
+        MstPollingOptions? pollingOptions)
         : this(transparencyClient, null, null, pollingOptions, null, null, null, null)
     {
     }
@@ -85,7 +85,7 @@ public class MstTransparencyService : TransparencyService
     /// <param name="transparencyClient">The <see cref="CodeTransparencyClient"/> used to interact with the Azure CTS.</param>
     /// <param name="verificationOptions">Optional verification options for controlling receipt validation behavior.</param>
     /// <param name="clientOptions">Optional client options for configuring client instances used during verification.</param>
-    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <param name="pollingOptions">Optional options controlling the polling behavior for long-running operations.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="transparencyClient"/> is null.</exception>
     public MstTransparencyService(
         CodeTransparencyClient transparencyClient,

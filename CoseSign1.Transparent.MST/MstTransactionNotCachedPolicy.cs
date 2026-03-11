@@ -148,11 +148,13 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
             if (isAsync)
             {
                 await Task.Delay(_retryDelay).ConfigureAwait(false);
+                message.Response?.Dispose();
                 await ProcessNextAsync(message, pipeline).ConfigureAwait(false);
             }
             else
             {
                 Thread.Sleep(_retryDelay);
+                message.Response?.Dispose();
                 ProcessNext(message, pipeline);
             }
 
@@ -228,8 +230,9 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
             try
             {
                 response.ContentStream.Position = 0;
-                body = new byte[response.ContentStream.Length];
-                _ = response.ContentStream.Read(body, 0, body.Length);
+                MemoryStream bodyBuffer = new();
+                response.ContentStream.CopyTo(bodyBuffer);
+                body = bodyBuffer.ToArray();
             }
             finally
             {

@@ -129,11 +129,11 @@
 
 ## [v1.5.6](https://github.com/microsoft/CoseSignTool/tree/v1.5.6) (2025-07-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v.1.5.5...v1.5.6)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.5...v1.5.6)
 
-## [v.1.5.5](https://github.com/microsoft/CoseSignTool/tree/v.1.5.5) (2025-07-15)
+## [v1.5.5](https://github.com/microsoft/CoseSignTool/tree/v1.5.5) (2025-07-15)
 
-[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre1...v.1.5.5)
+[Full Changelog](https://github.com/microsoft/CoseSignTool/compare/v1.5.4-pre1...v1.5.5)
 
 ## [v1.5.4-pre1](https://github.com/microsoft/CoseSignTool/tree/v1.5.4-pre1) (2025-07-15)
 

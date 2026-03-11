@@ -16,14 +16,7 @@ namespace Azure.Core.TestCommon;
 public sealed class MockRequest : Request
 {
     private readonly DictionaryHeaders _headers = new();
-
-    /// <summary>
-    /// Creates a new instance.
-    /// </summary>
-    public MockRequest()
-    {
-        ClientRequestId = Guid.NewGuid().ToString();
-    }
+    private string _clientRequestId = Guid.NewGuid().ToString();
 
     /// <summary>
     /// Gets whether this request has been disposed.
@@ -59,7 +52,11 @@ public sealed class MockRequest : Request
     protected override IEnumerable<HttpHeader> EnumerateHeaders() => _headers.EnumerateHeaders();
 
     /// <inheritdoc/>
-    public override string ClientRequestId { get; set; }
+    public override string ClientRequestId
+    {
+        get => _clientRequestId;
+        set => _clientRequestId = value;
+    }
 
     /// <inheritdoc/>
     public override string ToString() => $"{Method} {Uri}";

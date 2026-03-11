@@ -17,6 +17,10 @@ namespace Azure.Core.TestCommon;
 public sealed class MockResponse : Response
 {
     private readonly Dictionary<string, List<string>> _headers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly int _status;
+    private readonly string _reasonPhrase;
+    private Stream? _contentStream;
+    private string _clientRequestId;
     private bool? _isError;
 
     /// <summary>
@@ -24,23 +28,31 @@ public sealed class MockResponse : Response
     /// </summary>
     public MockResponse(int status, string? reasonPhrase = null)
     {
-        Status = status;
-        ReasonPhrase = reasonPhrase ?? string.Empty;
-        ContentStream = new MemoryStream();
-        ClientRequestId = Guid.NewGuid().ToString();
+        _status = status;
+        _reasonPhrase = reasonPhrase ?? string.Empty;
+        _contentStream = new MemoryStream();
+        _clientRequestId = Guid.NewGuid().ToString();
     }
 
     /// <inheritdoc/>
-    public override int Status { get; }
+    public override int Status => _status;
 
     /// <inheritdoc/>
-    public override string ReasonPhrase { get; }
+    public override string ReasonPhrase => _reasonPhrase;
 
     /// <inheritdoc/>
-    public override Stream? ContentStream { get; set; }
+    public override Stream? ContentStream
+    {
+        get => _contentStream;
+        set => _contentStream = value;
+    }
 
     /// <inheritdoc/>
-    public override string ClientRequestId { get; set; }
+    public override string ClientRequestId
+    {
+        get => _clientRequestId;
+        set => _clientRequestId = value;
+    }
 
     /// <inheritdoc/>
     public override bool IsError => _isError ?? base.IsError;

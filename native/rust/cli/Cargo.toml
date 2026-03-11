@@ -18,7 +18,7 @@ certificates = ["dep:cose_sign1_certificates", "dep:cose_sign1_certificates_loca
 pqc = ["cose_sign1_certificates_local/pqc", "cose_sign1_crypto_openssl/pqc"]
 akv = ["dep:cose_sign1_azure_key_vault"]
 ats = ["dep:cose_sign1_azure_artifact_signing"]
-mst = ["dep:cose_sign1_transparent_mst", "dep:url"]
+mst = ["dep:cose_sign1_transparent_mst", "dep:code_transparency_client", "dep:url"]
 
 [dependencies]
 # Always required
@@ -47,6 +47,7 @@ cose_sign1_certificates_local = { path = "../extension_packs/certificates/local"
 cose_sign1_azure_key_vault = { path = "../extension_packs/azure_key_vault", optional = true }
 cose_sign1_azure_artifact_signing = { path = "../extension_packs/azure_artifact_signing", optional = true }
 cose_sign1_transparent_mst = { path = "../extension_packs/mst", optional = true }
+code_transparency_client = { path = "../extension_packs/mst/client", optional = true }
 openssl = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 

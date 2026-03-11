@@ -4,7 +4,7 @@
 //! Extended test coverage for MST receipt verification internal parsing functions.
 
 use cbor_primitives::CborEncoder;
-use cose_sign1_transparent_mst::http_client::{HttpTransport, MockHttpTransport};
+
 use cose_sign1_transparent_mst::validation::receipt_verify::{
     base64url_decode, find_jwk_for_kid, is_cose_sign1_tagged_18, jwk_to_spki_der,
     sha256, sha256_concat_slices, validate_receipt_alg_against_jwk, verify_mst_receipt,
@@ -370,7 +370,7 @@ fn test_receipt_verify_input_clone() {
         offline_jwks_json: Some(jwks),
         allow_network_fetch: true,
         jwks_api_version: Some("2023-01-01"),
-        http: None,
+        client: None,
     };
 
     let cloned = input.clone();
@@ -384,177 +384,5 @@ fn test_receipt_verify_input_clone() {
     assert_eq!(input.jwks_api_version, cloned.jwks_api_version);
 }
 
-/// Test verify_mst_receipt with mock HTTP transport
-#[test]
-fn test_verify_mst_receipt_with_http_transport_error() {
-    // Create a valid receipt structure that will reach key resolution
-    let mut enc = cose_sign1_primitives::provider::encoder();
-    enc.encode_array(4).unwrap();
 
-    // Protected headers
-    {
-        let mut prot_enc = cose_sign1_primitives::provider::encoder();
-        prot_enc.encode_map(4).unwrap();
-        prot_enc.encode_i64(1).unwrap(); // alg
-        prot_enc.encode_i64(-7).unwrap(); // ES256
-        prot_enc.encode_i64(4).unwrap(); // kid
-        prot_enc.encode_bstr(b"test-key").unwrap();
-        prot_enc.encode_i64(395).unwrap(); // VDS
-        prot_enc.encode_i64(2).unwrap();
-        prot_enc.encode_i64(15).unwrap(); // CWT claims
-        {
-            let mut cwt_enc = cose_sign1_primitives::provider::encoder();
-            cwt_enc.encode_map(1).unwrap();
-            cwt_enc.encode_i64(1).unwrap();
-            cwt_enc.encode_tstr("example.com").unwrap();
-            prot_enc.encode_raw(&cwt_enc.into_bytes()).unwrap();
-        }
-        enc.encode_bstr(&prot_enc.into_bytes()).unwrap();
-    }
 
-    enc.encode_map(0).unwrap();
-    enc.encode_bstr(b"payload").unwrap();
-    enc.encode_bstr(&[0u8; 64]).unwrap();
-
-    let receipt_bytes = enc.into_bytes();
-
-    // Create mock HTTP transport that returns error
-    let mut mock = MockHttpTransport::new();
-    // Don't add any responses - this will cause network fetch to fail
-
-    let input = ReceiptVerifyInput {
-        statement_bytes_with_receipts: &[],
-        receipt_bytes: &receipt_bytes,
-        offline_jwks_json: None,
-        allow_network_fetch: true, // Allow network fetch
-        jwks_api_version: Some("2023-01-01"),
-        http: Some(&mock as &dyn HttpTransport),
-    };
-
-    let result = verify_mst_receipt(input);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::JwksFetch(_) => {}
-        e => panic!("Expected JwksFetch error, got: {:?}", e),
-    }
-}
-
-/// Test verify_mst_receipt with mock HTTP returning valid JWKS but key not found
-#[test]
-fn test_verify_mst_receipt_with_http_transport_jwk_not_found() {
-    let mut enc = cose_sign1_primitives::provider::encoder();
-    enc.encode_array(4).unwrap();
-
-    {
-        let mut prot_enc = cose_sign1_primitives::provider::encoder();
-        prot_enc.encode_map(4).unwrap();
-        prot_enc.encode_i64(1).unwrap();
-        prot_enc.encode_i64(-7).unwrap();
-        prot_enc.encode_i64(4).unwrap();
-        prot_enc.encode_bstr(b"missing-key").unwrap();
-        prot_enc.encode_i64(395).unwrap();
-        prot_enc.encode_i64(2).unwrap();
-        prot_enc.encode_i64(15).unwrap();
-        {
-            let mut cwt_enc = cose_sign1_primitives::provider::encoder();
-            cwt_enc.encode_map(1).unwrap();
-            cwt_enc.encode_i64(1).unwrap();
-            cwt_enc.encode_tstr("example.com").unwrap();
-            prot_enc.encode_raw(&cwt_enc.into_bytes()).unwrap();
-        }
-        enc.encode_bstr(&prot_enc.into_bytes()).unwrap();
-    }
-
-    enc.encode_map(0).unwrap();
-    enc.encode_bstr(b"payload").unwrap();
-    enc.encode_bstr(&[0u8; 64]).unwrap();
-
-    let receipt_bytes = enc.into_bytes();
-
-    // Create mock HTTP transport that returns JWKS with different key
-    let mut mock = MockHttpTransport::new();
-    let jwks_response = r#"{"keys":[{"kty":"EC","crv":"P-256","kid":"other-key","x":"test","y":"test"}]}"#;
-    mock.get_responses.insert(
-        "https://example.com/jwks?api-version=2023-01-01".to_string(),
-        Ok(jwks_response.as_bytes().to_vec()),
-    );
-
-    let input = ReceiptVerifyInput {
-        statement_bytes_with_receipts: &[],
-        receipt_bytes: &receipt_bytes,
-        offline_jwks_json: None,
-        allow_network_fetch: true,
-        jwks_api_version: Some("2023-01-01"),
-        http: Some(&mock as &dyn HttpTransport),
-    };
-
-    let result = verify_mst_receipt(input);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::JwkNotFound(kid) => {
-            assert_eq!(kid, "missing-key");
-        }
-        e => panic!("Expected JwkNotFound error, got: {:?}", e),
-    }
-}
-
-/// Test verify_mst_receipt issuer URL handling
-#[test]
-fn test_verify_mst_receipt_with_full_url_issuer() {
-    let mut enc = cose_sign1_primitives::provider::encoder();
-    enc.encode_array(4).unwrap();
-
-    {
-        let mut prot_enc = cose_sign1_primitives::provider::encoder();
-        prot_enc.encode_map(4).unwrap();
-        prot_enc.encode_i64(1).unwrap();
-        prot_enc.encode_i64(-7).unwrap();
-        prot_enc.encode_i64(4).unwrap();
-        prot_enc.encode_bstr(b"test-key").unwrap();
-        prot_enc.encode_i64(395).unwrap();
-        prot_enc.encode_i64(2).unwrap();
-        prot_enc.encode_i64(15).unwrap();
-        {
-            let mut cwt_enc = cose_sign1_primitives::provider::encoder();
-            cwt_enc.encode_map(1).unwrap();
-            cwt_enc.encode_i64(1).unwrap();
-            // Full URL as issuer (should be normalized)
-            cwt_enc.encode_tstr("https://issuer.example.com").unwrap();
-            prot_enc.encode_raw(&cwt_enc.into_bytes()).unwrap();
-        }
-        enc.encode_bstr(&prot_enc.into_bytes()).unwrap();
-    }
-
-    enc.encode_map(0).unwrap();
-    enc.encode_bstr(b"payload").unwrap();
-    enc.encode_bstr(&[0u8; 64]).unwrap();
-
-    let receipt_bytes = enc.into_bytes();
-
-    // Mock HTTP transport - URL should be constructed from issuer
-    let mut mock = MockHttpTransport::new();
-    // Add response for the normalized URL
-    mock.get_responses.insert(
-        "https://issuer.example.com/jwks".to_string(),
-        Ok(r#"{"keys":[]}"#.as_bytes().to_vec()),
-    );
-
-    let input = ReceiptVerifyInput {
-        statement_bytes_with_receipts: &[],
-        receipt_bytes: &receipt_bytes,
-        offline_jwks_json: None,
-        allow_network_fetch: true,
-        jwks_api_version: None, // No api version
-        http: Some(&mock as &dyn HttpTransport),
-    };
-
-    let result = verify_mst_receipt(input);
-    assert!(result.is_err());
-    // Key not found since JWKS is empty
-    match result.unwrap_err() {
-        ReceiptVerifyError::JwkNotFound(kid) => {
-            assert_eq!(kid, "test-key");
-        }
-        e => panic!("Expected JwkNotFound error, got: {:?}", e),
-    }
-}

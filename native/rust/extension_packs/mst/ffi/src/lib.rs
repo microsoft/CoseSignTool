@@ -228,13 +228,13 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_
 // MST Transparency Client Signing Support
 // ============================================================================
 
-use cose_sign1_transparent_mst::signing::client::{MstTransparencyClient, MstTransparencyClientOptions};
+use code_transparency_client::{CodeTransparencyClient, CodeTransparencyClientConfig};
 use std::ffi::CString;
 use std::slice;
 
-/// Opaque handle for MstTransparencyClient.
+/// Opaque handle for CodeTransparencyClient.
 #[repr(C)]
-pub struct MstClientHandle(MstTransparencyClient);
+pub struct MstClientHandle(CodeTransparencyClient);
 
 /// Creates a new MST transparency client.
 ///
@@ -275,7 +275,7 @@ pub extern "C" fn cose_mst_client_new(
         let endpoint_url = url::Url::parse(&endpoint_str)
             .map_err(|e| anyhow::anyhow!("invalid endpoint URL: {}", e))?;
 
-        let mut options = MstTransparencyClientOptions::default();
+        let mut options = CodeTransparencyClientConfig::default();
 
         if !api_version.is_null() {
             let version_str = string_from_ptr("api_version", api_version)?;
@@ -287,7 +287,7 @@ pub extern "C" fn cose_mst_client_new(
             options.api_key = Some(key_str);
         }
 
-        let client = MstTransparencyClient::new(endpoint_url, options);
+        let client = CodeTransparencyClient::new(endpoint_url, options);
         let handle = Box::new(MstClientHandle(client));
 
         unsafe { *out_client = Box::into_raw(handle); }

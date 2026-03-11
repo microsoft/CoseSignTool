@@ -298,7 +298,8 @@ pub fn run(args: SignArgs) -> i32 {
 /// Applies MST transparency to a COSE_Sign1 message.
 #[cfg(feature = "mst")]
 fn apply_mst_transparency(args: &SignArgs, cose_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    use cose_sign1_transparent_mst::signing::{MstTransparencyClient, MstTransparencyClientOptions, MstTransparencyProvider};
+    use code_transparency_client::{CodeTransparencyClient, CodeTransparencyClientConfig};
+    use cose_sign1_transparent_mst::signing::MstTransparencyProvider;
     use url::Url;
 
     // This is a stub implementation as per the task requirements
@@ -307,15 +308,14 @@ fn apply_mst_transparency(args: &SignArgs, cose_bytes: &[u8]) -> Result<Vec<u8>,
     // Determine MST endpoint
     let endpoint_url = match &args.mst_endpoint {
         Some(url) => url.clone(),
-        None => "https://dataplane.codetransparency.azure.net".to_string(), // Default from V2
+        None => "https://dataplane.codetransparency.azure.net".to_string(),
     };
 
     let endpoint = Url::parse(&endpoint_url)
         .map_err(|e| format!("Invalid MST endpoint URL '{}': {}", endpoint_url, e))?;
 
-    // Create MST client with default options (this code path validates but doesn't execute)
-    let client_options = MstTransparencyClientOptions::default();
-    let mst_client = MstTransparencyClient::new(endpoint, client_options);
+    let config = CodeTransparencyClientConfig::default();
+    let mst_client = CodeTransparencyClient::new(endpoint, config);
     let _transparency_provider = MstTransparencyProvider::new(mst_client);
 
     // For now, just return the original bytes as a stub

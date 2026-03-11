@@ -11,6 +11,7 @@ test = false
 cose_sign1_validation_ffi = { path = "../../../validation/core/ffi" }
 cose_sign1_validation = { path = "../../../validation/core" }
 cose_sign1_transparent_mst = { path = ".." }
+code_transparency_client = { path = "../client" }
 cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse" }
 
 [dependencies.anyhow]

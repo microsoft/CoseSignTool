@@ -28,6 +28,7 @@ members = [
   "extension_packs/certificates/local",
   "extension_packs/certificates/local/ffi",
   "extension_packs/mst",
+  "extension_packs/mst/client",
   "cli",
   "extension_packs/mst/ffi",
   "extension_packs/azure_key_vault",

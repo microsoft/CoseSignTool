@@ -126,9 +126,10 @@ pub struct ReceiptVerifyInput<'a> {
     /// Optional api-version query value to use when fetching `/jwks`.
     /// The CodeTransparency service typically requires this.
     pub jwks_api_version: Option<&'a str>,
-    
-    /// Optional HTTP transport for network requests.
-    pub http: Option<&'a dyn crate::http_client::HttpTransport>,
+
+    /// Optional Code Transparency client for JWKS fetching.
+    /// If `None` and `allow_network_fetch` is true, a default client is created.
+    pub client: Option<&'a code_transparency_client::CodeTransparencyClient>,
 }
 
 #[derive(Clone, Debug)]
@@ -198,7 +199,7 @@ pub fn verify_mst_receipt(
         input.offline_jwks_json,
         input.allow_network_fetch,
         input.jwks_api_version,
-        input.http,
+        input.client,
     )?;
     let spki = jwk_to_spki_der(&jwk)?;
     validate_receipt_alg_against_jwk(&jwk, alg)?;
@@ -353,7 +354,7 @@ pub(crate) fn resolve_receipt_signing_key(
     offline_jwks_json: Option<&str>,
     allow_network_fetch: bool,
     jwks_api_version: Option<&str>,
-    http: Option<&dyn crate::http_client::HttpTransport>,
+    client: Option<&code_transparency_client::CodeTransparencyClient>,
 ) -> Result<Jwk, ReceiptVerifyError> {
     if let Some(jwks_json) = offline_jwks_json {
         match find_jwk_for_kid(jwks_json, kid) {
@@ -369,42 +370,39 @@ pub(crate) fn resolve_receipt_signing_key(
         ));
     }
 
-    let jwks_json = fetch_jwks_for_issuer(issuer, jwks_api_version, http)?;
+    let jwks_json = fetch_jwks_for_issuer(issuer, jwks_api_version, client)?;
     find_jwk_for_kid(jwks_json.as_str(), kid)
 }
 
-/// Fetch the JWKS JSON for a receipt issuer.
-///
-/// The issuer may be a host or a full URL; it is normalized to a base URL and `/jwks` is fetched.
+/// Fetch the JWKS JSON for a receipt issuer using the Code Transparency client.
 pub(crate) fn fetch_jwks_for_issuer(
     issuer_host_or_url: &str,
     jwks_api_version: Option<&str>,
-    http: Option<&dyn crate::http_client::HttpTransport>,
+    client: Option<&code_transparency_client::CodeTransparencyClient>,
 ) -> Result<String, ReceiptVerifyError> {
-    // C# builds a client for each issuer using https://{issuer}.
-    // The receipt issuer can be a host or a URL; normalize to a URL.
+    if let Some(ct_client) = client {
+        return ct_client.get_public_keys()
+            .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()));
+    }
+
+    // Create a temporary client for the issuer endpoint
     let base = if issuer_host_or_url.contains("://") {
         issuer_host_or_url.to_string()
     } else {
         format!("https://{issuer_host_or_url}")
     };
 
-    let mut url =
-        Url::parse(base.as_str()).map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))?;
-    url.set_path("/jwks");
-    url.set_query(None);
+    let endpoint = url::Url::parse(&base)
+        .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))?;
+
+    let mut config = code_transparency_client::CodeTransparencyClientConfig::default();
     if let Some(v) = jwks_api_version {
-        url.query_pairs_mut().append_pair("api-version", v);
+        config.api_version = v.to_string();
     }
 
-    if let Some(transport) = http {
-        transport
-            .get_string(&url, "application/json")
-            .map_err(|e| ReceiptVerifyError::JwksFetch(e))
-    } else {
-        crate::http_client::get_string(&url, "application/json")
-            .map_err(|e| ReceiptVerifyError::JwksFetch(e))
-    }
+    let temp_client = code_transparency_client::CodeTransparencyClient::new(endpoint, config);
+    temp_client.get_public_keys()
+        .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))
 }
 
 #[derive(Clone, Debug)]

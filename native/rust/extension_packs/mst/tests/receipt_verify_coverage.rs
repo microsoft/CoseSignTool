@@ -15,7 +15,7 @@ fn test_verify_mst_receipt_invalid_cbor() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
 
     let result = verify_mst_receipt(input);
@@ -36,7 +36,7 @@ fn test_verify_mst_receipt_empty_bytes() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
 
     let result = verify_mst_receipt(input);
@@ -180,7 +180,7 @@ fn test_receipt_verify_input_construction() {
         offline_jwks_json: Some(jwks_json),
         allow_network_fetch: true,
         jwks_api_version: Some("2023-01-01"),
-        http: None,
+        client: None,
     };
 
     // Just verify the struct can be constructed and accessed
@@ -227,7 +227,7 @@ fn test_verify_mst_receipt_malformed_cbor_map() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
 
     let result = verify_mst_receipt(input);

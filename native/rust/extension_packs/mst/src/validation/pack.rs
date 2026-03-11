@@ -224,7 +224,7 @@ impl TrustFactProducer for MstTrustPack {
                     offline_jwks_json: jwks_json,
                     allow_network_fetch: self.allow_network,
                     jwks_api_version: self.jwks_api_version.as_deref(),
-                    http: None, // Use default HttpTransport
+                    client: None, // Creates temporary client per-issuer
                 });
 
                 match out {

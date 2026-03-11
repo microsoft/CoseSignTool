@@ -3,12 +3,12 @@
 
 //! Error types for MST client operations.
 
-use super::cbor_problem_details::CborProblemDetails;
+use crate::cbor_problem_details::CborProblemDetails;
 use std::fmt;
 
 /// Errors that can occur during MST client operations.
 #[derive(Debug)]
-pub enum MstClientError {
+pub enum CodeTransparencyError {
     /// HTTP request failed.
     HttpError(String),
     /// CBOR parsing failed.
@@ -43,7 +43,7 @@ pub enum MstClientError {
     },
 }
 
-impl MstClientError {
+impl CodeTransparencyError {
     /// Creates a `ServiceError` from an HTTP response.
     ///
     /// Attempts to parse the response body as RFC 9290 CBOR problem details
@@ -78,20 +78,45 @@ impl MstClientError {
             format!("MST service returned HTTP {}", http_status)
         };
 
-        MstClientError::ServiceError {
+        CodeTransparencyError::ServiceError {
             http_status,
             problem_details,
             message,
         }
     }
+
+    /// Creates an `CodeTransparencyError` from an `azure_core::Error`.
+    ///
+    /// When the error is an `HttpResponse` (non-2xx status from the pipeline's
+    /// `check_success`), extracts the status code and body to create a
+    /// `ServiceError` with parsed CBOR problem details. Other error kinds
+    /// become `HttpError`.
+    pub fn from_azure_error(error: azure_core::Error) -> Self {
+        if let azure_core::error::ErrorKind::HttpResponse { status, raw_response, .. } = error.kind() {
+            let http_status = u16::from(*status);
+            if let Some(raw) = raw_response {
+                let ct = raw.headers().get_optional_string(
+                    &azure_core::http::headers::CONTENT_TYPE,
+                );
+                let body = raw.body().as_ref();
+                return Self::from_http_response(http_status, ct.as_deref(), body);
+            }
+            return CodeTransparencyError::ServiceError {
+                http_status,
+                problem_details: None,
+                message: format!("MST service returned HTTP {}", http_status),
+            };
+        }
+        CodeTransparencyError::HttpError(error.to_string())
+    }
 }
 
-impl fmt::Display for MstClientError {
+impl fmt::Display for CodeTransparencyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MstClientError::HttpError(msg) => write!(f, "HTTP error: {}", msg),
-            MstClientError::CborParseError(msg) => write!(f, "CBOR parse error: {}", msg),
-            MstClientError::OperationTimeout {
+            CodeTransparencyError::HttpError(msg) => write!(f, "HTTP error: {}", msg),
+            CodeTransparencyError::CborParseError(msg) => write!(f, "CBOR parse error: {}", msg),
+            CodeTransparencyError::OperationTimeout {
                 operation_id,
                 retries,
             } => {
@@ -101,7 +126,7 @@ impl fmt::Display for MstClientError {
                     operation_id, retries
                 )
             }
-            MstClientError::OperationFailed {
+            CodeTransparencyError::OperationFailed {
                 operation_id,
                 status,
             } => {
@@ -111,14 +136,14 @@ impl fmt::Display for MstClientError {
                     operation_id, status
                 )
             }
-            MstClientError::MissingField { field } => {
+            CodeTransparencyError::MissingField { field } => {
                 write!(f, "Missing required field: {}", field)
             }
-            MstClientError::ServiceError { message, .. } => {
+            CodeTransparencyError::ServiceError { message, .. } => {
                 write!(f, "{}", message)
             }
         }
     }
 }
 
-impl std::error::Error for MstClientError {}
+impl std::error::Error for CodeTransparencyError {}

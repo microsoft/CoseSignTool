@@ -356,6 +356,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 
 [[package]]
+name = "code_transparency_client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "azure_core",
+ "cbor_primitives",
+ "cbor_primitives_everparse",
+ "code_transparency_client",
+ "cose_sign1_primitives",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -572,6 +586,7 @@ dependencies = [
  "cbor_primitives",
  "cbor_primitives_everparse",
  "clap",
+ "code_transparency_client",
  "cose_primitives",
  "cose_sign1_azure_artifact_signing",
  "cose_sign1_azure_key_vault",
@@ -729,6 +744,7 @@ dependencies = [
  "azure_core",
  "cbor_primitives",
  "cbor_primitives_everparse",
+ "code_transparency_client",
  "cose_sign1_primitives",
  "cose_sign1_signing",
  "cose_sign1_transparent_mst",
@@ -749,6 +765,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cbor_primitives_everparse",
+ "code_transparency_client",
  "cose_sign1_transparent_mst",
  "cose_sign1_validation",
  "cose_sign1_validation_ffi",

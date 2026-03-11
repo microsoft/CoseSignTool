@@ -47,7 +47,7 @@ fn test_verify_receipt_wrong_vds() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -97,7 +97,7 @@ fn test_verify_receipt_unsupported_alg() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -126,7 +126,7 @@ fn test_verify_receipt_missing_alg() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -164,7 +164,7 @@ fn test_verify_receipt_missing_kid() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -206,7 +206,7 @@ fn test_verify_receipt_missing_issuer() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -254,7 +254,7 @@ fn test_verify_receipt_missing_vds() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -273,7 +273,7 @@ fn test_verify_receipt_invalid_cbor() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
 
     let result = verify_mst_receipt(input);
@@ -292,7 +292,7 @@ fn test_verify_receipt_empty_bytes() {
         offline_jwks_json: None,
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
 
     let result = verify_mst_receipt(input);
@@ -342,7 +342,7 @@ fn test_verify_receipt_no_offline_jwks_no_network() {
         offline_jwks_json: None, // no offline JWKS
         allow_network_fetch: false, // no network fetch
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -406,7 +406,7 @@ fn test_verify_receipt_jwk_not_found() {
         offline_jwks_json: Some(jwks_json),
         allow_network_fetch: false, // no network fallback
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -463,7 +463,7 @@ fn test_verify_receipt_invalid_statement_bytes() {
         offline_jwks_json: Some(r#"{"keys":[]}"#),
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -509,7 +509,7 @@ fn test_verify_receipt_es384_algorithm() {
         offline_jwks_json: Some(r#"{"keys":[]}"#),
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -569,7 +569,7 @@ fn test_verify_receipt_with_vdp_header() {
         offline_jwks_json: Some(r#"{"keys":[]}"#),
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);
@@ -616,7 +616,7 @@ fn test_verify_receipt_missing_cwt_issuer() {
         offline_jwks_json: Some(r#"{"keys":[]}"#),
         allow_network_fetch: false,
         jwks_api_version: None,
-        http: None,
+        client: None,
     };
     
     let result = verify_mst_receipt(input);

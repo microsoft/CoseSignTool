@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use code_transparency_client::CodeTransparencyClient;
 use cose_sign1_signing::transparency::{
     TransparencyProvider, TransparencyValidationResult, TransparencyError,
     extract_receipts,
@@ -11,11 +12,11 @@ use crate::validation::receipt_verify::{verify_mst_receipt, ReceiptVerifyInput};
 /// MST transparency provider.
 /// Maps V2 `MstTransparencyProvider` extending `TransparencyProviderBase`.
 pub struct MstTransparencyProvider {
-    client: super::client::MstTransparencyClient,
+    client: CodeTransparencyClient,
 }
 
 impl MstTransparencyProvider {
-    pub fn new(client: super::client::MstTransparencyClient) -> Self {
+    pub fn new(client: CodeTransparencyClient) -> Self {
         Self { client }
     }
 }
@@ -47,7 +48,7 @@ impl TransparencyProvider for MstTransparencyProvider {
                 offline_jwks_json: None,
                 allow_network_fetch: true,
                 jwks_api_version: None,
-                http: None,
+                client: Some(&self.client),
             };
             if let Ok(result) = verify_mst_receipt(input) {
                 if result.trusted {

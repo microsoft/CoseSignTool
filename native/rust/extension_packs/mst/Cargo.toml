@@ -20,6 +20,7 @@ serde_json.workspace = true
 azure_core.workspace = true
 tokio.workspace = true
 
+code_transparency_client = { path = "client" }
 cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
 cose_sign1_signing = { path = "../../signing/core" }
 cose_sign1_validation = { path = "../../validation/core" }
@@ -29,6 +30,7 @@ cbor_primitives = { path = "../../primitives/cbor" }
 [dev-dependencies]
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+code_transparency_client = { path = "client" }
 cose_sign1_transparent_mst = { path = ".", features = ["test-utils"] }
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

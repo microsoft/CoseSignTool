@@ -6,17 +6,18 @@
 //! Microsoft Supply Chain Transparency (MST) support pack for COSE_Sign1.
 //!
 //! This crate provides validation support for transparent signing receipts
-//! emitted by Microsoft's transparent signing infrastructure.
+//! emitted by Microsoft's transparent signing infrastructure, and a
+//! transparency provider that wraps the `code_transparency_client` crate.
 //!
 //! ## Modules
 //!
 //! - [`validation`] — Trust facts, fluent extensions, trust pack, receipt verification
-//! - [`signing`] — REST client for MST transparency service
+//! - [`signing`] — Transparency provider integrating with the Azure SDK client
 
-// HTTP client
-pub mod http_client;
+// Re-export the Azure SDK client crate
+pub use code_transparency_client;
 
-// Signing support
+// Signing support (transparency provider wrapping the client)
 pub mod signing;
 
 // Validation support

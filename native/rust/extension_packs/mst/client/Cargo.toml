@@ -1,0 +1,27 @@
+[package]
+name = "code_transparency_client"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+[features]
+test-utils = []
+
+[dependencies]
+azure_core.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+url.workspace = true
+cbor_primitives = { path = "../../../primitives/cbor" }
+cose_sign1_primitives = { path = "../../../primitives/cose/sign1" }
+
+[dev-dependencies]
+cbor_primitives = { path = "../../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse" }
+code_transparency_client = { path = ".", features = ["test-utils"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

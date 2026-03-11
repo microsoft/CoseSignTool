@@ -1,25 +1,25 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_transparent_mst::signing::error::MstClientError;
+use code_transparency_client::CodeTransparencyError;
 
 #[test]
 fn test_mst_client_error_http_error_display() {
-    let error = MstClientError::HttpError("connection refused".to_string());
+    let error = CodeTransparencyError::HttpError("connection refused".to_string());
     let display = format!("{}", error);
     assert_eq!(display, "HTTP error: connection refused");
 }
 
 #[test]
 fn test_mst_client_error_cbor_parse_error_display() {
-    let error = MstClientError::CborParseError("invalid encoding".to_string());
+    let error = CodeTransparencyError::CborParseError("invalid encoding".to_string());
     let display = format!("{}", error);
     assert_eq!(display, "CBOR parse error: invalid encoding");
 }
 
 #[test]
 fn test_mst_client_error_operation_timeout_display() {
-    let error = MstClientError::OperationTimeout {
+    let error = CodeTransparencyError::OperationTimeout {
         operation_id: "op-123".to_string(),
         retries: 5,
     };
@@ -29,7 +29,7 @@ fn test_mst_client_error_operation_timeout_display() {
 
 #[test]
 fn test_mst_client_error_operation_failed_display() {
-    let error = MstClientError::OperationFailed {
+    let error = CodeTransparencyError::OperationFailed {
         operation_id: "op-456".to_string(),
         status: "Failed".to_string(),
     };
@@ -39,7 +39,7 @@ fn test_mst_client_error_operation_failed_display() {
 
 #[test]
 fn test_mst_client_error_missing_field_display() {
-    let error = MstClientError::MissingField {
+    let error = CodeTransparencyError::MissingField {
         field: "EntryId".to_string(),
     };
     let display = format!("{}", error);
@@ -48,7 +48,7 @@ fn test_mst_client_error_missing_field_display() {
 
 #[test]
 fn test_mst_client_error_debug() {
-    let error = MstClientError::HttpError("test message".to_string());
+    let error = CodeTransparencyError::HttpError("test message".to_string());
     let debug_str = format!("{:?}", error);
     assert!(debug_str.contains("HttpError"));
     assert!(debug_str.contains("test message"));
@@ -56,7 +56,7 @@ fn test_mst_client_error_debug() {
 
 #[test]
 fn test_mst_client_error_is_std_error() {
-    let error = MstClientError::OperationTimeout {
+    let error = CodeTransparencyError::OperationTimeout {
         operation_id: "test".to_string(),
         retries: 3,
     };

@@ -22,12 +22,18 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Transparent;
 using CoseSign1.Transparent.Extensions;
 using CoseSign1.Transparent.MST;
-using CoseSign1.Transparent.MST.Extensions;
 ```
+
+> **Note:** Extension methods on `CodeTransparencyClient` and `CodeTransparencyClientOptions`
+> are placed in the `Azure.Security.CodeTransparency` namespace and are available automatically
+> without any additional `using` statements.
 
 ## Features  
 - **Transparent Message Creation**: Register a message with a transparency service and embed receipts.
 - **Verification**: Verify embedded receipts (and/or specific receipts) against a transparency service.
+- **TransactionNotCached Fast Retry**: Automatic aggressive retry for the MST `GetEntryStatement` 503 pattern.
+- **Polling Options**: Configurable polling intervals and custom delay strategies for long-running operations.
+- **CBOR Problem Details**: RFC 9290 error parsing for MST service error responses.
 
 ## Usage
 
@@ -75,6 +81,34 @@ public class TransparencyExample
 }
 ```
 
+#### <u>Example: Creating a Transparent Message with Polling Options</u>
+```csharp
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent;
+using CoseSign1.Transparent.Extensions;
+using CoseSign1.Transparent.MST;
+
+public class TransparencyWithPollingExample
+{
+    public async Task CreateTransparentMessageWithPolling(CodeTransparencyClient client)
+    {
+        CoseSign1Message message = new CoseSign1Message { Content = new byte[] { 1, 2, 3 } };
+
+        var pollingOptions = new MstPollingOptions
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(250)
+        };
+
+        // Extension method with polling options — no extra 'using' needed
+        TransparencyService service = client.ToCoseSign1TransparencyService(
+            pollingOptions,
+            logVerbose: Console.WriteLine);
+
+        CoseSign1Message result = await message.MakeTransparentAsync(service);
+    }
+}
+```
+
 ### 2. Verifying Transparency
 To verify transparency for a COSE Sign1 message, use `VerifyTransparencyAsync`.
 
@@ -86,7 +120,6 @@ using System.Threading.Tasks;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
 using CoseSign1.Transparent.Extensions;
-using CoseSign1.Transparent.MST.Extensions;
 
 public class TransparencyExample
 {
@@ -108,7 +141,6 @@ using System.Security.Cryptography.Cose;
 using System.Threading.Tasks;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
-using CoseSign1.Transparent.MST.Extensions;
 
 public class TransparencyExample
 {
@@ -247,6 +279,97 @@ var service = new MyTransparencyService(
 #### Common Exceptions
 - `InvalidOperationException`: Thrown when attempting to create or verify a transparent message without the necessary metadata.
 - `ArgumentNullException`: Thrown when required parameters are null.
+- `MstServiceException`: Thrown when the MST service returns an error. Includes parsed CBOR problem details (RFC 9290) when available.
+
+##### <b>Example: Catching MstServiceException</b>
+```csharp
+try
+{
+    var result = await message.MakeTransparentAsync(transparencyService);
+}
+catch (MstServiceException ex)
+{
+    Console.WriteLine($"MST error: {ex.Message}");
+    if (ex.ProblemDetails != null)
+    {
+        Console.WriteLine($"  Status: {ex.StatusCode}");
+        Console.WriteLine($"  Detail: {ex.ProblemDetails.Detail}");
+    }
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine($"Invalid operation: {ex.Message}");
+}
+```
+
+### TransactionNotCached Fast Retry Policy
+
+The MST service returns HTTP 503 with `Retry-After: 1` when a newly registered entry hasn't
+propagated yet (`TransactionNotCached`). The entry typically becomes available in well under
+1 second, but the Azure SDK's default retry respects the server's 1-second `Retry-After` header.
+
+The `MstTransactionNotCachedPolicy` solves this by performing its own fast retry loop
+(250 ms intervals, up to 8 retries ≈ 2 seconds) that only targets this specific error.
+All other requests pass through untouched.
+
+#### <u>Enabling the Policy via Extension Method</u>
+```csharp
+var options = new CodeTransparencyClientOptions();
+options.ConfigureTransactionNotCachedRetry();  // 250ms × 8 retries (default)
+var client = new CodeTransparencyClient(endpoint, credential, options);
+```
+
+#### <u>Custom Retry Settings</u>
+```csharp
+var options = new CodeTransparencyClientOptions();
+options.ConfigureTransactionNotCachedRetry(
+    retryDelay: TimeSpan.FromMilliseconds(100),  // faster polling
+    maxRetries: 16);                              // longer window
+```
+
+#### <u>Manual Policy Registration</u>
+```csharp
+var options = new CodeTransparencyClientOptions();
+options.AddPolicy(
+    new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(200), 10),
+    HttpPipelinePosition.PerRetry);
+```
+
+> **Important:** This policy does **not** affect the SDK's global `RetryOptions`. The fast
+> retry loop runs entirely within the policy and only targets HTTP 503 responses to
+> `GET /entries/` requests containing a `TransactionNotCached` CBOR error code.
+
+### Polling Options
+
+The `MstPollingOptions` class controls how `MstTransparencyService` polls for completed
+receipt registrations after `CreateEntryAsync`.
+
+#### <u>Fixed Interval Polling</u>
+```csharp
+var pollingOptions = new MstPollingOptions
+{
+    PollingInterval = TimeSpan.FromSeconds(2)
+};
+var service = new MstTransparencyService(client, pollingOptions);
+```
+
+#### <u>Via Extension Method</u>
+```csharp
+TransparencyService service = client.ToCoseSign1TransparencyService(
+    pollingOptions,
+    logVerbose: Console.WriteLine,
+    logError: Console.Error.WriteLine);
+```
+
+#### <u>Custom Delay Strategy</u>
+```csharp
+var pollingOptions = new MstPollingOptions
+{
+    DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(500))
+};
+```
+
+> If both `DelayStrategy` and `PollingInterval` are set, `DelayStrategy` takes precedence.
 
 ##### <b>Example:</b>
 ```csharp

@@ -14,7 +14,6 @@ using Azure;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
 using CoseSign1.Transparent.Extensions;
-using CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Provides an implementation of the <see cref="TransparencyService"/> base class using Microsoft's Signing Transparency (MST).

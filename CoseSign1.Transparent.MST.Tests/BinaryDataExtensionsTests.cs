@@ -4,7 +4,6 @@
 namespace CoseSign1.Transparent.MST.Tests;
 
 using System.Formats.Cbor;
-using CoseSign1.Transparent.MST.Extensions;
 
 /// <summary>
 /// Unit tests for the <see cref="BinaryDataExtensions"/> class.

@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.MST.Extensions;
+namespace Azure.Security.CodeTransparency;
 
 using System;
-using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
+using CoseSign1.Transparent.MST;
 
 /// <summary>
 /// Provides extension methods for working with the <see cref="CodeTransparencyClient"/> 
@@ -63,5 +63,33 @@ public static class MstTransparencyServiceExtensions
         }
 
         return new MstTransparencyService(client, null, null, logVerbose, logWarning, logError);
+    }
+
+    /// <summary>
+    /// Converts a <see cref="CodeTransparencyClient"/> instance into a <see cref="TransparencyService"/> implementation
+    /// with polling options and logging support.
+    /// </summary>
+    /// <param name="client">The <see cref="CodeTransparencyClient"/> to be converted.</param>
+    /// <param name="pollingOptions">Options controlling the polling behavior for long-running operations.</param>
+    /// <param name="logVerbose">Optional callback for verbose logging.</param>
+    /// <param name="logWarning">Optional callback for warning logging.</param>
+    /// <param name="logError">Optional callback for error logging.</param>
+    /// <returns>
+    /// An instance of <see cref="TransparencyService"/> that wraps the provided <see cref="CodeTransparencyClient"/>.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="client"/> is <c>null</c>.</exception>
+    public static TransparencyService ToCoseSign1TransparencyService(
+        this CodeTransparencyClient client,
+        MstPollingOptions? pollingOptions,
+        Action<string>? logVerbose = null,
+        Action<string>? logWarning = null,
+        Action<string>? logError = null)
+    {
+        if (client == null)
+        {
+            throw new ArgumentNullException(nameof(client));
+        }
+
+        return new MstTransparencyService(client, null, null, pollingOptions, null, logVerbose, logWarning, logError);
     }
 }

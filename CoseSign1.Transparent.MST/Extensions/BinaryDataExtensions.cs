@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Transparent.MST.Extensions;
+namespace System;
 
 using System;
 using System.Formats.Cbor;

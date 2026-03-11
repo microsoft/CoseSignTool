@@ -1,6 +1,6 @@
 # [CoseSign1.Certificates.AzureArtifactSigning](https://github.com/microsoft/CoseSignTool/tree/main/CoseSign1.Certificates.AzureArtifactSigning)  
 
-**CoseSign1.Certificates.AzureArtifactSigning** is a .NET 8.0 library that provides an implementation of the `CertificateCoseSigningKeyProvider` class for Azure Trusted Signing. This library integrates with the Azure Trusted Signing service to provide signing certificates, certificate chains, and cryptographic keys.
+**CoseSign1.Certificates.AzureArtifactSigning** is a .NET 8.0 library that provides an implementation of the `CertificateCoseSigningKeyProvider` class for Azure Artifact Signing. This library integrates with the Azure Artifact Signing service to provide signing certificates, certificate chains, and cryptographic keys.
 
 ## Requirements
 - **.NET 8.0 Runtime**: This library requires .NET 8.0 or later.
@@ -58,7 +58,7 @@ Where:
 The generator detects any EKU starting with the **Microsoft reserved prefix `1.3.6.1.4.1.311`**. When Microsoft EKUs are present, an EKU-based DID is generated. When no Microsoft EKUs are found, the generator falls back to the standard subject-based DID format.
 
 #### Deepest Greatest EKU Selection
-When multiple Microsoft EKUs are present in an Azure Trusted Signing certificate, the "deepest greatest" EKU is selected using:
+When multiple Microsoft EKUs are present in an Azure Artifact Signing certificate, the "deepest greatest" EKU is selected using:
 1. **Depth Priority**: EKU with the most OID segments (e.g., `1.3.6.1.4.1.311.20.30` has 9 segments)
 2. **Last Segment Tiebreaker**: If multiple EKUs have the same depth, the one with the largest last segment value is selected
 
@@ -68,7 +68,7 @@ When multiple Microsoft EKUs are present in an Azure Trusted Signing certificate
 
 ### Implementation Details
 
-The Azure Trusted Signing provider uses [`AzureTrustedSigningDidX509Generator`](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningDidX509Generator.cs), which:
+The Azure Artifact Signing provider uses [`AzureArtifactSigningDidX509Generator`](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureArtifactSigning/AzureArtifactSigningDidX509Generator.cs), which:
 - Extends the base `DidX509Generator` class and reuses its hash computation and formatting
 - Calls the base class once to generate the properly formatted DID with subject policy
 - Detects Microsoft EKUs (starting with `1.3.6.1.4.1.311`) in the leaf certificate
@@ -84,17 +84,17 @@ The Azure Trusted Signing provider uses [`AzureTrustedSigningDidX509Generator`](
 did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:CN:MyCompany:O:Example
 ```
 
-**With Microsoft EKU (Azure Trusted Signing specific format):**
+**With Microsoft EKU (Azure Artifact Signing specific format):**
 ```
 did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::eku:1.3.6.1.4.1.311.10.3.13
 ```
 
 Note the base64url-encoded hash is exactly 43 characters for SHA256 (not 64-character hex encoding).
 
-This enhanced format provides additional identity context for Azure Trusted Signing certificates, enabling better audit trails and certificate policy identification in SCITT-compliant systems.
+This enhanced format provides additional identity context for Azure Artifact Signing certificates, enabling better audit trails and certificate policy identification in SCITT-compliant systems.
 
 ## Plugin Integration
-For command-line usage, this library is integrated into CoseSignTool through the **CoseSignTool.AzureTrustedSigning.Plugin**. The plugin automatically handles:
+For command-line usage, this library is integrated into CoseSignTool through the **CoseSignTool.AzureArtifactSigning.Plugin**. The plugin automatically handles:
 - Azure authentication via `DefaultAzureCredential`
 - Certificate retrieval and chain building
 - Signing operations with cloud-based keys
@@ -107,7 +107,7 @@ See the [CoseSignTool documentation](https://github.com/microsoft/CoseSignTool) 
 ```csharp
 using System;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
-using CoseSign1.Certificates.AzureTrustedSigning;
+using CoseSign1.Certificates.AzureArtifactSigning;
 
 public class Example
 {
@@ -120,9 +120,9 @@ public class Example
         AzSignContext signContext = new AzSignContext();
 
         // Create the signing key provider
-        AzureTrustedSigningCoseSigningKeyProvider keyProvider = new AzureTrustedSigningCoseSigningKeyProvider(signContext);
+        AzureArtifactSigningCoseSigningKeyProvider keyProvider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
 
-        Console.WriteLine("Azure Trusted Signing key provider created successfully.");
+        Console.WriteLine("Azure Artifact Signing key provider created successfully.");
     }
 }
 ```
@@ -130,18 +130,17 @@ public class Example
 ```csharp
 using System;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
-using CoseSign1.Certificates.AzureTrustedSigning;
+using CoseSign1.Certificates.AzureArtifactSigning;
 
 public class Example
 {
     public void GetSigningCertificate()
     {
-        // Initialize the Azure Trusted Signing context
+        // Initialize the Azure Artifact Signing context
         AzSignContext signContext = new AzSignContext();
 
         // Create the signing key provider
-        AzureTrustedSigningCoseSigningKeyProvider keyProvider = new AzureTrustedSigningCoseSigningKeyProvider(signContext);
-
+        AzureArtifactSigningCoseSigningKeyProvider keyProvider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
         // Retrieve the signing certificate
         var signingCertificate = keyProvider.GetSigningCertificate();
 
@@ -154,18 +153,18 @@ public class Example
 using System;
 using System.Linq;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
-using CoseSign1.Certificates.AzureTrustedSigning;
+using CoseSign1.Certificates.AzureArtifactSigning;
 using System.Security.Cryptography.X509Certificates;
 
 public class Example
 {
     public void GetCertificateChain()
     {
-        // Initialize the Azure Trusted Signing context
+        // Initialize the Azure Artifact Signing context
         AzSignContext signContext = new AzSignContext();
 
         // Create the signing key provider
-        AzureTrustedSigningCoseSigningKeyProvider keyProvider = new AzureTrustedSigningCoseSigningKeyProvider(signContext);
+        AzureArtifactSigningCoseSigningKeyProvider keyProvider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
 
         // Retrieve the certificate chain in leaf-first order
         var certificateChain = keyProvider.GetCertificateChain(X509ChainSortOrder.LeafFirst).ToList();
@@ -181,19 +180,19 @@ public class Example
 ### Using RSA for Signing
 ```csharp
 using System;
-using Azure.Developer.TrustedSigning.CryptoProvider;
-using CoseSign1.Certificates.AzureTrustedSigning;
+using Azure.Developer.ArtifactSigning.CryptoProvider;
+using CoseSign1.Certificates.AzureArtifactSigning;
 using System.Security.Cryptography;
 
 public class Example
 {
     public void UseRSAKey()
     {
-        // Initialize the Azure Trusted Signing context
+        // Initialize the Azure Artifact Signing context
         AzSignContext signContext = new AzSignContext();
 
         // Create the signing key provider
-        AzureTrustedSigningCoseSigningKeyProvider keyProvider = new AzureTrustedSigningCoseSigningKeyProvider(signContext);
+        AzureArtifactSigningCoseSigningKeyProvider keyProvider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
 
         // Retrieve the RSA key
         RSA rsaKey = keyProvider.ProvideRSAKey();
@@ -204,12 +203,12 @@ public class Example
 ```
 ## Advanced: Custom DID Generation
 
-While the default EKU-based DID generation is suitable for most scenarios, you can customize the behavior by inheriting from `AzureTrustedSigningDidX509Generator`:
+While the default EKU-based DID generation is suitable for most scenarios, you can customize the behavior by inheriting from `AzureArtifactSigningDidX509Generator`:
 
 ```csharp
-using CoseSign1.Certificates.AzureTrustedSigning;
+using CoseSign1.Certificates.AzureArtifactSigning;
 
-public class CustomAzureDidGenerator : AzureTrustedSigningDidX509Generator
+public class CustomAzureDidGenerator : AzureArtifactSigningDidX509Generator
 {
     // Override to customize EKU extraction logic
     protected override List<string> ExtractEkus(X509Certificate2 certificate)
@@ -228,13 +227,13 @@ public class CustomAzureDidGenerator : AzureTrustedSigningDidX509Generator
 ```
 
 ## Limitations
-- **ECDsa Not Supported**: The `ProvideECDsaKey` method is not supported for Azure Trusted Signing and will throw a `NotSupportedException`.
+- **ECDsa Not Supported**: The `ProvideECDsaKey` method is not supported for Azure Artifact Signing and will throw a `NotSupportedException`.
 - **.NET 8.0 Only**: This library requires .NET 8.0 runtime and is not compatible with .NET Standard 2.0 or earlier .NET versions.
-- **RSA Only**: Only RSA-based signing algorithms are supported by Azure Trusted Signing.
-- **Cloud Connectivity Required**: Active internet connection to Azure Trusted Signing service is required for all signing operations.
-- **DID Format**: The EKU-based DID format is specific to Azure Trusted Signing and may not be recognized by systems expecting standard subject-based DIDs.
+- **RSA Only**: Only RSA-based signing algorithms are supported by Azure Artifact Signing.
+- **Cloud Connectivity Required**: Active internet connection to Azure Artifact Signing service is required for all signing operations.
+- **DID Format**: The EKU-based DID format is specific to Azure Artifact Signing and may not be recognized by systems expecting standard subject-based DIDs.
 ## Conclusion
-The [AzureTrustedSigningCoseSigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningCoseSigningKeyProvider.cs) class provides a robust integration with the Azure Trusted Signing service, enabling seamless retrieval of signing certificates, certificate chains, and RSA keys. It is a powerful tool for creating and managing CoseSign1Message objects in environments that leverage Azure Trusted Signing.
+The [AzureArtifactSigningCoseSigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureArtifactSigning/AzureArtifactSigningCoseSigningKeyProvider.cs) class provides a robust integration with the Azure Artifact Signing service, enabling seamless retrieval of signing certificates, certificate chains, and RSA keys. It is a powerful tool for creating and managing CoseSign1Message objects in environments that leverage Azure Artifact Signing.
 <br/>
 <br/>
 For more information, refer to the [CoseSign1.Certificates](https://github.com/microsoft/CoseSignTool/blob/main/docs/CoseSign1.Certificates.md).

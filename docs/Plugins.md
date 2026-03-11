@@ -1311,7 +1311,7 @@ CoseSignTool.AzureTrustedSigning.Plugin/
 └── [Dependencies copied to plugins/CoseSignTool.AzureTrustedSigning.Plugin/]
     ├── Azure.CodeSigning.dll
     ├── Azure.Core.dll
-    ├── Azure.Developer.TrustedSigning.CryptoProvider.dll
+    ├── Azure.Developer.ArtifactSigning.CryptoProvider.dll
     └── ...
 ```
 

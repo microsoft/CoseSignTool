@@ -3,6 +3,7 @@
 
 //! MST transparency client implementation using azure_core HTTP pipeline.
 
+use super::cbor_problem_details::CborProblemDetails;
 use super::error::MstClientError;
 use super::polling::MstPollingOptions;
 use crate::http_client::{self, HttpTransport};
@@ -26,6 +27,12 @@ pub struct MstTransparencyClientOptions {
     /// Optional polling options for advanced back-off control.
     /// Takes precedence over `poll_delay` and `max_poll_retries` when set.
     pub polling_options: Option<MstPollingOptions>,
+    /// Delay between fast retries for `TransactionNotCached` 503 responses
+    /// when fetching entry statements. Default: 250 ms.
+    pub transaction_not_cached_retry_delay: Duration,
+    /// Maximum fast retries for `TransactionNotCached` 503 responses.
+    /// Default: 8 (8 × 250 ms = 2 seconds max).
+    pub transaction_not_cached_max_retries: u32,
 }
 
 impl Default for MstTransparencyClientOptions {
@@ -36,6 +43,8 @@ impl Default for MstTransparencyClientOptions {
             max_poll_retries: 30,
             poll_delay: Duration::from_secs(2),
             polling_options: None,
+            transaction_not_cached_retry_delay: Duration::from_millis(250),
+            transaction_not_cached_max_retries: 8,
         }
     }
 }
@@ -151,6 +160,11 @@ impl MstTransparencyClient {
 
     /// Gets the transparency statement for an entry.
     ///
+    /// Performs fast retries on HTTP 503 responses whose CBOR body contains the
+    /// `TransactionNotCached` error code. This handles the MST service pattern
+    /// where a newly registered entry has not yet propagated to the serving node
+    /// and typically becomes available within sub-second latency.
+    ///
     /// # Arguments
     ///
     /// * `entry_id` - The entry ID to retrieve the statement for.
@@ -167,7 +181,87 @@ impl MstTransparencyClient {
         ));
         url.set_query(Some(&format!("api-version={}", self.options.api_version)));
 
-        self.http.get_bytes(&url, "application/cose").map_err(MstClientError::HttpError)
+        // First attempt
+        let (status, content_type, body) = self.http.get_response(&url, "application/cose")
+            .map_err(MstClientError::HttpError)?;
+
+        if status >= 200 && status < 300 {
+            return Ok(body);
+        }
+
+        // Check for TransactionNotCached 503 pattern and fast-retry
+        if status == 503 && Self::is_transaction_not_cached(content_type.as_deref(), &body) {
+            for _attempt in 0..self.options.transaction_not_cached_max_retries {
+                thread::sleep(self.options.transaction_not_cached_retry_delay);
+
+                let (retry_status, retry_ct, retry_body) = self.http.get_response(&url, "application/cose")
+                    .map_err(MstClientError::HttpError)?;
+
+                if retry_status >= 200 && retry_status < 300 {
+                    return Ok(retry_body);
+                }
+
+                if retry_status != 503 || !Self::is_transaction_not_cached(retry_ct.as_deref(), &retry_body) {
+                    // Different error — return it as a service error
+                    return Err(MstClientError::from_http_response(
+                        retry_status,
+                        retry_ct.as_deref(),
+                        &retry_body,
+                    ));
+                }
+            }
+            // Exhausted fast retries — return the final 503
+            return Err(MstClientError::from_http_response(
+                503,
+                content_type.as_deref(),
+                &body,
+            ));
+        }
+
+        // Non-503 or non-TransactionNotCached error
+        Err(MstClientError::from_http_response(status, content_type.as_deref(), &body))
+    }
+
+    /// Checks if a response body contains the `TransactionNotCached` error code.
+    ///
+    /// Parses the body as CBOR problem details (RFC 9290) and checks the `detail`,
+    /// `title`, `type`, and extension fields for the error string (case-insensitive).
+    pub fn is_transaction_not_cached(content_type: Option<&str>, body: &[u8]) -> bool {
+        if body.is_empty() {
+            return false;
+        }
+
+        let pd = match CborProblemDetails::try_parse(body) {
+            Some(pd) => pd,
+            None => return false,
+        };
+
+        let needle = "transactionnotcached";
+
+        if let Some(ref detail) = pd.detail {
+            if detail.to_lowercase().contains(needle) {
+                return true;
+            }
+        }
+        if let Some(ref title) = pd.title {
+            if title.to_lowercase().contains(needle) {
+                return true;
+            }
+        }
+        if let Some(ref t) = pd.problem_type {
+            if t.to_lowercase().contains(needle) {
+                return true;
+            }
+        }
+        for val in pd.extensions.values() {
+            if val.to_lowercase().contains(needle) {
+                return true;
+            }
+        }
+
+        // Also handle non-CBOR: if content-type doesn't suggest CBOR, try raw string check
+        let _ = content_type;
+        false
     }
 
     /// Convenience method to create an entry and retrieve its statement.

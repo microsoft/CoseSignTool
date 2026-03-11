@@ -264,9 +264,19 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
 
             return false;
         }
-        catch (Exception)
+        catch (IOException)
         {
-            // Any parsing failure means we can't confirm it's TransactionNotCached — don't retry.
+            // Stream read/seek failure — can't confirm it's TransactionNotCached, don't retry.
+            return false;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Response stream was disposed — can't confirm it's TransactionNotCached, don't retry.
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            // Stream doesn't support seek/read — can't confirm it's TransactionNotCached, don't retry.
             return false;
         }
     }

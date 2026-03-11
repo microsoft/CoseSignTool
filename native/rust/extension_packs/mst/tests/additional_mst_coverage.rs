@@ -645,7 +645,7 @@ fn client_options_custom() {
         api_key: Some("my-api-key".to_string()),
         max_poll_retries: 5,
         poll_delay: Duration::from_millis(100),
-    };
+    polling_options: None, };
     assert_eq!(opts.api_version, "2025-06-01");
     assert_eq!(opts.api_key.as_deref(), Some("my-api-key"));
     assert_eq!(opts.max_poll_retries, 5);

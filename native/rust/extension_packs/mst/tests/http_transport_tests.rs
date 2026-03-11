@@ -68,7 +68,7 @@ fn test_mock_http_transport_get_string() {
 fn test_mock_http_transport_post_bytes() {
     let mut mock = MockHttpTransport::new();
     let url = Url::parse("https://example.com/test").unwrap();
-    let expected_response = (200u16, b"success".to_vec());
+    let expected_response = (200u16, None::<String>, b"success".to_vec());
     
     mock.post_responses.insert(
         url.to_string(), 

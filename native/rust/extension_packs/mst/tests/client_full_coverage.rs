@@ -65,7 +65,7 @@ fn test_create_entry_success() {
     let post_response_body = create_mock_cbor_map(vec![("OperationId", "op-123")]);
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((202, post_response_body))
+        Ok((202, None, post_response_body))
     );
     
     // Mock GET responses for polling (first in progress, then success)
@@ -113,14 +113,14 @@ fn test_create_entry_http_status_error() {
     // Mock POST with error status
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((500, b"Internal Server Error".to_vec()))
+        Ok((500, None, b"Internal Server Error".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
     let cose_bytes = b"mock cose data";
     
     let result = client.create_entry(cose_bytes);
-    assert!(matches!(result, Err(MstClientError::HttpError(_))));
+    assert!(matches!(result, Err(MstClientError::ServiceError { http_status: 500, .. })));
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn test_create_entry_missing_operation_id() {
     let post_response_body = create_mock_cbor_map(vec![("Status", "Created")]);
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((202, post_response_body))
+        Ok((202, None, post_response_body))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
@@ -156,7 +156,7 @@ fn test_poll_operation_timeout() {
     let post_response_body = create_mock_cbor_map(vec![("OperationId", "op-timeout")]);
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((202, post_response_body))
+        Ok((202, None, post_response_body))
     );
     
     // Mock GET responses that never complete
@@ -184,7 +184,7 @@ fn test_poll_operation_failed() {
     let post_response_body = create_mock_cbor_map(vec![("OperationId", "op-failed")]);
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((202, post_response_body))
+        Ok((202, None, post_response_body))
     );
     
     // Mock GET response with failed status
@@ -247,7 +247,7 @@ fn test_make_transparent_success() {
     let post_response_body = create_mock_cbor_map(vec![("OperationId", "op-transparent")]);
     mock_http.post_responses.insert(
         "https://transparency.example.com/entries?api-version=2024-01-01".to_string(),
-        Ok((202, post_response_body))
+        Ok((202, None, post_response_body))
     );
     
     // Mock GET response for polling

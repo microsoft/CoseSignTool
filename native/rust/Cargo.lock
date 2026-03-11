@@ -731,6 +731,7 @@ dependencies = [
  "cbor_primitives_everparse",
  "cose_sign1_primitives",
  "cose_sign1_signing",
+ "cose_sign1_transparent_mst",
  "cose_sign1_validation",
  "cose_sign1_validation_primitives",
  "once_cell",

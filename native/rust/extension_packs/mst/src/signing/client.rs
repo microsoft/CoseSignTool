@@ -4,6 +4,7 @@
 //! MST transparency client implementation using azure_core HTTP pipeline.
 
 use super::error::MstClientError;
+use super::polling::MstPollingOptions;
 use crate::http_client::{self, HttpTransport};
 use cbor_primitives::CborDecoder;
 use std::thread;
@@ -20,8 +21,11 @@ pub struct MstTransparencyClientOptions {
     pub api_key: Option<String>,
     /// Maximum number of polling attempts for operation status.
     pub max_poll_retries: u32,
-    /// Delay between polling attempts.
+    /// Delay between polling attempts (default fixed interval).
     pub poll_delay: Duration,
+    /// Optional polling options for advanced back-off control.
+    /// Takes precedence over `poll_delay` and `max_poll_retries` when set.
+    pub polling_options: Option<MstPollingOptions>,
 }
 
 impl Default for MstTransparencyClientOptions {
@@ -31,6 +35,7 @@ impl Default for MstTransparencyClientOptions {
             api_key: None,
             max_poll_retries: 30,
             poll_delay: Duration::from_secs(2),
+            polling_options: None,
         }
     }
 }
@@ -78,6 +83,18 @@ impl MstTransparencyClient {
         Self { endpoint, options, http }
     }
 
+    /// Builds headers for requests, including the API key if configured.
+    fn build_post_headers(&self) -> Vec<(&'static str, String)> {
+        let mut headers = vec![
+            ("content-type", "application/cose".to_string()),
+            ("accept", "application/cose; application/cbor".to_string()),
+        ];
+        if let Some(ref key) = self.options.api_key {
+            headers.push(("authorization", format!("Bearer {}", key)));
+        }
+        headers
+    }
+
     /// Creates a transparency entry by submitting a COSE_Sign1 message.
     ///
     /// This method:
@@ -98,8 +115,8 @@ impl MstTransparencyClient {
         url.set_path(&format!("{}/entries", url.path().trim_end_matches('/')));
         url.set_query(Some(&format!("api-version={}", self.options.api_version)));
 
-        // POST the COSE bytes
-        let (status, response_body) = self.http.post_bytes(
+        // POST the COSE bytes — include auth header
+        let (status, content_type, response_body) = self.http.post_bytes(
             &url,
             "application/cose",
             "application/cose; application/cbor",
@@ -108,10 +125,11 @@ impl MstTransparencyClient {
         .map_err(MstClientError::HttpError)?;
 
         if status < 200 || status >= 300 {
-            return Err(MstClientError::HttpError(format!(
-                "POST entries returned status {}",
-                status
-            )));
+            return Err(MstClientError::from_http_response(
+                status,
+                content_type.as_deref(),
+                &response_body,
+            ));
         }
 
         // Parse the response to get the operation ID
@@ -169,8 +187,16 @@ impl MstTransparencyClient {
     }
 
     /// Polls an operation until it completes or times out.
+    ///
+    /// Uses `MstPollingOptions` from options if set, otherwise falls back to
+    /// `poll_delay` and `max_poll_retries`.
     fn poll_operation(&self, operation_id: &str) -> Result<String, MstClientError> {
-        for _retry in 0..self.options.max_poll_retries {
+        let max_retries = match &self.options.polling_options {
+            Some(po) => po.effective_max_retries(self.options.max_poll_retries),
+            None => self.options.max_poll_retries,
+        };
+
+        for retry in 0..max_retries {
             let mut url = self.endpoint.clone();
             url.set_path(&format!(
                 "{}/operations/{}",
@@ -200,8 +226,12 @@ impl MstTransparencyClient {
                         });
                     }
                     "Running" => {
-                        // Continue polling
-                        thread::sleep(self.options.poll_delay);
+                        // Compute delay using polling options or fallback
+                        let delay = match &self.options.polling_options {
+                            Some(po) => po.delay_for_retry(retry, self.options.poll_delay),
+                            None => self.options.poll_delay,
+                        };
+                        thread::sleep(delay);
                     }
                     _ => {
                         return Err(MstClientError::OperationFailed {
@@ -219,7 +249,7 @@ impl MstTransparencyClient {
 
         Err(MstClientError::OperationTimeout {
             operation_id: operation_id.to_string(),
-            retries: self.options.max_poll_retries,
+            retries: max_retries,
         })
     }
 }

@@ -3,6 +3,7 @@
 
 //! Error types for MST client operations.
 
+use super::cbor_problem_details::CborProblemDetails;
 use std::fmt;
 
 /// Errors that can occur during MST client operations.
@@ -31,6 +32,58 @@ pub enum MstClientError {
         /// Name of the missing field.
         field: String,
     },
+    /// MST service returned an error with structured CBOR problem details (RFC 9290).
+    ServiceError {
+        /// HTTP status code from the response.
+        http_status: u16,
+        /// Parsed CBOR problem details, if the response body contained them.
+        problem_details: Option<CborProblemDetails>,
+        /// Raw error message (fallback when problem details are unavailable).
+        message: String,
+    },
+}
+
+impl MstClientError {
+    /// Creates a `ServiceError` from an HTTP response.
+    ///
+    /// Attempts to parse the response body as RFC 9290 CBOR problem details
+    /// when the content type indicates CBOR.
+    pub fn from_http_response(
+        http_status: u16,
+        content_type: Option<&str>,
+        body: &[u8],
+    ) -> Self {
+        let is_cbor = content_type
+            .map(|ct| ct.contains("cbor"))
+            .unwrap_or(false);
+
+        let problem_details = if is_cbor {
+            CborProblemDetails::try_parse(body)
+        } else {
+            None
+        };
+
+        let message = if let Some(ref pd) = problem_details {
+            let mut parts = vec![format!("MST service error (HTTP {})", pd.status.unwrap_or(http_status as i64))];
+            if let Some(ref title) = pd.title {
+                parts.push(format!(": {}", title));
+            }
+            if let Some(ref detail) = pd.detail {
+                if pd.title.as_deref() != Some(detail.as_str()) {
+                    parts.push(format!(". {}", detail));
+                }
+            }
+            parts.concat()
+        } else {
+            format!("MST service returned HTTP {}", http_status)
+        };
+
+        MstClientError::ServiceError {
+            http_status,
+            problem_details,
+            message,
+        }
+    }
 }
 
 impl fmt::Display for MstClientError {
@@ -60,6 +113,9 @@ impl fmt::Display for MstClientError {
             }
             MstClientError::MissingField { field } => {
                 write!(f, "Missing required field: {}", field)
+            }
+            MstClientError::ServiceError { message, .. } => {
+                write!(f, "{}", message)
             }
         }
     }

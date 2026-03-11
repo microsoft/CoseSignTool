@@ -15,7 +15,7 @@ fn test_mock_http_transport_construction() {
 fn test_mock_http_transport_debug_format() {
     let mut transport = MockHttpTransport::new();
     transport.get_responses.insert("https://test.com".to_string(), Ok(vec![1, 2, 3]));
-    transport.post_responses.insert("https://api.test.com".to_string(), Ok((200, vec![4, 5, 6])));
+    transport.post_responses.insert("https://api.test.com".to_string(), Ok((200, None, vec![4, 5, 6])));
     
     let debug_str = format!("{:?}", transport);
     assert!(debug_str.contains("MockHttpTransport"));
@@ -103,7 +103,7 @@ fn test_mock_http_transport_get_string_error() {
 fn test_mock_http_transport_post_bytes_success() {
     let mut transport = MockHttpTransport::new();
     let test_url = Url::parse("https://api.example.com/submit").unwrap();
-    let expected_response = (201, vec![7, 8, 9]);
+    let expected_response = (201, None, vec![7, 8, 9]);
     
     transport.post_responses.insert(test_url.as_str().to_string(), Ok(expected_response.clone()));
     
@@ -179,23 +179,23 @@ fn test_mock_http_transport_different_status_codes() {
     let url2 = Url::parse("https://api.example.com/created").unwrap();
     let url3 = Url::parse("https://api.example.com/accepted").unwrap();
     
-    transport.post_responses.insert(url1.as_str().to_string(), Ok((200, vec![1])));
-    transport.post_responses.insert(url2.as_str().to_string(), Ok((201, vec![2])));
-    transport.post_responses.insert(url3.as_str().to_string(), Ok((202, vec![3])));
+    transport.post_responses.insert(url1.as_str().to_string(), Ok((200, None, vec![1])));
+    transport.post_responses.insert(url2.as_str().to_string(), Ok((201, None, vec![2])));
+    transport.post_responses.insert(url3.as_str().to_string(), Ok((202, None, vec![3])));
     
     let body = vec![];
     
     let result1 = transport.post_bytes(&url1, "application/json", "application/json", body.clone()).unwrap();
     assert_eq!(result1.0, 200);
-    assert_eq!(result1.1, vec![1]);
+    assert_eq!(result1.2, vec![1]);
     
     let result2 = transport.post_bytes(&url2, "application/json", "application/json", body.clone()).unwrap();
     assert_eq!(result2.0, 201);
-    assert_eq!(result2.1, vec![2]);
+    assert_eq!(result2.2, vec![2]);
     
     let result3 = transport.post_bytes(&url3, "application/json", "application/json", body.clone()).unwrap();
     assert_eq!(result3.0, 202);
-    assert_eq!(result3.1, vec![3]);
+    assert_eq!(result3.2, vec![3]);
 }
 
 #[test]
@@ -249,7 +249,7 @@ fn test_mock_http_transport_polling_pattern() {
     // POST to create entry returns operation ID
     transport.post_responses.insert(
         entry_url.as_str().to_string(), 
-        Ok((202, b"operation_123".to_vec()))
+        Ok((202, None, b"operation_123".to_vec()))
     );
     
     // GET operation status returns completion
@@ -261,7 +261,7 @@ fn test_mock_http_transport_polling_pattern() {
     // Test the creation POST
     let create_result = transport.post_bytes(&entry_url, "application/cbor", "text/plain", vec![]);
     assert!(create_result.is_ok());
-    let (status, body) = create_result.unwrap();
+    let (status, _ct, body) = create_result.unwrap();
     assert_eq!(status, 202);
     assert_eq!(body, b"operation_123");
     

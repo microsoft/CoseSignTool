@@ -73,7 +73,7 @@ fn test_mst_client_create_entry_success() {
     let entries_url = "https://mst.example.com/entries?api-version=2024-01-01";
     mock_http.post_responses.insert(
         entries_url.to_string(),
-        Ok((202, b"dummy response".to_vec()))
+        Ok((202, None, b"dummy response".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
@@ -132,7 +132,7 @@ fn test_mst_client_create_entry_bad_status() {
     let entries_url = "https://mst.example.com/entries?api-version=2024-01-01";
     mock_http.post_responses.insert(
         entries_url.to_string(),
-        Ok((500, b"Internal Server Error".to_vec()))
+        Ok((500, None, b"Internal Server Error".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
@@ -142,8 +142,8 @@ fn test_mst_client_create_entry_bad_status() {
     
     assert!(result.is_err());
     match result.unwrap_err() {
-        MstClientError::HttpError(msg) => assert!(msg.contains("500")),
-        _ => panic!("Wrong error type"),
+        MstClientError::ServiceError { http_status, .. } => assert_eq!(http_status, 500),
+        other => panic!("Expected ServiceError, got: {:?}", other),
     }
 }
 
@@ -205,7 +205,7 @@ fn test_mst_client_make_transparent_success() {
     let entries_url = "https://mst.example.com/entries?api-version=2024-01-01";
     mock_http.post_responses.insert(
         entries_url.to_string(),
-        Ok((202, b"dummy response".to_vec()))
+        Ok((202, None, b"dummy response".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
@@ -266,7 +266,7 @@ fn test_mst_client_polling_timeout() {
     let entries_url = "https://mst.example.com/entries?api-version=2024-01-01";
     mock_http.post_responses.insert(
         entries_url.to_string(),
-        Ok((202, b"dummy response".to_vec()))
+        Ok((202, None, b"dummy response".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));
@@ -376,7 +376,7 @@ fn test_mst_transparency_provider_add_proof() {
     let entries_url = "https://mst.example.com/entries?api-version=2024-01-01";
     mock_http.post_responses.insert(
         entries_url.to_string(),
-        Ok((202, b"dummy response".to_vec()))
+        Ok((202, None, b"dummy response".to_vec()))
     );
     
     let client = MstTransparencyClient::with_http(endpoint, options, Arc::new(mock_http));

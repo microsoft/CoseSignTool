@@ -22,7 +22,7 @@ fn test_mst_transparency_client_options_construction() {
         api_key: Some("test-key".to_string()),
         max_poll_retries: 10,
         poll_delay: Duration::from_millis(500),
-    };
+    polling_options: None, };
     
     assert_eq!(options.api_version, "2023-05-01");
     assert_eq!(options.api_key, Some("test-key".to_string()));

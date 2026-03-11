@@ -1056,7 +1056,7 @@ use url::Url;
 
 #[derive(Debug)]
 struct MockHttp {
-    responses: Mutex<Vec<Result<(u16, Vec<u8>), String>>>,
+    responses: Mutex<Vec<Result<(u16, Option<String>, Vec<u8>), String>>>,
     string_responses: Mutex<Vec<Result<String, String>>>,
     bytes_responses: Mutex<Vec<Result<Vec<u8>, String>>>,
 }
@@ -1070,7 +1070,7 @@ impl MockHttp {
         }
     }
 
-    fn push_post(&self, resp: Result<(u16, Vec<u8>), String>) {
+    fn push_post(&self, resp: Result<(u16, Option<String>, Vec<u8>), String>) {
         self.responses.lock().unwrap().push(resp);
     }
 
@@ -1100,7 +1100,7 @@ impl HttpTransport for MockHttp {
         _content_type: &str,
         _accept: &str,
         _body: Vec<u8>,
-    ) -> Result<(u16, Vec<u8>), String> {
+    ) -> Result<(u16, Option<String>, Vec<u8>), String> {
         self.responses
             .lock()
             .unwrap()
@@ -1155,7 +1155,7 @@ fn client_create_entry_post_error() {
 #[test]
 fn client_create_entry_non_2xx() {
     let mock = Arc::new(MockHttp::new());
-    mock.push_post(Ok((500, b"error".to_vec())));
+    mock.push_post(Ok((500, None, b"error".to_vec())));
 
     let client = MstTransparencyClient::with_http(
         Url::parse("https://example.com").unwrap(),
@@ -1168,10 +1168,10 @@ fn client_create_entry_non_2xx() {
     );
 
     match client.create_entry(b"cose-bytes") {
-        Err(MstClientError::HttpError(msg)) => {
-            assert!(msg.contains("500"), "got: {}", msg);
+        Err(MstClientError::ServiceError { http_status, .. }) => {
+            assert_eq!(http_status, 500);
         }
-        other => panic!("Expected HttpError with 500, got: {:?}", other),
+        other => panic!("Expected ServiceError with 500, got: {:?}", other),
     }
 }
 
@@ -1180,7 +1180,7 @@ fn client_create_entry_missing_operation_id() {
     let mock = Arc::new(MockHttp::new());
     // 200 OK but no OperationId in CBOR body
     let body = cbor_map_text("SomeOther", "value");
-    mock.push_post(Ok((200, body)));
+    mock.push_post(Ok((200, None, body)));
 
     let client = MstTransparencyClient::with_http(
         Url::parse("https://example.com").unwrap(),
@@ -1206,7 +1206,7 @@ fn client_poll_succeeded() {
 
     // POST returns OperationId
     let post_body = cbor_map_text("OperationId", "op-123");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // Poll returns Succeeded with EntryId
     let poll_body = cbor_map_text_2("Status", "Succeeded", "EntryId", "entry-456");
@@ -1232,7 +1232,7 @@ fn client_poll_failed_status() {
     let mock = Arc::new(MockHttp::new());
 
     let post_body = cbor_map_text("OperationId", "op-fail");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     let poll_body = cbor_map_text("Status", "Failed");
     mock.push_get_bytes(Ok(poll_body));
@@ -1261,7 +1261,7 @@ fn client_poll_unknown_status() {
     let mock = Arc::new(MockHttp::new());
 
     let post_body = cbor_map_text("OperationId", "op-unk");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     let poll_body = cbor_map_text("Status", "Cancelled");
     mock.push_get_bytes(Ok(poll_body));
@@ -1289,7 +1289,7 @@ fn client_poll_missing_status() {
     let mock = Arc::new(MockHttp::new());
 
     let post_body = cbor_map_text("OperationId", "op-no-status");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // Response with no Status field
     let poll_body = cbor_map_text("Other", "data");
@@ -1318,7 +1318,7 @@ fn client_poll_timeout() {
     let mock = Arc::new(MockHttp::new());
 
     let post_body = cbor_map_text("OperationId", "op-timeout");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // All poll responses return Running
     for _ in 0..3 {
@@ -1350,7 +1350,7 @@ fn client_poll_succeeded_missing_entry_id() {
     let mock = Arc::new(MockHttp::new());
 
     let post_body = cbor_map_text("OperationId", "op-no-entry");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // Succeeded but no EntryId
     let poll_body = cbor_map_text("Status", "Succeeded");
@@ -1412,7 +1412,7 @@ fn client_make_transparent_happy_path() {
 
     // POST returns OperationId
     let post_body = cbor_map_text("OperationId", "op-mt");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // Poll returns Succeeded
     let poll_body = cbor_map_text_2("Status", "Succeeded", "EntryId", "entry-mt");
@@ -1451,7 +1451,7 @@ fn client_make_transparent_with_correct_ordering() {
 
     // POST returns OperationId
     let post_body = cbor_map_text("OperationId", "op-mt");
-    mock.push_post(Ok((200, post_body)));
+    mock.push_post(Ok((200, None, post_body)));
 
     // Push get_bytes responses in reverse call order (LIFO):
     // get_entry_statement will be called second (push first)

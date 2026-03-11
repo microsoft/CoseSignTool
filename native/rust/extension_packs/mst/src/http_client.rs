@@ -11,7 +11,8 @@ use url::Url;
 pub trait HttpTransport: Send + Sync + std::fmt::Debug {
     fn get_bytes(&self, url: &Url, accept: &str) -> Result<Vec<u8>, String>;
     fn get_string(&self, url: &Url, accept: &str) -> Result<String, String>;
-    fn post_bytes(&self, url: &Url, content_type: &str, accept: &str, body: Vec<u8>) -> Result<(u16, Vec<u8>), String>;
+    /// POST bytes and return (status, content_type, body).
+    fn post_bytes(&self, url: &Url, content_type: &str, accept: &str, body: Vec<u8>) -> Result<(u16, Option<String>, Vec<u8>), String>;
 }
 
 /// Default HTTP transport implementation using azure_core Pipeline.
@@ -76,7 +77,7 @@ impl HttpTransport for DefaultHttpTransport {
     }
     
     #[cfg_attr(coverage_nightly, coverage(off))]
-    fn post_bytes(&self, url: &Url, content_type: &str, accept: &str, body: Vec<u8>) -> Result<(u16, Vec<u8>), String> {
+    fn post_bytes(&self, url: &Url, content_type: &str, accept: &str, body: Vec<u8>) -> Result<(u16, Option<String>, Vec<u8>), String> {
         self.runtime.block_on(async {
             let mut request = Request::new(url.clone(), Method::Post);
             request.insert_header("content-type", content_type.to_string());
@@ -88,8 +89,9 @@ impl HttpTransport for DefaultHttpTransport {
                 .await
                 .map_err(|e| e.to_string())?;
             let status = u16::from(response.status());
+            let ct = response.headers().get_optional_string(&azure_core::http::headers::CONTENT_TYPE);
             let resp_body = response.into_body();
-            Ok((status, resp_body.as_ref().to_vec()))
+            Ok((status, ct, resp_body.as_ref().to_vec()))
         })
     }
 }
@@ -115,16 +117,19 @@ pub fn post_bytes(
     content_type: &str,
     accept: &str,
     body: Vec<u8>,
-) -> Result<(u16, Vec<u8>), String> {
+) -> Result<(u16, Option<String>, Vec<u8>), String> {
     static DEFAULT: OnceLock<DefaultHttpTransport> = OnceLock::new();
     DEFAULT.get_or_init(DefaultHttpTransport::new).post_bytes(url, content_type, accept, body)
 }
 
+/// Mock HTTP transport for testing. Only available with the `test-utils` feature.
+#[cfg(feature = "test-utils")]
 pub struct MockHttpTransport {
     pub get_responses: std::collections::HashMap<String, Result<Vec<u8>, String>>,
-    pub post_responses: std::collections::HashMap<String, Result<(u16, Vec<u8>), String>>,
+    pub post_responses: std::collections::HashMap<String, Result<(u16, Option<String>, Vec<u8>), String>>,
 }
 
+#[cfg(feature = "test-utils")]
 impl std::fmt::Debug for MockHttpTransport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MockHttpTransport")
@@ -134,6 +139,7 @@ impl std::fmt::Debug for MockHttpTransport {
     }
 }
 
+#[cfg(feature = "test-utils")]
 impl MockHttpTransport {
     pub fn new() -> Self {
         Self {
@@ -143,6 +149,7 @@ impl MockHttpTransport {
     }
 }
 
+#[cfg(feature = "test-utils")]
 impl HttpTransport for MockHttpTransport {
     fn get_bytes(&self, url: &Url, _accept: &str) -> Result<Vec<u8>, String> {
         self.get_responses
@@ -156,7 +163,7 @@ impl HttpTransport for MockHttpTransport {
         String::from_utf8(bytes).map_err(|e| e.to_string())
     }
     
-    fn post_bytes(&self, url: &Url, _content_type: &str, _accept: &str, _body: Vec<u8>) -> Result<(u16, Vec<u8>), String> {
+    fn post_bytes(&self, url: &Url, _content_type: &str, _accept: &str, _body: Vec<u8>) -> Result<(u16, Option<String>, Vec<u8>), String> {
         self.post_responses
             .get(url.as_str())
             .cloned()

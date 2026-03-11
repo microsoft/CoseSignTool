@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST;
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -256,20 +257,14 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
             }
 
             // Check extension values.
-            if (details.Extensions != null)
+            if (details.Extensions?.Any(ext => ext.Value is string strValue && ContainsErrorCode(strValue)) == true)
             {
-                foreach (var ext in details.Extensions)
-                {
-                    if (ext.Value is string strValue && ContainsErrorCode(strValue))
-                    {
-                        return true;
-                    }
-                }
+                return true;
             }
 
             return false;
         }
-        catch
+        catch (Exception)
         {
             // Any parsing failure means we can't confirm it's TransactionNotCached — don't retry.
             return false;

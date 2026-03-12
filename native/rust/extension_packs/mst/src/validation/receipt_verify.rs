@@ -102,9 +102,9 @@ const VDP_HEADER_LABEL: i64 = 396;
 const PROOF_LABEL: i64 = -1;
 
 /// CWT (receipt) label for claims: 15.
-const CWT_CLAIMS_LABEL: i64 = 15;
+pub const CWT_CLAIMS_LABEL: i64 = 15;
 /// CWT issuer claim label: 1.
-const CWT_ISS_LABEL: i64 = 1;
+pub const CWT_ISS_LABEL: i64 = 1;
 
 /// COSE alg: ES384.
 const COSE_ALG_ES256: i64 = -7;

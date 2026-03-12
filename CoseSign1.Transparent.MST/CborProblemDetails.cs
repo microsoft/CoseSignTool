@@ -8,10 +8,12 @@ using System.Collections.Generic;
 using System.Formats.Cbor;
 
 /// <summary>
-/// Represents parsed CBOR problem details from RFC 9290 (Concise Problem Details).
+/// Represents parsed CBOR problem details from
+/// <see href="https://www.rfc-editor.org/rfc/rfc9290">RFC 9290</see> (Concise Problem Details).
 /// </summary>
 /// <remarks>
-/// RFC 9290 defines standard fields for problem details in CBOR format,
+/// <see href="https://www.rfc-editor.org/rfc/rfc9290">RFC 9290</see> defines standard fields
+/// for problem details in CBOR format,
 /// returned by Azure Code Transparency Service with Content-Type:
 /// <c>application/concise-problem-details+cbor</c>.
 ///
@@ -59,7 +61,8 @@ public class CborProblemDetails
     public Dictionary<string, object?>? Extensions { get; set; }
 
     /// <summary>
-    /// Parses CBOR-encoded problem details (RFC 9290) from a byte array.
+    /// Parses CBOR-encoded problem details
+    /// (<see href="https://www.rfc-editor.org/rfc/rfc9290">RFC 9290</see>) from a byte array.
     /// </summary>
     /// <param name="cborBytes">The CBOR-encoded problem details.</param>
     /// <returns>The parsed problem details, or <c>null</c> if parsing fails.</returns>

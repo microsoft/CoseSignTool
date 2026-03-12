@@ -87,7 +87,7 @@ public class VerifyCommand : MstCommandBase
         // Create the transparency service with verification options, polling, and logging
         var pollingOptions = new CoseSign1.Transparent.MST.MstPollingOptions
         {
-            PollingInterval = TimeSpan.FromMilliseconds(250)
+            PollingInterval = TimeSpan.FromMilliseconds(DefaultPollingIntervalMs)
         };
         CoseSign1.Transparent.TransparencyService transparencyService = 
             new CoseSign1.Transparent.MST.MstTransparencyService(

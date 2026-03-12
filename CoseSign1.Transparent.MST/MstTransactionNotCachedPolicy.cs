@@ -147,13 +147,22 @@ public class MstTransactionNotCachedPolicy : HttpPipelinePolicy
         {
             if (isAsync)
             {
-                await Task.Delay(_retryDelay).ConfigureAwait(false);
+                await Task.Delay(_retryDelay, message.CancellationToken).ConfigureAwait(false);
+
+                // Dispose the previous response before issuing a new request.
+                // ProcessNextAsync will assign a fresh Response to message, so the old one
+                // must be explicitly released to avoid leaking its content stream and connection.
                 message.Response?.Dispose();
                 await ProcessNextAsync(message, pipeline).ConfigureAwait(false);
             }
             else
             {
+                message.CancellationToken.ThrowIfCancellationRequested();
                 Thread.Sleep(_retryDelay);
+
+                // Dispose the previous response before issuing a new request.
+                // ProcessNext will assign a fresh Response to message, so the old one
+                // must be explicitly released to avoid leaking its content stream and connection.
                 message.Response?.Dispose();
                 ProcessNext(message, pipeline);
             }

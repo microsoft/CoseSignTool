@@ -5,8 +5,10 @@
 //!
 //! Port of C# `Azure.Security.CodeTransparency.CodeTransparencyVerificationOptions`.
 
-use code_transparency_client::{JwksDocument, OfflineKeysBehavior};
+use crate::validation::jwks_cache::JwksCache;
+use code_transparency_client::JwksDocument;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Controls what happens when a receipt is from an authorized domain.
 ///
@@ -45,7 +47,16 @@ impl Default for UnauthorizedReceiptBehavior {
 /// Options controlling transparent statement verification.
 ///
 /// Maps C# `Azure.Security.CodeTransparency.CodeTransparencyVerificationOptions`.
-#[derive(Debug, Clone, Default)]
+///
+/// ## JWKS key resolution
+///
+/// Keys are resolved via the [`jwks_cache`](Self::jwks_cache):
+/// - **Pre-seeded (offline)**: Call [`with_offline_keys`](Self::with_offline_keys)
+///   to populate the cache with known JWKS before verification.
+/// - **Network fallback**: When `allow_network_fetch` is `true` (default) and a
+///   key isn't in the cache, it's fetched from the service and cached.
+/// - **Offline-only**: Set `allow_network_fetch = false` to use only pre-seeded keys.
+#[derive(Debug, Clone)]
 pub struct CodeTransparencyVerificationOptions {
     /// List of authorized issuer domains. If empty, all issuers are treated as authorized.
     pub authorized_domains: Vec<String>,
@@ -53,8 +64,39 @@ pub struct CodeTransparencyVerificationOptions {
     pub authorized_receipt_behavior: AuthorizedReceiptBehavior,
     /// How to handle receipts from unauthorized domains.
     pub unauthorized_receipt_behavior: UnauthorizedReceiptBehavior,
-    /// Offline JWKS documents keyed by issuer host, for verification without network calls.
-    pub offline_keys: Option<HashMap<String, JwksDocument>>,
-    /// Controls offline key fallback behavior.
-    pub offline_keys_behavior: OfflineKeysBehavior,
+    /// Whether to allow network fetches for JWKS when the cache doesn't have the key.
+    /// Default: `true`.
+    pub allow_network_fetch: bool,
+    /// JWKS cache for key resolution. Pre-seed with offline keys via
+    /// [`with_offline_keys`](Self::with_offline_keys), or let verification
+    /// auto-populate from network fetches.
+    pub jwks_cache: Option<Arc<JwksCache>>,
+}
+
+impl Default for CodeTransparencyVerificationOptions {
+    fn default() -> Self {
+        Self {
+            authorized_domains: Vec::new(),
+            authorized_receipt_behavior: AuthorizedReceiptBehavior::default(),
+            unauthorized_receipt_behavior: UnauthorizedReceiptBehavior::default(),
+            allow_network_fetch: true,
+            jwks_cache: None,
+        }
+    }
+}
+
+impl CodeTransparencyVerificationOptions {
+    /// Pre-seed the cache with offline JWKS documents.
+    ///
+    /// Offline keys are inserted into the cache as if they were freshly fetched.
+    /// If no cache exists yet, one is created with default settings.
+    ///
+    /// This replaces the old `offline_keys` field — offline keys ARE cache entries.
+    pub fn with_offline_keys(mut self, keys: HashMap<String, JwksDocument>) -> Self {
+        let cache = self.jwks_cache.get_or_insert_with(|| Arc::new(JwksCache::new()));
+        for (issuer, jwks) in keys {
+            cache.insert(&issuer, jwks);
+        }
+        self
+    }
 }

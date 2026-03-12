@@ -8,6 +8,7 @@
 
 pub mod facts;
 pub mod fluent_ext;
+pub mod jwks_cache;
 pub mod pack;
 pub mod receipt_verify;
 pub mod verification_options;

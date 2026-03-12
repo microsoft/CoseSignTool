@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
+using Azure.Developer.ArtifactSigning.CryptoProvider.Interfaces;
 using CoseSign1.Certificates.AzureArtifactSigning;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Tests.Common;
@@ -45,7 +46,8 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_ThrowsInvalidOperationException_WhenCertificateChainIsUnavailable()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
+
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns((IReadOnlyList<X509Certificate2>?)null);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
@@ -63,7 +65,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_ThrowsInvalidOperationException_WhenCertificateChainIsEmpty()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(new List<X509Certificate2>());
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
@@ -85,7 +87,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_ReturnsChainInCorrectOrder(X509ChainSortOrder sortOrder, bool reverseOrder)
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         List<X509Certificate2> mockChain = CreateMockCertificateChain();
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(mockChain);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
@@ -106,7 +108,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetSigningCertificate_ThrowsInvalidOperationException_WhenSigningCertificateIsUnavailable()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         mockSignContext.Setup(context => context.GetSigningCertificate(It.IsAny<CancellationToken>())).Returns((X509Certificate2?)null);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
@@ -124,7 +126,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetSigningCertificate_ReturnsSigningCertificate()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         X509Certificate2 mockCertificate = TestCertificateUtils.CreateCertificate(nameof(GetSigningCertificate_ReturnsSigningCertificate));
         mockSignContext.Setup(context => context.GetSigningCertificate(It.IsAny<CancellationToken>())).Returns(mockCertificate);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
@@ -144,7 +146,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideECDsaKey_ThrowsNotSupportedException()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act & Assert
@@ -161,7 +163,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideRSAKey_ReturnsRSAInstance()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act
@@ -180,7 +182,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_CachesChainOnFirstCall()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         List<X509Certificate2> mockChain = CreateMockCertificateChain();
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(mockChain);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
@@ -202,7 +204,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetSigningCertificate_CachesCertificateOnFirstCall()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         X509Certificate2 mockCertificate = TestCertificateUtils.CreateCertificate(nameof(GetSigningCertificate_CachesCertificateOnFirstCall));
         mockSignContext.Setup(context => context.GetSigningCertificate(It.IsAny<CancellationToken>())).Returns(mockCertificate);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
@@ -224,7 +226,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideRSAKey_CachesRSAInstanceOnFirstCall()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act
@@ -245,7 +247,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideRSAKey_ReturnsSameCachedInstance_RegardlessOfPublicKeyParameter()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act
@@ -266,7 +268,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_IsThreadSafe_UnderConcurrentAccess()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         List<X509Certificate2> mockChain = CreateMockCertificateChain();
         int callCount = 0;
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>()))
@@ -305,7 +307,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void GetCertificateChain_HandlesRootCertificateCorrectly()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         // Create a certificate (CreateCertificate creates self-signed certs)
         X509Certificate2 rootCert = TestCertificateUtils.CreateCertificate(nameof(GetCertificateChain_HandlesRootCertificateCorrectly));
         List<X509Certificate2> chain = new List<X509Certificate2> { rootCert };
@@ -335,7 +337,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideECDsaKey_ThrowsNotSupportedException_WithPublicKeyParameterTrue()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act & Assert
@@ -351,7 +353,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void ProvideRSAKey_WorksWithPublicKeyParameterTrue()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act
@@ -379,7 +381,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void Issuer_WithNonStandardEku_ReturnsDidX509WithEkuFormat()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
 
         // Create a certificate chain with non-standard EKU
         X509Certificate2 leafCert = TestCertificateUtils.CreateCertificate(nameof(Issuer_WithNonStandardEku_ReturnsDidX509WithEkuFormat));
@@ -407,7 +409,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void Issuer_WhenCertificateChainUnavailable_ReturnsNull()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns((IReadOnlyList<X509Certificate2>?)null);
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
@@ -425,7 +427,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void Issuer_WhenCertificateChainEmpty_ReturnsNull()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(new List<X509Certificate2>());
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
 
@@ -443,7 +445,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void Issuer_UsesAzureArtifactSigningDidGenerator()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         X509Certificate2Collection chain = TestCertificateUtils.CreateTestChain(nameof(Issuer_UsesAzureArtifactSigningDidGenerator), leafFirst: true);
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(chain.Cast<X509Certificate2>().ToList());
         AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
@@ -464,7 +466,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     public void Issuer_OnException_FallsBackToBaseImplementation()
     {
         // Arrange
-        Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>();
         // Setup to throw an exception that should be caught
         mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>()))
             .Throws(new InvalidOperationException("Test exception"));

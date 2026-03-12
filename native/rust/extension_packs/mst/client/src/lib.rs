@@ -19,6 +19,8 @@ pub mod api_key_auth_policy;
 pub mod cbor_problem_details;
 pub mod client;
 pub mod error;
+pub mod models;
+pub mod operation_status;
 pub mod polling;
 pub mod transaction_not_cached_policy;
 
@@ -27,8 +29,9 @@ pub mod mock_transport;
 
 pub use client::{
     CodeTransparencyClient, CodeTransparencyClientConfig, CodeTransparencyClientOptions,
-    CreateEntryResult,
+    CreateEntryResult, OfflineKeysBehavior,
 };
 pub use error::CodeTransparencyError;
+pub use models::{JwksDocument, JsonWebKey};
 pub use polling::{DelayStrategy, MstPollingOptions};
 pub use transaction_not_cached_policy::TransactionNotCachedPolicy;

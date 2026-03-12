@@ -432,9 +432,21 @@ pub extern "C" fn cose_sign1_mst_create_entry(
         let result = client_ref.0.create_entry(cose_slice)
             .map_err(|e| anyhow::anyhow!("failed to create entry: {}", e))?;
 
-        let op_id_cstr = CString::new(result.operation_id)
+        // The Poller needs to be awaited — create a runtime for the FFI boundary
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| anyhow::anyhow!("failed to create runtime: {}", e))?;
+
+        let response = rt.block_on(async { result.await })
+            .map_err(|e| anyhow::anyhow!("poller failed: {}", e))?;
+
+        let model = response.into_model()
+            .map_err(|e| anyhow::anyhow!("failed to deserialize: {}", e))?;
+
+        let op_id_cstr = CString::new(model.operation_id)
             .map_err(|_| anyhow::anyhow!("operation_id contains null byte"))?;
-        let entry_id_cstr = CString::new(result.entry_id)
+        let entry_id_cstr = CString::new(model.entry_id.unwrap_or_default())
             .map_err(|_| anyhow::anyhow!("entry_id contains null byte"))?;
 
         unsafe {

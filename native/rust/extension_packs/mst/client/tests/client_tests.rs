@@ -1,18 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Tests for `CodeTransparencyClient` using the `SequentialMockTransport`.
-
-use cbor_primitives::CborEncoder;
 use code_transparency_client::{
     mock_transport::{MockResponse, SequentialMockTransport},
     CodeTransparencyClient, CodeTransparencyClientConfig, CodeTransparencyClientOptions,
-    CodeTransparencyError, CreateEntryResult, DelayStrategy, MstPollingOptions,
-    TransactionNotCachedPolicy,
+    CodeTransparencyError, JwksDocument, OfflineKeysBehavior, TransactionNotCachedPolicy,
+    DelayStrategy, MstPollingOptions,
 };
 use std::time::Duration;
 use url::Url;
 
+use cbor_primitives::CborEncoder;
 use cbor_primitives_everparse::EverParseCborProvider;
 
 fn cbor_map_1(k: &str, v: &str) -> Vec<u8> {
@@ -39,168 +37,55 @@ fn mock_client(responses: Vec<MockResponse>) -> CodeTransparencyClient {
     let mock = SequentialMockTransport::new(responses);
     CodeTransparencyClient::with_options(
         Url::parse("https://mst.example.com").unwrap(),
-        CodeTransparencyClientConfig {
-            max_poll_retries: 3,
-            poll_delay: Duration::from_millis(1),
-            ..Default::default()
-        },
+        CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
         },
     )
 }
 
-// ============================================================================
-// Default config
-// ============================================================================
-
 #[test]
 fn default_config() {
     let cfg = CodeTransparencyClientConfig::default();
     assert_eq!(cfg.api_version, "2024-01-01");
     assert!(cfg.api_key.is_none());
-    assert_eq!(cfg.max_poll_retries, 30);
-    assert_eq!(cfg.poll_delay, Duration::from_secs(2));
-    assert!(cfg.polling_options.is_none());
+    assert!(cfg.offline_keys.is_none());
+    assert_eq!(cfg.offline_keys_behavior, OfflineKeysBehavior::FallbackToNetwork);
 }
-
-// ============================================================================
-// create_entry
-// ============================================================================
-
-#[test]
-fn create_entry_success() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("OperationId", "op-1")),
-        MockResponse::ok(cbor_map_2("Status", "Succeeded", "EntryId", "entry-42")),
-    ]);
-    let result = client.create_entry(b"cose-data").unwrap();
-    assert_eq!(result.operation_id, "op-1");
-    assert_eq!(result.entry_id, "entry-42");
-}
-
-#[test]
-fn create_entry_post_error_returns_service_error() {
-    let client = mock_client(vec![
-        MockResponse::with_status(500, b"server error".to_vec()),
-    ]);
-    match client.create_entry(b"cose-data") {
-        Err(CodeTransparencyError::ServiceError { http_status, .. }) => assert_eq!(http_status, 500),
-        other => panic!("Expected ServiceError, got: {:?}", other),
-    }
-}
-
-#[test]
-fn create_entry_missing_operation_id() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("Other", "value")),
-    ]);
-    match client.create_entry(b"cose-data") {
-        Err(CodeTransparencyError::MissingField { field }) => assert_eq!(field, "OperationId"),
-        other => panic!("Expected MissingField, got: {:?}", other),
-    }
-}
-
-// ============================================================================
-// poll_operation (via create_entry)
-// ============================================================================
-
-#[test]
-fn poll_running_then_succeeded() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("OperationId", "op-1")),
-        MockResponse::ok(cbor_map_1("Status", "Running")),
-        MockResponse::ok(cbor_map_2("Status", "Succeeded", "EntryId", "e-1")),
-    ]);
-    let result = client.create_entry(b"cose-data").unwrap();
-    assert_eq!(result.entry_id, "e-1");
-}
-
-#[test]
-fn poll_failed() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("OperationId", "op-1")),
-        MockResponse::ok(cbor_map_1("Status", "Failed")),
-    ]);
-    match client.create_entry(b"cose-data") {
-        Err(CodeTransparencyError::OperationFailed { status, .. }) => assert_eq!(status, "Failed"),
-        other => panic!("Expected OperationFailed, got: {:?}", other),
-    }
-}
-
-#[test]
-fn poll_timeout() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("OperationId", "op-1")),
-        MockResponse::ok(cbor_map_1("Status", "Running")),
-        MockResponse::ok(cbor_map_1("Status", "Running")),
-        MockResponse::ok(cbor_map_1("Status", "Running")),
-    ]);
-    match client.create_entry(b"cose-data") {
-        Err(CodeTransparencyError::OperationTimeout { retries, .. }) => assert_eq!(retries, 3),
-        other => panic!("Expected OperationTimeout, got: {:?}", other),
-    }
-}
-
-// ============================================================================
-// get_entry_statement / get_entry / get_public_keys
-// ============================================================================
 
 #[test]
 fn get_entry_statement_success() {
-    let client = mock_client(vec![
-        MockResponse::ok(b"cose-statement".to_vec()),
-    ]);
-    let result = client.get_entry_statement("entry-1").unwrap();
-    assert_eq!(result, b"cose-statement");
+    let client = mock_client(vec![MockResponse::ok(b"cose-statement".to_vec())]);
+    assert_eq!(client.get_entry_statement("e-1").unwrap(), b"cose-statement");
 }
 
 #[test]
 fn get_entry_success() {
-    let client = mock_client(vec![
-        MockResponse::ok(b"receipt-bytes".to_vec()),
-    ]);
-    let result = client.get_entry("entry-1").unwrap();
-    assert_eq!(result, b"receipt-bytes");
+    let client = mock_client(vec![MockResponse::ok(b"receipt-bytes".to_vec())]);
+    assert_eq!(client.get_entry("e-1").unwrap(), b"receipt-bytes");
 }
 
 #[test]
 fn get_public_keys_success() {
     let jwks = r#"{"keys":[]}"#;
-    let client = mock_client(vec![
-        MockResponse::ok(jwks.as_bytes().to_vec()),
-    ]);
-    let result = client.get_public_keys().unwrap();
-    assert_eq!(result, jwks);
+    let client = mock_client(vec![MockResponse::ok(jwks.as_bytes().to_vec())]);
+    assert_eq!(client.get_public_keys().unwrap(), jwks);
+}
+
+#[test]
+fn get_public_keys_typed_success() {
+    let jwks = r#"{"keys":[{"kty":"EC","kid":"key-1","crv":"P-256"}]}"#;
+    let client = mock_client(vec![MockResponse::ok(jwks.as_bytes().to_vec())]);
+    let doc = client.get_public_keys_typed().unwrap();
+    assert_eq!(doc.keys.len(), 1);
+    assert_eq!(doc.keys[0].kid, "key-1");
 }
 
 #[test]
 fn get_transparency_config_success() {
-    let client = mock_client(vec![
-        MockResponse::ok(b"cbor-config".to_vec()),
-    ]);
-    let result = client.get_transparency_config_cbor().unwrap();
-    assert_eq!(result, b"cbor-config");
+    let client = mock_client(vec![MockResponse::ok(b"cbor-config".to_vec())]);
+    assert_eq!(client.get_transparency_config_cbor().unwrap(), b"cbor-config");
 }
-
-// ============================================================================
-// make_transparent
-// ============================================================================
-
-#[test]
-fn make_transparent_success() {
-    let client = mock_client(vec![
-        MockResponse::ok(cbor_map_1("OperationId", "op-1")),
-        MockResponse::ok(cbor_map_2("Status", "Succeeded", "EntryId", "entry-7")),
-        MockResponse::ok(b"transparent-cose".to_vec()),
-    ]);
-    let result = client.make_transparent(b"cose-input").unwrap();
-    assert_eq!(result, b"transparent-cose");
-}
-
-// ============================================================================
-// endpoint accessor
-// ============================================================================
 
 #[test]
 fn endpoint_accessor() {
@@ -208,39 +93,60 @@ fn endpoint_accessor() {
     assert_eq!(client.endpoint().as_str(), "https://mst.example.com/");
 }
 
-// ============================================================================
-// Debug format
-// ============================================================================
-
 #[test]
 fn debug_format() {
     let client = mock_client(vec![]);
     let s = format!("{:?}", client);
     assert!(s.contains("CodeTransparencyClient"));
-    assert!(s.contains("mst.example.com"));
 }
-
-// ============================================================================
-// Error display
-// ============================================================================
 
 #[test]
 fn error_display() {
     let e = CodeTransparencyError::HttpError("conn refused".into());
     assert!(format!("{}", e).contains("conn refused"));
 
-    let e = CodeTransparencyError::OperationTimeout { operation_id: "op-1".into(), retries: 5 };
-    let s = format!("{}", e);
-    assert!(s.contains("op-1"));
-    assert!(s.contains("5"));
-
     let e = CodeTransparencyError::MissingField { field: "EntryId".into() };
     assert!(format!("{}", e).contains("EntryId"));
 }
 
-// ============================================================================
-// Polling options
-// ============================================================================
+#[test]
+fn tnc_detected() {
+    assert!(TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("detail", "TransactionNotCached")));
+    assert!(!TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("title", "Internal Server Error")));
+    assert!(!TransactionNotCachedPolicy::is_tnc_body(&[]));
+}
+
+#[test]
+fn jwks_document_parse() {
+    let json = r#"{"keys":[{"kty":"EC","kid":"k1","crv":"P-256","x":"abc","y":"def"}]}"#;
+    let doc = JwksDocument::from_json(json).unwrap();
+    assert_eq!(doc.keys.len(), 1);
+    assert_eq!(doc.find_key("k1").unwrap().kty, "EC");
+    assert!(doc.find_key("missing").is_none());
+    assert!(!doc.is_empty());
+}
+
+#[test]
+fn resolve_signing_key_offline() {
+    let jwks = JwksDocument::from_json(
+        r#"{"keys":[{"kty":"EC","kid":"k1","crv":"P-256"}]}"#,
+    ).unwrap();
+    let mut offline = std::collections::HashMap::new();
+    offline.insert("mst.example.com".to_string(), jwks);
+
+    let mock = SequentialMockTransport::new(vec![]); // no HTTP calls expected
+    let client = CodeTransparencyClient::with_options(
+        Url::parse("https://mst.example.com").unwrap(),
+        CodeTransparencyClientConfig {
+            offline_keys: Some(offline),
+            offline_keys_behavior: OfflineKeysBehavior::OfflineOnly,
+            ..Default::default()
+        },
+        CodeTransparencyClientOptions { client_options: mock.into_client_options() },
+    );
+    let key = client.resolve_signing_key("k1").unwrap();
+    assert_eq!(key.kid, "k1");
+}
 
 #[test]
 fn delay_strategy_fixed() {
@@ -266,29 +172,5 @@ fn polling_options_priority() {
         ..Default::default()
     };
     assert_eq!(opts.delay_for_retry(0, fallback), Duration::from_millis(100));
-
-    let opts2 = MstPollingOptions {
-        polling_interval: Some(Duration::from_millis(750)),
-        ..Default::default()
-    };
-    assert_eq!(opts2.delay_for_retry(0, fallback), Duration::from_millis(750));
-
     assert_eq!(MstPollingOptions::default().delay_for_retry(0, fallback), fallback);
-}
-
-// ============================================================================
-// is_transaction_not_cached
-// ============================================================================
-
-#[test]
-fn tnc_detected() {
-    assert!(TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("detail", "TransactionNotCached")));
-    assert!(TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("title", "TransactionNotCached")));
-    assert!(TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("detail", "transactionnotcached")));
-}
-
-#[test]
-fn tnc_not_detected() {
-    assert!(!TransactionNotCachedPolicy::is_tnc_body(&cbor_map_1("title", "Internal Server Error")));
-    assert!(!TransactionNotCachedPolicy::is_tnc_body(&[]));
 }

@@ -365,6 +365,8 @@ dependencies = [
  "cbor_primitives_everparse",
  "code_transparency_client",
  "cose_sign1_primitives",
+ "serde",
+ "serde_json",
  "tokio",
  "url",
 ]
@@ -771,6 +773,7 @@ dependencies = [
  "cose_sign1_validation_ffi",
  "cose_sign1_validation_primitives_ffi",
  "libc",
+ "tokio",
  "url",
 ]
 

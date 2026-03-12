@@ -15,6 +15,8 @@ azure_core.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 cbor_primitives = { path = "../../../primitives/cbor" }
 cose_sign1_primitives = { path = "../../../primitives/cose/sign1" }
 

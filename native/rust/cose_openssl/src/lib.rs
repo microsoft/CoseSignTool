@@ -5,7 +5,9 @@ mod sign;
 mod verify;
 
 pub use cbor::CborValue;
-pub use cose::{cose_sign1, cose_sign1_encoded, cose_verify1};
+pub use cose::{
+    cose_sign1, cose_sign1_encoded, cose_verify1, cose_verify1_decoded,
+};
 pub use ossl_wrappers::{EvpKey, KeyType, WhichEC};
 
 #[cfg(feature = "pqc")]

@@ -8,7 +8,7 @@ pub use cbor::CborValue;
 pub use cose::{
     cose_sign1, cose_sign1_encoded, cose_verify1, cose_verify1_decoded,
 };
-pub use ossl_wrappers::{EvpKey, KeyType, WhichEC};
+pub use ossl_wrappers::{EvpKey, KeyType, WhichEC, WhichRSA};
 
 #[cfg(feature = "pqc")]
 pub use ossl_wrappers::WhichMLDSA;

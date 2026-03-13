@@ -38,6 +38,23 @@ impl WhichMLDSA {
 }
 
 #[derive(Debug)]
+pub enum WhichRSA {
+    PS256,
+    PS384,
+    PS512,
+}
+
+impl WhichRSA {
+    fn key_bits(&self) -> u32 {
+        match self {
+            WhichRSA::PS256 => 2048,
+            WhichRSA::PS384 => 3072,
+            WhichRSA::PS512 => 4096,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum WhichEC {
     P256,
     P384,
@@ -65,6 +82,7 @@ impl WhichEC {
 #[derive(Debug)]
 pub enum KeyType {
     EC(WhichEC),
+    RSA(WhichRSA),
 
     #[cfg(feature = "pqc")]
     MLDSA(WhichMLDSA),
@@ -88,6 +106,16 @@ impl EvpKey {
                         ptr::null_mut(),
                         alg.as_ptr(),
                         crv.as_ptr(),
+                    )
+                }
+
+                KeyType::RSA(which) => {
+                    let alg = CString::new("RSA").unwrap();
+                    ossl::EVP_PKEY_Q_keygen(
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        alg.as_ptr(),
+                        which.key_bits() as std::ffi::c_uint,
                     )
                 }
 
@@ -170,6 +198,17 @@ impl EvpKey {
         pkey: *mut ossl::EVP_PKEY,
     ) -> Result<KeyType, String> {
         unsafe {
+            let rsa = CString::new("RSA").unwrap();
+            if EVP_PKEY_is_a(pkey as *const _, rsa.as_ptr()) == 1 {
+                let bits = ossl::EVP_PKEY_bits(pkey);
+                let which = match bits {
+                    ..=2048 => WhichRSA::PS256,
+                    2049..=3072 => WhichRSA::PS384,
+                    _ => WhichRSA::PS512,
+                };
+                return Ok(KeyType::RSA(which));
+            }
+
             let ec = CString::new("EC").unwrap();
             if EVP_PKEY_is_a(pkey as *const _, ec.as_ptr()) == 1 {
                 let mut buf = [0u8; 64];
@@ -281,6 +320,9 @@ impl EvpKey {
                 KeyType::EC(WhichEC::P256) => ossl::EVP_sha256(),
                 KeyType::EC(WhichEC::P384) => ossl::EVP_sha384(),
                 KeyType::EC(WhichEC::P521) => ossl::EVP_sha512(),
+                KeyType::RSA(WhichRSA::PS256) => ossl::EVP_sha256(),
+                KeyType::RSA(WhichRSA::PS384) => ossl::EVP_sha384(),
+                KeyType::RSA(WhichRSA::PS512) => ossl::EVP_sha512(),
                 #[cfg(feature = "pqc")]
                 KeyType::MLDSA(_) => ptr::null(),
             }
@@ -432,6 +474,7 @@ pub trait ContextInit {
         ctx: *mut ossl::EVP_MD_CTX,
         md: *const ossl::EVP_MD,
         key: *mut ossl::EVP_PKEY,
+        pctx_out: *mut *mut ossl::EVP_PKEY_CTX,
     ) -> Result<(), i32>;
     fn purpose() -> &'static str;
 }
@@ -441,11 +484,12 @@ impl ContextInit for SignOp {
         ctx: *mut ossl::EVP_MD_CTX,
         md: *const ossl::EVP_MD,
         key: *mut ossl::EVP_PKEY,
+        pctx_out: *mut *mut ossl::EVP_PKEY_CTX,
     ) -> Result<(), i32> {
         unsafe {
             let rc = ossl::EVP_DigestSignInit(
                 ctx,
-                ptr::null_mut(),
+                pctx_out,
                 md,
                 ptr::null_mut(),
                 key,
@@ -466,11 +510,12 @@ impl ContextInit for VerifyOp {
         ctx: *mut ossl::EVP_MD_CTX,
         md: *const ossl::EVP_MD,
         key: *mut ossl::EVP_PKEY,
+        pctx_out: *mut *mut ossl::EVP_PKEY_CTX,
     ) -> Result<(), i32> {
         unsafe {
             let rc = ossl::EVP_DigestVerifyInit(
                 ctx,
-                ptr::null_mut(),
+                pctx_out,
                 md,
                 ptr::null_mut(),
                 key,
@@ -488,6 +533,15 @@ impl ContextInit for VerifyOp {
 
 impl<T: ContextInit> EvpMdContext<T> {
     pub fn new(key: &EvpKey) -> Result<Self, String> {
+        Self::new_with_md(key, key.digest())
+    }
+
+    /// Create a context with an explicit digest, allowing the caller
+    /// to override the digest that `key.digest()` would return.
+    pub fn new_with_md(
+        key: &EvpKey,
+        md: *const ossl::EVP_MD,
+    ) -> Result<Self, String> {
         unsafe {
             let ctx = ossl::EVP_MD_CTX_new();
             if ctx.is_null() {
@@ -496,7 +550,8 @@ impl<T: ContextInit> EvpMdContext<T> {
                     T::purpose()
                 ));
             }
-            if let Err(err) = T::init(ctx, key.digest(), key.key) {
+            let mut pctx: *mut ossl::EVP_PKEY_CTX = ptr::null_mut();
+            if let Err(err) = T::init(ctx, md, key.key, &mut pctx) {
                 ossl::EVP_MD_CTX_free(ctx);
                 return Err(format!(
                     "Failed to init context for {} with err {}",
@@ -504,10 +559,44 @@ impl<T: ContextInit> EvpMdContext<T> {
                     err
                 ));
             }
+            // For RSA keys, configure PSS padding.
+            if matches!(key.typ, KeyType::RSA(_)) && !pctx.is_null() {
+                const RSA_PSS_SALTLEN_DIGEST: std::ffi::c_int = -1;
+                if ossl::EVP_PKEY_CTX_set_rsa_padding(
+                    pctx,
+                    ossl::RSA_PKCS1_PSS_PADDING,
+                ) != 1
+                {
+                    ossl::EVP_MD_CTX_free(ctx);
+                    return Err("Failed to set RSA PSS padding".into());
+                }
+                if ossl::EVP_PKEY_CTX_set_rsa_pss_saltlen(
+                    pctx,
+                    RSA_PSS_SALTLEN_DIGEST,
+                ) != 1
+                {
+                    ossl::EVP_MD_CTX_free(ctx);
+                    return Err("Failed to set RSA PSS salt length".into());
+                }
+            }
             Ok(EvpMdContext {
                 op: PhantomData,
                 ctx,
             })
+        }
+    }
+}
+
+/// Return the OpenSSL digest for the given COSE RSA-PSS algorithm ID.
+pub fn rsa_pss_md_for_cose_alg(
+    alg: i64,
+) -> Result<*const ossl::EVP_MD, String> {
+    unsafe {
+        match alg {
+            -37 => Ok(ossl::EVP_sha256()),
+            -38 => Ok(ossl::EVP_sha384()),
+            -39 => Ok(ossl::EVP_sha512()),
+            _ => Err(format!("{alg} is not a COSE RSA-PSS algorithm")),
         }
     }
 }
@@ -538,6 +627,47 @@ mod tests {
         assert!(EvpKey::new(KeyType::EC(WhichEC::P256)).is_ok());
         assert!(EvpKey::new(KeyType::EC(WhichEC::P384)).is_ok());
         assert!(EvpKey::new(KeyType::EC(WhichEC::P521)).is_ok());
+    }
+
+    #[test]
+    fn create_rsa_keys() {
+        assert!(EvpKey::new(KeyType::RSA(WhichRSA::PS256)).is_ok());
+        assert!(EvpKey::new(KeyType::RSA(WhichRSA::PS384)).is_ok());
+        assert!(EvpKey::new(KeyType::RSA(WhichRSA::PS512)).is_ok());
+    }
+
+    #[test]
+    fn rsa_key_der_roundtrip() {
+        for which in [WhichRSA::PS256, WhichRSA::PS384, WhichRSA::PS512] {
+            let key = EvpKey::new(KeyType::RSA(which)).unwrap();
+            let der = key.to_der_public().unwrap();
+            let imported = EvpKey::from_der_public(&der).unwrap();
+            assert!(
+                matches!(imported.typ, KeyType::RSA(_)),
+                "Expected RSA key type"
+            );
+            let der2 = imported.to_der_public().unwrap();
+            assert_eq!(der, der2);
+        }
+    }
+
+    #[test]
+    fn rsa_key_private_der_roundtrip() {
+        for which in [WhichRSA::PS256, WhichRSA::PS384, WhichRSA::PS512] {
+            let key = EvpKey::new(KeyType::RSA(which)).unwrap();
+            let priv_der = key.to_der_private().unwrap();
+            let imported = EvpKey::from_der_private(&priv_der).unwrap();
+            assert!(
+                matches!(imported.typ, KeyType::RSA(_)),
+                "Expected RSA key type"
+            );
+            let priv_der2 = imported.to_der_private().unwrap();
+            assert_eq!(priv_der, priv_der2);
+
+            let pub1 = key.to_der_public().unwrap();
+            let pub2 = imported.to_der_public().unwrap();
+            assert_eq!(pub1, pub2);
+        }
     }
 
     #[test]

@@ -614,6 +614,33 @@ mod tests {
         assert!(cose_verify1(&key, &envelope, None).unwrap());
     }
 
+    #[test]
+    fn cose_verify1_rejects_trailing_bytes() {
+        let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"Good boy...";
+
+        let envelope = cose_sign1(&key, phdr, uhdr, payload, false).unwrap();
+
+        // Sanity: valid envelope verifies.
+        assert!(cose_verify1(&key, &envelope, None).unwrap());
+
+        // Append a redundant trailing byte.
+        let mut bad_envelope = envelope.clone();
+        bad_envelope.push(0x00);
+
+        // Verification of the envelope with trailing bytes should fail
+        // (either return an error or reject the signature).
+        let result = cose_verify1(&key, &bad_envelope, None);
+        assert!(
+            result.is_err(),
+            "Expected error with trailing byte, got: {:?}",
+            result,
+        );
+    }
+
     #[cfg(feature = "pqc")]
     mod pqc_tests {
         use super::*;

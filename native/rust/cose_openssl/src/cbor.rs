@@ -43,8 +43,14 @@ pub enum CborValue {
 impl CborValue {
     /// Parse CBOR bytes into an owned `CborValue`.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        let (item, _) = cbor_nondet_parse(None, false, bytes)
+        let (item, remainder) = cbor_nondet_parse(None, false, bytes)
             .ok_or("Failed to parse CBOR bytes")?;
+        if !remainder.is_empty() {
+            return Err(format!(
+                "Trailing bytes: {} unconsumed byte(s)",
+                remainder.len()
+            ));
+        }
         Self::from_raw(item)
     }
 

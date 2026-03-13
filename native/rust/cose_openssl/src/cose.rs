@@ -1,6 +1,7 @@
 use crate::cbor::CborValue;
 use crate::ossl_wrappers::{
-    EvpKey, KeyType, WhichEC, ecdsa_der_to_fixed, ecdsa_fixed_to_der,
+    EvpKey, KeyType, WhichEC, WhichRSA, ecdsa_der_to_fixed, ecdsa_fixed_to_der,
+    rsa_pss_md_for_cose_alg,
 };
 
 #[cfg(feature = "pqc")]
@@ -18,6 +19,9 @@ fn cose_alg(key: &EvpKey) -> Result<i64, String> {
         KeyType::EC(WhichEC::P256) => Ok(-7),
         KeyType::EC(WhichEC::P384) => Ok(-35),
         KeyType::EC(WhichEC::P521) => Ok(-36),
+        KeyType::RSA(WhichRSA::PS256) => Ok(-37),
+        KeyType::RSA(WhichRSA::PS384) => Ok(-38),
+        KeyType::RSA(WhichRSA::PS512) => Ok(-39),
         #[cfg(feature = "pqc")]
         KeyType::MLDSA(which) => match which {
             WhichMLDSA::P44 => Ok(-48),
@@ -120,6 +124,7 @@ pub fn cose_sign1(
 
     let sig = match &key.typ {
         KeyType::EC(_) => ecdsa_der_to_fixed(&sig, key.ec_field_size()?)?,
+        KeyType::RSA(_) => sig,
         #[cfg(feature = "pqc")]
         KeyType::MLDSA(_) => sig,
     };
@@ -156,24 +161,40 @@ pub fn cose_sign1_encoded(
     cose_sign1(key, phdr_value, uhdr_value, payload, detached)
 }
 
-/// Check that the algorithm encoded in the phdr matches the key type.
-fn check_phdr_alg(key: &EvpKey, phdr_bytes: &[u8]) -> Result<(), String> {
+/// Check that the algorithm encoded in the phdr is compatible with the key.
+/// For RSA keys, any PS* algorithm is accepted (returns the alg value).
+/// For other keys, exact match is required.
+fn check_phdr_alg(key: &EvpKey, phdr_bytes: &[u8]) -> Result<i64, String> {
     let parsed = CborValue::from_bytes(phdr_bytes)?;
 
     let alg = parsed
         .map_at_int(COSE_HEADER_ALG)
         .map_err(|_| "Algorithm not found in protected header".to_string())?;
 
-    let expected = cose_alg(key)?;
-    match alg {
-        CborValue::Int(v) if *v == expected => Ok(()),
-        CborValue::Int(_) => {
-            Err("Algorithm mismatch between protected header and key"
-                .to_string())
+    let alg_val = match alg {
+        CborValue::Int(v) => *v,
+        _ => {
+            return Err(
+                "Algorithm value in protected header is not an integer"
+                    .to_string(),
+            );
+        }
+    };
+
+    match &key.typ {
+        KeyType::RSA(_) => {
+            // Accept any PS* algorithm with any RSA key.
+            rsa_pss_md_for_cose_alg(alg_val)?;
+            Ok(alg_val)
         }
         _ => {
-            Err("Algorithm value in protected header is not an integer"
-                .to_string())
+            let expected = cose_alg(key)?;
+            if alg_val == expected {
+                Ok(alg_val)
+            } else {
+                Err("Algorithm mismatch between protected header and key"
+                    .to_string())
+            }
         }
     }
 }
@@ -187,7 +208,7 @@ pub fn cose_verify1(
 ) -> Result<bool, String> {
     let (phdr_bytes, cose_payload, cose_sig) = parse_cose_sign1(envelope)?;
 
-    check_phdr_alg(key, &phdr_bytes)?;
+    let header_alg = check_phdr_alg(key, &phdr_bytes)?;
 
     let actual_payload = match payload {
         Some(p) => p.to_vec(),
@@ -206,12 +227,20 @@ pub fn cose_verify1(
 
     let sig = match &key.typ {
         KeyType::EC(_) => ecdsa_fixed_to_der(&sig, key.ec_field_size()?)?,
+        KeyType::RSA(_) => sig,
         #[cfg(feature = "pqc")]
         KeyType::MLDSA(_) => sig,
     };
 
     let tbs = sig_structure(&phdr_bytes, &actual_payload)?;
-    crate::verify::verify(key, &sig, &tbs)
+
+    match &key.typ {
+        KeyType::RSA(_) => {
+            let md = rsa_pss_md_for_cose_alg(header_alg)?;
+            crate::verify::verify_with_md(key, &sig, &tbs, md)
+        }
+        _ => crate::verify::verify(key, &sig, &tbs),
+    }
 }
 
 /// Verify a COSE_Sign1 from pre-parsed components, skipping all CBOR
@@ -225,19 +254,37 @@ pub fn cose_verify1_decoded(
     payload: &[u8],
     sig: &[u8],
 ) -> Result<bool, String> {
-    let expected_alg = cose_alg(key)?;
-    if alg != expected_alg {
-        return Err("Algorithm mismatch between supplied alg and key".into());
+    match &key.typ {
+        KeyType::RSA(_) => {
+            // For RSA, accept any PS* algorithm regardless of key size.
+            rsa_pss_md_for_cose_alg(alg)?;
+        }
+        _ => {
+            let expected_alg = cose_alg(key)?;
+            if alg != expected_alg {
+                return Err(
+                    "Algorithm mismatch between supplied alg and key".into()
+                );
+            }
+        }
     }
 
     let sig = match &key.typ {
         KeyType::EC(_) => ecdsa_fixed_to_der(sig, key.ec_field_size()?)?,
+        KeyType::RSA(_) => sig.to_vec(),
         #[cfg(feature = "pqc")]
         KeyType::MLDSA(_) => sig.to_vec(),
     };
 
     let tbs = sig_structure(phdr, payload)?;
-    crate::verify::verify(key, &sig, &tbs)
+
+    match &key.typ {
+        KeyType::RSA(_) => {
+            let md = rsa_pss_md_for_cose_alg(alg)?;
+            crate::verify::verify_with_md(key, &sig, &tbs, md)
+        }
+        _ => crate::verify::verify(key, &sig, &tbs),
+    }
 }
 
 #[cfg(test)]
@@ -435,6 +482,136 @@ mod tests {
 
         // Verify with DER-imported public key
         assert!(cose_verify1(&verification_key, &envelope, None).unwrap());
+    }
+
+    fn sign_verify_cose_rsa(key_type: KeyType) {
+        let key = EvpKey::new(key_type).unwrap();
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"RSA PSS test";
+
+        let envelope = cose_sign1(&key, phdr, uhdr, payload, false).unwrap();
+        assert!(cose_verify1(&key, &envelope, None).unwrap());
+    }
+
+    #[test]
+    fn cose_rsa_ps256() {
+        sign_verify_cose_rsa(KeyType::RSA(WhichRSA::PS256));
+    }
+
+    #[test]
+    fn cose_rsa_ps384() {
+        sign_verify_cose_rsa(KeyType::RSA(WhichRSA::PS384));
+    }
+
+    #[test]
+    fn cose_rsa_ps512() {
+        sign_verify_cose_rsa(KeyType::RSA(WhichRSA::PS512));
+    }
+
+    #[test]
+    fn cose_rsa_with_der_imported_key() {
+        let original_key = EvpKey::new(KeyType::RSA(WhichRSA::PS256)).unwrap();
+
+        let priv_der = original_key.to_der_private().unwrap();
+        let signing_key = EvpKey::from_der_private(&priv_der).unwrap();
+
+        let pub_der = original_key.to_der_public().unwrap();
+        let verification_key = EvpKey::from_der_public(&pub_der).unwrap();
+
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"RSA with DER-imported key";
+
+        let envelope =
+            cose_sign1(&signing_key, phdr, uhdr, payload, false).unwrap();
+        assert!(cose_verify1(&verification_key, &envelope, None).unwrap());
+    }
+
+    #[test]
+    fn cose_rsa_detached_payload() {
+        let key = EvpKey::new(KeyType::RSA(WhichRSA::PS384)).unwrap();
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"RSA detached";
+
+        let envelope = cose_sign1(&key, phdr, uhdr, payload, true).unwrap();
+        assert!(cose_verify1(&key, &envelope, Some(payload)).unwrap());
+        assert!(cose_verify1(&key, &envelope, None).is_err());
+    }
+
+    #[test]
+    fn cose_verify1_decoded_rsa() {
+        let key = EvpKey::new(KeyType::RSA(WhichRSA::PS256)).unwrap();
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"RSA decoded verify";
+
+        let envelope = cose_sign1(&key, phdr, uhdr, payload, false).unwrap();
+
+        let (phdr_raw, cose_payload, cose_sig) =
+            parse_cose_sign1(&envelope).unwrap();
+        let sig = match cose_sig {
+            CborValue::ByteString(b) => b,
+            _ => panic!("sig not bstr"),
+        };
+        let embedded_payload = match cose_payload {
+            CborValue::ByteString(b) => b,
+            _ => panic!("payload not bstr"),
+        };
+
+        let alg = cose_alg(&key).unwrap();
+        assert!(
+            cose_verify1_decoded(&key, alg, &phdr_raw, &embedded_payload, &sig)
+                .unwrap()
+        );
+    }
+
+    /// Sign with a PS256 key (2048-bit RSA) but use SHA-384 (PS384
+    /// algorithm). Verify must succeed because the header's algorithm
+    /// drives the digest, not the key's WhichRSA variant.
+    #[test]
+    fn cose_rsa_ps256_key_with_sha384() {
+        use crate::ossl_wrappers::rsa_pss_md_for_cose_alg;
+
+        let key = EvpKey::new(KeyType::RSA(WhichRSA::PS256)).unwrap();
+        let payload = b"PS256 key, SHA-384 digest";
+
+        // Build phdr with alg = -38 (PS384) already set.
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let mut phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        if let CborValue::Map(ref mut entries) = phdr {
+            entries.insert(
+                0,
+                (CborValue::Int(COSE_HEADER_ALG), CborValue::Int(-38)),
+            );
+        }
+        let phdr_ser = phdr.to_bytes().unwrap();
+
+        // Build TBS and sign with SHA-384.
+        let tbs = sig_structure(&phdr_ser, payload).unwrap();
+        let md = rsa_pss_md_for_cose_alg(-38).unwrap();
+        let sig = crate::sign::sign_with_md(&key, &tbs, md).unwrap();
+
+        // Assemble the COSE_Sign1 envelope.
+        let envelope = CborValue::Tagged {
+            tag: COSE_SIGN1_TAG,
+            payload: Box::new(CborValue::Array(vec![
+                CborValue::ByteString(phdr_ser),
+                CborValue::Map(vec![]),
+                CborValue::ByteString(payload.to_vec()),
+                CborValue::ByteString(sig),
+            ])),
+        }
+        .to_bytes()
+        .unwrap();
+
+        // Verify — header says PS384 so SHA-384 is used.
+        assert!(cose_verify1(&key, &envelope, None).unwrap());
     }
 
     #[cfg(feature = "pqc")]

@@ -4,9 +4,26 @@ use openssl_sys as ossl;
 use std::ptr;
 
 pub fn sign(key: &EvpKey, msg: &[u8]) -> Result<Vec<u8>, String> {
-    unsafe {
-        let ctx = EvpMdContext::<SignOp>::new(key)?;
+    let ctx = EvpMdContext::<SignOp>::new(key)?;
+    sign_with_ctx(&ctx, msg)
+}
 
+// Only used in tests to sign with an explicit digest that differs from the key's default.
+#[cfg(test)]
+pub fn sign_with_md(
+    key: &EvpKey,
+    msg: &[u8],
+    md: *const ossl::EVP_MD,
+) -> Result<Vec<u8>, String> {
+    let ctx = EvpMdContext::<SignOp>::new_with_md(key, md)?;
+    sign_with_ctx(&ctx, msg)
+}
+
+fn sign_with_ctx(
+    ctx: &EvpMdContext<SignOp>,
+    msg: &[u8],
+) -> Result<Vec<u8>, String> {
+    unsafe {
         let mut sig_size: usize = 0;
         let res = ossl::EVP_DigestSign(
             ctx.ctx,

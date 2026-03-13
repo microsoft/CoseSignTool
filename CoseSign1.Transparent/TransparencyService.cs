@@ -34,6 +34,16 @@ public abstract class TransparencyService
     protected Action<string>? LogError { get; }
 
     /// <summary>
+    /// Gets the URI of the transparency service endpoint that this instance communicates with.
+    /// </summary>
+    /// <remarks>
+    /// This property identifies which service instance is being used, enabling callers to
+    /// distinguish between multiple transparency services (e.g., production vs. staging).
+    /// Returns <c>null</c> if no endpoint was configured.
+    /// </remarks>
+    public virtual Uri? ServiceEndpoint { get; }
+
+    /// <summary>
     /// Creates a new transparent COSE Sign1 message by embedding additional metadata or headers into the provided message.
     /// </summary>
     public virtual async Task<CoseSign1Message> MakeTransparentAsync(CoseSign1Message message, CancellationToken cancellationToken = default)

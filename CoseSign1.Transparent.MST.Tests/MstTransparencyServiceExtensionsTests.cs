@@ -5,7 +5,6 @@ using System;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
 using CoseSign1.Transparent.MST;
-using CoseSign1.Transparent.MST.Extensions;
 using Moq;
 using NUnit.Framework;
 

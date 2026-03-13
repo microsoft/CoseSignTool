@@ -214,6 +214,32 @@ pub fn cose_verify1(
     crate::verify::verify(key, &sig, &tbs)
 }
 
+/// Verify a COSE_Sign1 from pre-parsed components, skipping all CBOR
+/// parsing. The caller supplies the serialized protected header, the
+/// payload, the fixed-size signature, and the COSE algorithm integer
+/// (e.g. -7 for ES256) which is checked against `key`.
+pub fn cose_verify1_decoded(
+    key: &EvpKey,
+    alg: i64,
+    phdr: &[u8],
+    payload: &[u8],
+    sig: &[u8],
+) -> Result<bool, String> {
+    let expected_alg = cose_alg(key)?;
+    if alg != expected_alg {
+        return Err("Algorithm mismatch between supplied alg and key".into());
+    }
+
+    let sig = match &key.typ {
+        KeyType::EC(_) => ecdsa_fixed_to_der(sig, key.ec_field_size()?)?,
+        #[cfg(feature = "pqc")]
+        KeyType::MLDSA(_) => sig.to_vec(),
+    };
+
+    let tbs = sig_structure(phdr, payload)?;
+    crate::verify::verify(key, &sig, &tbs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,6 +359,56 @@ mod tests {
 
         // Verify without supplying the payload must fail.
         assert!(cose_verify1(&key, &envelope, None).is_err());
+    }
+
+    fn sign_and_verify_raw(key_type: KeyType) {
+        let key = EvpKey::new(key_type).unwrap();
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"verify1_raw test";
+
+        let envelope = cose_sign1(&key, phdr, uhdr, payload, false).unwrap();
+
+        // Parse the envelope to extract raw components.
+        let (phdr_raw, cose_payload, cose_sig) =
+            parse_cose_sign1(&envelope).unwrap();
+        let sig = match cose_sig {
+            CborValue::ByteString(b) => b,
+            _ => panic!("sig not bstr"),
+        };
+        let embedded_payload = match cose_payload {
+            CborValue::ByteString(b) => b,
+            _ => panic!("payload not bstr"),
+        };
+
+        let alg = cose_alg(&key).unwrap();
+        assert!(
+            cose_verify1_decoded(&key, alg, &phdr_raw, &embedded_payload, &sig)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn cose_verify1_raw_p256() {
+        sign_and_verify_raw(KeyType::EC(WhichEC::P256));
+    }
+
+    #[test]
+    fn cose_verify1_raw_p384() {
+        sign_and_verify_raw(KeyType::EC(WhichEC::P384));
+    }
+
+    #[test]
+    fn cose_verify1_raw_p521() {
+        sign_and_verify_raw(KeyType::EC(WhichEC::P521));
+    }
+
+    #[test]
+    fn cose_verify1_raw_wrong_alg() {
+        let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+        // Pass a wrong algorithm id.
+        assert!(cose_verify1_decoded(&key, -35, b"", b"", b"").is_err());
     }
 
     #[test]

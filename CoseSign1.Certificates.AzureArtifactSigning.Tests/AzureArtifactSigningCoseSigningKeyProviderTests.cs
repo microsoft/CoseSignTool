@@ -35,7 +35,7 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
         // Act & Assert
         Assert.That(
             () => new AzureArtifactSigningCoseSigningKeyProvider(null),
-            Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("signContext"));
+            Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("ISignContext"));
     }
 
     /// <summary>

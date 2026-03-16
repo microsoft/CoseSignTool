@@ -332,17 +332,17 @@ public class SignCommand : CoseCommand
 
             // Create a cancellation token with timeout (default 30 seconds from MaxWaitTime)
             using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
-            
+
             // Generate the COSE signature asynchronously with cancellation support.
             ReadOnlyMemory<byte> signedBytes = CoseHandler.SignAsync(
-                payloadStream, 
-                signingKeyProvider, 
-                EmbedPayload, 
-                SignatureFile, 
-                ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE, 
+                payloadStream,
+                signingKeyProvider,
+                EmbedPayload,
+                SignatureFile,
+                ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
                 headerExtender,
                 timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
-            
+
             // Write the signature to stream or file.
             if (PipeOutput)
             {
@@ -354,7 +354,7 @@ public class SignCommand : CoseCommand
                 File.WriteAllBytes(SignatureFile!.FullName, signedBytes.ToArray());
             }
 
-            return ExitCode.Success;           
+            return ExitCode.Success;
         }
         catch (ArgumentException ex)
         {
@@ -384,13 +384,13 @@ public class SignCommand : CoseCommand
         PfxCertificate = GetOptionString(provider, nameof(PfxCertificate));
         PemCertificate = GetOptionString(provider, nameof(PemCertificate));
         PemKey = GetOptionString(provider, nameof(PemKey));
-        
+
         // Password handling: direct from command line (for PFX backward compat)
         // or via environment variable / interactive prompt (preferred for PEM)
         Password = GetOptionString(provider, nameof(Password));
         PasswordEnvVar = GetOptionString(provider, nameof(PasswordEnvVar));
         PasswordPrompt = GetOptionBool(provider, nameof(PasswordPrompt));
-        
+
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
@@ -408,7 +408,7 @@ public class SignCommand : CoseCommand
             // IntUnProtectedHeaders
             GetOptionHeadersFromCommandLine(provider, "IntUnProtectedHeaders", false, HeaderValueConverter<int>, IntHeaders);
         }
-        
+
         if (StringHeaders == null)
         {
             StringHeaders = new();
@@ -424,7 +424,7 @@ public class SignCommand : CoseCommand
         CwtIssuer = GetOptionString(provider, nameof(CwtIssuer));
         CwtSubject = GetOptionString(provider, nameof(CwtSubject));
         CwtAudience = GetOptionString(provider, nameof(CwtAudience));
-        
+
         // Custom CWT claims (can be specified multiple times)
         if (provider.TryGet(nameof(CwtClaims), out string? cwtClaimsValue) && !string.IsNullOrWhiteSpace(cwtClaimsValue))
         {
@@ -437,7 +437,7 @@ public class SignCommand : CoseCommand
                 index++;
             }
         }
-        
+
         // Enable SCITT compliance by default
         bool scittComplianceSet = provider.TryGet(nameof(EnableScittCompliance), out string? scittValue);
         EnableScittCompliance = !scittComplianceSet || (bool.TryParse(scittValue, out bool scittResult) && scittResult);
@@ -462,29 +462,29 @@ public class SignCommand : CoseCommand
             Console.Error.WriteLine("Error: --pw/--Password is only supported for PFX files. For encrypted PEM private keys, use --pwenv/--PasswordEnvVar or --pwprompt/--PasswordPrompt.");
             return null;
         }
-        
+
         // For PEM files, check environment variable
         string envVarName = PasswordEnvVar ?? DefaultPasswordEnvVar;
-        
+
         // Try to get password from environment variable
         string? envPassword = Environment.GetEnvironmentVariable(envVarName);
         if (!string.IsNullOrEmpty(envPassword))
         {
             return envPassword;
         }
-        
+
         // If PasswordEnvVar was explicitly set but the variable is empty/missing, that's an error
         if (PasswordEnvVar != null)
         {
             Console.Error.WriteLine($"Warning: Environment variable '{PasswordEnvVar}' is not set or empty.");
         }
-        
+
         // If interactive prompt is requested, prompt for password
         if (PasswordPrompt)
         {
             return PromptForPassword();
         }
-        
+
         // No password provided
         return null;
     }
@@ -503,12 +503,12 @@ public class SignCommand : CoseCommand
         }
 
         Console.Error.Write("Enter password: ");
-        
+
         StringBuilder password = new StringBuilder();
         while (true)
         {
             ConsoleKeyInfo key = Console.ReadKey(intercept: true);
-            
+
             if (key.Key == ConsoleKey.Enter)
             {
                 Console.Error.WriteLine();
@@ -528,7 +528,7 @@ public class SignCommand : CoseCommand
                 Console.Error.Write("*");
             }
         }
-        
+
         return password.Length > 0 ? password.ToString() : null;
     }
 
@@ -706,7 +706,7 @@ public class SignCommand : CoseCommand
     {
         X509Certificate2 cert;
         List<X509Certificate2>? additionalRoots = null;
-        
+
         if (PemCertificate is not null)
         {
             // Load from PEM files (common on Linux/Unix systems)
@@ -716,24 +716,24 @@ public class SignCommand : CoseCommand
         {
             // Load the PFX certificate. This will throw a CryptographicException if the password is wrong or missing.
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
-            
+
             // Load the PFX as a certificate store to extract all certificates
             X509Certificate2Collection pfxCertificates = [];
             pfxCertificates.Import(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
 
             // Build the certificate chain in leaf-first order
             List<X509Certificate2> chainedCertificates = BuildCertificateChain(pfxCertificates, Thumbprint);
-            
+
             if (chainedCertificates.Count == 0)
             {
-                throw new CoseSign1CertificateException(string.IsNullOrEmpty(Thumbprint) 
+                throw new CoseSign1CertificateException(string.IsNullOrEmpty(Thumbprint)
                     ? "No valid certificate chain found in PFX file"
                     : $"No certificate with private key and thumbprint '{Thumbprint}' found in PFX file");
             }
-            
+
             // The first certificate in the chain is the signing certificate (leaf)
             cert = chainedCertificates[0];
-            
+
             // The remaining certificates are the chain (intermediate and root)
             additionalRoots = chainedCertificates.Skip(1).ToList();
         }
@@ -757,13 +757,13 @@ public class SignCommand : CoseCommand
     private (X509Certificate2 certificate, List<X509Certificate2>? additionalRoots) LoadCertFromPem()
     {
         ThrowIfMissing(PemCertificate!, "Could not find the PEM certificate file");
-        
+
         // Read the PEM certificate file
         string certPem = File.ReadAllText(PemCertificate!);
-        
+
         // Parse all certificates from the PEM file (may contain a chain)
         List<X509Certificate2> certificates = ParsePemCertificates(certPem);
-        
+
         if (certificates.Count == 0)
         {
             throw new CryptographicException($"No valid certificates found in PEM file: {PemCertificate}");
@@ -771,7 +771,7 @@ public class SignCommand : CoseCommand
 
         // The first certificate is typically the leaf/signing certificate
         X509Certificate2 leafCert = certificates[0];
-        
+
         // If a separate key file is provided, load and combine with the certificate
         if (PemKey is not null)
         {
@@ -784,17 +784,17 @@ public class SignCommand : CoseCommand
             // Try to find the private key in the same PEM file as the certificate
             leafCert = LoadCertificateWithPrivateKey(leafCert, certPem);
         }
-        
+
         if (!leafCert.HasPrivateKey)
         {
             throw new CryptographicException(
                 "The certificate does not have a private key. " +
                 "Specify the private key file using --key or include it in the PEM certificate file.");
         }
-        
+
         // Additional certificates in the PEM file are treated as the certificate chain
-        List<X509Certificate2>? additionalRoots = certificates.Count > 1 
-            ? certificates.Skip(1).ToList() 
+        List<X509Certificate2>? additionalRoots = certificates.Count > 1
+            ? certificates.Skip(1).ToList()
             : null;
 
         return (leafCert, additionalRoots);
@@ -808,11 +808,11 @@ public class SignCommand : CoseCommand
     private static List<X509Certificate2> ParsePemCertificates(string pem)
     {
         List<X509Certificate2> certificates = [];
-        
+
         // Match all certificate blocks in the PEM
         const string certHeader = "-----BEGIN CERTIFICATE-----";
         const string certFooter = "-----END CERTIFICATE-----";
-        
+
         int startIndex = 0;
         while ((startIndex = pem.IndexOf(certHeader, startIndex, StringComparison.Ordinal)) >= 0)
         {
@@ -821,10 +821,10 @@ public class SignCommand : CoseCommand
             {
                 break;
             }
-            
+
             endIndex += certFooter.Length;
             string certBlock = pem.Substring(startIndex, endIndex - startIndex);
-            
+
             try
             {
                 X509Certificate2 cert = X509Certificate2.CreateFromPem(certBlock);
@@ -834,10 +834,10 @@ public class SignCommand : CoseCommand
             {
                 // Skip invalid certificate blocks
             }
-            
+
             startIndex = endIndex;
         }
-        
+
         return certificates;
     }
 
@@ -976,13 +976,13 @@ public class SignCommand : CoseCommand
         // Create and return the provider
         // Note: We could pass a logger here if we had one available
         ICoseSigningKeyProvider provider = plugin.CreateProvider(configuration, logger: null);
-        
+
         // If the provider is a certificate-based provider, set the EnableScittCompliance flag
         if (provider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
         {
             certProvider.EnableScittCompliance = EnableScittCompliance;
         }
-        
+
         return provider;
     }
 
@@ -1010,7 +1010,7 @@ public class SignCommand : CoseCommand
     {
         List<X509Certificate2> certList = certificates.Cast<X509Certificate2>().ToList();
         List<X509Certificate2> result = new List<X509Certificate2>();
-        
+
         // If a specific thumbprint is provided, start with that certificate
         X509Certificate2? leafCert = null;
         if (!string.IsNullOrEmpty(targetThumbprint))
@@ -1035,7 +1035,7 @@ public class SignCommand : CoseCommand
                 .Where(c => !IsIssuerOfAnyCertificate(c, certList))
                 .FirstOrDefault();
         }
-        
+
         if (leafCert == null)
         {
             return result; // No suitable leaf certificate found
@@ -1044,19 +1044,19 @@ public class SignCommand : CoseCommand
         // Build the chain starting from the leaf
         X509Certificate2? current = leafCert;
         HashSet<string> usedCerts = new HashSet<string>();
-        
+
         while (current != null && !usedCerts.Contains(current.Thumbprint))
         {
             result.Add(current);
             usedCerts.Add(current.Thumbprint);
-            
+
             // Find the issuer of the current certificate
             current = FindIssuer(current, certList.Where(c => !usedCerts.Contains(c.Thumbprint)));
         }
-        
+
         return result;
     }
-    
+
     /// <summary>
     /// Checks if a certificate is the issuer of any certificate in the collection.
     /// </summary>
@@ -1067,7 +1067,7 @@ public class SignCommand : CoseCommand
     {
         return certificates.Any(cert => cert != potentialIssuer && IsIssuer(potentialIssuer, cert));
     }
-    
+
     /// <summary>
     /// Finds the issuer certificate for a given certificate.
     /// </summary>
@@ -1078,7 +1078,7 @@ public class SignCommand : CoseCommand
     {
         return candidates.FirstOrDefault(issuer => IsIssuer(issuer, certificate));
     }
-    
+
     /// <summary>
     /// Checks if one certificate is the issuer of another certificate by verifying the cryptographic signature.
     /// </summary>
@@ -1092,13 +1092,13 @@ public class SignCommand : CoseCommand
         {
             return false;
         }
-        
+
         // Handle self-signed certificates
         if (issuer.Equals(subject))
         {
             return issuer.SubjectName.Name.Equals(issuer.IssuerName.Name, StringComparison.OrdinalIgnoreCase);
         }
-        
+
         // Verify the cryptographic signature
         try
         {
@@ -1107,7 +1107,7 @@ public class SignCommand : CoseCommand
             chain.ChainPolicy.ExtraStore.Add(issuer);
             chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-            
+
             // Build the chain and check if the issuer is in the chain
             if (chain.Build(subject))
             {
@@ -1120,7 +1120,7 @@ public class SignCommand : CoseCommand
                     }
                 }
             }
-            
+
             // Fallback: manual signature verification for edge cases
             return VerifySignatureManually(issuer, subject);
         }
@@ -1137,7 +1137,7 @@ public class SignCommand : CoseCommand
             }
         }
     }
-    
+
     /// <summary>
     /// Manually verifies if an issuer certificate signed a subject certificate.
     /// </summary>
@@ -1169,14 +1169,14 @@ public class SignCommand : CoseCommand
             {
                 return false;
             }
-            
+
             // Parse the certificate to extract TBS and signature
             (byte[] tbsData, byte[] signatureData) = ExtractTbsAndSignature(rawData);
             if (tbsData == null || signatureData == null)
             {
                 return false;
             }
-            
+
             // Verify the signature based on the algorithm
             return signatureAlgorithm.Value switch
             {
@@ -1192,7 +1192,7 @@ public class SignCommand : CoseCommand
             return false;
         }
     }
-    
+
     /// <summary>
     /// Extracts the To-Be-Signed (TBS) data and signature from a certificate's raw data.
     /// </summary>
@@ -1209,13 +1209,13 @@ public class SignCommand : CoseCommand
             // Read the TBS certificate (first element) by marking position and reading
             System.Formats.Asn1.AsnReader tbsReader = certSequence.ReadSequence();
             byte[] tbsData = tbsReader.ReadEncodedValue().ToArray();
-            
+
             // Skip the signature algorithm identifier (second element)
             certSequence.ReadSequence();
 
             // Read the signature value (third element)
             byte[] signatureData = certSequence.ReadBitString(out _);
-            
+
             return (tbsData, signatureData);
         }
         catch
@@ -1223,7 +1223,7 @@ public class SignCommand : CoseCommand
             return (null, null);
         }
     }
-    
+
     /// <summary>
     /// Verifies an RSA-SHA256 signature.
     /// </summary>
@@ -1236,7 +1236,7 @@ public class SignCommand : CoseCommand
             {
                 return false;
             }
-            
+
             return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
         catch
@@ -1244,7 +1244,7 @@ public class SignCommand : CoseCommand
             return false;
         }
     }
-    
+
     /// <summary>
     /// Verifies an RSA-SHA1 signature.
     /// </summary>
@@ -1257,7 +1257,7 @@ public class SignCommand : CoseCommand
             {
                 return false;
             }
-            
+
             return rsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1); // CodeQL [SM02196] This is to support certificates or other singers which use SHA1 with RSA for validation only.
         }
         catch
@@ -1265,7 +1265,7 @@ public class SignCommand : CoseCommand
             return false;
         }
     }
-    
+
     /// <summary>
     /// Verifies an ECDSA-SHA256 signature.
     /// </summary>
@@ -1278,7 +1278,7 @@ public class SignCommand : CoseCommand
             {
                 return false;
             }
-            
+
             return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA256);
         }
         catch
@@ -1286,7 +1286,7 @@ public class SignCommand : CoseCommand
             return false;
         }
     }
-    
+
     /// <summary>
     /// Verifies an ECDSA-SHA1 signature.
     /// </summary>
@@ -1299,7 +1299,7 @@ public class SignCommand : CoseCommand
             {
                 return false;
             }
-            
+
             return ecdsa.VerifyData(tbsData, signature, HashAlgorithmName.SHA1); // CodeQL [SM02196] This is to support certificates or other singers which use SHA1 with ECDSA for validation only.
         }
         catch
@@ -1329,7 +1329,7 @@ Options:
 
     A signing certificate from one of the following sources:
 
-        --CertProvider, -cp: Use a certificate provider plugin such as Azure Trusted Signing or custom HSM providers.
+        --CertProvider, -cp: Use a certificate provider plugin such as Azure Artifact Signing or custom HSM providers.
             See Certificate Providers section below for available providers.
 
     --OR--
@@ -1363,7 +1363,7 @@ Options:
 
         For PEM files with encrypted private keys, use secure password options instead:
 
-        --PasswordEnvVar, --pwenv: The name of an environment variable containing the password. 
+        --PasswordEnvVar, --pwenv: The name of an environment variable containing the password.
             If not specified, defaults to checking COSESIGNTOOL_PASSWORD environment variable.
             Example: --pwenv MY_CERT_PASSWORD
 
@@ -1398,7 +1398,7 @@ Advanced Options:
         --CwtClaims, --cwt: Optional. Custom CWT claims as label:value pairs. Can be specified multiple times.
             Labels can be integers (e.g., ""100:custom-value"") or RFC 8392 claim names (iss, sub, aud, exp, nbf, iat, cti).
             Timestamp claims (exp, nbf, iat) accept date/time strings (e.g., ""2024-12-31T23:59:59Z"") or Unix timestamps.
-            Examples: 
+            Examples:
                 --cwt ""cti:abc123"" --cwt ""100:custom-value"" --cwt ""exp:2024-12-31T23:59:59Z""
                 --cwt ""iss:custom-issuer"" --cwt ""sub:custom-subject"" --cwt ""nbf:1735689600""
 
@@ -1416,7 +1416,7 @@ Advanced Options:
 
         --StringProtectedHeaders, -sph: A collection of name-value pairs with a string label and value.
             Sample input: --sph message-type=cose,customer-name=contoso
-    
+
         --IntUnProtectedHeaders, -iuh: A collection of name-value pairs with a string label and an int32 value.
             Sample input: --iuh created-at=12345678,customer-count=10
 
@@ -1450,12 +1450,12 @@ Advanced Options:
         sb.AppendLine("======================");
         sb.AppendLine();
         sb.AppendLine("Available certificate provider plugins:");
-        
+
         foreach (var kvp in CoseSignTool.CertificateProviderManager.Providers)
         {
             sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
         }
-        
+
         sb.AppendLine();
         sb.AppendLine("To use a certificate provider, specify the --cert-provider option:");
         sb.AppendLine("  --cert-provider <provider-name>");
@@ -1464,7 +1464,7 @@ Advanced Options:
         sb.AppendLine("For detailed information about a specific provider, use:");
         sb.AppendLine("  CoseSignTool help <provider-name>");
         sb.AppendLine();
-        
+
         return sb.ToString();
     }
 }

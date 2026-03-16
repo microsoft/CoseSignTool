@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
+using Azure.Developer.ArtifactSigning.CryptoProvider.Interfaces;
 using CoseSign1.Certificates.Local;
 using System.Linq;
 
@@ -18,17 +19,17 @@ using System.Linq;
 /// </summary>
 public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigningKeyProvider
 {
-    private readonly AzSignContext SignContext;
+    private readonly ISignContext SignContext;
     private static readonly AzureArtifactSigningDidX509Generator AzureDidGenerator = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureArtifactSigningCoseSigningKeyProvider"/> class.
     /// </summary>
-    /// <param name="signContext">The <see cref="AzSignContext"/> used to interact with Azure Artifact Signing.</param>
+    /// <param name="signContext">The <see cref="ISignContext"/> used to interact with Azure Artifact Signing.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="signContext"/> is null.</exception>
-    public AzureArtifactSigningCoseSigningKeyProvider(AzSignContext signContext)
+    public AzureArtifactSigningCoseSigningKeyProvider(ISignContext signContext)
     {
-        SignContext = signContext ?? throw new ArgumentNullException(nameof(signContext));
+        SignContext = signContext ?? throw new ArgumentNullException(nameof(ISignContext));
     }
 
     /// <summary>
